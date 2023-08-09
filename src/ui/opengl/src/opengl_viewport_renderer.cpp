@@ -458,19 +458,19 @@ void OpenGLViewportRenderer::pre_init() {
     } else {
         std::cerr << "Glew init ok.\n";
     }
-#endif
- std::cerr << "Glew init ok.\n";
     // we need to know if we have alpha in our draw buffer, which might require
     // different strategies for drawing overlays
     int alpha_bits = 8;
-    //glGetIntegerv(GL_ALPHA_BITS, &alpha_bits);
+    glGetIntegerv(GL_ALPHA_BITS, &alpha_bits);
     has_alpha_ = alpha_bits != 0;
- std::cerr << "Glew init ok.\n";
+
+#else
+    has_alpha_ = 1;
+#endif
     // N.B. - if sharing of GL contexts is set-up for multiple GL viewport
     // then we only create one set of textures and use them in both viewports
     // thus meaning we only upload image data once.
     static std::vector<GLTexturePtr> shared_textures;
- std::cerr << "Glew init ok.\n";
     if (shared_textures.size()) {
         textures_ = shared_textures;
     } else {
@@ -479,20 +479,13 @@ void OpenGLViewportRenderer::pre_init() {
             shared_textures = textures_;
         }
     }
- std::cerr << "Glew init ok1.\n";
     glGenBuffers(1, &vbo_);
- std::cerr << "Glew init ok2.\n";
     glGenVertexArrays(1, &vao_);
- std::cerr << "Glew init ok3.\n";
 
-        std::cerr << "GL_SHADING_LANGUAGE_VERSION: " << glGetString(GL_SHADING_LANGUAGE_VERSION) << std::endl;
+    std::cerr << "GL_SHADING_LANGUAGE_VERSION: " << glGetString(GL_SHADING_LANGUAGE_VERSION) << std::endl;
 
     // add shader for no image render
     no_image_shader_program_ =
        	GLShaderProgramPtr(static_cast<GLShaderProgram *>(new NoImageShaderProgram()));
-
-    std::cout<< "pre init completed..";
-
-        std::cout << "GL_SHADING_LANGUAGE_VERSION: " << glGetString(GL_SHADING_LANGUAGE_VERSION) << std::endl;
 
 }

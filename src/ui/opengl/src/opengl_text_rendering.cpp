@@ -6,7 +6,6 @@
 #ifdef __APPLE__
     #include "TargetConditionals.h"
     #ifdef TARGET_OS_MAC
-        //#include <GL/glew.h>
         #include <OpenGL/gl3.h>
     #endif
 #else

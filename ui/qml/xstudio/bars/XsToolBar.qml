@@ -8,8 +8,6 @@ import xStudio 1.0
 
 import xstudio.qml.module 1.0
 
-import BasicViewportMask 1.0
-
 Rectangle {
     id: myBar
     property int barHeight: 21

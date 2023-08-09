@@ -8,7 +8,6 @@ QT5_WRAP_CPP(offscreen_viewport_MOC_SRC
 )
 
 # find_package(OpenGL REQUIRED)
-# find_package(GLEW REQUIRED)
 
 set(SOURCES
 	viewport_widget.cpp
