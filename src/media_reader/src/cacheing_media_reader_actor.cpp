@@ -268,6 +268,6 @@ void CachingMediaReaderActor::receive_image_buffer_request(
                 }
             },
             [=](const caf::error &err) mutable {
-                spdlog::warn("Failed cache retrieve buffer {} {}", mptr.key_, to_string(err));
+                spdlog::warn("Failed cache retrieve buffer {} {}", to_string(mptr.key_), to_string(err));
             });
 }

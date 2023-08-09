@@ -11,6 +11,13 @@
 #include "xstudio/ui/opengl/gl_debug_utils.h"
 #endif
 
+#ifdef __APPLE__
+	//#define GLFW_INCLUDE_GLCOREARB
+	//#include <GL/glew.h>
+	//#include <GLFW/glfw3.h>
+	#include <OpenGL/gl3.h>
+#endif
+
 using namespace xstudio;
 using namespace xstudio::ui::opengl;
 using namespace xstudio::ui::viewport;
@@ -19,6 +26,25 @@ using namespace xstudio::colour_pipeline;
 using namespace xstudio::utility;
 
 namespace {
+// Vertex shader source code
+static const char* vertexShaderSource = R"(
+#version 330 core
+layout (location = 0) in vec3 aPos;
+void main()
+{
+    gl_Position = vec4(aPos.x, aPos.y, aPos.z, 1.0);
+}
+)";
+
+// Fragment shader source code
+static const char* fragmentShaderSource = R"(
+#version 330 core
+out vec4 FragColor;
+void main()
+{
+	FragColor = vec4(1.0, 0.5, 0.2, 1.0);
+}
+)";
 
 static const std::string default_vertex_shader = R"(
 #version 330 core
@@ -29,6 +55,7 @@ vec2 calc_pixel_coordinate(vec2 viewport_coordinate)
 )";
 
 static const std::string colour_transforms = R"(
+#version 330 core
 vec4 colour_transforms(vec4 rgba_in)
 {
     return rgba_in;
@@ -95,7 +122,7 @@ void OpenGLViewportRenderer::upload_image_and_colour_data(
     if (!textures_.size())
         return;
 
-    textures_[0]->set_texture_type("SSBO"); // texture_mode_preference_->value());
+    //textures_[0]->set_texture_type("SSBO"); // texture_mode_preference_->value());
 
     if (onscreen_frame_) {
         if (onscreen_frame_->error_state() == BufferErrorState::HAS_ERROR) {
@@ -110,7 +137,7 @@ void OpenGLViewportRenderer::upload_image_and_colour_data(
     }
 
     if (colour_pipe_data && colour_pipe_data->cache_id_ != latest_colour_pipe_data_cacheid_) {
-        colour_pipe_textures_.upload_luts(colour_pipe_data->luts_, is_main_viewer_);
+        //colour_pipe_textures_.upload_luts(colour_pipe_data->luts_, is_main_viewer_);
         latest_colour_pipe_data_cacheid_ = colour_pipe_data->cache_id_;
     }
 
@@ -187,11 +214,11 @@ void OpenGLViewportRenderer::clear_viewport_area(const Imath::M44f &to_scene_mat
     const int xs_vp_right = (int)round(topright.x * vp[2] / topright.w);
     const int xs_vp_top   = vp[3] - (int)round(botomleft.y * vp[3] / botomleft.w);
 
-    // glEnable(GL_SCISSOR_TEST);
-    // glScissor(xs_vp_left, xs_vp_bottom, xs_vp_right-xs_vp_left, xs_vp_top-xs_vp_bottom);
-    glClearColor(0.0f, 0.0f, 0.0f, 0.0f);
+    glEnable(GL_SCISSOR_TEST);
+    glScissor(xs_vp_left, xs_vp_bottom, xs_vp_right-xs_vp_left, xs_vp_top-xs_vp_bottom);
+    glClearColor(0.0f, 1.0f, 0.0f, 0.0f);
     glClear(GL_COLOR_BUFFER_BIT);
-    // glDisable(GL_SCISSOR_TEST);
+    glDisable(GL_SCISSOR_TEST);
 }
 
 void OpenGLViewportRenderer::render(
@@ -203,7 +230,7 @@ void OpenGLViewportRenderer::render(
 
     // const std::lock_guard<std::mutex> mutex_locker(m);
     init();
-
+    
     const auto transform_viewport_to_image_space =
         projection_matrix * fit_mode_matrix.inverse();
 
@@ -230,8 +257,10 @@ void OpenGLViewportRenderer::render(
     const float viewport_du_dx =
         image_zoom_in_viewport / (viewport_width * viewport_x_size_in_window);
 
-    /* we do our own clear of the viewport */
+    /* we do our own clear of the viewport */ 
     clear_viewport_area(to_scene_matrix);
+
+
 
     // if we've received a new image and/or colour pipeline data (LUTs etc) since the last
     // draw, upload the data
@@ -257,34 +286,22 @@ void OpenGLViewportRenderer::render(
 
     glDisable(GL_DEPTH_TEST);
 
-    glEnable(GL_BLEND);
+    /*glEnable(GL_BLEND);
     glBlendFunc(has_alpha_ ? GL_ONE_MINUS_DST_ALPHA : GL_ONE, GL_ONE);
-    glBlendEquation(GL_FUNC_ADD);
+    glBlendEquation(GL_FUNC_ADD);*/
 
     if (active_shader_program_) {
-
+	
         active_shader_program_->use();
-
-        bool use_bilinear_filtering = false;
-        if (onscreen_frame_) {
-            // here we can work out the ratio of image pixels to screen pixels
-            const float image_pix_to_screen_pix =
-                onscreen_frame_->image_size_in_pixels().x * viewport_du_dx;
-            if (render_hints_ == AlwaysBilinear)
-                use_bilinear_filtering =
-                    image_pix_to_screen_pix < 0.99999f || image_pix_to_screen_pix > 1.00001f;
-            else if (render_hints_ == BilinearWhenZoomedOut)
-                use_bilinear_filtering =
-                    image_pix_to_screen_pix < 0.99999f; // filter_mode_ == BilinearWhenZoomedOut
-        }
 
         // coordinate system set-up
         utility::JsonStore shader_params;
         shader_params["to_coord_system"]        = transform_viewport_to_image_space;
         shader_params["to_canvas"]              = to_scene_matrix;
-        shader_params["use_bilinear_filtering"] = use_bilinear_filtering;
-        shader_params["pixel_aspect"] =
-            onscreen_frame_ ? onscreen_frame_->pixel_aspect() : 1.0f;
+        if (onscreen_frame_) {
+            shader_params["pixel_aspect"]              = onscreen_frame_->pixel_aspect();
+        }
+
         active_shader_program_->set_shader_parameters(shader_params);
 
         // The quad that we draw simply fills the viewport area. Note the projection and model
@@ -296,21 +313,34 @@ void OpenGLViewportRenderer::render(
         // the shape of the QQuickWindow that contains the whole application UI - to transform
         // to the coordinates of the Viewport QQuickItem, we multiply by the "to_canvas" matrix,
         // which is done in the main shader.
-        static std::array<float, 16> vertices = {
+        static std::array<float, 24> vertices = {
             -1.0,
             1.0,
             0.0f,
             1.0f,
+
             1.0,
             1.0,
             0.0f,
             1.0f,
+
             1.0,
             -1.0,
             0.0f,
             1.0f,
+
             -1.0,
             -1.0,
+            0.0f,
+            1.0f,
+
+            1.0,
+            -1.0,
+            0.0f,
+            1.0f,
+
+            -1.0,
+            1.0,
             0.0f,
             1.0f};
 
@@ -325,10 +355,9 @@ void OpenGLViewportRenderer::render(
     }
 
     glBindVertexArray(vao_);
-    glDrawArrays(GL_QUADS, 0, 4);
+    glDrawArrays(GL_TRIANGLES, 0, 6);
     glUseProgram(0);
-
-
+    
     /* N.B. To draw into the image coordinate system (where image with identity transform has
     spans of -1.0 to 1.0 and is centred on 0,0): Imath::M44f r =
     to_coord_sys.inverse()*to_canvas; glMatrixMode(GL_MODELVIEW_MATRIX); glMultMatrixf(r[0]);
@@ -344,7 +373,7 @@ void OpenGLViewportRenderer::render(
 
     /* Call the render functions of overlay plugins - note that if the overlay prefers to draw
     before the image but we have no alpha channel, we still call its render function here */
-    if (onscreen_frame_) {
+    if (false) {//onscreen_frame_) {
         for (auto orf : viewport_overlay_renderers_) {
             if (orf.second->preferred_render_pass() ==
                     plugin::ViewportOverlayRenderer::AfterImage ||
@@ -390,7 +419,7 @@ bool OpenGLViewportRenderer::activate_shader(
     const auto &cp_sid = colour_pipeline_shader->shader_id_;
 
     // do we already have this shader compiled?
-    if (programs_.find(ib_sid) == programs_.end() ||
+   if (programs_.find(ib_sid) == programs_.end() ||
         programs_[ib_sid].find(cp_sid) == programs_[ib_sid].end()) {
 
         // try to compile the shader for this combo of image buffer unpack
@@ -420,19 +449,28 @@ bool OpenGLViewportRenderer::activate_shader(
 
 void OpenGLViewportRenderer::pre_init() {
 
-    glewInit();
-
+        // Initialize GLEW
+#ifndef __APPLE__
+    if (glewInit() != GLEW_OK)
+    {
+    	std::cerr << "Failed to initialize GLEW" << std::endl;
+     	return;
+    } else {
+        std::cerr << "Glew init ok.\n";
+    }
+#endif
+ std::cerr << "Glew init ok.\n";
     // we need to know if we have alpha in our draw buffer, which might require
     // different strategies for drawing overlays
-    int alpha_bits;
-    glGetIntegerv(GL_ALPHA_BITS, &alpha_bits);
+    int alpha_bits = 8;
+    //glGetIntegerv(GL_ALPHA_BITS, &alpha_bits);
     has_alpha_ = alpha_bits != 0;
-
+ std::cerr << "Glew init ok.\n";
     // N.B. - if sharing of GL contexts is set-up for multiple GL viewport
     // then we only create one set of textures and use them in both viewports
     // thus meaning we only upload image data once.
     static std::vector<GLTexturePtr> shared_textures;
-
+ std::cerr << "Glew init ok.\n";
     if (shared_textures.size()) {
         textures_ = shared_textures;
     } else {
@@ -441,11 +479,20 @@ void OpenGLViewportRenderer::pre_init() {
             shared_textures = textures_;
         }
     }
-
+ std::cerr << "Glew init ok1.\n";
     glGenBuffers(1, &vbo_);
+ std::cerr << "Glew init ok2.\n";
     glGenVertexArrays(1, &vao_);
+ std::cerr << "Glew init ok3.\n";
+
+        std::cerr << "GL_SHADING_LANGUAGE_VERSION: " << glGetString(GL_SHADING_LANGUAGE_VERSION) << std::endl;
 
     // add shader for no image render
     no_image_shader_program_ =
-        GLShaderProgramPtr(static_cast<GLShaderProgram *>(new NoImageShaderProgram()));
+       	GLShaderProgramPtr(static_cast<GLShaderProgram *>(new NoImageShaderProgram()));
+
+    std::cout<< "pre init completed..";
+
+        std::cout << "GL_SHADING_LANGUAGE_VERSION: " << glGetString(GL_SHADING_LANGUAGE_VERSION) << std::endl;
+
 }

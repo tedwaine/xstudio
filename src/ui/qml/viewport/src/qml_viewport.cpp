@@ -112,7 +112,7 @@ QMLViewport::QMLViewport(QQuickItem *parent)
     setAcceptHoverEvents(true);
 
 
-    if (!offscreen_viewport_) {
+    if (0) {//!offscreen_viewport_) {
         try {
             offscreen_viewport_ =
                 new xstudio::ui::qt::OffscreenViewport(static_cast<QObject *>(this));

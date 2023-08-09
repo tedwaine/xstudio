@@ -102,8 +102,13 @@ AVDictionary **init_find_stream_opts(AVFormatContext *avfc, AVDictionary *codec_
     AVDictionary **result = nullptr;
 
     if (avfc->nb_streams) {
-        result = (AVDictionary **)av_mallocz_array(avfc->nb_streams, sizeof(*result));
 
+        #ifdef __APPLE__
+            result = (AVDictionary **) av_calloc(avfc->nb_streams, sizeof(*result));
+        #elif
+            result = (AVDictionary **)av_mallocz_array(avfc->nb_streams, sizeof(*result));
+        #endif
+        
         if (result) {
             for (unsigned int i = 0; i < avfc->nb_streams; i++)
                 result[i] = filter_codec_opts(
@@ -574,7 +579,7 @@ std::shared_ptr<MediaFile> FFProbe::open_file(const std::string &path) {
             if (not codec) {
                 spdlog::debug(
                     "Unsupported codec with id {} for input stream {}",
-                    stream->codecpar->codec_id,
+                    int(stream->codecpar->codec_id),
                     stream->index);
                 continue;
             }

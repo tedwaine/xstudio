@@ -9,13 +9,19 @@ namespace {
 
 static const std::string basic_vertex_shd = R"(
 #version 330 core
-vec2 calc_pixel_coordinate(vec2 viewport_coordinate)
+layout (location = 0) in vec4 aPos;
+uniform mat4 to_coord_system;
+uniform mat4 to_canvas;
+
+void main(void)
 {
-    return viewport_coordinate*4.0;
+    vec4 rpos = aPos*to_coord_system;
+    gl_Position = aPos*to_canvas;
 }
 )";
 
 static const std::string colour_transforms = R"(
+#version 330 core
 vec4 colour_transforms(vec4 rgba_in)
 {
     return rgba_in;
@@ -23,13 +29,11 @@ vec4 colour_transforms(vec4 rgba_in)
 )";
 
 static const std::string basic_frag_shd = R"(
-#version 330 core
+#version 150
 vec4 fetch_rgba_pixel(ivec2 image_coord)
 {
-    // black!
-    return vec4(0.0,0.0,0.0,1.0);
-}
-)";
+    return vec4(0.1f,0.4f,0.8f,1.0f);
+})";
 
 } // namespace
 

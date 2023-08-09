@@ -10,7 +10,7 @@ using namespace xstudio;
 
 namespace {
 const char *thick_line_vertex_shader = R"(
-    #version 430 core
+    #version 410 core
     #extension GL_ARB_shader_storage_buffer_object : require
     out vec2 viewportCoordinate;
     uniform float z_adjust;
@@ -145,7 +145,7 @@ const char *thick_line_frag_shader = R"(
     )";
 
 const char *text_handles_vertex_shader = R"(
-    #version 430 core
+    #version 410 core
     uniform mat4 to_coord_system;
     uniform mat4 to_canvas;
     uniform vec2 box_position;

@@ -5,7 +5,7 @@
 
 struct ShaderTemplates {
     static constexpr auto OCIO = R"(
-#version 420 core
+#version 410 core
 
 uniform int show_chan;
 

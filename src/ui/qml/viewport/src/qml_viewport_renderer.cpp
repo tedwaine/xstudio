@@ -47,7 +47,6 @@ void QMLViewportRenderer::paint() {
         init_done = true;
         init_renderer();
     }
-
     glPushClientAttrib(GL_CLIENT_ALL_ATTRIB_BITS);
     viewport_renderer_->render();
     glPopClientAttrib();
@@ -103,7 +102,7 @@ void QMLViewportRenderer::init_system() {
     self()->set_default_handler(caf::drop);
 
     utility::JsonStore jsn;
-    jsn["base"] = utility::JsonStore();
+    //jsn["base"] = utility::JsonStore();
 
     /* Here we create the all important Viewport class that actually draws images to the screen
      */

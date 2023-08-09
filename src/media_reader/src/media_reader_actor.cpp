@@ -395,7 +395,7 @@ GlobalMediaReaderActor::GlobalMediaReaderActor(
                     },
                     [=](const caf::error &err) mutable {
                         spdlog::warn(
-                            "Failed cache retrieve buffer {} {}", mptr.key_, to_string(err));
+                            "Failed cache retrieve buffer {} {}", to_string(mptr.key_), to_string(err));
                     });
         },
 
@@ -745,7 +745,7 @@ void GlobalMediaReaderActor::do_precache() {
             },
             [=](const caf::error &err) {
                 mark_playhead_received_precache_result(playhead_uuid);
-                spdlog::warn("Failed preserve buffer {} {}", mptr->key_, to_string(err));
+                spdlog::warn("Failed preserve buffer {} {}", to_string(mptr->key_), to_string(err));
             });
 }
 
@@ -838,7 +838,7 @@ void GlobalMediaReaderActor::read_and_cache_image(
                 spdlog::warn(
                     "read_and_cache_image Failed to load buffer {} {} {}",
                     to_string(mptr->uri_),
-                    mptr->key_,
+                    to_string(mptr->key_),
                     to_string(err));
                 // we might still have more work to do so keep going
                 continue_precacheing();
@@ -894,7 +894,7 @@ void GlobalMediaReaderActor::read_and_cache_audio(
                 spdlog::warn(
                     "read_and_cache_audio Failed to load buffer {} {} {}",
                     to_string(mptr->uri_),
-                    mptr->key_,
+                    to_string(mptr->key_),
                     to_string(err));
                 // we might still have more work to do so keep going
                 continue_precacheing();

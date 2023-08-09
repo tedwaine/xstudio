@@ -22,6 +22,7 @@ PluginManagerActor::PluginManagerActor(caf::actor_config &cfg) : caf::event_base
 
     system().registry().put(plugin_manager_registry, this);
 
+    std::cerr << "\n\n\n\nOINK" << xstudio_root("/plugin") << "\n\n\n\n";
 
     manager_.emplace_front_path(xstudio_root("/plugin"));
     manager_.load_plugins();
@@ -377,7 +378,7 @@ void PluginManagerActor::update_from_preferences(const utility::JsonStore &json)
             try {
                 auto uuid = utility::Uuid(el.key());
                 if (manager_.factories().count(uuid))
-                    manager_.factories().at(uuid).set_enabled(el.value().get<bool>());
+                    manager_.factories().at(uuid).set_enabled(true);
             } catch (...) {
             }
         }

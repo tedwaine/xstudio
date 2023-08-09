@@ -6,8 +6,16 @@
 #include "xstudio/utility/blind_data.hpp"
 #include "xstudio/ui/viewport/viewport_helpers.hpp"
 
-#include <GL/glew.h>
-#include <GL/gl.h>
+#ifdef __APPLE__
+    #include "TargetConditionals.h"
+    #ifdef TARGET_OS_MAC
+        //#include <GL/glew.h>
+        #include <OpenGL/gl3.h>
+    #endif
+#else
+    #include <GL/glew.h>
+    #include <GL/gl.h>
+#endif
 
 using namespace xstudio;
 using namespace xstudio::ui::viewport;
@@ -81,14 +89,14 @@ void ViewportHUDRenderer::draw_gl_box(
         get_transformed_point(bottom_right_pt, image_dims, transform_matrix, pixel_aspect);
 
     glUseProgram(0);
-    glLineWidth(3.0);
+    /*glLineWidth(3.0);
     glColor4f(color.x, color.y, color.z, 1.0f);
     glBegin(GL_LINE_LOOP);
     glVertex2f(top_left.x, top_left.y);
     glVertex2f(bottom_right.x, top_left.y);
     glVertex2f(bottom_right.x, bottom_right.y);
     glVertex2f(top_left.x, bottom_right.y);
-    glEnd();
+    glEnd();*/
 }
 
 Imath::V2f ViewportHUDRenderer::get_transformed_point(

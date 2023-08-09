@@ -299,6 +299,19 @@ namespace utility {
         return merged;
     }
 
-
 } // namespace utility
 } // namespace xstudio
+
+// allow nlohmann serialisation of Imath types
+/*namespace nlohmann {
+
+template <> struct adl_serializer<xstudio::utility::JsonStore> {
+    static void to_json(json &j, const xstudio::utility::JsonStore &c) {
+        j = c.ref();
+    }
+
+    static void from_json(const json &j, xstudio::utility::JsonStore &c) {
+        c = j;
+    }
+};
+}*/

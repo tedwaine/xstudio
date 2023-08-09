@@ -13,7 +13,6 @@
 #include "xstudio/tag/tag.hpp"
 #include "xstudio/plugin_manager/plugin_manager.hpp"
 #include "xstudio/bookmark/bookmark.hpp"
-#include "xstudio/shotgun_client/shotgun_client.hpp"
 #include "xstudio/ui/mouse.hpp"
 #include "xstudio/utility/serialise_headers.hpp"
 

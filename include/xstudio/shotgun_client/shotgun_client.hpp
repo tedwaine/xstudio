@@ -21,7 +21,9 @@
 #include "xstudio/utility/chrono.hpp"
 #include "xstudio/utility/json_store.hpp"
 
+
 namespace xstudio {
+
 namespace shotgun_client {
 
     struct JSONNull {
@@ -182,13 +184,13 @@ namespace shotgun_client {
                             jsn.at("value")[0].get<int32_t>(), *period);
                 } break;
                 case 2:
-                    value_ = jsn.at("value").get<T>();
+                    //value_ = jsn.at("value").get<T>();
                     break;
                 case 3:
-                    value_ = jsn.at("value").get<std::vector<T>>();
+                    //value_ = jsn.at("value").get<std::vector<T>>();
                     break;
                 case 4:
-                    value_ = jsn.at("value").get<std::pair<T, T>>();
+                    //value_ = jsn.at("value").get<std::pair<T, T>>();
                     break;
                 }
             }

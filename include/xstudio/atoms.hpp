@@ -2,6 +2,11 @@
 
 #pragma once
 
+
+// #ifdef __APPLE__
+//     typedef __int128 int128_t;
+// #endif
+
 #include <caf/allowed_unsafe_message_type.hpp>
 #include <caf/type_id.hpp>
 #include <memory>
@@ -10,9 +15,18 @@
 #include <cpp-httplib/httplib.h>
 #include <stduuid/uuid.h>
 #include <semver.hpp>
+//#include <inttypes.h>
 
 #include "flicks.hpp"
 #include "xstudio/enums.hpp"
+
+#ifdef __APPLE__
+// MacTypes.h defines a 'nil' macro that conflicts with
+// 'nil' appearing in caf API
+#undef nil
+#endif
+
+
 #include "xstudio/caf_error.hpp"
 #include "xstudio/utility/chrono.hpp"
 #include "xstudio/utility/uuid.hpp"

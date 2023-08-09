@@ -21,11 +21,17 @@ size_t PluginManager::load_plugins() {
     // scan for .so for each path.
     size_t loaded = 0;
     for (const auto &path : plugin_paths_) {
+
+
+
+
+        spdlog::info("PluginManager loading plugins from path {}", __PRETTY_FUNCTION__, path);
+
         try {
             // read dir content..
             for (const auto &entry : fs::directory_iterator(path)) {
                 if (not fs::is_regular_file(entry.status()) or
-                    not(entry.path().extension() == ".so"))
+                    not(entry.path().extension() == ".so" || entry.path().extension() == ".dylib"))
                     continue;
 
                 // only want .so
@@ -43,7 +49,7 @@ size_t PluginManager::load_plugins() {
                 plugin_factory_collection_ptr pfcp;
                 *(void **)(&pfcp) = dlsym(hndl, "plugin_factory_collection_ptr");
                 if (pfcp == nullptr) {
-                    spdlog::debug("{} {}", __PRETTY_FUNCTION__, dlerror());
+                    spdlog::info("{} {}", __PRETTY_FUNCTION__, dlerror());
                     dlclose(hndl);
                     continue;
                 }
@@ -56,7 +62,7 @@ size_t PluginManager::load_plugins() {
                             // new plugin..
                             loaded++;
                             factories_.emplace(i->uuid(), PluginEntry(i, entry.path()));
-                            spdlog::debug(
+                            spdlog::info(
                                 "Add plugin {} {} {}",
                                 to_string(i->uuid()),
                                 i->name(),

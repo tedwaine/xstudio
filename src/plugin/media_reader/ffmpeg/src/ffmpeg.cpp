@@ -29,7 +29,7 @@ namespace {
 static Uuid s_plugin_uuid("87557f93-55f8-4650-8905-4834f1f4b78d");
 static Uuid ffmpeg_shader_uuid{"1c9259fc-ffee-11ea-87fe-989096adb429"};
 static std::string the_shader = {R"(
-#version 430 core
+#version 410 core
 uniform ivec2 image_dims;
 uniform ivec2 texture_dims;
 uniform int rgb;
@@ -187,6 +187,7 @@ vec4 fetch_rgba_pixel_from_gbr_planar(ivec2 image_coord)
 
 vec4 fetch_rgba_pixel(ivec2 image_coord)
 {
+    return fetch_rgba_pixel_from_yuv(image_coord);
 	if (rgb == 0) {
 		return fetch_rgba_pixel_from_yuv(image_coord);
 	} else if (rgb == 9) {

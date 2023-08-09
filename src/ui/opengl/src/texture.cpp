@@ -31,21 +31,26 @@ class DebugTimer {
 } // namespace
 
 void GLBlindTex::release() {
-    mutex_.unlock();
+    //mutex_.unlock();
     when_last_used_ = utility::clock::now();
 }
 
 GLDoubleBufferedTexture::GLDoubleBufferedTexture() {
-
+#ifdef __APPLE__
+    textures_.emplace_back(new GLBlindRGBA8bitTex());
+#else
     if (using_ssbo_) {
         textures_.emplace_back(new GLSsboTex());
     } else {
         textures_.emplace_back(new GLBlindRGBA8bitTex());
     }
+#endif
     current_ = textures_.front();
 }
 
 void GLDoubleBufferedTexture::set_texture_type(const std::string tex_type_name) {
+
+#ifndef __APPLE__
 
     bool was_ssbo = using_ssbo_;
     if (tex_type_name == "SSBO") {
@@ -63,6 +68,7 @@ void GLDoubleBufferedTexture::set_texture_type(const std::string tex_type_name) 
         }
         current_ = textures_.front();
     }
+#endif    
 }
 
 void GLDoubleBufferedTexture::bind(int &tex_index, Imath::V2i &dims, bool &using_ssbo) {
@@ -88,11 +94,15 @@ void GLDoubleBufferedTexture::upload_next(
     // give us some slack so we don't immediately need to re-use a texture that
     // was just used for drawing
     while (textures_.size() < (images_due_onscreen_soon.size() + 2)) {
+#ifdef __APPLE__
+        textures_.emplace_back(new GLBlindRGBA8bitTex());
+#else
         if (using_ssbo_) {
             textures_.emplace_back(new GLSsboTex());
         } else {
             textures_.emplace_back(new GLBlindRGBA8bitTex());
         }
+#endif
     }
 
     auto available_textures = textures_;
@@ -172,7 +182,7 @@ void GLBlindRGBA8bitTex::resize(const size_t required_size_bytes) {
         }
 
         glDeleteTextures(1, &tex_id_);
-        glDeleteBuffers(1, &pixel_buf_object_id_);
+        //glDeleteBuffers(1, &pixel_buf_object_id_);
     }
 
     // Create the texture for RGB float display and the Y component of YUV display
@@ -210,14 +220,23 @@ void GLBlindRGBA8bitTex::resize(const size_t required_size_bytes) {
         GL_UNSIGNED_BYTE,
         nullptr);
 
-    glGenBuffers(1, &pixel_buf_object_id_);
-    glBindBuffer(GL_PIXEL_UNPACK_BUFFER, pixel_buf_object_id_);
+    //glGenBuffers(1, &pixel_buf_object_id_);
+    //glBindBuffer(GL_PIXEL_UNPACK_BUFFER, pixel_buf_object_id_);
+
+#ifdef __APPLE__
+    /*glBufferData(
+        GL_PIXEL_UNPACK_BUFFER,
+        tex_width_ * tex_height_ * bytes_per_pixel_,
+        nullptr,
+        GL_DYNAMIC_DRAW);*/
+#else
     glNamedBufferData(
         pixel_buf_object_id_,
         tex_width_ * tex_height_ * bytes_per_pixel_,
         nullptr,
         GL_DYNAMIC_DRAW);
-    glBindBuffer(GL_PIXEL_UNPACK_BUFFER, 0);
+#endif
+    //glBindBuffer(GL_PIXEL_UNPACK_BUFFER, 0);
 }
 
 void GLBlindRGBA8bitTex::start_pixel_upload() {
@@ -225,8 +244,9 @@ void GLBlindRGBA8bitTex::start_pixel_upload() {
     if (new_source_frame_) {
         if (upload_thread_.joinable())
             upload_thread_.join();
-        mutex_.lock();
-        upload_thread_ = std::thread(&GLBlindRGBA8bitTex::pixel_upload, this);
+        //mutex_.lock();
+        //upload_thread_ = std::thread(&GLBlindRGBA8bitTex::pixel_upload, this);
+        pixel_upload();
     }
 }
 
@@ -234,11 +254,11 @@ void GLBlindRGBA8bitTex::start_pixel_upload() {
 void GLBlindRGBA8bitTex::pixel_upload() {
 
     if (!new_source_frame_->size()) {
-        mutex_.unlock();
+        //mutex_.unlock();
         return;
     }
 
-    const int n_threads = 8; // TODO: proper thread count here
+    /*const int n_threads = 8; // TODO: proper thread count here
     std::vector<std::thread> memcpy_threads;
     size_t sz   = std::min(tex_size_bytes(), new_source_frame_->size());
     size_t step = ((sz / n_threads) / 4096) * 4096;
@@ -257,42 +277,24 @@ void GLBlindRGBA8bitTex::pixel_upload() {
     for (auto &t : memcpy_threads) {
         if (t.joinable())
             t.join();
-    }
-    mutex_.unlock();
+    }*/
+    //mutex_.unlock();
 }
 
 void GLBlindRGBA8bitTex::map_buffer_for_upload(media_reader::ImageBufPtr &frame) {
 
     if (!frame)
         return;
-    // acquire a write lock,
-    mutex_.lock();
 
     new_source_frame_ = frame;
     media_key_        = frame->media_key();
-
-    glEnable(GL_TEXTURE_RECTANGLE);
-
-    if (new_source_frame_->size()) {
-        resize(new_source_frame_->size());
-
-        glNamedBufferData(
-            pixel_buf_object_id_,
-            tex_width_ * tex_height_ * bytes_per_pixel_,
-            nullptr,
-            GL_DYNAMIC_DRAW);
-
-        buffer_io_ptr_ = (uint8_t *)glMapNamedBuffer(pixel_buf_object_id_, GL_WRITE_ONLY);
-    }
-
-    mutex_.unlock();
 
     // N.B. threads are probably still running here!
 }
 
 void GLBlindRGBA8bitTex::bind(int tex_index, Imath::V2i &dims) {
 
-    mutex_.lock();
+    //mutex_.lock();
 
     dims.x = tex_width_;
     dims.y = tex_height_;
@@ -300,22 +302,22 @@ void GLBlindRGBA8bitTex::bind(int tex_index, Imath::V2i &dims) {
     if (new_source_frame_) {
 
         if (new_source_frame_->size()) {
-            if (upload_thread_.joinable()) {
-                upload_thread_.join();
-            }
 
-            // now the texture data is transferred (on the GPU).
-            // Assumption is that this is fast.
+            resize(new_source_frame_->size());
 
-            glUnmapNamedBuffer(pixel_buf_object_id_);
-
-            glBindBuffer(GL_PIXEL_UNPACK_BUFFER, pixel_buf_object_id_);
             glBindTexture(GL_TEXTURE_RECTANGLE, tex_id_);
+
+            int fomp;
+            glGetIntegerv(GL_UNPACK_ROW_LENGTH, &fomp);
+
+            //std::cerr << "fomp " << fomp << "\n";
+
             glPixelStorei(GL_UNPACK_ROW_LENGTH, tex_width_);
             glPixelStorei(GL_UNPACK_IMAGE_HEIGHT, new_source_frame_->size() / (tex_width_ * 4));
             glPixelStorei(GL_UNPACK_SKIP_PIXELS, 0);
             glPixelStorei(GL_UNPACK_SKIP_ROWS, 0);
             glPixelStorei(GL_UNPACK_ALIGNMENT, 8);
+            //glBindTexture(GL_TEXTURE_RECTANGLE, 0);
 
             glTexSubImage2D(
                 GL_TEXTURE_RECTANGLE,
@@ -326,10 +328,12 @@ void GLBlindRGBA8bitTex::bind(int tex_index, Imath::V2i &dims) {
                 new_source_frame_->size() / (tex_width_ * 4),
                 GL_RGBA_INTEGER,
                 GL_UNSIGNED_BYTE,
-                nullptr);
+                new_source_frame_->buffer());
 
-            glBindTexture(GL_TEXTURE_RECTANGLE, 0);
-            glBindBuffer(GL_PIXEL_UNPACK_BUFFER, 0);
+            glBindTexture(GL_TEXTURE_RECTANGLE, 0);        
+
+            glPixelStorei(GL_UNPACK_ROW_LENGTH, 0);
+
         }
 
         current_source_frame_ = new_source_frame_;
@@ -569,6 +573,8 @@ void GLColourLutTexture::bind(int tex_index) {
     glBindTexture(target(), tex_id_);
 }
 
+#ifndef __APPLE__
+
 GLSsboTex::GLSsboTex() { glGenBuffers(1, &ssbo_id_); }
 
 GLSsboTex::~GLSsboTex() {
@@ -647,6 +653,7 @@ void GLSsboTex::start_pixel_upload() {
             upload_thread_.join();
         mutex_.lock();
         upload_thread_ = std::thread(&GLSsboTex::pixel_upload, this);
+        upload_thread_.join();
     }
 }
 
@@ -680,3 +687,5 @@ void GLSsboTex::pixel_upload() {
 
     mutex_.unlock();
 }
+
+#endif

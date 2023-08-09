@@ -170,7 +170,7 @@ exr_channels_decision(Imf::InputFile &in, std::vector<std::string> &exr_channels
 
 static Uuid openexr_shader_uuid{"1c9259fc-46a5-11ea-87fe-989096adb429"};
 static std::string shader{R"(
-#version 430 core
+#version 410 core
 uniform int width;
 uniform int height;
 uniform int num_channels;

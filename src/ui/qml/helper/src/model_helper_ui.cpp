@@ -251,7 +251,8 @@ nlohmann::json xstudio::ui::qml::mapFromValue(const QVariant &value) {
             break;
 
         default:
-            spdlog::warn("Unsupported datatype {} {}", v.type(), v.typeName());
+        
+            spdlog::warn("Unsupported datatype {} {}", int(v.type()), v.typeName());
             break;
         }
 

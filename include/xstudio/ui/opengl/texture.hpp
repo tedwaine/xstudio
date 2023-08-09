@@ -2,8 +2,16 @@
 #pragma once
 
 // clang-format off
-#include <GL/glew.h>
-#include <GL/gl.h>
+#ifdef __APPLE__
+    #include "TargetConditionals.h"
+    #ifdef TARGET_OS_MAC
+        //#include <GL/glew.h>
+        #include <OpenGL/gl3.h>
+    #endif
+#else
+    #include <GL/glew.h>
+    #include <GL/gl.h>
+#endif
 // clang-format on
 
 #include "xstudio/media_reader/media_reader.hpp"
@@ -48,6 +56,8 @@ namespace ui {
             utility::time_point when_last_used_;
         };
 
+#ifndef __APPLE__
+
         class GLSsboTex : public GLBlindTex {
 
           public:
@@ -70,6 +80,7 @@ namespace ui {
 
             size_t tex_data_size_ = {0};
         };
+#endif
 
         class GLBlindRGBA8bitTex : public GLBlindTex {
 
