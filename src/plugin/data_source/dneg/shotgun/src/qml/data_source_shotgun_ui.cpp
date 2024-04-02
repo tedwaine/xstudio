@@ -1,6 +1,8 @@
 // SPDX-License-Identifier: Apache-2.0
 #include "data_source_shotgun_ui.hpp"
 #include "shotgun_model_ui.hpp"
+#include "shotgun_preset_model_ui.hpp"
+#include "async_request.hpp"
 
 #include "../data_source_shotgun.hpp"
 #include "../data_source_shotgun_definitions.hpp"
@@ -56,11 +58,28 @@ const auto PresetPreferenceLookup = std::map<std::string, std::string>(
      {"shot_tree", "presets/shot_tree"}});
 
 
+QObject *ShotgunDataSourceUI::presetsModel() { return dynamic_cast<QObject *>(presets_model_); }
+
+void ShotgunDataSourceUI::JSONTreeSendEventFunc(const utility::JsonStore &event) {
+    if (backend_) {
+        anon_send(
+            backend_, utility::event_atom_v, json_store::sync_atom_v, my_event_id_, event);
+    }
+}
+
+
 ShotgunDataSourceUI::ShotgunDataSourceUI(QObject *parent) : QMLActor(parent) {
 
     term_models_   = new QQmlPropertyMap(this);
     result_models_ = new QQmlPropertyMap(this);
     preset_models_ = new QQmlPropertyMap(this);
+    presets_model_ = new ShotgunPresetModel(this);
+    presets_model_->bindEventFunc(
+        [this](auto &&PH1) { JSONTreeSendEventFunc(std::forward<decltype(PH1)>(PH1)); });
+
+    // presets_sync_model_ = new JSONTreeModelSync(this);
+
+    query_value_cache_ = std::make_shared<JsonStore>(R"({})"_json);
 
     term_models_->insert(
         "primaryLocationModel", QVariant::fromValue(new ShotgunListModel(this)));
@@ -163,7 +182,8 @@ ShotgunDataSourceUI::ShotgunDataSourceUI(QObject *parent) : QMLActor(parent) {
         auto filter = new ShotgunFilterModel(this);
 
         model->setSequenceMap(&sequences_map_);
-        model->setQueryValueCache(&query_value_cache_);
+        model->setQueryValueCache(query_value_cache_);
+        model->setDataSource(this);
         filter->setSourceModel(model);
 
         result_models_->insert("shotResultsModel", QVariant::fromValue(filter));
@@ -175,7 +195,8 @@ ShotgunDataSourceUI::ShotgunDataSourceUI(QObject *parent) : QMLActor(parent) {
         auto filter = new ShotgunFilterModel(this);
 
         model->setSequenceMap(&sequences_map_);
-        model->setQueryValueCache(&query_value_cache_);
+        model->setDataSource(this);
+        model->setQueryValueCache(query_value_cache_);
         filter->setSourceModel(model);
 
         result_models_->insert("shotTreeResultsModel", QVariant::fromValue(filter));
@@ -186,7 +207,8 @@ ShotgunDataSourceUI::ShotgunDataSourceUI(QObject *parent) : QMLActor(parent) {
         auto model  = new PlaylistModel(this);
         auto filter = new ShotgunFilterModel(this);
 
-        model->setQueryValueCache(&query_value_cache_);
+        model->setQueryValueCache(query_value_cache_);
+        model->setDataSource(this);
         filter->setSourceModel(model);
 
         result_models_->insert("playlistResultsModel", QVariant::fromValue(filter));
@@ -200,7 +222,8 @@ ShotgunDataSourceUI::ShotgunDataSourceUI(QObject *parent) : QMLActor(parent) {
 
         auto filter = new ShotgunFilterModel(this);
 
-        model->setQueryValueCache(&query_value_cache_);
+        model->setQueryValueCache(query_value_cache_);
+        model->setDataSource(this);
         filter->setSourceModel(model);
 
         result_models_->insert("editResultsModel", QVariant::fromValue(filter));
@@ -211,7 +234,8 @@ ShotgunDataSourceUI::ShotgunDataSourceUI(QObject *parent) : QMLActor(parent) {
         auto model  = new ReferenceModel(this);
         auto filter = new ShotgunFilterModel(this);
 
-        model->setQueryValueCache(&query_value_cache_);
+        model->setQueryValueCache(query_value_cache_);
+        model->setDataSource(this);
         model->setSequenceMap(&sequences_map_);
         filter->setSourceModel(model);
 
@@ -223,7 +247,8 @@ ShotgunDataSourceUI::ShotgunDataSourceUI(QObject *parent) : QMLActor(parent) {
         auto model  = new NoteModel(this);
         auto filter = new ShotgunFilterModel(this);
 
-        model->setQueryValueCache(&query_value_cache_);
+        model->setQueryValueCache(query_value_cache_);
+        model->setDataSource(this);
         filter->setSourceModel(model);
 
         result_models_->insert("noteResultsModel", QVariant::fromValue(filter));
@@ -234,7 +259,8 @@ ShotgunDataSourceUI::ShotgunDataSourceUI(QObject *parent) : QMLActor(parent) {
         auto model  = new NoteModel(this);
         auto filter = new ShotgunFilterModel(this);
 
-        model->setQueryValueCache(&query_value_cache_);
+        model->setQueryValueCache(query_value_cache_);
+        model->setDataSource(this);
         filter->setSourceModel(model);
 
         result_models_->insert("noteTreeResultsModel", QVariant::fromValue(filter));
@@ -245,7 +271,8 @@ ShotgunDataSourceUI::ShotgunDataSourceUI(QObject *parent) : QMLActor(parent) {
         auto model  = new MediaActionModel(this);
         auto filter = new ShotgunFilterModel(this);
 
-        model->setQueryValueCache(&query_value_cache_);
+        model->setQueryValueCache(query_value_cache_);
+        model->setDataSource(this);
         filter->setSourceModel(model);
         model->setSequenceMap(&sequences_map_);
 
@@ -266,11 +293,14 @@ ShotgunDataSourceUI::ShotgunDataSourceUI(QObject *parent) : QMLActor(parent) {
         if (not preset_models_->contains(QStringFromStd(m))) {
             auto model = new ShotgunTreeModel(this);
             model->setSequenceMap(&sequences_map_);
+            model->setQueryValueCache(query_value_cache_);
             preset_models_->insert(QStringFromStd(m), QVariant::fromValue(model));
         }
 
         if (not preset_models_->contains(QStringFromStd(f))) {
             auto filter = new ShotgunTreeModel(this);
+            filter->setSequenceMap(&sequences_map_);
+            filter->setQueryValueCache(query_value_cache_);
             preset_models_->insert(QStringFromStd(f), QVariant::fromValue(filter));
         }
     }
@@ -712,82 +742,114 @@ void ShotgunDataSourceUI::init(caf::actor_system &system) {
     // delay this just in case we're to early..
     delayed_anon_send(as_actor(), std::chrono::seconds(2), shotgun_preferences_atom_v);
 
+    // request data for presets.
+
+
     set_message_handler([=](actor_companion *) -> message_handler {
         return {
             [=](shotgun_acquire_authentication_atom, const std::string &message) {
                 emit requestSecret(QStringFromStd(message));
             },
-            [=](shotgun_preferences_atom) { loadPresets(); },
+            [=](shotgun_preferences_atom) {
+                loadPresets();
+                // loadPresetModelFuture();
+            },
 
             [=](shotgun_preferences_atom, const std::string &preset) { flushPreset(preset); },
+            [=](utility::event_atom,
+                put_data_atom,
+                const std::string &path,
+                const JsonStore &data) { presets_model_->setModelPathData(path, data); },
+
+            [=](utility::event_atom,
+                json_store::sync_atom,
+                const Uuid &uuid,
+                const JsonStore &event) {
+                if (uuid == my_event_id_)
+                    presets_model_->receiveEvent(event);
+            },
 
             // catchall for dealing with results from shotgun
             [=](shotgun_info_atom, const JsonStore &request, const JsonStore &data) {
                 try {
                     if (request.at("type") == "project")
                         qvariant_cast<ShotgunListModel *>(term_models_->value("projectModel"))
-                            ->populate(data.at("data"));
-                    else if (request.at("type") == "user") {
+                            ->populate(data);
+                    else if (request.at("type") == "preset_model") {
+                        my_event_id_ = data.at("uuid");
+                        presets_model_->setModelData(data.at("data"));
+                        // spdlog::warn("setModelData {}", data.dump(2));
+                        // try to remove a bit..
+                        // auto parent = presets_model_->searchRecursive(
+                        //     QVariant::fromValue(
+                        //         QUuidFromUuid(Uuid("119bc765-02e8-4da8-a6d8-db335e0461ef"))),
+                        //     JSONTreeModel::Roles::idRole);
+                        // presets_model_->removeRows(0, 1, parent);
+                    } else if (request.at("type") == "user") {
                         qvariant_cast<ShotgunListModel *>(term_models_->value("userModel"))
-                            ->populate(data.at("data"));
-                        updateQueryValueCache("User", data.at("data"));
+                            ->populate(data);
+                        updateQueryValueCache("User", data);
                     } else if (request.at("type") == "department") {
                         qvariant_cast<ShotgunListModel *>(
                             term_models_->value("departmentModel"))
-                            ->populate(data.at("data"));
-                        updateQueryValueCache("Department", data.at("data"));
+                            ->populate(data);
+                        updateQueryValueCache("Department", data);
                     } else if (request.at("type") == "location")
                         qvariant_cast<ShotgunListModel *>(term_models_->value("locationModel"))
-                            ->populate(data.at("data"));
+                            ->populate(data);
                     else if (request.at("type") == "review_location")
                         qvariant_cast<ShotgunListModel *>(
                             term_models_->value("reviewLocationModel"))
-                            ->populate(data.at("data"));
+                            ->populate(data);
                     else if (request.at("type") == "reference_tag")
                         qvariant_cast<ShotgunListModel *>(
                             term_models_->value("referenceTagModel"))
                             ->populate(data.at("data"));
                     else if (request.at("type") == "shot_status") {
-                        updateQueryValueCache("Exclude Shot Status", data.at("data"));
-                        updateQueryValueCache("Shot Status", data.at("data"));
+                        updateQueryValueCache("Exclude Shot Status", data);
+                        updateQueryValueCache("Shot Status", data);
                         qvariant_cast<ShotgunListModel *>(
                             term_models_->value("shotStatusModel"))
-                            ->populate(data.at("data"));
+                            ->populate(data);
                     } else if (request.at("type") == "playlist_type")
                         qvariant_cast<ShotgunListModel *>(
                             term_models_->value("playlistTypeModel"))
-                            ->populate(data.at("data"));
-                    else if (request.at("type") == "custom_entity_24") {
-                        custom_entity_24_map_[request.at("id")]->populate(data.at("data"));
+                            ->populate(data);
+                    else if (request.at("type") == "unit") {
+                        custom_entity_24_map_[request.at("project_id")]->populate(data);
                         updateQueryValueCache(
-                            "Unit", data.at("data"), request.at("id").get<int>());
+                            "Unit", data, request.at("project_id").get<int>());
                     } else if (request.at("type") == "production_status") {
                         qvariant_cast<ShotgunListModel *>(
                             term_models_->value("productionStatusModel"))
-                            ->populate(data.at("data"));
-                        updateQueryValueCache("Production Status", data.at("data"));
+                            ->populate(data);
+                        updateQueryValueCache("Production Status", data);
                     } else if (request.at("type") == "note_type")
                         qvariant_cast<ShotgunListModel *>(term_models_->value("noteTypeModel"))
-                            ->populate(data.at("data"));
+                            ->populate(data);
                     else if (request.at("type") == "pipeline_status") {
                         qvariant_cast<ShotgunListModel *>(
                             term_models_->value("pipelineStatusModel"))
-                            ->populate(data.at("data"));
-                        updateQueryValueCache("Pipeline Status", data.at("data"));
+                            ->populate(data);
+                        updateQueryValueCache("Pipeline Status", data);
                     } else if (request.at("type") == "group")
-                        groups_map_[request.at("id")]->populate(data.at("data"));
+                        groups_map_[request.at("project_id")]->populate(data);
                     else if (request.at("type") == "sequence") {
-                        sequences_map_[request.at("id")]->populate(data.at("data"));
-                        sequences_tree_map_[request.at("id")]->setModelData(
-                            ShotgunSequenceModel::flatToTree(data.at("data")));
+                        updateQueryValueCache(
+                            "Sequence", data, request.at("project_id").get<int>());
+
+                        sequences_map_[request.at("project_id")]->populate(data);
+
+                        sequences_tree_map_[request.at("project_id")]->setModelData(
+                            ShotgunSequenceModel::flatToTree(data));
                     } else if (request.at("type") == "shot") {
-                        shots_map_[request.at("id")]->populate(data.at("data"));
+                        shots_map_[request.at("project_id")]->populate(data);
                         updateQueryValueCache(
-                            "Shot", data.at("data"), request.at("id").get<int>());
+                            "Shot", data, request.at("project_id").get<int>());
                     } else if (request.at("type") == "playlist") {
-                        playlists_map_[request.at("id")]->populate(data.at("data"));
+                        playlists_map_[request.at("project_id")]->populate(data);
                         updateQueryValueCache(
-                            "Playlist", data.at("data"), request.at("id").get<int>());
+                            "Playlist", data, request.at("project_id").get<int>());
                     }
                 } catch (const std::exception &err) {
                     spdlog::warn("{} {}", __PRETTY_FUNCTION__, err.what());
@@ -922,8 +984,31 @@ void ShotgunDataSourceUI::set_backend(caf::actor backend) {
     // we can use timeouts though..
     // but as we're accessing a remote service, we'll need to be careful..
 
-    anon_send(backend_, module::connect_to_ui_atom_v);
-    anon_send(backend_, shotgun_authentication_source_atom_v, as_actor());
+    scoped_actor sys{system()};
+
+    if (backend_events_) {
+        try {
+            request_receive<bool>(
+                *sys, backend_events_, broadcast::leave_broadcast_atom_v, as_actor());
+        } catch (const std::exception &) {
+        }
+        // self()->demonitor(backend_events_);
+        backend_events_ = caf::actor();
+    }
+
+    if (backend_) {
+        try {
+            backend_events_ =
+                request_receive<caf::actor>(*sys, backend_, get_event_group_atom_v);
+            request_receive<bool>(
+                *sys, backend_events_, broadcast::join_broadcast_atom_v, as_actor());
+        } catch (const std::exception &) {
+        }
+        anon_send(backend_, module::connect_to_ui_atom_v);
+        anon_send(backend_, shotgun_authentication_source_atom_v, as_actor());
+
+        // presets_sync_model_->attach(presets_model_, backend_, backend_events_);
+    }
 }
 
 void ShotgunDataSourceUI::setBackendId(const QString &qid) {
@@ -949,42 +1034,13 @@ void ShotgunDataSourceUI::populateCaches() {
     getDepartmentsFuture();
     getReferenceTagsFuture();
 
-    getSchemaFieldsFuture("playlist", "sg_location", "location");
-    getSchemaFieldsFuture("playlist", "sg_review_location_1", "review_location");
-    getSchemaFieldsFuture("playlist", "sg_type", "playlist_type");
-
-    getSchemaFieldsFuture("shot", "sg_status_list", "shot_status");
-
-    getSchemaFieldsFuture("note", "sg_note_type", "note_type");
-    getSchemaFieldsFuture("version", "sg_production_status", "production_status");
-    getSchemaFieldsFuture("version", "sg_status_list", "pipeline_status");
-}
-
-JsonStore ShotgunDataSourceUI::buildDataFromField(const JsonStore &data) {
-    auto result = R"({"data": []})"_json;
-
-    std::map<std::string, std::string> entries;
-
-    for (const auto &i : data["data"]["properties"]["valid_values"]["value"]) {
-        auto value = i.get<std::string>();
-        auto key   = value;
-        if (data["data"]["properties"].count("display_values") and
-            data["data"]["properties"]["display_values"]["value"].count(value)) {
-            key =
-                data["data"]["properties"]["display_values"]["value"][value].get<std::string>();
-        }
-
-        entries.insert(std::make_pair(key, value));
-    }
-
-    for (const auto &i : entries) {
-        auto field                  = R"({"id": null, "attributes": {"name": null}})"_json;
-        field["attributes"]["name"] = i.first;
-        field["id"]                 = i.second;
-        result["data"].push_back(field);
-    }
-
-    return JsonStore(result);
+    getSchemaFieldsFuture("location");
+    getSchemaFieldsFuture("review_location");
+    getSchemaFieldsFuture("playlist_type");
+    getSchemaFieldsFuture("shot_status");
+    getSchemaFieldsFuture("note_type");
+    getSchemaFieldsFuture("production_status");
+    getSchemaFieldsFuture("pipeline_status");
 }
 
 // QFuture<QString> ShotgunDataSourceUI::refreshPlaylistNotesFuture(const QUuid &playlist) {
@@ -1062,6 +1118,25 @@ void ShotgunDataSourceUI::updateModel(const QString &qname) {
 
     if (name == "referenceTagModel")
         getReferenceTagsFuture();
+}
+
+void ShotgunDataSourceUI::receivedDataSlot(
+    const QPersistentModelIndex &index, const int role, const QString &result) {
+    if (index.isValid()) {
+        // this might be bad..
+        auto model = const_cast<QAbstractItemModel *>(index.model());
+        model->setData(
+            index, mapFromValue(nlohmann::json::parse(StdFromQString(result))), role);
+    }
+}
+
+
+void ShotgunDataSourceUI::requestData(
+    const QPersistentModelIndex &index, const int role, const nlohmann::json &request) const {
+
+    auto tmp = new ShotBrowserResponse(index, role, request, backend_);
+
+    connect(tmp, &ShotBrowserResponse::received, this, &ShotgunDataSourceUI::receivedDataSlot);
 }
 
 

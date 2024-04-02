@@ -1011,7 +1011,7 @@ caf::message_handler SessionActor::message_handler() {
             return PlaylistTree(**found);
         },
 
-        [=](bookmark::render_annotations_atom, const std::string path) {
+        /*[=](bookmark::render_annotations_atom, const std::string path) {
             // This is for debugging but may be useful in the future. It will
             // render all the annotations in the session as a sequential set of
             // image files.
@@ -1063,7 +1063,7 @@ caf::message_handler SessionActor::message_handler() {
                     [=](caf::error err) mutable {
                         spdlog::warn("{} {}", __PRETTY_FUNCTION__, to_string(err));
                     });
-        },
+        },*/
 
         [=](playlist::get_media_atom) -> result<std::vector<UuidActor>> {
             if (playlists_.empty()) {
@@ -1085,6 +1085,36 @@ caf::message_handler SessionActor::message_handler() {
 
                     [=](error &err) mutable { rp.deliver(std::move(err)); });
 
+            return rp;
+        },
+
+        [=](media::get_media_source_atom, const Uuid &uuid) -> result<caf::actor> {
+            if (playlists_.empty()) {
+                return make_error(xstudio_error::error, "No Playlists");
+            }
+
+            auto rp = make_response_promise<caf::actor>();
+
+            fan_out_request<policy::select_all>(
+                playlists(), infinite, media::get_media_source_atom_v, uuid, true)
+                .then(
+                    [=](std::vector<caf::actor> results) mutable {
+                        caf::actor result;
+
+                        for (const auto &i : results) {
+                            if (i) {
+                                result = i;
+                                break;
+                            }
+                        }
+
+                        if (result)
+                            rp.deliver(result);
+                        else
+                            rp.deliver(make_error(xstudio_error::error, "Invalid uuid"));
+                    },
+
+                    [=](error &err) mutable { rp.deliver(std::move(err)); });
             return rp;
         },
 

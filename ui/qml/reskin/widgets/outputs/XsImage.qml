@@ -8,7 +8,8 @@ import xStudioReskin 1.0
 Image {
     id: widget
 
-    property color imgOverlayColor: palette.text
+    property bool isIcon: true //#TODO: to make XsIcon Widget
+    property color imgOverlayColor: isIcon? palette.text : "transparent"
     
     source: ""
     // width: parent.height-4
@@ -26,6 +27,7 @@ Image {
     
     smooth: true
     antialiasing: true
+    asynchronous: true
 
     layer {
         enabled: true

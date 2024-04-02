@@ -77,6 +77,7 @@ namespace ui {
             Q_PROPERTY(QString context READ context WRITE setContext NOTIFY contextChanged)
             Q_PROPERTY(
                 bool autoRepeat READ autoRepeat WRITE setAutoRepeat NOTIFY autoRepeatChanged)
+            Q_PROPERTY(QUuid uuid READ uuid NOTIFY uuidChanged)
 
           public:
             explicit HotkeyUI(QObject *parent = nullptr);
@@ -121,6 +122,7 @@ namespace ui {
             [[nodiscard]] const QString &errorMessage() const { return error_message_; }
             [[nodiscard]] const QString &context() const { return context_; }
             [[nodiscard]] bool autoRepeat() const { return autorepeat_; }
+            [[nodiscard]] QUuid uuid() const { return hotkey_uuid_; }
 
           public slots:
 
@@ -136,6 +138,7 @@ namespace ui {
             void contextChanged();
             void activated();
             void autoRepeatChanged();
+            void uuidChanged();
 
           private:
             QString sequence_;
@@ -146,7 +149,7 @@ namespace ui {
             QString context_ = QString("any");
             bool autorepeat_ = {false};
 
-            utility::Uuid hotkey_uuid_;
+            QUuid hotkey_uuid_;
         };
 
         class HotkeyReferenceUI : public QMLActor {

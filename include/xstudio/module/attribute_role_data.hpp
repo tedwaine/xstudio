@@ -56,12 +56,17 @@ namespace module {
                 to_any_to_json<Imath::V3f>([](Imath::V3f x) -> nlohmann::json {
                     return nlohmann::json{"vec3", 1, x.x, x.y, x.z};
                 }),
+                to_any_to_json<Imath::V4f>([](Imath::V4f x) -> nlohmann::json {
+                    return nlohmann::json{"vec4", 1, x.x, x.y, x.z, x.w};
+                }),
                 to_any_to_json<utility::ColourTriplet>(
                     [](utility::ColourTriplet x) -> nlohmann::json {
                         return nlohmann::json{"colour", 1, x.r, x.g, x.b};
                     }),
                 to_any_to_json<std::vector<float>>(
                     [](std::vector<float> x) -> nlohmann::json { return nlohmann::json(x); }),
+                to_any_to_json<std::vector<int>>(
+                    [](std::vector<int> x) -> nlohmann::json { return nlohmann::json(x); }),
                 to_any_to_json<std::vector<bool>>(
                     [](std::vector<bool> x) -> nlohmann::json { return nlohmann::json(x); }),
                 to_any_to_json<std::vector<std::string>>(
@@ -145,6 +150,12 @@ namespace module {
                 rt = set(data.get<Imath::V3f>());
 
             } else if (
+                data.is_array() && data.size() == 6 && data.begin().value().is_string() &&
+                data.begin().value().get<std::string>() == "vec4") {
+
+                rt = set(data.get<Imath::V4f>());
+
+            } else if (
                 data.is_array() && data.size() == 5 && data.begin().value().is_string() &&
                 data.begin().value().get<std::string>() == "colour") {
 
@@ -170,12 +181,11 @@ namespace module {
                 }
                 rt = set(v);
 
-            } else if (
-                data.is_array() && data.size() && data.begin().value().is_number_float()) {
+            } else if (data.is_array() && data.size() && data.begin().value().is_number()) {
 
                 std::vector<float> v;
                 for (auto p = data.begin(); p != data.end(); p++) {
-                    if (p.value().is_number_float()) {
+                    if (p.value().is_number()) {
                         v.push_back(p.value().get<float>());
                     }
                 }

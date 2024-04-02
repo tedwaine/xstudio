@@ -4,6 +4,7 @@
 #include "xstudio/atoms.hpp"
 #include "xstudio/broadcast/broadcast_actor.hpp"
 #include "xstudio/media/media.hpp"
+#include "xstudio/thumbnail/thumbnail.hpp"
 #include "xstudio/timeline/clip_actor.hpp"
 #include "xstudio/timeline/stack_actor.hpp"
 #include "xstudio/timeline/timeline_actor.hpp"
@@ -291,6 +292,14 @@ void ClipActor::init() {
             //     bookmark::bookmark_change_atom_v,
             //     bookmark_uuid);
         },
+        [=](utility::event_atom,
+            bookmark::bookmark_change_atom,
+            const utility::Uuid &,
+            const utility::UuidList &) {},
+
+        [=](utility::event_atom,
+            media_reader::get_thumbnail_atom,
+            const thumbnail::ThumbnailBufferPtr &buf) {},
 
         [=](utility::event_atom, bookmark::remove_bookmark_atom, const utility::Uuid &) {},
         [=](utility::event_atom, bookmark::add_bookmark_atom, const utility::UuidActor &) {},
@@ -567,7 +576,6 @@ void ClipActor::init() {
             jsn["base"] = base_.serialise();
             return jsn;
         }
-
     );
 }
 

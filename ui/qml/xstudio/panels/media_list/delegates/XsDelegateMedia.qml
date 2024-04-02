@@ -136,7 +136,7 @@ DelegateChoice {
 			    	))
 
 			    	if(control.media_item_model_index.valid) {
-						control.image_source_model_index = helpers.makePersistent(control.media_item_model_index.model.search_recursive(
+						control.image_source_model_index = helpers.makePersistent(control.media_item_model_index.model.searchRecursive(
 							imageActorUuidRole, "actorUuidRole", control.media_item_model_index
 						))
 
@@ -550,7 +550,7 @@ DelegateChoice {
 						var vis = false
 						var idx = app_window.bookmarkModel.search(actorUuidRole, "ownerRole")
 						if (idx.valid) {
-							var foo = app_window.bookmarkModel.search_list(actorUuidRole, "ownerRole", idx.parent, 0, -1)
+							var foo = app_window.bookmarkModel.searchList(actorUuidRole, "ownerRole", idx.parent, 0, -1)
 							for (var i = 0; i < foo.length; ++i) {
 								if (app_window.bookmarkModel.get(foo[i], "visibleRole")) {
 									vis = true
@@ -558,7 +558,7 @@ DelegateChoice {
 								}
 							}
 						}
-						bookmark_indicator.visible = vis						
+						bookmark_indicator.visible = vis
 					}
 					Connections {
 			            target: app_window.bookmarkModel

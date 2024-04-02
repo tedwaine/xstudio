@@ -27,6 +27,7 @@ namespace ui {
     namespace qml {
 
         class ShotgunListModel;
+        class ShotgunDataSourceUI;
 
         class ShotgunSequenceModel : public JSONTreeModel {
           public:
@@ -63,7 +64,6 @@ namespace ui {
                 detailRole,
                 enabledRole,
                 expandedRole,
-                idRole,
                 nameRole,
                 negationRole,
                 queriesRole,
@@ -79,7 +79,6 @@ namespace ui {
                      "detailRole",
                      "enabledRole",
                      "expandedRole",
-                     "idRole",
                      "nameRole",
                      "negationRole",
                      "queriesRole",
@@ -180,6 +179,10 @@ namespace ui {
                 sequence_map_ = map;
             }
 
+            void setQueryValueCache(std::shared_ptr<const utility::JsonStore> qvc) {
+                query_value_cache_ = std::move(qvc);
+            }
+
           protected:
             [[nodiscard]] utility::JsonStore
             getSequence(const int project_id, const int shot_id) const;
@@ -205,6 +208,7 @@ namespace ui {
             int active_preset_{-1};
             QString active_seq_{};
             QString active_shot_{};
+            std::shared_ptr<const utility::JsonStore> query_value_cache_;
         };
 
 
@@ -347,6 +351,8 @@ namespace ui {
                 }
             }
 
+            void setDataSource(ShotgunDataSourceUI *);
+
             [[nodiscard]] int
             rowCount(const QModelIndex &parent = QModelIndex()) const override {
                 Q_UNUSED(parent);
@@ -374,15 +380,9 @@ namespace ui {
 
             utility::JsonStore &modelData() { return data_; }
 
-            void setQueryValueCache(
-                const std::map<std::string, std::map<std::string, utility::JsonStore>> *qvc) {
-                query_value_cache_ = qvc;
+            void setQueryValueCache(std::shared_ptr<const utility::JsonStore> qvc) {
+                query_value_cache_ = std::move(qvc);
             }
-            utility::JsonStore getQueryValue(
-                const std::string &type,
-                const utility::JsonStore &value,
-                const int project_id = -1) const;
-
 
           signals:
             void lengthChanged();
@@ -391,8 +391,8 @@ namespace ui {
           protected:
             utility::JsonStore data_;
             bool truncated_{false};
-            const std::map<std::string, std::map<std::string, utility::JsonStore>>
-                *query_value_cache_{nullptr};
+            std::shared_ptr<const utility::JsonStore> query_value_cache_;
+            ShotgunDataSourceUI *data_source_{nullptr};
         };
 
         class ShotgunFilterModel : public QSortFilterProxyModel {
@@ -592,6 +592,10 @@ namespace ui {
             NoteModel(QObject *parent = nullptr) : ShotgunListModel(parent) {}
             [[nodiscard]] QVariant
             data(const QModelIndex &index, int role = Qt::DisplayRole) const override;
+            bool setData(
+                const QModelIndex &index,
+                const QVariant &value,
+                int role = Qt::EditRole) override;
         };
 
     } // namespace qml

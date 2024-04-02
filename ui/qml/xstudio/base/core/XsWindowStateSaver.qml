@@ -18,7 +18,7 @@ Item
 
     XsModelNestedPropertyMap {
         id: window_settings
-        index: app_window.globalStoreModel.search_recursive(override_pref_path ? override_pref_path : "/ui/qml/" + windowName + "_settings", "pathRole")
+        index: app_window.globalStoreModel.searchRecursive(override_pref_path ? override_pref_path : "/ui/qml/" + windowName + "_settings", "pathRole")
         property alias properties: window_settings.values
     }
 

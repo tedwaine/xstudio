@@ -12,6 +12,7 @@ CAF_PUSH_WARNINGS
 #include <QThreadPool>
 #include <QFutureWatcher>
 #include <QtConcurrent>
+#include <QSortFilterProxyModel>
 CAF_POP_WARNINGS
 
 namespace xstudio::ui::qml {
@@ -42,14 +43,19 @@ class UIModelData : public caf::mixin::actor_object<JSONTreeModel> {
         spdlog::warn("Banglesod {}", utility::tree_to_json(data_, "children").dump(2));
     }
 
+    static void add_context_object_lookup(QObject *obj);
+    static QObject *context_object_lookup(const QString &obj_str);
+
+
   signals:
 
     void modelDataNameChanged();
 
   public slots:
 
-    void nodeActivated(const QModelIndex &idx);
+    void nodeActivated(const QModelIndex &idx, const QString &data, QObject *panel);
     void setModelDataName(QString name);
+    void restoreDefaults();
 
   private slots:
 
@@ -77,11 +83,17 @@ class UIModelData : public caf::mixin::actor_object<JSONTreeModel> {
     Q_INVOKABLE bool
     insertRowsSync(int row, int count, const QModelIndex &parent = QModelIndex());
 
-  private:
+  protected:
+    std::string apply_filter(const std::string &path) const;
+    std::string reverse_apply_filter(const std::string &path) const;
+
     caf::actor central_models_data_actor_;
     std::string model_name_;
     std::string data_preference_path_;
-    bool foobarred_ = {false};
+    int filtered_child_idx_ = {-1};
+    bool debug_             = {false};
+    static std::mutex mutex_;
+    static QMap<QString, QObject *> context_object_lookup_map_;
 };
 
 class MenusModelData : public UIModelData {
@@ -110,6 +122,19 @@ class ViewsModelData : public UIModelData {
     QVariant view_qml_source(QString view_name);
 };
 
+class SingletonsModelData : public UIModelData {
+
+    Q_OBJECT
+
+  public:
+    explicit SingletonsModelData(QObject *parent = nullptr);
+
+  public slots:
+
+    void register_singleton_qml(const QString &qml_code);
+
+};
+
 class ReskinPanelsModel : public UIModelData {
 
     Q_OBJECT
@@ -119,7 +144,8 @@ class ReskinPanelsModel : public UIModelData {
 
     Q_INVOKABLE void close_panel(QModelIndex panel_index);
     Q_INVOKABLE void split_panel(QModelIndex panel_index, bool horizontal_split);
-    Q_INVOKABLE void duplicate_layout(QModelIndex panel_index);
+    Q_INVOKABLE int add_layout(QString layout_name, QModelIndex root, QString layoutType);
+    Q_INVOKABLE QModelIndex duplicate_layout(QModelIndex panel_index);
 };
 
 class MediaListColumnsModel : public UIModelData {
@@ -153,9 +179,18 @@ class MenuModelItem : public caf::mixin::actor_object<QObject> {
     Q_PROPERTY(QString currentChoice READ currentChoice WRITE setCurrentChoice NOTIFY
                    currentChoiceChanged)
     Q_PROPERTY(bool isChecked READ isChecked WRITE setIsChecked NOTIFY isCheckedChanged)
-    Q_PROPERTY(QString hotkey READ hotkey WRITE setHotkey NOTIFY hotkeyChanged)
+    Q_PROPERTY(QUuid hotkeyUuid READ hotkeyUuid WRITE setHotkeyUuid NOTIFY hotkeyUuidChanged)
     Q_PROPERTY(
         QString menuItemType READ menuItemType WRITE setMenuItemType NOTIFY menuItemTypeChanged)
+    Q_PROPERTY(QString menuCustomIcon READ menuCustomIcon WRITE setMenuCustomIcon NOTIFY
+                   menuCustomIconChanged)
+    Q_PROPERTY(QString customMenuQml READ customMenuQml WRITE setCustomMenuQml NOTIFY
+                   customMenuQmlChanged)
+    Q_PROPERTY(QVariant userData READ userData WRITE setUserData NOTIFY userDataChanged)
+    Q_PROPERTY(bool enabled READ enabled WRITE setEnabled NOTIFY enabledChanged)
+    Q_PROPERTY(QObject *panelContext READ panelContext WRITE setPanelContext NOTIFY
+                   panelContextChanged)
+
 
     const QString &menuPath() const { return menu_path_; }
     const QString &text() const { return text_; }
@@ -166,6 +201,12 @@ class MenuModelItem : public caf::mixin::actor_object<QObject> {
     bool isChecked() const { return is_checked_; }
     const QString &hotkey() const { return hotkey_; }
     const QString &menuItemType() const { return menu_item_type_; }
+    const QUuid &hotkeyUuid() const { return hotkey_uuid_; }
+    const QString &menuCustomIcon() const { return menu_custom_icon_; }
+    const QString &customMenuQml() const { return custom_menu_qml_; }
+    const QVariant &userData() const { return user_data_; }
+    bool enabled() const { return enabled_; }
+    QObject *panelContext() const { return panel_context_; }
 
   public slots:
 
@@ -200,10 +241,10 @@ class MenuModelItem : public caf::mixin::actor_object<QObject> {
             insertIntoMenuModel();
         }
     }
-    void setHotkey(const QString &hotkey) {
-        if (hotkey != hotkey_) {
-            hotkey_ = hotkey;
-            emit hotkeyChanged();
+    void setHotkeyUuid(const QUuid &hotkey_uuid) {
+        if (hotkey_uuid != hotkey_uuid_) {
+            hotkey_uuid_ = hotkey_uuid;
+            emit hotkeyUuidChanged();
             insertIntoMenuModel();
         }
     }
@@ -214,22 +255,67 @@ class MenuModelItem : public caf::mixin::actor_object<QObject> {
             insertIntoMenuModel();
         }
     }
+    void setMenuCustomIcon(const QString &menu_custom_icon) {
+        if (menu_custom_icon != menu_custom_icon_) {
+            menu_custom_icon_ = menu_custom_icon;
+            emit menuCustomIconChanged();
+            insertIntoMenuModel();
+        }
+    }
+    void setCustomMenuQml(const QString &custom_menu_qml) {
+        if (custom_menu_qml != custom_menu_qml_) {
+            custom_menu_qml_ = custom_menu_qml;
+            emit customMenuQmlChanged();
+            insertIntoMenuModel();
+        }
+    }
+    void setUserData(const QVariant &user_data) {
+        if (user_data != user_data_) {
+            user_data_ = user_data;
+            emit userDataChanged();
+            insertIntoMenuModel();
+        }
+    }
+
+    void setEnabled(const bool e) {
+        if (enabled_ != e) {
+            enabled_ = e;
+            emit enabledChanged();
+            insertIntoMenuModel();
+        }
+    }
+
+    void setPanelContext(QObject *obj) {
+        if (panel_context_ != obj) {
+            panel_context_ = obj;
+            emit panelContextChanged();
+            insertIntoMenuModel();
+        }
+    }
+
+    void setMenuPathPosition(const QString &menu_path, const float position);
 
   signals:
 
     void menuPathChanged();
     void menuNameChanged();
     void textChanged();
-    void activated();
+    void activated(QObject *menuContext);
     void menuItemPositionChanged();
     void choicesChanged();
     void currentChoiceChanged();
     void isCheckedChanged();
-    void hotkeyChanged();
     void menuItemTypeChanged();
+    void hotkeyUuidChanged();
+    void menuCustomIconChanged();
+    void customMenuQmlChanged();
+    void userDataChanged();
+    void enabledChanged();
+    void panelContextChanged();
 
   private:
     void insertIntoMenuModel();
+    QObject *contextPanel();
 
     QString menu_name_;
     QString menu_path_ = QString("Undefined");
@@ -237,12 +323,85 @@ class MenuModelItem : public caf::mixin::actor_object<QObject> {
     QString hotkey_;
     QString current_choice_;
     QString menu_item_type_ = QString("button");
+    QString menu_custom_icon_;
+    QString custom_menu_qml_;
     QStringList choices_;
+    QUuid hotkey_uuid_;
+    QVariant user_data_;
+    QObject *panel_context_       = {nullptr};
     bool is_checked_              = {false};
+    bool enabled_                 = {true};
     float menu_item_position_     = -1.0f;
     utility::Uuid model_entry_id_ = utility::Uuid::generate();
     bool dont_update_model_       = {false};
 };
 
+/* In the xSTUDIO interface, we can have multiple instances of the same type
+of panel. For example, the media list view might be instanced several times. 
+Each instance will declare its own 'MenuModelItems' to insert items into the
+right click menu model. However, there is only one 'model' that describes what's
+in the right click menu... we do it this way because there are other plugins 
+that might want to insert items into the media list menu and they only want to
+deal with one menu model, not separate menu models for each media list view.
+
+Our solution is that a MenuModelItem can declare which panel instance it was
+created in. Then, on the creation of the menu itself, we use this filter
+to only include menu items that originated from the panel that has created the
+menu. The MenuModelItem has a string property panelContext - we set this to 
+the stringified address of the parent panel. When the corresponding entry is 
+made in the central menu model this is recorded in the role 'menu_item_context'.
+Then when the pop-up menu is built from the central menu model, we check if the
+menu item has 'menu_item_context' and only add an entry on the menu *IF* the
+menu_item_context matches the stringified address of the parent panel that is
+creating the pop-up. simples ;-)*/
+class PanelMenuModelFilter : public QSortFilterProxyModel {
+
+    Q_OBJECT
+
+    Q_PROPERTY(
+        QString panelAddress READ panelAddress WRITE setPanelAddress NOTIFY panelAddressChanged)
+
+  public:
+
+    PanelMenuModelFilter(QObject *parent = nullptr);
+
+    const QString &panelAddress() const { return panel_address_; }
+
+    Q_INVOKABLE [[nodiscard]] QVariant
+        get(const QModelIndex &item, const QString &role = "display") const {
+            if (source_model_) {
+                return source_model_->get(mapToSource(item), role);
+            }
+            return QVariant();
+        }
+
+  public slots:
+
+    void setPanelAddress(const QString &panelAddress) {
+        if (panelAddress != panel_address_) {
+            panel_address_ = panelAddress;
+            emit panelAddressChanged();
+            invalidateFilter();
+        }
+    }
+
+    void nodeActivated(const QModelIndex &idx, const QString &data, QObject *panel) {
+        source_model_->nodeActivated(mapToSource(idx), data, panel);
+    }
+
+  protected:
+
+    [[nodiscard]] bool
+    filterAcceptsRow(int source_row, const QModelIndex &source_parent) const override;
+
+  signals:
+    void panelAddressChanged();
+
+  private:
+    QString panel_address_;
+    int menu_item_context_role_id_ = {0};
+    UIModelData *source_model_ = nullptr;
+
+};
 
 } // namespace xstudio::ui::qml

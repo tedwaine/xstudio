@@ -18,27 +18,19 @@
 					"datatype": "string",
 					"context": ["APPLICATION"]
 				},
-				"user_preferred_view": {
-					"path": "/plugin/colour_pipeline/ocio/user_preferred_view",
+				"preferred_view": {
+					"path": "/plugin/colour_pipeline/ocio/preferred_view",
 					"default_value": "Default",
 					"description": "User preferred ocio view.",
 					"value": "Default",
 					"datatype": "string",
 					"context": ["APPLICATION"]
 				},
-				"user_view_mode": {
-					"path": "/plugin/colour_pipeline/ocio/user_view_mode",
-					"default_value": true,
+				"use_preferred_view": {
+					"path": "/plugin/colour_pipeline/ocio/use_preferred_view",
+					"default_value": false,
 					"description": "User view mode (global if true, per media otherwise).",
-					"value": true,
-					"datatype": "bool",
-					"context": ["APPLICATION"]
-				},
-				"user_source_mode": {
-					"path": "/plugin/colour_pipeline/ocio/user_source_mode",
-					"default_value": true,
-					"description": "User source colour space mode (adjust from selected view if true).",
-					"value": true,
+					"value": false,
 					"datatype": "bool",
 					"context": ["APPLICATION"]
 				},

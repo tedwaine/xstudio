@@ -616,7 +616,7 @@ void IvyMediaWorker::get_shotgun_version(
     const std::string &project,
     const utility::Uuid &stalk_dnuuid) {
 
-    auto shotgun_actor = system().registry().template get<caf::actor>("SHOTGUNDATASOURCE");
+    auto shotgun_actor = system().registry().template get<caf::actor>("SHOTBROWSER");
 
     if (not shotgun_actor)
         rp.deliver(false);
@@ -694,7 +694,7 @@ void IvyMediaWorker::get_shotgun_version(
 void IvyMediaWorker::get_shotgun_shot(
     caf::typed_response_promise<bool> rp, const caf::actor &media, const int shot_id) {
 
-    auto shotgun_actor = system().registry().template get<caf::actor>("SHOTGUNDATASOURCE");
+    auto shotgun_actor = system().registry().template get<caf::actor>("SHOTBROWSER");
 
     if (not shotgun_actor)
         rp.deliver(false);

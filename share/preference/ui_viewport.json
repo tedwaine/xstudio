@@ -41,6 +41,14 @@
 				"value": false,
 				"datatype": "bool",
 				"context": ["QML_UI"]
+			},
+			"hidden_toolbar_items": {
+				"path": "/ui/viewport/hidden_toolbar_items",
+				"default_value": false,
+				"description": "Hides items from the viewport toolbar",
+				"value": ["Gamma", "Saturation", "Rate", "Mirror"],
+				"datatype": "json",
+				"context": ["QML_UI"]
 			}
 		}
 	}

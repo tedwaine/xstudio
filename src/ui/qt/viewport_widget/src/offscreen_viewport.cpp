@@ -25,68 +25,17 @@ using namespace caf;
 using namespace xstudio;
 using namespace xstudio::ui;
 using namespace xstudio::ui::qt;
-using namespace xstudio::ui::viewport;
 
 namespace fs = std::filesystem;
 
-namespace {
-    static void threaded_memcpy(void * _dst, void * _src, size_t n, int n_threads) {
-
-        std::vector<std::thread> memcpy_threads;
-        size_t step = ((n / n_threads) / 4096) * 4096;
-
-        uint8_t *dst = (uint8_t *)_dst; 
-        uint8_t *src = (uint8_t *)_src;
-
-        for (int i = 0; i < n_threads; ++i) {
-            memcpy_threads.emplace_back(memcpy, dst, src, std::min(n, step));
-            dst += step;
-            src += step;
-            n -= step;
-        }
-
-        // ensure any threads still running to copy data to this texture are done
-        for (auto &t : memcpy_threads) {
-            if (t.joinable())
-                t.join();
-        }
-
-    }
-
-    static std::map<viewport::ImageFormat, GLint> format_to_gl_tex_format = {
-        {viewport::ImageFormat::RGBA_8, GL_RGBA8},
-        {viewport::ImageFormat::RGBA_10_10_10_2, GL_RGBA8},
-        {viewport::ImageFormat::RGBA_16, GL_RGBA16},
-        {viewport::ImageFormat::RGBA_16F, GL_RGBA16F},
-        {viewport::ImageFormat::RGBA_32F, GL_RGBA32F}
-    };
-
-    static std::map<viewport::ImageFormat, GLint> format_to_gl_pixe_type = {
-        {viewport::ImageFormat::RGBA_8, GL_UNSIGNED_BYTE},
-        {viewport::ImageFormat::RGBA_10_10_10_2,  GL_UNSIGNED_BYTE},
-        {viewport::ImageFormat::RGBA_16, GL_UNSIGNED_SHORT},
-        {viewport::ImageFormat::RGBA_16F, GL_HALF_FLOAT},
-        {viewport::ImageFormat::RGBA_32F, GL_FLOAT}
-    };
-
-    static std::map<viewport::ImageFormat, GLint> format_to_bytes_per_pixel = {
-        {viewport::ImageFormat::RGBA_8, 4},
-        {viewport::ImageFormat::RGBA_10_10_10_2,  4},
-        {viewport::ImageFormat::RGBA_16, 8},
-        {viewport::ImageFormat::RGBA_16F, 8},
-        {viewport::ImageFormat::RGBA_32F, 16}
-    };
-
-}
-
-OffscreenViewport::OffscreenViewport(const std::string name) : super() {
+OffscreenViewport::OffscreenViewport() : super() {
 
     // This class is a QObject with a caf::actor 'companion' that allows it
     // to receive and send caf messages - here we run necessary initialisation
     // of the companion actor
-    super::init(qml::CafSystemObject::get_actor_system());
+    super::init(xstudio::ui::qml::CafSystemObject::get_actor_system());
 
-    scoped_actor sys{qml::CafSystemObject::get_actor_system()};
+    scoped_actor sys{xstudio::ui::qml::CafSystemObject::get_actor_system()};
 
     // Now we create our OpenGL xSTudio viewport - this has 'Viewport(Module)' as
     // its base class that provides various caf message handlers that are added
@@ -96,19 +45,18 @@ OffscreenViewport::OffscreenViewport(const std::string name) : super() {
     static int offscreen_idx = -1;
     utility::JsonStore jsn;
     jsn["base"]        = utility::JsonStore();
-    viewport_renderer_ = new Viewport(
+    viewport_renderer_ = new ui::viewport::Viewport(
         jsn,
         as_actor(),
         offscreen_idx--,
-        ViewportRendererPtr(new opengl::OpenGLViewportRenderer(true, false)),
-        name);
+        ui::viewport::ViewportRendererPtr(new opengl::OpenGLViewportRenderer(true, false)));
 
     /* Provide a callback so the Viewport can tell this class when some property of the viewport
     has changed and such events can be propagated to other QT components, for example */
     auto callback = [this](auto &&PH1) {
         receive_change_notification(std::forward<decltype(PH1)>(PH1));
     };
-    //viewport_renderer_->set_change_callback(callback);
+    viewport_renderer_->set_change_callback(callback);
 
     self()->set_down_handler([=](down_msg &msg) {
         if (msg.source == video_output_actor_) {
@@ -173,35 +121,26 @@ OffscreenViewport::OffscreenViewport(const std::string name) : super() {
                 }
                 return r;
             },
-            
-            [=](video_output_actor_atom,
-                caf::actor video_output_actor,
-                int outputWidth,
-                int outputHeight,
-                viewport::ImageFormat format) {
-                
-                video_output_actor_ = video_output_actor;
-                vid_out_width_ = outputWidth;
-                vid_out_height_ = outputHeight;
-                vid_out_format_ = format;
 
-            },
-
-            [=](video_output_actor_atom,
-                caf::actor video_output_actor) {                
-                video_output_actor_ = video_output_actor;
-            },
-
-            [=](render_viewport_to_image_atom) {                
-                // force a redraw
-                receive_change_notification(Viewport::ChangeCallbackId::Redraw);
-            }
-                        
-            });
+            [=](viewport::render_viewport_to_image_atom,
+                caf::actor media_actor,
+                const timebase::flicks playhead_timepoint,
+                const thumbnail::THUMBNAIL_FORMAT format,
+                const int width,
+                const bool auto_scale,
+                const bool show_annotations) -> result<thumbnail::ThumbnailBufferPtr> {
+                thumbnail::ThumbnailBufferPtr r;
+                try {
+                    r = renderMediaFrameToThumbnail(
+                        media_actor, playhead_timepoint, format, width, auto_scale, show_annotations);
+                } catch (std::exception &e) {
+                    return caf::make_error(xstudio_error::error, e.what());
+                }
+                return r;
+            }});
     });
 
     initGL();
-
 }
 
 OffscreenViewport::~OffscreenViewport() {
@@ -216,16 +155,7 @@ OffscreenViewport::~OffscreenViewport() {
     delete surface_;
 
     video_output_actor_ = caf::actor();
-
 }
-
-
-void OffscreenViewport::autoDelete() {
-
-    delete this;
-
-}
-
 
 void OffscreenViewport::initGL() {
 
@@ -265,28 +195,12 @@ void OffscreenViewport::initGL() {
         gl_context_->moveToThread(thread_);
         moveToThread(thread_);
         thread_->start();
-
-        // Note - the only way I seem to be able to 'cleanly' exit is 
-        // delete ourselves when the thread quits. Not 100% sure if this 
-        // is correct approach. I'm still cratching my head as to how
-        // to destroy thread_ ... calling deleteLater() directly or
-        // using finished signal has no effect.
-
-        connect(thread_, SIGNAL(finished()), this, SLOT(autoDelete()));
-
-        // this has no effect!
-        // connect(thread_, SIGNAL(finished()), this, SLOT(deleteLater()));
     }
-}
-
-void OffscreenViewport::stop() {
-    thread_->quit();
-    thread_->wait();
 }
 
 void OffscreenViewport::renderSnapshot(const int width, const int height, const caf::uri path) {
 
-    // initGL();
+    initGL();
 
     // temp hack - put in a 500ms delay so the playhead can update the
     // annotations plugin with the annotations data.
@@ -301,7 +215,7 @@ void OffscreenViewport::renderSnapshot(const int width, const int height, const 
     }
 
     media_reader::ImageBufPtr image(new media_reader::ImageBuffer());
-    renderToImageBuffer(width, height, image, viewport::ImageFormat::RGBA_16F);
+    renderToRGBAHalf16ImageBuffer(width, height, image);
 
     auto p = fs::path(xstudio::utility::uri_to_posix_path(path));
 
@@ -404,9 +318,8 @@ void OffscreenViewport::exportToCompressedFormat(
     }
 }
 
-void OffscreenViewport::setupTextureAndFrameBuffer(const int width, const int height, const viewport::ImageFormat format) {
-
-    if (tex_width_ == width && tex_height_ == height && format == vid_out_format_  ) {
+void OffscreenViewport::setupTextureAndFrameBuffer(const int width, const int height) {
+    if (tex_width_ == width && tex_height_ == height) {
         // bind framebuffer
         glBindFramebuffer(GL_FRAMEBUFFER, fboId_);
         glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, texId_, 0);
@@ -423,11 +336,6 @@ void OffscreenViewport::setupTextureAndFrameBuffer(const int width, const int he
 
     tex_width_  = width;
     tex_height_ = height;
-    vid_out_format_ = format;
-
-    utility::JsonStore j;
-    j["pack_rgb_10_bit"] = format == viewport::RGBA_10_10_10_2;
-    viewport_renderer_->set_aux_shader_uniforms(j);
 
     // create texture
     glGenTextures(1, &texId_);
@@ -435,22 +343,13 @@ void OffscreenViewport::setupTextureAndFrameBuffer(const int width, const int he
     glTexImage2D(
         GL_TEXTURE_2D,
         0,
-        format_to_gl_tex_format[vid_out_format_],
+        GL_RGBA16F,
         tex_width_,
         tex_height_,
         0,
         GL_RGBA,
-        GL_UNSIGNED_SHORT,
+        GL_HALF_FLOAT,
         nullptr);
-
-    GLint iTexFormat;
-    glGetTexLevelParameteriv ( GL_TEXTURE_2D, 0, GL_TEXTURE_INTERNAL_FORMAT, &iTexFormat);
-    if (iTexFormat != format_to_gl_tex_format[vid_out_format_]) {
-        spdlog::warn("{} offscreen viewport texture internal format is {:#x}, which does not match desired format {:#x}",
-            __PRETTY_FUNCTION__,
-            iTexFormat,
-            format_to_gl_tex_format[vid_out_format_]);
-    }
 
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
@@ -495,11 +394,10 @@ void OffscreenViewport::setupTextureAndFrameBuffer(const int width, const int he
     glFramebufferTexture2D(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_TEXTURE_2D, depth_texId_, 0);
 }
 
-void OffscreenViewport::renderToImageBuffer(
-    const int w, const int h, media_reader::ImageBufPtr &image, const viewport::ImageFormat format)
-{
-    auto t0 = utility::clock::now();
-
+void OffscreenViewport::renderToRGBAHalf16ImageBuffer(
+    const int w, const int h,
+    media_reader::ImageBufPtr &image,
+    const bool syn_fetch_playhead_image) {
     // ensure our GLContext is current
     gl_context_->makeCurrent(surface_);
     if (!gl_context_->isValid()) {
@@ -507,16 +405,14 @@ void OffscreenViewport::renderToImageBuffer(
             "OffscreenViewport::renderToImageBuffer - GL Context is not valid.");
     }
 
-    setupTextureAndFrameBuffer(w, h, format);
+    setupTextureAndFrameBuffer(w, h);
 
     // intialises shaders and textures where necessary
     viewport_renderer_->init();
 
-    auto t1 = utility::clock::now();
-
     // Clearup before render, probably useless for a new buffer
-    //glClearColor(0.0, 1.0, 0.0, 0.0);
-    //glClear(GL_COLOR_BUFFER_BIT);
+    glClearColor(0.0, 0.0, 0.0, 0.0);
+    glClear(GL_COLOR_BUFFER_BIT);
 
     glViewport(0, 0, w, h);
 
@@ -527,90 +423,40 @@ void OffscreenViewport::renderToImageBuffer(
         Imath::V2f(w, 0.0),
         Imath::V2f(w, h),
         Imath::V2f(0.0f, h),
-        Imath::V2i(w, h),
-        1.0f);
+        Imath::V2i(w, h));
 
-    viewport_renderer_->render();
+    if (syn_fetch_playhead_image) {
+        media_reader::ImageBufPtr image = viewport_renderer_->get_onscreen_image(true);
+        viewport_renderer_->render(image);
+    } else {
+        viewport_renderer_->render();        
+    }
 
     // Not sure if this is necessary
-    //glFinish();
-
-    auto t2 = utility::clock::now();
-
-    // unbind
-    glBindFramebuffer(GL_FRAMEBUFFER, 0);
-
-    size_t pix_buf_size = w*h*format_to_bytes_per_pixel[vid_out_format_];
+    glFinish();
 
     // init RGBA float array
-    image->allocate(pix_buf_size);
+    image->allocate(w * h * 4 * sizeof(half));
     image->set_image_dimensions(Imath::V2i(w, h));
     image.when_to_display_ = utility::clock::now();
-    image->params()["pixel_format"] = (int)format;
-    
-    if (!pixel_buffer_object_) {
-        glGenBuffers(1, &pixel_buffer_object_);
-    }
-
-    if (pix_buf_size != pix_buf_size_) {
-        glBindBuffer(GL_PIXEL_PACK_BUFFER, pixel_buffer_object_);
-        glBufferData(GL_PIXEL_PACK_BUFFER, pix_buf_size, NULL, GL_STREAM_COPY);
-        pix_buf_size_ = pix_buf_size;
-    }
-
-    glActiveTexture(GL_TEXTURE0);
-    glBindTexture(GL_TEXTURE_2D, texId_);
 
     glPixelStorei(GL_PACK_SKIP_ROWS, 0);
     glPixelStorei(GL_PACK_SKIP_PIXELS, 0);
     glPixelStorei(GL_PACK_ROW_LENGTH, w);
     glPixelStorei(GL_PACK_ALIGNMENT, 1);
-
-    auto t3 = utility::clock::now();
-        
+    // read GL pixels to array
+    glReadPixels(0, 0, w, h, GL_RGBA, GL_HALF_FLOAT, image->buffer());
+    glFinish();
+    
+    // unbind and delete
     glBindFramebuffer(GL_FRAMEBUFFER, 0);
-
-    glGetTexImage(GL_TEXTURE_2D,
-            0,
-            GL_RGBA,
-            format_to_gl_pixe_type[vid_out_format_],
-            nullptr);
-    
-
-    glBindBuffer(GL_PIXEL_PACK_BUFFER, pixel_buffer_object_);
-    void* mappedBuffer = glMapBuffer(GL_PIXEL_PACK_BUFFER, GL_READ_ONLY);
-
-    auto t4 = utility::clock::now();
-    
-    threaded_memcpy(
-        image->buffer(),
-        mappedBuffer,
-        pix_buf_size,
-        8
-        );
-
-
-    //now mapped buffer contains the pixel data
-    glUnmapBuffer(GL_PIXEL_PACK_BUFFER);
-    auto t5 = utility::clock::now();
-
-    auto tt = utility::clock::now();
-    /*std::cerr << "glBindBuffer " 
-        << std::chrono::duration_cast<std::chrono::milliseconds>(t1-t0).count() << " " 
-        << std::chrono::duration_cast<std::chrono::milliseconds>(t2-t1).count() << " " 
-        << std::chrono::duration_cast<std::chrono::milliseconds>(t3-t2).count() << " "
-        << std::chrono::duration_cast<std::chrono::milliseconds>(t4-t3).count() << " "
-        << std::chrono::duration_cast<std::chrono::milliseconds>(t5-t4).count() << " : "
-        << std::chrono::duration_cast<std::chrono::milliseconds>(t5-t0).count() << "\n";*/
-
 }
 
 
 void OffscreenViewport::receive_change_notification(
-    Viewport::ChangeCallbackId id) {
+    ui::viewport::Viewport::ChangeCallbackId id) {
 
-    if (id == Viewport::ChangeCallbackId::Redraw) {
-
+    if (id == ui::viewport::Viewport::ChangeCallbackId::Redraw) {
         if (video_output_actor_) {
 
             std::vector<media_reader::ImageBufPtr> output_buffers_;
@@ -626,7 +472,8 @@ void OffscreenViewport::receive_change_notification(
                 output_buffers_.push_back(ready_buf);
             }
 
-            renderToImageBuffer(vid_out_width_, vid_out_height_, ready_buf, vid_out_format_);
+            renderToRGBAHalf16ImageBuffer(vid_out_width_, vid_out_height_, ready_buf);
+
             anon_send(video_output_actor_, ready_buf);
         }
     }
@@ -699,7 +546,9 @@ thumbnail::ThumbnailBufferPtr OffscreenViewport::renderToThumbnail(
     const bool auto_scale,
     const bool show_annotations) {
 
-    media_reader::ImageBufPtr image = viewport_renderer_->get_onscreen_image();
+    media_reader::ImageBufPtr image = viewport_renderer_->get_onscreen_image(true);
+
+    //std::cerr << "Rendering image " << image->params() << "\n";
 
     if (!image) {
         std::string err(fmt::format(
@@ -728,7 +577,7 @@ thumbnail::ThumbnailBufferPtr OffscreenViewport::renderToThumbnail(
 thumbnail::ThumbnailBufferPtr OffscreenViewport::renderToThumbnail(
     const thumbnail::THUMBNAIL_FORMAT format, const int width, const int height) {
     media_reader::ImageBufPtr image(new media_reader::ImageBuffer());
-    renderToImageBuffer(width, height, image, viewport::ImageFormat::RGBA_16F);
+    renderToRGBAHalf16ImageBuffer(width, height, image, true);
     thumbnail::ThumbnailBufferPtr r = rgb96thumbFromHalfFloatImage(image);
     r->convert_to(format);
     return r;
@@ -760,5 +609,33 @@ thumbnail::ThumbnailBufferPtr OffscreenViewport::renderMediaFrameToThumbnail(
     // now move the playhead to requested frame
     utility::request_receive<bool>(*sys, local_playhead_, playhead::jump_atom_v, media_frame);
 
-    return renderToThumbnail(format, auto_scale, show_annotations);
+    return renderToThumbnail(format, width, auto_scale, show_annotations);
+}
+
+thumbnail::ThumbnailBufferPtr OffscreenViewport::renderMediaFrameToThumbnail(
+    caf::actor media_actor,
+    const timebase::flicks playhead_position_flicks,
+    const thumbnail::THUMBNAIL_FORMAT format,
+    const int width,
+    const bool auto_scale,
+    const bool show_annotations) {
+    if (!local_playhead_) {
+        auto a = caf::actor_cast<caf::event_based_actor *>(as_actor());
+        local_playhead_ =
+            a->spawn<playhead::PlayheadActor>("Offscreen Viewport Local Playhead");
+        a->link_to(local_playhead_);
+    }
+    // first, set the local playhead to be our image source
+    viewport_renderer_->set_playhead(local_playhead_);
+
+    scoped_actor sys{as_actor()->home_system()};
+
+    // now set the media source on the local playhead
+    utility::request_receive<bool>(
+        *sys, local_playhead_, playhead::source_atom_v, std::vector<caf::actor>({media_actor}));
+
+    // now move the playhead to requested frame
+    utility::request_receive<bool>(*sys, local_playhead_, playhead::jump_atom_v, playhead_position_flicks);
+
+    return renderToThumbnail(format, width, auto_scale, show_annotations);
 }

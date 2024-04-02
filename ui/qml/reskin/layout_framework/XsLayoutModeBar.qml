@@ -1,4 +1,3 @@
-// SPDX-License-Identifier: Apache-2.0
 import QtQuick 2.15
 import QtQuick.Controls 1.4
 import QtQml.Models 2.14
@@ -6,14 +5,14 @@ import Qt.labs.qmlmodels 1.0
 
 import xStudioReskin 1.0
 import xstudio.qml.models 1.0
+import xstudio.qml.helpers 1.0
 
-Rectangle { id: modeBar
+Item { id: modeBar
 
     height: XsStyleSheet.menuHeight
-    // color: XsStyleSheet.menuBarColor
-    gradient: Gradient {
-        GradientStop { position: 0.0; color: Qt.lighter( XsStyleSheet.menuBarColor, 1.15) }
-        GradientStop { position: 1.0; color: Qt.darker( XsStyleSheet.menuBarColor, 1.15) }
+    
+    XsGradientRectangle{
+        anchors.fill: parent
     }
 
     property string barId: ""
@@ -43,7 +42,6 @@ Rectangle { id: modeBar
         visible: false
         menu_model: barMenuModel
         menu_model_index: barMenuModel.index(-1, -1)
-        menuWidth: 160
     }
     XsMenusModel {
         id: barMenuModel
@@ -53,109 +51,208 @@ Rectangle { id: modeBar
         }
     }
 
+    XsMenuModelItem {
+        text: "New Layout"
+        menuPath: ""
+        menuItemPosition: 1
+        menuModelName: "ModeBarMenu"+barId
+
+        onActivated: {
+            // TODO: pop-up string query dialog to get new name
+            dialogHelpers.textInputDialog(
+                acceptResult,
+                "Enter Layout Name",
+                "Enter a name for new layout.",
+                "New Layout",
+                ["Ok", "Cancel"])
+        }
+        function acceptResult(new_name, button) {
+            
+            if (button == "Ok") {
+                var row = layouts_model.add_layout(new_name, layouts_model_root_index, "Viewport")                
+                callbackTimer.setTimeout(function(layout_idx) { return function() {
+                    selected_layout = layout_idx
+                    }}(row), 500);
+            }
+        }
+    }
+
+    XsMenuModelItem {
+        text: "Rename Layout ..."
+        menuPath: ""
+        menuItemPosition: 2
+        menuModelName: "ModeBarMenu"+barId
+        property var idx: 1
+        enabled: appWindow.layoutName != "Present"
+        onActivated: {
+            // TODO: pop-up string query dialog to get new name
+            dialogHelpers.textInputDialog(
+                acceptResult,
+                "Enter Layout Name",
+                "Enter a new name for layout \""+layoutProperties.values.layout_name+"\"",
+                layoutProperties.values.layout_name,
+                ["Ok", "Cancel"])
+        }
+        function acceptResult(new_name, button) {
+            if (button == "Ok") {
+                layouts_model.set(current_layout_index, new_name, "layout_name")
+            }
+        }
+    }
+
+    XsMenuModelItem {
+        text: "Duplicate Layout ..."
+        menuPath: ""
+        menuItemPosition: 3
+        menuModelName: "ModeBarMenu"+barId
+        onActivated: {
+            // TODO: pop-up string query dialog to get new name
+            dialogHelpers.textInputDialog(
+                acceptResult,
+                "Enter Name for Dulplicate Layout",
+                "Enter a new name for duplicated layout \""+layoutProperties.values.layout_name+"\"",
+                layoutProperties.values.layout_name,
+                ["Ok", "Cancel"])
+        }
+        function acceptResult(new_name, button) {
+            if (button == "Ok") {
+                var idx = layouts_model.duplicate_layout(current_layout_index)
+                layouts_model.set(idx, new_name, "layout_name")
+                selected_layout = idx.row
+            }
+        }
+    }
 
     XsMenuModelItem {
         text: "Remove Current Layout"
         menuPath: ""
-        menuItemPosition: 3
+        menuItemPosition: 3.5
         menuModelName: "ModeBarMenu"+barId
+        enabled: appWindow.layoutName != "Present"
         onActivated: {
-        }
-    }
-    XsMenuModelItem {
-        menuItemType: "divider"
-        menuPath: ""
-        menuItemPosition: 2
-        menuModelName: "ModeBarMenu"+barId
-    }
-    XsMenuModelItem {
-        text: "Reset Default Layouts"
-        menuPath: ""
-        menuItemPosition: 3
-        menuModelName: "ModeBarMenu"+barId
-        onActivated: {
-        }
-    }
-    XsMenuModelItem {
-        text: "Reset Current Layout"
-        menuPath: ""
-        menuItemPosition: 3
-        menuModelName: "ModeBarMenu"+barId
-        onActivated: {
-        }
-    }
-    XsMenuModelItem {
-        menuItemType: "divider"
-        menuPath: ""
-        menuItemPosition: 2
-        menuModelName: "ModeBarMenu"+barId
-    }
-    XsMenuModelItem {
-        text: "Save As New..."
-        menuPath: ""
-        menuItemPosition: 1
-        menuModelName: "ModeBarMenu"+barId
-        onActivated: {
-        }
-    }
-    XsMenuModelItem {
-        text: "Duplicate..."
-        menuPath: ""
-        menuItemPosition: 1
-        menuModelName: "ModeBarMenu"+barId
-        onActivated: {
-            layouts_model.duplicate_layout(current_layout_index)
-        }
-    }
-    XsMenuModelItem {
-        text: "Rename..."
-        menuPath: ""
-        menuItemPosition: 1
-        menuModelName: "ModeBarMenu"+barId
-        property var idx: 1
-        onActivated: {
-            // TODO: pop-up string query dialog to get new name
-            layouts_model.set(current_layout_index, "Renamed "+ idx, "layout_name")
-            idx = idx+1
-        }
-    }
-    XsMenuModelItem {
-        text: "New Layout..."
-        menuPath: ""
-        menuItemPosition: 1
-        menuModelName: "ModeBarMenu"+barId
-        onActivated: {
-            var rc = layouts_model.rowCount(layouts_model_root_index)
-            layouts_model.insertRowsSync(rc, 1, layouts_model_root_index)
-            layouts_model.set(layouts_model.index(rc, 0, layouts_model_root_index),
-            '{
-                "children": [
-                  {
-                    "child_dividers": [],
-                    "children": [
-                      {
-                        "children": [
-                          {
-                            "tab_view": "Playlists"
-                          }
-                        ],
-                        "current_tab": 0
-                      }
-                    ],
-                    "split_horizontal": false
-                  }
-                ],
-                "enabled": true,
-                "layout_name": "New Layout"
-              }', "jsonRole")
+            var rc = layouts_model.rowCount(current_layout_index.parent)
+            if (rc > 1) {
+                var row = current_layout_index.row
+                layouts_model.removeRowsSync(row, 1, current_layout_index.parent)
+                if (row > 0) {
+                    selected_layout = row-1
+                } else {
+                    selected_layout = 0
+                }
+            }   
+
         }
     }
 
+    property bool movingLayout: false
+
+    XsMenuModelItem {
+        text: "Move Layout Left"
+        menuPath: ""
+        menuItemPosition: 3.6
+        menuModelName: "ModeBarMenu"+barId
+        enabled: appWindow.layoutName != "Present"
+        onActivated: {
+
+            movingLayout = true
+            var rc = layouts_model.rowCount(current_layout_index.parent)
+            if (selected_layout < (rc-1)) {
+                layouts_model.moveRows(
+                    current_layout_index.parent,
+                    selected_layout,
+                    1,
+                    current_layout_index.parent,
+                    selected_layout+2
+                    )
+                selected_layout = selected_layout+1
+            }   
+            movingLayout = false
+
+        }
+    }
+
+    XsMenuModelItem {
+        text: "Move Layout Right"
+        menuPath: ""
+        menuItemPosition: 3.7
+        menuModelName: "ModeBarMenu"+barId
+        enabled: appWindow.layoutName != "Present"
+        onActivated: {
+            movingLayout = true
+            if (selected_layout > 1) {        
+                layouts_model.moveRows(
+                    current_layout_index.parent,
+                    selected_layout,
+                    1,
+                    current_layout_index.parent,
+                    selected_layout-1
+                    )
+                selected_layout = selected_layout-1
+            }   
+            movingLayout = false
+        }
+    }
+
+    XsMenuModelItem {
+        menuItemType: "divider"
+        text: "Tab Visibility"
+        menuPath: ""
+        menuItemPosition: 4
+        menuModelName: "ModeBarMenu"+barId
+    }
+
+    XsMenuModelItem {
+
+        menuItemType: "radiogroup"
+        choices: ["Hide All", "Hide Single Tabs", "Show All"]
+        text: "Tab Visbility"
+        menuPath: ""
+        menuItemPosition: 5
+        menuModelName: "ModeBarMenu"+barId
+        onCurrentChoiceChanged: {
+            appWindow.tabsVisibility = choices.indexOf(currentChoice)
+        }        
+        // awkward two way binding as usual!
+        property var follower: appWindow.tabsVisibility
+        onFollowerChanged: {
+            if (choices[follower] && choices[follower] != currentChoice) {
+                currentChoice = choices[follower]
+            }
+        }
+    }
+
+    XsMenuModelItem {
+        menuItemType: "divider"
+        menuPath: ""
+        menuItemPosition: 6
+        menuModelName: "ModeBarMenu"+barId
+    }
+
+
+    XsMenuModelItem {
+        text: "Restore Default Layouts"
+        menuPath: ""
+        menuItemPosition: 7
+        menuModelName: "ModeBarMenu"+barId
+        onActivated: {
+            layouts_model.restoreDefaults()
+        }
+    }
+
+
+    XsModelPropertyMap {
+        id: layoutProperties
+        index: current_layout_index
+    }
 
     property var layouts_model
     property var layouts_model_root_index
     property var current_layout_index: layouts_model.index(selected_layout, 0, layouts_model_root_index)
-    property int selected_layout: 0
+    property int selected_layout: -1
+
+    onSelected_layoutChanged: {
+        layouts_model.set(layouts_model_root_index, selected_layout, "current_layout")
+    }
 
     DelegateModel {
 

@@ -1,4 +1,3 @@
-// SPDX-License-Identifier: Apache-2.0
 import QtQuick 2.12
 import QtQuick.Controls 2.12
 import QtGraphicalEffects 1.12
@@ -33,7 +32,7 @@ XsToolbarItem  {
         id: image_source
         modelDataName: toolbar_name + "_image_source"
         onJsonChanged: {
-            curr_image_source_property.index = search_recursive("Source", "title")
+            curr_image_source_property.index = searchRecursive("Source", "title")
         }
     }
 
@@ -41,7 +40,7 @@ XsToolbarItem  {
         id: audio_source
         modelDataName: toolbar_name + "_audio_source"
         onJsonChanged: {
-            curr_audio_source_property.index = search_recursive("Source", "title")
+            curr_audio_source_property.index = searchRecursive("Source", "title")
         }
     }
 
@@ -49,13 +48,13 @@ XsToolbarItem  {
     XsModelProperty {
         id: curr_image_source_property
         role: "value"
-        index: image_source.search_recursive("Source", "title")
+        index: image_source.searchRecursive("Source", "title")
     }
 
     XsModelProperty {
         id: curr_audio_source_property
         role: "value"
-        index: audio_source.search_recursive("Source", "title")
+        index: audio_source.searchRecursive("Source", "title")
     }
 
     property var curr_image_source: curr_image_source_property.value
@@ -84,7 +83,7 @@ XsToolbarItem  {
             }
         }
 
-        // we have to make this a child of the sessionWidget to allow us to 
+        // we have to make this a child of the sessionWidget to allow us to
         // use a mouseArea that covers the sessionWidget to close this pop-up
         // when the user clicks outside the pop-up.
         parent: sessionWidget
@@ -95,7 +94,7 @@ XsToolbarItem  {
         }
         color: XsStyle.mainBackground
         radius: XsStyle.menuRadius
-    
+
         ColumnLayout {
 
             id: imageColumn
@@ -127,7 +126,7 @@ XsToolbarItem  {
                 Repeater
                 {
                     model: combo_box_options
-                   
+
                     Rectangle {
                         id: checkBoxItem
                         Layout.fillWidth: true
@@ -137,13 +136,13 @@ XsToolbarItem  {
                         implicitHeight: XsStyle.menuItemHeight
                         implicitWidth: imageText.implicitWidth + iconsize + 50 + 4
                         property var option_text: combo_box_options[index]
-        
+
                         property var checked: value === option_text
                         property var highlighted: mouse_area.containsMouse
-        
+
                         color: highlighted ? XsStyle.highlightColor : "transparent"
                         gradient: styleGradient.accent_gradient
-        
+
                         Text {
                             id: imageText
                             anchors.left: iconbox.right
@@ -154,22 +153,22 @@ XsToolbarItem  {
                             font.family: XsStyle.controlTitleFontFamily
                             font.pixelSize: XsStyle.popupControlFontSize
                         }
-        
+
                         Rectangle {
-        
+
                             id: iconbox
                             width: iconsize
                             height: iconsize
                             visible: option_text != "No Video"
-        
+
                             color: checkBoxItem.checked ? XsStyle.highlightColor : "transparent"
-                
+
                             anchors.left: parent.left
                             anchors.leftMargin: 2
                             anchors.verticalCenter: parent.verticalCenter
                             border.width: 1
                             border.color: checkBoxItem.checked ? XsStyle.hoverColor : checkBoxItem.highlighted ? XsStyle.hoverColor : XsStyle.mainColor
-        
+
                             radius: iconsize / 2
                             Image {
                                 id: checkIcon
@@ -190,7 +189,7 @@ XsToolbarItem  {
                                 antialiasing: true
                             }
                         }
-        
+
                         MouseArea {
                             id: mouse_area
                             hoverEnabled: option_text != "No Video"
@@ -198,13 +197,13 @@ XsToolbarItem  {
                             onClicked: {
                                 if (option_text != "No Video") {
                                     value = option_text
-                                    hideMe() 
+                                    hideMe()
                                 }
                             }
                         }
-                    } 
+                    }
                 }
-            }   
+            }
         }
 
         Rectangle {
@@ -217,7 +216,7 @@ XsToolbarItem  {
             height: XsStyle.menuBorderWidth
             color: XsStyle.menuBorderColor
         }
-        
+
         ColumnLayout {
 
             id: audioColumn
@@ -282,7 +281,7 @@ XsToolbarItem  {
                             visible: option_text != "No Audio"
 
                             color: checkBoxItem.checked ? XsStyle.highlightColor : "transparent"
-                
+
                             anchors.left: parent.left
                             anchors.leftMargin: 2
                             anchors.verticalCenter: parent.verticalCenter
@@ -320,12 +319,12 @@ XsToolbarItem  {
                             onClicked: {
                                 if (option_text != "No Audio") {
                                     value = option_text
-                                    hideMe() 
+                                    hideMe()
                                 }
                             }
                         }
                     }
-                } 
+                }
             }
         }
     }

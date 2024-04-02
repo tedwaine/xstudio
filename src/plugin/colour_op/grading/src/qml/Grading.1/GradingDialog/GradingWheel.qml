@@ -10,95 +10,28 @@ import QtQml.Models 2.14
 import QtQuick.Dialogs 1.3 //for ColorDialog
 import QtGraphicalEffects 1.15 //for RadialGradient
 
-import xStudio 1.1
-import xstudio.qml.module 1.0
-
+import xStudioReskin 1.0
 
 Item {
     id: root
 
-    width: wheel.width + 25
-    height: titleRow.height + wheel.height + wheelInputCol.height
+    //width: wheel.width + 25
+    height: titleRow.height + wheel.height
 
     property real size: 135
 
     property string title
-    property var value
-    property real default_value
-    property real from
-    property real to
     property string attr_group
     property string attr_suffix
 
-    onValueChanged: {
+    // N.B. 'value' comes from the model in the Repeater that instatiates
+    // the colour wheels (in GradingDialog) and value is bound to the backend
+    // attribute in the grading plugin cpp class.
+    property var backend_value: value 
+
+    onBackend_valueChanged: {        
         if (!carea.pressed) {
-            wheel.color = val_to_pos_color(value)
-        }
-    }
-
-    XsModuleAttributes {
-        id: attr
-        attributesGroupNames: root.attr_group
-
-        onAttrAdded: {
-            // For undetermined reasons, directly binding the value property
-            // to the attribute with "attr.red_slope ? attr.red_slope : 0"
-            // kind of syntax doesn't work, so we instead use this hack until
-            // we understand how to make it work directly.
-            // We know blue is added last so now create the full binding..
-            if (attr_name.includes("blue")) {
-                root.value = Qt.binding(function() {
-                    return Qt.vector4d(
-                        attr["red_"    + root.attr_suffix],
-                        attr["green_"  + root.attr_suffix],
-                        attr["blue_"   + root.attr_suffix],
-                        attr["master_" + root.attr_suffix])
-                })
-                if (typeof val_to_pos_color === "function") {
-                    wheel.color = val_to_pos_color(root.value)
-                }
-            }
-        }
-    }
-    XsModuleAttributes {
-        id: attr_default_value
-        attributesGroupNames: root.attr_group
-        roleName: "default_value"
-
-        onAttrAdded: {
-            if (attr_name.includes("blue")) {
-                root.default_value = Qt.binding(function() { return attr_default_value["red_"   + root.attr_suffix] })
-            }
-        }
-    }
-    XsModuleAttributes {
-        id: attr_float_scrub_min
-        attributesGroupNames: root.attr_group
-        roleName: "float_scrub_min"
-
-        onAttrAdded: {
-            if (attr_name.includes("master")) {
-                redInput.validator.bottom    = Qt.binding(function() { return attr_float_scrub_min["red_"    + root.attr_suffix] })
-                greenInput.validator.bottom  = Qt.binding(function() { return attr_float_scrub_min["green_"  + root.attr_suffix] })
-                blueInput.validator.bottom   = Qt.binding(function() { return attr_float_scrub_min["blue_"   + root.attr_suffix] })
-                masterInput.validator.bottom = Qt.binding(function() { return attr_float_scrub_min["master_" + root.attr_suffix] })
-                root.from = Qt.binding(function() { return attr_float_scrub_min["red_"   + root.attr_suffix] })
-            }
-        }
-    }
-    XsModuleAttributes {
-        id: attr_float_scrub_max
-        attributesGroupNames: root.attr_group
-        roleName: "float_scrub_max"
-
-        onAttrAdded: {
-            if (attr_name.includes("master")) {
-                redInput.validator.top   = Qt.binding(function() { return attr_float_scrub_max["red_"    + root.attr_suffix] })
-                greenInput.validator.top = Qt.binding(function() { return attr_float_scrub_max["green_"  + root.attr_suffix] })
-                blueInput.validator.top  = Qt.binding(function() { return attr_float_scrub_max["blue_"   + root.attr_suffix] })
-                masterInput.validator.top  = Qt.binding(function() { return attr_float_scrub_max["master_" + root.attr_suffix] })
-                root.to = Qt.binding(function() { return attr_float_scrub_max["red_"   + root.attr_suffix] })
-            }
+            wheel.color = val_to_pos_color(backend_value)
         }
     }
 
@@ -129,9 +62,9 @@ Item {
 
     // Colour wheels only support adding / scaling up values.
 
-    function pos_to_val(v) {
-        var min = root.default_value
-        var max = root.to
+    function pos_to_val(v, idx) {
+        var min = default_value[idx]
+        var max = float_scrub_max[idx]
         var steepness = 4
 
         function lin_to_log(v) {
@@ -143,9 +76,9 @@ Item {
         return lin_to_log(v) * (max - min) + min
     }
 
-    function val_to_pos(v) {
-        var min = root.default_value
-        var max = root.to
+    function val_to_pos(v, idx) {
+        var min = default_value[idx]
+        var max = float_scrub_max[idx]
         var steepness = 4
 
         function log_to_lin(v) {
@@ -164,18 +97,18 @@ Item {
 
     function pos_to_val_color(color) {
         return Qt.vector4d(
-            pos_to_val(color.x),
-            pos_to_val(color.y),
-            pos_to_val(color.z),
+            pos_to_val(color.x, 0),
+            pos_to_val(color.y, 1),
+            pos_to_val(color.z, 2),
             1.0
         );
     }
 
     function val_to_pos_color(color) {
         return Qt.vector4d(
-            val_to_pos(color.x),
-            val_to_pos(color.y),
-            val_to_pos(color.z),
+            val_to_pos(color[0],0),
+            val_to_pos(color[1],1),
+            val_to_pos(color[2],2),
             1.0
         );
     }
@@ -288,17 +221,16 @@ Item {
                 color: "white"
             }
 
-            XsButton {
+            XsPrimaryButton {
                 id: reloadButton
                 width: 20; height: 20
                 bgColorNormal: "transparent"
                 borderWidth: 0
 
                 onClicked: {
-                    attr["red_"    + root.attr_suffix] = attr_default_value["red_"    + root.attr_suffix]
-                    attr["green_"  + root.attr_suffix] = attr_default_value["green_"  + root.attr_suffix]
-                    attr["blue_"   + root.attr_suffix] = attr_default_value["blue_"   + root.attr_suffix]
-                    attr["master_" + root.attr_suffix] = attr_default_value["master_" + root.attr_suffix]
+                    // 'value' and 'default_value' exposed from the model used
+                    // to instantiate thie wheel
+                    value = default_value
                 }
 
                 Image {
@@ -307,7 +239,7 @@ Item {
                     layer {
                         enabled: true
                         effect: ColorOverlay {
-                            color: reloadButton.down || reloadButton.hovered ? "white" : XsStyle.controlTitleColor
+                            color: reloadButton.down || reloadButton.hovered ? palette.brightText : palette.text
                         }
                     }
                 }
@@ -323,17 +255,20 @@ Item {
             property real ring_rel_size: 0.1
             property real cursor_width: 17
 
-            property real value: 1.0
+            property real local_value: 1.0
             property real saturation: 1.0
-            property vector4d color: Qt.vector4d(1.0, 1.0, 1.0, 1.0)
+            readonly property vector4d default_color: Qt.vector4d(1.0, 1.0, 1.0, 1.0)
+            property vector4d color: default_color
 
             onColorChanged: {
 
                 if (carea.pressed) {
                     var color_out = pos_to_val_color(color)
-                    attr["red_"   + root.attr_suffix] = color_out.x
-                    attr["green_" + root.attr_suffix] = color_out.y
-                    attr["blue_"  + root.attr_suffix] = color_out.z
+                    var v = value 
+                    v[0] = color_out.x
+                    v[1] = color_out.y
+                    v[2] = color_out.z
+                    value = v
                 } else {
                     var pos = rgb_to_pos(color)
                     cdrag.x = center + pos.x * radius
@@ -353,7 +288,7 @@ Item {
                     readonly property real radius: 0.5
                     readonly property real ring_radius: radius - radius * wheel.ring_rel_size
                     readonly property real saturation: wheel.saturation
-                    readonly property real value: wheel.value
+                    readonly property real local_value: wheel.local_value
 
                     fragmentShader: "
                         #version 330
@@ -367,7 +302,7 @@ Item {
                         uniform highp float radius;
                         uniform highp float ring_radius;
                         uniform highp float saturation;
-                        uniform highp float value;
+                        uniform highp float local_value;
 
                         vec3 hsv_to_rgb(vec3 c) {
                             vec4 K = vec4(1.0, 2.0 / 3.0, 1.0 / 3.0, 3.0);
@@ -380,10 +315,10 @@ Item {
                             highp float r = length(coord);
                             highp float h = atan(coord.x, coord.y);
                             highp float s = r <= ring_radius ? saturation * 0.5 : saturation;
-                            highp float v = r <= ring_radius ? value * 0.35 : value;
+                            highp float v = r <= ring_radius ? local_value * 0.35 : local_value;
 
                             if (r <= radius) {
-                                vec3 rgb = hsv_to_rgb( vec3(h / M_PI_2 + 0.5, s, v) );
+                                vec3 rgb = hsv_to_rgb( vec3((h + M_PI) / M_PI_2, s, v) );
                                 gl_FragColor = vec4(rgb, 1.0);
                             } else {
                                 gl_FragColor = vec4(0.0);
@@ -433,6 +368,9 @@ Item {
                     MouseArea {
                         id: carea
                         anchors.fill: parent
+                        propagateComposedEvents: true
+
+                        drag.filterChildren: true
                         drag.threshold: 0
                         drag.target: Item {
                             id: cdrag
@@ -441,6 +379,13 @@ Item {
 
                             x: wheel.center
                             y: wheel.center
+                        }
+
+                        onDoubleClicked: {
+                            value = default_value
+                            wheel.color = val_to_pos_color(backend_value)
+                            cdrag.x = wheel.center
+                            cdrag.y = wheel.center
                         }
 
                         onPositionChanged: {
@@ -474,42 +419,23 @@ Item {
             leftPadding: 20
 
             Column {
-                id: wheelInputCol
+                id: sliderInputCol
 
-                XsTextField {
-                    id: redInput
-                    width: 60
-                    bgColorNormal: "transparent"
-                    borderColor: bgColorNormal
-                    text: root.value ? root.value.x.toFixed(5) : ""
-                    validator: DoubleValidator {}
-
-                    onEditingFinished: {
-                        attr["red_" + root.attr_suffix] = parseFloat(text)
-                    }
-                }
-                XsTextField {
-                    id: greenInput
-                    width: 60
-                    bgColorNormal: "transparent"
-                    borderColor: bgColorNormal
-                    text: root.value ? root.value.y.toFixed(5) : ""
-                    validator: DoubleValidator {}
-
-                    onEditingFinished: {
-                        attr["green_" + root.attr_suffix] = parseFloat(text)
-                    }
-                }
-                XsTextField {
-                    id: blueInput
-                    width: 60
-                    bgColorNormal: "transparent"
-                    borderColor: bgColorNormal
-                    text: root.value ? root.value.z.toFixed(5) : ""
-                    validator: DoubleValidator {}
-
-                    onEditingFinished: {
-                        attr["blue_" + root.attr_suffix] = parseFloat(text)
+                Repeater {
+                    model: value.length-1
+                    XsTextField {
+                        width: 60
+                        bgColorNormal: "transparent"
+                        borderColor: bgColorNormal
+                        validator: DoubleValidator {
+                            bottom: float_scrub_min[index]
+                        }
+                        text: value[index].toFixed(5)
+                        onEditingFinished: {
+                            var _value = value;
+                            _value[index] = parseFloat(text)
+                            value = _value
+                        }
                     }
                 }
             }
@@ -517,26 +443,27 @@ Item {
             Column {
                 anchors.verticalCenter: parent.verticalCenter
                 leftPadding: 5
-
                 Label {
-                    visible: root.title != "Sat"
+                    visible: root.title != "Saturation"
                     text: root.title == "Offset" ? "+" : "x"
                 }
             }
 
             Column {
                 anchors.verticalCenter: parent.verticalCenter
-
                 XsTextField {
-                    id: masterInput
                     width: 60
                     bgColorNormal: "transparent"
                     borderColor: bgColorNormal
-                    text: root.value ? root.value.w.toFixed(5) : ""
-                    validator: DoubleValidator {}
+                    validator: DoubleValidator {
+                        bottom: float_scrub_min[float_scrub_min.length-1]
+                    }
+                    text: value[value.length-1].toFixed(5)
 
                     onEditingFinished: {
-                        attr["master_" + root.attr_suffix] = parseFloat(text)
+                        var _value = value;
+                        _value[value.length-1] = parseFloat(text)
+                        value = _value
                     }
                 }
             }

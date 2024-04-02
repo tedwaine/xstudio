@@ -11,7 +11,10 @@ using namespace xstudio::ui::qml;
 using namespace xstudio::ui::viewport;
 using namespace xstudio;
 
-namespace {} // namespace
+namespace {
+static int ctt = 0;
+} // namespace
+
 
 // N.B. we don't pass in 'parent' as the parent of the base class. The owner
 // of this class must schedule its destruction directly rather than rely on
@@ -20,7 +23,6 @@ QMLViewportRenderer::QMLViewportRenderer(QObject *parent, const int viewport_ind
     : QMLActor(nullptr), m_window(nullptr), viewport_index_(viewport_index) {
 
     viewport_qml_item_ = dynamic_cast<QMLViewport *>(parent);
-
     init_system();
 }
 
@@ -48,35 +50,36 @@ void QMLViewportRenderer::init_renderer() {
 
 void QMLViewportRenderer::paint() {
 
-    // TODO: again, this init call probably shouldn't happen in the main
-    // draw call. see above.
+    if (viewport_qml_item_ && viewport_qml_item_->isVisible()) {
 
-    if (!init_done) {
-        init_done = true;
-        init_renderer();
-    }
+        // TODO: again, this init call probably shouldn't happen in the main
+        // draw call. see above.
 
-    glPushClientAttrib(GL_CLIENT_ALL_ATTRIB_BITS);
-    viewport_renderer_->render();
-    glPopClientAttrib();
+        if (!init_done) {
+            init_done = true;
+            init_renderer();
+        }
 
-    // TODO: this is in the wrong place, we should check this *before* the
-    // redraw
-    const QRectF bounds = imageBoundsInViewportPixels();
-    if (bounds != imageBounds_) {
-        imageBounds_ = bounds;
-        emit(zoomChanged(viewport_renderer_->pixel_zoom()));
-    }
+        glPushClientAttrib(GL_CLIENT_ALL_ATTRIB_BITS);
+        viewport_renderer_->render();
+        glPopClientAttrib();
 
-    m_window->resetOpenGLState();
-    if (viewport_renderer_->playing()) {
-        emit(doRedraw());
+        // TODO: this is in the wrong place, we should check this *before* the
+        // redraw
+        const QRectF bounds = imageBoundsInViewportPixels();
+        if (bounds != imageBounds_) {
+            imageBounds_ = bounds;
+            emit(zoomChanged(viewport_renderer_->pixel_zoom()));
+        }
+
+        m_window->resetOpenGLState();
+        if (viewport_renderer_->playing()) {
+            emit(doRedraw());
+        }
     }
 }
 
-void QMLViewportRenderer::frameSwapped() { 
-    viewport_renderer_->framebuffer_swapped(utility::clock::now()); 
-}
+void QMLViewportRenderer::frameSwapped() { viewport_renderer_->framebuffer_swapped(); }
 
 void QMLViewportRenderer::setWindow(QQuickWindow *window) { m_window = window; }
 
@@ -85,8 +88,7 @@ void QMLViewportRenderer::setSceneCoordinates(
     const QPointF topright,
     const QPointF bottomright,
     const QPointF bottomleft,
-    const QSize sceneSize,
-    const float devicePixelRatio) {
+    const QSize sceneSize) {
 
     // this is called on every draw, as Qt does not provide a suitable
     // signal to detect when the viewport coordinates in the top level
@@ -102,8 +104,7 @@ void QMLViewportRenderer::setSceneCoordinates(
             Imath::V2f(topright.x(), topright.y()),
             Imath::V2f(bottomright.x(), bottomright.y()),
             Imath::V2f(bottomleft.x(), bottomleft.y()),
-            Imath::V2i(sceneSize.width(), sceneSize.height()),
-            devicePixelRatio);
+            Imath::V2i(sceneSize.width(), sceneSize.height()));
     }
 }
 
@@ -206,6 +207,12 @@ void QMLViewportRenderer::set_playhead(PlayheadUI *playhead) {
     spdlog::debug("QMLViewportRenderer::set_playhead");
     viewport_renderer_->set_playhead(playhead ? playhead->backend() : caf::actor());
 }
+
+void QMLViewportRenderer::set_playhead(caf::actor playhead) {
+    viewport_renderer_->set_playhead(playhead);
+}
+
+void QMLViewportRenderer::reset() { viewport_renderer_->reset(); }
 
 bool QMLViewportRenderer::pointerEvent(const PointerEvent &e) {
 
@@ -332,6 +339,10 @@ void QMLViewportRenderer::quickViewSource(QStringList mediaActors, QString compa
     }
 }
 
+void QMLViewportRenderer::autoConnectToSelectedPlayhead() {
+    viewport_renderer_->auto_connect_to_global_selected_playhead();
+}
+
 void QMLViewportRenderer::receive_change_notification(Viewport::ChangeCallbackId id) {
 
     if (id == Viewport::ChangeCallbackId::Redraw) {
@@ -375,48 +386,6 @@ void QMLViewportRenderer::setScreenInfos(
 
 void QMLViewportRenderer::linkToViewport(QMLViewportRenderer *other_viewport) {
     viewport_renderer_->link_to_viewport(other_viewport->as_actor());
-}
-
-void QMLViewportRenderer::renderImageToFile(
-    const QUrl filePath,
-    caf::actor playhead,
-    const int format,
-    const int compression,
-    const int width,
-    const int height,
-    const bool bakeColor) {
-
-    caf::scoped_actor sys{system()};
-    try {
-
-        auto offscreen_viewport =
-            system().registry().template get<caf::actor>(offscreen_viewport_registry);
-
-        if (offscreen_viewport) {
-
-            std::cerr << "A\n";
-            utility::request_receive<bool>(
-                *sys,
-                offscreen_viewport,
-                viewport::viewport_playhead_atom_v,
-                playhead);
-            std::cerr << "B\n";
-
-            utility::request_receive<bool>(
-                *sys,
-                offscreen_viewport,
-                viewport::render_viewport_to_image_atom_v,
-                UriFromQUrl(filePath),
-                width,
-                height);
-            std::cerr << "C\n";
-
-        } else {
-            emit snapshotRequestResult(QString("Offscreen viewport renderer was not found."));
-        }
-    } catch (std::exception & e) {
-        emit snapshotRequestResult(QString(e.what()));
-    }
 }
 
 void QMLViewportRenderer::setIsQuickViewer(const bool is_quick_viewer) {}

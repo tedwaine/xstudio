@@ -7,6 +7,7 @@ import Qt.labs.qmlmodels 1.0
 import QtQuick.Layouts 1.15
 
 import xStudioReskin 1.0
+import "./widgets"
 
 Item{
 
@@ -33,105 +34,98 @@ Item{
     property real btnHeight: XsStyleSheet.widgetStdHeight+4
     property real panelPadding: XsStyleSheet.panelPadding
 
-    // background
-    Rectangle{
-        z: -1000
+    XsGradientRectangle{
         anchors.fill: parent
-        gradient: Gradient {
-            GradientStop { position: 0.0; color: "#5C5C5C" }
-            GradientStop { position: 1.0; color: "#474747" }
-        }
     }
     
-    Item{id: actionDiv
-        width: parent.width; 
-        height: btnHeight+(panelPadding*2)
+    ColumnLayout {
+        
+        id: titleDiv
+        anchors.fill: parent
+        anchors.margins: panelPadding
         
         RowLayout{
+
             x: panelPadding
             spacing: 1
-            width: parent.width-(x*2)
-            height: btnHeight
-            anchors.verticalCenter: parent.verticalCenter
+            Layout.fillWidth: true
 
             XsPrimaryButton{ id: addPlaylistBtn
                 Layout.preferredWidth: btnWidth
-                Layout.preferredHeight: parent.height
+                Layout.preferredHeight: btnHeight
                 imgSrc: "qrc:/icons/add.svg"
+                onClicked: {
+                    var pos = mapToItem(panel, x+width/2, y+height/2)
+                    showMenu(pos.x ,pos.y)
+                }
             }
+
             XsPrimaryButton{ id: deleteBtn
                 Layout.preferredWidth: btnWidth
-                Layout.preferredHeight: parent.height
+                Layout.preferredHeight: btnHeight
                 imgSrc: "qrc:/icons/delete.svg"
             }
-            XsSearchButton{ id: searchBtn
-                Layout.preferredWidth: isExpanded? btnWidth*6 : btnWidth
-                Layout.preferredHeight: parent.height
-                isExpanded: false
-                hint: "Search playlists..."
-            }
+            // XsSearchButton{ id: searchBtn
+            //     Layout.preferredWidth: isExpanded? btnWidth*6 : btnWidth
+            //     Layout.preferredHeight: btnHeight
+            //     isExpanded: false
+            //     hint: "Search playlists..."
+            // }
             Item{
                 Layout.fillWidth: true
-                Layout.preferredHeight: parent.height
+                Layout.preferredHeight: btnHeight
             }
             XsPrimaryButton{ id: morePlaylistBtn
                 Layout.preferredWidth: btnWidth
-                Layout.preferredHeight: parent.height
+                Layout.preferredHeight: btnHeight
                 imgSrc: "qrc:/icons/more_vert.svg"
             }
         }
+
+        ColumnLayout{ 
+        
+            Layout.fillWidth: true
+            Layout.fillHeight: true
+            
+            XsPlaylistHeader{
+    
+                id: playlistHeader        
+                Layout.fillWidth: true
+                height: XsStyleSheet.widgetStdHeight
+    
+            }
+                            
+            XsPlaylistItems{
+                       
+                id: playlistItems
+                Layout.fillWidth: true
+                Layout.fillHeight: true 
+                y: playlistHeader.height
+                itemRowWidth: width
+    
+            }
+    
+        }    
         
     }
     
-    Rectangle{ id: playlistDiv
-        x: panelPadding
-        y: actionDiv.height
-        width: panel.width-(x*2)
-        height: panel.height-y-panelPadding
-        color: panelColor
-        
-        Rectangle{ id: titleBar
-            color: XsStyleSheet.panelTitleBarColor
-            width: parent.width
-            height: XsStyleSheet.widgetStdHeight
-    
-            XsText{
-                text: "Playlist ("+playlistItems.count+")"
-                anchors.left: parent.left
-                anchors.leftMargin: panelPadding
-                anchors.verticalCenter: parent.verticalCenter
-                horizontalAlignment: Text.AlignLeft
-            }
-    
-            XsSecondaryButton{
-                width: secBtnWidth
-                height: secBtnWidth
-                imgSrc: "qrc:/icons/filter_none.svg"
-                anchors.right: errorBtn.left
-                anchors.rightMargin: panelPadding
-                anchors.verticalCenter: parent.verticalCenter
-            }
+    Loader {
+        id: menu_loader
+    }
 
-            XsSecondaryButton{ id: errorBtn
-                width: secBtnWidth
-                height: secBtnWidth
-                imgSrc: "qrc:/icons/error.svg"
-                anchors.right: parent.right
-                anchors.rightMargin: panelPadding + panelPadding/2
-                anchors.verticalCenter: parent.verticalCenter
-            }
-    
+    Component {
+        id: plusMenuComponent
+        XsPlaylistPlusMenu {
         }
-            
-        XsPlaylistItems{
-
-            id: playlistItems
-            y: titleBar.height
-            itemRowWidth: playlistDiv.width
-
+    }
+                    
+    function showMenu(mx, my) {
+        if (menu_loader.item == undefined) {
+            menu_loader.sourceComponent = plusMenuComponent
         }
-
-
+        menu_loader.item.x = mx
+        menu_loader.item.y = my
+        menu_loader.item.visible = true    
     }
     
 }

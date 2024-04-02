@@ -20,6 +20,7 @@ Item{
     property bool sorted: false
     property bool isSortedDesc: false
     property real itemPadding: XsStyleSheet.panelPadding/2
+    property var leftMargin: 12
 
     property color highlightColor: palette.highlight
 
@@ -28,20 +29,23 @@ Item{
     property alias isDragged: dragArea.isDragActive
     onIsDraggedChanged:{
         headerColumnResizing()
-
-        if(title=="File") toggleFillWidth = true
-        else toggleFillWidth = false
     }
-    property bool toggleFillWidth: false
 
-    
+    onWidthChanged: {
+        if (data_type == "thumbnail") {
+            // thumbnail column sets the row height so that thumbnails scale
+            // sets the size of the media items
+            rowHeight = width*9/16
+        }
+    }
+
     Rectangle{ id: headerDiv
         width: parent.width //- dragThumbDiv.width
         height: parent.height
         color: XsStyleSheet.panelTitleBarColor
         anchors.verticalCenter: parent.verticalCenter
 
-        Rectangle{ //#TODO: test
+        Rectangle{
             anchors.fill: parent
             color: highlightColor
             visible: isDragged
@@ -59,11 +63,7 @@ Item{
         XsText{ id: titleDiv
             text: title
             anchors.verticalCenter: parent.verticalCenter
-            width: sortBtn.visible? (parent.width - sortBtn.width - itemPadding*3) : (parent.width - itemPadding*2)
-            anchors.right: sortBtn.visible? sortBtn.left : parent.right
-            anchors.rightMargin: itemPadding
-
-            horizontalAlignment: text=="File"? Text.AlignLeft : Text.AlignHCenter
+            x: position == "left" ? leftMargin : (parent.width-width)/2
         }
         MouseArea { id: headerMArea
             anchors.fill: parent

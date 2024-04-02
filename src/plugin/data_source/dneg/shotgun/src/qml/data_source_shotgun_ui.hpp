@@ -37,7 +37,9 @@ namespace ui {
         class ShotgunFilterModel;
         class ShotgunTreeModel;
         class ShotgunSequenceModel;
+        class ShotgunPresetModel;
         class JSONTreeModel;
+        class JSONTreeModelSync;
 
         class ShotgunDataSourceUI : public QMLActor {
 
@@ -45,6 +47,9 @@ namespace ui {
             Q_PROPERTY(bool connected READ connected WRITE setConnected NOTIFY connectedChanged)
             Q_PROPERTY(QString name READ name WRITE setName NOTIFY nameChanged)
             Q_PROPERTY(QString backend READ backend NOTIFY backendChanged)
+
+            Q_PROPERTY(QObject *presetsModel READ presetsModel NOTIFY presetsModelChanged)
+
             Q_PROPERTY(
                 QString backendId READ backendId WRITE setBackendId NOTIFY backendIdChanged)
 
@@ -75,6 +80,7 @@ namespace ui {
             QQmlPropertyMap *resultModels() const { return result_models_; }
             QQmlPropertyMap *presetModels() const { return preset_models_; }
 
+            Q_INVOKABLE QObject *presetsModel();
             Q_INVOKABLE QObject *groupModel(const int project_id);
             Q_INVOKABLE QObject *sequenceModel(const int project_id);
             Q_INVOKABLE QObject *sequenceTreeModel(const int project_id);
@@ -113,6 +119,7 @@ namespace ui {
             void termModelsChanged();
             void resultModelsChanged();
             void presetModelsChanged();
+            void presetsModelChanged();
 
             void projectChanged(const int project_id, const QString &project_name);
 
@@ -126,6 +133,8 @@ namespace ui {
             }
 
             void updateModel(const QString &name);
+
+            QFuture<QString> getDataFuture(const QString &type, const int project_id = -1);
 
             QString getPlaylists(const int project_id) {
                 return getPlaylistsFuture(project_id).result();
@@ -152,13 +161,7 @@ namespace ui {
             QString getProjects() { return getProjectsFuture().result(); }
             QFuture<QString> getProjectsFuture();
 
-
-            QString getSchemaFields(
-                const QString &entity, const QString &field, const QString &update_name = "") {
-                return getSchemaFieldsFuture(entity, field, update_name).result();
-            }
-            QFuture<QString> getSchemaFieldsFuture(
-                const QString &entity, const QString &field, const QString &update_name = "");
+            QFuture<QString> getSchemaFieldsFuture(const QString &type);
 
             QString getGroups(const int project_id) {
                 return getGroupsFuture(project_id).result();
@@ -360,9 +363,8 @@ namespace ui {
                 const bool update_result_model = false);
 
             QFuture<QString> executeQueryNew(
-                const QString &context,
+                const QStringList &preset_paths,
                 const int project_id,
-                const QVariant &query,
                 const bool update_result_model = false);
 
             QVariant mergeQueries(
@@ -371,10 +373,7 @@ namespace ui {
                 const bool ignore_duplicates = true) const;
 
             // value used by query, may map to id.
-            utility::JsonStore getQueryValue(
-                const std::string &type,
-                const utility::JsonStore &value,
-                const int project_id = -1) const;
+
             void updateQueryValueCache(
                 const std::string &type,
                 const utility::JsonStore &data,
@@ -424,7 +423,17 @@ namespace ui {
                 return addDownloadToMediaFuture(uuid).result();
             }
 
+            void requestData(
+                const QPersistentModelIndex &index,
+                const int role,
+                const nlohmann::json &request) const;
+
           private:
+            void JSONTreeSendEventFunc(const utility::JsonStore &event);
+
+            void receivedDataSlot(
+                const QPersistentModelIndex &index, const int role, const QString &result);
+
             utility::JsonStore purgeOldSystem(
                 const utility::JsonStore &vprefs, const utility::JsonStore &drefs) const;
 
@@ -434,31 +443,11 @@ namespace ui {
                 ShotgunTreeModel *model,
                 const bool purge_old   = true,
                 const bool clear_flags = false);
-            shotgun_client::Text addTextValue(
-                const std::string &filter,
-                const std::string &value,
-                const bool negated = false) const;
-
-            void addTerm(
-                const int project_id,
-                const std::string &context,
-                shotgun_client::FilterBy *qry,
-                const utility::JsonStore &term);
-
-            std::tuple<
-                utility::JsonStore,
-                std::vector<std::string>,
-                int,
-                std::pair<std::string, std::string>,
-                std::pair<std::string, std::string>>
-            buildQuery(
-                const std::string &context,
-                const int project_id,
-                const utility::JsonStore &query);
 
             void loadPresets(const bool purge_old = true);
             void flushPreset(const std::string &preset);
-            utility::JsonStore buildDataFromField(const utility::JsonStore &data);
+
+            QFuture<QString> loadPresetModelFuture();
 
             void setPreset(const std::string &preset, const utility::JsonStore &data);
             utility::JsonStore getPresetData(const std::string &preset);
@@ -475,6 +464,8 @@ namespace ui {
             bool connected_{false};
             caf::actor backend_;
             caf::actor_id backend_id_{0};
+            caf::actor backend_events_;
+
             QString backend_str_;
             QString name_{"test"};
 
@@ -494,7 +485,8 @@ namespace ui {
             utility::JsonStore live_link_metadata_;
 
             // map UI value to query value
-            std::map<std::string, std::map<std::string, utility::JsonStore>> query_value_cache_;
+            std::shared_ptr<utility::JsonStore> query_value_cache_;
+
             // capture default source selection
 
             std::map<std::string, std::pair<std::string, std::string>> source_selection_;
@@ -505,8 +497,13 @@ namespace ui {
             QQmlPropertyMap *term_models_{nullptr};
             QQmlPropertyMap *result_models_{nullptr};
             QQmlPropertyMap *preset_models_{nullptr};
+
+            ShotgunPresetModel *presets_model_{nullptr};
+
             bool disable_flush_{true};
             std::map<std::string, uint64_t> epoc_map_;
+
+            utility::Uuid my_event_id_;
         };
 
     } // namespace qml

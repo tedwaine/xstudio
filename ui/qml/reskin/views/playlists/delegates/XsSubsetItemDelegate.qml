@@ -62,26 +62,8 @@ Item {
                 Item{
                     Layout.preferredWidth: buttonWidth
                     Layout.preferredHeight: buttonWidth
-
-                    XsSecondaryButton{
-
-                        id: subsetBtn
-
-                        imgSrc: "qrc:/icons/chevron_right.svg"
-                        visible: subItemsCount != 0
-                        anchors.fill: parent
-
-                        isActive: isExpanded
-                        scale: rotation==0 || rotation==-90? 1:0.85
-                        rotation: (isExpanded)? 90:0
-                        Behavior on rotation {NumberAnimation{duration: 150 }}
-
-                        onClicked:{
-                            isExpanded = !isExpanded
-                        }
-
-                    }
                 }
+
                 XsImage{
                     Layout.minimumWidth: buttonWidth
                     Layout.maximumWidth: buttonWidth
@@ -95,7 +77,7 @@ Item {
                 }
                 XsText {
                     id: textDiv
-                    text: visibleItemDiv.text //+"-"+index //#TODO
+                    text: visibleItemDiv.text
                     font: visibleItemDiv.font
                     color: isMissing? hintColor : textColorNormal
                     Layout.fillWidth: true

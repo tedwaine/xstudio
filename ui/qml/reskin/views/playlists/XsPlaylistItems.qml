@@ -17,6 +17,12 @@ XsListView { id: playlist
     property real itemRowWidth: 200
     property real itemRowStdHeight: XsStyleSheet.widgetStdHeight -2
 
+    Rectangle{ id: resultsBg
+        anchors.fill: parent
+        color: XsStyleSheet.panelBgColor
+        z: -1
+    }
+    
     DelegateModel {
         id: playlistsModel
 
@@ -27,7 +33,7 @@ XsListView { id: playlist
         model: notifyModel
 
         // point at session 0,0, it's children are the playlists.
-        rootIndex: notifyModel.index(0, 0, notifyModel.index(-1, -1))
+        rootIndex: notifyModel.playlistsRootIdx
         delegate: chooser
     }
 
@@ -46,9 +52,9 @@ XsListView { id: playlist
         DelegateChoice {
             roleValue: "Playlist";
 
-            XsPlaylistItemDelegate{
+            XsPlaylistItemDelegate {
                 width: itemRowWidth
-                modelIndex: playlistsModel.modelIndex(index)
+                _modelIndex: playlistsModel.modelIndex(index)
             }
         }
 

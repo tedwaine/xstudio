@@ -6,8 +6,18 @@ QtObject {
     
     property color accentColor: "#D17000"
 
+    property color accentColorBlue: "#307bf6"
+    property color accentColorPurple: "#9b56a3"
+    property color accentColorPink: "#e65d9c"
+    property color accentColorRed: "#ed5f5d"
+    property color accentColorOrange: "#e9883a"
+    property color accentColorYellow: "#f3ba4b"
+    property color accentColorGreen: "#77b756"
+    property color accentColorGrey: "#999999"
+
     property real fontSize: 12
-    property string fontFamily: "Inter" //"Regular" //"Courier"
+    property string fontFamily: "Inter" //"Regular" //"Overpass"
+    property string fixedWidthFontFamily: "Courier" //"VeraMono" //"Regular"
 
     property color primaryTextColor: "#F1F1F1"
     property color secondaryTextColor: "#C1C1C1"
@@ -18,6 +28,9 @@ QtObject {
     property color panelTitleBarColor: "#666666"
     property color panelTabColor: "#1F1F1F"
     property color panelBgColor: "#333333"
+    property color panelBgFlatColor: "#555555"
+    property color panelBgGradTopColor: "#5C5C5C"
+    property color panelBgGradBottomColor: menuBarColor
     property real panelPadding: 4
 
     property color widgetBgNormalColor: "#1AFFFFFF"
@@ -25,6 +38,7 @@ QtObject {
     property real widgetBorderWidth: 1
 
     property real primaryButtonStdWidth: 40
+    property real primaryButtonStdHeight: widgetStdHeight + 4
     property real secondaryButtonStdWidth: 16
 
     property real menuStdWidth: 140
@@ -33,9 +47,14 @@ QtObject {
     property color menuLabelColor: primaryTextColor
     property color menuHotKeyColor: secondaryTextColor
     property color menuDividerColor: "#858585"
+    property color menuBorderColor: "#858585"
     property real menuDividerHeight: 1
     property real menuPadding: 4
     property real menuLabelPaddingLR: 16
     property real menuIndicatorSize: 16
+    property real menuCheckboxSize: 12
+
+    property color scrollbarBaseColor: "#A1A1A1"
+    property color scrollbarActiveColor: "#C1C1C1"
 
 }

@@ -18,7 +18,7 @@ XsDialogModal {
     XsModelProperty {
         id: feedback
         role: "valueRole"
-        index: app_window.globalStoreModel.search_recursive("/ui/qml/feedback", "pathRole")
+        index: app_window.globalStoreModel.searchRecursive("/ui/qml/feedback", "pathRole")
     }
 
     property bool isUrl: !feedback.value.includes("@")

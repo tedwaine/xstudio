@@ -72,6 +72,8 @@ Rectangle{ id: leftDiv
     property var searchTreePresetsViewModel: null
     property var searchQueryViewModel: null
 
+    property var newPresetsModel: null
+
     property var shotPresetsModel: null
     property var shotTreePresetsModel: null
     property var playlistPresetsModel: null
@@ -89,6 +91,7 @@ Rectangle{ id: leftDiv
     property var mediaActionFilterModel: null
 
     property var executeQueryFunc: null
+    property var executeQueryNewFunc: null
     property var mergeQueriesFunc: null
 
     // dynamic filters from right panel
@@ -361,6 +364,29 @@ Rectangle{ id: leftDiv
         return query
     }
 
+    function executeQueryRealNew() {
+        // console.log("executeQueryReal")
+        if(currentCategory) {
+            Future.promise(
+                executeQueryNewFunc(
+                    [
+                        newPresetsModel.get(
+                            newPresetsModel.searchRecursive("5d3d87ad-ea87-4349-bb2e-f6baea908486", "idRole"),
+                            "jsonPathRole"
+                        ),
+                        newPresetsModel.get(
+                            newPresetsModel.searchRecursive("0543a552-2cd5-41d6-87ee-0df879fdfb87", "idRole"),
+                            "jsonPathRole"
+                        )
+                    ], projectModel.get(projComboBox.currentIndex, "idRole"), true)
+            ).then(function(json_string) {
+            },
+            function() {
+            })
+        }
+    }
+
+
     function executeQueryReal() {
         // console.log("executeQueryReal")
         if(currentCategory) {
@@ -485,7 +511,7 @@ Rectangle{ id: leftDiv
         }
 
         treeTab.selectItem(
-            sequenceTreeModel.search_recursive(
+            sequenceTreeModel.searchRecursive(
                 shot_seq,
                 "nameRole"
             )
@@ -591,7 +617,7 @@ Rectangle{ id: leftDiv
 
         searchTreePresetsViewModel.activePreset = preset_id
         treeTab.selectItem(
-            sequenceTreeModel.search_recursive(
+            sequenceTreeModel.searchRecursive(
                 term_value,
                 "nameRole"
             )
@@ -723,7 +749,7 @@ Rectangle{ id: leftDiv
         } else if(currentCategory == "Versions Tree" || currentCategory == "Notes Tree") {
             // console.log(nameRole, typeRole, idRole)
             treeTab.selectItem(
-                sequenceTreeModel.search_recursive(
+                sequenceTreeModel.searchRecursive(
                     shotSearchFilterModel.get(clickedIndex, "idRole"),
                     "idRole"
                 )
@@ -775,6 +801,16 @@ Rectangle{ id: leftDiv
                         // ToolTip.text: "Authenticate"
                         // ToolTip.visible: hovered
                     }
+
+                    // XsButton{
+                    //     text: "a"
+                    //     Layout.preferredWidth: itemHeight
+                    //     Layout.preferredHeight: itemHeight
+                    //     onClicked: executeQueryRealNew()
+
+                    //     // ToolTip.text: "Authenticate"
+                    //     // ToolTip.visible: hovered
+                    // }
 
                     XsComboBox{ id: projComboBox
                         visible: !isCollapsed
@@ -1202,14 +1238,14 @@ Rectangle{ id: leftDiv
                     target: searchTreePresetsViewModel
                     function onActiveShotChanged() {
                         if(treeMode) {
-                            let index = sequenceTreeModel.search_recursive(searchTreePresetsViewModel.activeShot, "nameRole")
+                            let index = sequenceTreeModel.searchRecursive(searchTreePresetsViewModel.activeShot, "nameRole")
                             if(index.valid)
                                 treeTab.selectItem(index)
                         }
                     }
                     // function onActiveSeqChanged() {
                     //     if(treeMode) {
-                    //         let index = sequenceTreeModel.search_recursive(searchTreePresetsViewModel.activeSeq, "nameRole")
+                    //         let index = sequenceTreeModel.searchRecursive(searchTreePresetsViewModel.activeSeq, "nameRole")
                     //         treeTab.selectItem(index)
                     //     }
                     // }

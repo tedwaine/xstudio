@@ -62,6 +62,7 @@ namespace media {
         caf::actor json_store_;
         caf::actor event_group_;
         std::map<utility::Uuid, caf::actor> media_sources_;
+        utility::UuidList bookmark_uuids_;
         bool pending_change_{false};
     };
 
@@ -96,8 +97,8 @@ namespace media {
         const char *name() const override { return NAME.c_str(); }
 
       private:
-      
         void update_media_status();
+
         void update_media_detail();
 
         void
@@ -117,6 +118,8 @@ namespace media {
             const utility::Uuid &stream_uuid,
             const utility::FrameRate &rate,
             const utility::Timecode &timecode);
+
+        void send_stream_metadata_to_stream_actors(const utility::JsonStore &meta);
 
         inline static const std::string NAME = "MediaSourceActor";
         void init();

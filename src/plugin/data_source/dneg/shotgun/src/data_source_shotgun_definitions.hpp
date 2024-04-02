@@ -17,6 +17,17 @@ const auto GetShotFromId = R"({"operation": "GetShotFromId", "shot_id": null})"_
 
 const auto GetLinkMedia = R"({"operation": "LinkMedia", "playlist_uuid": null})"_json;
 
+const auto GetVersionArtist = R"({"operation": "VersionArtist", "version_id": null})"_json;
+
+const auto GetExecutePreset = R"({
+    "operation": "ExecutePreset",
+    "project_id": 0,
+    "preset_path": "",
+    "preset_paths": [],
+    "metadata": {},
+    "context": {}
+})"_json;
+
 const auto GetValidMediaCount = R"({"operation": "MediaCount", "playlist_uuid": null})"_json;
 
 const auto GetDownloadMedia = R"({"operation": "DownloadMedia", "media_uuid": null})"_json;
@@ -47,6 +58,10 @@ const auto GetQueryResult = R"({
     "query": null,
     "result": null
 })"_json;
+
+const auto GetPrecache = R"({"operation": "Precache", "project_id": -1})"_json;
+
+const auto GetData = R"({"operation": "GetData", "type": "", "project_id": -1})"_json;
 
 // POST
 

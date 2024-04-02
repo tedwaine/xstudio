@@ -12,6 +12,7 @@ CAF_PUSH_WARNINGS
 #include <QFutureWatcher>
 #include <QtConcurrent>
 #include <QSignalSpy>
+#include <QImage>
 CAF_POP_WARNINGS
 
 using namespace caf;
@@ -24,59 +25,35 @@ SessionModel::SessionModel(QObject *parent) : super(parent) {
     tag_manager_ = new TagManagerUI(this);
     init(CafSystemObject::get_actor_system());
 
-    auto role_names = std::vector<std::string>({
-        {"activeDurationRole"},
-        {"activeStartRole"},
-        {"actorRole"},
-        {"actorUuidRole"},
-        {"audioActorUuidRole"},
-        {"availableDurationRole"},
-        {"availableStartRole"},
-        {"bitDepthRole"},
-        {"busyRole"},
-        {"childrenRole"},
-        {"clipMediaUuidRole"},
-        {"containerUuidRole"},
-        {"enabledRole"},
-        {"errorRole"},
-        {"flagColourRole"},
-        {"flagTextRole"},
-        {"formatRole"},
-        {"groupActorRole"},
-        {"idRole"},
-        {"imageActorUuidRole"},
-        {"mediaCountRole"},
-        {"mediaStatusRole"},
-        {"metadataSet0Role"},
-        {"metadataSet10Role"},
-        {"metadataSet1Role"},
-        {"metadataSet2Role"},
-        {"metadataSet3Role"},
-        {"metadataSet4Role"},
-        {"metadataSet5Role"},
-        {"metadataSet6Role"},
-        {"metadataSet7Role"},
-        {"metadataSet8Role"},
-        {"metadataSet9Role"},
-        {"mtimeRole"},
-        {"nameRole"},
-        {"parentStartRole"},
-        {"pathRole"},
-        {"pixelAspectRole"},
-        {"placeHolderRole"},
-        {"rateFPSRole"},
-        {"resolutionRole"},
-        {"selectionRole"},
-        {"thumbnailURLRole"},
-        {"trackIndexRole"},
-        {"trimmedDurationRole"},
-        {"trimmedStartRole"},
-        {"typeRole"},
-        {"uuidRole"},
-    });
+    auto role_names =
+        std::vector<std::string>({{"activeDurationRole"}, {"activeStartRole"},
+                                  {"actorRole"},          {"actorUuidRole"},
+                                  {"audioActorUuidRole"}, {"availableDurationRole"},
+                                  {"availableStartRole"}, {"bitDepthRole"},
+                                  {"busyRole"},           {"clipMediaUuidRole"},
+                                  {"containerUuidRole"},  {"enabledRole"},
+                                  {"errorRole"},          {"flagColourRole"},
+                                  {"flagTextRole"},       {"formatRole"},
+                                  {"groupActorRole"},     {"imageActorUuidRole"},
+                                  {"mediaCountRole"},     {"mediaStatusRole"},
+                                  {"metadataSet0Role"},   {"metadataSet10Role"},
+                                  {"metadataSet1Role"},   {"metadataSet2Role"},
+                                  {"metadataSet3Role"},   {"metadataSet4Role"},
+                                  {"metadataSet5Role"},   {"metadataSet6Role"},
+                                  {"metadataSet7Role"},   {"metadataSet8Role"},
+                                  {"metadataSet9Role"},   {"mtimeRole"},
+                                  {"nameRole"},           {"parentStartRole"},
+                                  {"pathRole"},           {"pixelAspectRole"},
+                                  {"placeHolderRole"},    {"rateFPSRole"},
+                                  {"resolutionRole"},     {"selectionRole"},
+                                  {"thumbnailImageRole"}, {"thumbnailURLRole"},
+                                  {"trackIndexRole"},     {"trimmedDurationRole"},
+                                  {"trimmedStartRole"},   {"typeRole"},
+                                  {"uuidRole"},           {"bookmarkUuidsRole"}});
 
     setRoleNames(role_names);
     request_handler_ = new QThreadPool(this);
+    request_handler_->setMaxThreadCount(8);
 }
 
 void SessionModel::fetchMore(const QModelIndex &parent) {
@@ -89,7 +66,7 @@ void SessionModel::fetchMore(const QModelIndex &parent) {
                 idRole,
                 parent,
                 parent,
-                Roles::childrenRole);
+                JSONTreeModel::Roles::childrenRole);
         }
     } catch (const std::exception &err) {
         spdlog::warn("{} {}", __PRETTY_FUNCTION__, err.what());
@@ -97,7 +74,7 @@ void SessionModel::fetchMore(const QModelIndex &parent) {
 }
 
 
-QModelIndexList SessionModel::search_recursive_list_base(
+QModelIndexList SessionModel::searchRecursiveListBase(
     const QVariant &value,
     const int role,
     const QModelIndex &parent,
@@ -129,8 +106,8 @@ QModelIndexList SessionModel::search_recursive_list_base(
             }
         } else {
             cached_result = false;
-            results       = JSONTreeModel::search_recursive_list_base(
-                value, role, parent, start, hits, depth);
+            results =
+                JSONTreeModel::searchRecursiveListBase(value, role, parent, start, hits, depth);
             for (const auto &i : results) {
                 add_id_uuid_lookup(uuid, i);
             }
@@ -158,8 +135,8 @@ QModelIndexList SessionModel::search_recursive_list_base(
             }
         } else {
             cached_result = false;
-            results       = JSONTreeModel::search_recursive_list_base(
-                value, role, parent, start, hits, depth);
+            results =
+                JSONTreeModel::searchRecursiveListBase(value, role, parent, start, hits, depth);
             for (const auto &i : results) {
                 add_uuid_lookup(uuid, i);
             }
@@ -184,8 +161,8 @@ QModelIndexList SessionModel::search_recursive_list_base(
         } else {
             //  back populate..
             cached_result = false;
-            results       = JSONTreeModel::search_recursive_list_base(
-                value, role, parent, start, hits, depth);
+            results =
+                JSONTreeModel::searchRecursiveListBase(value, role, parent, start, hits, depth);
             for (const auto &i : results) {
                 add_string_lookup(str, i);
             }
@@ -198,7 +175,7 @@ QModelIndexList SessionModel::search_recursive_list_base(
     if (results.empty()) {
         cached_result = false;
         results =
-            JSONTreeModel::search_recursive_list_base(value, role, parent, start, hits, depth);
+            JSONTreeModel::searchRecursiveListBase(value, role, parent, start, hits, depth);
     } else if (cached_result) {
         // spdlog::info("have cached result {} {}", parent.isValid(), depth);
 
@@ -288,7 +265,7 @@ QVariant SessionModel::data(const QModelIndex &index, int role) const {
                     result = QVariant::fromValue(j.at("error_count").get<int>());
                 break;
 
-            case Roles::idRole:
+            case JSONTreeModel::Roles::idRole:
                 if (j.count("id"))
                     result = QVariant::fromValue(QUuidFromUuid(j.at("id")));
                 break;
@@ -321,6 +298,31 @@ QVariant SessionModel::data(const QModelIndex &index, int role) const {
                     }
                 }
                 break;
+
+            case Roles::bookmarkUuidsRole: {
+                auto type = j.value("type", "");
+                if (type == "Media" && j.count("bookmark_uuids")) {
+                    if (j.at("bookmark_uuids").is_null()) {
+                        requestData(
+                            QVariant::fromValue(QUuidFromUuid(j.at("id"))),
+                            idRole,
+                            index,
+                            index,
+                            role);
+                    } else {
+                        const auto &uuids = j.at("bookmark_uuids");
+                        if (uuids.is_array()) {
+                            QList<QVariant> rt;
+                            for (auto p = uuids.begin(); p != uuids.end(); ++p) {
+                                rt.append(QVariant(QUuidFromUuid((*p).get<utility::Uuid>())));
+                            }
+                            result = QVariant(rt);
+                        } else {
+                            result = json_to_qvariant(uuids);
+                        }
+                    }
+                }
+            } break;
 
             case Roles::trackIndexRole: {
                 auto type = j.value("type", "");
@@ -551,6 +553,21 @@ QVariant SessionModel::data(const QModelIndex &index, int role) const {
                     result = QVariant::fromValue(QUuidFromUuid(j.at("uuid")));
                 break;
 
+            case Roles::thumbnailImageRole: {
+                auto type = j.value("type", "");
+                if (type == "Media" && j.count("actor") and not j.at("actor").is_null()) {
+                    auto actor_str = j.at("actor");
+                    auto p         = media_thumbnails_.find(QStringFromStd(actor_str));
+                    if (p != media_thumbnails_.end()) {
+                        result = p.value();
+                    } else {
+                        auto actor = actorFromString(system(), actor_str);
+                        if (actor)
+                            anon_send(actor, media_reader::get_thumbnail_atom_v, 0.5f);
+                    }
+                }
+            } break;
+
             case Roles::thumbnailURLRole:
                 if (j.count("thumbnail_url")) {
                     if (j.at("thumbnail_url").is_null())
@@ -582,8 +599,18 @@ QVariant SessionModel::data(const QModelIndex &index, int role) const {
                             index,
                             index,
                             role);
-                    } else
-                        result = json_to_qvariant(j.at("playhead_selection"));
+                    } else {
+                        const auto &uuids = j.at("playhead_selection");
+                        if (uuids.is_array()) {
+                            QList<QVariant> rt;
+                            for (auto p = uuids.begin(); p != uuids.end(); ++p) {
+                                rt.append(QVariant(QUuidFromUuid((*p).get<utility::Uuid>())));
+                            }
+                            result = QVariant(rt);
+                        } else {
+                            result = json_to_qvariant(uuids);
+                        }
+                    }
                 }
                 break;
 
@@ -596,8 +623,12 @@ QVariant SessionModel::data(const QModelIndex &index, int role) const {
                             index,
                             index,
                             role);
-                    } else
+                    } else {
                         result = QString::fromStdString(j.at("flag"));
+                    }
+                } else if (j.count("type") and j.at("type") == "MediaSource") {
+                    // helper for media Sources.
+                    result = index.parent().data(role);
                 }
                 break;
 
@@ -612,6 +643,9 @@ QVariant SessionModel::data(const QModelIndex &index, int role) const {
                             role);
                     } else
                         result = QString::fromStdString(j.at("flag_text"));
+                } else if (j.count("type") and j.at("type") == "MediaSource") {
+                    // helper for media Sources.
+                    result = index.parent().data(role);
                 }
                 break;
 
@@ -727,7 +761,7 @@ QVariant SessionModel::data(const QModelIndex &index, int role) const {
                         result = QString::fromStdString(j.at("name"));
                 }
                 break;
-            case Roles::childrenRole:
+            case JSONTreeModel::Roles::childrenRole:
                 if (j.count("children")) {
                     if (j.at("children").is_null()) {
                         // stop more requests being sent..
@@ -749,14 +783,16 @@ QVariant SessionModel::data(const QModelIndex &index, int role) const {
                     const std::string key = fmt::format("metadata_set{}", did);
                     if (j.count(key)) {
                         if (j.at(key).is_null()) {
-
-                            requestData(
-                                QVariant::fromValue(QUuidFromUuid(j.at("id"))),
-                                idRole,
-                                index,
-                                index,
-                                role,
-                                metadata_sets_.find(did)->second);
+                            auto p = metadata_sets_.find(did);
+                            if (p != metadata_sets_.end()) {
+                                requestData(
+                                    QVariant::fromValue(QUuidFromUuid(j.at("id"))),
+                                    idRole,
+                                    index,
+                                    index,
+                                    role,
+                                    p->second);
+                            }
 
                         } else {
                             result = json_to_qvariant(j.at(key));

@@ -125,8 +125,9 @@ void SessionModel::forcePopulate(
 
     if (tjson.count("group_actor") and not tjson.at("group_actor").is_null()) {
         auto grp = actorFromString(system(), tjson.at("group_actor").get<std::string>());
-        if (grp)
+        if (grp) {
             anon_send(grp, broadcast::join_broadcast_atom_v, as_actor());
+        }
 
     } else if (
         tjson.count("actor") and not tjson.at("actor").is_null() and
@@ -134,7 +135,7 @@ void SessionModel::forcePopulate(
         // spdlog::info("request group {}", i);
         requestData(
             QVariant::fromValue(QUuidFromUuid(tjson.at("id"))),
-            Roles::idRole,
+            JSONTreeModel::Roles::idRole,
             search_hint,
             tjson,
             Roles::groupActorRole);
@@ -146,26 +147,27 @@ void SessionModel::forcePopulate(
     // if subset or playlist, trigger auto population of children
     if (type == "Playlist" or type == "Subset" or type == "Timeline") {
         try {
+
             requestData(
                 QVariant::fromValue(QUuidFromUuid(tree.child(0)->data().at("id"))),
-                Roles::idRole,
+                JSONTreeModel::Roles::idRole,
                 search_hint,
                 tree.child(0)->data(),
-                Roles::childrenRole);
+                JSONTreeModel::Roles::childrenRole);
             requestData(
                 QVariant::fromValue(QUuidFromUuid(tree.child(1)->data().at("id"))),
-                Roles::idRole,
+                JSONTreeModel::Roles::idRole,
                 search_hint,
                 tree.child(1)->data(),
-                Roles::childrenRole);
+                JSONTreeModel::Roles::childrenRole);
 
             if (type == "Playlist")
                 requestData(
                     QVariant::fromValue(QUuidFromUuid(tree.child(2)->data().at("id"))),
-                    Roles::idRole,
+                    JSONTreeModel::Roles::idRole,
                     search_hint,
                     tree.child(2)->data(),
-                    Roles::childrenRole);
+                    JSONTreeModel::Roles::childrenRole);
         } catch (const std::exception &err) {
             spdlog::warn("{} {}", __PRETTY_FUNCTION__, err.what());
         }
@@ -184,7 +186,7 @@ utility::Uuid SessionModel::refreshId(nlohmann::json &ij) {
 }
 
 void SessionModel::processChildren(const nlohmann::json &rj, const QModelIndex &parent_index) {
-    QVector<int> roles({Roles::childrenRole});
+    QVector<int> roles({JSONTreeModel::Roles::childrenRole});
     auto changed = false;
     START_SLOW_WATCHER()
 
@@ -196,13 +198,14 @@ void SessionModel::processChildren(const nlohmann::json &rj, const QModelIndex &
     // spdlog::warn("processChildren {} {} {}", type, ptree->data().dump(2), rj.dump(2));
     // spdlog::warn("processChildren {}", tree_to_json( *ptree,"children").dump(2));
     // spdlog::warn("processChildren {}", rj.dump(2));
-    if (type == "MediaSource" and rj.at(0).at("children").empty() and
+
+    /*if (type == "MediaSource" and rj.at(0).at("children").empty() and
         rj.at(1).at("children").empty()) {
         // spdlog::warn("RETRY {}", rj.dump(2));
         // force retry
         emit dataChanged(parent_index, parent_index, roles);
         return;
-    }
+    }*/
 
 
     try {
@@ -525,7 +528,7 @@ void SessionModel::receivedData(
             search_start = search_index.row();
         }
 
-        auto indexes = search_recursive_list(sv, search_role, search_index, search_start, hits);
+        auto indexes = searchRecursiveList(sv, search_role, search_index, search_start, hits);
 
         std::map<int, std::string> role_to_key({
             {Roles::pathRole, "path"},
@@ -544,6 +547,7 @@ void SessionModel::receivedData(
             {Roles::flagColourRole, "flag"},
             {Roles::flagTextRole, "flag_text"},
             {Roles::selectionRole, "playhead_selection"},
+            {Roles::bookmarkUuidsRole, "bookmark_uuids"},
             {Roles::thumbnailURLRole, "thumbnail_url"},
             {Roles::metadataSet0Role, "metadata_set0"},
             {Roles::metadataSet1Role, "metadata_set1"},
@@ -603,6 +607,30 @@ void SessionModel::receivedData(
                     }
                     break;
 
+                case Roles::flagTextRole:
+                case Roles::flagColourRole: {
+                    auto changed = false;
+                    if (j.count(role_to_key[role]) and j.at(role_to_key[role]) != result) {
+                        j[role_to_key[role]] = result;
+                        changed              = true;
+                    } else if (not j.count(role_to_key[role])) {
+                        j[role_to_key[role]] = result;
+                        changed              = true;
+                    }
+                    if (changed) {
+                        emit dataChanged(index, index, roles);
+                        if (j.count("type") and j.at("type") == "Media") {
+                            // propergate to children
+                            auto rows = rowCount(index);
+                            if (rows)
+                                emit dataChanged(
+                                    SessionModel::index(0, 0, index),
+                                    SessionModel::index(rows - 1, 0, index),
+                                    roles);
+                        }
+                    }
+                } break;
+
                 case Roles::thumbnailURLRole:
                     if (role_to_key.count(role)) {
                         if (j.count(role_to_key[role]) and j.at(role_to_key[role]) != result) {
@@ -633,7 +661,7 @@ void SessionModel::receivedData(
                                         idRole,
                                         index,
                                         media_list_index,
-                                        childrenRole);
+                                        JSONTreeModel::Roles::childrenRole);
                                 }
                             }
 
@@ -689,7 +717,7 @@ void SessionModel::receivedData(
                     }
                     break;
 
-                case Roles::childrenRole:
+                case JSONTreeModel::Roles::childrenRole:
                     processChildren(result, index);
                     break;
                 }
@@ -952,7 +980,8 @@ nlohmann::json SessionModel::containerDetailToJson(
         result.erase("children");
     }
 
-    if (detail.type_ == "Media" or detail.type_ == "MediaSource") {
+    if (detail.type_ == "Media" or detail.type_ == "MediaSource" or
+        detail.type_ == "MediaStream") {
         result["metadata_set0"]    = nullptr;
         result["metadata_set1"]    = nullptr;
         result["metadata_set2"]    = nullptr;
@@ -968,8 +997,9 @@ nlohmann::json SessionModel::containerDetailToJson(
         result["image_actor_uuid"] = nullptr;
         result["media_status"]     = nullptr;
         if (detail.type_ == "Media") {
-            result["flag"]      = nullptr;
-            result["flag_text"] = nullptr;
+            result["flag"]           = nullptr;
+            result["flag_text"]      = nullptr;
+            result["bookmark_uuids"] = nullptr;
         } else if (detail.type_ == "MediaSource") {
             result["thumbnail_url"] = nullptr;
             result["rate"]          = nullptr;
@@ -1023,17 +1053,16 @@ void SessionModel::updateSelection(const QModelIndex &index, const QModelIndexLi
                     UuidList uv;
                     for (const auto &i : selection)
                         uv.emplace_back(UuidFromQUuid(i.data(actorUuidRole).toUuid()));
-
                     anon_send(actor, playlist::select_media_atom_v, uv);
                 }
             }
         }
     } catch (const std::exception &err) {
         spdlog::warn("{} {}", __PRETTY_FUNCTION__, err.what());
-        if (index.isValid()) {
+        /*if (index.isValid()) {
             nlohmann::json &j = indexToData(index);
             spdlog::warn("{}", j.dump(2));
-        }
+        }*/
     }
 }
 

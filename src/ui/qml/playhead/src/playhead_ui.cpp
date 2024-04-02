@@ -43,7 +43,7 @@ void PlayheadUI::set_backend(caf::actor backend) {
     if (backend_) {
         self()->demonitor(backend_);
         anon_send(backend_, playhead::play_atom_v, false); // make sure we stop playback
-        anon_send(backend_, module::disconnect_from_ui_atom_v);
+        //anon_send(backend_, module::disconnect_from_ui_atom_v);
     }
 
     backend_ = backend;
@@ -152,9 +152,7 @@ void PlayheadUI::set_backend(caf::actor backend) {
     emit sourceOffsetFramesChanged();
 
     media_changed();
-    rebuild_cache();
     rebuild_bookmarks();
-    emit cachedFramesChanged();
     emit bookmarkedFramesChanged();
 
     spdlog::debug("PlayheadUI set_backend {}", to_string(uuid_));
@@ -209,16 +207,6 @@ void PlayheadUI::init(actor_system &system_) {
             },
 
             [=](utility::event_atom,
-                media_cache::cached_frames_atom,
-                const std::vector<std::pair<int, int>> &cached_regions) {
-                cache_detail_.clear();
-                for (const auto &r : cached_regions) {
-                    cache_detail_.push_back(QPoint(r.first, r.second));
-                }
-                emit cachedFramesChanged();
-            },
-
-            [=](utility::event_atom,
                 bookmark::get_bookmarks_atom,
                 const std::vector<std::tuple<utility::Uuid, std::string, int, int>>
                     &bookmarked_regions) {
@@ -239,10 +227,7 @@ void PlayheadUI::init(actor_system &system_) {
                     frames_ = frames;
                     emit framesChanged();
                     // reaquire cache..
-                    rebuild_cache();
                     rebuild_bookmarks();
-                    // emit cachedFramesChanged();
-                    // emit cachedFramesChanged();
                 }
             },
 
@@ -250,7 +235,6 @@ void PlayheadUI::init(actor_system &system_) {
                 key_playhead_index_ = index;
                 emit(keyPlayheadIndexChanged());
                 emit(compareLayerNameChanged());
-                rebuild_cache();
                 rebuild_bookmarks();
                 // emit cachedFramesChanged();
             },
@@ -571,8 +555,6 @@ void PlayheadUI::setFitMode(const QString mode) {
 void PlayheadUI::connectToUI() { anon_send(backend_, module::connect_to_ui_atom_v); }
 
 void PlayheadUI::disconnectFromUI() { anon_send(backend_, module::disconnect_from_ui_atom_v); }
-
-void PlayheadUI::rebuild_cache() { anon_send(backend_, media_cache::cached_frames_atom_v); }
 
 void PlayheadUI::rebuild_bookmarks() { anon_send(backend_, bookmark::get_bookmarks_atom_v); }
 

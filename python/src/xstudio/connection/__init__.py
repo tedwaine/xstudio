@@ -14,7 +14,6 @@ from xstudio.sync_api import SyncAPI
 from xstudio.core import RemoteSessionManager, remote_session_path
 import uuid
 import time
-import traceback
 import os
 from pathlib import Path
 from threading import Thread
@@ -605,9 +604,11 @@ class Connection(object):
         Args:
             path (Path): Path to a directory on filesystem
         """
-        import importlib.util
-        import sys
+
         try:
+            import importlib.util
+            import sys
+
             sys.path.insert(0, path)
             spec = importlib.util.find_spec(plugin_name)
             if spec is not None:
@@ -616,11 +617,7 @@ class Connection(object):
                 spec.loader.exec_module(module)
                 self.plugins[path + plugin_name] = module.create_plugin_instance(self)
             else:
-                print ("Error loading plugin \"{1}\" from \"{0}\" - not python importable.".format(
-                    path, plugin_name))
+                print ("Error loading plugin \"{0}\" from \"{0}\" - not python importable.".format(
+                    path))
         except Exception as e:
-            print ("Error loading plugin \"{0}\" from \"{1}\" - : {2}".format(
-                    plugin_name,
-                    path,
-                    e))
-            print (traceback.format_exc())
+            print (str(e))

@@ -22,6 +22,7 @@ set(DCMAKE_EXE_LINKER_FLAGS "${DCMAKE_EXE_LINKER_FLAGS} -fpic")
 # add_src_and_test(timeline)
 
 add_src_and_test(bookmark)
+add_src_and_test(conform)
 add_src_and_test(embedded_python)
 add_src_and_test(event)
 add_src_and_test(global_store)

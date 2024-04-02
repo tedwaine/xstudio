@@ -22,7 +22,6 @@ import QuickPromise 1.0
 //------------------------------------------------------------------------------
 import xstudio.qml.bookmarks 1.0
 import xstudio.qml.clipboard 1.0
-import xstudio.qml.cursor_pos_provider 1.0
 import xstudio.qml.event 1.0
 import xstudio.qml.global_store_model 1.0
 import xstudio.qml.module 1.0
@@ -136,7 +135,7 @@ ApplicationWindow {
 
     XsModelNestedPropertyMap {
         id: second_window_settings
-        index: app_window.globalStoreModel.search_recursive("/ui/qml/second_window_settings", "pathRole")
+        index: app_window.globalStoreModel.searchRecursive("/ui/qml/second_window_settings", "pathRole")
         property alias properties: second_window_settings.values
     }
 
@@ -145,7 +144,7 @@ ApplicationWindow {
     XsModelProperty {
         id: bookmark_categories_value
         role: "valueRole"
-        index: app_window.globalStoreModel.search_recursive("/core/bookmark/category", "pathRole")
+        index: app_window.globalStoreModel.searchRecursive("/core/bookmark/category", "pathRole")
     }
 
     property alias mediaFlags: mediaFlags
@@ -153,7 +152,7 @@ ApplicationWindow {
     XsModelPropertyTree {
         id: mediaFlags
         role: "valueRole"
-        index: app_window.globalStoreModel.search_recursive("/core/session/media_flags", "pathRole")
+        index: app_window.globalStoreModel.searchRecursive("/core/session/media_flags", "pathRole")
     }
 
     XsBookmarkCategories {
@@ -383,7 +382,7 @@ ApplicationWindow {
 
         onPlaylistsChanged: {
             if(sessionSelectionModel.currentIndex == undefined || !sessionSelectionModel.currentIndex.valid) {
-                let ind = sessionModel.search_recursive("Playlist", "typeRole")
+                let ind = sessionModel.searchRecursive("Playlist", "typeRole")
                 if(ind.valid) {
                     currentSource.index = ind
                     screenSource.index = ind
@@ -521,8 +520,8 @@ ApplicationWindow {
                 // we need these populated first..
                 if(index.model.rowCount(index)) {
                     // stream containers loaded.
-                    let ia = index.model.search_recursive(values.imageActorUuidRole, "actorUuidRole", index.model.index(0,0,index))
-                    let aa = index.model.search_recursive(values.audioActorUuidRole, "actorUuidRole", index.model.index(1,0,index))
+                    let ia = index.model.searchRecursive(values.imageActorUuidRole, "actorUuidRole", index.model.index(0,0,index))
+                    let aa = index.model.searchRecursive(values.audioActorUuidRole, "actorUuidRole", index.model.index(1,0,index))
 
                     // console.log("imageStreams", index.model.index(0,0,index), index.model.rowCount(index.model.index(0,0,index)))
                     // console.log("audioStreams", index.model.index(1,0,index), index.model.rowCount(index.model.index(1,0,index)))
@@ -533,8 +532,8 @@ ApplicationWindow {
                     callback_timer.setTimeout(function(plindex) { return function() {
                         // console.log(index.model.rowCount(index))
                         if(index.model) {
-                            let ia = index.model.search_recursive(values.imageActorUuidRole, "actorUuidRole", index.model.index(0,0,index))
-                            let aa = index.model.search_recursive(values.audioActorUuidRole, "actorUuidRole", index.model.index(1,0,index))
+                            let ia = index.model.searchRecursive(values.imageActorUuidRole, "actorUuidRole", index.model.index(0,0,index))
+                            let aa = index.model.searchRecursive(values.audioActorUuidRole, "actorUuidRole", index.model.index(1,0,index))
                             buildStreams()
                         }
                     }}( index ), 100);
@@ -618,7 +617,7 @@ ApplicationWindow {
                     viewport.playhead.jumpToSource(active)
                 }
                 // find media source index..
-                let mind = current.model.search_recursive(current.model.get(current, "imageActorUuidRole"), "actorUuidRole", current)
+                let mind = current.model.searchRecursive(current.model.get(current, "imageActorUuidRole"), "actorUuidRole", current)
                 if(mind.valid) {
                     if(mediaImageSource.index != mind)
                         mediaImageSource.index = mind
@@ -626,7 +625,7 @@ ApplicationWindow {
                     // children not valid wait a little..
                     m_timer.setTimeout(function(index) { return function() {
                         let model = index.model
-                        let mind = model.search_recursive(model.get(index, "imageActorUuidRole"), "actorUuidRole", index)
+                        let mind = model.searchRecursive(model.get(index, "imageActorUuidRole"), "actorUuidRole", index)
                         if(mind.valid && mediaImageSource.index != mind) {
                             mediaImageSource.index = mind
                         }
@@ -658,7 +657,7 @@ ApplicationWindow {
                         let m_uuid = pmodel.get(pmodel.index(i, 0, parent), "uuidRole")
                         // actorUUid of media..
                         indexes.push(
-                            parent.model.search_recursive(
+                            parent.model.searchRecursive(
                                 pmodel.get(pmodel.index(i, 0, parent), "uuidRole"),
                                 "actorUuidRole",
                                 cmodel.index(0, 0, currentSource.index)
@@ -978,7 +977,7 @@ ApplicationWindow {
             if(quuids.length && ["Playlist", "Subset", "Timeline"].includes(type)) {
                 app_window.sessionFunction.setActivePlaylist(index)
                 callback_timer.setTimeout(function(plindex, new_item) { return function() {
-                    let new_media = plindex.model.search_recursive(new_item, "actorUuidRole", plindex.model.index(0,0,plindex))
+                    let new_media = plindex.model.searchRecursive(new_item, "actorUuidRole", plindex.model.index(0,0,plindex))
                     if(new_media.valid) {
                         app_window.sessionFunction.setActiveMedia(new_media)
                     }
@@ -1468,7 +1467,7 @@ ApplicationWindow {
 
         function selectAllMedia() {
             let media_parent = currentSource.index.model.index(0, 0, currentSource.index)
-            let matches = mediaSelectionModel.model.search_list("Media", "typeRole", media_parent, 0, -1)
+            let matches = mediaSelectionModel.model.searchList("Media", "typeRole", media_parent, 0, -1)
             mediaSelectionModel.select(helpers.createItemSelection(matches), ItemSelectionModel.ClearAndSelect)
         }
 
@@ -1512,7 +1511,7 @@ ApplicationWindow {
 
             for(let i =0;i<sel.length;i++) {
                 let mi = sel[i]
-                let ms = mi.model.search_recursive(mi.model.get(mi, "imageActorUuidRole"), "actorUuidRole", mi)
+                let ms = mi.model.searchRecursive(mi.model.get(mi, "imageActorUuidRole"), "actorUuidRole", mi)
                 result.push(mi.model.get(ms, "pathRole"))
             }
 
@@ -1522,9 +1521,9 @@ ApplicationWindow {
         }
 
 
-        function conformInsertSelectedMedia(item) {
-            sessionModel.conformInsert(item, mediaSelectionModel.selectedIndexes)
-        }
+        // function conformInsertSelectedMedia(item) {
+        //     sessionModel.conformInsert(item, mediaSelectionModel.selectedIndexes)
+        // }
 
         function duplicateSelectedMedia() {
             var media = XsUtils.cloneArray(mediaSelectionModel.selectedIndexes)
@@ -1567,7 +1566,7 @@ ApplicationWindow {
             var media = mediaSelectionModel.selectedIndexes
             media.forEach(
                 (element) => {
-                    let mi = element.model.search_recursive(element.model.get(element, "imageActorUuidRole"), "actorUuidRole", element)
+                    let mi = element.model.searchRecursive(element.model.get(element, "imageActorUuidRole"), "actorUuidRole", element)
                     mi.model.set(mi, value, "rateFPSRole")
                 }
             )
@@ -1579,7 +1578,7 @@ ApplicationWindow {
             if(media.length) {
                 // get first media object -> source -> rate
                 let mi = media[0]
-                let ms = mi.model.search_recursive(mi.model.get(mi, "imageActorUuidRole"), "actorUuidRole", mi)
+                let ms = mi.model.searchRecursive(mi.model.get(mi, "imageActorUuidRole"), "actorUuidRole", mi)
                 request_media_rate.text = mi.model.get(ms, "rateFPSRole")
                 request_media_rate.open()
             }
@@ -1626,7 +1625,7 @@ ApplicationWindow {
             dialog.payload = jsn
             dialog.show()
         }
-        
+
         function onShowMessageBox(title, body, closeButton, timeoutSecs) {
             messageBox.title = title
             messageBox.text = body
@@ -1659,7 +1658,7 @@ ApplicationWindow {
                 hide_timer.start()
             }
         }
-    
+
     }
 
     // Session {

@@ -1,169 +1,144 @@
-// SPDX-License-Identifier: Apache-2.0
 import QtQuick 2.15
 import QtQuick.Controls 2.15
 import QtQml.Models 2.14
 import Qt.labs.qmlmodels 1.0
-import QtGraphicalEffects 1.12
+import QtGraphicalEffects 1.15
+import QtQuick.Layouts 1.3
 
 import xStudioReskin 1.0
 import xstudio.qml.models 1.0
 
 Item {
 
-    // Note that the model gives use a boolean 'is_checked', plus 'name' and
-    // 'hotkey' strings.
-                
-    id: widget
-    width: parentWidth //(menuWidth > menuStdWidth)? menuWidth : menuStdWidth
+    id: widget            
     height: XsStyleSheet.menuHeight
-    
+
+    // Note .. menu item width needs to be set by the widest menu item in the
+    // same menu. This creates a circular dependency .. the menu item width
+    // depends on the widest item. If it is the widest item its width 
+    // depends on itself. There must be a better QML solution for this
+    property real minWidth: final_spacer.width + indentSpacer.width + iconDiv.width + hotkey_metrics.width + label_metrics.width + margin*4    
+
+    property real leftIconSize: indentSpacer.width + iconDiv.width
+
+    property bool isChecked: isRadioButton? radioSelectedChoice==label : is_checked
+    property bool isRadioButton: false
+    property var radioSelectedChoice: ""
+    property var label: name ? name : ""
+
+    property var margin: 4 // don't need this ?
+    property var sub_menu
     property var menu_model
     property var menu_model_index
     property var parent_menu
-
-    property string label: name ? name : ""
-    property bool isChecked: isRadioButton? radioSelectedChoice==label : is_checked
-
-    signal clicked()
+    property alias icon: iconDiv.source
 
     property bool isHovered: menuMouseArea.containsMouse
     property bool isActive: menuMouseArea.pressed
-    property bool isFocused: menuMouseArea.activeFocus
-
-    property real parentWidth: 0
-    property real menuWidth: parentWidth<menuRealWidth? menuRealWidth : parentWidth
-    property real menuRealWidth: checkBox.width + labelMetrics.width + (checkBoxPadding*2) + (labelPadding)
-    property real menuStdWidth: XsStyleSheet.menuStdWidth
-
-    property bool isRadioButton: false
-    property string radioSelectedChoice: ""
-    property real checkBoxSize: XsStyleSheet.menuIndicatorSize
-    property real checkBoxPadding: XsStyleSheet.menuLabelPaddingLR/4 //XsStyleSheet.menuPadding*2
-    property real labelPadding: XsStyleSheet.menuPadding
-    property color bgColorActive: palette.highlight
-    property color bgColorNormal: "transparent"
-    property color forcedBgColorNormal: bgColorNormal
-    property color labelColor: palette.text
-    property color hotKeyColor: XsStyleSheet.menuHotKeyColor
-    property color borderColorHovered: palette.highlight
-    property color borderColorNormal: "transparent"
+ 
+    property color hotKeyColor: palette.highlight
     property real borderWidth: XsStyleSheet.widgetBorderWidth
+
+    opacity: enabled ? 1 : 0.5
+
+    function hideSubMenus() {}
+
+    signal clicked()
 
     MouseArea{
         id: menuMouseArea
         anchors.fill: parent
         hoverEnabled: true
         propagateComposedEvents: true
-
         onClicked: {
             widget.clicked()
         }
     }
 
-    Rectangle {
+    Rectangle { 
         id: bgHighlightDiv
-        anchors.fill: parent
-        color: widget.isActive ? bgColorActive : forcedBgColorNormal
-        border.color: widget.isHovered ? borderColorHovered : borderColorNormal
+        implicitWidth: parent.width
+        implicitHeight: parent.height
+        anchors.verticalCenter: parent.verticalCenter
+        border.color: palette.highlight
         border.width: borderWidth
-    }
-    Rectangle {
-        id: bgFocusDiv
-        visible: widget.isFocused
-        anchors.fill: parent
-        color: "transparent"
-        opacity: 0.33
-        border.color: borderColorHovered
-        border.width: borderWidth
-        anchors.centerIn: parent 
+        color: isActive ? palette.highlight : "transparent"
+        visible: widget.isHovered
+
     }
 
-    // Image {
-    //     id: checkBox
-    //     source: isRadioButton? 
-    //         isChecked?  "qrc:/icons/radio_button_checked.svg" : "qrc:/icons/radio_button_unchecked.svg" :
-    //         isChecked?  "qrc:/icons/check_box_checked.svg" : "qrc:/icons/check_box_unchecked.svg"
-    //     width: checkBoxSize
-    //     height: checkBoxSize
-    //     anchors.left: parent.left
-    //     anchors.leftMargin: checkBoxPadding
-    //     anchors.verticalCenter: parent.verticalCenter
-    //     layer {
-    //         enabled: true
-    //         effect: ColorOverlay { color: isChecked? widget.highlighted?labelColor:bgColorPressed : hotKeyColor }
-    //     }
-    // }
-    Rectangle{anchors.fill: checkBox; color: bgColorPressed; visible: isChecked; scale: 0.8; radius: isRadioButton? width/2:0}         
-    Image {
-        id: checkBox
-        source: isRadioButton? 
-            isChecked?  "qrc:/icons/radio_button_checked.svg" : "qrc:/icons/radio_button_unchecked.svg" :
-            isChecked?  "qrc:/icons/check_box_checked.svg" : "qrc:/icons/check_box_unchecked.svg"
-        width: checkBoxSize
-        height: checkBoxSize
-        anchors.left: parent.left
-        anchors.leftMargin: checkBoxPadding
-        anchors.verticalCenter: parent.verticalCenter
-        layer {
-            enabled: true
-            // effect: ColorOverlay { color: isChecked? labelColor : hotKeyColor }
-            effect: ColorOverlay { color: hotKeyColor }
+    RowLayout {
+
+        anchors.fill: parent
+        anchors.margins: margin
+        spacing: 0
+
+        XsImage { 
+        
+            id: iconDiv
+            source: isRadioButton? 
+                isChecked ? "qrc:/icons/radio_button_checked.svg" : "qrc:/icons/radio_button_unchecked.svg" :
+                isChecked ? "qrc:/icons/check_box_checked.svg" : "qrc:/icons/check_box_unchecked.svg"
+            width: XsStyleSheet.menuCheckboxSize
+            height: XsStyleSheet.menuCheckboxSize
+            sourceSize.height: height
+            sourceSize.width: width
+            Layout.alignment: Qt.AlignLeft | Qt.AlignVCenter
+            layer {
+                enabled: true
+                effect: ColorOverlay { color: hotKeyColor }
+            }            
+    
+        }
+    
+        Item {
+            id: indentSpacer
+            width: 3
+        }
+
+        Text { 
+            
+            id: labelDiv
+            text: label ? label : "Unknown" //+ (sub_menu && !is_in_bar ? "   >>" : "")
+            font.pixelSize: XsStyleSheet.fontSize
+            font.family: XsStyleSheet.fontFamily
+            color: palette.text 
+            horizontalAlignment: Text.AlignLeft
+            verticalAlignment: Text.AlignVCenter
+            Layout.alignment: Qt.AlignLeft | Qt.AlignVCenter
+
+        }
+
+        TextMetrics {
+            id:     label_metrics
+            font:   labelDiv.font
+            text:   labelDiv.text
+        }
+
+        Item {
+            Layout.fillWidth: true
+        }
+
+        Text { 
+
+            Layout.alignment: Qt.AlignRight | Qt.AlignVCenter
+            id: hotKeyDiv
+            text: hotkey_sequence ? hotkey_sequence : ""
+            font: labelDiv.font
+            color: hotKeyColor 
+            horizontalAlignment: Text.AlignRight
+            verticalAlignment: Text.AlignVCenter
+        }
+
+        TextMetrics {
+            id:     hotkey_metrics
+            font:   hotKeyDiv.font
+            text:   hotKeyDiv.text
+        }
+
+        Item {
+            id: final_spacer
+            width : 4
         }
     }
-
-
-
-
-
-
-    // Image {
-    //     id: extraBoxFrame
-    //     source: isRadioButton? "qrc:/icons/radio_button_unchecked.svg" :
-    //             "qrc:/icons/check_box_unchecked.svg"
-    //     width: checkBoxSize
-    //     height: checkBoxSize
-    //     anchors.left: parent.left
-    //     anchors.leftMargin: checkBoxPadding
-    //     anchors.verticalCenter: parent.verticalCenter
-    //     visible: isChecked
-    //     layer {
-    //         enabled: true
-    //         effect: ColorOverlay { color: hotKeyColor }
-    //     }
-    // }
-
-
-    Text {
-        id: labelDiv
-        text: label
-        height: parent.height
-        font.pixelSize: XsStyleSheet.fontSize
-        font.family: XsStyleSheet.fontFamily
-        color: labelColor 
-        anchors.left: checkBox.right
-        anchors.leftMargin: labelPadding
-        horizontalAlignment: Text.AlignLeft
-        verticalAlignment: Text.AlignVCenter
-        elide: Text.ElideRight
-
-        width: parent.width - (checkBoxSize + checkBoxPadding*2)
-        // clip: true
-    }
-    Text {
-        id: hotKeyDiv
-        text: hotkey ? "   " + hotkey : ""
-        height: parent.height
-        font: labelDiv.font
-        color: hotKeyColor 
-        anchors.right: parent.right
-        anchors.rightMargin: checkBoxPadding //labelPadding
-        horizontalAlignment: Text.AlignRight
-        verticalAlignment: Text.AlignVCenter
-    }
-    TextMetrics {
-        id: labelMetrics
-        font: labelDiv.font
-        text: labelDiv.text + hotKeyDiv.text
-    }
-
 }

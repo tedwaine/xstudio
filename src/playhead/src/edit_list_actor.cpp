@@ -4,6 +4,7 @@
 #include "xstudio/atoms.hpp"
 #include "xstudio/broadcast/broadcast_actor.hpp"
 #include "xstudio/playhead/edit_list_actor.hpp"
+#include "xstudio/thumbnail/thumbnail.hpp"
 #include "xstudio/utility/helpers.hpp"
 #include "xstudio/utility/logging.hpp"
 #include "xstudio/utility/uuid.hpp"
@@ -80,6 +81,9 @@ EditListActor::EditListActor(
             send(event_group_, utility::event_atom_v, utility::change_atom_v);
         },
         [=](utility::event_atom,
+            media_reader::get_thumbnail_atom,
+            const thumbnail::ThumbnailBufferPtr &buf) {},
+        [=](utility::event_atom,
             playlist::reflag_container_atom,
             const utility::Uuid &,
             const std::tuple<std::string, std::string> &) {},
@@ -92,6 +96,10 @@ EditListActor::EditListActor(
                 bookmark::bookmark_change_atom_v,
                 bookmark_uuid);
         },
+        [=](utility::event_atom,
+            bookmark::bookmark_change_atom,
+            const utility::Uuid &,
+            const utility::UuidList &) {},
         [=](utility::event_atom,
             media::current_media_source_atom,
             UuidActor &,

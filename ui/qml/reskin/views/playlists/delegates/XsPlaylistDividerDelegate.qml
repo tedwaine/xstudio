@@ -41,7 +41,7 @@ Item {
         contentItem:
         Item{
             width: parent.width - panelPadding //for scrollbar
-            height: parent.height //- 5
+            height: parent.height
             anchors.top: parent.top
             anchors.topMargin: panelPadding
             anchors.bottom: parent.bottom

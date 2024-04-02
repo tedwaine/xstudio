@@ -693,6 +693,7 @@ void SessionModel::mergeRows(const QModelIndexList &indexes, const QString &name
 }
 
 void SessionModel::updateErroredCount(const QModelIndex &media_index) {
+    return;
     try {
         if (media_index.isValid()) {
             auto media_list_index = media_index.parent();

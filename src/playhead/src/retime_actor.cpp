@@ -6,6 +6,7 @@
 #include "xstudio/playhead/retime_actor.hpp"
 #include "xstudio/utility/helpers.hpp"
 #include "xstudio/utility/logging.hpp"
+#include "xstudio/thumbnail/thumbnail.hpp"
 
 using namespace xstudio;
 using namespace xstudio::playhead;
@@ -51,6 +52,9 @@ RetimeActor::RetimeActor(
             const utility::UuidActorVector &uav) {
             send(event_group_, utility::event_atom_v, media::add_media_source_atom_v, uav);
         },
+        [=](utility::event_atom,
+            media_reader::get_thumbnail_atom,
+            const thumbnail::ThumbnailBufferPtr &buf) {},
 
         [=](utility::event_atom,
             playlist::reflag_container_atom,
@@ -65,6 +69,10 @@ RetimeActor::RetimeActor(
                 bookmark::bookmark_change_atom_v,
                 bookmark_uuid);
         },
+        [=](utility::event_atom,
+            bookmark::bookmark_change_atom,
+            const utility::Uuid &,
+            const utility::UuidList &) {},
 
         [=](utility::event_atom, media::media_status_atom, const media::MediaStatus ms) {},
         [=](utility::event_atom,

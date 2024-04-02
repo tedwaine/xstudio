@@ -18,7 +18,6 @@ import QtQml 2.14
 //------------------------------------------------------------------------------
 //import xstudio.qml.playlist 1.0
 import xstudio.qml.semver 1.0
-import xstudio.qml.cursor_pos_provider 1.0
 import xstudio.qml.global_store_model 1.0
 import xstudio.qml.helpers 1.0
 import xstudio.qml.session 1.0
@@ -69,7 +68,7 @@ ApplicationWindow {
     // and tells us the uuid of the media that is on-screen. When mediaUuid
     // changes, we find the model data for the media in the sessionModel. We
     // then use this to get the 'imageActorUuidRole' which gives us the uuid
-    // of the media source (video). We then search the session again to find 
+    // of the media source (video). We then search the session again to find
     // the media source (video) model data, and update mediaImageSource to
     // track it.
 
@@ -84,11 +83,11 @@ ApplicationWindow {
         property var imageSource: values ? values.imageActorUuidRole ? values.imageActorUuidRole : undefined : undefined
 
         onScreenMediaUuidChanged: {
-            index = sessionModel.search_recursive(mediaUuid, "actorUuidRole")
+            index = sessionModel.searchRecursive(mediaUuid, "actorUuidRole")
         }
 
         function setMediaImageSource() {
-            let mind = sessionModel.search_recursive(imageSource, "actorUuidRole")
+            let mind = sessionModel.searchRecursive(imageSource, "actorUuidRole")
             if(mind.valid && mediaImageSource.index != mind) {
                 mediaImageSource.index = mind
                 return true
@@ -124,7 +123,7 @@ ApplicationWindow {
         }
 
     }
-    
+
     function toggleFullscreen() {
         if (visibility !== Window.FullScreen) {
             preFullScreenVis = [x, y, width, height]

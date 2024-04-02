@@ -108,7 +108,8 @@ namespace media {
 
     inline std::string to_string(const StreamDetail &v) {
         return v.name_ + " " + to_readable_string(v.media_type_) + " " + v.key_format_ + " " +
-               to_string(v.duration_);
+               to_string(v.duration_) + " " + std::to_string(v.resolution_.x) + "x" +
+               std::to_string(v.resolution_.y) + " " + std::to_string(v.pixel_aspect_);
     }
 
     class MediaDetail {

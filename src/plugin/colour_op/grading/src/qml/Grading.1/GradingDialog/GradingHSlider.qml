@@ -10,8 +10,7 @@ import QtQml.Models 2.14
 import QtQuick.Dialogs 1.3 //for ColorDialog
 import QtGraphicalEffects 1.15 //for RadialGradient
 
-import xStudio 1.1
-import xstudio.qml.module 1.0
+import xStudioReskin 1.0
 
 Item {
     id: root
@@ -19,34 +18,24 @@ Item {
     width: sliderRow.width
     height: sliderRow.height
 
-    property string title: model.abbr_title
-    property real value: model.value
-    property real default_value: model.default_value
-    property real from: model.float_scrub_min
-    property real to: model.float_scrub_max
-    property real step: model.float_scrub_step
-    property var colour: model.attr_colour
-    // TODO: Ideally the C++ side should specify whether slider should
-    // use linear or log scaling. There don't seem to be support for
-    // custom roles we could use to communicate this at the moment.
-    property bool linear_scale: model.abbr_title == "Exposure"
+    property string title
+    
+    property var backend_value
+    property var default_value
+    property var from
+    property var to
+    property var step
+    property var colour: "white"
 
-    // Manually update the value, needed in case the default value match
-    // the type default construction value. For example Offset slider has
-    // a default value of 0 that should map to 0.5 in the Slider.
-    Component.onCompleted: {
-        update_value()
-    }
+    property bool linear_scale: false
 
-    onValueChanged: {
-        update_value()
-    }
-
-    function update_value() {
+    onBackend_valueChanged: {
         if (!slider.pressed) {
-            slider.value = val_to_pos(value)
+            slider.value = val_to_pos(backend_value)
         }
     }
+
+    signal setValue(newValue: real)
 
     // Note this is a naive log scale, in case the min and max are not
     // mirrored around mid, the derivate will not be continous at the
@@ -117,14 +106,14 @@ Item {
             width: 80
         }
 
-        XsButton {
+        XsPrimaryButton {
             id: reloadButton
             width: 15; height: 15
             bgColorNormal: "transparent"
             borderWidth: 0
 
             onClicked: {
-                model.value = model.default_value
+                setValue(default_value)
             }
 
             Image {
@@ -135,7 +124,7 @@ Item {
                 layer {
                     enabled: true
                     effect: ColorOverlay {
-                        color: reloadButton.down || reloadButton.hovered ? "white" : XsStyle.controlTitleColor
+                        color: reloadButton.down || reloadButton.hovered ? palette.brightText : palette.text
                     }
                 }
             }
@@ -153,7 +142,7 @@ Item {
 
             onValueChanged: {
                 if (pressed) {
-                    model.value = pos_to_val(value)
+                    setValue(pos_to_val(slider.value))
                 }
             }
 
@@ -184,6 +173,22 @@ Item {
                 radius: 15
                 color: root.colour
                 border.color: "white"
+
+                MouseArea {
+                    anchors.fill: parent
+                    hoverEnabled: true
+                    propagateComposedEvents: true
+
+                    onPressed: {
+                        mouse.accepted = mouse.flags & Qt.MouseEventCreatedDoubleClick
+                    }
+
+                    onDoubleClicked: {
+                        slider.value = val_to_pos(root.default_value)
+                        root.setValue(root.default_value)
+                        mouse.accepted = true
+                    }
+                }
             }
         }
 
@@ -192,11 +197,11 @@ Item {
             width: 60
             bgColorNormal: "transparent"
             borderColor: bgColorNormal
-            text: root.value.toFixed(5)
+            text: root.backend_value.toFixed(5)
 
             validator: DoubleValidator {
-                bottom: model.float_scrub_min
-                top: model.float_scrub_max
+                bottom: from
+                top: to
             }
 
             onFocusChanged: {
@@ -210,7 +215,7 @@ Item {
             }
 
             onEditingFinished: {
-                model.value = parseFloat(text)
+                setValue(parseFloat(text))
             }
         }
     }

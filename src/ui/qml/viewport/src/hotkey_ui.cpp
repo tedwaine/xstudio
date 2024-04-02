@@ -65,9 +65,16 @@ HotkeysUI::HotkeysUI(QObject *parent) : super(parent) {
 
             [=](keypress_monitor::hotkey_event_atom, const std::vector<Hotkey> &hotkeys) {
                 update_hotkeys_model_data(hotkeys);
-            }
-
-        };
+            },
+            [=](keypress_monitor::hotkey_event_atom, Hotkey & /*hotkey*/) {
+                // update_hotkeys_model_data(hotkeys);
+            },
+            [=](keypress_monitor::hotkey_event_atom,
+                const utility::Uuid kotkey_uuid,
+                const bool pressed,
+                const std::string &context) {
+                // actual hotkey pressed or release ... we ignore
+            }};
     });
 }
 
@@ -141,6 +148,7 @@ bool HotkeysUI::setData(const QModelIndex &index, const QVariant &value, int rol
 
 HotkeyUI::HotkeyUI(QObject *parent) : QMLActor(parent) {
     init(CafSystemObject::get_actor_system());
+    hotkey_uuid_ = QUuidFromUuid(utility::Uuid::generate());
 }
 
 void HotkeyUI::init(actor_system &system_) {
@@ -157,8 +165,11 @@ void HotkeyUI::init(actor_system &system_) {
                 const utility::Uuid &uuid,
                 const bool hotkey_pressed,
                 const std::string &context) {
-                if (hotkey_uuid_ == uuid && hotkey_pressed) {
-                    emit activated();
+                if (hotkey_uuid_ == QUuidFromUuid(uuid) && hotkey_pressed) {
+                    if (context_.isNull() || context_ == QString("any") ||
+                        StdFromQString(context_) == context) {
+                        emit activated();
+                    }
                 }
             }
 
@@ -173,6 +184,7 @@ void HotkeyUI::init(actor_system &system_) {
 
     emit componentNameChanged(); // for default componentName ('xStudio')
     emit autoRepeatChanged();    // for default componentName ('xStudio')
+    emit uuidChanged();
 }
 
 void HotkeyUI::registerHotkey() {
@@ -211,11 +223,10 @@ void HotkeyUI::registerHotkey() {
             StdFromQString(description_),
             StdFromQString(context_),
             autorepeat_,
-            caf::actor_cast<caf::actor_addr>(as_actor()));
+            caf::actor_cast<caf::actor_addr>(as_actor()),
+            UuidFromQUuid(hotkey_uuid_));
 
         anon_send(keypress_event_manager, ui::keypress_monitor::register_hotkey_atom_v, hk);
-
-        hotkey_uuid_ = hk.uuid();
 
     } else {
     }

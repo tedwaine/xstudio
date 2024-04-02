@@ -7,26 +7,30 @@ import xStudioReskin 1.0
 
 Item {
     id: widget
- 
+
     property bool isExpanded: false
     property bool isExpandedToLeft: false
+    property real expandedWidth: XsStyleSheet.primaryButtonStdWidth * 5
+
     property alias imgSrc: searchBtn.imgSrc
     property string hint: ""
+    property alias text: searchBar.text
+    property alias searchBar: searchBar
 
-    width: XsStyleSheet.primaryButtonStdWidth
+    width: isExpanded? expandedWidth : XsStyleSheet.primaryButtonStdWidth
     height: XsStyleSheet.widgetStdHeight + 4
-    
+
     XsPrimaryButton{ id: searchBtn
         x: isExpandedToLeft? searchBar.width : 0
-        width: XsStyleSheet.primaryButtonStdWidth 
+        width: XsStyleSheet.primaryButtonStdWidth
         height: parent.height
         imgSrc: "qrc:/icons/search.svg"
         text: "Search"
         isActive: isExpanded
-        
+
         onClicked: {
             isExpanded = !isExpanded
-            
+
             if(isExpanded) searchBar.forceActiveFocus()
             else {
                 searchBar.clearSearch()
@@ -38,13 +42,13 @@ Item {
     XsSearchBar{ id: searchBar
 
         Behavior on width { NumberAnimation { duration: 150; easing.type: Easing.OutQuart }  }
-        width: isExpanded? XsStyleSheet.primaryButtonStdWidth * 5 : 0
-        
+        width: isExpanded? parent.width - searchBtn.width : 0
+
         height: parent.height
         // anchors.left: searchBtn.right
-        
+
         placeholderText: isExpanded? hint : "" //activeFocus? "" : hint
-        
+
         Component.onCompleted: {
             if(isExpandedToLeft) anchors.right = searchBtn.left
             else anchors.left = searchBtn.right

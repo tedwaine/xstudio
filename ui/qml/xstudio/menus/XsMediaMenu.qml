@@ -106,27 +106,6 @@ XsMenu {
         }
     }
 
-    // XsMenuSeparator {}
-    // XsMenu {
-
-    //     id: conform_menu
-    //     title: "Conform"
-    //     fakeDisabled: false
-    //     Repeater {
-    //         model: app_window.sessionModel.conformTasks
-    //         onItemAdded: conform_menu.insertItem(index, item)
-    //         onItemRemoved: conform_menu.removeItem(item)
-
-    //         XsMenuItem {
-    //             mytext: modelData
-    //             enabled: true
-    //             onTriggered: {
-    //                 app_window.sessionFunction.conformInsertSelectedMedia(modelData)
-    //             }
-    //         }
-    //     }
-    // }
-
     XsMenuSeparator {}
 
     XsMenu {

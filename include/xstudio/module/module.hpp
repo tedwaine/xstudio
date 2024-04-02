@@ -52,6 +52,9 @@ namespace module {
                   // enabled
         );
 
+        IntegerVecAttribute *
+        add_int_vec_attribute(const std::string &title, const std::string &abbr_title = "");
+
         JsonAttribute *add_json_attribute(
             const std::string &title,
             const std::string &abbr_title = "",
@@ -81,6 +84,25 @@ namespace module {
             const std::string &abbr_title,
             const utility::ColourTriplet &value);
 
+        Vec4fAttribute *add_vec4f_attribute(
+            const std::string &title, const std::string &abbr_title, const Imath::V4f &value);
+
+        Vec4fAttribute *add_vec4f_attribute(
+            const std::string &title,
+            const std::string &abbr_title,
+            const Imath::V4f &value,
+            const Imath::V4f &min,
+            const Imath::V4f &max,
+            const Imath::V4f &step);
+
+        FloatVectorAttribute *add_float_vector_attribute(
+            const std::string &title,
+            const std::string &abbr_title,
+            const std::vector<float> &value,
+            const std::vector<float> &min,
+            const std::vector<float> &max,
+            const std::vector<float> &step);
+
         Attribute *add_attribute(
             const std::string &title,
             const utility::JsonStore &value,
@@ -96,7 +118,7 @@ namespace module {
 
         virtual void update_attrs_from_preferences(const utility::JsonStore &);
 
-        virtual bool remove_attribute(const utility::Uuid &attribute_uuid);
+        virtual void remove_attribute(const utility::Uuid &attribute_uuid);
 
         [[nodiscard]] virtual utility::JsonStore serialise() const;
 
@@ -123,9 +145,6 @@ namespace module {
             const bool both_ways,
             const bool initial_push_sync);
 
-        void unlink_module(
-            caf::actor other_module);
-
         /* If this Module instance is linked to another Module instance, only
         attributes that have been registered with this function will be synced
         up between this module and the linked module(s). */
@@ -147,6 +166,15 @@ namespace module {
             const bool redraw_viewport = false,
             const bool self_notify     = true);
 
+        utility::Uuid register_hotkey(
+            const std::string sequence,
+            const std::string &hotkey_name,
+            const std::string &description,
+            const bool autorepeat        = false,
+            const std::string &component = "MODULE_NAME",
+            const std::string &context   = "any" // context "any" means hotkey will be activated
+                                                 // regardless of which window it came from
+        );
 
         utility::Uuid register_hotkey(
             int default_keycode,
@@ -205,6 +233,12 @@ namespace module {
             const std::string &viewport_toolbar_name,
             bool connect);
 
+        // re-implement to execute useful state reset for your module when the
+        // user hits the 'reset-viewport' hotkey or button. For example, a
+        // colour pipeline plugin might reset exposure / gamma values in this
+        // function.
+        virtual void reset() {}
+
       protected:
         /* Call this method with your StringChoiceAttribute to expose it in
         one of xSTUDIO's UI menus. The menu_path argument dictates which parent
@@ -230,6 +264,43 @@ namespace module {
             BooleanAttribute *attr,
             const std::string top_level_menu,
             const std::string before = std::string{});
+
+        utility::Uuid insert_menu_item(
+            const std::string &menu_model_name,
+            const std::string &menu_text,
+            const std::string &menu_path,
+            const float menu_item_position,
+            Attribute *attr              = nullptr,
+            const bool divider           = false,
+            const utility::Uuid &hotkey  = utility::Uuid(),
+            const std::string &user_data = std::string());
+
+        utility::Uuid insert_hotkey_into_menu(
+            const std::string &menu_model_name,
+            const std::string &menu_path,
+            const float menu_item_position,
+            const utility::Uuid &hotkey);
+
+        utility::Uuid insert_menu_divider(
+            const std::string &menu_model_name,
+            const std::string &menu_path,
+            const float menu_item_position);
+
+        void set_submenu_position_in_parent(
+            const std::string &menu_model_name,
+            const std::string &submenu,
+            const float submenu_position);
+
+        void remove_all_menu_items(const std::string &menu_model_name);
+
+        void remove_menu_item(const std::string &menu_model_name, const utility::Uuid item_id);
+
+        virtual void menu_item_activated(
+            const utility::JsonStore &menu_item_data, const std::string &user_data) {}
+
+        utility::JsonStore attribute_menu_item_data(Attribute *attr);
+
+        void update_attribute_menu_item_data(Attribute *attr);
 
         void make_attribute_visible_in_viewport_toolbar(
             Attribute *attr, const bool make_visible = true);
@@ -269,6 +340,15 @@ namespace module {
 
         std::vector<AttributePtr> attributes_;
 
+        // Call this code to expose a UI panel in xSTUDIO's panels menu. See
+        // annotations tool for an example.
+        void register_ui_panel_qml(const std::string &panel_name, const std::string &qml_code);
+
+        // To instance a single global UI item on startup (which might, for
+        // example, insert menu items into the xstudio interface) pass the
+        // necessary qml to this function.
+        void register_singleton_qml(const std::string &qml_code);
+
       private:
         void notify_attribute_destroyed(Attribute *);
         void attribute_changed(const utility::Uuid &attr_uuid, const int role_id, bool notify);
@@ -293,8 +373,8 @@ namespace module {
         utility::Uuid module_uuid_;
         std::string name_;
         std::set<utility::Uuid> attrs_waiting_to_update_prefs_;
-
         std::vector<ui::Hotkey> unregistered_hotkeys_;
+        std::map<std::string, std::vector<utility::Uuid>> menu_items_;
     };
 
     template <class T>

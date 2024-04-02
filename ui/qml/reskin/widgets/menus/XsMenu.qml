@@ -1,8 +1,8 @@
-// SPDX-License-Identifier: Apache-2.0
 import QtQuick 2.15
 import QtQuick.Controls 2.15
 import QtQml.Models 2.14
 import Qt.labs.qmlmodels 1.0
+import QtQuick.Layouts 1.15
 
 import xStudioReskin 1.0
 import xstudio.qml.models 1.0
@@ -13,23 +13,88 @@ XsPopup {
     // x: 30
     height: view.height+ (topPadding+bottomPadding)
     width: view.width
+    objectName: "XsPopup"
+
+    onHeightChanged: {
+        if (visible) {
+            var yshift = appWindow.checkMenuYPosition(
+                the_popup.parent,
+                height,
+                x,
+                y);
+            y = y - yshift
+        }
+    }
 
     property var menu_model
     property var menu_model_index
 
     property alias menuWidth: view.width
 
+    property var menuContextData
+
+    property var parentMenu
+
+    property var panelContext: helpers.contextPanel(the_popup)
+    property var panelContextAddress: helpers.contextPanelAddress(the_popup)
+
+    property var hotkey_sequence: undefined
+
+    function closeAll() {
+        visible = false
+        if (parentMenu) parentMenu.closeAll()
+    }
+
+    function hideOtherSubMenus(widget) {
+        for (var i = 0; i < view.count; ++i) {
+            let item = view.itemAtIndex(i)
+            if (item != widget && typeof item.hideSubMenus != "undefined") item.hideSubMenus()
+        }
+    }
+
     ListView {
 
         id: view
         orientation: ListView.Vertical
         spacing: 0
-        width: 160 //contentWidth
-        height: contentHeight
+        width: minWidth
+        height: appWindow.maxMenuHeight(contentHeight)
         contentHeight: contentItem.childrenRect.height
-        contentWidth: contentItem.childrenRect.width
+        contentWidth: minWidth
         snapMode: ListView.SnapToItem
+        clip: true
+    
+        ScrollBar.vertical: ScrollBar {
+            parent: view.parent
+            id: scrollBar; 
+            width: 10
+            anchors.top: view.top
+            anchors.bottom: view.bottom
+            anchors.right: view.left
+            visible: view.height < view.contentHeight
+            policy: ScrollBar.AlwaysOn
+            palette.mid: XsStyleSheet.scrollbarBaseColor
+            palette.dark: XsStyleSheet.scrollbarActiveColor
+        }
+
+        property real minWidth: 20
+        property real indent: 0
+
+        // awkward solution to make all items in the list view the
+        // same width ... the width of the widest item in the view!
+        function setMinWidth(mw) {
+            if (mw > minWidth) {
+                minWidth = mw
+            }
+        }
         
+        // awkward solution to make all items indent to the maximum indent
+        function setIndent(i) {
+            if (i > indent) {
+                indent = i
+            }
+        }
+
         model: DelegateModel {           
 
             // setting up the model and rootIndex like this causes us to
@@ -58,9 +123,15 @@ XsPopup {
                             the_popup.menu_model_index // the parent index into the model
                         )
                         parent_menu: the_popup
-                        parentWidth: view.width
-                        
-                        // icon: "qrc:/icons/filter_none.svg" 
+                        width: view.width
+                        indent: view.indent
+                        enabled: menu_item_enabled
+                        onMinWidthChanged: {
+                            view.setMinWidth(minWidth)
+                        }                
+                        onLeftIconSizeChanged: {
+                            view.setIndent(leftIconSize)
+                        }
                     }
 
                 }
@@ -78,17 +149,26 @@ XsPopup {
                             the_popup.menu_model_index // the parent index into the model
                         )
                         parent_menu: the_popup
-                        parentWidth: view.width
+                        width: view.width
+                        indent: view.indent
+                        onMinWidthChanged: {
+                            view.setMinWidth(minWidth)
+                        }                        
+                        onLeftIconSizeChanged: {
+                            view.setIndent(leftIconSize)
+                        }
                     }
                 }
 
                 DelegateChoice {
-                    roleValue: "divider"
-                    
+                    roleValue: "divider"                    
                     XsMenuDivider {
-                        parentWidth: view.width
+                        width: view.width
+                        onMinWidthChanged: {
+                            view.setMinWidth(minWidth)
+                        }        
                     }
-
+                    
                 }
 
                 DelegateChoice {
@@ -99,7 +179,53 @@ XsPopup {
                         menu_model_index: the_popup.menu_model.index(index, 0, the_popup.menu_model_index)
                     
                         parent_menu: the_popup
-                        parentWidth: view.width
+                        width: view.width
+                        indent: view.indent
+                        onMinWidthChanged: {
+                            view.setMinWidth(minWidth)
+                        }        
+                        onLeftIconSizeChanged: {
+                            view.setIndent(leftIconSize)
+                        }
+
+                    }
+                    
+                }
+
+                DelegateChoice {
+
+                    roleValue: "radiogroup"
+                    
+                    ColumnLayout {
+
+                        width: view.width
+                        spacing: 0
+                        id: layout
+                        property var idx: index                        
+                        Repeater {
+
+                            model: choices
+                            XsMenuItemToggle { 
+                                label: choices[index]
+                                isRadioButton: true
+                                radioSelectedChoice: current_choice
+                                menu_model: the_popup.menu_model
+                                menu_model_index: the_popup.menu_model.index(layout.idx, 0, the_popup.menu_model_index)                            
+                                parent_menu: the_popup
+                                onClicked: {
+                                    current_choice = choices[index]
+                                    the_popup.closeAll()
+                                }
+                                width: view.width
+                                onMinWidthChanged: {
+                                    view.setMinWidth(minWidth)
+                                }        
+                                onLeftIconSizeChanged: {
+                                    view.setIndent(leftIconSize)
+                                }
+        
+                            }
+                        }
                     }
                     
                 }
@@ -109,14 +235,21 @@ XsPopup {
                     
                     XsMenuItemToggle { 
                         menu_model: the_popup.menu_model
-                        menu_model_index: the_popup.menu_model.index(index, 0, the_popup.menu_model_index)
-                        
+                        menu_model_index: the_popup.menu_model.index(index, 0, the_popup.menu_model_index)                        
                         parent_menu: the_popup
-                        parentWidth: view.width
                     
                         onClicked: {
-                            isChecked = !isChecked
+                            menu_model.nodeActivated(menu_model_index, "menu", helpers.contextPanel(the_popup))
                         }
+                        
+                        width: view.width
+                        onMinWidthChanged: {
+                            view.setMinWidth(minWidth)
+                        }
+                        onLeftIconSizeChanged: {
+                            view.setIndent(leftIconSize)
+                        }
+
                     }
 
                 }
@@ -129,11 +262,18 @@ XsPopup {
                         menu_model_index: the_popup.menu_model.index(index, 0, the_popup.menu_model_index)
                         
                         parent_menu: the_popup
-                        parentWidth: view.width
-                    
-                        onChecked:{
-                            isChecked = !isChecked
+                        width: view.width                    
+                        isChecked: is_checked
+                        onClicked:{
+                            is_checked = !is_checked
                         }
+                        onMinWidthChanged: {
+                            view.setMinWidth(minWidth)
+                        }
+                        onLeftIconSizeChanged: {
+                            view.setIndent(leftIconSize)
+                        }
+
                     }
 
                 }
@@ -147,15 +287,41 @@ XsPopup {
                         
                         isRadioButton: true
                         parent_menu: the_popup
-                        parentWidth: view.width
                     
-                        onClicked:{
-                            isChecked = !isChecked
+                        onClicked: {
+                            // note 'is_checked' data in this context is provided
+                            // by the menu_model
+                            is_checked = !is_checked
                         }
+                        onMinWidthChanged: {
+                            view.setMinWidth(minWidth)
+                        }
+                        onLeftIconSizeChanged: {
+                            view.setIndent(leftIconSize)
+                        }
+
                     }
 
                 }
 
+                DelegateChoice {
+                    roleValue: "custom"
+                    
+                    XsMenuItemCustom { 
+                        menu_model: the_popup.menu_model
+                        menu_model_index: the_popup.menu_model.index(index, 0, the_popup.menu_model_index)                    
+                        parent_menu: the_popup
+                        width: view.width
+                        onMinWidthChanged: {
+                            view.setMinWidth(minWidth)
+                        }  
+                        onLeftIconSizeChanged: {
+                            view.setIndent(leftIconSize)
+                        }
+
+                    }
+                    
+                }
 
             }
         }

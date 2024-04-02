@@ -49,7 +49,8 @@ void AnnotationsRenderer::render_opengl(
         // being edited. The reason is that the strokes and captions of this
         // annotation are already cloned into 'interaction_canvas_' which we
         // draw below.
-        if (anno->detail_.uuid_ == data->current_edited_bookmark_uuid_) {
+        if (anno->detail_.uuid_ == data->current_edited_bookmark_uuid_
+            && data->interaction_frame_key_ == to_string(frame.frame_id().key_)) {
             draw_interaction_canvas = true;
             continue;
         }
@@ -76,8 +77,7 @@ void AnnotationsRenderer::render_opengl(
     // drawing on. Current drawings are stored in data->interaction_canvas_ ...
     // we only want to plot these if the frame we are rendering over here matches
     // the key of the frame the user is being drawn on.
-    if (draw_interaction_canvas &&
-        data->interaction_frame_key_ == to_string(frame.frame_id().key_)) {
+    if (draw_interaction_canvas) {
         canvas_renderer_->render_canvas(
             data->interaction_canvas_,
             data->handle_,

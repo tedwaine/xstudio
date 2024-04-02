@@ -22,26 +22,34 @@ Item {
     property color bgColorNormal: "transparent"
     property color forcedBgColorNormal: bgColorNormal
 
+    property color highlightColor: palette.highlight
     property color hintColor: XsStyleSheet.hintColor
     property color errorColor: XsStyleSheet.errorColor
 
-    /* modelIndex should be set to point into the session data model and get
+    // when a playlist is freshly created the corresponding node in the model
+    // is not fully populated with the playlist structure (and the placeholderRole
+    // is true). The node data is filled out when the backend has notified the 
+    // model with the playlist data and placeholderRole becomes false.
+    property var is_placeholder: placeHolderRole
+    onIs_placeholderChanged: {
+        subItemsModelIndex = theSessionData.index(2, 0, _modelIndex)
+    }
+
+    /* _modelIndex should be set to point into the session data model and get
     to the playlist that we are representing */
-    property var modelIndex
+    property var _modelIndex
 
     /* first index in playlist is media ... */
     property var itemCount: mediaCountRole
 
     /* .... the third row gives us the data of the subsets/timelines etc. i.e.
     the children lists of the playlist */
-    property var subItemsModelIndex: modelIndex && modelIndex.valid ? theSessionData.index(2, 0, modelIndex) : undefined
+    property var subItemsModelIndex: _modelIndex && _modelIndex.valid ? theSessionData.index(2, 0, _modelIndex) : undefined
     property var subItemsCount: subItemsModel.count
 
-    property bool isSelected: false
+    property bool isSelected: _modelIndex == selectedMediaSetIndex
     property bool isMissing: false
     property bool isExpanded: false
-
-    // Rectangle{anchors.fill: parent; color:(index%2==0)?"transparent":"yellow"; opacity:0.3}
 
     Button { id: visibleItemDiv
 
@@ -100,7 +108,7 @@ Item {
                 }
                 XsText {
                     id: textDiv
-                    text: visibleItemDiv.text //+"-"+index //#TODO
+                    text: visibleItemDiv.text
                     font: visibleItemDiv.font
                     color: isMissing? hintColor : textColorNormal
                     Layout.fillWidth: true
@@ -156,7 +164,7 @@ Item {
             implicitHeight: 40
             border.color: visibleItemDiv.down || visibleItemDiv.hovered ? borderColorHovered: borderColorNormal
             border.width: borderWidth
-            color: visibleItemDiv.down || isSelected? bgColorPressed : forcedBgColorNormal
+            color: visibleItemDiv.down || isSelected? Qt.darker(highlightColor, 3.4) : forcedBgColorNormal
 
             Rectangle {
                 id: bgFocusDiv
@@ -174,14 +182,14 @@ Item {
         onPressed: {
             // here we set the index of the active playlist (stored by
             // XsSessionData) to our own index on click
-            selectedMediaSetIndex = modelIndex
+            selectedMediaSetIndex = _modelIndex
         }
 
         onDoubleClicked: {
             // here we set the index of the active playlist (stored by
              // XsSessionData) to our own index on click
-             viewedMediaSetIndex = modelIndex
-             selectedMediaSetIndex = modelIndex
+             viewedMediaSetIndex = _modelIndex
+             selectedMediaSetIndex = _modelIndex
         }
 
     }
@@ -201,6 +209,7 @@ Item {
         // playlists are one level in at row=0, column=0.
         rootIndex: subItemsModelIndex
         delegate: chooser
+
     }
 
     DelegateChooser {

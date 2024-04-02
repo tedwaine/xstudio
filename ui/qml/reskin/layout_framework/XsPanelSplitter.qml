@@ -1,4 +1,3 @@
-// SPDX-License-Identifier: Apache-2.0
 import QtQuick 2.15
 import QtQuick.Controls 1.4
 import Qt.labs.qmlmodels 1.0
@@ -21,9 +20,9 @@ Rectangle {
 
     anchors.fill: parent
     property var panels_layout_model
-    property var panels_layout_model_index
     property bool isVertical: true
-    property var rowCount: panels_layout_model.rowCount(panels_layout_model_index)
+    property var panels_layout_model_index: panels_layout_model.index(index, 0, parent_index)
+    property var parent_index
 
     property var dividers: child_dividers !== undefined ? child_dividers : []
     
@@ -71,29 +70,45 @@ Rectangle {
                 property var child
                 property var child_type
 
+                MouseArea {
+                    id: revealTabsArea
+                    z: 1000
+                    anchors.right: parent.right    
+                    anchors.left: parent.left    
+                    hoverEnabled: true
+                }
+                property alias revealTabsArea: revealTabsArea
+
+                property var sh: split_horizontal
+                onShChanged: {
+                    buildSubPanels()
+                }
+                        
                 function buildSubPanels() {                    
 
                     // if 'split_horizontal' is defined (either true or fale),
                     // then we have hit another splitter
                     if (split_horizontal !== undefined) {
 
-                        if (child && child_type == "XsSplitPanel") {
-                            child.buildSubPanels()
+                        if (child && child_type === "XsPanelSplitter") {
+                            if (child.buildSubPanels != undefined) {
+                                child.buildSubPanels()
+                            }
                             return
                         }
                         if (child) child.destroy()
                         
                         let component = Qt.createComponent("./XsPanelSplitter.qml")
                         let recurse_into_model_idx = topItem.panels_layout_model.index(index,0,panels_layout_model_index)
-                        child_type = "XsSplitPanel"
+                        child_type = "XsPanelSplitter"
 
                         if (component.status == Component.Ready) {
         
                             child = component.createObject(
                                 root,
                                 {
+                                    parent_index: panels_layout_model_index,
                                     panels_layout_model: topItem.panels_layout_model,
-                                    panels_layout_model_index: recurse_into_model_idx,
                                     isVertical: split_horizontal
                                 })
         
@@ -106,12 +121,12 @@ Rectangle {
                         // 'split_horizontal' is not defined, so we are at a 
                         // 'leaf' node, as it were, and we need to create 
                         // the container that holds an actual UI panel
-                        if (child && child_type == "XsPanelContainer") {
+                        if (child && child_type == "XsViewContainer") {
                             return
                         }
                         if (child) child.destroy()
 
-                        child_type = "XsPanelContainer"
+                        child_type = "XsViewContainer"
                         let component = Qt.createComponent("./XsViewContainer.qml")
                         let recurse_into_model_idx = topItem.panels_layout_model.index(index,0,panels_layout_model_index)
                         if (component.status == Component.Ready) {
@@ -119,9 +134,8 @@ Rectangle {
                             child = component.createObject(
                                 root,
                                 {
+                                    parent_index: panels_layout_model_index,
                                     panels_layout_model: topItem.panels_layout_model,
-                                    panels_layout_model_index: recurse_into_model_idx,
-                                    panels_layout_model_row: index
                                 })
         
                         } else {

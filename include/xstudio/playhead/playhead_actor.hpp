@@ -76,9 +76,17 @@ namespace playhead {
         void current_media_changed(caf::actor media_actor, const bool force = false);
         void update_source_multichoice(
             module::StringChoiceAttribute *attr, const media::MediaType mt);
+        void update_stream_multichoice(
+            module::StringChoiceAttribute *streams_attr, const media::MediaType mt);
+
         void
         restart_readahead_cacheing(const bool all_child_playheads, const bool force = false);
         void switch_media_source(const std::string new_source_name, const media::MediaType mt);
+        void switch_media_stream(
+            caf::actor media_actor,
+            const std::string new_stream_name,
+            const media::MediaType mt,
+            bool apply_to_selected);
         bool has_selection_changed();
         int previous_selected_sources_count_ = {-1};
 
@@ -89,8 +97,15 @@ namespace playhead {
 
       protected:
         void attribute_changed(const utility::Uuid &attr_uuid, const int /*role*/) override;
+        void
+        hotkey_pressed(const utility::Uuid &hotkey_uuid, const std::string &context) override;
+        void
+        hotkey_released(const utility::Uuid &hotkey_uuid, const std::string &context) override;
+
+
         void connected_to_ui_changed() override;
         void check_if_loop_range_makes_sense();
+        void make_source_menu_model();
 
         caf::message_handler behavior_;
         caf::actor playlist_selection_;
@@ -115,8 +130,11 @@ namespace playhead {
         utility::Uuid current_source_uuid_;
         utility::Uuid key_playhead_uuid_;
         std::map<utility::Uuid, int> media_frame_per_media_uuid_;
+        std::map<utility::Uuid, int> switch_key_playhead_hotkeys_;
+        utility::Uuid move_selection_up_hotkey_;
+        utility::Uuid move_selection_down_hotkey_;
+
         // std::map<utility::Uuid, timebase::flicks> media_frame_per_media_uuid_;
-        std::vector<std::pair<int, int>> cached_frames_ranges_;
         std::vector<std::tuple<utility::Uuid, std::string, int, int>> bookmark_frames_ranges_;
 
         std::set<media::MediaKey> frames_cached_;
@@ -126,6 +144,7 @@ namespace playhead {
         bool child_playhead_changed_                    = {false};
         timebase::flicks vid_refresh_sync_phase_adjust_ = timebase::flicks{0};
         int media_logical_frame_                        = {0};
+        float step_keypress_event_id_                           = {0};
     };
 } // namespace playhead
 } // namespace xstudio

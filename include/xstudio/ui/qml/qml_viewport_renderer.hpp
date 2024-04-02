@@ -34,8 +34,7 @@ namespace ui {
                 const QPointF topright,
                 const QPointF bottomright,
                 const QPointF bottomleft,
-                const QSize sceneSize,
-                const float devicePixelRatio);
+                const QSize sceneSize);
 
             void init_system();
             void join_playhead(caf::actor group) {
@@ -57,6 +56,7 @@ namespace ui {
                 }
             }
             void set_playhead(PlayheadUI *playhead);
+            void set_playhead(caf::actor playhead);
 
             float zoom();
             [[nodiscard]] QString fpsExpression() const { return fps_expression_; }
@@ -79,17 +79,7 @@ namespace ui {
             [[nodiscard]] QString name() const {
                 return QStringFromStd(viewport_renderer_->name());
             }
-            
             void linkToViewport(QMLViewportRenderer *other_viewport);
-
-            void renderImageToFile(
-                const QUrl filePath,
-                caf::actor playhead,
-                const int format,
-                const int compression,
-                const int width,
-                const int height,
-                const bool bakeColor);
             void setIsQuickViewer(const bool is_quick_viewer);
 
           public slots:
@@ -102,6 +92,9 @@ namespace ui {
             float scale();
             QVector2D translate();
             void quickViewSource(QStringList mediaActors, QString compareMode);
+            void reset();
+            void autoConnectToSelectedPlayhead();
+
           signals:
 
             void zoomChanged(float);

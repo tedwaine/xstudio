@@ -1,16 +1,19 @@
-// SPDX-License-Identifier: Apache-2.0
 import QtQuick 2.12
 import QtQuick.Layouts 1.15
+import QtQml.Models 2.15
 import Qt.labs.qmlmodels 1.0
 
 import xStudioReskin 1.0
 import xstudio.qml.models 1.0
+import xstudio.qml.helpers 1.0
 import "./widgets"
 
 Item {
     id: toolBar
     width: parent.width
-    height: btnHeight //+(barPadding*2) 
+    height: btnHeight*opacity
+    visible: opacity != 0.0
+    Behavior on opacity {NumberAnimation{ duration: 150 }}
 
     property string panelIdForMenu: panelId
 
@@ -47,22 +50,39 @@ Item {
         modelDataName: toolbar_model_data_name
     }
 
+    XsPreference {
+        id: __toolbarHiddenItems
+        index: globalStoreModel.searchRecursive("/ui/viewport/hidden_toolbar_items", "pathRole")
+    }
+    property var toolbarHiddenItems: __toolbarHiddenItems.value
+    onToolbarHiddenItemsChanged: {
+        filterModel.setRoleFilter(toolbarHiddenItems, "title")
+        filterModel.sortRoleName = "toolbar_position"
+    }
+
+    XsFilterModel {
+        id: filterModel
+        sourceModel: toolbar_model_data
+        sortAscending: true
+        invert: true // inverts the selection, so gives us thing NOT in 'toolbarHiddenItems' list
+    }
+
     RowLayout{
 
         id: rowDiv
         x: barPadding
         spacing: 1
-        width: parent.width-(x*2)-(spacing*(btnCount))
-        height: btnHeight
-        anchors.verticalCenter: parent.verticalCenter
-
-        property int btnCount: toolbar_model_data.length-3 //-3 because Source button not working yet and hiding zoom and pan for now
-        property real preferredBtnWidth: (width/btnCount) //- (spacing)
-        
+        anchors.fill: parent
+        anchors.leftMargin: 4
+        anchors.rightMargin: 4
+        anchors.topMargin: 1
+        anchors.bottomMargin: 1
+        property var buttonWidth: width/filterModel.length
+                
         Repeater {
 
             id: the_view
-            model: toolbar_model_data
+            model: filterModel
     
             delegate: chooser
 
@@ -73,9 +93,11 @@ Item {
                 DelegateChoice {
                     roleValue: "FloatScrubber"
                     
-                    XsViewerSeekEditButton{ 
-                        Layout.preferredWidth: rowDiv.preferredBtnWidth
-                        Layout.preferredHeight: parent.height
+                    XsViewerToolbarValueScrubber
+                    { 
+                        Layout.fillWidth: true
+                        Layout.preferredWidth: rowDiv.buttonWidth
+                        Layout.preferredHeight: rowDiv.height
                         text: title
                         shortText: abbr_title
                         fromValue: float_scrub_min
@@ -86,14 +108,14 @@ Item {
 
                 }
 
-
                 DelegateChoice {
                     roleValue: "ComboBox"
                     
                     XsViewerMenuButton
                     { 
-                        Layout.preferredWidth: rowDiv.preferredBtnWidth
-                        Layout.preferredHeight: parent.height
+                        Layout.fillWidth: true
+                        Layout.preferredWidth: rowDiv.buttonWidth
+                        Layout.preferredHeight: rowDiv.height
                         text: title
                         shortText: abbr_title
                         valueText: value
@@ -102,21 +124,41 @@ Item {
                 }
 
                 DelegateChoice {
-                    roleValue: "OnOffToggle"
-                    
+
+                    roleValue: "OnOffToggle"                    
                     XsViewerToggleButton
                     {
-                        property bool isZmPan: title == "Zoom (Z)" || title == "Pan (X)"
-                        Layout.preferredWidth: isZmPan ? 0 : rowDiv.preferredBtnWidth
-                        Layout.preferredHeight: parent.height
+                        Layout.fillWidth: true
+                        Layout.preferredWidth: rowDiv.buttonWidth
+                        Layout.preferredHeight: rowDiv.height
                         text: title
-                        shortText: abbr_title
-                        visible: !isZmPan
+                        shortText: abbr_title    
+                    }
+
+
+                }
+
+                DelegateChoice {
+                    
+                    roleValue: "QmlCode"                    
+                    Item {
+
+                        id: parent_item
+                        Layout.fillWidth: true
+                        Layout.preferredWidth: rowDiv.buttonWidth
+                        Layout.preferredHeight: rowDiv.height
+                        property var dynamic_widget
+                        property var qml_code_: qml_code
+                        onQml_code_Changed: {
+                            dynamic_widget = Qt.createQmlObject(qml_code, parent_item)
+                        }
                     }
 
                 }
+
             }
         }
     
+        
     }
 }

@@ -117,7 +117,7 @@ void Attribute::set_preference_path(const std::string &preference_path) {
 void Attribute::expose_in_ui_attrs_group(const std::string &group_name, bool expose) {
     if (expose) {
         if (!has_role_data(Groups)) {
-            set_role_data(Groups, std::vector<std::string>({"group_name"}));
+            set_role_data(Groups, std::vector<std::string>({group_name}));
             return;
         }
         auto n = role_data_[Groups].get<std::vector<std::string>>();
@@ -127,6 +127,7 @@ void Attribute::expose_in_ui_attrs_group(const std::string &group_name, bool exp
         }
         n.push_back(group_name);
         set_role_data(Groups, n);
+
     } else if (has_role_data(Groups)) {
         auto n = role_data_[Groups].get<std::vector<std::string>>();
         for (auto p = n.begin(); p != n.end(); ++p) {

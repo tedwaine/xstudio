@@ -93,12 +93,34 @@ namespace module {
             const utility::ColourTriplet &value);
     };
 
+    class Vec4fAttribute : public TypeAttribute<Imath::V4f> {
+      public:
+        Vec4fAttribute(
+            const std::string &title, const std::string &abbr_title, const Imath::V4f &value);
+    };
+
+    class FloatVectorAttribute : public TypeAttribute<std::vector<float>> {
+      public:
+        FloatVectorAttribute(
+            const std::string &title,
+            const std::string &abbr_title,
+            const std::vector<float> &value);
+    };
+
     class JsonAttribute : public TypeAttribute<nlohmann::json> {
       public:
         JsonAttribute(
             const std::string &title,
             const std::string &abbr_title,
             const nlohmann::json &value);
+    };
+
+    class IntegerVecAttribute : public TypeAttribute<std::vector<int>> {
+      public:
+        IntegerVecAttribute(
+            const std::string &title,
+            const std::string &abbr_title,
+            const std::vector<int> &value);
     };
 
 } // namespace module

@@ -1,15 +1,17 @@
 // SPDX-License-Identifier: Apache-2.0
-// CAF_PUSH_WARNINGS
-// CAF_POP_WARNINGS
 
 // #include "xstudio/atoms.hpp"
 #include "xstudio/ui/qml/bookmark_model_ui.hpp"
 #include "xstudio/ui/qml/json_tree_model_ui.hpp"
 #include "xstudio/bookmark/bookmark.hpp"
+#include "xstudio/thumbnail/thumbnail.hpp"
 // #include "xstudio/utility/helpers.hpp"
 // #include "xstudio/utility/json_store.hpp"
 // #include "xstudio/utility/logging.hpp"
 // #include "xstudio/global_store/global_store.hpp"
+CAF_PUSH_WARNINGS
+#include <QColorSpace>
+CAF_POP_WARNINGS
 
 using namespace caf;
 using namespace xstudio;
@@ -83,7 +85,7 @@ bool BookmarkFilterModel::filterAcceptsRow(
     QModelIndex index = sourceModel()->index(source_row, 0, source_parent);
     auto visible      = sourceModel()->data(index, BookmarkModel::Roles::visibleRole).toBool();
 
-    if (not visible)
+    if (not visible and not showHidden_)
         return false;
 
     auto owner = sourceModel()->data(index, BookmarkModel::Roles::ownerRole).toString();
@@ -93,9 +95,8 @@ bool BookmarkFilterModel::filterAcceptsRow(
         return false;
 
     switch (depth_) {
-    case 3:
-        break;
     case 2:
+        break;
     case 1:
         result = media_order_.contains(owner);
         break;
@@ -152,6 +153,14 @@ void BookmarkFilterModel::setCurrentMedia(const QVariant &value) {
     if (uuid != current_media_) {
         current_media_ = uuid;
         emit currentMediaChanged();
+        invalidateFilter();
+    }
+}
+
+void BookmarkFilterModel::setShowHidden(const bool value) {
+    if (value != showHidden_) {
+        showHidden_ = value;
+        emit showHiddenChanged();
         invalidateFilter();
     }
 }
@@ -235,10 +244,11 @@ void BookmarkModel::init(caf::actor_system &_system) {
             [=](utility::event_atom,
                 bookmark::bookmark_change_atom,
                 const utility::UuidActor &ua) {
-                // spdlog::warn("bookmark::bookmark_change_atom {}", to_string(ua.uuid()) );
-                auto ind = search_recursive(QUuidFromUuid(ua.uuid()), "uuidRole");
+                
+                auto ind = searchRecursive(QUuidFromUuid(ua.uuid()), "uuidRole");
 
                 if (ind.isValid()) {
+
                     try {
 
                         auto detail = getDetail(ua.actor());
@@ -252,6 +262,22 @@ void BookmarkModel::init(caf::actor_system &_system) {
                         // if(not change.isEmpty()) {
                         bookmarks_[ua.uuid()] = detail;
                         emit dataChanged(ind, ind, change);
+
+                        // we have a problem in that we don't get specific info
+                        // about when an annotation has been created/updated
+                        // so we re-render the thumnail on every change.
+                        // However, notes don't 'change' that much - we only get
+                        // a change when user stops editing the note, for 
+                        // example, not on every letter entered so we can 
+                        // easily get away with this:
+                        anon_send(
+                            bookmark_actor_,
+                            media_reader::get_thumbnail_atom_v,
+                            detail,
+                            256,
+                            as_actor()
+                            );
+
                         // }
                     } catch (const std::exception &err) {
                         spdlog::warn("{} {}", __PRETTY_FUNCTION__, err.what());
@@ -262,7 +288,7 @@ void BookmarkModel::init(caf::actor_system &_system) {
                 bookmark::remove_bookmark_atom,
                 const utility::Uuid &uuid) {
                 // find in model, remove row and delete from helper map.
-                auto ind = search_recursive(QUuidFromUuid(uuid), "uuidRole");
+                auto ind = searchRecursive(QUuidFromUuid(uuid), "uuidRole");
                 if (ind.isValid()) {
                     removeRows(ind.row(), 1, ind.parent());
                     bookmarks_.erase(uuid);
@@ -274,7 +300,7 @@ void BookmarkModel::init(caf::actor_system &_system) {
                 const utility::UuidActor &ua) {
                 // spdlog::warn("bookmark::add_bookmark_atom {}", to_string(ua.uuid()) );
                 // spdlog::warn("bookmark::add_bookmark_atom {}", data_.dump(2) );
-                auto ind = search_recursive(QUuidFromUuid(ua.uuid()), "uuidRole");
+                auto ind = searchRecursive(QUuidFromUuid(ua.uuid()), "uuidRole");
 
                 if (not ind.isValid()) {
                     // request detail.
@@ -304,7 +330,31 @@ void BookmarkModel::init(caf::actor_system &_system) {
                 const std::string &,
                 const JsonStore &) {},
 
+            [=](media_reader::get_thumbnail_atom,
+                const bookmark::BookmarkDetail &detail,
+                const thumbnail::ThumbnailBufferPtr & thumbnail) {
+
+                // this is the response we made for a thumbnail, sent to us
+                // from the global BookmarksActor
+                thumbnail_cache_[detail.uuid_] = QImage(
+                        thumbnail->width(),
+                        thumbnail->height(),
+                        QImage::Format_RGB888);
+
+                uint8_t *bits = thumbnail_cache_[detail.uuid_].bits();
+                memcpy(
+                    bits,
+                    (uchar *)&(thumbnail->data()[0]),
+                    3 * thumbnail->width()*thumbnail->height()
+                    );                
+                auto ind = searchRecursive(QUuidFromUuid(detail.uuid_), "uuidRole");
+                if (ind.isValid()) {
+                    dataChanged(ind, ind, QVector<int>({thumbnailRole}));
+                }
+            },
+
             [=](json_store::update_atom, const JsonStore &) {},
+
         };
     });
 }
@@ -351,6 +401,7 @@ void BookmarkModel::setBookmarkActorAddr(const QString &addr) {
         // we now need to pull all the bookmarks and reset the model.
         //  we might want to spin this off..
         setModelData(jsonFromBookmarks());
+
         emit lengthChanged();
     }
 }
@@ -563,7 +614,11 @@ QVariant BookmarkModel::data(const QModelIndex &index, int role) const {
                 result = QVariant::fromValue(*(detail.has_annotation_));
                 break;
             case thumbnailRole:
-                result = QVariant::fromValue(QStringFromStd(j.at("thumbnailURL")));
+                if (thumbnail_cache_.count(detail.uuid_)) {
+                    result = thumbnail_cache_.at(detail.uuid_);
+                } else {
+                    anon_send(bookmark_actor_, media_reader::get_thumbnail_atom_v, detail, 256, as_actor());
+                }
                 break;
             case ownerRole:
                 result = QVariant::fromValue(QUuidFromUuid((*(detail.owner_)).uuid()));
@@ -610,6 +665,7 @@ bool BookmarkModel::setData(const QModelIndex &index, const QVariant &value, int
                         sendDetail(bm);
                         result = true;
                     }
+                } else {
                 }
                 break;
 

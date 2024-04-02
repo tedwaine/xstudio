@@ -43,12 +43,12 @@ namespace viewport {
         size_t layer_count() const;
         void add_layer();
 
-        void renderGradingDataMasks(
-            const GradingData *,
+        void render_grading_data_masks(
+            std::vector<const GradingData*>,
             xstudio::media_reader::ImageBufPtr &image);
 
         void render_layer(
-            const LayerData& data,
+            const GradingData& data,
             RenderLayer& layer,
             const xstudio::media_reader::ImageBufPtr &frame,
             const bool have_alpha_buffer);

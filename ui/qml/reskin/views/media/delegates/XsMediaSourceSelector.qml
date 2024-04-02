@@ -20,13 +20,21 @@ Item {
     // which is a property of the Media object and tells us the ID of the 
     // current MediaSource
     property var imageActorUuid: imageActorUuidRole
+    property var mediaUuid: actorUuidRole
 
     // here we follow the Media object metadata fields. They are accessed deeper
     // down in the 'data_indicators' that are instanced by the 'XsMediaItemDelegate'
     // created here.
-    property var metadataFieldValues: metadataSet0Role
+    property var mediaItemMetadataFields: metadataSet0Role
+
+    property var bookmarkUuids: bookmarkUuidsRole
+
+    property var mediaThumbnail: thumbnailImageRole
+
+    property var content
 
     Repeater {
+        id: repeater
         model: 
         DelegateModel {
 
@@ -49,9 +57,14 @@ Item {
                     // Hence we have filtered for the active MediaSource
                     roleValue: imageActorUuid
                     XsMediaItemDelegate {
+                        id: theContent
                         width: selector.width
                         height: selector.height
                         columns_model: selector.columns_model                    
+                        Component.onCompleted: {
+                            selector.content = theContent
+                        }
+                    
                     }
                 }
             }

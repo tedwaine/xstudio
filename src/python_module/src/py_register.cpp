@@ -62,7 +62,11 @@ void register_abs_class(py::module &m, const std::string &name) {
 }
 
 void register_uuid_class(py::module &m, const std::string &name) {
-    auto str_impl = [](const utility::Uuid &x) { return to_string(x); };
+    auto str_impl  = [](const utility::Uuid &x) { return to_string(x); };
+    auto hash_impl = [](const utility::Uuid &x) {
+        std::hash<utility::Uuid> h;
+        return h(x);
+    };
     py::class_<utility::Uuid>(m, name.c_str())
         .def(py::init<>())
         .def(py::init<const std::string &>())
@@ -71,6 +75,7 @@ void register_uuid_class(py::module &m, const std::string &name) {
         .def("is_null", &utility::Uuid::is_null)
         .def(py::self == py::self)
         .def(py::self != py::self)
+        .def("__hash__", hash_impl)
         .def("__str__", str_impl);
 }
 

@@ -28,14 +28,15 @@
 
 #include <caf/scoped_execution_unit.hpp>
 
+#include "xstudio/atoms.hpp"
+#include "xstudio/utility/logging.hpp"
+
 CAF_PUSH_WARNINGS
 #include <QApplication>
 #include <QEvent>
 #include <QDebug>
 CAF_POP_WARNINGS
 
-#include "xstudio/atoms.hpp"
-#include "xstudio/utility/logging.hpp"
 
 namespace caf::mixin {
 
@@ -140,3 +141,21 @@ class actor_object : public Base {
 };
 
 } // namespace caf::mixin
+
+namespace xstudio::ui::qml {
+using namespace caf;
+
+class QMLActor : public caf::mixin::actor_object<QObject> {
+    Q_OBJECT
+
+  public:
+    using super = caf::mixin::actor_object<QObject>;
+    explicit QMLActor(QObject *parent = nullptr) : super(parent) {}
+
+    virtual ~QMLActor() = default;
+    virtual void init(caf::actor_system &system) { super::init(system); }
+
+  public:
+    caf::actor_system &system() { return self()->home_system(); }
+};
+} // namespace xstudio::ui::qml

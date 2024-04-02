@@ -4,6 +4,8 @@
 #include <caf/all.hpp>
 
 #include "xstudio/media_reader/media_reader.hpp"
+#include "xstudio/module/module.hpp"
+#include "xstudio/utility/json_store_sync.hpp"
 
 namespace xstudio::conform {
 class ConformWorkerActor : public caf::event_based_actor {
@@ -19,22 +21,36 @@ class ConformWorkerActor : public caf::event_based_actor {
     caf::behavior behavior_;
 };
 
-class ConformManagerActor : public caf::event_based_actor {
+class ConformManagerActor : public caf::event_based_actor, public module::Module {
   public:
     ConformManagerActor(
         caf::actor_config &cfg, const utility::Uuid uuid = utility::Uuid::generate());
     ~ConformManagerActor() override = default;
 
-    caf::behavior make_behavior() override { return behavior_; }
+    caf::behavior make_behavior() override {
+        set_parent_actor_addr(actor_cast<caf::actor_addr>(this));
+        return message_handler_extensions().or_else(
+            message_handler_.or_else(module::Module::message_handler()));
+    }
+
     void on_exit() override;
     const char *name() const override { return NAME.c_str(); }
 
+  protected:
+    caf::message_handler message_handler_;
+
+    caf::message_handler message_handler_extensions();
+
   private:
     inline static const std::string NAME = "ConformManagerActor";
-    caf::behavior behavior_;
     utility::Uuid uuid_;
     caf::actor event_group_;
-    std::vector<std::string> tasks_;
+    caf::actor pool_;
+    size_t worker_count_{5};
+
+    // stores information on conforming actions.
+    utility::JsonStoreSync data_;
+    utility::Uuid data_uuid_{utility::Uuid::generate()};
 };
 
 } // namespace xstudio::conform

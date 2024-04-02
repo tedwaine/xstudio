@@ -46,8 +46,8 @@ namespace utility {
     class ActorSystemSingleton {
 
       public:
-        static caf::actor_system &actor_system_ref();
         static caf::actor_system &actor_system_ref(caf::actor_system &sys);
+        static caf::actor_system &actor_system_ref();
 
       private:
         ActorSystemSingleton(caf::actor_system &provided_sys) : system_ref_(provided_sys) {}

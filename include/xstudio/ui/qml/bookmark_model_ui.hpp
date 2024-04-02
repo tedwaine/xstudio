@@ -53,6 +53,7 @@ class BookmarkFilterModel : public QSortFilterProxyModel {
                    currentMediaChanged)
 
     Q_PROPERTY(int depth READ depth WRITE setDepth NOTIFY depthChanged)
+    Q_PROPERTY(bool showHidden READ showHidden WRITE setShowHidden NOTIFY showHiddenChanged)
 
   public:
     BookmarkFilterModel(QObject *parent = nullptr);
@@ -60,10 +61,12 @@ class BookmarkFilterModel : public QSortFilterProxyModel {
     [[nodiscard]] QVariantMap mediaOrder() const { return media_order_; }
     [[nodiscard]] int depth() const { return depth_; }
     [[nodiscard]] QVariant currentMedia() const { return QVariant::fromValue(current_media_); }
+    [[nodiscard]] bool showHidden() const { return showHidden_; }
 
     void setMediaOrder(const QVariantMap &mo);
     void setDepth(const int value);
     void setCurrentMedia(const QVariant &value);
+    void setShowHidden(const bool value);
 
     Q_INVOKABLE bool
     removeRows(int row, int count, const QModelIndex &parent = QModelIndex()) override {
@@ -85,11 +88,13 @@ class BookmarkFilterModel : public QSortFilterProxyModel {
     void mediaOrderChanged();
     void depthChanged();
     void currentMediaChanged();
+    void showHiddenChanged();
 
   private:
     QVariantMap media_order_;
     QUuid current_media_;
     int depth_{0};
+    bool showHidden_{false};
 };
 
 
@@ -180,5 +185,6 @@ class BookmarkModel : public caf::mixin::actor_object<JSONTreeModel> {
     caf::actor bookmark_actor_;
     caf::actor backend_events_;
     std::map<utility::Uuid, bookmark::BookmarkDetail> bookmarks_;
+    std::map<utility::Uuid, QImage> thumbnail_cache_;
 };
 } // namespace xstudio::ui::qml

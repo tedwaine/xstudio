@@ -6,22 +6,24 @@ import QtGraphicalEffects 1.15
 import xStudioReskin 1.0
 
 ScrollBar { id: widget
+
     property color thumbColorPressed: palette.highlight
     property color thumbColorHovered: palette.text
     property color thumbColorNormal: XsStyleSheet.hintColor
 
     property real thumbWidth: thumb.implicitWidth
 
-    padding: 0 //.5
+    padding: 0
     minimumSize: 0.1
-    // size: 0.95
+
+    snapMode: ScrollBar.SnapOnRelease
 
     contentItem:
     Rectangle { id: thumb
         implicitWidth: 5
         implicitHeight: 5
         radius: width/1.1
-        color: widget.pressed ? thumbColorPressed: thumbColorHovered //widget.hovered? thumbColorHovered: thumbColorNormal
-        opacity: hovered||active? .8:0.4
+        color: widget.pressed ? thumbColorPressed: thumbColorHovered
+        opacity: hovered || active ? 0.8 : 0.4
     }
 }

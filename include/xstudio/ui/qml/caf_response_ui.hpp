@@ -43,6 +43,7 @@ class CafResponse : public QObject {
         const std::map<int, std::string> &metadata_paths,
         QThreadPool *pool);
 
+    ~CafResponse();
 
   private:
     void handleFinished();

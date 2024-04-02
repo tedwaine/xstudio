@@ -20,7 +20,7 @@ XsDialogModal {
     XsModelProperty {
         id: features
         role: "valueRole"
-        index: app_window.globalStoreModel.search_recursive("/ui/qml/features", "pathRole")
+        index: app_window.globalStoreModel.searchRecursive("/ui/qml/features", "pathRole")
     }
 
     property string myHTMLTitle: "<h1>" + Qt.application.name + " v" + Qt.application.version + " Change Log</h1>"

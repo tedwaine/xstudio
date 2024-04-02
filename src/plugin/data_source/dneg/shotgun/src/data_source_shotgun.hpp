@@ -108,6 +108,80 @@ template <typename T> class ShotgunDataSourceActor : public caf::event_based_act
     void download_media(
         caf::typed_response_promise<utility::JsonStore> rp, const utility::Uuid &uuid);
 
+    void get_data(
+        caf::typed_response_promise<utility::JsonStore> rp,
+        const std::string &type,
+        const int project_id);
+
+    void get_precache(caf::typed_response_promise<utility::JsonStore> rp, const int project_id);
+
+    void get_data_department(
+        caf::typed_response_promise<utility::JsonStore> rp, const std::string &type);
+
+    void get_data_project(
+        caf::typed_response_promise<utility::JsonStore> rp, const std::string &type);
+
+    void get_data_location(
+        caf::typed_response_promise<utility::JsonStore> rp, const std::string &type);
+
+    void get_data_review_location(
+        caf::typed_response_promise<utility::JsonStore> rp, const std::string &type);
+
+    void get_data_playlist_type(
+        caf::typed_response_promise<utility::JsonStore> rp, const std::string &type);
+
+    void get_data_shot_status(
+        caf::typed_response_promise<utility::JsonStore> rp, const std::string &type);
+
+    void get_data_note_type(
+        caf::typed_response_promise<utility::JsonStore> rp, const std::string &type);
+
+    void get_data_production_status(
+        caf::typed_response_promise<utility::JsonStore> rp, const std::string &type);
+
+    void get_data_pipeline_status(
+        caf::typed_response_promise<utility::JsonStore> rp, const std::string &type);
+
+    void get_version_artist(
+        caf::typed_response_promise<utility::JsonStore> rp, const int version_id);
+
+    void get_data_unit(
+        caf::typed_response_promise<utility::JsonStore> rp,
+        const std::string &type,
+        const int project_id);
+
+    void get_data_group(
+        caf::typed_response_promise<utility::JsonStore> rp,
+        const std::string &type,
+        const int project_id);
+
+    void get_data_user(
+        caf::typed_response_promise<utility::JsonStore> rp,
+        const std::string &type,
+        const int page                      = 1,
+        const utility::JsonStore &prev_data = utility::JsonStore(R"([])"_json));
+
+    void get_data_shot(
+        caf::typed_response_promise<utility::JsonStore> rp,
+        const std::string &type,
+        const int project_id,
+        const int page                      = 1,
+        const utility::JsonStore &prev_data = utility::JsonStore(R"([])"_json));
+
+    void get_data_sequence(
+        caf::typed_response_promise<utility::JsonStore> rp,
+        const std::string &type,
+        const int project_id,
+        const int page                      = 1,
+        const utility::JsonStore &prev_data = utility::JsonStore(R"([])"_json));
+
+    void get_data_playlist(
+        caf::typed_response_promise<utility::JsonStore> rp,
+        const std::string &type,
+        const int project_id,
+        const int page                      = 1,
+        const utility::JsonStore &prev_data = utility::JsonStore(R"([])"_json));
+
     void find_ivy_version(
         caf::typed_response_promise<utility::JsonStore> rp,
         const std::string &uuid,
@@ -143,12 +217,21 @@ template <typename T> class ShotgunDataSourceActor : public caf::event_based_act
     void post_action(
         caf::typed_response_promise<utility::JsonStore> rp, const utility::JsonStore &action);
 
+    void execute_preset(
+        caf::typed_response_promise<utility::JsonStore> rp,
+        const std::vector<std::string> &preset_paths,
+        const int project_id,
+        const utility::JsonStore &context,
+        const utility::JsonStore &metadata);
 
   private:
     caf::behavior behavior_;
     T data_source_;
     caf::actor shotgun_;
     caf::actor pool_;
+
+    caf::actor event_group_;
+
     size_t changed_hash_{0};
     caf::actor_addr secret_source_;
     std::vector<caf::typed_response_promise<shotgun_client::AuthenticateShotgun>> waiting_;
@@ -159,8 +242,6 @@ template <typename T> class ShotgunDataSourceActor : public caf::event_based_act
     std::deque<std::shared_ptr<BuildPlaylistMediaJob>> extend_media_with_ivy_tasks_;
     int build_tasks_in_flight_ = {0};
     int worker_count_          = {8};
-
-    bool disable_integration_ {false};
 
     std::map<long, utility::JsonStore> shot_cache_;
 

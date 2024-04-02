@@ -135,9 +135,9 @@ MediaSourceActor::MediaSourceActor(
         utility::Uuid::generate(), utility::JsonStore(), std::chrono::milliseconds(50));
     link_to(json_store_);
 
-    MediaReference mr = base_.media_reference();
-    mr.set_timecode_from_frames();
-    base_.set_media_reference(mr);
+    // MediaReference mr = base_.media_reference();
+    // mr.set_timecode_from_frames();
+    // base_.set_media_reference(mr);
 
     // special case , when duplicating, as that'll suppy streams.
     // anon_send(actor_cast<actor>(this), acquire_media_detail_atom_v, media_reference.rate());
@@ -227,15 +227,15 @@ void MediaSourceActor::acquire_detail(
                         base_.set_reader(md.reader_);
 
                         bool media_ref_set = false;
-                        for (auto i : md.streams_) {
+                        for (auto stream_detail : md.streams_) {
                             // HACK!!!
 
                             auto uuid   = utility::Uuid::generate();
-                            auto stream = spawn<MediaStreamActor>(i, uuid);
+                            auto stream = spawn<MediaStreamActor>(stream_detail, uuid);
                             link_to(stream);
                             join_event_group(this, stream);
                             media_streams_[uuid] = stream;
-                            base_.add_media_stream(i.media_type_, uuid);
+                            base_.add_media_stream(stream_detail.media_type_, uuid);
 
                             if (!media_ref_set) {
                                 // Note - it looks like we have separate media references for
@@ -243,7 +243,8 @@ void MediaSourceActor::acquire_detail(
                                 // for a MediaSource - as  such, we don't support streams with
                                 // different durations and/or frame rates but we can address
                                 // that (if we have to).
-                                update_stream_media_reference(i, uuid, rate, md.timecode_);
+                                update_stream_media_reference(
+                                    stream_detail, uuid, rate, md.timecode_);
                                 media_ref_set = true;
                             }
 
@@ -276,6 +277,7 @@ void MediaSourceActor::acquire_detail(
                                         to_string(base_.media_reference().uri()));
                                     anon_send(this, media_hook::get_media_hook_atom_v);
                                 });
+
                         base_.send_changed(event_group_, this);
                         send(event_group_, utility::event_atom_v, change_atom_v);
 
@@ -439,15 +441,17 @@ void MediaSourceActor::init() {
 
         [=](current_media_stream_atom, const MediaType media_type) -> result<UuidActor> {
             auto rp = make_response_promise<UuidActor>();
-            request(caf::actor_cast<caf::actor>(this), infinite, acquire_media_detail_atom_v).then(
-                [=](bool) mutable {
-                    if (media_streams_.count(base_.current(media_type)))
-                        rp.deliver(UuidActor(
-                            base_.current(media_type), media_streams_.at(base_.current(media_type))));
-                    rp.deliver(make_error(xstudio_error::error, "No streams"));
-                },
-                [=](const error &err) mutable { rp.deliver(err); });
-            return rp;            
+            request(caf::actor_cast<caf::actor>(this), infinite, acquire_media_detail_atom_v)
+                .then(
+                    [=](bool) mutable {
+                        if (media_streams_.count(base_.current(media_type)))
+                            rp.deliver(UuidActor(
+                                base_.current(media_type),
+                                media_streams_.at(base_.current(media_type))));
+                        rp.deliver(make_error(xstudio_error::error, "No streams"));
+                    },
+                    [=](const error &err) mutable { rp.deliver(err); });
+            return rp;
         },
 
         [=](current_media_stream_atom, const MediaType media_type, const Uuid &uuid) -> bool {
@@ -518,27 +522,26 @@ void MediaSourceActor::init() {
         [=](get_edit_list_atom,
             const MediaType media_type,
             const Uuid &uuid) -> result<utility::EditList> {
-
             auto rp = make_response_promise<utility::EditList>();
-            request(caf::actor_cast<caf::actor>(this), infinite, acquire_media_detail_atom_v).then(
-                [=](bool) mutable {
-                    if (base_.current(media_type).is_null()) {
-                        rp.deliver(make_error(xstudio_error::error, "No streams"));
-                    }
+            request(caf::actor_cast<caf::actor>(this), infinite, acquire_media_detail_atom_v)
+                .then(
+                    [=](bool) mutable {
+                        if (base_.current(media_type).is_null()) {
+                            rp.deliver(make_error(xstudio_error::error, "No streams"));
+                        }
 
-                    if (uuid.is_null())
-                        rp.deliver(utility::EditList({EditListSection(
-                            base_.uuid(),
+                        if (uuid.is_null())
+                            rp.deliver(utility::EditList({EditListSection(
+                                base_.uuid(),
+                                base_.media_reference(base_.current(media_type)).duration(),
+                                base_.media_reference(base_.current(media_type)).timecode())}));
+                        return rp.deliver(utility::EditList({EditListSection(
+                            uuid,
                             base_.media_reference(base_.current(media_type)).duration(),
                             base_.media_reference(base_.current(media_type)).timecode())}));
-                    return rp.deliver(utility::EditList({EditListSection(
-                        uuid,
-                        base_.media_reference(base_.current(media_type)).duration(),
-                        base_.media_reference(base_.current(media_type)).timecode())}));
-                },
-                [=](const error &err) mutable { rp.deliver(err); });
-            return rp;            
-            
+                    },
+                    [=](const error &err) mutable { rp.deliver(err); });
+            return rp;
         },
 
         [=](get_media_pointer_atom,
@@ -785,9 +788,8 @@ void MediaSourceActor::init() {
         },
 
         [=](media_reader::get_thumbnail_atom,
-            float position,
-            const utility::Uuid job_uuid,
-            caf::actor requester) {
+            float position) -> result<thumbnail::ThumbnailBufferPtr> {
+            auto rp   = make_response_promise<thumbnail::ThumbnailBufferPtr>();
             int frame = (int)round(float(base_.media_reference().frame_count()) * position);
             frame     = std::max(0, std::min(frame, base_.media_reference().frame_count() - 1));
             request(
@@ -799,33 +801,17 @@ void MediaSourceActor::init() {
                 .then(
                     [=](const media::AVFrameID &mp) mutable {
                         request(
-                            thumbnail_manager,
-                            infinite,
-                            media_reader::get_thumbnail_atom_v,
-                            mp,
-                            job_uuid)
+                            thumbnail_manager, infinite, media_reader::get_thumbnail_atom_v, mp)
                             .then(
                                 [=](const thumbnail::ThumbnailBufferPtr &buf) mutable {
-                                    anon_send(
-                                        requester, buf, position, job_uuid, std::string());
+                                    // send(event_group_, utility::event_atom_v,
+                                    // media_reader::get_thumbnail_atom_v, buf);
+                                    rp.deliver(buf);
                                 },
-                                [=](error &err) mutable {
-                                    anon_send(
-                                        requester,
-                                        thumbnail::ThumbnailBufferPtr(),
-                                        0.0f,
-                                        job_uuid,
-                                        to_string(err));
-                                });
+                                [=](error &err) mutable { rp.deliver(err); });
                     },
-                    [=](error &err) mutable {
-                        anon_send(
-                            requester,
-                            thumbnail::ThumbnailBufferPtr(),
-                            0.0f,
-                            job_uuid,
-                            to_string(err));
-                    });
+                    [=](error &err) mutable { rp.deliver(err); });
+            return rp;
         },
 
         [=](media_reference_atom) -> MediaReference { return base_.media_reference(); },
@@ -852,6 +838,36 @@ void MediaSourceActor::init() {
                 sm.emplace_back(UuidActor(i, media_streams_.at(i)));
 
             return sm;
+        },
+
+        [=](get_media_stream_atom, const int stream_index) -> result<caf::actor> {
+            // get the stream actor for the given index
+            auto rp    = make_response_promise<caf::actor>();
+            auto count = std::make_shared<int>(media_streams_.size());
+            for (const auto &p : media_streams_) {
+
+                caf::actor media_stream = p.second;
+                request(p.second, infinite, get_stream_detail_atom_v)
+                    .then(
+                        [=](const StreamDetail &detail) mutable {
+                            if (detail.index_ == stream_index) {
+                                rp.deliver(media_stream);
+                            }
+                            (*count)--;
+                            if (!*count && rp.pending()) {
+                                rp.deliver(make_error(
+                                    xstudio_error::error, "No stream matching index."));
+                            }
+                        },
+                        [=](caf::error err) mutable {
+                            (*count)--;
+                            if (!*count && rp.pending()) {
+                                rp.deliver(err);
+                            }
+                        });
+            }
+
+            return rp;
         },
 
         [=](get_media_stream_atom, const Uuid &uuid) -> result<caf::actor> {
@@ -885,11 +901,71 @@ void MediaSourceActor::init() {
             return result<StreamDetail>(make_error(xstudio_error::error, "No streams"));
         },
 
-        [=](json_store::get_json_atom atom, const std::string &path) {
-            delegate(json_store_, atom, path);
-            // metadata changed - need to broadcast an update
-            // base_.send_changed(event_group_, this);
-            // send(event_group_, utility::event_atom_v, change_atom_v);
+        [=](json_store::get_json_atom,
+            const std::string &path,
+            std::vector<caf::actor> children_to_try) -> result<utility::JsonStore> {
+            // used in message handler immediately below for recursive call to another actor to
+            // get json data from children. Calling 'request' in a chain/loop in the way we
+            // want is pretty ugly to do in terms of the code which is why I use this
+            // recursive trick
+            auto rp = make_response_promise<utility::JsonStore>();
+            request(children_to_try.front(), infinite, json_store::get_json_atom_v, path)
+                .then(
+                    [=](const utility::JsonStore &j) mutable { rp.deliver(j); },
+                    [=](error &err) mutable {
+                        // we got an error, probably because the child we tried
+                        // does not have data  at the given path. Continue trying
+                        // children until exhausted
+                        children_to_try.erase(children_to_try.begin());
+                        if (children_to_try.size()) {
+                            rp.delegate(
+                                caf::actor_cast<caf::actor>(this),
+                                json_store::get_json_atom_v,
+                                path,
+                                children_to_try);
+                        } else {
+                            rp.deliver(err);
+                        }
+                    });
+            return rp;
+        },
+
+        [=](json_store::get_json_atom _get_atom,
+            const std::string &path,
+            bool try_children) -> result<utility::JsonStore> {
+            // request for metadata. Is the metadata path actually valid for us or for one
+            // of our MediaStream children? Try children in order of current iamge source
+            // then current media source.
+
+            // This message handler is used by UI layer to display metadata fields in the
+            // xSTUDIO media list
+            auto rp = make_response_promise<utility::JsonStore>();
+            std::vector<caf::actor> children_to_try({json_store_});
+            if (try_children) {
+                if (media_streams_.count(base_.current(MT_IMAGE)))
+                    children_to_try.push_back(media_streams_.at(base_.current(MT_IMAGE)));
+                if (media_streams_.count(base_.current(MT_AUDIO)))
+                    children_to_try.push_back(media_streams_.at(base_.current(MT_AUDIO)));
+            }
+            rp.delegate(caf::actor_cast<caf::actor>(this), _get_atom, path, children_to_try);
+            return rp;
+        },
+
+        [=](json_store::get_json_atom atom,
+            const std::string &path) -> result<utility::JsonStore> {
+            auto rp = make_response_promise<utility::JsonStore>();
+
+            if (path.find("/metadata/media") == 0) {
+                // ensure metadata has indeed been read before passing to json store
+                request(
+                    caf::actor_cast<actor>(this), infinite, media_metadata::get_metadata_atom_v)
+                    .then(
+                        [=](bool) mutable { rp.delegate(json_store_, atom, path); },
+                        [=](error &err) mutable { rp.deliver(std::move(err)); });
+            } else {
+                rp.delegate(json_store_, atom, path);
+            }
+            return rp;
         },
 
         [=](json_store::set_json_atom atom, const JsonStore &json) {
@@ -1095,6 +1171,8 @@ void MediaSourceActor::init() {
                         m_actor, infinite, get_metadata_atom_v, base_.media_reference().uri())
                         .then(
                             [=](const std::pair<JsonStore, int> &meta) mutable {
+                                send_stream_metadata_to_stream_actors(meta.first);
+
                                 request(
                                     json_store_,
                                     infinite,
@@ -1589,4 +1667,33 @@ void MediaSourceActor::update_stream_media_reference(
         media_reference.set_timecode_from_frames();
     }
     base_.set_media_reference(media_reference);
+}
+
+void MediaSourceActor::send_stream_metadata_to_stream_actors(const utility::JsonStore &meta) {
+    // the metadata object returned by ffprobe is for the whole file with the metadata for
+    // each stream also included in an array. Here we search for the stream metadata and
+    // pass it to the relevant MediaStreamActor to own.
+
+    if (meta.contains("streams") and meta["streams"].is_array()) {
+        const auto streams = meta["streams"];
+        for (const auto &stream : streams) {
+            if (stream.contains("index") and stream["index"].is_number_integer()) {
+                // stream is a ref.. we need a local copy to use in our response
+                // (which gets copied again by the [=])
+                utility::JsonStore stream_metadata = stream;
+                int idx                            = stream_metadata["index"].get<int>();
+                request(
+                    caf::actor_cast<caf::actor>(this), infinite, get_media_stream_atom_v, idx)
+                    .then(
+                        [=](caf::actor stream) {
+                            anon_send(
+                                stream,
+                                json_store::set_json_atom_v,
+                                stream_metadata,
+                                "/metadata/stream/@");
+                        },
+                        [=](caf::error &err) {});
+            }
+        }
+    }
 }

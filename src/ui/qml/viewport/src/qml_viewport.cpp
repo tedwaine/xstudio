@@ -186,6 +186,17 @@ void QMLViewport::handleWindowChanged(QQuickWindow *win) {
     }
 }
 
+void QMLViewport::handleScreenChanged(QScreen *screen) {
+
+    spdlog::debug("QMLViewport::handleScreenChanged");
+    renderer_actor->setScreenInfos(
+        screen->name(),
+        screen->model(),
+        screen->manufacturer(),
+        screen->serialNumber(),
+        screen->refreshRate());
+}
+
 void QMLViewport::linkToViewport(QObject *other_viewport) {
 
     auto other = dynamic_cast<QMLViewport *>(other_viewport);
@@ -196,17 +207,6 @@ void QMLViewport::linkToViewport(QObject *other_viewport) {
         qDebug() << "QMLViewport::linkToViewport failed because " << other_viewport
                  << " is not derived from QMLViewport.";
     }
-}
-
-void QMLViewport::handleScreenChanged(QScreen *screen) {
-
-    spdlog::debug("QMLViewport::handleScreenChanged");
-    renderer_actor->setScreenInfos(
-        screen->name(),
-        screen->model(),
-        screen->manufacturer(),
-        screen->serialNumber(),
-        screen->refreshRate());
 }
 
 
@@ -266,8 +266,7 @@ void QMLViewport::sync() {
         mapToScene(boundingRect().topRight()),
         mapToScene(boundingRect().bottomRight()),
         mapToScene(boundingRect().bottomLeft()),
-        window()->size(),
-        window()->devicePixelRatio());
+        window()->size());
 
     /*static bool share = false;
     if (window() && !share) {
@@ -574,19 +573,6 @@ void QMLViewport::releaseResources() {
     renderer_actor = nullptr;
 }
 
-void QMLViewport::renderImageToFile(
-    const QUrl filePath,
-    const int format,
-    const int compression,
-    const int width,
-    const int height,
-    const bool bakeColor) {
-
-    renderer_actor->renderImageToFile(
-        filePath, playhead_->backend(), format, compression, width, height, bakeColor);
-}
-
-
 void QMLViewport::sendResetShortcut() {
     /* This emulates keyboard events for Ctrl+R (viewer reset), and is called from QML when
      * clicking the menu option */
@@ -637,4 +623,37 @@ void QMLViewport::setIsQuickViewer(bool is_quick_viewer) {
         is_quick_viewer_ = is_quick_viewer;
         emit isQuickViewerChanged();
     }
+}
+
+void QMLViewport::setPlayhead(const QString actorAddress) {
+
+    if (actorAddress != "") {
+        caf::actor playhead =
+            actorFromQString(CafSystemObject::get_actor_system(), actorAddress);
+        if (playhead) {
+            renderer_actor->set_playhead(playhead);
+        } else {
+            spdlog::warn(
+                "{} bad playhead actor address: {}",
+                __PRETTY_FUNCTION__,
+                StdFromQString(actorAddress));
+        }
+    }
+}
+
+void QMLViewport::setAutoConnectToSelectedPlayhead(const bool autoconnect) {
+    if (autoconnect != auto_connect_to_selected_playhead_) {
+        auto_connect_to_selected_playhead_ = autoconnect;
+        emit autoConnectToSelectedPlayheadChanged();
+        if (autoconnect) {
+            renderer_actor->autoConnectToSelectedPlayhead();
+        }
+    }
+}
+
+void QMLViewport::reset() { renderer_actor->reset(); }
+
+QString QMLViewport::playheadActorAddress() {
+
+    return actorToQString(CafSystemObject::get_actor_system(), playhead_->backend());
 }

@@ -5,7 +5,7 @@ import QtQuick.Controls 2.12
 import QtQuick.Controls.impl 2.12
 import QtGraphicalEffects 1.12
 
-import xStudio 1.0
+import xStudioReskin 1.0
 
     // color: XsStyle.controlTitleColor
     // font {
@@ -63,7 +63,6 @@ Rectangle {
         anchors.fill: parent
         hoverEnabled: true
         onClicked: {
-            console.log("clicked", value)
             value = !value
         }
     }

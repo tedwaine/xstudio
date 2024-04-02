@@ -68,6 +68,7 @@ void xstudio::global_store::set_global_store_def(
 bool xstudio::global_store::preference_load_defaults(
     utility::JsonStore &js, const std::string &path) {
 
+    js.clear();
     bool result = false;
     try {
         for (const auto &entry : fs::directory_iterator(path)) {
@@ -139,7 +140,6 @@ void load_from_list(const std::string &path, std::vector<fs::path> &overrides) {
     }
 }
 // parse json, should be jsonpointers and values..
-// parse json, should be jsonpointers and values..
 void load_override(utility::JsonStore &json, const fs::path &path) {
     std::ifstream i(path);
     nlohmann::json j;
@@ -198,6 +198,7 @@ void load_override(utility::JsonStore &json, const fs::path &path) {
         }
     }
 }
+
 void xstudio::global_store::preference_load_overrides(
     utility::JsonStore &js, const std::vector<std::string> &paths) {
     // we get a collection of JSONPOINTERS and values.
@@ -294,6 +295,7 @@ utility::JsonStore xstudio::global_store::get_preference_values(
     std::set<std::string> prefs = get_preferences(json, context);
 
     for (auto i : prefs) {
+
         try {
             /*
             // For now putting the get(i + "/overridden_value") in a try
@@ -311,7 +313,6 @@ utility::JsonStore xstudio::global_store::get_preference_values(
                 tmp_path = preference_overridden_path(json, i);
             } catch (...) {
             }
-
 
             if (not only_changed or is_overridden or override_path == tmp_path)
                 js[i + "/value"] = json.get(i + "/value");
@@ -376,7 +377,6 @@ utility::JsonStore GlobalStoreHelper::get_existing_or_create_new_preference(
         return v["value"];
 
     } catch (...) {
-
         utility::JsonStore v;
         v["value"] = default_;
         v["overridden_value"] = default_;

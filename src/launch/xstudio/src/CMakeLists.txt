@@ -31,6 +31,7 @@ target_link_libraries(${PROJECT_NAME}
 		xstudio::global
 		xstudio::ui::opengl::viewport
 		xstudio::ui::qml::bookmark
+		xstudio::ui::qml::conform
 		xstudio::ui::qml::embedded_python
 		xstudio::ui::qml::event
 		xstudio::ui::qml::global_store

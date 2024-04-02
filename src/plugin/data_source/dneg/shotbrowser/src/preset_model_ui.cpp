@@ -1,0 +1,651 @@
+// SPDX-License-Identifier: Apache-2.0
+#include "preset_model_ui.hpp"
+#include "query_engine.hpp"
+#include "model_ui.hpp"
+
+#include "xstudio/utility/string_helpers.hpp"
+#include "xstudio/ui/qml/helper_ui.hpp"
+#include "xstudio/global_store/global_store.hpp"
+#include "xstudio/atoms.hpp"
+
+#include <QQmlExtensionPlugin>
+#include <QDateTime>
+#include <qdebug.h>
+
+using namespace xstudio;
+using namespace xstudio::utility;
+using namespace xstudio::shotgun_client;
+using namespace xstudio::ui::qml;
+using namespace std::chrono_literals;
+using namespace xstudio::global_store;
+
+ShotBrowserPresetModel::ShotBrowserPresetModel(QueryEngine &query_engine, QObject *parent)
+    : query_engine_(query_engine), JSONTreeModel(parent) {
+    setRoleNames(std::vector<std::string>(
+        {"enabledRole",
+         "entityRole",
+         "hiddenRole",
+         "livelinkRole",
+         "nameRole",
+         "negatedRole",
+         "termRole",
+         "typeRole",
+         "updateRole",
+         "userdataRole",
+         "valueRole"}));
+
+    term_lists_ = new QQmlPropertyMap(this);
+
+    for (const auto &i : ValidTerms.items()) {
+        auto terms = QStringList();
+        for (const auto &j : i.value()) {
+            terms.push_back(QStringFromStd(j));
+        }
+        term_lists_->insert(QStringFromStd(i.key()), QVariant::fromValue(terms));
+    }
+}
+
+
+QStringList ShotBrowserPresetModel::entities() const {
+    auto result = QStringList();
+
+    for (const auto &i : ValidEntities) {
+        result.push_back(QStringFromStd(i));
+    }
+
+    return result;
+}
+
+QVariant ShotBrowserPresetModel::copy(const QModelIndexList &indexes) const {
+    auto result = QVariant();
+
+    if (indexes.size() == 1) {
+        auto data = mapFromValue(indexes.at(0).data(JSONRole));
+        QueryEngine::regenerate_ids(data);
+
+        result = mapFromValue(data);
+    } else if (indexes.size() > 1) {
+        auto data = R"([])"_json;
+        for (const auto &i : indexes) {
+            auto d = mapFromValue(i.data(JSONRole));
+            QueryEngine::regenerate_ids(d);
+            data.push_back(d);
+        }
+        result = mapFromValue(data);
+    }
+    return result;
+}
+
+bool ShotBrowserPresetModel::paste(
+    const QVariant &qdata, const int row, const QModelIndex &parent) {
+    auto result = true;
+
+    try {
+        auto items             = R"([])"_json;
+        auto data              = mapFromValue(qdata);
+        const auto parent_type = StdFromQString(parent.data(typeRole).toString());
+        auto current_row       = row;
+
+        if (not data.is_array()) {
+            items.push_back(data);
+        } else {
+            items = data;
+        }
+
+        for (auto &i : items) {
+            if (parent_type == "presets" and i["type"] == "preset") {
+                QueryEngine::regenerate_ids(i);
+                insertRows(current_row, 1, parent, i);
+                current_row++;
+            } else if (parent_type == "" and i["type"] == "group") {
+                QueryEngine::regenerate_ids(i);
+                insertRows(current_row, 1, parent, i);
+                current_row++;
+            } else {
+                result = false;
+            }
+        }
+
+    } catch (const std::exception &err) {
+        spdlog::warn("{} {}", __PRETTY_FUNCTION__, err.what());
+        result = false;
+    }
+
+    return result;
+}
+
+
+void ShotBrowserPresetModel::resetPresets(const QModelIndexList &indexes) {
+    for (const auto &i : indexes) {
+        resetPreset(i);
+    }
+}
+
+void ShotBrowserPresetModel::resetPreset(const QModelIndex &index) {
+    auto updated = index.data(Roles::updateRole);
+    if (!updated.isNull() and updated.toBool() == true) {
+        auto sp = query_engine_.find_by_id(
+            UuidFromQUuid(index.data(JSONTreeModel::Roles::idRole).toUuid()),
+            query_engine_.system_presets().as_json());
+        if (sp) {
+            // here be dragons..
+            auto model = const_cast<QAbstractItemModel *>(index.model());
+            model->setData(index, mapFromValue(*sp), JSONTreeModel::Roles::JSONRole);
+        }
+    }
+}
+
+QModelIndex ShotBrowserPresetModel::duplicate(const QModelIndex &index) {
+    auto result = QModelIndex();
+
+    auto data = mapFromValue(index.data(JSONRole));
+    QueryEngine::regenerate_ids(data);
+
+    if (insertRows(index.row() + 1, 1, index.parent(), data)) {
+        result = ShotBrowserPresetModel::index(index.row() + 1, 0, index.parent());
+    }
+
+    return result;
+}
+
+QVariant ShotBrowserPresetModel::data(const QModelIndex &index, int role) const {
+    auto result = QVariant();
+
+    try {
+        const auto &j = indexToData(index);
+
+        try {
+
+            switch (role) {
+            case JSONTreeModel::Roles::JSONRole:
+                result = QVariantMapFromJson(indexToFullData(index));
+                break;
+
+            case JSONTreeModel::Roles::JSONTextRole:
+                result = QString::fromStdString(indexToFullData(index).dump(2));
+                break;
+
+            case JSONTreeModel::Roles::JSONPathRole:
+                result = QString::fromStdString(getIndexPath(index).to_string());
+                break;
+
+            case Roles::enabledRole:
+                result = j.at("enabled").get<bool>();
+                break;
+
+            case Roles::hiddenRole:
+                if (j.count("hidden") and not j.at("hidden").is_null())
+                    result = j.at("hidden").get<bool>();
+                else
+                    result = false;
+                break;
+
+            case Roles::updateRole:
+                if (j.count("update") and not j.at("update").is_null())
+                    result = j.at("update").get<bool>();
+                break;
+
+            case Roles::userdataRole:
+                result = QString::fromStdString(j.value("userdata", ""));
+                break;
+
+            case Roles::termRole:
+                result = QString::fromStdString(j.at("term"));
+                break;
+
+            case Roles::valueRole:
+                result = QString::fromStdString(j.at("value"));
+                break;
+
+            case Roles::entityRole:
+                if (j.count("entity"))
+                    result = QString::fromStdString(j.at("entity"));
+                else {
+                    // find group entity..
+                    auto p = index.parent();
+                    while (p.isValid() and result.isNull()) {
+                        result = p.data(Roles::entityRole);
+                        p      = p.parent();
+                    }
+                }
+
+                break;
+
+            case Roles::livelinkRole:
+                if (j.count("livelink") and not j.at("livelink").is_null())
+                    result = j.at("livelink").get<bool>();
+                break;
+
+            case Roles::negatedRole:
+                if (j.count("negated") and not j.at("negated").is_null())
+                    result = j.at("negated").get<bool>();
+                break;
+
+            case JSONTreeModel::Roles::idRole:
+                result = QString::fromStdString(to_string(j.at("id").get<Uuid>()));
+                break;
+
+            case Roles::nameRole:
+            case Qt::DisplayRole:
+                result = QString::fromStdString(j.at("name"));
+                break;
+
+            case Roles::typeRole:
+                result = QString::fromStdString(j.at("type"));
+                break;
+
+            default:
+                result = JSONTreeModel::data(index, role);
+                break;
+            }
+
+        } catch (const std::exception &err) {
+
+            spdlog::warn(
+                "{} {} {} {} {} {}",
+                __PRETTY_FUNCTION__,
+                err.what(),
+                role,
+                index.row(),
+                index.internalId(),
+                j.dump(2));
+        }
+    } catch (const std::exception &err) {
+
+        spdlog::warn(
+            "{} {} {} {} {}",
+            __PRETTY_FUNCTION__,
+            err.what(),
+            role,
+            index.row(),
+            index.internalId());
+    }
+    return result;
+}
+
+void ShotBrowserPresetModel::setModelPathData(const std::string &path, const JsonStore &data) {
+    // don't propagate
+    if (path == "")
+        setModelDataBase(data, false);
+    else {
+    }
+}
+
+bool ShotBrowserPresetModel::setData(
+    const QModelIndex &index, const QVariant &value, int role) {
+    bool result         = false;
+    bool preset_changed = false;
+
+    QVector<int> roles({role});
+
+    try {
+        // nlohmann::json &j = indexToData(index);
+        switch (role) {
+        case Roles::enabledRole:
+            result         = baseSetData(index, value, "enabled", QVector<int>({role}), true);
+            preset_changed = true;
+            // if changed mark update field.
+            if (result)
+                markedAsUpdated(index.parent());
+            break;
+
+        case Roles::hiddenRole:
+            result = baseSetData(index, value, "hidden", QVector<int>({role}), true);
+            // if changed mark update field.
+            if (result)
+                markedAsUpdated(index.parent());
+            break;
+
+        case Roles::negatedRole:
+            result         = baseSetData(index, value, "negated", QVector<int>({role}), true);
+            preset_changed = true;
+            // if changed mark update field.
+            if (result)
+                markedAsUpdated(index.parent());
+            break;
+
+        case Roles::livelinkRole:
+            result = baseSetData(index, value, "livelink", QVector<int>({role}), true);
+            // if changed mark update field.
+            preset_changed = true;
+            if (result)
+                markedAsUpdated(index.parent());
+            break;
+
+        case Roles::termRole:
+            result = baseSetData(index, value, "term", QVector<int>({role}), true);
+            // if changed mark update field.
+            preset_changed = true;
+            if (result)
+                markedAsUpdated(index.parent());
+            break;
+
+        case Roles::valueRole:
+            // spdlog::warn("Roles::valueRole {}", mapFromValue(value).dump(2));
+            result         = baseSetData(index, value, "value", QVector<int>({role}), true);
+            preset_changed = true;
+
+            // if changed mark update field.
+            if (result)
+                markedAsUpdated(index.parent());
+            break;
+
+        case Roles::userdataRole:
+            result = baseSetData(index, value, "userdata", QVector<int>({role}), true);
+            break;
+
+        case Roles::nameRole:
+            result = baseSetData(index, value, "name", QVector<int>({role}), true);
+            // if changed mark update field.
+            if (result)
+                markedAsUpdated(index.parent());
+            break;
+
+        default:
+            result = JSONTreeModel::setData(index, value, role);
+            break;
+        }
+    } catch (const std::exception &err) {
+        spdlog::warn("{} {}", __PRETTY_FUNCTION__, err.what());
+    }
+
+    if (result and preset_changed) {
+        emit presetChanged(index.parent());
+    }
+
+    return result;
+}
+
+bool ShotBrowserPresetModel::removeRows(int row, int count, const QModelIndex &parent) {
+    if (parent.isValid() and parent.data(typeRole).toString() == QString("preset"))
+        emit presetChanged(parent);
+
+    return JSONTreeModel::removeRows(row, count, parent);
+}
+
+bool ShotBrowserPresetModel::receiveEvent(const utility::JsonStore &event_pair) {
+    // is it an event for me ?
+    // spdlog::warn("{}", event_pair.dump(2));
+
+    auto result = false;
+    try {
+        const auto &event = event_pair.at("redo");
+
+        auto type = event.value("type", "");
+        auto id   = event.value("id", Uuid());
+
+        // ignore reflected events
+        if (id != model_id_) {
+            if (type == "set") {
+                // find index..
+                auto path = nlohmann::json::json_pointer(event.value("parent", ""));
+                path /= "children";
+                path /= std::to_string(event.value("row", 0));
+                auto index = getPathIndex(path);
+                if (index.isValid()) {
+                    auto data = event.value("data", nlohmann::json::object());
+
+                    // we can't know the role..
+                    for (const auto &i : data.items()) {
+                        auto roles = QVector<int>();
+
+                        try {
+                            roles.push_back(role_map_.at(i.key()));
+                        } catch (...) {
+                        }
+
+                        result |=
+                            baseSetData(index, mapFromValue(i.value()), i.key(), roles, false);
+                    }
+                }
+            } else {
+                result = JSONTreeModel::receiveEvent(event_pair);
+            }
+        }
+    } catch (const std::exception &err) {
+        spdlog::warn("{} {}", __PRETTY_FUNCTION__, err.what());
+    }
+
+    return result;
+}
+
+QModelIndex ShotBrowserPresetModel::insertGroup(const QString &entity, const int row) {
+    auto result   = QModelIndex();
+    auto parent   = getPathIndex(nlohmann::json::json_pointer(""));
+    auto real_row = (row == -1 ? rowCount(parent) : row);
+
+    auto data = GroupTemplate;
+    // data["id"]                = Uuid::generate();
+    data["entity"] = StdFromQString(entity);
+    // data["children"][0]["id"] = Uuid::generate();
+    // data["children"][1]["id"] = Uuid::generate();
+    data["name"] = "New Group";
+
+    QueryEngine::regenerate_ids(data);
+
+    if (insertRows(real_row, 1, parent, data)) {
+        result = index(real_row, 0, parent);
+    }
+
+    return result;
+}
+
+QModelIndex ShotBrowserPresetModel::insertPreset(const int row, const QModelIndex &parent) {
+    auto result = QModelIndex();
+
+    auto data    = PresetTemplate;
+    data["name"] = "New Preset";
+    QueryEngine::regenerate_ids(data);
+
+    if (insertRows(row, 1, parent, data)) {
+        result = index(row, 0, parent);
+    }
+
+    return result;
+}
+
+QModelIndex ShotBrowserPresetModel::insertTerm(
+    const QString &term, const int row, const QModelIndex &parent) {
+    auto result = QModelIndex();
+
+    auto data    = TermTemplate;
+    data["term"] = StdFromQString(term);
+
+    if (TermProperties.count(data["term"])) {
+        data.update(TermProperties[data["term"]]);
+    }
+
+    QueryEngine::regenerate_ids(data);
+
+    if (insertRows(row, 1, parent, data)) {
+        result = index(row, 0, parent);
+        markedAsUpdated(parent);
+    }
+
+    emit presetChanged(parent);
+
+    return result;
+}
+
+QModelIndex ShotBrowserPresetModel::insertOperatorTerm(
+    const bool anding, const int row, const QModelIndex &parent) {
+    auto result = QModelIndex();
+
+    auto data     = OperatorTermTemplate;
+    data["value"] = anding ? "And" : "Or";
+    QueryEngine::regenerate_ids(data);
+
+    if (insertRows(row, 1, parent, data)) {
+        result = index(row, 0, parent);
+        markedAsUpdated(parent);
+    }
+
+    return result;
+}
+
+void ShotBrowserPresetModel::markedAsUpdated(const QModelIndex &parent) {
+    auto preset_index = parent;
+    while (preset_index.isValid() and preset_index.data(Roles::typeRole).toString() != "preset")
+        preset_index = preset_index.parent();
+
+    if (preset_index.isValid() and not preset_index.data(Roles::updateRole).isNull())
+        baseSetData(
+            preset_index,
+            QVariant::fromValue(true),
+            "update",
+            QVector<int>({Roles::updateRole}),
+            true);
+}
+
+QObject *ShotBrowserPresetModel::termModel(
+    const QString &qterm, const QString &entity, const int project_id) {
+    QObject *result = nullptr;
+
+    auto term = StdFromQString(qterm);
+
+    if ((term == "Author" or term == "Recipient"))
+        term = "User";
+    else if (term == "Disable Global")
+        term += "-" + StdFromQString(entity);
+
+    const auto key  = QueryEngine::cache_name_auto(term, project_id);
+    const auto qkey = QStringFromStd(key);
+
+    if (TermHasNoModel.count(key)) {
+        // create empty model.
+        if (not term_models_.contains(qkey)) {
+            auto model = new ShotBrowserListModel(this);
+            model->setModelData(R"([{"name": ""}])"_json);
+            term_models_[qkey] = model;
+        }
+    } else {
+        auto cache = query_engine_.get_cache(key);
+        if (not cache) {
+            cache = query_engine_.get_lookup(key);
+        }
+
+        if (cache) {
+            if (not term_models_.contains(qkey)) {
+
+                // if(key == "Pipeline Step")
+                //     spdlog::warn("{}", cache->dump(2));
+
+                auto model = new ShotBrowserListModel(this);
+                if (cache->is_object()) {
+                    auto data = R"([])"_json;
+
+                    for (const auto i : cache->items()) {
+                        auto item    = R"({"name": null, "id":null})"_json;
+                        item["name"] = i.key();
+                        item["id"]   = i.value();
+                        data.push_back(item);
+                    }
+                    model->setModelData(data);
+                } else if (cache->is_array()) {
+                    model->setModelData(*cache);
+                }
+
+                term_models_[qkey] = model;
+            } else {
+                // check row count match.. ?
+                auto model = dynamic_cast<ShotBrowserListModel *>(term_models_[qkey]);
+                if (cache->is_array() and
+                    static_cast<int>(cache->size()) != model->rowCount()) {
+                    model->setModelData(*cache);
+                } else if (
+                    cache->is_object() and
+                    static_cast<int>(cache->size()) != model->rowCount()) {
+                    auto data = R"([])"_json;
+
+                    for (const auto i : cache->items()) {
+                        auto item    = R"({"name": null, "id":null})"_json;
+                        item["name"] = i.key();
+                        item["id"]   = i.value();
+                        data.push_back(item);
+                    }
+                    model->setModelData(data);
+                }
+            }
+        } else {
+            // return empty model... ?
+            // spdlog::warn("missing cache {}", key);
+            auto model = new ShotBrowserListModel(this);
+            model->setModelData(R"([])"_json);
+            term_models_[qkey] = model;
+        }
+    }
+
+    if (term_models_.contains(qkey)) {
+        result = *(term_models_.find(qkey));
+    }
+
+    return result;
+}
+
+void ShotBrowserPresetModel::updateTermModel(const std::string &key, const bool cache) {
+    const auto qkey = QStringFromStd(key);
+    // if in model, refresh data.
+    // spdlog::warn("{} {} {}", __PRETTY_FUNCTION__, key, cache);
+
+    if (term_models_.contains(qkey)) {
+        auto data = query_engine_.get_cache(key);
+        if (not data)
+            data = query_engine_.get_lookup(key);
+
+        if (data) {
+            auto model = dynamic_cast<ShotBrowserListModel *>(term_models_[qkey]);
+            if (data->is_array() and static_cast<int>(data->size()) != model->rowCount()) {
+                model->setModelData(*data);
+            } else if (
+                data->is_object() and static_cast<int>(data->size()) != model->rowCount()) {
+                auto tmp = R"([])"_json;
+
+                for (const auto i : data->items()) {
+                    auto item    = R"({"name": null, "id":null})"_json;
+                    item["name"] = i.key();
+                    item["id"]   = i.value();
+                    tmp.push_back(item);
+                }
+                model->setModelData(tmp);
+            }
+        }
+    }
+}
+
+
+void ShotBrowserPresetFilterModel::setShowHidden(const bool value) {
+    if (value != show_hidden_) {
+        show_hidden_ = value;
+        emit showHiddenChanged();
+        invalidate();
+    }
+}
+
+void ShotBrowserPresetFilterModel::setFilter(const QString &filter) {
+    filter_ = QVariant::fromValue(filter);
+}
+
+bool ShotBrowserPresetFilterModel::filterAcceptsRow(
+    int source_row, const QModelIndex &source_parent) const {
+    const static auto grp    = QVariant::fromValue(QString("group"));
+    const static auto hidden = QVariant::fromValue(true);
+
+    auto accept = true;
+
+    auto source_index = sourceModel()->index(source_row, 0, source_parent);
+
+    if (source_index.isValid()) {
+        auto type = source_index.data(ShotBrowserPresetModel::Roles::typeRole);
+        // spdlog::warn("{}", mapFromValue(type).dump(2));
+
+        if (type == grp and
+            source_index.data(ShotBrowserPresetModel::Roles::userdataRole) != filter_)
+            accept = false;
+
+        if (not show_hidden_ and
+            source_index.data(ShotBrowserPresetModel::Roles::hiddenRole) == hidden)
+            accept = false;
+    }
+
+    return accept;
+}

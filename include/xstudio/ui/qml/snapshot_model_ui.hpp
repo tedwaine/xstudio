@@ -23,8 +23,7 @@ class SnapshotModel : public JSONTreeModel {
 
   public:
     enum Roles {
-        childrenRole = JSONTreeModel::Roles::LASTROLE,
-        mtimeRole,
+        mtimeRole = JSONTreeModel::Roles::LASTROLE,
         nameRole,
         pathRole,
         typeRole,

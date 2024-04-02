@@ -64,8 +64,13 @@ StandardPlugin::StandardPlugin(
             }
         },
 
-        [=](module::current_viewport_playhead_atom, caf::actor_addr live_playhead) -> bool {
-            current_viewed_playhead_changed(live_playhead);
+        [=](module::current_viewport_playhead_atom,
+            const std::string &viewport_name,
+            caf::actor live_playhead) -> bool {
+            if (viewport_name == "viewport0") {
+                current_viewed_playhead_changed(
+                    caf::actor_cast<caf::actor_addr>(live_playhead));
+            }
             return true;
         },
 
@@ -97,7 +102,21 @@ StandardPlugin::StandardPlugin(
         [=](utility::event_atom,
             bookmark::get_bookmarks_atom,
             const std::vector<std::tuple<utility::Uuid, std::string, int, int>> &) {},
-        [=](utility::event_atom, utility::event_atom) { join_studio_events(); }};
+        [=](utility::event_atom, utility::event_atom) { join_studio_events(); },
+        [=](utility::event_atom,
+            ui::viewport::viewport_playhead_atom,
+            const std::string &viewport_name,
+            caf::actor playhead) {
+            // the playhead of the given viewport has changed
+        },
+        [=](utility::event_atom,
+            playhead::show_atom,
+            caf::actor media,
+            caf::actor media_source,
+            const std::string &viewport_name) {
+            // the onscreen media for the given viewport has changed
+            on_screen_media_changed(media);
+        }};
 }
 
 void StandardPlugin::on_screen_media_changed(caf::actor media) {
@@ -113,9 +132,22 @@ void StandardPlugin::on_screen_media_changed(caf::actor media) {
                             [=](utility::UuidActor source) mutable {
                                 request(source.actor(), infinite, media::media_reference_atom_v)
                                     .then(
-
                                         [=](const utility::MediaReference &media_ref) mutable {
-                                            on_screen_media_changed(media, media_ref, name);
+                                            request(
+                                                source.actor(),
+                                                infinite,
+                                                colour_pipeline::get_colour_pipe_params_atom_v)
+                                                .then(
+                                                    [=](utility::JsonStore params) {
+                                                        on_screen_media_changed(
+                                                            media, media_ref, name, params);
+                                                    },
+                                                    [=](error &err) mutable {
+                                                        spdlog::warn(
+                                                            "{} {}",
+                                                            __PRETTY_FUNCTION__,
+                                                            to_string(err));
+                                                    });
                                         },
                                         [=](error &err) mutable {
                                             spdlog::warn(
@@ -175,15 +207,12 @@ void StandardPlugin::join_studio_events() {
         auto playhead_events_actor =
             system().registry().template get<caf::actor>(global_playhead_events_actor);
         if (playhead_events_actor) {
-            request(playhead_events_actor, infinite, ui::viewport::viewport_playhead_atom_v)
-                .then(
-                    [=](caf::actor playhead) {
-                        current_viewed_playhead_changed(
-                            caf::actor_cast<caf::actor_addr>(playhead));
-                    },
-                    [=](error &err) mutable {
-                        spdlog::warn("{} {}", __PRETTY_FUNCTION__, to_string(err));
-                    });
+            // this call means we get event messages when the on-screen media
+            // changes
+            anon_send(
+                playhead_events_actor,
+                broadcast::join_broadcast_atom_v,
+                caf::actor_cast<caf::actor>(this));
         }
 
 
@@ -268,14 +297,28 @@ utility::Uuid StandardPlugin::create_bookmark_on_current_media(
     scoped_actor sys{system()};
     auto ph_events = system().registry().template get<caf::actor>(global_playhead_events_actor);
     try {
-        auto vp = utility::request_receive<caf::actor>(
-            *sys, ph_events, ui::viewport::viewport_atom_v, viewport_name);
-        auto playhead_addr = utility::request_receive<caf::actor_addr>(
-            *sys, vp, ui::viewport::viewport_playhead_atom_v);
-        auto playhead = caf::actor_cast<caf::actor>(playhead_addr);
+
+
+        caf::actor playhead;
+        try {
+            auto vp = utility::request_receive<caf::actor>(
+                *sys, ph_events, ui::viewport::viewport_atom_v, viewport_name);
+            playhead = utility::request_receive<caf::actor>(
+                *sys, vp, ui::viewport::viewport_playhead_atom_v);
+        } catch (...) {
+            // couldn't find the specified viewport or its playhead. Instead
+            // get the 'global active' playhead from the global_playhead_events_actor
+            playhead = utility::request_receive<caf::actor>(
+                *sys, ph_events, ui::viewport::viewport_playhead_atom_v);
+        }
+
+        if (!playhead) {
+            throw std::runtime_error("Couldn't find viewport/playhead.");
+        }
 
         auto media =
             utility::request_receive<caf::actor>(*sys, playhead, playhead::media_atom_v);
+
         if (media) {
 
             auto media_uuid =
@@ -329,10 +372,69 @@ utility::Uuid StandardPlugin::create_bookmark_on_current_media(
     return result;
 }
 
+utility::UuidList
+StandardPlugin::get_bookmarks_on_current_media(const std::string &viewport_name) {
+
+    utility::UuidList result;
+
+    scoped_actor sys{system()};
+    auto ph_events = system().registry().template get<caf::actor>(global_playhead_events_actor);
+    try {
+        auto vp = utility::request_receive<caf::actor>(
+            *sys, ph_events, ui::viewport::viewport_atom_v, viewport_name);
+        auto playhead = utility::request_receive<caf::actor>(
+            *sys, vp, ui::viewport::viewport_playhead_atom_v);
+        auto media_actor =
+            utility::request_receive<caf::actor>(*sys, playhead, playhead::media_atom_v);
+
+        result = utility::request_receive<utility::UuidList>(
+            *sys, media_actor, bookmark::get_bookmarks_atom_v);
+    } catch (std::exception &e) {
+        spdlog::warn("{} {}", __PRETTY_FUNCTION__, e.what());
+    }
+
+    return result;
+}
+
+bookmark::BookmarkDetail StandardPlugin::get_bookmark_detail(const utility::Uuid &bookmark_id) {
+
+    bookmark::BookmarkDetail result;
+
+    scoped_actor sys{system()};
+    try {
+        auto uuid_actor = utility::request_receive<utility::UuidActor>(
+            *sys, bookmark_manager_, bookmark::get_bookmark_atom_v, bookmark_id);
+        result = utility::request_receive<bookmark::BookmarkDetail>(
+            *sys, uuid_actor.actor(), bookmark::bookmark_detail_atom_v);
+    } catch (std::exception &e) {
+        spdlog::warn("{} {}", __PRETTY_FUNCTION__, e.what());
+    }
+
+    return result;
+}
+
+AnnotationBasePtr StandardPlugin::get_bookmark_annotation(const utility::Uuid &bookmark_id) {
+
+    AnnotationBasePtr result;
+
+    scoped_actor sys{system()};
+    try {
+        auto uuid_actor = utility::request_receive<utility::UuidActor>(
+            *sys, bookmark_manager_, bookmark::get_bookmark_atom_v, bookmark_id);
+        result = utility::request_receive<AnnotationBasePtr>(
+            *sys, uuid_actor.actor(), bookmark::get_annotation_atom_v);
+    } catch (std::exception &e) {
+        spdlog::warn("{} {}", __PRETTY_FUNCTION__, e.what());
+    }
+
+    return result;
+}
+
 void StandardPlugin::update_bookmark_annotation(
     const utility::Uuid bookmark_id,
-    std::shared_ptr<bookmark::AnnotationBase> annotation_data,
+    AnnotationBasePtr annotation_data,
     const bool annotation_is_empty) {
+
     request(bookmark_manager_, infinite, bookmark::get_bookmark_atom_v, bookmark_id)
         .then(
             [=](utility::UuidActor &bm) {
@@ -381,4 +483,9 @@ void StandardPlugin::update_bookmark_detail(
             [=](error &err) mutable {
                 spdlog::warn("{} {}", __PRETTY_FUNCTION__, to_string(err));
             });
+}
+
+void StandardPlugin::remove_bookmark(const utility::Uuid &bookmark_id) {
+
+    request(bookmark_manager_, infinite, bookmark::remove_bookmark_atom_v, bookmark_id);
 }

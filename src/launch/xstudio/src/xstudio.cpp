@@ -58,24 +58,25 @@ CAF_PUSH_WARNINGS
 CAF_POP_WARNINGS
 
 #include "xstudio/ui/mouse.hpp"
-#include "xstudio/ui/qml/bookmark_model_ui.hpp"     //NOLINT
-#include "xstudio/ui/qml/embedded_python_ui.hpp"    //NOLINT
-#include "xstudio/ui/qml/event_ui.hpp"              //NOLINT
-#include "xstudio/ui/qml/global_store_model_ui.hpp" //NOLINT
-#include "xstudio/ui/qml/helper_ui.hpp"             //NOLINT
-#include "xstudio/ui/qml/hotkey_ui.hpp"             //NOLINT
-#include "xstudio/ui/qml/log_ui.hpp"                //NOLINT
-#include "xstudio/ui/qml/model_data_ui.hpp"         //NOLINT
-#include "xstudio/ui/qml/module_data_ui.hpp"        //NOLINT
-#include "xstudio/ui/qml/module_menu_ui.hpp"        //NOLINT
-#include "xstudio/ui/qml/module_ui.hpp"             //NOLINT
-#include "xstudio/ui/qml/qml_viewport.hpp"          //NOLINT
-#include "xstudio/ui/qml/session_model_ui.hpp"      //NOLINT
-#include "xstudio/ui/qml/snapshot_model_ui.hpp"     //NOLINT
+#include "xstudio/ui/qml/bookmark_model_ui.hpp"      //NOLINT
+#include "xstudio/ui/qml/conform_ui.hpp"             //NOLINT
+#include "xstudio/ui/qml/embedded_python_ui.hpp"     //NOLINT
+#include "xstudio/ui/qml/event_ui.hpp"               //NOLINT
+#include "xstudio/ui/qml/QTreeModelToTableModel.hpp" //NOLINT
+#include "xstudio/ui/qml/global_store_model_ui.hpp"  //NOLINT
+#include "xstudio/ui/qml/helper_ui.hpp"              //NOLINT
+#include "xstudio/ui/qml/hotkey_ui.hpp"              //NOLINT
+#include "xstudio/ui/qml/log_ui.hpp"                 //NOLINT
+#include "xstudio/ui/qml/model_data_ui.hpp"          //NOLINT
+#include "xstudio/ui/qml/module_data_ui.hpp"         //NOLINT
+#include "xstudio/ui/qml/module_menu_ui.hpp"         //NOLINT
+#include "xstudio/ui/qml/module_ui.hpp"              //NOLINT
+#include "xstudio/ui/qml/qml_viewport.hpp"           //NOLINT
+#include "xstudio/ui/qml/session_model_ui.hpp"       //NOLINT
+#include "xstudio/ui/qml/snapshot_model_ui.hpp"      //NOLINT
 #include "xstudio/ui/qml/shotgun_provider_ui.hpp"
 #include "xstudio/ui/qml/studio_ui.hpp" //NOLINT
 #include "xstudio/ui/qml/thumbnail_provider_ui.hpp"
-#include "xstudio/ui/qt/offscreen_viewport.hpp" //NOLINT
 
 #include "QuickFuture"
 
@@ -221,8 +222,7 @@ struct CLIArguments {
         misc, "PATH", "Write session log to file", {"log-file"}};
     args::Flag disable_vsync = {
         misc, "disable-vsync", "Disable sync to video refresh", {"disable-vsync"}};
-    args::Flag reskin = {
-        misc, "reskin", "Launch with the new user interface (under construction)", {"reskin"}};
+    args::Flag oldskin = {misc, "oldskin", "Launch with the old user interface", {"oldskin"}};
     args::Flag share_opengl_contexts = {
         misc,
         "share-gl-context",
@@ -259,6 +259,7 @@ struct Launcher {
             cli_args.debug.Matched() ? spdlog::level::debug : spdlog::level::info,
             args::get(cli_args.logfile));
         prefs = load_preferences();
+
         scoped_actor self{system};
 
         //  uses commandline args.
@@ -268,7 +269,7 @@ struct Launcher {
         actions["player"]                = cli_args.player.Matched();
         actions["quick_view"]            = cli_args.quick_view.Matched();
         actions["disable_vsync"]         = cli_args.disable_vsync.Matched();
-        actions["reskin"]                = cli_args.reskin.Matched();
+        actions["oldskin"]               = cli_args.oldskin.Matched();
         actions["share_opengl_contexts"] = cli_args.share_opengl_contexts.Matched();
         actions["compare"] = static_cast<std::string>(args::get(cli_args.compare));
 
@@ -382,8 +383,15 @@ struct Launcher {
         // check for session file ..
         if (actions["open_session"]) {
             try {
+
+                spdlog::stopwatch sw2;
+
                 JsonStore js =
                     utility::open_session(actions["open_session_path"].get<std::string>());
+                spdlog::info(
+                    "File {} loaded in {:.3} seconds.",
+                    actions["open_session_path"].get<std::string>(),
+                    sw2);
 
                 if (actions["new_instance"]) {
                     spdlog::stopwatch sw;
@@ -502,17 +510,6 @@ struct Launcher {
                 "Failed to load application preferences {}", xstudio_root("/preference"));
             std::exit(EXIT_FAILURE);
         }
-
-        // prefs files *might* be located in a 'preference' subfolder under XSTUDIO_PLUGIN_PATH
-        // folders
-        char * plugin_path = std::getenv("XSTUDIO_PLUGIN_PATH");
-        if (plugin_path) {
-            for (const auto &p : xstudio::utility::split(plugin_path, ':')) {
-                if (fs::is_directory(p + "/preferences"))
-                    preference_load_defaults(prefs, p + "/preferences");
-            }
-        }
-
         preference_load_overrides(prefs, pref_paths);
         return prefs;
     }
@@ -558,7 +555,6 @@ struct Launcher {
     bool open_session = {false};
     std::string open_session_path;
     caf::actor global_actor;
-
 
     std::vector<std::tuple<std::string, std::string, int, int>> build_targets() {
         std::vector<std::tuple<std::string, std::string, int, int>> targets;
@@ -638,10 +634,8 @@ struct Launcher {
                             media_rate);
                     } catch (const std::exception &e) {
                         spdlog::error("Failed to load media '{}'", e.what());
-                    
-                    
                     }
-            
+
                 } else {
                     spdlog::warn("Invalid URI {}", p);
                 }
@@ -879,6 +873,7 @@ int main(int argc, char **argv) {
                     self->send_exit(l.global_actor, caf::exit_reason::user_shutdown);
                 std::this_thread::sleep_for(1s);
             } else {
+
                 system.await_actors_before_shutdown(true);
 
                 QCoreApplication::setAttribute(Qt::AA_EnableHighDpiScaling);
@@ -896,6 +891,16 @@ int main(int argc, char **argv) {
                     QCoreApplication::setAttribute(Qt::AA_ShareOpenGLContexts);
                 }
 
+                // apply global UI scaling preference here by setting the
+                // QT_SCALE_FACTOR env var before creating the QApplication
+                try {
+                    double scale = l.prefs.get("/ui/qml/global_ui_scale_factor/value");
+                    std::string ui_scale_factor = fmt::format("{}", scale);
+                    qputenv("QT_SCALE_FACTOR", ui_scale_factor.c_str());
+                } catch (std::exception &e) {
+                    spdlog::warn("{}", e.what());
+                }
+
                 QApplication app(argc, argv);
                 app.setOrganizationName("DNEG");
                 app.setOrganizationDomain("dneg.com");
@@ -909,12 +914,12 @@ int main(int argc, char **argv) {
                 // app.setPalette(palette);
 
                 qmlRegisterType<SemVer>("xstudio.qml.semver", 1, 0, "SemVer");
-                qmlRegisterType<CursorPosProvider>(
-                    "xstudio.qml.cursor_pos_provider", 1, 0, "CursorPosProvider");
                 qmlRegisterType<HotkeyUI>("xstudio.qml.viewport", 1, 0, "XsHotkey");
                 qmlRegisterType<HotkeysUI>("xstudio.qml.viewport", 1, 0, "XsHotkeysInfo");
                 qmlRegisterType<HotkeyReferenceUI>(
                     "xstudio.qml.viewport", 1, 0, "XsHotkeyReference");
+
+                qmlRegisterType<KeyEventsItem>("xstudio.qml.helpers", 1, 0, "XsHotkeyArea");
 
                 qmlRegisterType<QMLViewport>("xstudio.qml.viewport", 1, 0, "Viewport");
 
@@ -930,6 +935,7 @@ int main(int argc, char **argv) {
 
                 qmlRegisterType<QMLUuid>("xstudio.qml.uuid", 1, 0, "QMLUuid");
                 qmlRegisterType<ClipboardProxy>("xstudio.qml.clipboard", 1, 0, "Clipboard");
+                qmlRegisterType<ImagePainter>("xstudio.qml.helpers", 1, 0, "XsImagePainter");
 
                 qmlRegisterType<ModuleAttrsModel>(
                     "xstudio.qml.module", 1, 0, "XsModuleAttributesModel");
@@ -943,13 +949,23 @@ int main(int argc, char **argv) {
                 qmlRegisterType<GlobalStoreModel>(
                     "xstudio.qml.global_store_model", 1, 0, "XsGlobalStoreModel");
                 qmlRegisterType<ModelProperty>("xstudio.qml.helpers", 1, 0, "XsModelProperty");
+                qmlRegisterType<JSONTreeFilterModel>(
+                    "xstudio.qml.helpers", 1, 0, "XsFilterModel");
                 qmlRegisterType<ModelRowCount>("xstudio.qml.helpers", 1, 0, "XsModelRowCount");
                 qmlRegisterType<ModelPropertyMap>(
                     "xstudio.qml.helpers", 1, 0, "XsModelPropertyMap");
+                qmlRegisterType<PreferencePropertyMap>(
+                    "xstudio.qml.helpers", 1, 0, "XsPreferenceMap");
                 qmlRegisterType<ModelNestedPropertyMap>(
                     "xstudio.qml.helpers", 1, 0, "XsModelNestedPropertyMap");
                 qmlRegisterType<ModelPropertyTree>(
                     "xstudio.qml.helpers", 1, 0, "XsModelPropertyTree");
+                qmlRegisterType<QTreeModelToTableModel>(
+                    "xstudio.qml.helpers", 1, 0, "QTreeModelToTableModel");
+
+
+                qmlRegisterType<ConformEngineUI>(
+                    "xstudio.qml.conform", 1, 0, "XsConformEngine");
 
                 qmlRegisterType<SessionModel>("xstudio.qml.session", 1, 0, "XsSessionModel");
 
@@ -963,8 +979,11 @@ int main(int argc, char **argv) {
                     "xstudio.qml.models", 1, 0, "XsMediaListColumnsModel");
 
                 qmlRegisterType<ViewsModelData>("xstudio.qml.models", 1, 0, "XsViewsModel");
+                qmlRegisterType<SingletonsModelData>(
+                    "xstudio.qml.models", 1, 0, "XsSingletonItemsModel");
 
                 qmlRegisterType<MenuModelItem>("xstudio.qml.models", 1, 0, "XsMenuModelItem");
+                qmlRegisterType<PanelMenuModelFilter>("xstudio.qml.models", 1, 0, "XsPanelMenuModelFilter");
 
                 qRegisterMetaType<QQmlPropertyMap *>("QQmlPropertyMap*");
 
@@ -979,8 +998,8 @@ int main(int argc, char **argv) {
                 new CafSystemObject(&app, system);
 
                 const QUrl url(
-                    l.actions["reskin"] ? QStringLiteral("qrc:/main_reskin.qml")
-                                        : QStringLiteral("qrc:/main.qml"));
+                    l.actions["oldskin"] ? QStringLiteral("qrc:/main.qml")
+                                         : QStringLiteral("qrc:/main_reskin.qml"));
 
                 QQmlApplicationEngine engine;
                 engine.addImageProvider(QLatin1String("thumbnail"), new ThumbnailProvider);
@@ -1010,15 +1029,7 @@ int main(int argc, char **argv) {
 
                 // gui plugins..
                 engine.addImportPath(QStringFromStd(xstudio_root("/plugin/qml")));
-                engine.addPluginPath(QStringFromStd(xstudio_root("/plugin/qml")));
-
-                char * plugin_path = std::getenv("XSTUDIO_PLUGIN_PATH");
-                if (plugin_path) {
-                    for (const auto &p : xstudio::utility::split(plugin_path, ':')) {
-                        engine.addPluginPath(QStringFromStd(p + "/qml"));
-                        engine.addImportPath(QStringFromStd(p + "/qml"));
-                    }
-                }
+                engine.addPluginPath(QStringFromStd(xstudio_root("/plugin")));
 
                 QObject::connect(
                     &engine,
@@ -1072,7 +1083,7 @@ int main(int argc, char **argv) {
             std::exit(EXIT_FAILURE);
         }
 
-        exit_timeout_killer.stop();
+        // exit_timeout_killer.stop();
     }
     stop_logger();
 

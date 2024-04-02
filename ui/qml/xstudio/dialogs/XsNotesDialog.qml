@@ -61,13 +61,13 @@ XsWindow {
 
     function containsMedia(index, media_uuid) {
         let model = index.model
-        return model.search_recursive(media_uuid, "actorUuidRole", index).valid
+        return model.searchRecursive(media_uuid, "actorUuidRole", index).valid
     }
 
     function getMediaIndex(media_uuid) {
         let model = app_window.screenSource.index.model
         let mediaind = model.index(0, 0, app_window.screenSource.index)
-        return model.search_recursive(media_uuid, "actorUuidRole", mediaind)
+        return model.searchRecursive(media_uuid, "actorUuidRole", mediaind)
     }
 
     XsBookmarkFilterModel {

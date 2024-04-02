@@ -53,6 +53,8 @@ XsWindow { id: shotgunBrowser
     property var customEntity24Model: null
     property var customEntity24ModelFunc: null
 
+    property var newPresetsModel: null
+
     property var shotSearchFilterModel: null
     property var shotSearchFilterModelFunc: null
 
@@ -86,6 +88,7 @@ XsWindow { id: shotgunBrowser
 
     property var mergeQueriesFunc: null
     property var executeQueryFunc: null
+    property var executeQueryNewFunc: null
     property var authenticateFunc: null
 
     property var preferredVisual: null
@@ -639,6 +642,8 @@ XsWindow { id: shotgunBrowser
             shotModel: shotgunBrowser.shotModel
             shotModelFunc: shotgunBrowser.shotModelFunc
 
+            newPresetsModel: shotgunBrowser.newPresetsModel
+
             customEntity24Model: shotgunBrowser.customEntity24Model
             customEntity24ModelFunc: shotgunBrowser.customEntity24ModelFunc
 
@@ -684,6 +689,7 @@ XsWindow { id: shotgunBrowser
             mediaActionFilterModel: shotgunBrowser.mediaActionFilterModel
 
             executeQueryFunc: shotgunBrowser.executeQueryFunc
+            executeQueryNewFunc: shotgunBrowser.executeQueryNewFunc
             mergeQueriesFunc: shotgunBrowser.mergeQueriesFunc
 
             pipelineStepFilterIndex: rightDiv.pipelineStepFilterIndex

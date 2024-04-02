@@ -192,7 +192,7 @@ QFuture<bool> SessionModel::redoFuture(const QModelIndex &index) {
 // trigger actor creation
 void SessionModel::item_event_callback(const utility::JsonStore &event, timeline::Item &item) {
     try {
-        auto index = search_recursive(
+        auto index = searchRecursive(
             QVariant::fromValue(QUuidFromUuid(event.at("uuid").get<Uuid>())),
             idRole,
             QModelIndex(),
@@ -762,7 +762,7 @@ QFuture<QList<QUuid>> SessionModel::handleTimelineIdDropFuture(
 
             for (const auto &i : jdrop.at("xstudio/timeline-ids")) {
                 // find media index
-                auto mind = search_recursive(QUuid::fromString(QStringFromStd(i)), idRole);
+                auto mind = searchRecursive(QUuid::fromString(QStringFromStd(i)), idRole);
 
                 if (mind.isValid()) {
                     auto item_uuid         = UuidFromQUuid(mind.data(idRole).toUuid());

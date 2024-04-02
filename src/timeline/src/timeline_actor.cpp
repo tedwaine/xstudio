@@ -1725,8 +1725,10 @@ void TimelineActor::init() {
                     [=](const media::AVFrameIDs &frame_ids) mutable {
                         auto time_point = timebase::flicks(0);
                         media::FrameTimeMap reslt;
+                        int logical_frame = 0;
                         for (const auto &frame_id : frame_ids) {
                             auto frame_id_cpy = std::make_shared<media::AVFrameID>(*frame_id);
+                            frame_id_cpy->playhead_logical_frame_ = logical_frame++;
 
                             // use the base rate to set the frame rate - this
                             // could be varied within this function if it fits

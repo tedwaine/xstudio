@@ -24,12 +24,16 @@ CAF_PUSH_WARNINGS
 #include <QQuickItem>
 #include <QQmlPropertyMap>
 #include <QString>
+#include <QImage>
 #include <QItemSelection>
 #include <QUrl>
 #include <QUuid>
 #include <QModelIndex>
+#include <QQuickPaintedItem>
 #include <QPersistentModelIndex>
+#include <QQmlContext>
 #include <QQmlPropertyMap>
+#include <QItemSelectionModel>
 
 CAF_POP_WARNINGS
 
@@ -193,6 +197,46 @@ namespace ui {
             QQmlPropertyMap *values_{nullptr};
         };
 
+        class PreferencePropertyMap : public ModelPropertyMap {
+            Q_OBJECT
+
+            Q_PROPERTY(QVariant value READ value WRITE setMyValue NOTIFY myValueChanged)
+
+            Q_PROPERTY(QVariant dataType READ dataType NOTIFY dataTypeChanged)
+            Q_PROPERTY(QVariant context READ context NOTIFY contextChanged)
+            Q_PROPERTY(QVariant name READ name NOTIFY nameChanged)
+            Q_PROPERTY(QVariant defaultValue READ defaultValue NOTIFY defaultValueChanged)
+            Q_PROPERTY(QVariant jsonString READ jsonString NOTIFY jsonStringChanged)
+
+          public:
+            explicit PreferencePropertyMap(QObject *parent = nullptr)
+                : ModelPropertyMap(parent) {}
+            [[nodiscard]] QVariant value() const { return values_->value("valueRole"); }
+            [[nodiscard]] QVariant dataType() const { return values_->value("datatypeRole"); }
+            [[nodiscard]] QVariant context() const { return values_->value("contextRole"); }
+            [[nodiscard]] QVariant name() const { return values_->value("nameRole"); }
+            [[nodiscard]] QVariant defaultValue() const {
+                return values_->value("defaultValueRole");
+            }
+            [[nodiscard]] QVariant jsonString() const { return values_->value("jsonTextRole"); }
+
+            void setMyValue(const QVariant &value);
+
+          signals:
+            void myValueChanged();
+            void dataTypeChanged();
+            void contextChanged();
+            void nameChanged();
+            void defaultValueChanged();
+            void jsonStringChanged();
+
+          protected:
+            void valueChanged(const QString &key, const QVariant &value) override;
+
+          private:
+            void emitChange(const QString &key);
+        };
+
         class ModelNestedPropertyMap : public ModelPropertyMap {
             Q_OBJECT
 
@@ -224,20 +268,6 @@ namespace ui {
 
           private:
             std::reference_wrapper<caf::actor_system> system_ref_;
-        };
-
-        class QMLActor : public caf::mixin::actor_object<QObject> {
-            Q_OBJECT
-
-          public:
-            using super = caf::mixin::actor_object<QObject>;
-            explicit QMLActor(QObject *parent = nullptr);
-
-            virtual ~QMLActor();
-            virtual void init(caf::actor_system &system) { super::init(system); }
-
-          public:
-            caf::actor_system &system() { return self()->home_system(); }
         };
 
         inline QString QStringFromStd(const std::string &str) {
@@ -393,13 +423,17 @@ namespace ui {
             &name); Q_INVOKABLE QQuickItem* findItemByName(const QString& name) { return
             findItemByName(engine_->rootObjects(), name);
             }*/
-            Q_INVOKABLE [[nodiscard]] [[nodiscard]] QString
+            Q_INVOKABLE [[nodiscard]] QString
             getEnv(const QString &key, const QString &fallback = "") const {
                 QString result = fallback;
                 auto value     = utility::get_env(StdFromQString(key));
                 if (value)
                     result = QStringFromStd(*value);
                 return result;
+            }
+
+            Q_INVOKABLE [[nodiscard]] QString expandEnvVars(const QString &value) const {
+                return QStringFromStd(xstudio::utility::expand_envvars(StdFromQString(value)));
             }
 
             Q_INVOKABLE [[nodiscard]] bool startDetachedProcess(
@@ -432,6 +466,21 @@ namespace ui {
                     s.select(i, i);
                 return s;
             }
+
+            Q_INVOKABLE [[nodiscard]] QItemSelection
+            createItemSelectionFromList(const QVariantList &l) const {
+                auto s = QItemSelection();
+                for (const auto &i : l)
+                    s.select(i.toModelIndex(), i.toModelIndex());
+                return s;
+            }
+
+            Q_INVOKABLE [[nodiscard]] QModelIndexList
+            getParentIndexes(const QModelIndexList &l) const;
+
+            Q_INVOKABLE [[nodiscard]] QModelIndexList
+            getParentIndexesFromRange(const QItemSelection &l) const;
+
             Q_INVOKABLE [[nodiscard]] bool itemSelectionContains(
                 const QItemSelection &selection, const QModelIndex &item) const {
                 return selection.contains(item);
@@ -471,19 +520,52 @@ namespace ui {
                 return QColor::fromHslF(h, s, l, a);
             }
 
+            Q_INVOKABLE [[nodiscard]] QObject *contextPanel(QObject *obj) const;
+
+            Q_INVOKABLE [[nodiscard]] QString contextPanelAddress(QObject *obj) const {
+                return objPtrTostring(contextPanel(obj));
+            }
+
+            static inline QString objPtrTostring(QObject *obj) {
+                if (!obj)
+                    return QString();
+                return QString("0x%1").arg(
+                    reinterpret_cast<qlonglong>(obj), QT_POINTER_SIZE * 2, 16, QChar('0'));
+            }
+
           private:
             QQmlEngine *engine_;
         };
 
-        class CursorPosProvider : public QObject {
+        class KeyEventsItem : public QQuickItem {
             Q_OBJECT
 
-          public:
-            CursorPosProvider(QObject *parent = nullptr) : QObject(parent) {}
-            ~CursorPosProvider() override = default;
+            Q_PROPERTY(QString context READ context WRITE setContext NOTIFY contextChanged)
 
-            Q_INVOKABLE QPointF cursorPos() { return QCursor::pos(); }
+          public:
+            explicit KeyEventsItem(QQuickItem *parent = nullptr);
+
+            [[nodiscard]] QString context() const { return QStringFromStd(context_); }
+
+            void setContext(const QString &context) {
+                if (context_ != StdFromQString(context)) {
+                    context_ = StdFromQString(context);
+                    emit contextChanged();
+                }
+            }
+          signals:
+            void contextChanged();
+
+          protected:
+            bool event(QEvent *event) override;
+            void keyPressEvent(QKeyEvent *event) override;
+            void keyReleaseEvent(QKeyEvent *event) override;
+
+          private:
+            std::string context_;
+            caf::actor keypress_monitor_;
         };
+
 
         class QMLUuid : public QObject {
             Q_OBJECT
@@ -672,6 +754,41 @@ namespace ui {
             caf::actor backend_;
             caf::actor_id backend_id_;
         };
+
+        class ImagePainter : public QQuickPaintedItem {
+
+            Q_OBJECT
+
+            Q_PROPERTY(QVariant image READ image WRITE setImage NOTIFY imageChanged)
+
+          public:
+            ImagePainter(QQuickItem *parent = nullptr);
+            ~ImagePainter() override = default;
+
+            [[nodiscard]] const QVariant &image() const { return image_property_; }
+
+            void setImage(QVariant &image) {
+                image_property_ = image;
+                if (image_property_.canConvert<QImage>()) {
+                    image_ = image_property_.value<QImage>();
+                } else {
+                    image_ = QImage();
+                }
+                emit imageChanged();
+                update();
+            }
+
+            void paint(QPainter *painter) override;
+
+          signals:
+
+            void imageChanged();
+
+          private:
+            QVariant image_property_;
+            QImage image_;
+        };
+
 
     } // namespace qml
 } // namespace ui

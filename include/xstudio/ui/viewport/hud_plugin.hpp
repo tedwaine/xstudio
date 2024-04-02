@@ -75,7 +75,7 @@ namespace ui {
             caf::message_handler message_handler_;
 
             module::BooleanAttribute *enabled_;
-            bool globally_enabled_ = {true};
+            bool globally_enabled_ = {false};
         };
     } // namespace viewport
 } // namespace ui

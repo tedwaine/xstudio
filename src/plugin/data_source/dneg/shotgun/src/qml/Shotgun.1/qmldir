@@ -1,6 +1,5 @@
 module Shotgun
 
-
 DelegateChoiceEdit 1.0 DelegateChoiceEdit.qml
 DelegateChoiceNote 1.0 DelegateChoiceNote.qml
 DelegateChoicePlaylist 1.0 DelegateChoicePlaylist.qml

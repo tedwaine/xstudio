@@ -194,6 +194,13 @@ namespace utility {
         return {};
     }
 
+    inline std::string get_env(const std::string &key, const std::string &default_value) {
+        const char *val = std::getenv(key.c_str());
+        if (val)
+            return std::string(val);
+        return default_value;
+    }
+
     inline std::string get_hostname() {
         std::array<char, 4096> buffer;
         if (not gethostname(buffer.data(), buffer.size())) {

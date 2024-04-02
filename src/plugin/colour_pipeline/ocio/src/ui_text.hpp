@@ -6,6 +6,7 @@
 #include "xstudio/ui/keyboard.hpp"
 
 struct UiText {
+
     std::string RED       = "Red";
     std::string GREEN     = "Green";
     std::string BLUE      = "Blue";
@@ -81,8 +82,6 @@ struct UiText {
     std::string PREF_VIEW               = "Preferred View";
     std::string VIEW_MODE               = "Global View Control";
     std::string GLOBAL_VIEW_SHORT       = "Global View";
-    std::string SOURCE_CS_MODE          = "Auto adjust source";
-    std::string SOURCE_CS_MODE_SHORT    = "Adjust source";
 
 
     std::string DEFAULT_VIEW                   = "Default";
@@ -147,8 +146,6 @@ struct UiText {
     std::string PREF_VIEW_TOOLTIP = "Set preferred view";
     std::string GLOBAL_VIEW_TOOLTIP =
         "Enable global view to affect every loaded media when changing the OCIO view.";
-    std::string SOURCE_CS_MODE_TOOLTIP =
-        "Automatically use the most appropriate source colour space for the selected view.";
 
     std::vector<std::string> OCIO_LOAD_ERROR = {"Error could not load OCIO config"};
 };

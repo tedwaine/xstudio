@@ -5,47 +5,80 @@ import QtQuick.Controls 2.15
 import QtQuick.Layouts 1.15
 import QtQuick.Window 2.15
 import QtQml 2.15
-import xstudio.qml.bookmarks 1.0
 import QtQml.Models 2.14
 import QtQuick.Dialogs 1.3 //for ColorDialog
 import QtGraphicalEffects 1.15 //for RadialGradient
+import Qt.labs.qmlmodels 1.0 //for RadialGradient
 
-import xStudio 1.1
-import xstudio.qml.module 1.0
+import xStudioReskin 1.0
+import xstudio.qml.bookmarks 1.0
 import xstudio.qml.clipboard 1.0
+import xstudio.qml.helpers 1.0
+import xstudio.qml.models 1.0
 
 import MaskTool 1.0
 
-XsWindow {
+Item {
 
-    id: drawDialog
-    title: "Colour Correction Tools"
-    // title: attr.grading_layer ? "Colour Correction Tools - " + attr.grading_layer : "Colour Correction Tools"
+    id: dialog
 
-    width: minimumWidth
-    minimumWidth: attr.mvp_1_release != undefined ? 650 : 850
-    maximumWidth: minimumWidth
+    // make a read only binding to the "attrs.grading_tool_active" backend attribute
+    property bool gradingToolActive: attrs.grading_tool_active
+    onGradingToolActiveChanged: {
+        console.log("gradingToolActive", gradingToolActive)
+    }
 
-    height: minimumHeight
-    minimumHeight: attr.mvp_1_release != undefined ? 320 : 340
-    maximumHeight: minimumHeight
+    /* This connects to the backend model data named grading_settings to which
+    many of our attributes have been added*/
+    XsModuleData {
+        id: grading_tool_attrs_data
+        modelDataName: "grading_settings"
+    }
 
-    onVisibleChanged: {
-        if (!visible) {
-            // ensure keyboard events are returned to the viewport
-            sessionWidget.playerWidget.viewport.forceActiveFocus()
+    GradingAttrs {
+        id: attrs
+    }
+    property alias attrs: attrs
+    property alias grading_sliders_model: attrs.grading_sliders_model
+
+    property var copy_buffer: []
+
+    property var grading_bookmark: attrs.grading_bookmark
+    onGrading_bookmarkChanged: {
+        // console.log("GradingBookmark changed from backend " + attrs.grading_bookmark)
+        var index = bookmarkFilterModel.sourceModel.search(
+            helpers.QVariantFromUuidString(attrs.grading_bookmark), "uuidRole")
+        if (index.valid) {
+            bookmarkList.currentIndex = bookmarkFilterModel.mapFromSource(index).row
         }
     }
 
-    XsModuleAttributes {
-        id: attr
-        attributesGroupNames: "grading_settings"
+    XsBookmarkFilterModel {
+        id: bookmarkFilterModel
+        sourceModel: bookmarkModel
+        currentMedia: onScreenMediaUuid // this property is made visible by XsSessionWindow
+        showHidden: true
     }
 
-    XsModuleAttributes {
-        id: attr_layers
-        attributesGroupNames: "grading_layers"
-        roleName: "combo_box_options"
+    XsAttributeValue {
+        id: __playheadLogicalFrame
+        attributeTitle: "Logical Frame"
+        model: currentPlayheadData
+    }
+    XsAttributeValue {
+        id: __playheadPositionSeconds
+        attributeTitle: "Position Seconds"
+        model: currentPlayheadData
+    }
+    property alias playheadLogicalFrame: __playheadLogicalFrame.value
+    property alias playheadPositionSeconds: __playheadPositionSeconds.value
+
+    onVisibleChanged: {
+        if (visible) {
+            attrs.grading_tool_active = true
+        } else {
+            attrs.grading_tool_active = false
+        }
     }
 
     FileDialog {
@@ -63,23 +96,183 @@ XsWindow {
                 path += ".cdl"
             }
 
-            attr.grading_action = "Save CDL " + path
+            attrs.grading_action = "Save CDL " + path
         }
+    }
+
+    function hasActiveGrade() {
+        return attrs.grading_bookmark && attrs.grading_bookmark != "00000000-0000-0000-0000-000000000000"
     }
 
     RowLayout {
         anchors.fill: parent
         anchors.margins: 3
 
-        MaskDialog {
-            id: maskDialog
+        ColumnLayout {
+            Layout.topMargin: 1
+            spacing: 3
 
-            enabled: attr.mask_tool_active ? attr.mask_tool_active : false
-            visible: attr.mvp_1_release != undefined ? !attr.mvp_1_release : false
+            Rectangle {
+                Layout.minimumHeight: 30
+                Layout.maximumHeight: 30
+                Layout.minimumWidth: 190
+                Layout.maximumWidth: 190
+                Layout.topMargin: 0
+                Layout.bottomMargin: 0
+                Layout.leftMargin: 0
 
-            Layout.minimumWidth: 190
-            Layout.maximumWidth: 190
-            Layout.fillHeight: true
+                color: "transparent"
+                opacity: 1.0
+                border.width: 1
+                border.color: XsStyleSheet.menuBorderColor
+                radius: 2
+
+                RowLayout {
+                    anchors.fill: parent
+                    Layout.topMargin: 0
+                    spacing: 3
+
+                    XsPrimaryButton {
+                        text: "List"
+                        textDiv.font.bold: true
+                        //tooltip: "View the colour corrections for the current media"
+                        isActive: attrs.tool_panel == "CC"
+                        Layout.minimumWidth: 55
+                        Layout.maximumWidth: 55
+                        Layout.maximumHeight: 30
+
+                        onClicked: {
+                            attrs.tool_panel = "CC"
+                        }
+                    }
+
+                    XsPrimaryButton {
+                        text: "Mask"
+                        textDiv.font.bold: true
+                        //tooltip: "Enable masking, default mask starts empty"
+                        isActive: attrs.tool_panel == "Mask"
+                        Layout.maximumWidth: 70
+                        Layout.maximumHeight: 30
+
+                        onClicked: {
+                            attrs.tool_panel = attrs.tool_panel == "Mask" ? "CC" : "Mask"
+                        }
+                    }
+
+                    Item {
+                        // Spacer item
+                        Layout.fillWidth: true
+                        Layout.fillHeight: true
+                    }
+                }
+            }
+
+            MaskDialog {
+                id: maskDialog
+
+                enabled: attrs.tool_panel == "Mask"
+                visible: attrs.tool_panel == "Mask"
+
+                Layout.minimumWidth: 190
+                Layout.maximumWidth: 190
+                Layout.minimumHeight: 275
+                Layout.maximumHeight: 275
+                Layout.topMargin: 0
+            }
+
+            Rectangle {
+                id: cclistDialog
+
+                enabled: attrs.tool_panel == "CC"
+                visible: attrs.tool_panel == "CC"
+
+                Layout.minimumWidth: 190
+                Layout.maximumWidth: 190
+                Layout.minimumHeight: 275
+                Layout.maximumHeight: 275
+                Layout.topMargin: 0
+
+                color: "transparent"
+
+                ColumnLayout {
+
+                    ListView {
+                        id: bookmarkList
+
+                        Layout.fillHeight: true
+                        Layout.maximumWidth: cclistDialog.width
+
+                        implicitWidth: 200
+                        implicitHeight: 285
+
+                        model: bookmarkFilterModel
+                        orientation: ListView.Vertical
+
+                        ScrollBar.vertical: ScrollBar {
+                            id: scrollbar
+
+                            contentItem: Rectangle {
+                                implicitWidth: 6
+                                color: scrollbar.hovered ? "lightGrey" : "darkGrey"
+                            }
+                        }
+
+                        onCurrentIndexChanged: {
+                            if (currentIndex < 0) {
+                                attrs.grading_bookmark = helpers.QUuidToQString("00000000-0000-0000-0000-000000000000")
+                            }
+                        }
+
+                        onCurrentItemChanged: {
+                            if (currentItem) {
+                                var backendUuid = helpers.QVariantFromUuidString(attrs.grading_bookmark)
+                                var selectedUuid = currentItem.uuidRole
+
+                                if (backendUuid != selectedUuid && selectedUuid) {
+                                    attrs.grading_bookmark = helpers.QUuidToQString(selectedUuid)
+                                }
+                            }
+                        }
+
+                        delegate: Item {
+                            width: 180
+                            height: 25
+
+                            required property int index
+                            required property string subjectRole
+                            required property string uuidRole
+
+                            readonly property bool is_selected: index == ListView.view.currentIndex
+
+                            XsPrimaryButton {
+                                anchors.fill: parent
+                                isActive: is_selected
+                                text: parent.subjectRole + " " + parent.uuidRole
+                                textDiv.elide: Text.ElideRight
+                                font.bold: is_selected
+                                onClicked: {
+                                    parent.ListView.view.currentIndex = parent.index
+                                }
+                            }
+                        }
+
+                        Rectangle {
+                            anchors.fill: parent
+
+                            color: "transparent"
+                            opacity: 1.0
+                            border.width: 1
+                            border.color: XsStyleSheet.menuBorderColor
+                            radius: 2
+                        }
+                    }
+                }
+            }
+
+            Item {
+                // Spacer item
+                Layout.fillHeight: true
+            }
         }
 
         ColumnLayout {
@@ -94,11 +287,7 @@ XsWindow {
                 color: "transparent"
                 opacity: 1.0
                 border.width: 1
-                border.color: Qt.rgba(
-                    XsStyle.menuBorderColor.r,
-                    XsStyle.menuBorderColor.g,
-                    XsStyle.menuBorderColor.b,
-                    0.3)
+                border.color: XsStyleSheet.menuBorderColor
                 radius: 2
 
                 RowLayout {
@@ -106,55 +295,19 @@ XsWindow {
                     Layout.topMargin: 0
                     spacing: 3
 
-                    XsButton {
-                        text: "Mask"
-                        textDiv.font.bold: true
-                        tooltip: "Enable masking, default mask starts empty"
-                        isActive: attr.mask_tool_active ? attr.mask_tool_active : false
-                        visible: attr.mvp_1_release != undefined ? !attr.mvp_1_release : false
-                        Layout.maximumHeight: 30
+                    Repeater {
+                        model: attrs.grading_panel_options
 
-                        onClicked: {
-                            attr.mask_tool_active = !attr.mask_tool_active
-                        }
-                    }
-
-                    XsButton {
-                        text: "Basic"
-                        textDiv.font.bold: true
-                        tooltip: "Basic grading controls (restricted to work within a single CDL)"
-                        isActive: attr.grading_panel ? attr.grading_panel == "Basic" : false
-                        Layout.maximumWidth: 70
-                        Layout.maximumHeight: 30
-
-                        onClicked: {
-                            attr.grading_panel = "Basic"
-                        }
-                    }
-
-                    XsButton {
-                        text: "Sliders"
-                        textDiv.font.bold: true
-                        tooltip: "CDL sliders controls"
-                        isActive: attr.grading_panel ? attr.grading_panel == "Sliders" : false
-                        Layout.maximumWidth: 70
-                        Layout.maximumHeight: 30
-
-                        onClicked: {
-                            attr.grading_panel = "Sliders"
-                        }
-                    }
-
-                    XsButton {
-                        text: "Wheels"
-                        textDiv.font.bold: true
-                        tooltip: "CDL colour wheels controls"
-                        isActive: attr.grading_panel ? attr.grading_panel == "Wheels" : false
-                        Layout.maximumWidth: 70
-                        Layout.maximumHeight: 30
-
-                        onClicked: {
-                            attr.grading_panel = "Wheels"
+                        XsPrimaryButton {
+                            text: attrs.grading_panel_options[index]
+                            textDiv.font.bold: true
+                            //tooltip: "Basic grading controls (restricted to work within a single CDL)"
+                            isActive: attrs.grading_panel == text
+                            Layout.maximumWidth: 70
+                            Layout.maximumHeight: 30
+                            onClicked: {
+                                attrs.grading_panel = text
+                            }
                         }
                     }
 
@@ -175,20 +328,14 @@ XsWindow {
                 color: "transparent"
                 opacity: 1.0
                 border.width: 1
-                border.color: Qt.rgba(
-                    XsStyle.menuBorderColor.r,
-                    XsStyle.menuBorderColor.g,
-                    XsStyle.menuBorderColor.b,
-                    0.3)
+                border.color: XsStyleSheet.menuBorderColor
                 radius: 2
 
-                visible: attr.grading_panel ? attr.grading_panel == "Basic" : false
+                visible: attrs.grading_panel == "Basic"
 
                 Column {
                     anchors.fill: parent
-
                     GradingSliderSimple {
-                        attr_group: "grading_simple"
                     }
 
                 }
@@ -203,47 +350,41 @@ XsWindow {
                 color: "transparent"
                 opacity: 1.0
                 border.width: 1
-                border.color: Qt.rgba(
-                    XsStyle.menuBorderColor.r,
-                    XsStyle.menuBorderColor.g,
-                    XsStyle.menuBorderColor.b,
-                    0.3)
+                border.color: XsStyleSheet.menuBorderColor
                 radius: 2
 
-                visible: attr.grading_panel ? attr.grading_panel == "Sliders" : false
+                visible: attrs.grading_panel == "Sliders"
 
-                Row {
+                RowLayout {
+
                     anchors.topMargin: 10
                     anchors.leftMargin: 10
                     anchors.fill: parent
                     spacing: 15
 
-                    GradingSliderGroup {
-                        title: "Slope"
-                        fixed_size: 160
-                        attr_group: "grading_slope"
-                        attr_suffix: "slope"
+                    Repeater {
+                        model: grading_sliders_model
+                        delegate: chooser
                     }
 
-                    GradingSliderGroup {
-                        title: "Offset"
-                        fixed_size: 160
-                        attr_group: "grading_offset"
-                        attr_suffix: "offset"
+                    DelegateChooser {
+                        id: chooser
+                        role: "title"
+                        DelegateChoice{
+                            roleValue: "Saturation"
+                            GradingSingleSlider {
+                                Layout.fillHeight: true
+                                title: model.title
+                            }
+                        }
+                        DelegateChoice{
+                            GradingSliderGroup {
+                                Layout.fillHeight: true
+                                title: model.title
+                            }
+                        }
                     }
 
-                    GradingSliderGroup {
-                        title: "Power"
-                        fixed_size: 160
-                        attr_group: "grading_power"
-                        attr_suffix: "power"
-                    }
-
-                    GradingSliderGroup {
-                        title: "Sat"
-                        fixed_size: 60
-                        attr_group: "grading_saturation"
-                    }
                 }
             }
 
@@ -256,44 +397,42 @@ XsWindow {
                 color: "transparent"
                 opacity: 1.0
                 border.width: 1
-                border.color: Qt.rgba(
-                    XsStyle.menuBorderColor.r,
-                    XsStyle.menuBorderColor.g,
-                    XsStyle.menuBorderColor.b,
-                    0.3)
+                border.color: XsStyleSheet.menuBorderColor
                 radius: 2
 
-                visible: attr.grading_panel ? attr.grading_panel == "Wheels" : false
+                visible: attrs.grading_panel == "Wheels"
 
-                Row {
+                RowLayout {
                     anchors.topMargin: 10
                     anchors.leftMargin: 10
                     anchors.fill: parent
                     spacing: 15
 
-                    GradingWheel {
-                        title : "Slope"
-                        attr_group: "grading_slope"
-                        attr_suffix: "slope"
+                    Repeater {
+                        model: grading_sliders_model
+                        delegate: slider_chooser
                     }
 
-                    GradingWheel {
-                        title: "Offset"
-                        attr_group: "grading_offset"
-                        attr_suffix: "offset"
+                    DelegateChooser {
+                        id: slider_chooser
+                        role: "title"
+                        DelegateChoice{
+                            roleValue: "Saturation"
+                            GradingSingleSlider {
+                                Layout.fillHeight: true
+                                title: model.title
+                                width: 160
+                            }
+                        }
+                        DelegateChoice{
+                            GradingWheel {
+                                Layout.fillHeight: true
+                                title: model.title
+                                width: 160
+                            }
+                        }
                     }
 
-                    GradingWheel {
-                        title: "Power"
-                        attr_group: "grading_power"
-                        attr_suffix: "power"
-                    }
-
-                    GradingSliderGroup {
-                        title: "Sat"
-                        fixed_size: 60
-                        attr_group: "grading_saturation"
-                    }
                 }
             }
 
@@ -301,11 +440,7 @@ XsWindow {
                 color: "transparent"
                 opacity: 1.0
                 border.width: 1
-                border.color: Qt.rgba(
-                    XsStyle.menuBorderColor.r,
-                    XsStyle.menuBorderColor.g,
-                    XsStyle.menuBorderColor.b,
-                    0.3)
+                border.color: XsStyleSheet.menuBorderColor
                 radius: 2
 
                 Layout.topMargin: 1
@@ -317,132 +452,82 @@ XsWindow {
                     anchors.fill: parent
                     layoutDirection: Qt.RightToLeft
 
-                    XsButton {
-                        Layout.maximumWidth: 50
+                    XsPrimaryButton {
+                        Layout.maximumWidth: 70
                         Layout.maximumHeight: 25
-                        text: "Bypass"
-                        tooltip: "Apply CDL or not"
-                        isActive: attr.drawing_bypass ? attr.drawing_bypass : false
+                        text: "Bypass All"
+                        //tooltip: "Bypass all CDLs or not"
+                        isActive: attrs.drawing_bypass
 
                         onClicked: {
-                            attr.drawing_bypass = !attr.drawing_bypass
+                            attrs.drawing_bypass = !attrs.drawing_bypass
                         }
                     }
 
-                    XsButton {
-                        Layout.maximumWidth: 58
+                    XsPrimaryButton {
+                        Layout.maximumWidth: 90
                         Layout.maximumHeight: 25
-                        text: "Reset All"
-                        tooltip: "Reset CDL parameters to default"
+                        text: "Track grade"
+                        //tooltip: "Auto select grade depending on currently shown frame"
+                        isActive: attrs.grading_tracking
 
                         onClicked: {
-                            attr.grading_action = "Clear"
+                            attrs.grading_tracking = !attrs.grading_tracking
                         }
                     }
 
-                    XsButton {
-                        Layout.maximumWidth: 40
-                        Layout.maximumHeight: 25
-                        text: "Copy"
-                        tooltip: "Copy current colour correction"
-
-                        onClicked: {
-                            var grade_str = ""
-                            grade_str += attr.red_slope     + " "
-                            grade_str += attr.green_slope   + " "
-                            grade_str += attr.blue_slope    + " "
-                            grade_str += attr.master_slope  + " "
-                            grade_str += attr.red_offset    + " "
-                            grade_str += attr.green_offset  + " "
-                            grade_str += attr.blue_offset   + " "
-                            grade_str += attr.master_offset + " "
-                            grade_str += attr.red_power     + " "
-                            grade_str += attr.green_power   + " "
-                            grade_str += attr.blue_power    + " "
-                            grade_str += attr.master_power  + " "
-                            grade_str += attr.saturation
-                            attr.grading_buffer = grade_str
-                        }
-                    }
-
-                    XsButton {
-                        Layout.maximumWidth: 40
-                        Layout.maximumHeight: 25
-                        text: "Paste"
-                        tooltip: "Paste colour correction"
-                        enabled: attr.grading_buffer ? attr.grading_buffer != "" : false
-
-                        onClicked: {
-                            if (attr.grading_buffer) {
-                                var cdl_items = attr.grading_buffer.split(" ")
-                                if (cdl_items.length == 13) {
-                                    attr.red_slope     = parseFloat(cdl_items[0])
-                                    attr.green_slope   = parseFloat(cdl_items[1])
-                                    attr.blue_slope    = parseFloat(cdl_items[2])
-                                    attr.master_slope  = parseFloat(cdl_items[3])
-                                    attr.red_offset    = parseFloat(cdl_items[4])
-                                    attr.green_offset  = parseFloat(cdl_items[5])
-                                    attr.blue_offset   = parseFloat(cdl_items[6])
-                                    attr.master_offset = parseFloat(cdl_items[7])
-                                    attr.red_power     = parseFloat(cdl_items[8])
-                                    attr.green_power   = parseFloat(cdl_items[9])
-                                    attr.blue_power    = parseFloat(cdl_items[10])
-                                    attr.master_power  = parseFloat(cdl_items[11])
-                                    attr.saturation    = parseFloat(cdl_items[12])
-                                }
-                            }
-                        }
-                    }
-
-                    XsButton {
-                        Layout.maximumWidth: 40
-                        Layout.maximumHeight: 25
-                        text: ">"
-                        tooltip: "Toggle to next layer"
-                        enabled: attr.grading_layer && attr_layers.grading_layer ? parseInt(attr.grading_layer.slice(-1)) < attr_layers.grading_layer.length : false
-                        visible: attr.mvp_1_release != undefined ? !attr.mvp_1_release : false
-
-                        onClicked: {
-                            attr.grading_action = "Next Layer"
-                        }
-                    }
-
-                    XsButton {
-                        Layout.maximumWidth: 40
-                        Layout.maximumHeight: 25
-                        text: "<"
-                        tooltip: "Toggle to prev layer"
-                        enabled: attr.grading_layer ? parseInt(attr.grading_layer.slice(-1)) >= 2 : false
-                        visible: attr.mvp_1_release != undefined ? !attr.mvp_1_release : false
-
-                        onClicked: {
-                            attr.grading_action = "Prev Layer"
-                        }
-                    }
-
-                    XsButton {
+                    XsPrimaryButton {
                         Layout.maximumWidth: 40
                         Layout.maximumHeight: 25
                         text: "+"
-                        tooltip: "Add a grade layer on top"
-                        enabled: attr_layers.grading_layer ? attr_layers.grading_layer.length < 8 : false
-                        visible: attr.mvp_1_release != undefined ? !attr.mvp_1_release : false
+                        //tooltip: "Add a color correction"
 
                         onClicked: {
-                            attr.grading_action = "Add Layer"
+                            attrs.grading_action = "Add CC"
                         }
                     }
 
-                    XsButton {
+                    XsPrimaryButton {
                         Layout.maximumWidth: 40
                         Layout.maximumHeight: 25
                         text: "-"
-                        tooltip: "Remove the top grade layer"
-                        enabled: attr_layers.grading_layer ? attr_layers.grading_layer.length > 1 : false
-                        visible: attr.mvp_1_release != undefined ? !attr.mvp_1_release : false
+                        //tooltip: "Remove the currently selected color correction"
+                        enabled: bookmarkList.count > 0
 
                         onClicked: {
-                            attr.grading_action = "Remove Layer"
+                            attrs.grading_action = "Remove CC"
+                        }
+                    }
+
+                    XsPrimaryButton {
+                        Layout.maximumWidth: 40
+                        Layout.maximumHeight: 25
+                        text: "Copy"
+                        //tooltip: "Copy current colour correction"
+                        enabled: hasActiveGrade()
+                        onClicked: {
+                            var attr_values = []
+                            for (var i = 0; i < grading_sliders_model.length; ++i) {
+                                attr_values.push(grading_sliders_model.get(grading_sliders_model.index(i,0),"value"))
+                            }
+                            dialog.copy_buffer = attr_values
+                        }
+                    }
+
+                    XsPrimaryButton {
+                        Layout.maximumWidth: 40
+                        Layout.maximumHeight: 25
+                        text: "Paste"
+                        //tooltip: "Paste colour correction"
+                        enabled: dialog.copy_buffer.length == grading_sliders_model.length
+                        onClicked: {
+                            for (var i = 0; i < grading_sliders_model.length; ++i) {
+                                grading_sliders_model.set(
+                                    grading_sliders_model.index(i,0),
+                                    dialog.copy_buffer[i],
+                                    "value"
+                                    )
+                            }
                         }
                     }
 
@@ -452,42 +537,145 @@ XsWindow {
                         Layout.fillHeight: true
                     }
 
-                    XsButton {
+                    XsPrimaryButton {
+                        Layout.maximumWidth: 40
+                        Layout.maximumHeight: 25
+                        text: "Out"
+                        //tooltip: "Grade ends at this frame"
+                        enabled: hasActiveGrade()
+
+                        onClicked: {
+                            attrs.grade_out = playheadLogicalFrame
+                        }
+                    }
+
+                    XsPrimaryButton {
+                        Layout.maximumWidth: 40
+                        Layout.maximumHeight: 25
+                        text: "In"
+                        //tooltip: "Grade starts at this frame"
+                        enabled: hasActiveGrade()
+
+                        onClicked: {
+                            attrs.grade_in = playheadLogicalFrame
+                        }
+                    }
+
+                    XsPrimaryButton {
+                        Layout.maximumWidth: 90
+                        Layout.maximumHeight: 25
+                        text: "Full clip"
+                        //tooltip: "Grade applies on the full duration of the media"
+                        enabled: hasActiveGrade()
+
+                        onClicked: {
+                            attrs.grade_in = -1
+                            attrs.grade_out = -1
+                        }
+                    }
+
+                    XsPrimaryButton {
+                        Layout.maximumWidth: 90
+                        Layout.maximumHeight: 25
+                        text: "Single frame"
+                        //tooltip: "Grade applies on the current frame only"
+                        enabled: hasActiveGrade()
+
+                        onClicked: {
+                            console.log("Set bookmark in/out to " + playheadLogicalFrame)
+                            attrs.grade_in = playheadLogicalFrame
+                            attrs.grade_out = playheadLogicalFrame
+                        }
+                    }
+
+                    XsPrimaryButton {
+                        Layout.maximumWidth: 50
+                        Layout.maximumHeight: 25
+                        text: "Bypass"
+                        //tooltip: "Apply CDL or not"
+                        isActive: !attrs.grade_active
+                        enabled: hasActiveGrade()
+
+                        onClicked: {
+                            attrs.grade_active = !attrs.grade_active
+                        }
+                    }
+
+                    XsPrimaryButton {
+                        Layout.maximumWidth: 120
+                        Layout.maximumHeight: 25
+                        text: hasActiveGrade() ? attrs.colour_space : attrs.working_space
+                        //tooltip: "Toggle process colour space"
+                        enabled: hasActiveGrade() && attrs.media_colour_managed
+
+                        onClicked: {
+                            attrs.colour_space = attrs.colour_space == "scene_linear" ? "compositing_log" : "scene_linear"
+                        }
+                    }
+
+                    XsPrimaryButton {
+                        Layout.maximumWidth: 58
+                        Layout.maximumHeight: 25
+                        text: "Reset All"
+                        //tooltip: "Reset CDL parameters to default"
+                        enabled: hasActiveGrade()
+
+                        onClicked: {
+                            attrs.grading_action = "Clear"
+                        }
+                    }
+
+                    XsPrimaryButton {
                         Layout.maximumWidth: 80
                         Layout.maximumHeight: 25
                         text: "Save CDL ..."
-                        tooltip: "Save CDL to disk as a .cdl, .cc or .ccc"
+                        //tooltip: "Save CDL to disk as a .cdl, .cc or .ccc"
+                        enabled: hasActiveGrade()
 
                         onClicked: {
                             cdl_save_dialog.open()
                         }
                     }
 
-                    XsButton {
+                    XsPrimaryButton {
                         Layout.minimumWidth: 110
                         Layout.maximumWidth: 120
                         Layout.maximumHeight: 25
                         text: "Copy Nuke Node"
-                        tooltip: "Copy CDL as a Nuke OCIOCDLTransform node to the clipboard - paste into Nuke node graph with CTRL+V"
+                        //tooltip: "Copy CDL as a Nuke OCIOCDLTransform node to the clipboard - paste into Nuke node graph with CTRL+V"
+                        enabled: hasActiveGrade()
+
+                        Clipboard {
+                            id: clipboard
+                        }
 
                         onClicked: {
+
+                            var slope = attrs.getAttrValue("Slope")
+                            var offset = attrs.getAttrValue("Offset")
+                            var power = attrs.getAttrValue("Power")
+                            var sat = attrs.getAttrValue("Saturation")
+
                             var cdl_node = "OCIOCDLTransform {\n"
+                            if (attrs.colour_space != "scene_linear") {
+                                cdl_node += "  working_space " + attrs.colour_space + "\n"
+                            }
                             cdl_node += "  slope { "
-                            cdl_node += (attr.red_slope   * attr.master_slope) + " "
-                            cdl_node += (attr.green_slope * attr.master_slope) + " "
-                            cdl_node += (attr.blue_slope  * attr.master_slope) + " "
+                            cdl_node += (slope[0] * slope[3]) + " "
+                            cdl_node += (slope[1] * slope[3]) + " "
+                            cdl_node += (slope[2] * slope[3]) + " "
                             cdl_node += "}\n"
                             cdl_node += "  offset { "
-                            cdl_node += (attr.red_offset   + attr.master_offset) + " "
-                            cdl_node += (attr.green_offset + attr.master_offset) + " "
-                            cdl_node += (attr.blue_offset  + attr.master_offset) + " "
+                            cdl_node += (offset[0] + offset[3]) + " "
+                            cdl_node += (offset[1] + offset[3]) + " "
+                            cdl_node += (offset[2] + offset[3]) + " "
                             cdl_node += "}\n"
                             cdl_node += "  power { "
-                            cdl_node += (attr.red_power   * attr.master_power) + " "
-                            cdl_node += (attr.green_power * attr.master_power) + " "
-                            cdl_node += (attr.blue_power  * attr.master_power) + " "
+                            cdl_node += (power[0] * power[3]) + " "
+                            cdl_node += (power[1] * power[3]) + " "
+                            cdl_node += (power[2] * power[3]) + " "
                             cdl_node += "}\n"
-                            cdl_node += "  saturation " + attr.saturation + "\n"
+                            cdl_node += "  saturation " + sat + "\n"
                             cdl_node += "}"
 
                             clipboard.text = cdl_node

@@ -198,7 +198,8 @@ void OpenGLStrokeRenderer::render_strokes(
     float viewport_du_dx,
     bool have_alpha_buffer) {
 
-    const bool do_erase_strokes_first = !have_alpha_buffer;
+    // Temp hack - Ted. Erase strokes go negative with float target buffers
+    const bool do_erase_strokes_first = true;//!have_alpha_buffer;
 
     if (!shader_)
         init_gl();
@@ -243,9 +244,9 @@ void OpenGLStrokeRenderer::render_strokes(
     float depth  = 0.0f;
 
     if (do_erase_strokes_first) {
-        depth += 0.001;
         glDepthFunc(GL_GREATER);
         for (const auto &stroke : strokes) {
+            depth += 0.001;
             if (stroke.type != StrokeType_Erase) {
                 offset += (stroke.points.size() + 1);
                 continue;

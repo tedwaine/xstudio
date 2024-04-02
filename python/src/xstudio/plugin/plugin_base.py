@@ -120,7 +120,7 @@ class PluginBase(ModuleBase):
             close_button(bool): Add a close button to the box
             autohide_timeout_secs(int): Optional timeout to auto-hide the message box
         """
-        app = self.connection.api._app
+        app = self.connection.api.app
         cp = self.connection.send(
             app.remote,
             show_message_box_atom(),

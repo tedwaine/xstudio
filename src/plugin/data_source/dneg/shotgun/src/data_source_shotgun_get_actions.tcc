@@ -202,6 +202,8 @@ void ShotgunDataSourceActor<T>::link_media(
         rp.deliver(make_error(xstudio_error::error, err.what()));
     }
 }
+    void get_data(
+        caf::typed_response_promise<utility::JsonStore> rp, const std::string &type, const int project_id);
 
 template <typename T>
 void ShotgunDataSourceActor<T>::download_media(
@@ -784,4 +786,1006 @@ void ShotgunDataSourceActor<T>::execute_query(caf::typed_response_promise<utilit
             rp.deliver(err);
         }
     );
+}
+
+template <typename T>
+void ShotgunDataSourceActor<T>::get_data(
+    caf::typed_response_promise<utility::JsonStore> rp, const std::string &type, const int project_id) {
+
+    try {
+        auto cache_key = QueryEngine::cache_name(type, project_id);
+        // check it's not cached..
+        auto cached = data_source_.engine().get_cache(cache_key);
+
+        if(cached) {
+            rp.deliver(std::move(*cached));
+        } else {
+            // try and tigger request..
+            if(type == "department")
+                get_data_department(rp, type);
+            else if(type == "project")
+                get_data_project(rp, type);
+            else if(type == "location")
+                get_data_location(rp, type);
+            else if(type == "review_location")
+                get_data_review_location(rp, type);
+            else if(type == "playlist_type")
+                get_data_playlist_type(rp, type);
+            else if(type == "shot_status")
+                get_data_shot_status(rp, type);
+            else if(type == "note_type")
+                get_data_note_type(rp, type);
+            else if(type == "production_status")
+                get_data_production_status(rp, type);
+            else if(type == "pipeline_status")
+                get_data_pipeline_status(rp, type);
+            else if(type == "user")
+                get_data_user(rp, type);
+            else if(type == "shot")
+                get_data_shot(rp, type, project_id);
+            else if(type == "sequence")
+                get_data_sequence(rp, type, project_id);
+            else if(type == "playlist")
+                get_data_playlist(rp, type, project_id);
+            else if(type == "unit")
+                get_data_unit(rp, type, project_id);
+            else if(type == "group")
+                get_data_group(rp, type, project_id);
+            else {
+                rp.deliver(make_error(xstudio_error::error, "Unknown type " + type));
+            }
+        }
+    } catch(const std::exception &err) {
+        spdlog::warn("{} {}", __PRETTY_FUNCTION__, err.what());
+        rp.deliver(make_error(xstudio_error::error, err.what()));
+    }
+}
+
+template <typename T>
+void ShotgunDataSourceActor<T>::get_data_department(
+    caf::typed_response_promise<utility::JsonStore> rp, const std::string &type) {
+
+    // ["sg_status_list", "is", "act"]
+
+    auto filter = R"(
+    {
+        "logical_operator": "and",
+        "conditions": [
+        ]
+    })"_json;
+
+    request(
+        shotgun_, infinite, shotgun_entity_search_atom_v,
+        "Departments",
+        JsonStore(filter),
+        std::vector<std::string>({"name", "id"}),
+        std::vector<std::string>({"name"}),
+        1,
+        4999
+    ).then(
+        [=](const JsonStore &data) mutable {
+            try {
+                if (not data.count("data"))
+                    rp.deliver(make_error(xstudio_error::error, data.dump(2)));
+                else {
+                    auto cache_key = QueryEngine::cache_name(type);
+                    auto lookup_key = QueryEngine::cache_name("Department");
+
+                    data_source_.engine().set_cache(cache_key, data.at("data"));
+                    data_source_.engine().set_lookup(lookup_key, data.at("data"), data_source_.engine().lookup());
+
+                    rp.deliver(*data_source_.engine().get_cache(cache_key));
+                }
+            } catch(const std::exception &err) {
+                spdlog::warn("{} {}", __PRETTY_FUNCTION__, err.what());
+                rp.deliver(make_error(xstudio_error::error, err.what()));
+            }
+        },
+        [=](error &err) mutable {
+            rp.deliver(err);
+        }
+    );
+}
+
+template <typename T>
+void ShotgunDataSourceActor<T>::get_data_project(
+    caf::typed_response_promise<utility::JsonStore> rp, const std::string &type) {
+
+    auto filter = R"(
+    {
+        "logical_operator": "and",
+        "conditions": [
+        ]
+    })"_json;
+
+    request(
+        shotgun_, infinite, shotgun_projects_atom_v
+    ).then(
+        [=](const JsonStore &data) mutable {
+            try {
+                if (not data.count("data"))
+                    rp.deliver(make_error(xstudio_error::error, data.dump(2)));
+                else {
+                    auto cache_key = QueryEngine::cache_name(type);
+                    auto lookup_key = QueryEngine::cache_name("Project");
+
+                    data_source_.engine().set_cache(cache_key, data.at("data"));
+                    data_source_.engine().set_lookup(lookup_key, data.at("data"), data_source_.engine().lookup());
+
+                    rp.deliver(*data_source_.engine().get_cache(cache_key));
+                }
+            } catch(const std::exception &err) {
+                spdlog::warn("{} {}", __PRETTY_FUNCTION__, err.what());
+                rp.deliver(make_error(xstudio_error::error, err.what()));
+            }
+        },
+        [=](error &err) mutable {
+            rp.deliver(err);
+        }
+    );
+}
+
+template <typename T>
+void ShotgunDataSourceActor<T>::get_data_location(
+    caf::typed_response_promise<utility::JsonStore> rp, const std::string &type) {
+
+    request(
+        shotgun_, infinite, shotgun_schema_entity_fields_atom_v, "playlist", "sg_location", -1
+    ).then(
+        [=](const JsonStore &data) mutable {
+            try {
+                if (not data.count("data"))
+                    rp.deliver(make_error(xstudio_error::error, data.dump(2)));
+                else {
+                    auto cache_key = QueryEngine::cache_name(type);
+                    auto field_data = QueryEngine::data_from_field(data.at("data"));
+
+                    data_source_.engine().set_cache(cache_key, field_data);
+                    // data_source_.engine().set_lookup(QueryEngine::cache_name("Location"), field_data);
+
+                    rp.deliver(*data_source_.engine().get_cache(cache_key));
+                }
+            } catch(const std::exception &err) {
+                spdlog::warn("{} {}", __PRETTY_FUNCTION__, err.what());
+                rp.deliver(make_error(xstudio_error::error, err.what()));
+            }
+        },
+        [=](error &err) mutable {
+            rp.deliver(err);
+        }
+    );
+}
+
+template <typename T>
+void ShotgunDataSourceActor<T>::get_data_review_location(
+    caf::typed_response_promise<utility::JsonStore> rp, const std::string &type) {
+
+    request(
+        shotgun_, infinite, shotgun_schema_entity_fields_atom_v, "playlist", "sg_review_location_1", -1
+    ).then(
+        [=](const JsonStore &data) mutable {
+            try {
+                if (not data.count("data"))
+                    rp.deliver(make_error(xstudio_error::error, data.dump(2)));
+                else {
+                    auto cache_key = QueryEngine::cache_name(type);
+                    auto field_data = QueryEngine::data_from_field(data.at("data"));
+
+                    data_source_.engine().set_cache(cache_key, field_data);
+
+                    rp.deliver(*data_source_.engine().get_cache(cache_key));
+                }
+            } catch(const std::exception &err) {
+                spdlog::warn("{} {}", __PRETTY_FUNCTION__, err.what());
+                rp.deliver(make_error(xstudio_error::error, err.what()));
+            }
+        },
+        [=](error &err) mutable {
+            rp.deliver(err);
+        }
+    );
+}
+
+template <typename T>
+void ShotgunDataSourceActor<T>::get_data_playlist_type(
+    caf::typed_response_promise<utility::JsonStore> rp, const std::string &type) {
+
+    request(
+        shotgun_, infinite, shotgun_schema_entity_fields_atom_v, "playlist", "sg_type", -1
+    ).then(
+        [=](const JsonStore &data) mutable {
+            try {
+                if (not data.count("data"))
+                    rp.deliver(make_error(xstudio_error::error, data.dump(2)));
+                else {
+                    auto cache_key = QueryEngine::cache_name(type);
+                    auto field_data = QueryEngine::data_from_field(data.at("data"));
+
+                    data_source_.engine().set_cache(cache_key, field_data);
+
+                    rp.deliver(*data_source_.engine().get_cache(cache_key));
+                }
+            } catch(const std::exception &err) {
+                spdlog::warn("{} {}", __PRETTY_FUNCTION__, err.what());
+                rp.deliver(make_error(xstudio_error::error, err.what()));
+            }
+        },
+        [=](error &err) mutable {
+            rp.deliver(err);
+        }
+    );
+}
+
+template <typename T>
+void ShotgunDataSourceActor<T>::get_data_shot_status(
+    caf::typed_response_promise<utility::JsonStore> rp, const std::string &type) {
+
+    request(
+        shotgun_, infinite, shotgun_schema_entity_fields_atom_v, "shot", "sg_status_list", -1
+    ).then(
+        [=](const JsonStore &data) mutable {
+            try {
+                if (not data.count("data"))
+                    rp.deliver(make_error(xstudio_error::error, data.dump(2)));
+                else {
+                    auto cache_key = QueryEngine::cache_name(type);
+                    auto field_data = QueryEngine::data_from_field(data.at("data"));
+
+                    data_source_.engine().set_cache(cache_key, field_data);
+                    data_source_.engine().set_lookup(QueryEngine::cache_name("Exclude Shot Status"), field_data, data_source_.engine().lookup());
+                    data_source_.engine().set_lookup(QueryEngine::cache_name("Shot Status"), field_data, data_source_.engine().lookup());
+
+                    rp.deliver(*data_source_.engine().get_cache(cache_key));
+                }
+            } catch(const std::exception &err) {
+                spdlog::warn("{} {}", __PRETTY_FUNCTION__, err.what());
+                rp.deliver(make_error(xstudio_error::error, err.what()));
+            }
+        },
+        [=](error &err) mutable {
+            rp.deliver(err);
+        }
+    );
+}
+
+template <typename T>
+void ShotgunDataSourceActor<T>::get_data_note_type(
+    caf::typed_response_promise<utility::JsonStore> rp, const std::string &type) {
+
+    request(
+        shotgun_, infinite, shotgun_schema_entity_fields_atom_v, "note", "sg_note_type", -1
+    ).then(
+        [=](const JsonStore &data) mutable {
+            try {
+                if (not data.count("data"))
+                    rp.deliver(make_error(xstudio_error::error, data.dump(2)));
+                else {
+                    auto cache_key = QueryEngine::cache_name(type);
+                    auto field_data = QueryEngine::data_from_field(data.at("data"));
+
+                    data_source_.engine().set_cache(cache_key, field_data);
+
+                    rp.deliver(*data_source_.engine().get_cache(cache_key));
+                }
+            } catch(const std::exception &err) {
+                spdlog::warn("{} {}", __PRETTY_FUNCTION__, err.what());
+                rp.deliver(make_error(xstudio_error::error, err.what()));
+            }
+        },
+        [=](error &err) mutable {
+            rp.deliver(err);
+        }
+    );
+}
+
+template <typename T>
+void ShotgunDataSourceActor<T>::get_data_production_status(
+    caf::typed_response_promise<utility::JsonStore> rp, const std::string &type) {
+
+    request(
+        shotgun_, infinite, shotgun_schema_entity_fields_atom_v, "version", "sg_production_status", -1
+    ).then(
+        [=](const JsonStore &data) mutable {
+            try {
+                if (not data.count("data"))
+                    rp.deliver(make_error(xstudio_error::error, data.dump(2)));
+                else {
+                    auto cache_key = QueryEngine::cache_name(type);
+                    auto field_data = QueryEngine::data_from_field(data.at("data"));
+
+                    data_source_.engine().set_lookup(QueryEngine::cache_name("Production Status"), field_data, data_source_.engine().lookup());
+                    data_source_.engine().set_cache(cache_key, field_data);
+
+                    rp.deliver(*data_source_.engine().get_cache(cache_key));
+                }
+            } catch(const std::exception &err) {
+                spdlog::warn("{} {}", __PRETTY_FUNCTION__, err.what());
+                rp.deliver(make_error(xstudio_error::error, err.what()));
+            }
+        },
+        [=](error &err) mutable {
+            rp.deliver(err);
+        }
+    );
+}
+
+template <typename T>
+void ShotgunDataSourceActor<T>::get_data_pipeline_status(
+    caf::typed_response_promise<utility::JsonStore> rp, const std::string &type) {
+
+    request(
+        shotgun_, infinite, shotgun_schema_entity_fields_atom_v, "version", "sg_status_list", -1
+    ).then(
+        [=](const JsonStore &data) mutable {
+            try {
+                if (not data.count("data"))
+                    rp.deliver(make_error(xstudio_error::error, data.dump(2)));
+                else {
+                    auto cache_key = QueryEngine::cache_name(type);
+                    auto field_data = QueryEngine::data_from_field(data.at("data"));
+
+                    data_source_.engine().set_lookup(QueryEngine::cache_name("Pipeline Status"), field_data, data_source_.engine().lookup());
+                    data_source_.engine().set_cache(cache_key, field_data);
+
+                    rp.deliver(*data_source_.engine().get_cache(cache_key));
+                }
+            } catch(const std::exception &err) {
+                spdlog::warn("{} {}", __PRETTY_FUNCTION__, err.what());
+                rp.deliver(make_error(xstudio_error::error, err.what()));
+            }
+        },
+        [=](error &err) mutable {
+            rp.deliver(err);
+        }
+    );
+}
+
+template <typename T>
+void ShotgunDataSourceActor<T>::get_data_user(
+    caf::typed_response_promise<utility::JsonStore> rp, const std::string &type,
+    const int page, const JsonStore &prev_data) {
+
+    auto filter = R"(
+    {
+        "logical_operator": "and",
+        "conditions": [
+            ["sg_status_list", "is", "act"]
+        ]
+    })"_json;
+
+    request(
+        shotgun_, infinite, shotgun_entity_search_atom_v,
+        "HumanUsers",
+        JsonStore(filter),
+        std::vector<std::string>({"name", "id", "login"}),
+        std::vector<std::string>({"name"}),
+        page,
+        4999
+    ).then(
+        [=](const JsonStore &data) mutable {
+            try {
+                if (not data.count("data"))
+                    rp.deliver(make_error(xstudio_error::error, data.dump(2)));
+                else {
+                    auto total = prev_data;
+                    total.insert(total.end(), data.at("data").begin(), data.at("data").end());
+
+                    if(data.at("data").size() == 4999) {
+                        get_data_user(rp, type, page + 1, total);
+                    } else {
+                        auto cache_key = QueryEngine::cache_name(type);
+                        data_source_.engine().set_lookup(QueryEngine::cache_name("User"), total, data_source_.engine().lookup());
+                        data_source_.engine().set_cache(cache_key, total);
+
+                        rp.deliver(*data_source_.engine().get_cache(cache_key));
+                    }
+                }
+            } catch(const std::exception &err) {
+                spdlog::warn("{} {}", __PRETTY_FUNCTION__, err.what());
+                rp.deliver(make_error(xstudio_error::error, err.what()));
+            }
+        },
+        [=](error &err) mutable {
+            rp.deliver(err);
+        }
+    );
+}
+
+template <typename T>
+void ShotgunDataSourceActor<T>::get_data_shot(
+    caf::typed_response_promise<utility::JsonStore> rp, const std::string &type, const int project_id,
+    const int page, const JsonStore &prev_data) {
+
+    auto filter = R"(
+    {
+        "logical_operator": "and",
+        "conditions": [
+            ["project", "is", {"type":"Project", "id":0}],
+            ["sg_status_list", "not_in", ["na", "del"]]
+        ]
+    })"_json;
+
+    filter["conditions"][0][2]["id"] = project_id;
+
+    request(
+        shotgun_, infinite, shotgun_entity_search_atom_v,
+        "Shots",
+        JsonStore(filter),
+        ShotFields,
+        std::vector<std::string>({"code"}),
+        page,
+        4999
+    ).then(
+        [=](const JsonStore &data) mutable {
+            try {
+                if (not data.count("data"))
+                    rp.deliver(make_error(xstudio_error::error, data.dump(2)));
+                else {
+                    auto total = prev_data;
+                    total.insert(total.end(), data.at("data").begin(), data.at("data").end());
+
+                    if(data.at("data").size() == 4999) {
+                        get_data_shot(rp, type, project_id, page + 1, total);
+                    } else {
+                        auto cache_key = QueryEngine::cache_name(type, project_id);
+                        data_source_.engine().set_lookup(QueryEngine::cache_name("Shot", project_id), total, data_source_.engine().lookup());
+                        data_source_.engine().set_cache(cache_key, total);
+
+                        rp.deliver(*data_source_.engine().get_cache(cache_key));
+                    }
+                }
+            } catch(const std::exception &err) {
+                spdlog::warn("{} {}", __PRETTY_FUNCTION__, err.what());
+                rp.deliver(make_error(xstudio_error::error, err.what()));
+            }
+        },
+        [=](error &err) mutable {
+            rp.deliver(err);
+        }
+    );
+}
+
+template <typename T>
+void ShotgunDataSourceActor<T>::get_data_playlist(
+    caf::typed_response_promise<utility::JsonStore> rp, const std::string &type, const int project_id,
+    const int page, const JsonStore &prev_data) {
+
+    auto filter = R"(
+    {
+        "logical_operator": "and",
+        "conditions": [
+            ["project", "is", {"type":"Project", "id":0}],
+            ["versions", "is_not", null]
+        ]
+    })"_json;
+
+    filter["conditions"][0][2]["id"] = project_id;
+
+    request(
+        shotgun_, infinite, shotgun_entity_search_atom_v,
+        "Playlists",
+        JsonStore(filter),
+        std::vector<std::string>({"id", "code"}),
+        std::vector<std::string>({"-created_at"}),
+        page,
+        4999
+    ).then(
+        [=](const JsonStore &data) mutable {
+            try {
+                if (not data.count("data"))
+                    rp.deliver(make_error(xstudio_error::error, data.dump(2)));
+                else {
+                    auto total = prev_data;
+                    total.insert(total.end(), data.at("data").begin(), data.at("data").end());
+
+                    if(data.at("data").size() == 4999) {
+                        get_data_playlist(rp, type, project_id, page + 1, total);
+                    } else {
+                        auto cache_key = QueryEngine::cache_name(type, project_id);
+                        data_source_.engine().set_lookup(QueryEngine::cache_name("Playlist", project_id), total, data_source_.engine().lookup());
+                        data_source_.engine().set_cache(cache_key, total);
+
+                        rp.deliver(*data_source_.engine().get_cache(cache_key));
+                    }
+                }
+            } catch(const std::exception &err) {
+                spdlog::warn("{} {}", __PRETTY_FUNCTION__, err.what());
+                rp.deliver(make_error(xstudio_error::error, err.what()));
+            }
+        },
+        [=](error &err) mutable {
+            rp.deliver(err);
+        }
+    );
+}
+
+template <typename T>
+void ShotgunDataSourceActor<T>::get_version_artist(
+    caf::typed_response_promise<utility::JsonStore> rp,
+    const int version_id) {
+
+    request(
+        shotgun_, infinite, shotgun_entity_atom_v,
+        "Versions",
+        version_id,
+        std::vector<std::string>({"code", "id", "user"})
+    ).then(
+        [=](const JsonStore &data) mutable {
+            if (not data.count("data"))
+                rp.deliver(make_error(xstudio_error::error, data.dump(2)));
+            else
+                rp.deliver(JsonStore(data.at("data")));
+        },
+        [=](error &err) mutable {
+            rp.deliver(err);
+        }
+    );
+}
+
+
+template <typename T>
+void ShotgunDataSourceActor<T>::get_data_unit(
+    caf::typed_response_promise<utility::JsonStore> rp, const std::string &type, const int project_id) {
+
+    auto filter = R"(
+    {
+        "logical_operator": "and",
+        "conditions": [
+            ["project", "is", {"type":"Project", "id":0}]
+        ]
+    })"_json;
+
+    filter["conditions"][0][2]["id"] = project_id;
+
+    request(
+        shotgun_, infinite, shotgun_entity_search_atom_v,
+        "CustomEntity24",
+        JsonStore(filter),
+        std::vector<std::string>({"code", "id"}),
+        std::vector<std::string>({"code"}),
+        1,
+        4999
+    ).then(
+        [=](const JsonStore &data) mutable {
+            try {
+                if (not data.count("data"))
+                    rp.deliver(make_error(xstudio_error::error, data.dump(2)));
+                else {
+                    auto cache_key = QueryEngine::cache_name(type, project_id);
+
+                    data_source_.engine().set_lookup(QueryEngine::cache_name("Unit", project_id), data.at("data"), data_source_.engine().lookup());
+                    data_source_.engine().set_cache(cache_key, data.at("data"));
+
+                    rp.deliver(*data_source_.engine().get_cache(cache_key));
+                }
+            } catch(const std::exception &err) {
+                spdlog::warn("{} {}", __PRETTY_FUNCTION__, err.what());
+                rp.deliver(make_error(xstudio_error::error, err.what()));
+            }
+        },
+        [=](error &err) mutable {
+            rp.deliver(err);
+        }
+    );
+}
+
+template <typename T>
+void ShotgunDataSourceActor<T>::get_data_group(
+    caf::typed_response_promise<utility::JsonStore> rp, const std::string &type, const int project_id) {
+
+    request(
+        shotgun_, infinite, shotgun_groups_atom_v,
+        project_id
+    ).then(
+        [=](const JsonStore &data) mutable {
+            try {
+                if (not data.count("data"))
+                    rp.deliver(make_error(xstudio_error::error, data.dump(2)));
+                else {
+                    auto cache_key = QueryEngine::cache_name(type, project_id);
+                    data_source_.engine().set_cache(cache_key, data.at("data"));
+                    rp.deliver(*data_source_.engine().get_cache(cache_key));
+                }
+            } catch(const std::exception &err) {
+                spdlog::warn("{} {}", __PRETTY_FUNCTION__, err.what());
+                rp.deliver(make_error(xstudio_error::error, err.what()));
+            }
+        },
+        [=](error &err) mutable {
+            rp.deliver(err);
+        }
+    );
+}
+
+template <typename T>
+void ShotgunDataSourceActor<T>::get_data_sequence(
+    caf::typed_response_promise<utility::JsonStore> rp, const std::string &type, const int project_id,
+    const int page, const JsonStore &prev_data) {
+
+    auto filter = R"(
+    {
+        "logical_operator": "and",
+        "conditions": [
+            ["project", "is", {"type":"Project", "id":0}],
+            ["sg_status_list", "not_in", ["na","del"]]
+        ]
+    })"_json;
+
+    filter["conditions"][0][2]["id"] = project_id;
+
+    request(
+        shotgun_, infinite, shotgun_entity_search_atom_v,
+        "Sequences",
+        JsonStore(filter),
+        std::vector<std::string>(
+            {"id", "code", "shots", "type", "sg_parent", "sg_sequence_type", "sg_status_list"}),
+        std::vector<std::string>({"code"}),
+        page,
+        4999
+    ).then(
+        [=](const JsonStore &data) mutable {
+            try {
+                if (not data.count("data"))
+                    rp.deliver(make_error(xstudio_error::error, data.dump(2)));
+                else {
+                    auto total = prev_data;
+                    total.insert(total.end(), data.at("data").begin(), data.at("data").end());
+
+                    if(data.at("data").size() == 4999) {
+                        get_data_sequence(rp, type, project_id, page + 1, total);
+                    } else {
+                        // request and purge deleted shots.
+                        auto delfilter = R"(
+                        {
+                            "logical_operator": "and",
+                            "conditions": [
+                                ["project", "is", {"type":"Project", "id":0}],
+                                ["sg_status_list", "in", ["na","del"]]
+                            ]
+                        })"_json;
+                        delfilter["conditions"][0][2]["id"] = project_id;
+
+                        request(
+                            shotgun_, infinite, shotgun_entity_search_atom_v,
+                            "Shots",
+                            JsonStore(delfilter),
+                            std::vector<std::string>({"id"}),
+                            std::vector<std::string>({"id"}),
+                            1,
+                            4999
+                        ).then(
+                            [=](const JsonStore &deldata) mutable {
+                                try {
+                                    if (not deldata.count("data"))
+                                        rp.deliver(make_error(xstudio_error::error, deldata.dump(2)));
+
+                                    if (deldata.at("data").size() == 4999)
+                                        spdlog::warn("{} Shot list truncated.", __PRETTY_FUNCTION__);
+
+                                    // build set of deleted shot id's
+                                    std::set<int64_t> del_shots;
+                                    for (const auto &i : deldata.at("data"))
+                                        del_shots.insert(i.at("id").get<int64_t>());
+
+                                    if (not del_shots.empty()) {
+                                        // iterate over sequence -> shots and remove deleted
+                                        for (auto &i : total) {
+                                            bool done = false;
+                                            auto &t   = i["relationships"]["shots"]["data"];
+                                            for (auto it = t.begin(); it != t.end();) {
+                                                if (del_shots.count(it->at("id"))) {
+                                                    it = t.erase(it);
+                                                } else {
+                                                    it++;
+                                                }
+                                            }
+                                        }
+                                    }
+
+                                    auto cache_key = QueryEngine::cache_name(type, project_id);
+
+                                    data_source_.engine().set_lookup(QueryEngine::cache_name("Sequence", project_id), total, data_source_.engine().lookup());
+                                    data_source_.engine().set_shot_sequence_lookup(QueryEngine::cache_name("ShotSequence", project_id), total, data_source_.engine().lookup());
+                                    data_source_.engine().set_cache(cache_key, total);
+
+                                    rp.deliver(*data_source_.engine().get_cache(cache_key));
+                                } catch(const std::exception &err) {
+                                    spdlog::warn("{} {}", __PRETTY_FUNCTION__, err.what());
+                                    rp.deliver(make_error(xstudio_error::error, err.what()));
+                                }
+                            },
+                            [=](error &err) mutable {
+                                rp.deliver(err);
+                            }
+                        );
+                    }
+                }
+            } catch(const std::exception &err) {
+                spdlog::warn("{} {}", __PRETTY_FUNCTION__, err.what());
+                rp.deliver(make_error(xstudio_error::error, err.what()));
+            }
+        },
+        [=](error &err) mutable {
+            rp.deliver(err);
+        }
+    );
+}
+
+template <typename T>
+void ShotgunDataSourceActor<T>::execute_preset(
+    caf::typed_response_promise<utility::JsonStore> rp,
+    const std::vector<std::string> &preset_paths,
+    const int project_id,
+    const utility::JsonStore &context,
+    const utility::JsonStore &metadata
+) {
+    // is preset path valid ?
+    // we want the preset and it's group.
+
+    try {
+        auto presets = R"([])"_json;
+        auto preset_group = R"([])"_json;
+        auto entity = std::string();
+
+        for(const auto &i: preset_paths) {
+            auto preset = data_source_.engine().user_presets().at(json::json_pointer(i));
+            if(entity.empty()) {
+                if(preset.value("type", "") == "group") {
+                    entity = preset.at("entity");
+                    preset_group = preset.at("children").at(0).at("children");
+                } else {
+                    auto tmp = data_source_.engine().user_presets().at(
+                        json::json_pointer(i).parent_pointer().parent_pointer().parent_pointer().parent_pointer()
+                    );
+
+                    entity = tmp.at("entity");
+                    preset_group = tmp.at("children").at(0).at("children");
+                }
+            }
+
+            if(preset.value("type", "") == "preset")
+                presets.push_back(preset.at("children"));
+        }
+
+        // we possibly need to precache lookups..
+        if(data_source_.engine().precache_needed(project_id, data_source_.engine().lookup())) {
+            // spdlog::warn("NEEDS PREECACHE");
+            // we need to trigger loading of lookups..
+            auto req = JsonStore(GetPrecache);
+            req["project_id"] = project_id;
+
+            request(caf::actor_cast<caf::actor>(this), infinite, get_data_atom_v, req).then(
+                [=](const JsonStore &) mutable {
+                    auto request = QueryEngine::build_query_new(
+                        project_id,
+                        entity,
+                        preset_group,
+                        presets,
+                        context,
+                        metadata,
+                        data_source_.engine().lookup());
+
+                    // spdlog::warn("{}\n", request.dump(2));
+
+                    execute_query(rp, request);
+                },
+                [=](error &err) mutable {
+                    rp.deliver(err);
+                }
+            );
+
+        } else {
+            auto request = QueryEngine::build_query_new(
+                project_id,
+                entity,
+                preset_group,
+                presets,
+                context,
+                metadata,
+                data_source_.engine().lookup());
+
+            // spdlog::warn("{}\n", request.dump(2));
+
+            execute_query(rp, request);
+        }
+
+    } catch (const std::exception &err) {
+        spdlog::warn("{} {}", __PRETTY_FUNCTION__, err.what());
+        rp.deliver(make_error(xstudio_error::error, err.what()));
+    }
+}
+
+template <typename T>
+void ShotgunDataSourceActor<T>::get_precache(
+    caf::typed_response_promise<utility::JsonStore> rp,
+    const int project_id) {
+
+    // trigger precaching of lookup.
+    // we call into ourselves sigh..
+    auto count = std::make_shared<int>(0);
+    const auto &lookup = data_source_.engine().lookup();
+
+    std::set<std::string> need;
+
+    if(lookup.count(QueryEngine::cache_name("Department")))
+        need.insert("Department");
+    if(lookup.count(QueryEngine::cache_name("User")))
+        need.insert("User");
+    if(lookup.count(QueryEngine::cache_name("Pipeline Status")))
+        need.insert("Pipeline Status");
+    if(lookup.count(QueryEngine::cache_name("Production Status")))
+        need.insert("Production Status");
+    if(lookup.count(QueryEngine::cache_name("Shot Status")))
+        need.insert("Shot Status");
+    if(lookup.count(QueryEngine::cache_name("Unit", project_id)))
+        need.insert("Unit");
+    if(lookup.count(QueryEngine::cache_name("Playlist", project_id)))
+        need.insert("Playlist");
+    if(lookup.count(QueryEngine::cache_name("Shot", project_id)))
+        need.insert("Shot");
+    if(lookup.count(QueryEngine::cache_name("Sequence", project_id)))
+        need.insert("Sequence");
+
+    if(need.empty()) {
+        rp.deliver(utility::JsonStore());
+    } else {
+        (*count) = need.size();
+
+        if(need.count("Department")) {
+            auto req = JsonStore(GetData);
+            req["type"] = "department";
+            request(caf::actor_cast<caf::actor>(this), infinite, get_data_atom_v, req).then(
+                [=](const JsonStore &) mutable {
+                    (*count) = (*count) -1;
+                    if(not (*count))
+                        rp.deliver(utility::JsonStore());
+                },
+                [=](error &err) mutable {
+                    (*count) = (*count) -1;
+                    if(not (*count))
+                        rp.deliver(err);
+                }
+            );
+        }
+
+        if(need.count("User")) {
+            auto req = JsonStore(GetData);
+            req["type"] = "user";
+            request(caf::actor_cast<caf::actor>(this), infinite, get_data_atom_v, req).then(
+                [=](const JsonStore &) mutable {
+                    (*count) = (*count) -1;
+                    if(not (*count))
+                        rp.deliver(utility::JsonStore());
+                },
+                [=](error &err) mutable {
+                    (*count) = (*count) -1;
+                    if(not (*count))
+                        rp.deliver(err);
+                }
+            );
+        }
+
+        if(need.count("Pipeline Status")) {
+            auto req = JsonStore(GetData);
+            req["type"] = "pipeline_status";
+            request(caf::actor_cast<caf::actor>(this), infinite, get_data_atom_v, req).then(
+                [=](const JsonStore &) mutable {
+                    (*count) = (*count) -1;
+                    if(not (*count))
+                        rp.deliver(utility::JsonStore());
+                },
+                [=](error &err) mutable {
+                    (*count) = (*count) -1;
+                    if(not (*count))
+                        rp.deliver(err);
+                }
+            );
+        }
+
+        if(need.count("Production Status")) {
+            auto req = JsonStore(GetData);
+            req["type"] = "production_status";
+            request(caf::actor_cast<caf::actor>(this), infinite, get_data_atom_v, req).then(
+                [=](const JsonStore &) mutable {
+                    (*count) = (*count) -1;
+                    if(not (*count))
+                        rp.deliver(utility::JsonStore());
+                },
+                [=](error &err) mutable {
+                    (*count) = (*count) -1;
+                    if(not (*count))
+                        rp.deliver(err);
+                }
+            );
+        }
+
+        if(need.count("Shot Status")) {
+            auto req = JsonStore(GetData);
+            req["type"] = "shot_status";
+            request(caf::actor_cast<caf::actor>(this), infinite, get_data_atom_v, req).then(
+                [=](const JsonStore &) mutable {
+                    (*count) = (*count) -1;
+                    if(not (*count))
+                        rp.deliver(utility::JsonStore());
+                },
+                [=](error &err) mutable {
+                    (*count) = (*count) -1;
+                    if(not (*count))
+                        rp.deliver(err);
+                }
+            );
+        }
+
+        if(need.count("Unit")) {
+            auto req = JsonStore(GetData);
+            req["type"] = "unit";
+            req["project_id"] = project_id;
+            request(caf::actor_cast<caf::actor>(this), infinite, get_data_atom_v, req).then(
+                [=](const JsonStore &) mutable {
+                    (*count) = (*count) -1;
+                    if(not (*count))
+                        rp.deliver(utility::JsonStore());
+                },
+                [=](error &err) mutable {
+                    (*count) = (*count) -1;
+                    if(not (*count))
+                        rp.deliver(err);
+                }
+            );
+        }
+
+        if(need.count("Playlist")) {
+            auto req = JsonStore(GetData);
+            req["type"] = "playlist";
+            req["project_id"] = project_id;
+            request(caf::actor_cast<caf::actor>(this), infinite, get_data_atom_v, req).then(
+                [=](const JsonStore &) mutable {
+                    (*count) = (*count) -1;
+                    if(not (*count))
+                        rp.deliver(utility::JsonStore());
+                },
+                [=](error &err) mutable {
+                    (*count) = (*count) -1;
+                    if(not (*count))
+                        rp.deliver(err);
+                }
+            );
+        }
+
+        if(need.count("Shot")) {
+            auto req = JsonStore(GetData);
+            req["type"] = "shot";
+            req["project_id"] = project_id;
+            request(caf::actor_cast<caf::actor>(this), infinite, get_data_atom_v, req).then(
+                [=](const JsonStore &) mutable {
+                    (*count) = (*count) -1;
+                    if(not (*count))
+                        rp.deliver(utility::JsonStore());
+                },
+                [=](error &err) mutable {
+                    (*count) = (*count) -1;
+                    if(not (*count))
+                        rp.deliver(err);
+                }
+            );
+        }
+
+        if(need.count("Sequence")) {
+            auto req = JsonStore(GetData);
+            req["type"] = "sequence";
+            req["project_id"] = project_id;
+            request(caf::actor_cast<caf::actor>(this), infinite, get_data_atom_v, req).then(
+                [=](const JsonStore &) mutable {
+                    (*count) = (*count) -1;
+                    if(not (*count))
+                        rp.deliver(utility::JsonStore());
+                },
+                [=](error &err) mutable {
+                    (*count) = (*count) -1;
+                    if(not (*count))
+                        rp.deliver(err);
+                }
+            );
+        }
+    }
 }

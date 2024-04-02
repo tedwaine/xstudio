@@ -2,17 +2,6 @@
     "plugin": {
         "data_source": {
             "shotgun": {
-                "disable_integration": {
-                    "context": [
-                        "APPLICATION"
-                    ],
-                    "datatype": "bool",
-                    "default_value": false,
-                    "description": "Disable integration.",
-                    "path": "/plugin/data_source/shotgun/disable_integration",
-                    "value": false
-                },
-
                 "authentication": {
                     "client_id": {
                         "context": [

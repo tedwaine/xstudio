@@ -73,7 +73,7 @@ TextField { id: widget
     }
 
     XsSecondaryButton{ id: clearBtn
-        width: 16 
+        width: visible? 16 : 0
         height: 16
         anchors.right: parent.right
         anchors.rightMargin: 6

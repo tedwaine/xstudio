@@ -1,38 +1,58 @@
-// SPDX-License-Identifier: Apache-2.0
 import xstudio.qml.models 1.0
 import xStudioReskin 1.0
+import QtQml.Models 2.14
 
-XsMenuNew {
+XsPopupMenu {
 
     id: timelineMenu
-    menu_model: timelineMenuModel
-    menu_model_index: timelineMenuModel.index(-1, -1)
+    visible: false
+    menu_model_name: "timeline_menu_"
 
-    property var timelinePanel
+    property var panelContext: helpers.contextPanel(timelineMenu)
+    property var theTimeline: panelContext.theTimeline
+    property var timelineSelection: theTimeline.timelineSelection
+    property var timelineFocusSelection: theTimeline.timelineFocusSelection
 
-    XsMenusModel {
-        id: timelineMenuModel
+    // XsMenusModel {
+    //     id: timelineMenuModel
 
-        // N.B. appending 'timelineMenu' means we have a unique menu model for each 
-        // instance of the XsTimelineMenu. This is important because we could
-        // have multiple timeline instances, each with its own XsTimelineMenu...
-        // Menu events like 'activated' are passed through the backend model
-        // and therefore when they come back up to the UI layer, if we didn't
-        // have unique models per timeline panel, the 'onActivated' would be
-        // trigged on multiple instances of the correspondin XsMenuModelItem.
-        modelDataName: "timelineMenu" + timelineMenu 
-        onJsonChanged: {
-            timelineMenu.menu_model_index = index(-1, -1)
+    //     // N.B. appending 'timelineMenu' means we have a unique menu model for each
+    //     // instance of the XsTimelineMenu. This is important because we could
+    //     // have multiple timeline instances, each with its own XsTimelineMenu...
+    //     // Menu events like 'activated' are passed through the backend model
+    //     // and therefore when they come back up to the UI layer, if we didn't
+    //     // have unique models per timeline panel, the 'onActivated' would be
+    //     // trigged on multiple instances of the correspondin XsMenuModelItem.
+    //     modelDataName: "timelineMenu" + timelineMenu
+    //     onJsonChanged: {
+    //         timelineMenu.menu_model_index = index(-1, -1)
+    //     }
+    // }
+    XsMenuModelItem {
+        text: qsTr("Dump JSON")
+        menuPath: ""
+        menuItemPosition: 0.5
+        menuModelName: timelineMenu.menu_model_name
+        onActivated: {
+            for(let i=0;i<timelineSelection.selectedIndexes.length;i++) {
+                console.log(timelineSelection.selectedIndexes[i])
+                console.log(timelineSelection.selectedIndexes[i].model)
+                console.log(timelineSelection.selectedIndexes[i].model.get(timelineSelection.selectedIndexes[i], "jsonTextRole"))
+            }
         }
     }
+
 
     XsMenuModelItem {
         text: qsTr("Set Focus")
         menuPath: ""
         menuItemPosition: 1
-        menuModelName: timelineMenuModel.modelDataName
+        menuModelName: timelineMenu.menu_model_name
         onActivated: {
-            timelineFocusSelection.select(helpers.createItemSelection(timelineSelection.selectedIndexes), ItemSelectionModel.ClearAndSelect)
+            timelineFocusSelection.select(
+                helpers.createItemSelection(timelineSelection.selectedIndexes),
+                ItemSelectionModel.ClearAndSelect
+            )
         }
     }
 
@@ -40,20 +60,20 @@ XsMenuNew {
         text: qsTr("Clear Focus")
         menuPath: ""
         menuItemPosition: 2
-        menuModelName: timelineMenuModel.modelDataName
+        menuModelName: timelineMenu.menu_model_name
         onActivated: {
             timelineFocusSelection.clear()
         }
     }
-    
+
     XsMenuModelItem {
         text: qsTr("Move Left")
         menuPath: ""
         menuItemPosition: 3
-        menuModelName: timelineMenuModel.modelDataName
+        menuModelName: timelineMenu.menu_model_name
         onActivated: {
             if(timelineSelection.selectedIndexes.length) {
-                timelinePanel.moveItem(timelineSelection.selectedIndexes[0], -1)
+                theTimeline.moveItem(timelineSelection.selectedIndexes[0], -1)
             }
         }
     }
@@ -62,10 +82,10 @@ XsMenuNew {
         text: qsTr("Move Right")
         menuPath: ""
         menuItemPosition: 4
-        menuModelName: timelineMenuModel.modelDataName
+        menuModelName: timelineMenu.menu_model_name
         onActivated: {
             if(timelineSelection.selectedIndexes.length) {
-                timelinePanel.moveItem(timelineSelection.selectedIndexes[0], 1)
+                theTimeline.moveItem(timelineSelection.selectedIndexes[0], 1)
             }
         }
     }
@@ -74,96 +94,96 @@ XsMenuNew {
         text: qsTr("Jump to Start")
         menuPath: ""
         menuItemPosition: 4
-        menuModelName: timelineMenuModel.modelDataName
-        onActivated: timelinePanel.jumpToStart()
+        menuModelName: timelineMenu.menu_model_name
+        onActivated: theTimeline.jumpToStart()
     }
 
     XsMenuModelItem {
         text: qsTr("Jump to End")
         menuPath: ""
         menuItemPosition: 4
-        menuModelName: timelineMenuModel.modelDataName
-        onActivated: timelinePanel.jumpToEnd()
+        menuModelName: timelineMenu.menu_model_name
+        onActivated: theTimeline.jumpToEnd()
     }
 
     XsMenuModelItem {
         text: qsTr("Align Left")
         menuPath: ""
         menuItemPosition: 5
-        menuModelName: timelineMenuModel.modelDataName
-        onActivated: timelinePanel.leftAlignItems(timelineSelection.selectedIndexes)
+        menuModelName: timelineMenu.menu_model_name
+        onActivated: theTimeline.leftAlignItems(timelineSelection.selectedIndexes)
     }
 
     XsMenuModelItem {
         text: qsTr("Align Right")
         menuPath: ""
         menuItemPosition: 6
-        menuModelName: timelineMenuModel.modelDataName
-        onActivated: timelinePanel.rightAlignItems(timelineSelection.selectedIndexes)
+        menuModelName: timelineMenu.menu_model_name
+        onActivated: theTimeline.rightAlignItems(timelineSelection.selectedIndexes)
     }
 
     XsMenuModelItem {
         text: qsTr("Move Range")
         menuPath: ""
         menuItemPosition: 7
-        menuModelName: timelineMenuModel.modelDataName
-        onActivated: timelinePanel.moveItemFrames(timelineSelection.selectedIndexes[0], 0, 20, 40, true)
+        menuModelName: timelineMenu.menu_model_name
+        onActivated: theTimeline.moveItemFrames(timelineSelection.selectedIndexes[0], 0, 20, 40, true)
     }
 
     XsMenuModelItem {
         text: qsTr("Delete")
         menuPath: ""
         menuItemPosition: 8
-        menuModelName: timelineMenuModel.modelDataName
-        onActivated: timelinePanel.deleteItems(timelineSelection.selectedIndexes)
+        menuModelName: timelineMenu.menu_model_name
+        onActivated: theTimeline.deleteItems(timelineSelection.selectedIndexes)
     }
 
     XsMenuModelItem {
         text: qsTr("Delete Range")
         menuPath: ""
         menuItemPosition: 9
-        menuModelName: timelineMenuModel.modelDataName
-        onActivated: timelinePanel.deleteItemFrames(timelineSelection.selectedIndexes[0], 10, 20)
+        menuModelName: timelineMenu.menu_model_name
+        onActivated: theTimeline.deleteItemFrames(timelineSelection.selectedIndexes[0], 10, 20)
     }
 
     XsMenuModelItem {
         text: qsTr("Undo")
         menuPath: ""
         menuItemPosition: 10
-        menuModelName: timelineMenuModel.modelDataName
-        onActivated: timelinePanel.undo(viewedMediaSetProperties.index)
+        menuModelName: timelineMenu.menu_model_name
+        onActivated: theTimeline.undo(viewedMediaSetProperties.index)
     }
 
     XsMenuModelItem {
         text: qsTr("Redo")
         menuPath: ""
         menuItemPosition: 11
-        menuModelName: timelineMenuModel.modelDataName
-        onActivated: timelinePanel.redo(viewedMediaSetProperties.index)
+        menuModelName: timelineMenu.menu_model_name
+        onActivated: theTimeline.redo(viewedMediaSetProperties.index)
     }
 
     XsMenuModelItem {
         text: qsTr("Enable")
         menuPath: ""
         menuItemPosition: 12
-        menuModelName: timelineMenuModel.modelDataName
-        onActivated: timelinePanel.enableItems(timelineSelection.selectedIndexes, true)
+        menuModelName: timelineMenu.menu_model_name
+        onActivated: theTimeline.enableItems(timelineSelection.selectedIndexes, true)
     }
 
     XsMenuModelItem {
         text: qsTr("Disable")
         menuPath: ""
         menuItemPosition: 12
-        menuModelName: timelineMenuModel.modelDataName
-        onActivated: timelinePanel.enableItems(timelineSelection.selectedIndexes, false)
+        menuModelName: timelineMenu.menu_model_name
+        onActivated: theTimeline.enableItems(timelineSelection.selectedIndexes, false)
     }
 
     XsMenuModelItem {
         text: qsTr("Add Media")
         menuPath: ""
         menuItemPosition: 13
-        menuModelName: timelineMenuModel.modelDataName
-        onActivated: timelinePanel.addClip(
+        menuModelName: timelineMenu.menu_model_name
+        onActivated: theTimeline.addClip(
                 timelineSelection.selectedIndexes[0].parent, timelineSelection.selectedIndexes[0].row,
                 viewedMediaSetIndex
             )
@@ -173,19 +193,19 @@ XsMenuNew {
         text: qsTr("Add Gap")
         menuPath: ""
         menuItemPosition: 14
-        menuModelName: timelineMenuModel.modelDataName
-        onActivated: timelinePanel.addGap(timelineSelection.selectedIndexes[0].parent, timelineSelection.selectedIndexes[0].row)
+        menuModelName: timelineMenu.menu_model_name
+        onActivated: theTimeline.addGap(timelineSelection.selectedIndexes[0].parent, timelineSelection.selectedIndexes[0].row)
     }
 
     XsMenuModelItem {
         text: qsTr("Split")
         menuPath: ""
         menuItemPosition: 15
-        menuModelName: timelineMenuModel.modelDataName
+        menuModelName: timelineMenu.menu_model_name
         onActivated: {
             if(timelineSelection.selectedIndexes.length) {
                 let index = timelineSelection.selectedIndexes[0]
-                timelinePanel.splitClip(index, theSessionData.get(index, "trimmedStartRole") + (theSessionData.get(index, "trimmedDurationRole") /2))
+                theTimeline.splitClip(index, theSessionData.get(index, "trimmedStartRole") + (theSessionData.get(index, "trimmedDurationRole") /2))
             }
         }
     }
@@ -194,7 +214,7 @@ XsMenuNew {
         text: qsTr("Duplicate")
         menuPath: ""
         menuItemPosition: 16
-        menuModelName: timelineMenuModel.modelDataName
+        menuModelName: timelineMenu.menu_model_name
         onActivated: {
             let indexes = timelineSelection.selectedIndexes
             for(let i=0;i<indexes.length; i++) {
@@ -207,7 +227,7 @@ XsMenuNew {
         text: qsTr("Change Name")
         menuPath: ""
         menuItemPosition: 16
-        menuModelName: timelineMenuModel.modelDataName
+        menuModelName: timelineMenu.menu_model_name
         onActivated: {
             let indexes = timelineSelection.selectedIndexes
             for(let i=0;i<indexes.length; i++) {
@@ -222,7 +242,7 @@ XsMenuNew {
         text: qsTr("Add Item")
         menuPath: ""
         menuItemPosition: 17
-        menuModelName: timelineMenuModel.modelDataName
+        menuModelName: timelineMenu.menu_model_name
         onActivated: {
             if(timelineSelection.selectedIndexes.length) {
                 new_item_dialog.insertion_parent = timelineSelection.selectedIndexes[0].parent

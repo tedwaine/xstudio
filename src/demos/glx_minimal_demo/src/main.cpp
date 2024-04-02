@@ -127,7 +127,7 @@ class GLXWindowViewportActor : public caf::event_based_actor {
 
             // this is crucial for video refresh sync, the viewport
             // needs to know when the image was put on the screen
-            viewport_renderer->framebuffer_swapped(utility::clock::now());
+            viewport_renderer->framebuffer_swapped();
         }
 
         glXMakeCurrent(display, 0, 0); // releases the context so that this function can be
@@ -215,8 +215,7 @@ void GLXWindowViewportActor::resizeGL(int w, int h) {
         Imath::V2f(w, 0),
         Imath::V2f(w, h),
         Imath::V2f(0, h),
-        Imath::V2i(w, h),
-        1.0f);
+        Imath::V2i(w, h));
 }
 
 int main(int argc, char *argv[]) {
@@ -302,6 +301,7 @@ int main(int argc, char *argv[]) {
         viewport_actor,
         std::chrono::milliseconds(2000),
         viewport::viewport_playhead_atom_v,
+        "viewport0",
         playhead);
 
     // start playback

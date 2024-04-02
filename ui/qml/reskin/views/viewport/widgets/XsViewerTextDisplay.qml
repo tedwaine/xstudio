@@ -9,16 +9,20 @@ import xStudioReskin 1.0
 import xstudio.qml.models 1.0
 
 Rectangle {
+
     id: widget
     color: isActive? Qt.darker(palette.highlight,2) : palette.base
     border.color: isHovered? palette.highlight : "transparent"
+    property var fontFamily: XsStyleSheet.fontFamily
+    property var fontSize: XsStyleSheet.fontSize
 
     property alias text: textDiv.text
     property color textColor: palette.highlight
     property bool isHovered: mArea.containsMouse
     property bool isActive: btnMenu.visible
-    
-    property alias modelDataName: btnMenuModel.modelDataName
+    property alias textWidth: textDiv.textWidth
+
+    property var modelDataName
     property alias menuWidth: btnMenu.menuWidth 
 
     XsText {
@@ -28,6 +32,8 @@ Rectangle {
         width: parent.width
         anchors.centerIn: parent
         tooltipVisibility: isHovered && textDiv.truncated
+        font.family: widget.fontFamily
+        font.pixelSize: widget.fontSize
     }
 
     MouseArea{
@@ -41,17 +47,10 @@ Rectangle {
         }
     }
 
-    XsMenuNew { 
+    XsPopupMenu { 
         id: btnMenu
         visible: false
-        menu_model: btnMenuModel
-        menu_model_index: btnMenuModel.index(0, 0, btnMenuModel.index(-1, -1))
+        menu_model_name: widget.modelDataName        
     }
-    XsMenusModel {
-        id: btnMenuModel
-        modelDataName: ""
-        onJsonChanged: {
-            btnMenu.menu_model_index = btnMenuModel.index(0, 0, btnMenuModel.index(-1, -1))
-        }
-    }
+
 }

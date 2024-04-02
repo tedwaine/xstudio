@@ -20,13 +20,13 @@ XsMultiWidget {
     XsModelProperty {
         id: timeline_units_pref
         role: "valueRole"
-        index: app_window.globalStoreModel.search_recursive("/ui/qml/timeline_units", "pathRole")
+        index: app_window.globalStoreModel.searchRecursive("/ui/qml/timeline_units", "pathRole")
     }
 
     XsModelProperty {
         id: timeline_indicator_pref
         role: "valueRole"
-        index: app_window.globalStoreModel.search_recursive("/ui/qml/timeline_indicator", "pathRole")
+        index: app_window.globalStoreModel.searchRecursive("/ui/qml/timeline_indicator", "pathRole")
         onValueChanged: {
             if (value == "Duration") {
                 selected = 0

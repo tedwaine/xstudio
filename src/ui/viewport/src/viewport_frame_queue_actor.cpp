@@ -92,6 +92,14 @@ ViewportFrameQueueActor::ViewportFrameQueueActor(
                 demonitor(playhead_);
             playhead_ = playhead;
             monitor(playhead_);
+
+            // this message will make the playhead re-broadcaset the media_source_atom
+            // event to it's 'broacast' group (of which we are a member). This info
+            // from the playhead is received in a message handler below and we
+            // send on the info about the media source to our colour pipeline
+            // which needs to do some set-up.
+            send(playhead_, playhead::media_source_atom_v, true, true);
+
             return rp;
         },
 
@@ -190,6 +198,29 @@ ViewportFrameQueueActor::ViewportFrameQueueActor(
             }
 
             return rp;
+        },
+
+        [=](viewport_get_next_frames_for_display_atom, const bool force_sync)
+            -> result<std::vector<media_reader::ImageBufPtr>> {
+            auto rp = make_response_promise<std::vector<media_reader::ImageBufPtr>>();
+            if (!force_sync || !playhead_) {
+                // here the result is based on the frames that the playhead is
+                // broadcasting asynchronously to us
+                rp.delegate(caf::actor_cast<caf::actor>(this), viewport_get_next_frames_for_display_atom_v);                
+            } else {
+                // in 'force_sync' mode we request and wait for the playhead
+                // to read the current frame
+                request(playhead_, infinite, playhead::buffer_atom_v).then(
+                    [=](const media_reader::ImageBufPtr & buf) mutable {
+                        std::vector<media_reader::ImageBufPtr> r({buf});
+                        update_image_blind_data_and_deliver(r[0], rp);
+                    },
+                    [=](caf::error &err) mutable {
+                        rp.deliver(err);
+                    });
+            }
+            return rp;
+
         },
 
         [=](utility::event_atom,
@@ -459,9 +490,7 @@ timebase::flicks ViewportFrameQueueActor::predicted_playhead_position_at_next_vi
         return timebase::flicks(0);
 
     const timebase::flicks video_refresh_period     = compute_video_refresh();
-
     const utility::time_point next_video_refresh_tp = next_video_refresh(video_refresh_period);
-
 
     caf::scoped_actor sys(system());
     try {
@@ -502,7 +531,6 @@ timebase::flicks ViewportFrameQueueActor::predicted_playhead_position_at_next_vi
             timebase::to_seconds(video_refresh_period);
 
         if (phase < 0.1 || phase > 0.9) {
-            
             playhead_vid_sync_phase_adjust_ = timebase::flicks(
                 video_refresh_period.count() / 2 -
                 estimate_playhead_position_at_next_redraw.count() +
@@ -514,18 +542,6 @@ timebase::flicks ViewportFrameQueueActor::predicted_playhead_position_at_next_vi
             rounded_phase_adjusted_tp = timebase::flicks(
                 video_refresh_period.count() *
                 (phase_adjusted_tp.count() / video_refresh_period.count()));
-
-            {
-                timebase::flicks phase_adjusted_tp =
-                    estimate_playhead_position_at_next_redraw + playhead_vid_sync_phase_adjust_;
-                timebase::flicks rounded_phase_adjusted_tp = timebase::flicks(
-                    video_refresh_period.count() *
-                    (phase_adjusted_tp.count() / video_refresh_period.count()));
-                const double phase =
-                    timebase::to_seconds(phase_adjusted_tp - rounded_phase_adjusted_tp) /
-                    timebase::to_seconds(video_refresh_period);
-
-            }
         }
         return rounded_phase_adjusted_tp;
 
@@ -544,64 +560,10 @@ xstudio::utility::time_point ViewportFrameQueueActor::next_video_refresh(
     // and then make up an appropriate refresh time if we need to.
     utility::time_point last_vid_refresh;
     if (video_refresh_data_.refresh_history_.empty()) {
-
         last_vid_refresh =
             utility::clock::now() -
             std::chrono::duration_cast<std::chrono::microseconds>(video_refresh_period);
-
-    } else if (video_refresh_data_.refresh_history_.size() > 64) {
-
-        // refresh_history_ is a list of recent timepoints (system steady clock) when we were 
-        // told (utlimately by Qt or graphics driver) that the video frame buffer was swapped. 
-        // We're using this data to predict when the video buffer will be swapped to the 
-        // screen NEXT time and therefore pick the correct frame to go up on the screen.
-        //
-        // We might know the video refresh exactly, or we might have been lied to, but either
-        // way we need to know the phase of the refresh beat to predict when the next refresh
-        // is due. So we need to fit a line to the video refresh events (as measured by the
-        // system clock) and filter out events that are innaccurate and also take account
-        // of moments when a video refresh was missed completely.
-
-
-        // average cadence of video refresh...
-        const double expected_video_refresh_period = average_video_refresh_period();
-
-        // Here we are essentially fitting a straight line to the video refresh event 
-        // timepoints - we use the line to predict when the next video refresh is
-        // going to happen.
-        auto now = utility::clock::now();
-        double next_refresh = 0.0;
-        double refresh_event_index = 1.0;
-        double estimate_count = 0.0;
-        auto p = video_refresh_data_.refresh_history_.rbegin();
-        auto p2 = p;
-        p2++;
-        while (p2 != video_refresh_data_.refresh_history_.rend()) {
-
-            // period between subsequent video refreshes
-            auto delta = std::chrono::duration_cast<timebase::flicks>(*p - *p2);
-
-            // how many whole video refresh beats is this? It's possible that sometimes
-            // a redraw doesn't happen within the video refresh period. We need to take
-            // account of that when using the timepoints of video refreshes to predict
-            // the next refresh
-            double n_refreshes_between_events = round(timebase::to_seconds(delta)/expected_video_refresh_period);
-
-            auto estimate_refresh = timebase::to_seconds(std::chrono::duration_cast<timebase::flicks>(*p-now)) + refresh_event_index*expected_video_refresh_period;
-            next_refresh += estimate_refresh;
-            estimate_count++;
-            p++;
-            p2++;
-            refresh_event_index += n_refreshes_between_events;
-        }
-
-        next_refresh *= 1.0/estimate_count;
-        auto offset = std::chrono::duration_cast<std::chrono::microseconds>(timebase::to_flicks(next_refresh));
-        auto result = now + offset;
-        return result;
-
     } else {
-
         if (std::chrono::duration_cast<timebase::flicks>(
                 utility::clock::now() - video_refresh_data_.last_video_refresh_) <
             timebase::k_flicks_one_fifteenth_second) {
@@ -625,6 +587,27 @@ timebase::flicks ViewportFrameQueueActor::compute_video_refresh() const {
 
     } else if (video_refresh_data_.refresh_history_.size() > 64) {
 
+        // Here, take the delta time between subsequent video refresh messages
+        // and take the average. Ignore the lowest 8 and highest 8 deltas ..
+        std::vector<timebase::flicks> deltas;
+        deltas.reserve(video_refresh_data_.refresh_history_.size());
+        auto p  = video_refresh_data_.refresh_history_.begin();
+        auto pp = p;
+        pp++;
+        while (pp != video_refresh_data_.refresh_history_.end()) {
+            deltas.push_back(std::chrono::duration_cast<timebase::flicks>(*pp - *p));
+            pp++;
+            p++;
+        }
+        std::sort(deltas.begin(), deltas.end());
+
+        auto r = deltas.begin() + 8;
+        int ct = deltas.size() - 16;
+        timebase::flicks t(0);
+        while (ct--) {
+            t += *(r++);
+        }
+
         // This measurement of the refresh rate is only accurate if the UI layer
         // (probably Qt) is giving us time-accurate signals when the GLXSwapBuffers
         // call completes. Also the assumption is that the UI redraw is limited to
@@ -633,8 +616,8 @@ timebase::flicks ViewportFrameQueueActor::compute_video_refresh() const {
         // Here we try to match out measurement with commong video refresh rates:
 
         // Assume 24fps is the minimum refresh we'll ever encounter
-        const int hertz_refresh = std::max(24, int(round(1.0/average_video_refresh_period())));
-
+        const int hertz_refresh =
+            std::max(24, int(round(float(deltas.size() - 16)) / timebase::to_seconds(t)));
         static const std::vector<int> common_refresh_rates(
             {24, 25, 30, 48, 60, 75, 90, 120, 144, 240, 360});
         auto match = std::lower_bound(
@@ -646,31 +629,4 @@ timebase::flicks ViewportFrameQueueActor::compute_video_refresh() const {
 
     // default fallback to 60Hz
     return timebase::k_flicks_one_sixtieth_second;
-}
-
-double ViewportFrameQueueActor::average_video_refresh_period() const {
-
-    // Here, take the delta time between subsequent video refresh messages
-    // and take the average. Ignore the lowest 8 and highest 8 deltas ..
-    std::vector<timebase::flicks> deltas;
-    deltas.reserve(video_refresh_data_.refresh_history_.size());
-    auto p  = video_refresh_data_.refresh_history_.begin();
-    auto pp = p;
-    pp++;
-    while (pp != video_refresh_data_.refresh_history_.end()) {
-        deltas.push_back(std::chrono::duration_cast<timebase::flicks>(*pp - *p));
-        pp++;
-        p++;
-    }
-    std::sort(deltas.begin(), deltas.end());
-
-    auto r = deltas.begin() + 8;
-    int ct = deltas.size() - 16;
-    timebase::flicks t(0);
-    while (ct--) {
-        t += *(r++);
-    }
-
-    return timebase::to_seconds(t)/(double(deltas.size() - 16));
-
 }

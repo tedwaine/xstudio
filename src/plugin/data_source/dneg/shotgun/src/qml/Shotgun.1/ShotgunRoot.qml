@@ -206,7 +206,7 @@ Item {
     XsModelProperty {
         id: project_id_preference
         role: "valueRole"
-        index: app_window.globalStoreModel.search_recursive("/plugin/data_source/shotgun/project_id", "pathRole")
+        index: app_window.globalStoreModel.searchRecursive("/plugin/data_source/shotgun/project_id", "pathRole")
     }
 
     property alias currentCategory: context_preference.value
@@ -214,13 +214,13 @@ Item {
     XsModelProperty {
         id: context_preference
         role: "valueRole"
-        index: app_window.globalStoreModel.search_recursive("/plugin/data_source/shotgun/context", "pathRole")
+        index: app_window.globalStoreModel.searchRecursive("/plugin/data_source/shotgun/context", "pathRole")
     }
 
     XsModelProperty {
         id: location_preference
         role: "valueRole"
-        index: app_window.globalStoreModel.search_recursive("/plugin/data_source/shotgun/location", "pathRole")
+        index: app_window.globalStoreModel.searchRecursive("/plugin/data_source/shotgun/location", "pathRole")
     }
 
     Component.onCompleted: {
@@ -575,7 +575,7 @@ Item {
 
             if(parent == app_window.sessionModel.index(0, 0)) {
                 connection_delay_timer.setTimeout(function(){
-                    let playlists = app_window.sessionModel.search_list("Playlist", "typeRole", app_window.sessionModel.index(0, 0), 0, -1, 1)
+                    let playlists = app_window.sessionModel.searchList("Playlist", "typeRole", app_window.sessionModel.index(0, 0), 0, -1, 1)
                     playlists.forEach(
                         function (item, index) {
                             processPlaylist(item)
@@ -605,7 +605,7 @@ Item {
         target: sessionWidget.playerWidget.viewport.playhead
         function onMediaUuidChanged(uuid) {
             if(browser.visible) {
-                let mindex = app_window.sessionModel.search_recursive(uuid, "actorUuidRole", app_window.sessionModel.index(0, 0))
+                let mindex = app_window.sessionModel.searchRecursive(uuid, "actorUuidRole", app_window.sessionModel.index(0, 0))
                 if(mindex.valid) {
                     Future.promise(
                         mindex.model.getJSONFuture(mindex, "")
@@ -707,6 +707,8 @@ Item {
         shotSearchFilterModelFunc: data_source.connected ? data_source.shotSearchFilterModel : null
         playlistModelFunc: data_source.connected ? data_source.playlistModel : null
 
+        newPresetsModel: data_source.connected ? data_source.presetsModel : null
+
         shotResultsModel: data_source.resultModels.shotResultsModel
         shotTreeResultsModel: data_source.resultModels.shotTreeResultsModel
         playlistResultsModel: data_source.resultModels.playlistResultsModel
@@ -743,6 +745,7 @@ Item {
         flagColour: data_source.flagColour
 
         executeQueryFunc: data_source.connected ? data_source.executeQuery : null
+        executeQueryNewFunc: data_source.connected ? data_source.executeQueryNew : null
         mergeQueriesFunc: data_source.connected ? data_source.mergeQueries : null
     }
 
@@ -1112,7 +1115,7 @@ Item {
     }
 
     function update_playlist_promise(data_source, playlist_uuid, name, error) {
-        let index = app_window.sessionModel.search_recursive(playlist_uuid, "actorUuidRole")
+        let index = app_window.sessionModel.searchRecursive(playlist_uuid, "actorUuidRole")
         index.model.set(index, true, "busyRole")
         Future.promise(
             data_source.updatePlaylistVersionsFuture(playlist_uuid)
@@ -1356,7 +1359,7 @@ Item {
                                 connection_delay_timer.setTimeout(function(){
                                     let indexs = XsUtils.cloneArray(app_window.mediaSelectionModel.selectedIndexes)
                                     for(let i=0;i<result.length; i++) {
-                                        let new_index = item.model.search_recursive(helpers.QVariantFromUuidString(result[i]), "actorUuidRole", item.parent)
+                                        let new_index = item.model.searchRecursive(helpers.QVariantFromUuidString(result[i]), "actorUuidRole", item.parent)
                                         indexs.push(new_index)
                                     }
                                     // order..
@@ -1469,7 +1472,7 @@ Item {
                 function(json_string) {
                     try {
                         var data = JSON.parse(json_string)
-                        let index =  sessionSelectionModel.model.search_recursive(uuid,"actorUuidRole")
+                        let index =  sessionSelectionModel.model.searchRecursive(uuid,"actorUuidRole")
                         app_window.sessionFunction.setActivePlaylist(index)
                         app_window.requestActivate()
                         app_window.raise()
@@ -1574,7 +1577,7 @@ Item {
                         let indexs = []
 
                         for(let i = 0; i< data.length; ++i) {
-                            indexs.push(app_window.mediaSelectionModel.model.search_recursive(helpers.QVariantFromUuidString(data[i]), "actorUuidRole"))
+                            indexs.push(app_window.mediaSelectionModel.model.searchRecursive(helpers.QVariantFromUuidString(data[i]), "actorUuidRole"))
                         }
 
                         app_window.mediaSelectionModel.select(helpers.createItemSelection(indexs), ItemSelectionModel.Select)
@@ -1654,7 +1657,7 @@ Item {
                         function(json_string) {
                             if(make_active) {
                                 var data = JSON.parse(json_string)
-                                let index =  sessionSelectionModel.model.search_recursive(uuid,"actorUuidRole")
+                                let index =  sessionSelectionModel.model.searchRecursive(uuid,"actorUuidRole")
 
                                 // add media uuid to selection and focus it.
                                 let mind = sessionSelectionModel.model.search("{"+data[0]+"}", "actorUuidRole", sessionSelectionModel.model.index(0,0, index))

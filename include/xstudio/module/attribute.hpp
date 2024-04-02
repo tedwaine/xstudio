@@ -22,6 +22,8 @@ namespace module {
             IntegerAttribute,
             StringChoiceAttribute,
             ColourAttribute,
+            Vec4fAttribute,
+            FloatVectorAttribute,
             JsonAttribute
         };
 
@@ -34,6 +36,8 @@ namespace module {
             {FloatAttribute, "FloatScrubber"},
             {ActionAttribute, "Action"},
             {ColourAttribute, "ColourAttribute"},
+            {Vec4fAttribute, "Vec4fAttribute"},
+            {FloatVectorAttribute, "FloatVectorAttribute"},
             {JsonAttribute, "JsonAttribute"}};
 
         enum Role {

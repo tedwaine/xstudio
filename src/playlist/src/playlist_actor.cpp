@@ -646,6 +646,11 @@ void PlaylistActor::init() {
                                             rp.deliver(true);
                                             for (auto i : media_actors) {
                                                 send(
+                                                    event_group_,
+                                                    utility::event_atom_v,
+                                                    add_media_atom_v,
+                                                    i);
+                                                send(
                                                     playlist_broadcast_,
                                                     utility::event_atom_v,
                                                     add_media_atom_v,
@@ -1079,6 +1084,10 @@ void PlaylistActor::init() {
         [=](utility::event_atom,
             bookmark::bookmark_change_atom,
             const utility::Uuid & /*bookmark_uuid*/) {},
+        [=](utility::event_atom,
+            bookmark::bookmark_change_atom,
+            const utility::Uuid &,
+            const utility::UuidList &) {},
         [=](utility::event_atom, media::media_status_atom, const media::MediaStatus ms) {},
 
         [=](utility::event_atom,
@@ -1176,6 +1185,38 @@ void PlaylistActor::init() {
                 return media_.at(uuid);
             return caf::actor();
         },
+
+        [=](media::get_media_source_atom,
+            const utility::Uuid &uuid,
+            bool return_null) -> result<caf::actor> {
+            auto rp = make_response_promise<caf::actor>();
+            // collect media data..
+            std::vector<caf::actor> actors;
+            for (const auto &i : media_)
+                actors.push_back(i.second);
+
+            fan_out_request<policy::select_all>(
+                actors, infinite, media::get_media_source_atom_v, uuid, true)
+                .then(
+                    [=](const std::vector<caf::actor> matching_sources) mutable {
+                        for (auto &a : matching_sources) {
+                            if (a) {
+                                rp.deliver(a);
+                                return;
+                            }
+                        }
+                        if (return_null) {
+                            rp.deliver(caf::actor());
+                        } else {
+                            rp.deliver(
+                                make_error(xstudio_error::error, "No matching media source"));
+                        }
+                    },
+                    [=](caf::error &err) mutable { rp.deliver(err); });
+
+            return rp;
+        },
+
 
         [=](get_next_media_atom,
             const utility::Uuid &after_this_uuid,
@@ -1402,6 +1443,22 @@ void PlaylistActor::init() {
             playhead_ = UuidActor(uuid, actor);
             monitor(actor);
             base_.send_changed(event_group_, this);
+
+            // have we actually selected anything for initial view/playback?
+            // If not, make the selection actor select something
+            request(selection_actor_, infinite, playhead::get_selection_atom_v)
+                .then(
+                    [=](const UuidList &selection) {
+                        if (!selection.size()) {
+                            // by sending an empty list this will force the
+                            // selection actor to select the first item in this playlist
+                            anon_send(
+                                selection_actor_, playlist::select_media_atom_v, UuidList());
+                        }
+                    },
+                    [=](error &err) mutable {
+                        spdlog::warn("{} {}", __PRETTY_FUNCTION__, to_string(err));
+                    });
             return playhead_;
         },
 
@@ -1719,11 +1776,15 @@ void PlaylistActor::init() {
         [=](utility::event_atom, playlist::move_media_atom, const UuidVector &, const Uuid &) {
         },
 
+        [=](utility::event_atom,
+            media_reader::get_thumbnail_atom,
+            const thumbnail::ThumbnailBufferPtr &buf) {},
+
         [=](utility::event_atom, utility::change_atom) {
             // one of our media changed..
             // this gets spammy...
             // buffer it ?
-            send_content_changed_event();
+            // send_content_changed_event();
         },
 
         // watch for events...
@@ -1920,7 +1981,8 @@ void PlaylistActor::add_media(
                     open_media_reader(ua.actor());
             },
             [=](error &err) mutable {
-                spdlog::warn("{} {} {}", __PRETTY_FUNCTION__, to_string(err), to_string(ua.actor()));
+                spdlog::warn(
+                    "{} {} {}", __PRETTY_FUNCTION__, to_string(err), to_string(ua.actor()));
                 send_content_changed_event();
                 base_.send_changed(event_group_, this);
                 rp.deliver(ua);

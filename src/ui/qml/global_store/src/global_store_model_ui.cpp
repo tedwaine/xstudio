@@ -140,13 +140,13 @@ bool GlobalStoreModel::updateProperty(
     const std::string &path, const utility::JsonStore &change) {
     auto result = false;
     auto index =
-        search_recursive(QVariant::fromValue(QStringFromStd(path)), QString("pathRole"));
+        searchRecursive(QVariant::fromValue(QStringFromStd(path)), QString("pathRole"));
 
     try {
         // single term update
         //  should handle more that value...
         if (not index.isValid() and ends_with(path, "/value")) {
-            index = search_recursive(
+            index = searchRecursive(
                 QVariant::fromValue(QStringFromStd(path.substr(0, path.find_last_of('/')))),
                 QString("pathRole"));
             if (index.isValid()) {
@@ -201,8 +201,9 @@ bool GlobalStoreModel::updateProperty(
 
 // convert to internal representation.
 nlohmann::json GlobalStoreModel::storeToTree(const nlohmann::json &src) {
-    
+
     auto result = R"([])"_json;
+
     for (const auto &[k, v] : src.items()) {
         if (v.count("datatype")) {
             // spdlog::warn("{}", v.dump(2));
@@ -217,7 +218,6 @@ nlohmann::json GlobalStoreModel::storeToTree(const nlohmann::json &src) {
 
     return result;
 }
-
 
 QVariant GlobalStoreModel::data(const QModelIndex &index, int role) const {
     auto result = QVariant();

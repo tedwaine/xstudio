@@ -129,10 +129,7 @@ AnnotationsButton {
 
 
     active_tool_ = add_string_choice_attribute(
-        "Active Tool",
-        "Active Tool",
-        utility::map_value_to_vec(tool_names_).front(),
-        utility::map_value_to_vec(tool_names_));
+        "Active Tool", "Active Tool", "None", utility::map_value_to_vec(tool_names_));
 
     active_tool_->expose_in_ui_attrs_group(tools_group);
     active_tool_->expose_in_ui_attrs_group(tool_types_group);
@@ -183,6 +180,31 @@ AnnotationsButton {
 
     make_behavior();
     listen_to_playhead_events(true);
+
+    // here's the code for the 'reskin' UI (xSTUDIO v2) where we declare the
+    // drawing tools panel creation code.
+
+    register_ui_panel_qml(
+        "Drawing Tools",
+        R"(
+            import AnnotationsTool 2.0
+            import QtGraphicalEffects 1.15
+            import QtQuick 2.15
+            Rectangle {
+                anchors.fill: parent 
+                XsDrawingTools {
+                    anchors.top: parent.top
+                    anchors.topMargin: 20
+                    anchors.bottom: parent.bottom
+                    anchors.horizontalCenter: parent.horizontalCenter
+                    width: 140
+                }
+                gradient: Gradient {
+                    GradientStop { position: 0.0; color: "#5C5C5C" }
+                    GradientStop { position: 1.0; color: "#474747" }
+                }
+            }
+        )");
 }
 
 AnnotationsTool::~AnnotationsTool() {}
@@ -219,9 +241,8 @@ void AnnotationsTool::attribute_changed(
     if (attribute_uuid == tool_is_active_->uuid()) {
 
         if (tool_is_active_->value()) {
-            if (active_tool == "None")
-                active_tool_->set_value("Draw");
-            grab_mouse_focus();
+            if (active_tool != "None")
+                grab_mouse_focus();
         } else {
             release_mouse_focus();
             release_keyboard_focus();
@@ -847,7 +868,6 @@ void AnnotationsTool::end_drawing() {
         anon_send(caf::actor_cast<caf::actor>(this), utility::event_atom_v, true);
 
     } else {
-
         update_bookmark_annotation_data();
     }
 }

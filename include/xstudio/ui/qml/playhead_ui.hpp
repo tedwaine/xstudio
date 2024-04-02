@@ -88,7 +88,7 @@ namespace ui {
 
             Q_PROPERTY(QUuid mediaUuid READ mediaUuid NOTIFY mediaUuidChanged)
 
-            Q_PROPERTY(QString uuid READ uuid NOTIFY uuidChanged)
+            Q_PROPERTY(QUuid uuid READ uuid NOTIFY uuidChanged)
             Q_PROPERTY(QString name READ name NOTIFY nameChanged)
             Q_PROPERTY(int loopStart READ loopStart WRITE setLoopStart NOTIFY loopStartChanged)
             Q_PROPERTY(int loopEnd READ loopEnd WRITE setLoopEnd NOTIFY loopEndChanged)
@@ -100,7 +100,6 @@ namespace ui {
                 QString compareLayerName READ compareLayerName NOTIFY compareLayerNameChanged)
             Q_PROPERTY(int sourceOffsetFrames READ sourceOffsetFrames WRITE
                            setSourceOffsetFrames NOTIFY sourceOffsetFramesChanged)
-            Q_PROPERTY(QList<QPoint> cachedFrames READ cachedFrames NOTIFY cachedFramesChanged)
             Q_PROPERTY(QList<TimesliderMarker *> bookmarkedFrames READ bookmarkedFrames NOTIFY
                            bookmarkedFramesChanged)
 
@@ -144,7 +143,6 @@ namespace ui {
             [[nodiscard]] bool isNull() const { return !bool(backend_); }
             // void setRate(const double rate);
 
-            [[nodiscard]] QList<QPoint> cachedFrames() const { return cache_detail_; }
             [[nodiscard]] QList<TimesliderMarker *> bookmarkedFrames() const {
                 return bookmark_detail_ui_;
             }
@@ -173,8 +171,8 @@ namespace ui {
             [[nodiscard]] int sourceOffsetFrames() const { return source_offset_frames_; }
             void setSourceOffsetFrames(int i);
 
-            [[nodiscard]] QString uuid() const {
-                return QString::fromStdString(to_string(uuid_));
+            [[nodiscard]] QUuid uuid() const {
+                return QUuidFromUuid(uuid_);
             }
 
             [[nodiscard]] QString timecodeStart() const { return timecode_start_; }
@@ -210,7 +208,6 @@ namespace ui {
             void loopEndChanged();
             void useLoopRangeChanged();
             void nameChanged();
-            void cachedFramesChanged();
             void bookmarkedFramesChanged();
 
             void timecodeStartChanged();
@@ -251,7 +248,6 @@ namespace ui {
 
           private:
             void media_changed();
-            void rebuild_cache();
             void rebuild_bookmarks();
 
           private:
@@ -294,7 +290,6 @@ namespace ui {
             int source_offset_frames_;
             QVariant compare_mode_options_;
 
-            QList<QPoint> cache_detail_;
             QList<TimesliderMarker *> bookmark_detail_ui_;
             std::vector<std::tuple<utility::Uuid, std::string, int, int>> bookmark_detail_;
             QUuid media_uuid_;

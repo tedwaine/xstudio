@@ -4,91 +4,124 @@ import QtQuick.Layouts 1.3
 import QtQuick 2.14
 import QuickFuture 1.0
 import QuickPromise 1.0
-import xStudio 1.0
-import xstudio.qml.module 1.0
 
+// These imports are necessary to have access to custom QML types that are
+// part of the xSTUDIO UI implementation.
+import xStudioReskin 1.0
+import xstudio.qml.models 1.0
+
+// Our Overlay is based on a transparent rectangle that simply fills the 
+// xSTUDIO view. Within this we draw the overlay graphics as required.
 Rectangle {
+
+    // Note that viewport overlays are instanced by the Viewport QML instance
+    // which has the id 'viewport' and is visible to us here. To learn more
+    // about the viewport see files Xsview.qml and qml_view.cpp from
+    // the xSTUDIO source code.
 
     id: control
     color: "transparent"
-    width: viewport.width
-    height: viewport.height
+    width: view.width
+    height: view.height
 
-    property var imageBox: viewport.imageBoundaryInViewport
+    // The imageBoundaryInViewport property on the xSTUDIO Viewport class
+    // is a rectangle that indicates the pixel coordinates of the image
+    // boundary in the xSTUDIO view.
+    property var imageBox: view.imageBoundaryInViewport
 
-    onImageBoxChanged: {
-        computeMask()
+    // access the attribute group that contains all the settings for the mask.
+    // For HUD plugins this is the name of the plugin ("Mask") plus " Settings"
+    XsModuleData {
+        id: mask_settings
+        modelDataName: "Mask Settings"
     }
 
-    XsModuleAttributes {
-
-        id: viewport_mask_settings
-        attributesGroupNames: "viewport_mask_settings"
-        onAttrAdded: control.computeMask()
-        onValueChanged: control.computeMask()
+    /* We can make connections to a single attribute in the group using the
+    attribute title */
+    XsAttributeValue {
+        id: mask_aspect_ratio
+        attributeTitle: "Mask Aspect Ratio"
+        model: mask_settings
     }
+    // make an alias so the aspect is accessible as a regular property to
+    // set/get the value
+    property alias maskAspectRatio: mask_aspect_ratio.value
 
-    XsModuleAttributes {
-
-        id: current_toolbar
-        attributesGroupNames: viewport.name + "_toolbar"
+    XsAttributeValue {
+        id: safety_percent
+        attributeTitle: "Safety Percent"
+        model: mask_settings
     }
+    property alias safetyPercent: safety_percent.value
 
-    // Properties on the XsModuleAttributes items are created at runtime after
-    // this item is 'completed' and therefore we need to map to local variables
-    // with checks as follows:
-    property var mask_aspect_ratio: viewport_mask_settings.mask_aspect_ratio ? viewport_mask_settings.mask_aspect_ratio : 0.0
-    property var safety_percent: viewport_mask_settings.safety_percent ? viewport_mask_settings.safety_percent : 0.0
-    property var mask_opacity: viewport_mask_settings.mask_opacity ? viewport_mask_settings.mask_opacity : 0.0
-    property var mask_line_opacity: viewport_mask_settings.line_opacity ? viewport_mask_settings.line_opacity : 0.0
-    property var mask_line_thickness: viewport_mask_settings.line_thickness ? viewport_mask_settings.line_thickness : 0.0
-    property var label_size: viewport_mask_settings.label_size ? viewport_mask_settings.label_size : 10.0
-    property var mask_name: mask_aspect_ratio.toFixed(2)
-    property var show_mask_label: viewport_mask_settings.show_mask_label ? viewport_mask_settings.show_mask_label : false
-    property var mask_render_method: viewport_mask_settings.mask_render_method ? viewport_mask_settings.mask_render_method : "OpenGL"
-    property var mask_is_on: viewport_mask_settings.mask == "On"
+    property var mask_name: maskAspectRatio.toFixed(2)
 
-    property var l: 0.0
-    property var b: 0.0
-    property var r: width
-    property var t: height
-
-    visible: mask_render_method == "QML" && mask_is_on
-
-    function computeMask() {
-
-        // assuming mask should be 'width fitted'
-        l = imageBox.x
-        r = imageBox.x + imageBox.width
-        var h = imageBox.width/mask_aspect_ratio
-        b = imageBox.y + (imageBox.height-h)/2.0
-        t = imageBox.y + imageBox.height/2 + h/2.0
-
-        if (safety_percent != 0.0) {
-            var xd = (r-l)*safety_percent/200.0
-            l = l + xd
-            r = r - xd
-            var yd = (t-b)*safety_percent/200.0
-            b = b + yd
-            t = t - yd
-        }
-
+    XsAttributeValue {
+        id: mask_opacity
+        attributeTitle: "Mask Opacity"
+        model: mask_settings
     }
+    property alias maskOpacity: mask_opacity.value
+
+    XsAttributeValue {
+        id: mask_line_opacity
+        attributeTitle: "Line Opacity"
+        model: mask_settings
+    }
+    property alias maskLineOpacity: mask_line_opacity.value
+
+    XsAttributeValue {
+        id: mask_line_thickness
+        attributeTitle: "Line Thickness"
+        model: mask_settings
+    }
+    property alias maskLineThickness: mask_line_thickness.value
+
+    XsAttributeValue {
+        id: label_size
+        attributeTitle: "Label Size"
+        model: mask_settings
+    }
+    property alias labelSize: label_size.value
+
+    XsAttributeValue {
+        id: show_mask_label
+        attributeTitle: "Show Mask Label"
+        model: mask_settings
+    }
+    property alias showMaskLabel: show_mask_label.value
+
+    XsAttributeValue {
+        id: render_method
+        attributeTitle: "Mask Render Method"
+        model: mask_settings
+    }
+    property alias renderMethod: render_method.value
+
+    property bool mask_defined: maskAspectRatio > 0.0
+
+    property var safety: safetyPercent/200.0
+
+    property var l: imageBox.x + (imageBox.width)*safety
+    property var b: imageBox.y + (imageBox.height-(imageBox.width*(1.0-safety*maskAspectRatio)/maskAspectRatio))/2.0
+    property var r: imageBox.x + imageBox.width*(1.0 - safety)
+    property var t: imageBox.y + (imageBox.height+(imageBox.width*(1.0-safety*maskAspectRatio)/maskAspectRatio))/2.0
+
+    visible: renderMethod == "QML"
 
     Rectangle {
-        id: top_masking_rect
-        opacity: mask_opacity
+        id: bottom_masking_rect
+        opacity: maskOpacity
         color: "black"
         x: 0
         y: 0
-        z: -1
         width: control.width
         height: b
     }
 
     Rectangle {
-        id: bottom_masking_rect
-        opacity: mask_opacity
+        id: top_masking_rect
+        opacity: maskOpacity
         color: "black"
         x: 0
         y: t
@@ -98,7 +131,7 @@ Rectangle {
 
     Rectangle {
         id: left_masking_rect
-        opacity: mask_opacity
+        opacity: maskOpacity
         color: "black"
         x: 0
         y: b
@@ -108,7 +141,7 @@ Rectangle {
 
     Rectangle {
         id: right_masking_rect
-        opacity: mask_opacity
+        opacity: maskOpacity
         color: "black"
         x: r
         y: b
@@ -118,22 +151,22 @@ Rectangle {
 
     Rectangle {
         id: lines
-        opacity: mask_line_opacity
+        opacity: maskLineOpacity
         color: "transparent"
         border.color: "white"
-        border.width: mask_line_thickness
-        x: l-mask_line_thickness/2
-        y: b-mask_line_thickness/2
-        width: r-l+mask_line_thickness
-        height: t-b+mask_line_thickness
+        border.width: maskLineThickness
+        x: l-maskLineThickness/2
+        y: b-maskLineThickness/2
+        width: r-l+maskLineThickness
+        height: t-b+maskLineThickness
     }
 
     Text {
         text: mask_name
-        opacity: mask_line_opacity
-        visible: show_mask_label
+        opacity: maskLineOpacity
+        visible: showMaskLabel
         color: "white"
-        font.pixelSize: label_size
+        font.pixelSize: labelSize
         anchors.left: lines.left
         anchors.bottom: lines.top
         anchors.bottomMargin: 4

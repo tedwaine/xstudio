@@ -18,7 +18,6 @@ using namespace xstudio::ui::qml;
 SnapshotModel::SnapshotModel(QObject *parent) : JSONTreeModel(parent) {
 
     setRoleNames(std::vector<std::string>({
-        {"childrenRole"},
         {"mtimeRole"},
         {"nameRole"},
         {"pathRole"},
@@ -152,7 +151,7 @@ QVariant SnapshotModel::data(const QModelIndex &index, int role) const {
                     result = QString::fromStdString(j.at("name"));
                 }
                 break;
-            case Roles::childrenRole:
+            case JSONTreeModel::Roles::childrenRole:
                 if (j.count("children")) {
                     result = QVariantMapFromJson(j.at("children"));
                 }

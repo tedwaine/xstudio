@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: Apache-2.0
 #pragma once
 
-#include "xstudio/plugin_manager/plugin_base.hpp"
 #include "xstudio/ui/opengl/shader_program_base.hpp"
 #include "xstudio/ui/opengl/opengl_text_rendering.hpp"
+#include "xstudio/ui/viewport/hud_plugin.hpp"
 
 namespace xstudio {
 namespace ui {
@@ -43,7 +43,7 @@ namespace ui {
             float ma_         = 0.0f;
         };
 
-        class BasicViewportMasking : public plugin::StandardPlugin {
+        class BasicViewportMasking : public HUDPluginBase {
           public:
             BasicViewportMasking(
                 caf::actor_config &cfg, const utility::JsonStore &init_settings);
@@ -82,12 +82,8 @@ namespace ui {
 
             module::BooleanAttribute *show_mask_label_;
 
-            module::BooleanAttribute *mask_enabled_;
-            module::StringChoiceAttribute *mask_selection_;
-
             utility::Uuid mask_hotkey_;
 
-            bool render_opengl_ = false;
         };
 
     } // namespace viewport

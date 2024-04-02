@@ -1,6 +1,9 @@
 // SPDX-License-Identifier: Apache-2.0
 #include "shotgun_model_ui.hpp"
+#include "data_source_shotgun_ui.hpp"
 #include "../data_source_shotgun.hpp"
+#include "../data_source_shotgun_query_engine.hpp"
+
 #include "xstudio/utility/string_helpers.hpp"
 #include "xstudio/ui/qml/helper_ui.hpp"
 #include "xstudio/global_store/global_store.hpp"
@@ -214,7 +217,7 @@ QVariant ShotgunSequenceModel::data(const QModelIndex &index, int role) const {
             result = QString::fromStdString(j.dump(2));
             break;
 
-        case Roles::idRole:
+        case JSONTreeModel::Roles::idRole:
             try {
                 if (j.at("id").is_number())
                     result = j.at("id").get<int>();
@@ -273,6 +276,7 @@ bool ShotgunFilterModel::filterAcceptsRow(
                     continue;
                 try {
                     auto qv = sourceModel()->data(index, k).toString();
+                    qDebug() << "qv " << qv << " " << v;
 
                     if (v == qtrue or v == qfalse) {
                         if (v == qtrue and not sourceModel()->data(index, k).toBool())
@@ -316,6 +320,7 @@ QString ShotgunFilterModel::getRoleFilter(const QString &role) const {
 
 void ShotgunFilterModel::setRoleFilter(const QString &filter, const QString &role) {
     auto id = getRoleId(role);
+    qDebug() << "ROLE ID " << id << "\n";
     if (not roleFilterMap_.count(id) or roleFilterMap_.at(id) != filter) {
         roleFilterMap_[id] = filter;
         invalidateFilter();
@@ -355,35 +360,6 @@ void ShotgunListModel::populate(const utility::JsonStore &data) {
     emit lengthChanged();
 }
 
-utility::JsonStore ShotgunListModel::getQueryValue(
-    const std::string &type, const utility::JsonStore &value, const int project_id) const {
-    // look for map
-    auto _type        = type;
-    auto mapped_value = utility::JsonStore();
-
-    if (query_value_cache_ == nullptr)
-        return mapped_value;
-
-    if (_type == "Author" || _type == "Recipient")
-        _type = "User";
-
-    if (project_id != -1)
-        _type += "-" + std::to_string(project_id);
-
-    try {
-        auto val = value.get<std::string>();
-        if (query_value_cache_->count(_type)) {
-            if (query_value_cache_->at(_type).count(val)) {
-                mapped_value = query_value_cache_->at(_type).at(val);
-            }
-        }
-    } catch (const std::exception &err) {
-        spdlog::warn("{} {} {} {}", _type, __PRETTY_FUNCTION__, err.what(), value.dump(2));
-    }
-
-    return mapped_value;
-}
-
 void ShotgunListModel::append(const QVariant &data) {
     auto jsn = mapFromValue(data);
 
@@ -415,6 +391,9 @@ int ShotgunListModel::search(const QVariant &value, const QString &role, const i
 
     return row;
 }
+
+void ShotgunListModel::setDataSource(ShotgunDataSourceUI *src) { data_source_ = src; }
+
 
 QVariant ShotgunListModel::get(int row, const QString &role) {
     int role_id = -1;
@@ -638,10 +617,11 @@ QVariant ShotModel::data(const QModelIndex &index, int role) const {
                 break;
 
             case Roles::pipelineStatusFullRole:
-                result = QString::fromStdString(
-                    getQueryValue(
-                        "Pipeline Status", data.at("attributes").at("sg_status_list"), -1)
-                        .get<std::string>());
+                result = QString::fromStdString(QueryEngine::resolve_query_value(
+                                                    "Pipeline Status",
+                                                    data.at("attributes").at("sg_status_list"),
+                                                    *query_value_cache_)
+                                                    .get<std::string>());
                 break;
 
             case Roles::productionStatusRole:
@@ -882,6 +862,44 @@ QVariant PlaylistModel::data(const QModelIndex &index, int role) const {
     return result;
 }
 
+
+bool NoteModel::setData(const QModelIndex &index, const QVariant &value, int role) {
+    QVector<int> roles({role});
+    auto result = false;
+
+    try {
+        auto &j = data_[index.row()];
+        switch (role) {
+
+        case Roles::artistRole: {
+            auto data = mapFromValue(value);
+            if (j["attributes"]["sg_artist"] !=
+                data.at("relationships").at("user").at("data").at("name")) {
+                j["attributes"]["sg_artist"] =
+                    data.at("relationships").at("user").at("data").at("name");
+                result = true;
+            }
+        } break;
+
+        default:
+            break;
+        }
+    } catch (const std::exception &err) {
+        spdlog::warn(
+            "{} {} {} {}",
+            __PRETTY_FUNCTION__,
+            err.what(),
+            role,
+            StdFromQString(value.toString()));
+    }
+
+    if (result)
+        emit dataChanged(index, index, roles);
+
+    return result;
+}
+
+
 QVariant NoteModel::data(const QModelIndex &index, int role) const {
     auto result = QVariant();
 
@@ -942,9 +960,31 @@ QVariant NoteModel::data(const QModelIndex &index, int role) const {
                 result = tmp;
             } break;
 
-            case Roles::artistRole:
-                result = QString::fromStdString(data.at("attributes").value("sg_artist", ""));
-                break;
+            case Roles::artistRole: {
+
+                auto name = std::string("pending");
+                if (data.at("attributes").count("sg_artist") and
+                    data.at("attributes").at("sg_artist").is_string())
+                    name = data.at("attributes").at("sg_artist").get<std::string>();
+
+                if (name == "pending" or name == "") {
+                    // request name from shot.
+                    auto req = JsonStore(GetVersionArtist);
+                    for (const auto &i : data.at("relationships").at("note_links").at("data")) {
+                        if (i.at("type").get<std::string>() == "Version") {
+                            req["version_id"] = i.at("id");
+                            break;
+                        }
+                    }
+                    if (req["version_id"].is_null()) {
+                        name = "unknown";
+                    } else {
+                        // send request.
+                        data_source_->requestData(index, role, req);
+                    }
+                }
+                result = QString::fromStdString(name);
+            } break;
 
             case Roles::shotNameRole:
                 for (const auto &i : data.at("relationships").at("note_links").at("data")) {
@@ -1296,7 +1336,7 @@ QVariant ShotgunTreeModel::data(const QModelIndex &index, int role) const {
                 result = QVariantMapFromJson(j.at("detail"));
             break;
 
-        case Roles::idRole:
+        case JSONTreeModel::Roles::idRole:
             try {
                 if (j.at("id").is_number())
                     result = j.at("id").get<int>();
@@ -1402,7 +1442,7 @@ bool ShotgunTreeModel::setData(const QModelIndex &index, const QVariant &value, 
             j["negated"] = value.toBool();
             break;
 
-        case Roles::idRole:
+        case JSONTreeModel::Roles::idRole:
             if (value.type() == QVariant::String) {
                 j["id"] = value.toByteArray();
             } else {
@@ -1599,60 +1639,9 @@ ShotgunTreeModel::applyLiveLinkValue(const JsonStore &query, const JsonStore &li
     try {
         if (not query.is_null() and not livelink.is_null()) {
             auto term = query.value("term", "");
-
-            if (livelink.contains(json::json_pointer("/metadata/shotgun/version"))) {
-                if (term == "Version Name") {
-                    result = livelink.at(
-                        json::json_pointer("/metadata/shotgun/version/attributes/code"));
-                } else if (term == "Older Version" or term == "Newer Version") {
-                    auto val = livelink
-                                   .at(json::json_pointer(
-                                       "/metadata/shotgun/version/attributes/sg_dneg_version"))
-                                   .get<long>();
-                    result = nlohmann::json(std::to_string(val));
-                } else if (term == "Author" or term == "Recipient") {
-                    result = livelink.at(json::json_pointer(
-                        "/metadata/shotgun/version/relationships/user/data/name"));
-                } else if (term == "Shot") {
-                    result = livelink.at(json::json_pointer(
-                        "/metadata/shotgun/version/relationships/entity/data/name"));
-                } else if (term == "Twig Name") {
-                    result = nlohmann::json(
-                        std::string("^") +
-                        livelink
-                            .at(json::json_pointer(
-                                "/metadata/shotgun/version/attributes/sg_twig_name"))
-                            .get<std::string>() +
-                        std::string("$"));
-                } else if (term == "Pipeline Step") {
-                    result = livelink.at(json::json_pointer(
-                        "/metadata/shotgun/version/attributes/sg_pipeline_step"));
-                } else if (term == "Twig Type") {
-                    result = livelink.at(json::json_pointer(
-                        "/metadata/shotgun/version/attributes/sg_twig_type"));
-                } else if (term == "Sequence") {
-                    auto type = livelink.at(json::json_pointer(
-                        "/metadata/shotgun/version/relationships/entity/data/type"));
-                    if (type == "Sequence") {
-                        result = livelink.at(json::json_pointer(
-                            "/metadata/shotgun/version/relationships/entity/data/name"));
-                    } else {
-                        auto project_id =
-                            livelink
-                                .at(json::json_pointer(
-                                    "/metadata/shotgun/version/relationships/project/data/id"))
-                                .get<int>();
-                        auto shot_id =
-                            livelink
-                                .at(json::json_pointer(
-                                    "/metadata/shotgun/version/relationships/entity/data/id"))
-                                .get<int>();
-                        auto seq_data = getSequence(project_id, shot_id);
-                        if (not seq_data.is_null())
-                            result = seq_data.at("attributes").at("code");
-                    }
-                }
-            }
+            auto tmp  = QueryEngine::get_livelink_value(term, livelink, *query_value_cache_);
+            if (not tmp.is_null())
+                result = tmp;
         }
     } catch (const std::exception &err) {
         spdlog::warn(

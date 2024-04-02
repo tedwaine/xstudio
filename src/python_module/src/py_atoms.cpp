@@ -39,6 +39,7 @@ using namespace xstudio::ui;
 using namespace xstudio::ui::keypress_monitor;
 using namespace xstudio::ui::qml;
 using namespace xstudio::ui::viewport;
+using namespace xstudio::ui::model_data;
 using namespace xstudio::utility;
 using namespace xstudio;
 
@@ -156,7 +157,6 @@ void py_config::add_atoms() {
     ADD_ATOM(xstudio::media_reader, push_image_atom);
     ADD_ATOM(xstudio::media_reader, retire_readers_atom);
     ADD_ATOM(xstudio::media_reader, supported_atom);
-    ADD_ATOM(xstudio::media_cache, cached_frames_atom);
     ADD_ATOM(xstudio::media_cache, count_atom);
     ADD_ATOM(xstudio::media_cache, erase_atom);
     ADD_ATOM(xstudio::media_cache, keys_atom);
@@ -190,8 +190,10 @@ void py_config::add_atoms() {
     ADD_ATOM(xstudio::module, grab_all_keyboard_input_atom);
     ADD_ATOM(xstudio::module, grab_all_mouse_input_atom);
     ADD_ATOM(xstudio::module, attribute_uuids_atom);
+    ADD_ATOM(xstudio::module, module_add_menu_item_atom);
     ADD_ATOM(xstudio::module, remove_attribute_atom);
-
+    ADD_ATOM(xstudio::module, set_node_data_atom);
+    
     ADD_ATOM(xstudio::global, exit_atom);
     ADD_ATOM(xstudio::global, api_exit_atom);
     ADD_ATOM(xstudio::global, busy_atom);
@@ -369,9 +371,12 @@ void py_config::add_atoms() {
 
     ADD_ATOM(xstudio::ui::viewport, viewport_playhead_atom);
     ADD_ATOM(xstudio::ui::viewport, quickview_media_atom);
+    ADD_ATOM(xstudio::ui::viewport, viewport_atom);
     ADD_ATOM(xstudio::ui, show_message_box_atom);
 
     ADD_ATOM(xstudio::ui::keypress_monitor, register_hotkey_atom);
     ADD_ATOM(xstudio::ui::keypress_monitor, hotkey_event_atom);
+
+    ADD_ATOM(xstudio::ui::model_data, menu_node_activated_atom);
 }
 } // namespace caf::python

@@ -14,7 +14,7 @@ ToolTip {
     property color textColor: palette.base
     property real panelPadding: XsStyleSheet.panelPadding
 
-    delay: 100
+    delay: 300
     timeout: 1000
     
     font.pixelSize: XsStyleSheet.fontSize

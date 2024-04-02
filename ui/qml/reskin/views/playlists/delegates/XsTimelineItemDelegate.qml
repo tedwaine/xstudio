@@ -32,11 +32,10 @@ Item {
     property bool isSelected: false
     property bool isMissing: false
     property bool isSubList: true
-    property bool isExpanded: true
 
     XsModelRowCount {
         id: mediaModelCount
-        index: mediaListModelIndex
+        // index: mediaListModelIndex
     }
 
     Button{
@@ -66,26 +65,8 @@ Item {
                 Item{
                     Layout.preferredWidth: buttonWidth
                     Layout.preferredHeight: buttonWidth
-
-                    XsSecondaryButton{
-
-                        id: subsetBtn
-
-                        imgSrc: "qrc:/icons/chevron_right.svg"
-                        visible: subItemsCount != 0
-                        anchors.fill: parent
-
-                        isActive: isExpanded
-                        scale: rotation==0 || rotation==-90? 1:0.85
-                        rotation: (isExpanded)? 90:0
-                        Behavior on rotation {NumberAnimation{duration: 150 }}
-
-                        onClicked:{
-                            isExpanded = !isExpanded
-                        }
-
-                    }
                 }
+                
                 XsImage{
                     Layout.minimumWidth: buttonWidth
                     Layout.maximumWidth: buttonWidth

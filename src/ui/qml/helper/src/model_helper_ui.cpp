@@ -1,4 +1,3 @@
-// SPDX-License-Identifier: Apache-2.0
 #include "xstudio/ui/qml/helper_ui.hpp"
 #include "xstudio/utility/helpers.hpp"
 
@@ -6,6 +5,7 @@ using namespace xstudio::ui::qml;
 
 #include <QJSValue>
 #include <QItemSelectionRange>
+#include <QVector4D>
 
 void ModelRowCount::setCount(const int count) {
     if (count != count_) {
@@ -161,12 +161,40 @@ void ModelProperty::setValue(const QVariant &value) {
     }
 }
 
+void PreferencePropertyMap::setMyValue(const QVariant &value) {
+    if (values_->value("valueRole") != value) {
+        values_->setProperty("valueRole", value);
+        emit myValueChanged();
+    }
+}
+
+void PreferencePropertyMap::valueChanged(const QString &key, const QVariant &value) {
+    ModelPropertyMap::valueChanged(key, value);
+    emitChange(key);
+}
+
+void PreferencePropertyMap::emitChange(const QString &key) {
+    if (key == "valueRole")
+        emit myValueChanged();
+    else if (key == "datatypeRole")
+        emit dataTypeChanged();
+    else if (key == "contextRole")
+        emit contextChanged();
+    else if (key == "nameRole")
+        emit nameChanged();
+    else if (key == "defaultValueRole")
+        emit defaultValueChanged();
+    else if (key == "jsonTextRole")
+        emit jsonStringChanged();
+}
+
 ModelPropertyMap::ModelPropertyMap(QObject *parent) : QObject(parent) {
     values_ = new QQmlPropertyMap(this);
     connect(values_, &QQmlPropertyMap::valueChanged, this, &ModelPropertyMap::valueChangedSlot);
 }
 
 void ModelPropertyMap::setIndex(const QModelIndex &index) {
+
     if (index != index_) {
         auto model_change = true;
 
@@ -374,9 +402,33 @@ QVariant xstudio::ui::qml::mapFromValue(const nlohmann::json &value) {
         result = QVariant::fromValue(value.get<float>());
     else if (value.is_string())
         result = QVariant::fromValue(QStringFromStd(value.get<std::string>()));
-    else if (value.is_array())
-        result = QVariantListFromJson(utility::JsonStore(value));
-    else if (value.is_object())
+    else if (value.is_array()) {
+        if (value.size() == 5 && value[0].is_string() &&
+            value[0].get<std::string>() == "colour") {
+
+            // it should be a color!
+            const auto t = value.get<utility::ColourTriplet>();
+            QColor c(
+                static_cast<int>(round(t.r * 255.0f)),
+                static_cast<int>(round(t.g * 255.0f)),
+                static_cast<int>(round(t.b * 255.0f)));
+            result = QVariant(c);
+        } else if (
+            value.size() == 6 && value[0].is_string() &&
+            value[0].get<std::string>() == "vec4") {
+
+            // it should be a color!
+            const auto t = value.get<Imath::V4f>();
+            QVector4D rt;
+            rt[0] = t[0];
+            rt[1] = t[1];
+            rt[2] = t[2];
+            rt[3] = t[3];
+            return QVariant(rt);
+        } else {
+            result = QVariantListFromJson(utility::JsonStore(value));
+        }
+    } else if (value.is_object())
         result = QVariantMapFromJson(value);
 
     return result;
@@ -398,6 +450,17 @@ nlohmann::json xstudio::ui::qml::mapFromValue(const QVariant &value) {
             result = nlohmann::json::parse(
                 QJsonDocument(v.toJsonArray()).toJson(QJsonDocument::Compact).constData());
             break;
+
+        case QMetaType::QColor: {
+            auto c = v.value<QColor>();
+            result = nlohmann::json(utility::ColourTriplet(
+                float(c.red()) / 255.0f, float(c.green()) / 255.0f, float(c.blue()) / 255.0f));
+        } break;
+
+        case QMetaType::QVector4D: {
+            auto c = v.value<QVector4D>();
+            result = nlohmann::json(Imath::V4f(c[0], c[1], c[2], c[3]));
+        } break;
 
         default:
             spdlog::warn("1 Unsupported datatype {} {}", v.type(), v.typeName());
@@ -441,10 +504,26 @@ nlohmann::json xstudio::ui::qml::mapFromValue(const QVariant &value) {
                 QJsonDocument(value.toJsonObject()).toJson(QJsonDocument::Compact).constData());
             break;
 
+        case QMetaType::QStringList:
+            result = nlohmann::json::parse(
+                QJsonDocument(value.toJsonArray()).toJson(QJsonDocument::Compact).constData());
+            break;
+
         case QMetaType::QVariantList:
             result = nlohmann::json::parse(
                 QJsonDocument(value.toJsonArray()).toJson(QJsonDocument::Compact).constData());
             break;
+
+        case QMetaType::QColor: {
+            auto c = value.value<QColor>();
+            result = nlohmann::json(utility::ColourTriplet(
+                float(c.red()) / 255.0f, float(c.green()) / 255.0f, float(c.blue()) / 255.0f));
+        } break;
+
+        case QMetaType::QVector4D: {
+            auto c = value.value<QVector4D>();
+            result = nlohmann::json(Imath::V4f(c[0], c[1], c[2], c[3]));
+        } break;
 
         case QMetaType::QJsonDocument: {
             QVariant v = value;

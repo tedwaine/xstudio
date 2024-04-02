@@ -75,8 +75,26 @@ void MediaStreamActor::init() {
 
         [=](const StreamDetail &detail) { base_.set_detail(detail); },
 
+        [=](json_store::get_json_atom _get_atom, const std::string &path, bool) {
+            return delegate(json_store_, _get_atom, path);
+        },
+
         [=](json_store::get_json_atom _get_atom, const std::string &path) {
             return delegate(json_store_, _get_atom, path);
+        },
+
+        [=](json_store::set_json_atom atom, const JsonStore &json) {
+            delegate(json_store_, atom, json);
+            // metadata changed - need to broadcast an update
+            base_.send_changed(event_group_, this);
+            send(event_group_, utility::event_atom_v, change_atom_v);
+        },
+
+        [=](json_store::set_json_atom atom, const JsonStore &json, const std::string &path) {
+            delegate(json_store_, atom, json, path);
+            // metadata changed - need to broadcast an update
+            base_.send_changed(event_group_, this);
+            send(event_group_, utility::event_atom_v, change_atom_v);
         },
 
         [=](utility::duplicate_atom) -> UuidActor {

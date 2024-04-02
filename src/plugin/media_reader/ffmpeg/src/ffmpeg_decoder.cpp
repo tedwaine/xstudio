@@ -36,7 +36,6 @@ FFMpegDecoder::FFMpegDecoder(
 
 FFMpegDecoder::~FFMpegDecoder() { close_handles(); }
 
-
 void FFMpegDecoder::open_handles() {
 
     if (not avc_packet_) {

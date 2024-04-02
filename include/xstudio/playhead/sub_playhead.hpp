@@ -98,9 +98,9 @@ namespace playhead {
             const int logical_playhead_frame,
             BookmarkRanges &bookmark_ranges);
 
-        void full_bookmarks_update();
+        void full_bookmarks_update(caf::typed_response_promise<bool> done);
 
-        void fetch_bookmark_annotations(BookmarkRanges bookmark_ranges);
+        void fetch_bookmark_annotations(BookmarkRanges bookmark_ranges, caf::typed_response_promise<bool> done);
 
         void add_annotations_data_to_frame(media_reader::ImageBufPtr &frame);
 

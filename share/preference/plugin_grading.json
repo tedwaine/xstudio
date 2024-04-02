@@ -1,12 +1,28 @@
 {
 	"plugin": {
 		"grading": {
+			"tool_panel": {
+				"path": "/plugin/grading/tool_panel",
+				"default_value": "CC",
+				"description": "Tool panel",
+				"value": "CC",
+				"datatype": "string",
+				"context": ["APPLICATION"]
+			},
 			"grading_panel": {
 				"path": "/plugin/grading/grading_panel",
 				"default_value": "Basic",
 				"description": "Grading panel",
 				"value": "Basic",
 				"datatype": "string",
+				"context": ["APPLICATION"]
+			},
+			"grading_tracking": {
+				"path": "/plugin/grading/grading_tracking",
+				"default_value": false,
+				"description": "Auto select grading note depending on the current frame",
+				"value": false,
+				"datatype": "bool",
 				"context": ["APPLICATION"]
 			},
 			"draw_pen_size": {

@@ -37,7 +37,8 @@ namespace ui {
             const std::string description,
             const std::string context,
             const bool auto_repeat,
-            caf::actor_addr watcher);
+            caf::actor_addr watcher,
+            const utility::Uuid uuid = utility::Uuid());
 
         Hotkey(const Hotkey &o) = default;
         Hotkey()                = default;
@@ -57,9 +58,13 @@ namespace ui {
         void update_state(
             const std::set<int> &current_keys,
             const std::string &context,
-            const bool auto_repeat);
+            const bool auto_repeat,
+            caf::actor keypress_monitor);
 
         static std::map<int, std::string> key_names;
+
+        static void
+        sequence_to_key_and_modifier(const std::string &sequence, int &keycode, int &modifier);
 
       private:
         void notifty_watchers(const std::string &context);

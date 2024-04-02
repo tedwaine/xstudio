@@ -1,9 +1,9 @@
-// SPDX-License-Identifier: Apache-2.0
 import QtQuick 2.15
 import QtQuick.Controls 2.15
 import QtQml.Models 2.14
 import Qt.labs.qmlmodels 1.0
 import QtGraphicalEffects 1.15
+import QtQuick.Layouts 1.3
 
 import xStudioReskin 1.0
 import xstudio.qml.models 1.0
@@ -11,57 +11,89 @@ import xstudio.qml.models 1.0
 Item {
 
     id: widget            
-    // width: is_in_bar? menuWidth:parentWidth //( (menuWidth > menuStdWidth) || is_in_bar )? menuWidth : menuStdWidth
-    // width: ( (menuWidth > menuStdWidth) || is_in_bar )? menuWidth : menuStdWidth
-    width: menuWidth //( (menuWidth > menuStdWidth) || is_in_bar )? menuWidth : menuStdWidth
     height: XsStyleSheet.menuHeight
 
+    // Note .. menu item width needs to be set by the widest menu item in the
+    // same menu. This creates a circular dependency .. the menu item width
+    // depends on the widest item. If it is the widest item its width 
+    // depends on itself. There must be a better QML solution for this
+    property real minWidth: gap.width + final_spacer.width + indentSpacer.width + iconDiv.width + hotkey_metrics.width + label_metrics.width + gap.width + subMenuIndicatorDiv.width + margin*4
+
+    property real indent: 0
+    property real leftIconSize: 3 + iconDiv.width
+    property var margin: 4
+    property var sub_menu
     property var menu_model
     property var menu_model_index
-    property var sub_menu: null
     property bool is_in_bar: false
     property var parent_menu
     property alias icon: iconDiv.source
-    property alias colourIndicatorValue: colourIndicatorDiv.color
+    property var is_enabled: typeof menu_item_enabled !== 'undefined' ? menu_item_enabled : menu_item_enabled
+    property bool has_sub_menu: false
 
     property bool isHovered: menuMouseArea.containsMouse
-    property bool isActive: menuMouseArea.pressed || isSubMenuActive
-    property bool isFocused: menuMouseArea.activeFocus
-    property bool isSubMenuActive: sub_menu? sub_menu.visible : false
-
-    property real parentWidth: 0
-    property real menuWidth: parentWidth<menuRealWidth? menuRealWidth : parentWidth
-    property real menuRealWidth: labelMetrics.width + (labelPadding*2)
-    property real menuStdWidth: XsStyleSheet.menuStdWidth
+    property bool isActive: menuMouseArea.pressed
  
     property real labelPadding: is_in_bar? XsStyleSheet.menuLabelPaddingLR/2 : XsStyleSheet.menuLabelPaddingLR/2
-    property color bgColorActive: palette.highlight
-    property color bgColorNormal: "transparent"
-    property color forcedBgColorNormal: bgColorNormal
-    property color labelColor: palette.text
-    property color hotKeyColor: XsStyleSheet.menuHotKeyColor
-    property color borderColorHovered: palette.highlight
-    property color borderColorNormal: "transparent"
+    property color hotKeyColor: XsStyleSheet.secondaryTextColor
     property real borderWidth: XsStyleSheet.widgetBorderWidth
+    property var __menuContextData: menuContextData
 
-    MouseArea{ 
+    onVisibleChanged: {        
+        if (sub_menu && !visible) sub_menu.visible = false
+    }
+
+    // this darkens the text, icons etc if disabled
+    opacity: enabled ? 1 : 0.5
+
+    onIsHoveredChanged: {
+        if (isHovered) {
+            callbackTimer.setTimeout(function() { return function() {
+                if (isHovered) {
+                    showSubMenu()
+                }
+                }}(), 200);
+        }
+    }
+
+    function hideSubMenus() {
+        if (sub_menu) {
+            sub_menu.visible = false            
+        }
+    }
+
+    function showSubMenu() {
+        parent_menu.hideOtherSubMenus(widget)
+        make_submenus()
+        if (!sub_menu) return;
+
+        if (is_in_bar) {                
+            showPopupMenu(
+                sub_menu,
+                widget,
+                0,
+                widget.height);
+        } else {
+            showPopupMenu(
+                sub_menu,
+                widget,
+                widget.width,
+                0,
+                0);
+        }
+    }
+
+    MouseArea
+    { 
+
         id: menuMouseArea
         anchors.fill: parent
         hoverEnabled: true
         propagateComposedEvents: true
         
-
         onClicked: {
-            if (sub_menu) {
-                if (is_in_bar) {
-                    sub_menu.x = 0
-                    sub_menu.y = widget.height
-                } else {
-                    sub_menu.x = widget.width
-                    sub_menu.y = 0
-                }
-                sub_menu.visible = true
-            } else {
+            showSubMenu()
+            if (!sub_menu) {
 
                 // this ultimately sends a signal to the 'GlobalUIModelData'
                 // indicating that a menu item was activated. It then messages
@@ -70,139 +102,129 @@ Item {
                 // menu instance the click came from in the case where there
                 // are multiple instances of the same menu.
                 // console.log("widget.parent", widget.parent)
-                menu_model.nodeActivated(menu_model_index)
+                menu_model.nodeActivated(menu_model_index, "menu", helpers.contextPanel(widget))
+                parent_menu.closeAll()
 
-                parent_menu.visible = false
             }
-        }
-    
-        // onEntered: {
-        //     if(sub_menu && !is_in_bar) console.log("MI: Entered")
-        //     else console.log("MI: no enter")
-        // }
-        
+        }            
     }
 
-    Rectangle { id: bgHighlightDiv
+    Rectangle { 
+        id: bgHighlightDiv
         implicitWidth: parent.width
         implicitHeight: widget.is_in_bar? parent.height- (borderWidth*2) : parent.height
         anchors.verticalCenter: parent.verticalCenter
-        color: widget.isActive ? bgColorActive : forcedBgColorNormal
-        border.color: widget.isHovered ? borderColorHovered : borderColorNormal
+        border.color: palette.highlight
         border.width: borderWidth
-    }
-    Rectangle { id: bgFocusDiv
-        visible: widget.isFocused
-        implicitWidth: parent.width
-        implicitHeight: widget.is_in_bar? parent.height+ (borderWidth*2) : parent.height
-        anchors.verticalCenter: parent.verticalCenter
-        color: "transparent"
-        opacity: 0.33
-        border.color: borderColorHovered
-        border.width: borderWidth
-        anchors.centerIn: parent 
+        color: isActive ? palette.highlight : "transparent"
+        visible: widget.isHovered
+
     }
 
-    XsImage { id: iconDiv
-        visible: icon!=""
-        source: ""
-        width: XsStyleSheet.menuIndicatorSize
-        height: XsStyleSheet.menuIndicatorSize
-        anchors.left: parent.left
-        anchors.leftMargin: labelPadding
-        anchors.verticalCenter: parent.verticalCenter
-        layer {
-            enabled: true
-            effect: ColorOverlay { color: hotKeyColor }
-        }
-
-        rotation: (name=="Split Panel Vertical")? 90:0
-        Component.onCompleted: { //#TODO: move to backend model
-            if(name=="Split Panel Vertical") icon= "qrc:/icons/splitscreen2.svg" 
-            else if(name=="Split Panel Horizontal") icon= "qrc:/icons/splitscreen2.svg" 
-            else if(name=="Undock Panel") icon= "qrc:/icons/open_in_new.svg" 
-            else if(name=="Close Panel") icon= "qrc:/icons/disabled.svg" 
-        }
-    }
-    Rectangle{ id: colourIndicatorDiv
-        visible: colourIndicatorValue!="#00000000"
-        radius: width/2
-        width: XsStyleSheet.menuIndicatorSize
-        height: XsStyleSheet.menuIndicatorSize
-        border.color: labelColor
-        border.width: 1
+    RowLayout {
 
         anchors.left: parent.left
-        anchors.leftMargin: labelPadding
-        anchors.verticalCenter: parent.verticalCenter
-        color: "#00000000"
-
-        Component.onCompleted: { //#TODO: move to backend model
-            if(name=="Red") color= "#ed5f5d" 
-            else if(name=="Blue") color= "#307bf6" 
-            else if(name=="Purple") color= "#9b56a3" 
-            else if(name=="Pink") color= "#e65d9c" 
-            else if(name=="Orange") color= "#e9883a" 
-            else if(name=="Yellow") color= "#f3ba4b" 
-            else if(name=="Green") color= "#77b756" 
-            else if(name=="Graphite") color= "#666666" 
-        }
-    }
-
-    Text { id: labelDiv
-        text: name ? name : "Unknown" //+ (sub_menu && !is_in_bar ? "   >>" : "")
-        height: parent.height
-        font.pixelSize: XsStyleSheet.fontSize
-        font.family: XsStyleSheet.fontFamily
-        color: labelColor 
-        anchors.left: iconDiv.visible || colourIndicatorDiv.visible? iconDiv.right : parent.left
-        anchors.leftMargin: labelPadding
-        horizontalAlignment: Text.AlignLeft
-        verticalAlignment: Text.AlignVCenter
-        elide: Text.ElideRight
-
-        width: parent.width
-        clip: true
-    }
-    Text { id: hotKeyDiv
-        text: hotkey ? "   " + hotkey : ""
-        height: parent.height
-        font: labelDiv.font
-        color: hotKeyColor 
         anchors.right: parent.right
-        anchors.rightMargin: labelPadding
-        horizontalAlignment: Text.AlignRight
-        verticalAlignment: Text.AlignVCenter
-    }
-    TextMetrics {
-        id: labelMetrics
-        font: labelDiv.font
-        text: labelDiv.text + hotKeyDiv.text
-        // Component.onCompleted: {
-        //     console.log("matrix:", width, text, menuRealWidth)
-        // }
-    }
-
-    Image { id: subMenuIndicatorDiv
-        visible: sub_menu? !is_in_bar: false
-        source: "qrc:/icons/chevron_right.svg"
-        sourceSize.height: 16
-        sourceSize.width: 16
-        horizontalAlignment: Image.AlignHCenter
-        verticalAlignment: Image.AlignVCenter
         anchors.verticalCenter: parent.verticalCenter
-        anchors.right: parent.right
-        anchors.rightMargin: labelPadding
-        smooth: true
-        antialiasing: true
-        layer {
-            enabled: true
-            effect: ColorOverlay { color: hotKeyColor }
+        anchors.margins: margin
+        spacing: 0
+
+        XsImage { 
+        
+            id: iconDiv
+            visible: source != ""
+            source: menu_icon ? menu_icon : ""
+            Layout.preferredWidth: source != "" ? height : 0
+            //height: parent.height
+            Layout.alignment: Qt.AlignVCenter
+            Layout.fillHeight: true
+            layer {
+                enabled: true
+                effect: ColorOverlay { color: hotKeyColor }
+            }
+    
         }
+
+        Item {
+            id: indentSpacer
+            Layout.preferredWidth: iconDiv.width ? 3 : indent
+        }
+    
+        Text { 
+            
+            id: labelDiv
+            text: name ? name : "Unknown" //+ (sub_menu && !is_in_bar ? "   >>" : "")
+            font.pixelSize: XsStyleSheet.fontSize
+            font.family: XsStyleSheet.fontFamily
+            color: palette.text 
+            horizontalAlignment: Text.AlignLeft
+            verticalAlignment: Text.AlignVCenter
+            Layout.alignment: Qt.AlignVCenter
+
+        }
+
+        TextMetrics {
+            id:     label_metrics
+            font:   labelDiv.font
+            text:   labelDiv.text
+        }
+
+        Item {
+            id: gap
+            width: hotKeyDiv.text != "" || subMenuIndicatorDiv.visible ? 10 : 0
+        }
+
+        Item {
+            Layout.fillWidth: true
+        }
+
+        Text { 
+
+            Layout.alignment: Qt.AlignVCenter
+            id: hotKeyDiv
+            text: hotkey_sequence ? hotkey_sequence : ""
+            font: labelDiv.font
+            color: hotKeyColor 
+            horizontalAlignment: Text.AlignHCenter
+            verticalAlignment: Text.AlignVCenter
+        }
+
+        TextMetrics {
+            id:     hotkey_metrics
+            font:   hotKeyDiv.font
+            text:   hotKeyDiv.text
+        }
+
+        Image { 
+            
+            Layout.alignment: Qt.AlignVCenter
+            id: subMenuIndicatorDiv
+            visible: widget.has_sub_menu ? !is_in_bar: false
+            width: visible ? 16 : 0
+            source: "qrc:/icons/chevron_right.svg"
+            sourceSize.height: 16
+            sourceSize.width: 16
+            smooth: true
+            layer {
+                enabled: true
+                effect: ColorOverlay { color: hotKeyColor }
+            }
+        }
+
+        // this is needed because the chevron has about 3 empty pixels around it
+        // meaning it doesn't line up with the right edge of hotkey text ...
+        // there is probably a better way?!
+        Item {
+            id: final_spacer
+            width : hotkey_sequence ? 4 : 0
+        }
+
     }
 
     Component.onCompleted: {
-        make_submenus()
+        if (menu_model.rowCount(menu_model_index) || menu_model.get(menu_model_index,"menu_item_type") == "multichoice") {
+            has_sub_menu = true
+        }
     }
 
     function make_submenus() {
@@ -214,8 +236,10 @@ Item {
                 sub_menu = component.createObject(
                     widget,
                     {
+                        parentMenu: parent_menu,
                         menu_model: widget.menu_model,
-                        menu_model_index: widget.menu_model_index
+                        menu_model_index: widget.menu_model_index,
+                        menuContextData: widget.__menuContextData
                     })
 
             } else {
@@ -229,9 +253,7 @@ Item {
                     {
                         menu_model: widget.menu_model,
                         menu_model_index: widget.menu_model_index,
-
-                        parent_menu: widget,
-                        parentWidth: widget.parentWidth
+                        parentMenu: widget.parent_menu,
                     })
 
             } else {

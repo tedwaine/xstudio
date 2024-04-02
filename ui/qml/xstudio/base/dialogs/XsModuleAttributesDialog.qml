@@ -144,7 +144,9 @@ XsWindow {
                                 }
                                 Component.onCompleted: currentIndex = indexOfValue(value_)
                                 onCurrentValueChanged: {
-                                    value = currentValue;
+                                    if (value != currentValue) {
+                                        value = currentValue;
+                                    }
                                 }
                             }
                         }

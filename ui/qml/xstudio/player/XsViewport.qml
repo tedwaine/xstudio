@@ -140,13 +140,13 @@ Viewport {
     XsModelProperty {
         id: fit_mode_pref
         role: "valueRole"
-        index: app_window.globalStoreModel.search_recursive("/ui/qml/fit_mode", "pathRole")
+        index: app_window.globalStoreModel.searchRecursive("/ui/qml/fit_mode", "pathRole")
     }
 
     XsModelProperty {
         id: popout_fit_mode_pref
         role: "valueRole"
-        index: app_window.globalStoreModel.search_recursive("/ui/qml/second_window_fit_mode", "pathRole")
+        index: app_window.globalStoreModel.searchRecursive("/ui/qml/second_window_fit_mode", "pathRole")
     }
 
     XsModuleAttributes {
@@ -185,6 +185,7 @@ Viewport {
             property var type_: type ? type : null
 
             onType_Changed: {
+                console.log("type_", type_, qml_code)
                 if (type == "QmlCode") {
                     dynamic_widget = Qt.createQmlObject(qml_code, parent_item)
                 }

@@ -7,6 +7,7 @@
 #include "data_source_shotgun_definitions.hpp"
 
 #include "xstudio/atoms.hpp"
+#include "xstudio/broadcast/broadcast_actor.hpp"
 #include "xstudio/bookmark/bookmark.hpp"
 #include "xstudio/event/event.hpp"
 #include "xstudio/global_store/global_store.hpp"
@@ -115,9 +116,12 @@ ShotgunDataSourceActor<T>::ShotgunDataSourceActor(
     // we need to recieve authentication updates.
     join_event_group(this, shotgun_);
 
+    event_group_ = spawn<broadcast::BroadcastActor>(this);
+    link_to(event_group_);
     // we are the source of the secret..
     anon_send(shotgun_, shotgun_authentication_source_atom_v, actor_cast<caf::actor>(this));
 
+    system().registry().put(shotgun_datasource_registry, caf::actor_cast<caf::actor>(this));
 
     try {
         auto prefs = GlobalStoreHelper(system());
@@ -127,9 +131,6 @@ ShotgunDataSourceActor<T>::ShotgunDataSourceActor(
     } catch (const std::exception &err) {
         spdlog::warn("{} {}", __PRETTY_FUNCTION__, err.what());
     }
-
-    if(not disable_integration_)
-        system().registry().put(shotgun_datasource_registry, caf::actor_cast<caf::actor>(this));
 
     pool_ = caf::actor_pool::make(
         system().dummy_execution_unit(),
@@ -148,9 +149,36 @@ ShotgunDataSourceActor<T>::ShotgunDataSourceActor(
         std::chrono::milliseconds(500),
         module::connect_to_ui_atom_v);
 
+
+    data_source_.engine().user_presets().bind_send_event_func(
+        [&](auto &&PH1, auto &&PH2) {
+            send(
+                event_group_,
+                utility::event_atom_v, json_store::sync_atom_v,
+                data_source_.engine().uuid(),
+                JsonStore(std::forward<decltype(PH1)>(PH1))
+            );
+        }
+    );
+
+
     behavior_.assign(
+        make_get_event_group_handler(event_group_),
         [=](utility::name_atom) -> std::string { return name(); },
         [=](xstudio::broadcast::broadcast_down_atom, const caf::actor_addr &) {},
+
+        [=](utility::event_atom, json_store::sync_atom, const Uuid &uuid, const JsonStore &event) {
+            if(uuid == data_source_.engine().uuid())
+                data_source_.engine().user_presets().process_event(event, true, false, false);
+        },
+
+        [=](json_store::sync_atom, const Uuid &uuid) -> JsonStore {
+            return data_source_.engine().user_presets().as_json();
+        },
+
+        [=](json_store::sync_atom) -> UuidVector {
+            return UuidVector({data_source_.engine().uuid()});
+        },
 
         [=](shotgun_projects_atom atom) { delegate(shotgun_, atom); },
 
@@ -443,17 +471,6 @@ template <typename T> void ShotgunDataSourceActor<T>::update_preferences(const J
         auto cache_size =
             preference_value<size_t>(js, "/plugin/data_source/shotgun/download/size");
 
-        auto disable_integration =
-            preference_value<bool>(js, "/plugin/data_source/shotgun/disable_integration");
-
-        if(disable_integration_ != disable_integration) {
-            disable_integration_ = disable_integration;
-            if(disable_integration_)
-                system().registry().erase(shotgun_datasource_registry);
-            else
-                system().registry().put(shotgun_datasource_registry, caf::actor_cast<caf::actor>(this));
-        }
-
         download_cache_.prune_on_exit(true);
         download_cache_.target(cache_dir, true);
         download_cache_.max_size(cache_size * 1024 * 1024 * 1024);
@@ -474,6 +491,16 @@ template <typename T> void ShotgunDataSourceActor<T>::update_preferences(const J
         data_source_.set_password(password);
         data_source_.set_session_token(session_token);
         data_source_.set_timeout(timeout);
+
+        // we ignore after initial setup..
+        // if(data_source_.engine().user_presets().at("children").empty()) {
+        //     auto project_presets = preference_value<JsonStore>(js, "/plugin/data_source/shotgun/project_presets");
+        //     auto site_presets = preference_value<JsonStore>(js, "/plugin/data_source/shotgun/site_presets");
+        //     auto user_presets = preference_value<JsonStore>(js, "/plugin/data_source/shotgun/user_presets");
+
+        //     data_source_.engine().merge_presets(site_presets, project_presets);
+        //     data_source_.engine().set_presets(user_presets, site_presets);
+        // }
 
         // what hppens if we get a sequence of changes... should this be on a timed event ?
         // watch out for multiple instances.

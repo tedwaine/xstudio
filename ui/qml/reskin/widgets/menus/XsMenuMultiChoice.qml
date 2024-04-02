@@ -1,4 +1,3 @@
-// SPDX-License-Identifier: Apache-2.0
 import QtQuick 2.15
 import QtQuick.Controls 2.15
 import QtQml.Models 2.14
@@ -18,6 +17,14 @@ XsPopup {
 
     property var menu_model
     property var menu_model_index
+    property var parentMenu
+
+    function closeAll() {
+        visible = false
+        if (parentMenu) parentMenu.closeAll()
+    }
+
+    function hideSubMenus() {}
 
     // N.B. the XsMenuModel exposes role data called 'choices' which lists the
     // items in the multi choice. The active option is exposed via 'current_choice'
@@ -27,18 +34,42 @@ XsPopup {
     // The active option is exposed via 'value' role data
     property var _choices: typeof choices !== "undefined" ? choices : typeof combo_box_options !== "undefined" ? combo_box_options : []
     property var _currentChoice: typeof current_choice !== "undefined" ? current_choice : typeof value !== "undefined" ? value : ""
+    property var _choices_enabled: typeof combo_box_options_enabled !== "undefined" ? combo_box_options_enabled : []
 
     ListView {
 
         id: view
         orientation: ListView.Vertical
         spacing: 0
-        width: 150 //contentWidth
-        height: contentHeight
+        width: contentWidth
+        height: appWindow.maxMenuHeight(contentHeight)
         contentHeight: contentItem.childrenRect.height
-        contentWidth: contentItem.childrenRect.width
+        contentWidth: minWidth
         snapMode: ListView.SnapToItem
         // currentIndex: -1
+        property real minWidth: 20
+        clip: true
+
+        ScrollBar.vertical: ScrollBar {
+            parent: view.parent
+            id: scrollBar; 
+            width: 10
+            anchors.top: view.top
+            anchors.bottom: view.bottom
+            anchors.right: view.left
+            visible: view.height < view.contentHeight
+            policy: ScrollBar.AlwaysOn
+            palette.mid: XsStyleSheet.scrollbarBaseColor
+            palette.dark: XsStyleSheet.scrollbarActiveColor
+        }
+
+        // awkward solution to make all items in the list view the
+        // same width ... the width of the widest item in the view!
+        function setMinWidth(mw) {
+            if (mw > minWidth) {
+                minWidth = mw
+            }
+        }
 
         model: DelegateModel {           
 
@@ -64,64 +95,19 @@ XsPopup {
                     } else if (value) {
                         value = name
                     }
+                    the_popup.closeAll()
                 }
 
                 parent_menu: the_popup
-                parentWidth: view.width
+                width: view.width
+                onMinWidthChanged: {
+                    view.setMinWidth(minWidth)
+                }
+                enabled: is_enabled ? _choices_enabled.length > index ? _choices_enabled[index] : true : false
 
                 property var name: _choices[index]
 
-                // Component.onCompleted: {
-                //     label =  choices[index]
-                //     // is_checked = current_choice == label
-                // }
             }
-
-            // delegate:
-            // Rectangle { 
-                
-            //     width: label_metrics.width + checkbox.width
-            //     height: 30
-            //     id: menu_item
-            //     property var name: choices[index]
-                        
-            //     Rectangle {
-            //         id: checkbox
-            //         anchors.bottom: parent.bottom
-            //         anchors.top: parent.top
-            //         anchors.left: parent.left
-            //         width: height
-            //         color: "transparent"
-            //         border.color: "black"
-            
-            //         Text {
-            //             anchors.centerIn: parent
-            //             text: name == current_choice ? "x" : ""
-            //         }
-            //     }
-            
-            //     Text {
-            //         id: label
-            //         anchors.bottom: parent.bottom
-            //         anchors.top: parent.top
-            //         anchors.left: checkbox.right
-            //         text: name
-            //     }
-            
-            //     TextMetrics {
-            //         id:     label_metrics
-            //         font:   label.font
-            //         text:   label.text
-            //     }
-            
-            //     MouseArea {
-            //         anchors.fill: parent
-            //         onClicked: {
-            //             current_choice = name
-            //         }
-            //     }
-            
-            // }
 
         }
 

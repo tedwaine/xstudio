@@ -54,7 +54,7 @@ TextField { id: widget
         implicitWidth: width
         implicitHeight: height
         color: "transparent" //enabled || forcedBg? widget.focus? Qt.darker(bgColorEditing, 2.75): bgColorNormal: Qt.darker(bgColorNormal, 1.75)
-        border.color: "transparent" //widget.focus || widget.hovered || forcedHover? bgColorEditing: borderColor
+        border.color: widget.focus || widget.hovered || forcedHover? bgColorEditing: borderColor
     }
 
 }

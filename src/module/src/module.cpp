@@ -126,16 +126,22 @@ void Module::link_to_module(
 
         if (intial_push_sync) {
 
+            scoped_actor sys{self()->home_system()};
             // send state of all attrs to 'other_module' so it can update its copies as required
             for (auto &attribute : attributes_) {
                 if (link_all_attrs ||
                     linked_attrs_.find(attribute->uuid()) != linked_attrs_.end()) {
-                    anon_send(
-                        other_module,
-                        change_attribute_value_atom_v,
-                        attribute->get_role_data<std::string>(Attribute::Title),
-                        utility::JsonStore(attribute->role_data_as_json(Attribute::Value)),
-                        true);
+                    try {
+                        utility::request_receive<bool>(
+                            *sys,
+                            other_module,
+                            change_attribute_value_atom_v,
+                            attribute->get_role_data<std::string>(Attribute::Title),
+                            utility::JsonStore(attribute->role_data_as_json(Attribute::Value)),
+                            true);
+                    } catch (std::exception &e) {
+                        spdlog::warn("{} {}", __PRETTY_FUNCTION__, e.what());
+                    }
                 }
             }
         }
@@ -143,27 +149,6 @@ void Module::link_to_module(
         if (both_ways)
             anon_send(
                 other_module, module::link_module_atom_v, self(), link_all_attrs, false, false);
-    }
-}
-
-void Module::unlink_module(caf::actor other_module)
-{
-    auto addr = caf::actor_cast<caf::actor_addr>(other_module);
-    auto p = std::find(fully_linked_modules_.begin(), fully_linked_modules_.end(), addr);
-    bool found_link = false;
-    if (p != fully_linked_modules_.end()) {
-        fully_linked_modules_.erase(p);
-        found_link = true;
-    }
-    p = std::find(partially_linked_modules_.begin(), partially_linked_modules_.end(), addr);
-    if (p != partially_linked_modules_.end()) {
-        partially_linked_modules_.erase(p);
-        found_link = true;
-    }
-
-    if (found_link) {
-        anon_send(
-                other_module, module::link_module_atom_v, self(), false);
     }
 }
 
@@ -201,6 +186,16 @@ StringChoiceAttribute *Module::add_string_choice_attribute(
     const std::vector<std::string> &abbr_options) {
     auto *rt(new StringChoiceAttribute(
         title, abbr_title, value, options, abbr_options.empty() ? options : abbr_options));
+    // rt->set_role_data(module::Attribute::StringChoicesEnabled, std::vector<bool>{}, false);
+    rt->set_owner(this);
+    add_attribute(static_cast<Attribute *>(rt));
+    return rt;
+}
+
+IntegerVecAttribute *
+Module::add_int_vec_attribute(const std::string &title, const std::string &abbr_title) {
+
+    auto *rt(new IntegerVecAttribute(title, abbr_title, std::vector<int>()));
     // rt->set_role_data(module::Attribute::StringChoicesEnabled, std::vector<bool>{}, false);
     rt->set_owner(this);
     add_attribute(static_cast<Attribute *>(rt));
@@ -266,6 +261,49 @@ ColourAttribute *Module::add_colour_attribute(
     return rt;
 }
 
+Vec4fAttribute *Module::add_vec4f_attribute(
+    const std::string &title, const std::string &abbr_title, const Imath::V4f &value) {
+    auto rt = new Vec4fAttribute(title, abbr_title, value);
+    rt->set_owner(this);
+
+    add_attribute(static_cast<Attribute *>(rt));
+    return rt;
+}
+
+Vec4fAttribute *Module::add_vec4f_attribute(
+    const std::string &title,
+    const std::string &abbr_title,
+    const Imath::V4f &value,
+    const Imath::V4f &min,
+    const Imath::V4f &max,
+    const Imath::V4f &step) {
+    auto rt = new Vec4fAttribute(title, abbr_title, value);
+    rt->set_owner(this);
+    add_attribute(static_cast<Attribute *>(rt));
+    rt->set_role_data(Attribute::DefaultValue, value);
+    rt->set_role_data(Attribute::FloatScrubMin, min);
+    rt->set_role_data(Attribute::FloatScrubMax, max);
+    rt->set_role_data(Attribute::FloatScrubStep, step);
+    return rt;
+}
+
+FloatVectorAttribute *Module::add_float_vector_attribute(
+    const std::string &title,
+    const std::string &abbr_title,
+    const std::vector<float> &value,
+    const std::vector<float> &min,
+    const std::vector<float> &max,
+    const std::vector<float> &step) {
+    auto rt = new FloatVectorAttribute(title, abbr_title, value);
+    rt->set_owner(this);
+    add_attribute(static_cast<Attribute *>(rt));
+    rt->set_role_data(Attribute::DefaultValue, value);
+    rt->set_role_data(Attribute::FloatScrubMin, min);
+    rt->set_role_data(Attribute::FloatScrubMax, max);
+    rt->set_role_data(Attribute::FloatScrubStep, step);
+    return rt;
+}
+
 
 ActionAttribute *
 Module::add_action_attribute(const std::string &title, const std::string &abbr_title) {
@@ -276,7 +314,7 @@ Module::add_action_attribute(const std::string &title, const std::string &abbr_t
     return rt;
 }
 
-bool Module::remove_attribute(const utility::Uuid &attribute_uuid) {
+void Module::remove_attribute(const utility::Uuid &attribute_uuid) {
 
     auto attr = get_attribute(attribute_uuid);
     if (attr) {
@@ -310,7 +348,6 @@ bool Module::remove_attribute(const utility::Uuid &attribute_uuid) {
                 to_string(attribute_uuid)).c_str()
                 );
     }
-    return true;
 
 }
 
@@ -390,7 +427,6 @@ caf::message_handler Module::message_handler() {
              const std::string &role_name,
              const utility::JsonStore &value) -> result<bool> {
              try {
-
                  for (const auto &p : attributes_) {
                      if (p->uuid() == attr_uuid) {
 
@@ -412,7 +448,9 @@ caf::message_handler Module::message_handler() {
              }
          },
 
-         [=](utility::get_event_group_atom) -> caf::actor { return attribute_events_group_; },
+         [=](utility::get_event_group_atom, bool) -> caf::actor {
+             return attribute_events_group_;
+         },
 
          [=](broadcast::join_broadcast_atom, caf::actor subscriber) -> result<bool> {
              try {
@@ -648,7 +686,6 @@ caf::message_handler Module::message_handler() {
 
         },
 
-
          [=](attribute_uuids_atom) -> std::vector<xstudio::utility::Uuid> {
              std::vector<xstudio::utility::Uuid> rt;
              for (auto &attr : attributes_) {
@@ -691,14 +728,6 @@ caf::message_handler Module::message_handler() {
              bool both_ways,
              bool intial_push_sync) {
              link_to_module(linkwith, all_attrs, both_ways, intial_push_sync);
-         },
-
-         [=](link_module_atom,
-             caf::actor linkwith,
-             bool unlink) {
-            if (unlink) {
-                unlink_module(linkwith);
-            }
          },
 
          [=](connect_to_ui_atom) { connect_to_ui(); },
@@ -789,10 +818,10 @@ caf::message_handler Module::message_handler() {
                  activated,
                  context);
 
-             if (activated && connected_to_ui_ &&
-                 connected_viewports_.find(context) != connected_viewports_.end())
+             if (activated && connected_to_ui_ /*&&
+                 connected_viewports_.find(context) != connected_viewports_.end()*/)
                  hotkey_pressed(uuid, context);
-             else
+             else if (!activated)
                  hotkey_released(uuid, context);
          },
 
@@ -813,7 +842,6 @@ caf::message_handler Module::message_handler() {
                          true,
                          false // do not broadcast the change *
                      );
-
                      // * if we set a pref and we don't suppress broadcast the
                      // GlobalStore actor that manages prefs re-broadcasts the
                      // new preference and it comes back up to us ... this can
@@ -823,7 +851,9 @@ caf::message_handler Module::message_handler() {
              }
              attrs_waiting_to_update_prefs_.clear();
          },
-         [=](module::current_viewport_playhead_atom, caf::actor_addr) {},
+         [=](module::current_viewport_playhead_atom, const std::string &name, caf::actor_addr) ->bool {
+            return true;
+         },
          [=](ui::viewport::connect_to_viewport_toolbar_atom,
              const std::string &viewport_name,
              const std::string &viewport_toolbar_name,
@@ -844,6 +874,12 @@ caf::message_handler Module::message_handler() {
                  media_source);
          },
          [=](utility::event_atom,
+             ui::viewport::viewport_atom,
+             const std::string viewport_name,
+             caf::actor viewport) {
+             // this event message happens when a new viewport is created
+         },
+         [=](utility::event_atom,
              xstudio::ui::model_data::set_node_data_atom,
              const std::string &model_name,
              const std::string &path,
@@ -855,10 +891,22 @@ caf::message_handler Module::message_handler() {
              const utility::JsonStore &data,
              const std::string role,
              const utility::Uuid &uuid_role_data) {
+             // this update is incoming from the UI layer when attributes
+             // that are exposed in JsonTree model data get changed by
+             // QML. It could be general data model or menu specifi one.
+             // For menu specific one we need to fiddle a bit to map the
+             // role data.
              try {
+                 int role_index;
+                 if (role == "is_checked" || "current_choice")
+                     role_index = Attribute::Value;
+                 else if (role == "choices")
+                     role_index = Attribute::Value;
+                 else
+                     role_index = Attribute::role_index(role);
                  Attribute *attr = get_attribute(uuid_role_data);
                  if (attr) {
-                     attr->set_role_data(Attribute::role_index(role), data);
+                     attr->set_role_data(role_index, data);
                  }
              } catch (std::exception &e) {
                  spdlog::warn("{} {}", __PRETTY_FUNCTION__, e.what());
@@ -867,9 +915,135 @@ caf::message_handler Module::message_handler() {
          [=](utility::event_atom,
              xstudio::ui::model_data::model_data_atom,
              const std::string &model_name,
-             const utility::JsonStore &data) {}
+             const utility::JsonStore &data) -> bool { return true; },
 
-        });
+         [=](utility::event_atom,
+             ui::model_data::menu_node_activated_atom,
+             const std::string path,
+             const utility::JsonStore &menu_item_data,
+             const std::string &user_data,
+             const bool from_hotkey) {
+             if (from_hotkey) {
+                 // N.B. hotkeys can trigger menu events. This is useful in
+                 // the QML layer where we might define a menu item with an
+                 // associated hotkey. However, for Modules we create hotkeys
+                 // and get events separet to the menu system. The only thing
+                 // we might use is tag a hotkey on a menu item so the hotkey
+                 // sequence is made visible on the menu item but the
+                 // mechanism for handling it is throug the hotkey_event_atom
+                 // messages.
+                 return;
+             }
+
+             try {
+                 if (menu_item_data.contains("uuid")) {
+
+                     bool event_used = false;
+                     utility::Uuid uuid(menu_item_data["uuid"]);
+                     // is the menu item representing a toggle attribute?
+                     auto *attr = get_attribute(uuid);
+                     if (attr) {
+                         try {
+                             if (attr->get_role_data<std::string>(Attribute::Type) ==
+                                 "OnOffToggle") {
+                                 attr->set_role_data(
+                                     Attribute::Value,
+                                     !attr->get_role_data<bool>(Attribute::Value));
+                                 event_used = true;
+                             }
+                         } catch (...) {
+                             // not a bool attr
+                         }
+                     }
+
+                     // in the case where the menu item isn't linked to a toggle
+                     // attr we run our callback that subclasses use to implement
+                     // their own response to a menu item action
+                     menu_item_activated(menu_item_data, user_data);
+                     anon_send(
+                         attribute_events_group_,
+                         ui::model_data::menu_node_activated_atom_v,
+                         menu_item_data,
+                         user_data);
+                 }
+             } catch (std::exception &e) {
+                 std::cerr << "EE " << e.what() << "\n";
+             }
+         },
+
+         [=](utility::event_atom,
+             xstudio::ui::model_data::set_node_data_atom,
+             const std::string model_name,
+             const std::string path,
+             const std::string role,
+             const utility::JsonStore &data,
+             const utility::Uuid &menu_item_uuid) {
+             try {
+                 Attribute *attr = get_attribute(menu_item_uuid);
+                 if (attr) {
+                     if (role == "is_checked" && data.is_boolean()) {
+                         attr->set_role_data(Attribute::Value, data.get<bool>());
+                     } else if (role == "current_choice" && data.is_string()) {
+                         attr->set_role_data(Attribute::Value, data.get<std::string>());
+                     } else {
+                         throw std::runtime_error("bad data");
+                     }
+                 }
+
+             } catch (std::exception &e) {
+                 spdlog::warn(
+                     "Module set_node_data_atom handler - {} {} {} {} {}",
+                     e.what(),
+                     model_name,
+                     path,
+                     role,
+                     data.dump());
+             }
+         },
+         [=](module_add_menu_item_atom,
+             const std::string &menu_model_name,
+             const std::string &menu_path,
+             const float menu_item_position,
+             const utility::Uuid &hotkey) -> result<utility::Uuid> {
+             try {
+                 return insert_hotkey_into_menu(
+                     menu_model_name, menu_path, menu_item_position, hotkey);
+             } catch (std::exception &e) {
+                 return caf::make_error(xstudio_error::error, e.what());
+             }
+         },
+         [=](module_add_menu_item_atom,
+             const std::string &menu_model_name,
+             const std::string &menu_text,
+             const std::string &menu_path,
+             const float menu_item_position,
+             const utility::Uuid &attr_id,
+             const bool divider,
+             const utility::Uuid &hotkey,
+             const std::string &user_data) -> result<utility::Uuid> {
+             try {
+                 return insert_menu_item(
+                     menu_model_name,
+                     menu_text,
+                     menu_path,
+                     menu_item_position,
+                     attr_id.is_null() ? nullptr : get_attribute(attr_id),
+                     divider,
+                     hotkey,
+                     user_data);
+             } catch (std::exception &e) {
+                 return caf::make_error(xstudio_error::error, e.what());
+             }
+         },
+         [=](xstudio::ui::model_data::set_node_data_atom,
+            const std::string &menu_model_name,
+            const std::string &submenu,
+            const float submenu_position) {
+            set_submenu_position_in_parent(menu_model_name, submenu, submenu_position);
+        },
+
+        [=](reset_module_atom) { reset(); }});
+
     return h.or_else(playhead::PlayheadGlobalEventsActor::default_event_handler());
 }
 
@@ -986,8 +1160,10 @@ void Module::notify_change(
 
 void Module::attribute_changed(const utility::Uuid &attr_uuid, const int role_id, bool notify) {
 
-
     module::Attribute *attr = get_attribute(attr_uuid);
+    if (attr && attr->has_role_data(Attribute::MenuPaths)) {
+        update_attribute_menu_item_data(attr);
+    }
 
     if (role_id == Attribute::Groups && attr) {
 
@@ -1087,6 +1263,27 @@ Attribute *Module::get_attribute(const std::string &attr_title) {
         }
     }
     return r;
+}
+
+utility::Uuid Module::register_hotkey(
+    const std::string sequence,
+    const std::string &hotkey_name,
+    const std::string &description,
+    const bool auto_repeat,
+    const std::string &component,
+    const std::string &context) {
+    try {
+
+        int key, modifier;
+        ui::Hotkey::sequence_to_key_and_modifier(sequence, key, modifier);
+        return register_hotkey(
+            key, modifier, hotkey_name, description, auto_repeat, component, context);
+
+    } catch (std::exception &e) {
+        spdlog::warn("{} : {} {}", name(), __PRETTY_FUNCTION__, e.what());
+    }
+
+    return utility::Uuid();
 }
 
 utility::Uuid Module::register_hotkey(
@@ -1260,6 +1457,7 @@ void Module::connect_to_ui() {
         if (a->has_role_data(Attribute::Groups)) {
             auto groups = a->get_role_data<std::vector<std::string>>(Attribute::Groups);
             for (const auto &group_name : groups) {
+
                 anon_send(
                     central_models_data_actor,
                     ui::model_data::register_model_data_atom_v,
@@ -1319,8 +1517,12 @@ void Module::disconnect_from_ui() {
     }
 
     if (global_module_events_actor_) {
-        anon_send(
-            global_module_events_actor_, leave_module_attr_events_atom_v, module_events_group_);
+
+        // TODO: remoe this stuff when global_module_events_actor is fully retired after resking
+        // is complete
+        /*anon_send(
+            global_module_events_actor_, leave_module_attr_events_atom_v,
+           module_events_group_);*/
         std::vector<utility::Uuid> attr_uuids;
         for (const auto &p : attributes_) {
             attr_uuids.push_back(p->uuid());
@@ -1413,6 +1615,7 @@ void Module::add_multichoice_attr_to_menu(
     const std::string top_level_menu,
     const std::string menu_path,
     const std::string before) {
+    // RESKIN DEPRECATE
     std::string full_path = top_level_menu + "|" + menu_path;
     std::vector<std::string> menu_paths;
     if (attr->has_role_data(module::Attribute::MenuPaths)) {
@@ -1425,6 +1628,7 @@ void Module::add_multichoice_attr_to_menu(
 
 void Module::add_boolean_attr_to_menu(
     BooleanAttribute *attr, const std::string top_level_menu, const std::string before) {
+    // RESKIN DEPRECATE
     std::vector<std::string> menu_paths;
     if (attr->has_role_data(module::Attribute::MenuPaths)) {
         menu_paths =
@@ -1432,6 +1636,299 @@ void Module::add_boolean_attr_to_menu(
     }
     menu_paths.push_back(top_level_menu);
     attr->set_role_data(module::Attribute::MenuPaths, nlohmann::json(menu_paths));
+}
+
+utility::JsonStore Module::attribute_menu_item_data(Attribute *attr) {
+    // for an attribute that is exposed in a UI menu, build a json dict that
+    // describes that attribute data required for the menu model
+
+    utility::JsonStore menu_item_data;
+    if (attr->get_role_data<std::string>(Attribute::Type) == "ComboBox") {
+        menu_item_data["current_choice"] = attr->get_role_data<std::string>(Attribute::Value);
+        /*auto choices = nlohmann::json::parse("[]");
+        for (const auto &c : multi_choice->options()) {
+            choices.insert(choices.begin() + choices.size(), 1, c);
+        }*/
+        menu_item_data["choices"] =
+            attr->get_role_data<std::vector<std::string>>(Attribute::StringChoices);
+        menu_item_data["menu_item_type"] = "multichoice";
+    } else if (attr->get_role_data<std::string>(Attribute::Type) == "RadioGroup") {
+        menu_item_data["current_choice"] = attr->get_role_data<std::string>(Attribute::Value);
+        /*auto choices = nlohmann::json::parse("[]");
+        for (const auto &c : multi_choice->options()) {
+            choices.insert(choices.begin() + choices.size(), 1, c);
+        }*/
+        menu_item_data["choices"] =
+            attr->get_role_data<std::vector<std::string>>(Attribute::StringChoices);
+        menu_item_data["menu_item_type"] = "radiogroup";
+    } else if (attr->get_role_data<std::string>(Attribute::Type) == "OnOffToggle") {
+        menu_item_data["is_checked"]     = attr->get_role_data<bool>(Attribute::Value);
+        menu_item_data["menu_item_type"] = "toggle";
+    } else {
+        throw std::runtime_error("Attribute type not suitable for menu control.");
+    }
+    menu_item_data["uuid"]              = attr->uuid();
+    menu_item_data["menu_item_enabled"] = attr->has_role_data(Attribute::Enabled)
+                                              ? attr->get_role_data<bool>(Attribute::Enabled)
+                                              : true;
+    return menu_item_data;
+}
+
+utility::Uuid Module::insert_menu_item(
+    const std::string &menu_model_name,
+    const std::string &menu_text,
+    const std::string &menu_path,
+    const float menu_item_position,
+    Attribute *attr,
+    const bool divider,
+    const utility::Uuid &hotkey,
+    const std::string &user_data) {
+    try {
+        auto central_models_data_actor =
+            self()->home_system().registry().template get<caf::actor>(
+                global_ui_model_data_registry);
+
+        utility::JsonStore menu_item_data;
+        if (attr) {
+            menu_item_data = attribute_menu_item_data(attr);
+            // For now using this 'RESKIN' dummy token to stop menus from 'old' skin
+            // messing things up for the reskin. Alternatively (hack alert) if we
+            // want to use the value of the attribute itself to set the menu item
+            // name we start the menu path with USE_ATTR_VALUE
+            std::string new_menu_path;
+            if (menu_text == "USE_ATTR_VALUE") {
+                new_menu_path = "USE_ATTR_VALUE|" + menu_model_name + "|" + menu_path + "|" +
+                                attr->get_role_data<std::string>(Attribute::Value);
+            } else {
+                new_menu_path = "RESKIN|" + menu_model_name + "|" + menu_path + "|" + menu_text;
+            }
+            if (attr->has_role_data(Attribute::MenuPaths)) {
+                auto paths =
+                    attr->get_role_data<std::vector<std::string>>(Attribute::MenuPaths);
+                paths.push_back(new_menu_path);
+                attr->set_role_data(Attribute::MenuPaths, paths);
+            } else {
+                attr->set_role_data(
+                    Attribute::MenuPaths, std::vector<std::string>({new_menu_path}));
+            }
+        } else {
+            // a menu item that is not linked by to an attribute - it simply
+            // has a uuid which, when the user clicks on the menu item, we run
+            // a callback to menu_item_activated virtual method
+            menu_item_data["menu_item_type"] = divider ? "divider" : "button";
+            menu_item_data["uuid"]           = utility::Uuid::generate();
+        }
+
+        if (attr && menu_text == "USE_ATTR_VALUE") {
+            menu_item_data["name"] = attr->get_role_data<std::string>(Attribute::Value);
+        } else if (menu_text != "") {
+            menu_item_data["name"] = menu_text;
+        }
+
+        menu_item_data["menu_item_position"] = menu_item_position;
+        if (!hotkey.is_null()) {
+            menu_item_data["hotkey_uuid"] = hotkey;
+        }
+        if (!user_data.empty()) {
+            menu_item_data["user_data"] = user_data;
+        }
+
+        if (!menu_item_data.contains("menu_item_enabled")) {
+            menu_item_data["menu_item_enabled"] = true;
+        }
+        menu_item_data["menu_item_context"] = std::string();
+
+        auto a = caf::actor_cast<caf::event_based_actor *>(self());
+        if (a) {
+            a->send(
+                central_models_data_actor,
+                ui::model_data::insert_or_update_menu_node_atom_v,
+                menu_model_name,
+                menu_path,
+                menu_item_data,
+                self());
+        } else {
+            anon_send(
+                central_models_data_actor,
+                ui::model_data::insert_or_update_menu_node_atom_v,
+                menu_model_name,
+                menu_path,
+                menu_item_data,
+                self());
+        }
+
+        menu_items_[menu_model_name].push_back(menu_item_data["uuid"]);
+        return menu_item_data["uuid"];
+
+    } catch (std::exception &e) {
+        spdlog::warn("{} {}", __PRETTY_FUNCTION__, e.what());
+    }
+    return utility::Uuid();
+}
+
+utility::Uuid Module::insert_hotkey_into_menu(
+    const std::string &menu_model_name,
+    const std::string &menu_path,
+    const float menu_item_position,
+    const utility::Uuid &hotkey) {
+    try {
+
+        auto central_models_data_actor =
+            self()->home_system().registry().template get<caf::actor>(
+                global_ui_model_data_registry);
+
+        utility::JsonStore menu_item_data;
+        menu_item_data["menu_item_type"]     = "button";
+        auto menu_item_id                    = utility::Uuid::generate();
+        menu_item_data["uuid"]               = menu_item_id;
+        menu_item_data["hotkey_uuid"]        = hotkey;
+        menu_item_data["menu_item_position"] = menu_item_position;
+
+        auto a = caf::actor_cast<caf::event_based_actor *>(self());
+        if (a) {
+            a->send(
+                central_models_data_actor,
+                ui::model_data::insert_or_update_menu_node_atom_v,
+                menu_model_name,
+                menu_path,
+                menu_item_data,
+                self());
+        } else {
+            anon_send(
+                central_models_data_actor,
+                ui::model_data::insert_or_update_menu_node_atom_v,
+                menu_model_name,
+                menu_path,
+                menu_item_data,
+                self());
+        }
+
+        menu_items_[menu_model_name].push_back(menu_item_id);
+        return menu_item_id;
+
+    } catch (std::exception &e) {
+        spdlog::warn("{} {}", __PRETTY_FUNCTION__, e.what());
+    }
+    return utility::Uuid();
+}
+
+void Module::remove_all_menu_items(const std::string &menu_model_name) {
+    if (menu_items_.find(menu_model_name) != menu_items_.end()) {
+        auto central_models_data_actor =
+            self()->home_system().registry().template get<caf::actor>(
+                global_ui_model_data_registry);
+
+        for (const auto &uuid : menu_items_[menu_model_name]) {
+            anon_send(
+                central_models_data_actor,
+                ui::model_data::remove_node_atom_v,
+                menu_model_name,
+                uuid);
+        }
+    }
+}
+
+void Module::update_attribute_menu_item_data(Attribute *attr) {
+
+    try {
+        auto central_models_data_actor =
+            self()->home_system().registry().template get<caf::actor>(
+                global_ui_model_data_registry);
+
+        utility::JsonStore menu_item_data = attribute_menu_item_data(attr);
+
+        const auto paths = attr->get_role_data<std::vector<std::string>>(Attribute::MenuPaths);
+        for (const auto &path : paths) {
+            auto sections = utility::split(path, '|');
+            if (sections.size() >= 2 &&
+                (sections.front() == "RESKIN" || sections.front() == "USE_ATTR_VALUE")) {
+
+                bool use_val = sections.front() == "USE_ATTR_VALUE";
+                sections.erase(sections.begin());
+
+                // when an attribute is first exposed in a menu, we add a string to the
+                // MenuPaths attribute data ... at the front of the string is
+                // the menu model name (i.e. the name of the set of data that
+                // is driving a particular pop-up menu or menu bar), at the
+                // back is the menu item name (i.e. what is displayed in the
+                // menu) and the middle is the 'menu path' which is this list
+                // of sub-menu names under which the menu item is inserted.
+
+                if (use_val) {
+                    menu_item_data["name"] = attr->get_role_data<std::string>(Attribute::Value);
+                } else {
+                    menu_item_data["name"] = sections.back();
+                }
+                std::string menu_path;
+                for (size_t i = 1; i < (sections.size() - 1); ++i) {
+                    menu_path = sections[i] + (i == (sections.size() - 1) ? "" : "|");
+                }
+
+                anon_send(
+                    central_models_data_actor,
+                    ui::model_data::insert_or_update_menu_node_atom_v,
+                    sections.front(), // menu model name
+                    menu_path,
+                    menu_item_data,
+                    self());
+            }
+        }
+
+    } catch (std::exception &e) {
+        spdlog::warn("{} {} {}", __PRETTY_FUNCTION__, e.what(), attr->as_json().dump());
+    }
+}
+
+void Module::remove_menu_item(const std::string &menu_model_name, const utility::Uuid item_id) {
+    auto central_models_data_actor = self()->home_system().registry().template get<caf::actor>(
+        global_ui_model_data_registry);
+
+    anon_send(
+        central_models_data_actor,
+        ui::model_data::remove_node_atom_v,
+        menu_model_name,
+        item_id);
+}
+
+utility::Uuid Module::insert_menu_divider(
+    const std::string &menu_model_name,
+    const std::string &menu_path,
+    const float menu_item_position) {
+    auto central_models_data_actor = self()->home_system().registry().template get<caf::actor>(
+        global_ui_model_data_registry);
+
+    utility::JsonStore menu_item_data;
+
+    menu_item_data["menu_item_position"] = menu_item_position;
+    menu_item_data["menu_item_type"]     = "divider";
+    menu_item_data["uuid"]               = utility::Uuid::generate();
+
+    anon_send(
+        central_models_data_actor,
+        ui::model_data::insert_or_update_menu_node_atom_v,
+        menu_model_name,
+        menu_path,
+        menu_item_data,
+        self());
+
+    return menu_item_data["uuid"];
+}
+
+void Module::set_submenu_position_in_parent(
+    const std::string &menu_model_name,
+    const std::string &submenu,
+    const float submenu_position) {
+
+    auto central_models_data_actor = self()->home_system().registry().template get<caf::actor>(
+        global_ui_model_data_registry);
+
+    anon_send(
+        central_models_data_actor,
+        ui::model_data::insert_or_update_menu_node_atom_v,
+        menu_model_name,
+        submenu,
+        submenu_position);
+
 }
 
 void Module::make_attribute_visible_in_viewport_toolbar(
@@ -1641,4 +2138,79 @@ utility::JsonStore Module::public_state_data() {
     }
     // std::cerr << data.dump(2) << "\n";
     return data;
+}
+
+void Module::register_ui_panel_qml(const std::string &panel_name, const std::string &qml_code) {
+
+    auto central_models_data_actor = self()->home_system().registry().template get<caf::actor>(
+        global_ui_model_data_registry);
+
+    utility::JsonStore data;
+    data["view_name"]       = panel_name;
+    data["view_qml_source"] = qml_code;
+
+    /*anon_send(
+        central_models_data_actor,
+        ui::model_data::insert_rows_atom_v,
+        "views model", // the model called 'views model' is what's used to build the panels menu
+        "/", // add to root
+        data,
+        0, // row
+        1, // count
+        caf::actor());*/
+
+    scoped_actor sys{self()->home_system()};
+    try {
+
+        anon_send(
+            central_models_data_actor,
+            ui::model_data::insert_rows_atom_v,
+            "view widgets", // the model called 'view widgets' is what's used to build the
+                            // panels menu
+            "",             // (path) add to root
+            0,              // row
+            1,              // count
+            data);
+
+        /*std::cerr << "OIOIO " << utility::request_receive<utility::JsonStore>(
+                            *sys,
+                            central_models_data_actor,
+                            ui::model_data::insert_rows_atom_v,
+                            "views model", // the model called 'views model' is what's used to
+           build the panels menu
+                            "/", // (path) add to root
+                            0, // row
+                            1, // count
+                           data).dump(2) << "\n";*/
+
+
+    } catch (std::exception &e) {
+        spdlog::warn("{} {}", __PRETTY_FUNCTION__, e.what());
+    }
+}
+
+void Module::register_singleton_qml(const std::string &qml_code) {
+
+    auto central_models_data_actor = self()->home_system().registry().template get<caf::actor>(
+        global_ui_model_data_registry);
+
+    utility::JsonStore data;
+    data["source"] = qml_code;
+
+    scoped_actor sys{self()->home_system()};
+    try {
+
+        anon_send(
+            central_models_data_actor,
+            ui::model_data::insert_rows_atom_v,
+            "singleton items", // the model called 'singleton items' is what's used to build the
+                               // singleton
+            "",                // (path) add to root
+            0,                 // row
+            1,                 // count
+            data);
+
+    } catch (std::exception &e) {
+        spdlog::warn("{} {}", __PRETTY_FUNCTION__, e.what());
+    }
 }

@@ -42,7 +42,7 @@ Rectangle {
     // create a binding to backend prefs to store the divider positions
     XsModelNestedPropertyMap {
         id: prefs
-        index: app_window.globalStoreModel.search_recursive("/ui/qml/" + parent_window_name + "_" + layout_name, "pathRole")
+        index: app_window.globalStoreModel.searchRecursive("/ui/qml/" + parent_window_name + "_" + layout_name, "pathRole")
         property alias properties: prefs.values
     }
 

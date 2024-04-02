@@ -25,7 +25,6 @@ import xstudio.qml.viewport 1.0
 import xstudio.qml.session 1.0
 //import xstudio.qml.playlist 1.0
 import xstudio.qml.semver 1.0
-import xstudio.qml.cursor_pos_provider 1.0
 import xstudio.qml.helpers 1.0
 
 Rectangle {
@@ -62,7 +61,7 @@ Rectangle {
 
     XsModelNestedPropertyMap {
         id: prefs
-        index: app_window.globalStoreModel.search_recursive("/ui/qml/" + window_name + "_settings", "pathRole")
+        index: app_window.globalStoreModel.searchRecursive("/ui/qml/" + window_name + "_settings", "pathRole")
         property alias properties: prefs.values
     }
 

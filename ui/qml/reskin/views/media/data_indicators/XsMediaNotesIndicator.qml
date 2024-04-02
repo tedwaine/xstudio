@@ -9,6 +9,30 @@ Item{
     id: notesDiv
     clip: true
 
+    property var gotBookmark: false
+    property var gotBookmarkAnnotation: false
+    property var gotBookmarkGrade: false
+    property var gotBookmarkTransform: false
+    property var gotBookmarkUuids_: bookmarkUuids
+
+    onGotBookmarkUuids_Changed: {
+        var bm = false
+        var anno = false
+        if (bookmarkUuids && bookmarkUuids.length) {
+            bm = true
+            for (var i in bookmarkUuids) {
+                var idx = bookmarkModel.searchRecursive(bookmarkUuids[i], "uuidRole")
+                if (idx.valid) {                    
+                    if (bookmarkModel.get(idx,"hasAnnotationRole")) {
+                        anno = true
+                    }
+                }
+            }
+        }
+        gotBookmark = bm
+        gotBookmarkAnnotation = anno
+    }
+
     RowLayout{ id: attachmentIconsRow
         anchors.left: parent.left
         anchors.leftMargin: itemPadding*2
@@ -18,26 +42,60 @@ Item{
         // TODO: add notes/annotation/colour/transform status data to
         // MediaItem in the main data model to drive these buttons ...
         
-        Repeater{
+        XsSecondaryButton { 
+                
+            enabled: false
 
-            model: 4
-
-            XsSecondaryButton{ id: attachmentIcon
-
-                enabled: false
-
-                Layout.minimumWidth: XsStyleSheet.secondaryButtonStdWidth
-                Layout.maximumWidth: XsStyleSheet.secondaryButtonStdWidth
-                Layout.minimumHeight: XsStyleSheet.secondaryButtonStdWidth
-                Layout.maximumHeight: XsStyleSheet.secondaryButtonStdWidth
-                imgSrc: 
-                    index==0 ? "qrc:/icons/sticky_note.svg" :
-                    index==1 ? "qrc:/icons/brush.svg" : 
-                    index==2 ? "qrc:/icons/tune.svg" : 
-                    index==3 ? "qrc:/icons/open_with.svg" : ""
-
-            }
+            Layout.minimumWidth: XsStyleSheet.secondaryButtonStdWidth
+            Layout.maximumWidth: XsStyleSheet.secondaryButtonStdWidth
+            Layout.minimumHeight: XsStyleSheet.secondaryButtonStdWidth
+            Layout.maximumHeight: XsStyleSheet.secondaryButtonStdWidth
+            imgSrc: "qrc:/icons/sticky_note.svg"
+            isColoured: gotBookmark
+            onlyVisualyEnabled: gotBookmark
         }
+
+        XsSecondaryButton { 
+                
+            enabled: false
+
+            Layout.minimumWidth: XsStyleSheet.secondaryButtonStdWidth
+            Layout.maximumWidth: XsStyleSheet.secondaryButtonStdWidth
+            Layout.minimumHeight: XsStyleSheet.secondaryButtonStdWidth
+            Layout.maximumHeight: XsStyleSheet.secondaryButtonStdWidth
+            imgSrc: "qrc:/icons/brush.svg"
+            isColoured: gotBookmarkAnnotation
+            onlyVisualyEnabled: gotBookmarkAnnotation
+
+        }
+
+        XsSecondaryButton { 
+                
+            enabled: false
+
+            Layout.minimumWidth: XsStyleSheet.secondaryButtonStdWidth
+            Layout.maximumWidth: XsStyleSheet.secondaryButtonStdWidth
+            Layout.minimumHeight: XsStyleSheet.secondaryButtonStdWidth
+            Layout.maximumHeight: XsStyleSheet.secondaryButtonStdWidth
+            imgSrc: "qrc:/icons/tune.svg"
+            isColoured: gotBookmarkGrade
+            onlyVisualyEnabled: gotBookmarkGrade
+
+        }
+
+        XsSecondaryButton { 
+                
+            enabled: false
+            Layout.minimumWidth: XsStyleSheet.secondaryButtonStdWidth
+            Layout.maximumWidth: XsStyleSheet.secondaryButtonStdWidth
+            Layout.minimumHeight: XsStyleSheet.secondaryButtonStdWidth
+            Layout.maximumHeight: XsStyleSheet.secondaryButtonStdWidth
+            imgSrc: "qrc:/icons/open_with.svg"
+            isColoured: gotBookmarkTransform
+            onlyVisualyEnabled: gotBookmarkTransform
+
+        }
+
     }
     Rectangle{
         width: headerThumbWidth; 

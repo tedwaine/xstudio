@@ -107,6 +107,7 @@ KeypressMonitor::KeypressMonitor(caf::actor_config &cfg) : caf::event_based_acto
             std::vector<Hotkey> hks;
             for (const auto &p : active_hotkeys_)
                 hks.push_back(p.second);
+            send(hotkey_config_events_group_, hotkey_event_atom_v, active_hotkeys_[hk.uuid()]);
             send(hotkey_config_events_group_, hotkey_event_atom_v, hks);
         },
 
@@ -123,6 +124,18 @@ KeypressMonitor::KeypressMonitor(caf::actor_config &cfg) : caf::event_based_acto
                 return p->second;
             }
             return make_error(xstudio_error::error, "Invalid hotkey uuid");
+        },
+
+        [=](keypress_monitor::hotkey_event_atom,
+            const utility::Uuid kotkey_uuid,
+            const bool pressed,
+            const std::string &context) {
+            send(
+                hotkey_config_events_group_,
+                hotkey_event_atom_v,
+                kotkey_uuid,
+                pressed,
+                context);
         },
 
         [=](xstudio::broadcast::broadcast_down_atom, const caf::actor_addr &) {},
@@ -146,7 +159,8 @@ void KeypressMonitor::held_keys_changed(const std::string &context, const bool a
         }*/
     } else {
         for (auto &p : active_hotkeys_) {
-            p.second.update_state(held_keys_, context, auto_repeat);
+            p.second.update_state(
+                held_keys_, context, auto_repeat, caf::actor_cast<caf::actor>(this));
         }
     }
 }

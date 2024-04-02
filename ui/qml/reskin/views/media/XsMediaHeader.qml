@@ -47,15 +47,8 @@ Rectangle{ id: header
             model: columns_model
 
             XsMediaHeaderColumn{
-                
-                //width: size
-
-                // preferredWidth
                 Layout.preferredWidth: size
                 Layout.minimumHeight: XsStyleSheet.widgetStdHeight 
-                
-                // Why this ... ?
-                z: columns_model.length-index
 
                 titleBarTotalWidth: titleBar.width
 

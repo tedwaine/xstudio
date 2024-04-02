@@ -9,7 +9,7 @@ import xStudio 1.0
 XsMenu {
     XsModelNestedPropertyMap {
         id: custom_help_menu
-        index: app_window.globalStoreModel.search_recursive("/ui/qml/custom_help_menu", "pathRole")
+        index: app_window.globalStoreModel.searchRecursive("/ui/qml/custom_help_menu", "pathRole")
     }
 
     function openDoc(url) {

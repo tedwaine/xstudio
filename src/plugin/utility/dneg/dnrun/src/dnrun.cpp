@@ -359,7 +359,23 @@ template <typename T> class DNRunPluginActor : public caf::event_based_actor {
 
                             spdlog::info("DNRun received request {}", jsn.dump(2));
 
+                            bool quickview = jsn.at("args").contains("quickview") &&
+                                             jsn.at("args").at("quickview");
+
                             caf::actor playlist;
+
+                            if (quickview) {
+                                try {
+                                    // this throws an exception if there is no 'current'
+                                    // playlist
+                                    playlist = request_receive<caf::actor>(
+                                        *sys,
+                                        session,
+                                        session::get_playlist_atom_v,
+                                        "QuickView Playlist");
+                                } catch (...) {
+                                }
+                            }
 
                             // first, try and add to existing 'current' playlist
                             try {
@@ -392,15 +408,6 @@ template <typename T> class DNRunPluginActor : public caf::event_based_actor {
 
                             bool first = true;
 
-                            bool quickview = false;
-                            if (jsn.at("args").contains("quickview")) {
-                                if (jsn.at("args")["quickview"].is_boolean()) {
-                                    quickview = jsn.at("args").at("quickview");
-                                } else if (jsn.at("args")["quickview"].is_string()) {
-                                    quickview = jsn.at("args").at("quickview") == "true";
-                                }
-                            }
-                            
                             bool ab_compare = jsn.at("args").contains("compare") &&
                                               jsn.at("args").at("compare") == "ab";
 

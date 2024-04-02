@@ -24,16 +24,6 @@ PluginManagerActor::PluginManagerActor(caf::actor_config &cfg) : caf::event_base
 
 
     manager_.emplace_front_path(xstudio_root("/plugin"));
-
-    // use env var 'XSTUDIO_PLUGIN_PATH' to extend the folders searched for
-    // xstudio plugins
-    char * plugin_path = std::getenv("XSTUDIO_PLUGIN_PATH");
-    if (plugin_path) {
-        for (const auto &p : xstudio::utility::split(plugin_path, ':')) {
-            manager_.emplace_front_path(p);
-        }
-    }
-
     manager_.load_plugins();
 
     try {

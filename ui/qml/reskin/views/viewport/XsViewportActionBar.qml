@@ -1,4 +1,3 @@
-// SPDX-License-Identifier: Apache-2.0
 import QtQuick 2.12
 import QtQuick.Layouts 1.15
 // import QtQml.Models 2.14
@@ -10,7 +9,10 @@ import "./widgets"
 
 Item{id: actionDiv
     width: parent.width;
-    height: btnHeight+(panelPadding*2)
+
+    height: (btnHeight+(panelPadding*2))*opacity
+    visible: opacity != 0.0
+    Behavior on opacity {NumberAnimation{ duration: 150 }}
 
     property real btnHeight: XsStyleSheet.widgetStdHeight+4
     property real panelPadding: XsStyleSheet.panelPadding
@@ -27,19 +29,19 @@ Item{id: actionDiv
     XsModelProperty {
         id: __playheadSourceUuid
         role: "value"
-        index: currentPlayheadData.search_recursive("Current Media Uuid", "title")
+        index: viewportPlayheadDataModel.searchRecursive("Current Media Uuid", "title")
     }
     XsModelProperty {
         id: __playheadMediaSourceUuid
         role: "value"
-        index: currentPlayheadData.search_recursive("Current Media Source Uuid", "title")
+        index: viewportPlayheadDataModel.searchRecursive("Current Media Source Uuid", "title")
     }
 
     Connections {
-        target: currentPlayheadData // this bubbles up from XsSessionWindow
+        target: viewportPlayheadDataModel // this bubbles up from XsSessionWindow
         function onJsonChanged() {
-            __playheadSourceUuid.index = currentPlayheadData.search_recursive("Current Media Uuid", "title")
-            __playheadMediaSourceUuid.index = currentPlayheadData.search_recursive("Current Media Source Uuid", "title")
+            __playheadSourceUuid.index = viewportPlayheadDataModel.searchRecursive("Current Media Uuid", "title")
+            __playheadMediaSourceUuid.index = viewportPlayheadDataModel.searchRecursive("Current Media Source Uuid", "title")
         }
     }
     property alias mediaUuid: __playheadSourceUuid.value
@@ -51,7 +53,7 @@ Item{id: actionDiv
 
         // TODO - current this gets us to media actor, not media source actor,
         // so we can't get to the file name yet
-        mediaData.index = theSessionData.search_recursive(
+        mediaData.index = theSessionData.searchRecursive(
             mediaUuid,
             "actorUuidRole",
             viewedMediaSetIndex
@@ -59,7 +61,7 @@ Item{id: actionDiv
     }
 
     onMediaSourceUuidChanged: {
-        mediaSourceData.index = theSessionData.search_recursive(
+        mediaSourceData.index = theSessionData.searchRecursive(
             mediaSourceUuid,
             "actorUuidRole",
             viewedMediaSetIndex
@@ -67,7 +69,7 @@ Item{id: actionDiv
     }
 
     // this gives us access to the 'role' data of the entry in the session model
-    // for the current on-screen media 
+    // for the current on-screen media
     XsModelPropertyMap {
         id: mediaData
         index: theSessionData.invalidIndex()
@@ -99,6 +101,7 @@ Item{id: actionDiv
             Layout.preferredWidth: 40
             Layout.preferredHeight: parent.height
             imgSrc: "qrc:/icons/open_with.svg"
+            enabled: false
             onClicked:{
                 isActive = !isActive
             }
@@ -107,6 +110,7 @@ Item{id: actionDiv
             Layout.preferredWidth: 40
             Layout.preferredHeight: parent.height
             imgSrc: "qrc:/icons/tune.svg"
+            enabled: false
             onClicked:{
                 isActive = !isActive
             }
@@ -115,6 +119,7 @@ Item{id: actionDiv
             Layout.preferredWidth: 40
             Layout.preferredHeight: parent.height
             imgSrc: "qrc:/icons/brush.svg"
+            enabled: false
             onClicked:{
                 isActive = !isActive
             }
@@ -123,6 +128,7 @@ Item{id: actionDiv
             Layout.preferredWidth: 40
             Layout.preferredHeight: parent.height
             imgSrc: "qrc:/icons/sticky_note.svg"
+            enabled: false
             onClicked:{
                 isActive = !isActive
             }
@@ -132,14 +138,32 @@ Item{id: actionDiv
             Layout.preferredHeight: parent.height
             text: mediaSourceData.fileName
             font.bold: true
+            elide: Text.ElideMiddle
+
+            MouseArea { id: toolTipMArea
+                anchors.fill: parent
+                hoverEnabled: true
+                propagateComposedEvents: true
+
+                onClicked:{
+                    parent.elide = parent.elide == Text.ElideRight? Text.ElideMiddle : Text.ElideRight
+                }
+
+                XsToolTip{
+                    text: parent.parent.text
+                    visible: parent.containsMouse && parent.parent.truncated
+                    width: parent.parent.textWidth //== 0? 0 : 150
+                }
+            }
         }
-        XsPrimaryButton{ id: resetBtn
+
+        XsPrimaryButton {
+            id: resetBtn
             Layout.preferredWidth: 40
             Layout.preferredHeight: parent.height
             imgSrc: "qrc:/icons/reset_tv.svg"
             onClicked:{
-                zoomBtn.isZoomMode = false
-                panBtn.isActive = false
+                view.reset()
             }
         }
 
@@ -157,7 +181,7 @@ Item{id: actionDiv
                 id: zoomBtn
                 Layout.preferredWidth: 40
                 Layout.preferredHeight: parent.height
-                imgSrc: title == "Zoom (Z)" ? "qrc:/icons/zoom_in.svg" : "qrc:/icons/pan.svg"
+                imgSrc: title == "Zoom" ? "qrc:/icons/zoom_in.svg" : "qrc:/icons/pan.svg"
                 isActive: value
                 onClicked:{
                     value = !value
@@ -190,6 +214,7 @@ Item{id: actionDiv
             Layout.preferredWidth: 40
             Layout.preferredHeight: parent.height
             imgSrc: "qrc:/icons/more_vert.svg"
+            enabled: false
         }
     }
 

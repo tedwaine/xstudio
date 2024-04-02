@@ -21,7 +21,10 @@ namespace conform {
 
     // item json, we might need to expand this with more detail, may need to support clips.
     // might need a custom handler on items to generate more usful hints.
-    typedef std::tuple<utility::JsonStore> ConformRequestItem;
+
+    // media item, metadata, insert before this.
+    typedef std::tuple<utility::UuidActor, utility::JsonStore, utility::Uuid>
+        ConformRequestItem;
 
     struct ConformRequest {
         ConformRequest(
@@ -48,11 +51,8 @@ namespace conform {
         }
     };
 
-    typedef std::tuple<
-        bool,                    // exists in playlist
-        utility::MediaReference, // media json
-        utility::UuidActor       // reference to media actor
-        >
+    typedef std::tuple<utility::UuidActor // reference to media actor
+                       >
         ConformReplyItem;
 
     struct ConformReply {

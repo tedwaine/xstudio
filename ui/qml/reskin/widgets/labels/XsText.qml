@@ -10,11 +10,15 @@ Text {
 
     property color textColorNormal: palette.text
     property var textElide: widget.elide
-    property real textWidth: metrics.width
+    property real textWidth: metrics.advanceWidth
+
+    property bool toolTipEnabled: true
+    property bool isHovered: false //toolTipMA.containsMouse
+
     property alias toolTip: toolTip
     property alias tooltipText: toolTip.text
     property alias tooltipVisibility: toolTip.visible
-    property real toolTipWidth: widget.width+5 //150
+    property real toolTipWidth: widget.width+15 //150
 
     text: ""
     color: textColorNormal 
@@ -28,14 +32,17 @@ Text {
     // bottomPadding: 2
     // leftPadding: 20
     // rightPadding: 20
-    elide: Text.ElideRight
+    
+    //elide: Text.ElideRight
+    wrapMode: Text.NoWrap
+
     // width: parent.width
     // height: parent.height
 
     TextMetrics {
+        text: widget.text
         id: metrics
         font: widget.font
-        text: widget.text
     }
     // MouseArea{
     //     id: mArea
@@ -44,7 +51,12 @@ Text {
     //     propagateComposedEvents: true
     // }
 
-    XsToolTip{
+    //Type1
+    ToolTip.text: text
+    ToolTip.visible: toolTipEnabled && truncated && isHovered
+
+    //Type2
+    XsToolTip {
         id: toolTip
         text: widget.text
         visible: false //mArea.containsMouse && parent.truncated

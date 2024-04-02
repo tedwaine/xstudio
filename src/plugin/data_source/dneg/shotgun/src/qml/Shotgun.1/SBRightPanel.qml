@@ -724,7 +724,7 @@ Rectangle{ id: rightDiv
                 cellWidth: currentCategoryClass == "Edits" ? 260: (searchResultsView.width - resultScrollBar.width)
                 cellHeight: (currentCategoryClass == "Edits")? (itemHeight*3 - itemSpacing)/2:
                             (currentCategoryClass == "Playlists")? (itemHeight*3 - itemSpacing)/1.15:
-                            (currentCategoryClass == "Notes")? (itemHeight*7 - itemSpacing):
+                            (currentCategoryClass == "Notes")? (itemHeight*9 - itemSpacing):
                             (itemHeight*3 - itemSpacing)
 
                 clip: true

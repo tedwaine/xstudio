@@ -1,4 +1,3 @@
-// SPDX-License-Identifier: Apache-2.0
 import QtQuick 2.15
 import QtQuick.Controls 2.15
 
@@ -18,15 +17,19 @@ Popup {
     property color bgColorNormal: "#4B4B4B" //"#5C5C5C"
     property color forcedBgColorNormal: bgColorNormal //"#E6676767"
 
-    background: Rectangle{
+    property alias bgDiv: bgDiv
+
+    background: XsGradientRectangle{
+        id: bgDiv
         implicitWidth: 100
         implicitHeight: 200
-        border.width: forcedBgColorNormal==bgColorNormal? 0:1
+        border.width: 1
         border.color: XsStyleSheet.baseColor
-        gradient: Gradient {
-            GradientStop { position: 0.0; color: forcedBgColorNormal==bgColorNormal?"#707070":"#F2676767" }
-            GradientStop { position: 1.0; color: forcedBgColorNormal }
-        }
+
+        flatColor: topColor
+        topColor: forcedBgColorNormal==bgColorNormal?"#707070":"#F2676767" 
+        bottomColor: forcedBgColorNormal
+
     }
 
 }

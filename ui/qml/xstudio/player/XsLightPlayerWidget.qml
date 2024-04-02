@@ -18,7 +18,6 @@ import QtQml 2.14
 //------------------------------------------------------------------------------
 import xstudio.qml.viewport 1.0
 import xstudio.qml.semver 1.0
-import xstudio.qml.cursor_pos_provider 1.0
 import xstudio.qml.uuid 1.0
 import xstudio.qml.module 1.0
 import xstudio.qml.helpers 1.0
@@ -61,7 +60,7 @@ Rectangle {
 
     XsModelNestedPropertyMap {
         id: player_prefs
-        index: app_window.globalStoreModel.search_recursive(playerWidget.preferencePath, "pathRole")
+        index: app_window.globalStoreModel.searchRecursive(playerWidget.preferencePath, "pathRole")
         property alias properties: player_prefs.values
     }
 

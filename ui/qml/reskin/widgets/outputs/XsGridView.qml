@@ -20,6 +20,7 @@ GridView{ id: widget
     // clip: true
     interactive: true
     flow: GridView.FlowLeftToRight
+     
     // model:  
 
     ScrollBar.vertical: XsScrollBar {id: scrollBar; anchors.right: widget.right; anchors.rightMargin: 0;

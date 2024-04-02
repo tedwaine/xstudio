@@ -9,8 +9,8 @@ import QtQml.Models 2.14
 import QtQuick.Dialogs 1.3 //for ColorDialog
 import QtGraphicalEffects 1.15 //for RadialGradient
 
-import xStudio 1.1
-import xstudio.qml.module 1.0
+import xStudioReskin 1.0
+import xstudio.qml.models 1.0
 
 Item{
 
@@ -18,10 +18,9 @@ Item{
 
     // note this model only has one item, which is the 'tool type' attribute
     // in the backend.
-
-    XsModuleAttributesModel {
+    XsModuleData {
         id: mask_tool_types
-        attributesGroupNames: "mask_tool_types"
+        modelDataName: "mask_tool_types"
     }
 
     property var toolImages: [
@@ -76,7 +75,7 @@ Item{
                     property bool isEnabled: true//index != 2 // Text disabled while WIP - can be enabled to see where it is
                     enabled: isEnabled
 
-                    XsButton{ id: toolBtn
+                    XsPrimaryButton{ id: toolBtn
                         width: parent.width
                         height: parent.height
                         text: ""

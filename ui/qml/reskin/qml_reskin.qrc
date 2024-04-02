@@ -1,17 +1,26 @@
 <RCC>
 	<qresource prefix="/feather_icons">
 	</qresource>
-	
+
 	<qresource prefix="/">
 
 	    <file>main_reskin.qml</file>
 	    <file>xStudioReskin/qmldir</file>
 	    <file>xStudioReskin/XsStyleSheet.qml</file>
 
+	    <file>session_data/XsAttributeValue.qml</file>
+	    <file>session_data/XsAttributeFullData.qml</file>
 	    <file>session_data/XsMediaListModelData.qml</file>
 	    <file>session_data/XsSessionData.qml</file>
+	    <file>session_data/XsPreference.qml</file>
 
+	    <file>windows/XsPopoutViewerWindow.qml</file>
 	    <file>windows/XsSessionWindow.qml</file>
+	    <file>windows/main_menu_bar/XsMainMenuBar.qml</file>
+	    <file>windows/main_menu_bar/file_menu/XsFileMenu.qml</file>
+	    <file>windows/main_menu_bar/file_menu/XsFileFunctions.qml</file>
+	    <file>windows/quickview/XsQuickViewLauncher.qml</file>
+	    <file>windows/quickview/XsQuickViewWindow.qml</file>
 
 	    <file>layout_framework/XsLayoutModeBar.qml</file>
 	    <file>layout_framework/XsPanelDivider.qml</file>
@@ -30,13 +39,17 @@
 		<file>views/media/data_indicators/XsMediaNotesIndicator.qml</file>
 		<file>views/media/data_indicators/XsMediaTextItem.qml</file>
 		<file>views/media/data_indicators/XsMediaThumbnailImage.qml</file>
+		<file>views/media/widgets/XsMediaListContextMenu.qml</file>
+	    <file>views/media/widgets/XsMediaListPlusMenu.qml</file>
 
 	    <file>views/playlists/XsPlaylists.qml</file>
+	    <file>views/playlists/XsPlaylistHeader.qml</file>
 	    <file>views/playlists/XsPlaylistItems.qml</file>
 	    <file>views/playlists/delegates/XsPlaylistItemDelegate.qml</file>
 	    <file>views/playlists/delegates/XsPlaylistDividerDelegate.qml</file>
 	    <file>views/playlists/delegates/XsSubsetItemDelegate.qml</file>
 	    <file>views/playlists/delegates/XsTimelineItemDelegate.qml</file>
+	    <file>views/playlists/widgets/XsPlaylistPlusMenu.qml</file>
 
 	    <file>views/timeline/XsTimelinePanel.qml</file>
 	    <file>views/timeline/XsTimeline.qml</file>
@@ -65,48 +78,100 @@
 	    <file>views/viewport/XsViewportTransportBar.qml</file>
 	    <file>views/viewport/XsViewportToolBar.qml</file>
 	    <file>views/viewport/XsViewportInfoBar.qml</file>
+	    <file>views/viewport/XsViewportHUD.qml</file>
+	    <file>views/viewport/widgets/XsCurrentFrameIndicator.qml</file>
+	    <file>views/viewport/widgets/XsDurationFPSIndicator.qml</file>
+	    <file>views/viewport/widgets/XsViewerAnyMenuButton.qml</file>
+	    <file>views/viewport/widgets/XsViewerContextMenu.qml</file>
 	    <file>views/viewport/widgets/XsViewerMenuButton.qml</file>
 	    <file>views/viewport/widgets/XsViewerSeekEditButton.qml</file>
 	    <file>views/viewport/widgets/XsViewerTextDisplay.qml</file>
 	    <file>views/viewport/widgets/XsViewerToggleButton.qml</file>
 	    <file>views/viewport/widgets/XsViewerVolumeButton.qml</file>
+	    <file>views/viewport/widgets/XsViewerSourceSelectorButton.qml</file>
+	    <file>views/viewport/widgets/XsViewerHUDButton.qml</file>
+	    <file>views/viewport/widgets/XsViewerTimeline.qml</file>
+	    <file>views/viewport/widgets/XsViewerToolbarButtonBase.qml</file>
+	    <file>views/viewport/widgets/XsViewerToolbarValueScrubber.qml</file>
+	</qresource>
 
+	<qresource prefix="/">
+		<file>tools/conform/XsConformTool.qml</file>
+		<file>views/notes/XsNotesView.qml</file>
+		<file>views/notes/XsNotesSingleton.qml</file>
+		<file>views/notes/XsNotesItemDelegate.qml</file>
+		<file>views/notes/sections/XsNoteSection1.qml</file>
+		<file>views/notes/sections/XsNoteSection2.qml</file>
+		<file>views/notes/sections/XsNoteSection3.qml</file>
 	</qresource>
 
 	<qresource prefix="/">
 
 	    <file>widgets/bars_and_tabs/XsSearchBar.qml</file>
 	    <file>widgets/bars_and_tabs/XsTab.qml</file>
-	    <file>widgets/bars_and_tabs/XsTabView.qml</file>
+	    <file>widgets/bars_and_tabs/XsGradientRectangle.qml</file>
 
 	    <file>widgets/buttons/XsNavButton.qml</file>
 	    <file>widgets/buttons/XsPrimaryButton.qml</file>
 	    <file>widgets/buttons/XsSearchButton.qml</file>
 	    <file>widgets/buttons/XsSecondaryButton.qml</file>
+	    <file>widgets/buttons/XsSimpleButton.qml</file>
+	    <file>widgets/buttons/XsButtonWithImageAndText.qml</file>
+	    <file>widgets/buttons/XsSortButton.qml</file>
 
-	    <file>widgets/controls/XsSlider.qml</file>
+	    <file>widgets/controls/XsCheckBox.qml</file>
+	    <file>widgets/controls/XsAttrComboBox.qml</file>
+	    <file>widgets/controls/XsComboBox.qml</file>
+	    <file>widgets/controls/XsComboBoxEditable.qml</file>
+	    <file>widgets/controls/XsComboBoxMultiSelectable.qml</file>
 	    <file>widgets/controls/XsScrollBar.qml</file>
+	    <file>widgets/controls/XsSlider.qml</file>
+	    <file>widgets/controls/XsIntegerValueControl.qml</file>
+	    <file>widgets/controls/XsColourChooser.qml</file>
+	    <file>widgets/controls/XsFloatAttributeSlider.qml</file>
+	    <file>widgets/controls/XsIntAttributeSlider.qml</file>
+	    <file>widgets/controls/XsBoolAttributeCheckBox.qml</file>
 
+	    <file>widgets/controls/attr_controls/XsIntegerAttrControl.qml</file>
+
+	    <file>widgets/dialogs/XsAttributesPanel.qml</file>
 	    <file>widgets/dialogs/XsPopup.qml</file>
 	    <file>widgets/dialogs/XsOpenSessionDialog.qml</file>
+	    <file>widgets/dialogs/XsSnapshotDialog.qml</file>
+	    <file>widgets/dialogs/XsWindow.qml</file>
 
+	    <file>widgets/indicators/XsBusyIndicator.qml</file>
+	    <file>widgets/indicators/XsProgressBar.qml</file>
+
+	    <file>widgets/labels/XsLabel.qml</file>
 	    <file>widgets/labels/XsText.qml</file>
 	    <file>widgets/labels/XsTextField.qml</file>
 	    <file>widgets/labels/XsToolTip.qml</file>
+	    <file>widgets/labels/XsTextInput.qml</file>
+	    <file>widgets/labels/XsTextEdit.qml</file>
+	    <file>widgets/labels/XsTextWithInputField.qml</file>
+	    <file>widgets/labels/XsTextWithComboBox.qml</file>
+	    <file>widgets/labels/XsTextWithComboBoxFullSize.qml</file>
+	    <file>widgets/labels/XsTextWithCheckBox.qml</file>
+	    <file>widgets/labels/XsTextWithCheckAndComboBoxes.qml</file>
+	    <file>widgets/labels/XsTextWithComboBoxMultiSelectable.qml</file>
 
-	    <file>widgets/menus/XsMainMenuBar.qml</file>
+	    <file>widgets/menus/XsMenuBar.qml</file>
 	    <file>widgets/menus/XsMenu.qml</file>
-	    <file>widgets/menus/XsMenuDivider.qml</file>		
+	    <file>widgets/menus/XsMenuDivider.qml</file>
 	    <file>widgets/menus/XsMenuItem.qml</file>
+	    <file>widgets/menus/XsMenuItemCustom.qml</file>
 	    <file>widgets/menus/XsMenuMultiChoice.qml</file>
 	    <file>widgets/menus/XsMenuItemToggle.qml</file>
 	    <file>widgets/menus/XsMenuItemToggleWithSettings.qml</file>
+	    <file>widgets/menus/XsPopupMenu.qml</file>
 
 	    <file>widgets/outputs/XsGridView.qml</file>
 	    <file>widgets/outputs/XsImage.qml</file>
 	    <file>widgets/outputs/XsListView.qml</file>
+	    <file>widgets/outputs/XsSplitView.qml</file>
 
-	</qresource> 
+	</qresource>
 
 	<qresource prefix="/">
 
@@ -121,16 +186,23 @@
 		<file>fonts/Inter/Inter-SemiBold.ttf</file>
 		<file>fonts/Inter/Inter-Thin.ttf</file>
 
-	</qresource> 
+	</qresource>
 
 	<qresource prefix="/images">
 	    <file alias="sample.png">assets/images/sample.png</file>
+	</qresource>
+
+	<qresource prefix="/">
+	    <file>helpers/XsDialogHelpers.qml</file>
+	    <file>helpers/XsTimer.qml</file>
 	</qresource>
 
 	<qresource prefix="/icons">
 
 	    <file alias="sort_flipped.png">assets/icons/sort_flipped.png</file>
 
+	    <file alias="link.svg">assets/icons/new/link.svg</file>
+	    <file alias="check.svg">assets/icons/new/check.svg</file>
 	    <file alias="sort.svg">assets/icons/new/sort.svg</file>
 	    <file alias="triangle.svg">assets/icons/new/triangle.svg</file>
 	    <file alias="add.svg">assets/icons/new/add.svg</file>
@@ -174,6 +246,8 @@
 	    <file alias="play_arrow.svg">assets/icons/new/play_arrow.svg</file>
 	    <file alias="pause.svg">assets/icons/new/pause.svg</file>
 	    <file alias="repeat.svg">assets/icons/new/repeat.svg</file>
+	    <file alias="arrow_range.svg">assets/icons/new/arrow_range.svg</file>
+	    <file alias="keyboard_tab.svg">assets/icons/new/keyboard_tab.svg</file>
 	    <file alias="skip_previous.svg">assets/icons/new/skip_previous.svg</file>
 	    <file alias="skip_next.svg">assets/icons/new/skip_next.svg</file>
 	    <file alias="sync.svg">assets/icons/new/sync.svg</file>
@@ -218,10 +292,10 @@
 		<file alias="arrows_outward.svg">assets/icons/new/arrows_outward.svg</file>
 		<file alias="repartition.svg">assets/icons/new/repartition.svg</file>
 
-
 		<file alias="build_gang.svg">assets/icons/new/build_gang.svg</file>
 		<file alias="center_focus_strong.svg">assets/icons/new/center_focus_strong.svg</file>
 		<file alias="variables_insert.svg">assets/icons/new/variables_insert.svg</file>
+
 
 	</qresource>
 

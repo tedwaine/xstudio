@@ -1,4 +1,3 @@
-// SPDX-License-Identifier: Apache-2.0
 #include <caf/all.hpp>
 
 #include <chrono>
@@ -98,7 +97,6 @@ Imath::M44f matrix_from_corners(const float *in) {
         0.0,
         mqr[2][2]);
 }
-
 } // namespace
 
 
@@ -106,11 +104,10 @@ Viewport::Viewport(
     const utility::JsonStore &state_data,
     caf::actor parent_actor,
     const int viewport_index,
-    ViewportRendererPtr the_renderer,
-    const std::string &_name)
+    ViewportRendererPtr the_renderer)
     : Module(
-          _name.empty() ? (viewport_index >= 0 ? fmt::format("viewport{0}", viewport_index)
-                              : fmt::format("offscreen_viewport{0}", abs(viewport_index))) : _name),
+          viewport_index >= 0 ? fmt::format("viewport{0}", viewport_index)
+                              : fmt::format("offscreen_viewport{0}", abs(viewport_index))),
       parent_actor_(std::move(parent_actor)),
       viewport_index_(viewport_index),
       the_renderer_(std::move(the_renderer)) {
@@ -168,8 +165,12 @@ Viewport::Viewport(
             const Imath::V4f delta_trans =
                 interact_start_state_.pointer_position_ -
                 normalised_pointer_position() * interact_start_projection_matrix_;
-            state_.translate_.x = (state_.mirror_mode_ & MirrorMode::Flip ? -delta_trans.x : delta_trans.x) + interact_start_state_.translate_.x;
-            state_.translate_.y = (state_.mirror_mode_ & MirrorMode::Flop ? -delta_trans.y : delta_trans.y) + interact_start_state_.translate_.y;
+            state_.translate_.x =
+                (state_.mirror_mode_ & MirrorMode::Flip ? -delta_trans.x : delta_trans.x) +
+                interact_start_state_.translate_.x;
+            state_.translate_.y =
+                (state_.mirror_mode_ & MirrorMode::Flop ? -delta_trans.y : delta_trans.y) +
+                interact_start_state_.translate_.y;
             update_matrix();
             return true;
         };
@@ -181,8 +182,8 @@ Viewport::Viewport(
                 normalised_pointer_position() * interact_start_projection_matrix_;
             const float scale_factor = powf(
                 2.0,
-                (state_.mirror_mode_ & MirrorMode::Flip ? delta_trans.x : -delta_trans.x) * state_.size_.x *
-                    settings_["pointer_zoom_senistivity"].get<float>() *
+                (state_.mirror_mode_ & MirrorMode::Flip ? delta_trans.x : -delta_trans.x) *
+                    state_.size_.x * settings_["pointer_zoom_senistivity"].get<float>() *
                     interact_start_state_.scale_ / 1000.0f);
             state_.scale_ = interact_start_state_.scale_ * scale_factor;
             const Imath::V4f anchor_before =
@@ -235,9 +236,9 @@ Viewport::Viewport(
     pointer_event_handlers_[force_pan_pointer_event_sig] =
         pointer_event_handlers_[pan_pointer_event_sig];
 
-    zoom_mode_toggle_ = add_boolean_attribute("Zoom (Z)", "Zm", false);
+    zoom_mode_toggle_ = add_boolean_attribute("Zoom", "Zm", false);
 
-    pan_mode_toggle_ = add_boolean_attribute("Pan (X)", "Pan", false);
+    pan_mode_toggle_ = add_boolean_attribute("Pan", "Pan", false);
 
     fit_mode_ = add_string_choice_attribute(
         "Fit (F)",
@@ -290,10 +291,10 @@ Viewport::Viewport(
     std::string toolbar_name = name() + "_toolbar";
 
     zoom_mode_toggle_->set_role_data(
-        module::Attribute::Groups, nlohmann::json{"viewport_zoom_and_pan_modes"});
+        module::Attribute::Groups, nlohmann::json{name() + "_pan_zoom"});
 
     pan_mode_toggle_->set_role_data(
-        module::Attribute::Groups, nlohmann::json{"viewport_zoom_and_pan_modes"});
+        module::Attribute::Groups, nlohmann::json{name() + "_pan_zoom"});
 
     mirror_mode_->set_role_data(
         module::Attribute::ToolTip,
@@ -321,44 +322,26 @@ Viewport::Viewport(
         add_multichoice_attr_to_menu(mirror_mode_, name() + "_context_menu_section0", "Mirror");
     }
 
-    auto source = add_qml_code_attribute(
-        "Src",
-        fmt::format(
-            R"(
-        import xStudio 1.0
-        XsSourceToolbarButton {{
-            anchors.fill: parent
-            toolbar_name: "{}"
-        }}
-        )",
-            toolbar_name));
-
     zoom_mode_toggle_->set_role_data(module::Attribute::ToolbarPosition, 5.0f);
     pan_mode_toggle_->set_role_data(module::Attribute::ToolbarPosition, 6.0f);
     fit_mode_->set_role_data(module::Attribute::ToolbarPosition, 7.0f);
     mirror_mode_->set_role_data(module::Attribute::ToolbarPosition, 8.0f);
-    source->set_role_data(module::Attribute::ToolbarPosition, 12.0f);
 
     frame_error_message_ = add_string_attribute("frame_error", "frame_error", "");
     frame_error_message_->set_role_data(
         module::Attribute::Groups, nlohmann::json{"viewport_frame_error_message"});
 
-    hud_toggle_ = add_boolean_attribute("Hud", "Hud", true);
+    // HUD needs custom QML code for instatiation into the toolbar as it's
+    // not a simple switch or slider or multichoice
+    hud_toggle_ = add_boolean_attribute("HUD", "HUD", true);
     hud_toggle_->set_tool_tip("Access HUD controls");
-    hud_toggle_->expose_in_ui_attrs_group("hud_toggle");
     hud_toggle_->set_preference_path("/ui/viewport/enable_hud");
-    // here we set custom QML code to implement a custom widget that is inserted
-    // into the viewer toolbox.
+    hud_toggle_->set_role_data(module::Attribute::ToolbarPosition, 0.0f);
+    hud_toggle_->set_role_data(module::Attribute::Type, "QmlCode");
     hud_toggle_->set_role_data(
         module::Attribute::QmlCode,
-        R"(
-            import xStudio 1.0
-            XsHudToolbarButton {
-                id: control
-                anchors.fill: parent
-            }
-        )");
-    hud_toggle_->set_role_data(module::Attribute::ToolbarPosition, 0.0f);
+        R"(import xStudioReskin 1.0
+            XsViewerHUDButton {})");
 
     if (parent_actor_) {
 
@@ -366,10 +349,8 @@ Viewport::Viewport(
 
         auto a = caf::actor_cast<caf::scheduled_actor *>(parent_actor_);
         caf::scoped_actor sys(a->system());
-        fps_monitor_      = sys->spawn<ui::fps_monitor::FpsMonitor>();
-        bool is_offscreen = viewport_index_ < 0;
-        if (!is_offscreen)
-            connect_to_ui();
+        fps_monitor_ = sys->spawn<ui::fps_monitor::FpsMonitor>();
+        connect_to_ui();
         instance_overlay_plugins();
 
         get_colour_pipeline();
@@ -393,12 +374,20 @@ Viewport::Viewport(
         filter_mode_preference_->get_role_data<utility::Uuid>(module::Attribute::UuidRole),
         module::Attribute::Value);
 
-    make_attribute_visible_in_viewport_toolbar(zoom_mode_toggle_);
-    make_attribute_visible_in_viewport_toolbar(pan_mode_toggle_);
     make_attribute_visible_in_viewport_toolbar(fit_mode_);
     make_attribute_visible_in_viewport_toolbar(mirror_mode_);
     make_attribute_visible_in_viewport_toolbar(hud_toggle_);
-    make_attribute_visible_in_viewport_toolbar(source);
+
+    module::QmlCodeAttribute *source_selector = add_qml_code_attribute(
+        "Source Selector",
+        R"(
+            import xStudioReskin 1.0
+            XsViewerSourceSelectorButton {
+                anchors.fill: parent
+            }
+        )");
+    source_selector->set_role_data(module::Attribute::ToolbarPosition, 20.0f);
+    make_attribute_visible_in_viewport_toolbar(source_selector);
 
     std::string mini_toolbar_name = name() + "_actionbar";
 
@@ -408,8 +397,6 @@ Viewport::Viewport(
     // we call this base-class method to set-up our attributes so that they
     // show up in our toolbar
     connect_to_viewport(name(), toolbar_name, true);
-
-    auto_connect_to_playhead(true);
 }
 
 Viewport::~Viewport() {
@@ -422,10 +409,33 @@ Viewport::~Viewport() {
     }
 }
 
+void Viewport::auto_connect_to_global_selected_playhead() {
+
+    // We run this if we want the viewport to always automatically
+    // connect to the playhead of the main selected playlist/timeline/subset.
+
+    // So quickviewer viewports and the offscreen viewport used for rendering
+    // snapshots should NOT auto_connect
+
+    // this means we get events about the global selected playhead
+    // changing
+    listen_to_playhead_events();
+
+    // connect to the current playhead now
+    auto a = caf::actor_cast<caf::scheduled_actor *>(parent_actor_);
+    caf::scoped_actor sys(a->system());
+    auto ph_events =
+        a->system().registry().template get<caf::actor>(global_playhead_events_actor);
+    auto playhead =
+        request_receive<caf::actor>(*sys, ph_events, viewport::viewport_playhead_atom_v);
+    if (playhead)
+        set_playhead(playhead);
+}
+
 void Viewport::link_to_viewport(caf::actor other_viewport) {
 
-    other_viewports_.push_back(other_viewport);
-    anon_send(other_viewport, other_viewport_atom_v, parent_actor_, colour_pipeline_);
+    other_viewport_ = other_viewport;
+    anon_send(other_viewport_, other_viewport_atom_v, parent_actor_, colour_pipeline_);
 }
 
 void Viewport::register_hotkeys() {
@@ -462,8 +472,31 @@ void Viewport::register_hotkeys() {
         ShiftModifier,
         "Activate mirror mode",
         "Toggles the mirror mode from Flip / Flop / Both / Off ");
+
+    setup_menus();
 }
 
+void Viewport::setup_menus() {
+
+    // Here attrs are added to a menu model with a unique name for this viewport
+    // In the QML code (XsViewportContextMenu.qml) this menu model is used
+    // to create the pop-up menu you get when right clicking in the viewport
+
+    std::string context_menu_model_name = name() + "_context_menu";
+
+    // Divider
+    insert_menu_item(context_menu_model_name, "", "", 3.5f, nullptr, true);
+
+    insert_menu_item(context_menu_model_name, "Mirror", "", 7.0f, mirror_mode_, false);
+
+    insert_menu_item(context_menu_model_name, "Fit", "", 8.0f, fit_mode_, false);
+
+    insert_menu_item(
+        context_menu_model_name, "Reset Viewer", "", 9.0f, nullptr, false, reset_hotkey_);
+
+    // Divider
+    insert_menu_item(context_menu_model_name, "", "", 10.0f, nullptr, true);
+}
 
 xstudio::utility::JsonStore Viewport::serialise() const {
     utility::JsonStore jsn;
@@ -558,13 +591,13 @@ bool Viewport::process_pointer_event(PointerEvent &pointer_event) {
 
         if (pointer_event_handlers_[pointer_event.signature()](pointer_event)) {
             // Send message to other_viewport_ and pass zoom/pan
-            for (auto &o: other_viewports_) {
+            if (other_viewport_) {
                 anon_send(
-                    o,
+                    other_viewport_,
                     viewport_pan_atom_v,
                     state_.translate_.x,
                     state_.translate_.y);
-                anon_send(o, viewport_scale_atom_v, state_.scale_);
+                anon_send(other_viewport_, viewport_scale_atom_v, state_.scale_);
             }
 
             if (state_.translate_.x != 0.0f || state_.translate_.y != 0.0f ||
@@ -575,8 +608,8 @@ bool Viewport::process_pointer_event(PointerEvent &pointer_event) {
                     previous_fit_zoom_state_.scale_     = old_scale;
                     state_.fit_mode_                    = Free;
                     fit_mode_->set_value("Off");
-                    for (auto &o: other_viewports_) {
-                        anon_send(o, fit_mode_atom_v, Free);
+                    if (other_viewport_) {
+                        anon_send(other_viewport_, fit_mode_atom_v, Free);
                     }
                 }
             }
@@ -593,8 +626,7 @@ bool Viewport::set_scene_coordinates(
     const Imath::V2f topright,
     const Imath::V2f bottomright,
     const Imath::V2f bottomleft,
-    const Imath::V2i scene_size,
-    const float devicePixelRatio) {
+    const Imath::V2i scene_size) {
 
     // These coordinates describe the quad into which the viewport
     // will be rendered in the coordinate system of the parent 'canvas'.
@@ -620,7 +652,7 @@ bool Viewport::set_scene_coordinates(
     if (vp2c != viewport_to_canvas_ || (bottomright - bottomleft).length() != state_.size_.x ||
         (bottomleft - topleft).length() != state_.size_.y) {
         viewport_to_canvas_ = vp2c;
-        set_size((bottomright - bottomleft).length(), (bottomleft - topleft).length(), devicePixelRatio);
+        set_size((bottomright - bottomleft).length(), (bottomleft - topleft).length());
         return true;
     }
     return false;
@@ -670,12 +702,7 @@ void Viewport::update_fit_mode_matrix(
 
     } else if (fit_mode() == One2One && state_.image_size_.x) {
 
-        // for 1:1 to work when we have high DPI display scaling (e.g. with QT_SCALE_FACTOR!=1.0)
-        // we need to account for the pixel ratio
-        int screen_pix_size_x = (int)round(float(size().x)*devicePixelRatio_);
-        int screen_pix_size_y = (int)round(float(size().y)*devicePixelRatio_);
-
-        state_.fit_mode_zoom_ = float(state_.image_size_.x) / screen_pix_size_x;
+        state_.fit_mode_zoom_ = float(state_.image_size_.x) / size().x;
 
         // in 1:1 fit mode, if the image has an odd number of pixels and the
         // viewport an even number of pixels (or vice versa) in either axis it causes a problem:
@@ -683,11 +710,11 @@ void Viewport::update_fit_mode_matrix(
         // screen pixels. Floating point errors result in samples jumping to
         // the 'wrong' pixel and thus we get a nasty aliasing pattern arising in the plot. To
         // overcome this I add a half pixel shift in the image position
-        if ((state_.image_size_.x & 1) != (int(round(screen_pix_size_x)) & 1)) {
-            tx = 0.5f / screen_pix_size_x;
+        if ((state_.image_size_.x & 1) != (int(round(state_.size_.x)) & 1)) {
+            tx = 0.5f / state_.size_.x;
         }
-        if ((state_.image_size_.y & 1) != (int(round(screen_pix_size_y)) & 1)) {
-            ty = 0.5f / screen_pix_size_y;
+        if ((state_.image_size_.y & 1) != (int(round(state_.size_.y)) & 1)) {
+            ty = 0.5f / state_.size_.y;
         }
     }
 
@@ -705,9 +732,8 @@ void Viewport::set_scale(const float scale) {
     update_matrix();
 }
 
-void Viewport::set_size(const float w, const float h, const float devicePixelRatio) {
+void Viewport::set_size(const float w, const float h) {
     state_.size_ = Imath::V2f(w, h);
-    devicePixelRatio_ = devicePixelRatio;
     update_matrix();
 }
 
@@ -814,10 +840,8 @@ void Viewport::revert_fit_zoom_to_previous(const bool synced) {
     event_callback_(ZoomChanged);
     event_callback_(Redraw);
 
-    if (state_.fit_mode_ == FitMode::Free && !synced) {
-        for (auto &o: other_viewports_) {
-            anon_send(o, fit_mode_atom_v, "revert");
-        }
+    if (other_viewport_ && state_.fit_mode_ == FitMode::Free && !synced) {
+        anon_send(other_viewport_, fit_mode_atom_v, "revert");
     }
 }
 
@@ -864,8 +888,7 @@ void Viewport::update_matrix() {
 
     inv_projection_matrix_.makeIdentity();
     inv_projection_matrix_.scale(Imath::V3f(1.0f, -1.0f, 1.0f));
-    inv_projection_matrix_.scale(
-        Imath::V3f(1.0, state_.size_.x / state_.size_.y, 1.0f));
+    inv_projection_matrix_.scale(Imath::V3f(1.0, state_.size_.x / state_.size_.y, 1.0f));
     inv_projection_matrix_.scale(Imath::V3f(state_.scale_, state_.scale_, state_.scale_));
     inv_projection_matrix_.translate(
         Imath::V3f(-state_.translate_.x, -state_.translate_.y, 0.0f));
@@ -876,8 +899,7 @@ void Viewport::update_matrix() {
     projection_matrix_.translate(Imath::V3f(state_.translate_.x, state_.translate_.y, 0.0f));
     projection_matrix_.scale(
         Imath::V3f(1.0f / state_.scale_, 1.0f / state_.scale_, 1.0f / state_.scale_));
-    projection_matrix_.scale(
-        Imath::V3f(1.0, state_.size_.y / state_.size_.x, 1.0f));
+    projection_matrix_.scale(Imath::V3f(1.0, state_.size_.y / state_.size_.x, 1.0f));
     projection_matrix_.scale(Imath::V3f(1.0f, -1.0f, 1.0f));
 
     update_fit_mode_matrix();
@@ -937,11 +959,10 @@ caf::message_handler Viewport::message_handler() {
                     const Imath::V2f &topright,
                     const Imath::V2f &bottomright,
                     const Imath::V2f &bottomleft,
-                    const Imath::V2i &scene_size,
-                    const float devicePixelRatio) {
+                    const Imath::V2i &scene_size) {
                     float zoom = pixel_zoom();
                     if (set_scene_coordinates(
-                            topleft, topright, bottomright, bottomleft, scene_size, devicePixelRatio)) {
+                            topleft, topright, bottomright, bottomleft, scene_size)) {
                         if (zoom != pixel_zoom()) {
                             event_callback_(ZoomChanged);
                         }
@@ -962,53 +983,19 @@ caf::message_handler Viewport::message_handler() {
 
                 [=](other_viewport_atom,
                     caf::actor other_view,
-                    bool link) {
-                    if (link) {
-
-                        auto p = other_viewports_.begin();
-                        while (p != other_viewports_.end()) {
-                            if (*p == other_view) {
-                                return;
-                            }
-                            p++;                            
-                        }
-
-                        other_viewports_.push_back(other_view);
-                        link_to_module(other_view, true, true, true);
-
-                    } else {
-                        auto p = other_viewports_.begin();
-                        while (p != other_viewports_.end()) {
-                            if (*p == other_view) {
-                                p = other_viewports_.erase(p);
-                            } else {
-                                p++;
-                            }
-                        }
-                        unlink_module(other_view);
-                    }
-
-                },
-
-                [=](other_viewport_atom,
-                    caf::actor other_view,
                     caf::actor other_colour_pipeline) {
-                    
-                    other_viewports_.push_back(other_view);
-                    link_to_module(other_view, true, true, true);
-                    
-                    if (other_colour_pipeline) {
-                        // here we link up the colour pipelines of the two viewports
-                        anon_send(
-                            colour_pipeline_,
-                            module::link_module_atom_v,
-                            other_colour_pipeline,
-                            false, // link all attrs
-                            true,  // two way link (change in one is synced to other, both ways)
-                            viewport_index_ == 0 // push sync (if we are main viewport, sync the
-                                                // attrs on the other colour pipelin to ourselves)
-                        );
-                    }
+                    other_viewport_ = other_view;
+
+                    // here we link up the colour pipelines of the two viewports
+                    anon_send(
+                        colour_pipeline_,
+                        module::link_module_atom_v,
+                        other_colour_pipeline,
+                        false, // link all attrs
+                        true,  // two way link (change in one is synced to other, both ways)
+                        viewport_index_ == 0 // push sync (if we are main viewport, sync the
+                                             // attrs on the other colour pipelin to ourselves)
+                    );
                 },
 
                 [=](colour_pipeline::colour_pipeline_atom) -> caf::actor {
@@ -1044,24 +1031,19 @@ caf::message_handler Viewport::message_handler() {
                     event_callback_(Redraw);
                 },
 
-                [=](viewport_playhead_atom, caf::actor playhead, bool pin) -> bool {
-                    playhead_pinned_ = pin;
-                    set_playhead(playhead);
-                    return true;
+                [=](viewport_playhead_atom, caf::actor playhead) { set_playhead(playhead); },
+
+                [=](viewport_playhead_atom) -> caf::actor {
+                    return caf::actor_cast<caf::actor>(playhead_addr_);
                 },
 
-                [=](viewport_playhead_atom, caf::actor playhead) -> bool {
-                    if (!playhead_pinned_)
-                        set_playhead(playhead);
-                    return true;
+                [=](viewport_playhead_atom, bool autoconnect) {
+                    auto_connect_to_global_selected_playhead();
                 },
 
-                [=](utility::event_atom, viewport_playhead_atom, caf::actor playhead) {
-                    if (!playhead_pinned_)
-                        set_playhead(playhead);
+                [=](viewport_playhead_atom, bool autoconnect) {
+                    auto_connect_to_global_selected_playhead();
                 },
-
-                [=](viewport_playhead_atom) -> caf::actor_addr { return playhead_addr_; },
 
                 [=](viewport_pixel_zoom_atom, const float zoom) {
                     const FitMode fm = fit_mode();
@@ -1086,18 +1068,6 @@ caf::message_handler Viewport::message_handler() {
                     std::vector<caf::actor> &media_items,
                     std::string compare_mode) { quickview_media(media_items, compare_mode); },
 
-                [=](ui::fps_monitor::framebuffer_swapped_atom,
-                    const utility::time_point swap_time) {
-                    framebuffer_swapped(swap_time);
-                },
-
-                [=](aux_shader_uniforms_atom,
-                    const utility::JsonStore &shader_extras,
-                    const bool overwrite_and_clear) 
-                {
-                    set_aux_shader_uniforms(shader_extras, overwrite_and_clear);
-                },
-
                 [=](const error &err) mutable { std::cerr << "ERR " << to_string(err) << "\n"; }
 
                })
@@ -1106,8 +1076,12 @@ caf::message_handler Viewport::message_handler() {
 
 void Viewport::set_playhead(caf::actor playhead, const bool wait_for_refresh) {
 
-    // if null playhead stop here.
-    if (!parent_actor_) {
+    if (!parent_actor_ || quickview_playhead_) {
+        // Note that 'set_playhead' will be called if the user switches the 
+        // playlist that they are viewing in the main session window (with the
+        // playhead of the playlist). However, if we have a quickview_playhead_
+        // then we must be a quickview viewport that is pinned to one piece of 
+        // media and we therefore take no action. 
         return;
     }
 
@@ -1172,10 +1146,12 @@ void Viewport::set_playhead(caf::actor playhead, const bool wait_for_refresh) {
 
             // here we tell any viewport plugins that the playhead has changed
             for (auto p : overlay_plugin_instances_) {
+
                 utility::request_receive<bool>(
                     *sys,
                     p.second,
                     module::current_viewport_playhead_atom_v,
+                    name(),
                     caf::actor_cast<caf::actor_addr>(playhead));
             }
 
@@ -1183,7 +1159,6 @@ void Viewport::set_playhead(caf::actor playhead, const bool wait_for_refresh) {
             // to be display now and in the near future
             utility::request_receive<bool>(
                 *sys, display_frames_queue_actor_, viewport_playhead_atom_v, playhead, true);
-
 
         } else {
 
@@ -1194,19 +1169,15 @@ void Viewport::set_playhead(caf::actor playhead, const bool wait_for_refresh) {
                 anon_send(
                     p.second,
                     module::current_viewport_playhead_atom_v,
+                    name(),
                     caf::actor_cast<caf::actor_addr>(playhead));
             }
         }
 
-        if (viewport_index_ == 0) {
-            auto ph_events =
-                a->system().registry().template get<caf::actor>(global_playhead_events_actor);
-            // tell the playhead events actor that the on-screen playhead has changed
-            // (in case the viewport playhead was set directly rather than from
-            // the playhead events actor itself). We only do this for the 'main'
-            // viewport, however (index == 0)
-            anon_send(ph_events, viewport::viewport_playhead_atom_v, playhead);
-        }
+        auto ph_events =
+            a->system().registry().template get<caf::actor>(global_playhead_events_actor);
+        // tell the playhead events actor that the on-screen playhead has changed
+        anon_send(ph_events, viewport::viewport_playhead_atom_v, name(), playhead);
 
         anon_send(
             playhead, connect_to_viewport_toolbar_atom_v, name(), name() + "_toolbar", true);
@@ -1246,19 +1217,56 @@ void Viewport::attribute_changed(const utility::Uuid &attr_uuid, const int role)
         else
             set_fit_mode(FitMode::Free);
 
+        // bind fit mode between the two viewports (main and popout)
+        if (other_viewport_) {
+            anon_send(other_viewport_, fit_mode_atom_v, state_.fit_mode_);
+        }
 
     } else if (attr_uuid == zoom_mode_toggle_->uuid() && role == module::Attribute::Value) {
 
         if (zoom_mode_toggle_->value()) {
             pan_mode_toggle_->set_value(false);
+            if (other_viewport_) {
+                anon_send(
+                    other_viewport_,
+                    xstudio::module::change_attribute_value_atom_v,
+                    pan_mode_toggle_->get_role_data<std::string>(module::Attribute::Title),
+                    utility::JsonStore(false),
+                    false);
+            }
+        }
+
+        if (other_viewport_) {
+            anon_send(
+                other_viewport_,
+                xstudio::module::change_attribute_value_atom_v,
+                zoom_mode_toggle_->get_role_data<std::string>(module::Attribute::Title),
+                utility::JsonStore(zoom_mode_toggle_->value()),
+                false);
         }
 
     } else if (attr_uuid == pan_mode_toggle_->uuid() && role == module::Attribute::Value) {
 
         if (pan_mode_toggle_->value()) {
             zoom_mode_toggle_->set_value(false);
+            if (other_viewport_) {
+                anon_send(
+                    other_viewport_,
+                    xstudio::module::change_attribute_value_atom_v,
+                    zoom_mode_toggle_->get_role_data<std::string>(module::Attribute::Title),
+                    utility::JsonStore(false),
+                    false);
+            }
         }
 
+        if (other_viewport_) {
+            anon_send(
+                other_viewport_,
+                xstudio::module::change_attribute_value_atom_v,
+                pan_mode_toggle_->get_role_data<std::string>(module::Attribute::Title),
+                utility::JsonStore(pan_mode_toggle_->value()),
+                false);
+        }
     } else if (attr_uuid == filter_mode_preference_->uuid()) {
 
         const std::string filter_mode_pref = filter_mode_preference_->value();
@@ -1269,12 +1277,56 @@ void Viewport::attribute_changed(const utility::Uuid &attr_uuid, const int role)
         }
         event_callback_(Redraw);
 
+        if (other_viewport_) {
+            anon_send(
+                other_viewport_,
+                xstudio::module::change_attribute_value_atom_v,
+                filter_mode_preference_->get_role_data<std::string>(module::Attribute::Title),
+                utility::JsonStore(filter_mode_preference_->value()),
+                true);
+        }
+
+
+    } else if (attr_uuid == texture_mode_preference_->uuid()) {
+        if (other_viewport_) {
+            anon_send(
+                other_viewport_,
+                xstudio::module::change_attribute_value_atom_v,
+                texture_mode_preference_->get_role_data<std::string>(module::Attribute::Title),
+                utility::JsonStore(texture_mode_preference_->value()),
+                true);
+        }
+    } else if (attr_uuid == mouse_wheel_behaviour_->uuid()) {
+        if (other_viewport_) {
+            anon_send(
+                other_viewport_,
+                xstudio::module::change_attribute_value_atom_v,
+                mouse_wheel_behaviour_->get_role_data<std::string>(module::Attribute::Title),
+                utility::JsonStore(mouse_wheel_behaviour_->value()),
+                true);
+        }
     } else if (attr_uuid == hud_toggle_->uuid()) {
+        if (other_viewport_) {
+            anon_send(
+                other_viewport_,
+                xstudio::module::change_attribute_value_atom_v,
+                hud_toggle_->get_role_data<std::string>(module::Attribute::Title),
+                utility::JsonStore(hud_toggle_->value()),
+                true);
+        }
         for (auto &p : hud_plugin_instances_) {
             anon_send(p.second, enable_hud_atom_v, hud_toggle_->value());
         }
     } else if (attr_uuid == mirror_mode_->uuid()) {
         const std::string mode = mirror_mode_->value();
+        if (other_viewport_) {
+            anon_send(
+                other_viewport_,
+                xstudio::module::change_attribute_value_atom_v,
+                mirror_mode_->get_role_data<std::string>(module::Attribute::Title),
+                utility::JsonStore(mirror_mode_->value()),
+                true);
+        }
         if (mode == "Flip")
             set_mirror_mode(MirrorMode::Flip);
         else if (mode == "Flop")
@@ -1310,13 +1362,12 @@ void Viewport::hotkey_pressed(const utility::Uuid &hotkey_uuid, const std::strin
         pan_mode_toggle_->set_value(true);
         zoom_mode_toggle_->set_role_data(module::Attribute::Activated, false);
         zoom_mode_toggle_->set_value(false);
-    } else if (hotkey_uuid == reset_hotkey_) {
-        if (fit_mode() == FitMode::Free)
-            revert_fit_zoom_to_previous();
     } else if (hotkey_uuid == fit_mode_hotkey_) {
         revert_fit_zoom_to_previous();
     } else if (hotkey_uuid == mirror_mode_hotkey_) {
         switch_mirror_mode();
+    } else if (hotkey_uuid == reset_hotkey_) {
+        reset();
     }
 }
 
@@ -1331,10 +1382,44 @@ void Viewport::hotkey_released(
     }
 }
 
+void Viewport::reset() {
+
+    if (fit_mode() == FitMode::Free)
+        revert_fit_zoom_to_previous();
+
+    pan_mode_toggle_->set_value(false);
+    zoom_mode_toggle_->set_value(false);
+
+    if (colour_pipeline_)
+        anon_send(colour_pipeline_, module::reset_module_atom_v);
+    caf::actor playhead(caf::actor_cast<caf::actor>(playhead_addr_));
+    if (playhead)
+        anon_send(playhead, module::reset_module_atom_v);
+}
+
+media_reader::ImageBufPtr Viewport::get_onscreen_image(const bool force_playhead_sync) {
+
+    std::vector<media_reader::ImageBufPtr> next_images;
+    // when 'forcing' playhead sync we directly request the frame from the
+    // playhead instead of usual playback mode where playhead broadcasts
+    // frames to us at its own pace and we show the latest received frames.        
+    get_frames_for_display(next_images, force_playhead_sync);
+    if (next_images.empty()) {
+        return media_reader::ImageBufPtr();
+    }
+    return next_images[0];
+}
+
+
 void Viewport::update_onscreen_frame_info(const media_reader::ImageBufPtr &frame) {
 
     // this should be called by the subclass of this Viewport class just
     // before or after the viewport is drawn or redrawn with the given frame
+
+    // 'frame' is not actually onscreen until framebuffers have been swapped
+    // so we take a copy of frame and update on_screen_frame_buffer_ after
+    // the framebuffers are swapped
+    about_to_go_on_screen_frame_buffer_ = frame;
 
     if (!frame) {
         on_screen_frame_buffer_.reset();
@@ -1343,8 +1428,6 @@ void Viewport::update_onscreen_frame_info(const media_reader::ImageBufPtr &frame
         event_callback_(OnScreenFrameChanged);
         return;
     }
-
-    about_to_go_on_screen_frame_buffer_ = frame;
 
     // check if the frame buffer has some error message attached
     if (frame->error_state()) {
@@ -1378,17 +1461,14 @@ void Viewport::update_onscreen_frame_info(const media_reader::ImageBufPtr &frame
     }
 }
 
-void Viewport::framebuffer_swapped(const utility::time_point swap_time) {
+void Viewport::framebuffer_swapped() {
 
     anon_send(
         display_frames_queue_actor_,
         ui::fps_monitor::framebuffer_swapped_atom_v,
-        swap_time,
+        utility::clock::now(),
         screen_refresh_period_,
         viewport_index_);
-
-        static auto tp = utility::clock::now();
-        auto t0 = utility::clock::now();
 
     if (about_to_go_on_screen_frame_buffer_ != on_screen_frame_buffer_) {
 
@@ -1400,44 +1480,18 @@ void Viewport::framebuffer_swapped(const utility::time_point swap_time) {
                 on_screen_frame_buffer_->params().end()) {
             f = on_screen_frame_buffer_->params()["playhead_frame"].get<int>();
         }
-
-        /*static std::map<int, int> ff;
-        if ((f-ff[viewport_index_]) != 1) {
-
-            std::cerr << name() << " frame missed " << f << " " << ff[viewport_index_] << " " <<
-               std::chrono::duration_cast<std::chrono::milliseconds>(t0-tp).count() << "\n";
-
-        }
-        
-        ff[viewport_index_] = f;*/
-
         anon_send(
             fps_monitor(),
             ui::fps_monitor::framebuffer_swapped_atom_v,
             utility::clock::now(),
             f);
-
-    } else {
-
-        /*std::cerr << name() << " frame repeated " <<
-            std::chrono::duration_cast<std::chrono::milliseconds>(t0-tp).count() << "\n";*/
-
     }
-    
-    tp = t0;
-
 }
 
-media_reader::ImageBufPtr Viewport::get_onscreen_image() {
-    std::vector<media_reader::ImageBufPtr> next_images;
-    get_frames_for_display(next_images);
-    if (next_images.empty()) {
-        return media_reader::ImageBufPtr();
-    }
-    return next_images[0];
-}
-
-void Viewport::get_frames_for_display(std::vector<media_reader::ImageBufPtr> &next_images) {
+void Viewport::get_frames_for_display(
+    std::vector<media_reader::ImageBufPtr> &next_images,
+    const bool force_playhead_sync
+    ) {
 
     if (!parent_actor_)
         return;
@@ -1452,7 +1506,8 @@ void Viewport::get_frames_for_display(std::vector<media_reader::ImageBufPtr> &ne
             *sys,
             display_frames_queue_actor_,
             std::chrono::milliseconds(1000),
-            viewport_get_next_frames_for_display_atom_v);
+            viewport_get_next_frames_for_display_atom_v,
+            force_playhead_sync);
 
         for (auto &image : next_images) {
 
@@ -1470,7 +1525,6 @@ void Viewport::get_frames_for_display(std::vector<media_reader::ImageBufPtr> &ne
                 std::chrono::milliseconds(1000),
                 colour_pipeline::colour_operation_uniforms_atom_v,
                 image);
-
         }
 
         if (next_images.size()) {
@@ -1576,6 +1630,13 @@ void Viewport::instance_overlay_plugins() {
             }
         }
 
+        display_frames_queue_actor_ =
+            sys->spawn<ViewportFrameQueueActor>(overlay_plugin_instances_, viewport_index_);
+
+        // we don't instance HUD plugins for offscreen viewports
+        if (viewport_index_ < 0)
+            return;
+
         /* HUD plugins are more-or-less the same as viewport overlay plugins, except
         that they are activated through a single HUD pop-up in the toolbar and the
         are 'aware' of the screenspace that other HUDs have already occupied */
@@ -1620,72 +1681,9 @@ void Viewport::instance_overlay_plugins() {
             }
         }
 
-        display_frames_queue_actor_ =
-            sys->spawn<ViewportFrameQueueActor>(overlay_plugin_instances_, viewport_index_);
-
     } catch (std::exception &e) {
         spdlog::warn("{} {}", __PRETTY_FUNCTION__, e.what());
     }
-}
-
-media_reader::ImageBufPtr Viewport::get_image_from_playhead(caf::actor playhead) {
-
-    caf::scoped_actor sys(self()->home_system());
-
-    // set the playhead on overlay actors that do annotations, masks for example
-    for (auto p : overlay_plugin_instances_) {
-
-        utility::request_receive<bool>(
-            *sys,
-            p.second,
-            module::current_viewport_playhead_atom_v,
-            caf::actor_cast<caf::actor_addr>(playhead));
-    }
-
-    // get the current image for the playhead
-    auto image = utility::request_receive<media_reader::ImageBufPtr>(
-        *sys, playhead, playhead::buffer_atom_v);
-
-    if (image && image->error_state() == xstudio::media_reader::HAS_ERROR) {
-        throw std::runtime_error(image->error_message());
-    } else if (!image) {
-        throw std::runtime_error(
-            "OffscreenViewport::renderToThumbnail - Playhead returned a null image.");
-    }
-
-    image.colour_pipe_data_ = request_receive_wait<colour_pipeline::ColourPipelineDataPtr>(
-        *sys,
-        colour_pipeline_,
-        std::chrono::milliseconds(1000),
-        colour_pipeline::get_colour_pipe_data_atom_v,
-        image.frame_id());
-
-    image.colour_pipe_uniforms_ = request_receive_wait<utility::JsonStore>(
-        *sys,
-        colour_pipeline_,
-        std::chrono::milliseconds(1000),
-        colour_pipeline::colour_operation_uniforms_atom_v,
-        image);
-
-    // get the overlay plugins to generate their data for onscreen rendering
-    // (e.g. annotations strokes) and add to the image
-    for (auto p : overlay_plugin_instances_) {
-
-        utility::Uuid overlay_actor_uuid = p.first;
-        caf::actor overlay_actor         = p.second;
-
-        auto bdata = request_receive<utility::BlindDataObjectPtr>(
-            *sys, overlay_actor, prepare_overlay_render_data_atom_v, image, true);
-
-        image.add_plugin_blind_data(overlay_actor_uuid, bdata);
-
-        auto bdata2 = request_receive<utility::BlindDataObjectPtr>(
-            *sys, overlay_actor, prepare_overlay_render_data_atom_v, image, name());
-
-        image.add_plugin_blind_data2(overlay_actor_uuid, bdata2);
-    }
-
-    return image;
 }
 
 void Viewport::get_colour_pipeline() {
@@ -1776,67 +1774,24 @@ void Viewport::quickview_media(std::vector<caf::actor> &media_items, std::string
     auto a = caf::actor_cast<caf::scheduled_actor *>(parent_actor_);
     caf::scoped_actor sys(a->system());
 
-    if (!quickview_playhead_) {
+    auto playhead = quickview_playhead_;
+    if (!playhead) {
         // create a new quickview playhead, or use existing one.
-        quickview_playhead_ = sys->spawn<playhead::PlayheadActor>("QuickviewPlayhead");
+        playhead = sys->spawn<playhead::PlayheadActor>("QuickviewPlayhead");
     }
     // set the compare  mode
     anon_send(
-        quickview_playhead_,
+        playhead,
         module::change_attribute_request_atom_v,
         std::string("Compare"),
         (int)module::Attribute::Value,
         utility::JsonStore(compare_mode));
 
     // make the playhead view the media
-    anon_send(quickview_playhead_, playhead::source_atom_v, media_items);
+    anon_send(playhead, playhead::source_atom_v, media_items);
 
     // view the playhead
-    set_playhead(quickview_playhead_, true);
+    set_playhead(playhead, true);
 
-    playhead_pinned_ = true;
-}
-
-void Viewport::auto_connect_to_playhead(bool auto_connect) {
-
-    listen_to_playhead_events(auto_connect);
-
-    if (auto_connect) {
-
-        // fetch the current playhead (if there is one) and connect to it
-        auto a = caf::actor_cast<caf::scheduled_actor *>(parent_actor_);
-        if (!a)
-            return;
-        caf::scoped_actor sys(a->system());
-
-        auto ph_events =
-            a->system().registry().template get<caf::actor>(global_playhead_events_actor);
-
-        auto playhead =
-            request_receive<caf::actor>(*sys, ph_events, viewport::viewport_playhead_atom_v);
-
-        if (playhead)
-            set_playhead(playhead);
-    }
-}
-
-void Viewport::set_aux_shader_uniforms(
-    const utility::JsonStore & j,
-    const bool clear_and_overwrite) 
-{
-    if (clear_and_overwrite) {
-        aux_shader_uniforms_ = j;
-    } else if (j.is_object()) {
-        for (auto o = j.begin(); o != j.end(); ++o) {
-            aux_shader_uniforms_[o.key()] = o.value();
-        }
-    } else {
-        spdlog::warn(
-            "{} Invalid shader uniforms data:\n\"{}\".\n\nIt must be a dictionary of key/value pairs.",
-            __PRETTY_FUNCTION__,
-            j.dump(2));
-    }
-
-    the_renderer_->set_aux_shader_uniforms(aux_shader_uniforms_);
-
+    quickview_playhead_ = playhead;
 }

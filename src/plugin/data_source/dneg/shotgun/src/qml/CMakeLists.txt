@@ -20,9 +20,11 @@ QT5_WRAP_CPP(SHOTGUN_MODEL_UI_MOC_SRC "${CMAKE_CURRENT_SOURCE_DIR}/shotgun_model
 
 set(SOURCES
 	shotgun_model_ui.cpp
+	shotgun_preset_model_ui.cpp
 	data_source_shotgun_ui.cpp
 	data_source_shotgun_requests_ui.cpp
 	data_source_shotgun_query_ui.cpp
+	async_request.cpp
 	../data_source_shotgun_query_engine.cpp
 	${DATA_SOURCE_SHOTGUN_UI_MOC_SRC}
 	${SHOTGUN_MODEL_UI_MOC_SRC}
@@ -38,6 +40,8 @@ target_link_libraries(${PROJECT_NAME}
 		${CAF_LIBRARY_core}
 		Qt5::Core
 		Qt5::Qml
+		Qt5::Widgets
+		Qt5::Quick
 )
 
 set_target_properties(${PROJECT_NAME}

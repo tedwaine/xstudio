@@ -79,7 +79,7 @@ DelegateChoice {
                 GridLayout {
                     anchors.fill: parent
                     anchors.margins: framePadding
-                    rows: 7
+                    rows: 8
                     columns: 2
 
                     Item{
@@ -172,8 +172,8 @@ DelegateChoice {
                         Layout.alignment: Qt.AlignRight | Qt.AlignVCenter
                         property var dateFormatted: createdDateRole.toLocaleString().split(" ")
                         property var timeFormatted: dateFormatted[4].split(":")
-                        text: typeof timeFormatted !== 'undefined'? 
-                            typeof dateFormatted[6] !== 'undefined'? 
+                        text: typeof timeFormatted !== 'undefined'?
+                            typeof dateFormatted[6] !== 'undefined'?
                                 timeFormatted[0]+":"+timeFormatted[1]+" "+dateFormatted[5]+" "+dateFormatted[6] :
                                 timeFormatted[0]+":"+timeFormatted[1]+" "+dateFormatted[5] : ""
                         font.pixelSize: fontSize
@@ -207,6 +207,44 @@ DelegateChoice {
                         horizontalAlignment: Text.AlignRight
                     }
 
+                    Text{
+                        text: "Artist :"
+                        font.pixelSize: fontSize
+                        font.family: fontFamily
+                        color: isMouseHovered? textColorActive: textColorNormal
+                        opacity: 0.6
+                        elide: Text.ElideRight
+                        horizontalAlignment: Text.AlignLeft
+                        verticalAlignment: Text.AlignVCenter
+                        Layout.alignment: Qt.AlignVCenter | Qt.AlignLeft
+                        Layout.preferredHeight: typeDisplay.height
+                    }
+
+                    Text{
+                        Layout.alignment: Qt.AlignRight | Qt.AlignVCenter
+                        text: artistRole ? artistRole : ""
+                        font.pixelSize: fontSize
+                        font.family: fontFamily
+                        color: isMouseHovered? textColorActive: textColorNormal
+                        opacity: 0.6
+                        elide: Text.ElideRight
+                        horizontalAlignment: Text.AlignRight
+                        Layout.fillWidth: true
+                        Layout.preferredHeight: typeDisplay.height
+
+                        XsToolTip{
+                            text: parent.text
+                            visible: artistToolTip.containsMouse && parent.truncated
+                            width: textDivMetrics.width == 0? 0 : 150
+                            x: 0
+                       }
+                        MouseArea {
+                            id: artistToolTip
+                            anchors.fill: parent
+                            hoverEnabled: true
+                            propagateComposedEvents: true
+                        }
+                    }
 
                     Text{
                         text: "From :"

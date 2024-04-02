@@ -136,7 +136,9 @@ namespace plugin {
         virtual void on_screen_media_changed(
             caf::actor,                      // media item actor
             const utility::MediaReference &, // media reference
-            const std::string) {}
+            const std::string,               // media name
+            const utility::JsonStore &       // colour params
+        ) {}
 
         /* Function signature for current playhead playing status change - reimplement to
         receive this event */
@@ -156,16 +158,21 @@ namespace plugin {
             const bookmark::BookmarkDetail &detail,
             const bool bookmark_entire_duratio = false);
 
+        utility::UuidList get_bookmarks_on_current_media(const std::string &viewport_name);
+        bookmark::BookmarkDetail get_bookmark_detail(const utility::Uuid &bookmark_id);
+        bookmark::AnnotationBasePtr get_bookmark_annotation(const utility::Uuid &bookmark_id);
 
         /* Call this function to update the annotation data attached to the
         given bookmark */
         void update_bookmark_annotation(
             const utility::Uuid bookmark_id,
-            std::shared_ptr<bookmark::AnnotationBase> annotation_data,
+            bookmark::AnnotationBasePtr annotation_data,
             const bool annotation_is_empty);
 
         void update_bookmark_detail(
             const utility::Uuid bookmark_id, const bookmark::BookmarkDetail &bmd);
+
+        void remove_bookmark(const utility::Uuid &bookmark_id);
 
 
       private:

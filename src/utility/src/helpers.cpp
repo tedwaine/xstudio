@@ -13,8 +13,8 @@
 
 #include <fmt/format.h>
 
-//#include <reproc++/drain.hpp>
-//#include <reproc++/reproc.hpp>
+#include <reproc++/drain.hpp>
+#include <reproc++/reproc.hpp>
 
 #include "xstudio/utility/frame_list.hpp"
 #include "xstudio/utility/helpers.hpp"
@@ -136,7 +136,7 @@ void xstudio::utility::leave_broadcast(caf::event_based_actor *source, caf::acto
         .then(
             [=](const bool) mutable {},
             [=](const error &err) mutable {
-                spdlog::warn("{} {}", __PRETTY_FUNCTION__, to_string(err));
+                spdlog::warn("{} {} {}", __PRETTY_FUNCTION__, to_string(err), to_string(actor));
             });
 }
 
@@ -194,7 +194,7 @@ void xstudio::utility::print_on_exit(
 }
 
 std::string xstudio::utility::exec(const std::vector<std::string> &cmd, int &exit_code) {
-    /*reproc::process process;
+    reproc::process process;
     std::error_code ec = process.start(cmd);
 
     if (ec == std::errc::no_such_file_or_directory) {
@@ -221,8 +221,7 @@ std::string xstudio::utility::exec(const std::vector<std::string> &cmd, int &exi
         return ec.message();
     }
 
-    return output;*/
-    return std::string();
+    return output;
 }
 
 std::string xstudio::utility::uri_to_posix_path(const caf::uri &uri) {

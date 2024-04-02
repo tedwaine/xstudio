@@ -1,4 +1,3 @@
-// SPDX-License-Identifier: Apache-2.0
 import QtQuick 2.15
 
 import xstudio.qml.session 1.0
@@ -7,10 +6,11 @@ import xstudio.qml.models 1.0
 
 import QtQml.Models 2.14
 import Qt.labs.qmlmodels 1.0
+import xStudioReskin 1.0
 
-/* This model gives us access to the data of media in a playlist, subset, timeline 
+/* This model gives us access to the data of media in a playlist, subset, timeline
 etc. that we can iterate over with a Repeater, ListView etc. */
-DelegateModel {           
+DelegateModel {
 
     id: mediaList
 
@@ -21,10 +21,15 @@ DelegateModel {
     // main sessionData - this thing decides which playlist, subset, timeline
     // etc. is selected to be displayed in our media list
     property var currentSelectedPlaylistIndex: sessionSelectionModel.currentIndex
-    onCurrentSelectedPlaylistIndexChanged : {
-        updateMedia()
+    property var name: theSessionData.get(currentSelectedPlaylistIndex, "nameRole")
+    property var uuid: theSessionData.get(currentSelectedPlaylistIndex, "uuidRole")
+
+    XsTimer {
+        id: callback_timer
     }
-    
+
+    onCurrentSelectedPlaylistIndexChanged : updateMedia()
+
     function updateMedia() {
         if(currentSelectedPlaylistIndex.valid) {
             // wait for valid index..
@@ -33,7 +38,7 @@ DelegateModel {
                 mediaList.rootIndex = mind
             } else {
                 // try again in 200 milliseconds
-                callback_timer.setTimeout(function() { return function() {
+                callbackTimer.setTimeout(function() { return function() {
                     updateMedia()
                 }}(), 200);
             }
@@ -41,6 +46,6 @@ DelegateModel {
             mediaList.rootIndex = null
         }
     }
-    
+
 }
 

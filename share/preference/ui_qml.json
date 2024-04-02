@@ -1,6 +1,14 @@
 {
 	"ui": {
 		"qml":{
+			"global_ui_scale_factor": {
+				"path": "/ui/qml/global_ui_scale_factor",
+				"default_value": 1.0,
+				"description": "Scales the entire xSTUDIO interface. Requires a restart after changing.",
+				"value": 1.0,
+				"datatype": "double",
+				"context": ["QML_UI"]
+			},
 			"custom_help_menu": {
 				"path": "/ui/qml/custom_help_menu",
 				"default_value": {"title": "", "url": ""},
@@ -456,97 +464,854 @@
 				"datatype": "string",
 				"context": ["QML_UI"]
 			},
+			"tabs_visibility": {
+				"path": "/ui/qml/tabs_visibility",
+				"default_value": 2,
+				"description": "Visibility of tabs in layouts",
+				"value": 2,
+				"datatype": "int",
+				"context": ["QML_UI"]
+			},
 			"reskin_windows_and_panels_model": {
 				"path": "/ui/qml/reskin_windows_and_panels_model",
-				"default_value": "{}",
+				"default_value": {
+					"children": [
+						{
+							"children": [
+								{
+									"children": [
+										{
+											"children": [
+												{
+													"tab_view": "Viewport"
+												}
+											],
+											"current_tab": 0,
+											"tabs_hidden": false
+										}
+									],
+									"enabled": true,
+									"layout_name": "Present"
+								},
+								{
+									"children": [
+										{
+											"child_dividers": [],
+											"children": [
+												{
+													"child_dividers": [
+														0.23343080915438036
+													],
+													"children": [
+														{
+															"child_dividers": [
+																0.23253857919148035
+															],
+															"children": [
+																{
+																	"children": [
+																		{
+																			"tab_view": "Playlists"
+																		}
+																	],
+																	"current_tab": 0
+																},
+																{
+																	"children": [
+																		{
+																			"tab_view": "Media"
+																		}
+																	],
+																	"current_tab": 0
+																}
+															],
+															"split_horizontal": false
+														},
+														{
+															"children": [
+																{
+																	"current_tab": 0,
+																	"tab_view": "Viewport"
+																}
+															]
+														}
+													],
+													"split_horizontal": true
+												}
+											],
+											"split_horizontal": false
+										}
+									],
+									"enabled": true,
+									"layout_name": "Review"
+								},
+								{
+									"children": [
+										{
+											"child_dividers": [],
+											"children": [
+												{
+													"child_dividers": [
+														0.23947969854102322,
+														0.7451900797478812
+													],
+													"children": [
+														{
+															"children": [
+																{
+																	"tab_view": "Media"
+																}
+															],
+															"current_tab": 0
+														},
+														{
+															"child_dividers": [
+																0.6371668908380925
+															],
+															"children": [
+																{
+																	"children": [
+																		{
+																			"tab_view": "Viewport"
+																		}
+																	],
+																	"current_tab": 0,
+																	"tabs_hidden": false
+																},
+																{
+																	"child_dividers": [
+																		0.1619001161354552
+																	],
+																	"children": [
+																		{
+																			"children": [
+																				{
+																					"tab_view": "Drawing Tools"
+																				}
+																			],
+																			"current_tab": 0,
+																			"tabs_hidden": true
+																		},
+																		{
+																			"children": [
+																				{
+																					"tab_view": "Notes"
+																				}
+																			],
+																			"current_tab": 0,
+																			"tabs_hidden": true
+																		}
+																	],
+																	"split_horizontal": true
+																}
+															],
+															"split_horizontal": false
+														},
+														{
+															"children": [
+																{
+																	"tab_view": "Notes History"
+																}
+															],
+															"current_tab": 0
+														}
+													],
+													"split_horizontal": true
+												}
+											],
+											"split_horizontal": false
+										}
+									],
+									"enabled": true,
+									"layout_name": "Notes"
+								},
+								{
+									"children": [
+										{
+											"child_dividers": [],
+											"children": [
+												{
+													"child_dividers": [
+														0.25312492271256315,
+														0.7373928087927155
+													],
+													"children": [
+														{
+															"children": [
+																{
+																	"tab_view": "Shot History"
+																}
+															],
+															"current_tab": 0
+														},
+														{
+															"child_dividers": [
+																0.5880597479809497
+															],
+															"children": [
+																{
+																	"children": [
+																		{
+																			"tab_view": "Viewport"
+																		}
+																	],
+																	"current_tab": 0,
+																	"tabs_hidden": false
+																},
+																{
+																	"children": [
+																		{
+																			"tab_view": "Media"
+																		}
+																	],
+																	"current_tab": 0,
+																	"tabs_hidden": false
+																}
+															],
+															"split_horizontal": false
+														},
+														{
+															"children": [
+																{
+																	"tab_view": "Notes History"
+																}
+															],
+															"current_tab": 0
+														}
+													],
+													"split_horizontal": true
+												}
+											],
+											"split_horizontal": false
+										}
+									],
+									"enabled": true,
+									"layout_name": "History"
+								},
+								{
+									"children": [
+										{
+											"child_dividers": [
+												0.21773768807479976
+											],
+											"children": [
+												{
+													"child_dividers": [
+														0.2620028649057661
+													],
+													"children": [
+														{
+															"children": [
+																{
+																	"tab_view": "Playlists"
+																}
+															],
+															"current_tab": 0
+														},
+														{
+															"children": [
+																{
+																	"tab_view": "Media"
+																}
+															],
+															"current_tab": 0
+														}
+													],
+													"split_horizontal": false
+												},
+												{
+													"child_dividers": [
+														0.6245028649057661
+													],
+													"children": [
+														{
+															"child_dividers": [
+																0.7173145512081954
+															],
+															"children": [
+																{
+																	"children": [
+																		{
+																			"tab_view": "Viewport"
+																		}
+																	],
+																	"current_tab": 0
+																},
+																{
+																	"children": [
+																		{
+																			"tab_view": "Shot History"
+																		}
+																	],
+																	"current_tab": 0
+																}
+															],
+															"split_horizontal": true
+														},
+														{
+															"children": [
+																{
+																	"tab_view": "Timeline"
+																}
+															],
+															"current_tab": 0
+														}
+													],
+													"split_horizontal": false
+												}
+											],
+											"split_horizontal": true
+										}
+									],
+									"enabled": true,
+									"layout_name": "NLE"
+								},
+								{
+									"children": [
+										{
+											"child_dividers": [
+												0.3020456802775288
+											],
+											"children": [
+												{
+													"child_dividers": [
+														0.2887885791914804
+													],
+													"children": [
+														{
+															"children": [
+																{
+																	"tab_view": "Playlists"
+																}
+															],
+															"current_tab": 0
+														},
+														{
+															"children": [
+																{
+																	"tab_view": "Media"
+																}
+															],
+															"current_tab": 0
+														}
+													],
+													"split_horizontal": false
+												},
+												{
+													"child_dividers": [
+														0.6637885791914804
+													],
+													"children": [
+														{
+															"children": [
+																{
+																	"tab_view": "Viewport"
+																}
+															],
+															"current_tab": 0
+														},
+														{
+															"children": [
+																{
+																	"tab_view": "Grading Tools"
+																}
+															],
+															"current_tab": 0
+														}
+													],
+													"split_horizontal": false
+												}
+											],
+											"split_horizontal": true
+										}
+									],
+									"enabled": true,
+									"layout_name": "Colour"
+								},
+								{
+									"children": [
+										{
+											"child_dividers": [
+												0.6753400272560863
+											],
+											"children": [
+												{
+													"children": [
+														{
+															"tab_view": "Shot Browser"
+														}
+													],
+													"current_tab": 0
+												},
+												{
+													"child_dividers": [
+														0.44682429347719466
+													],
+													"children": [
+														{
+															"children": [
+																{
+																	"tab_view": "Viewport"
+																}
+															],
+															"current_tab": 0
+														},
+														{
+															"children": [
+																{
+																	"tab_view": "Media"
+																},
+																{
+																	"tab_view": "Playlists"
+																}
+															],
+															"current_tab": 0
+														}
+													],
+													"split_horizontal": false
+												}
+											],
+											"split_horizontal": true
+										}
+									],
+									"enabled": true,
+									"layout_name": "Browser"
+								}
+							],
+							"current_layout": 4,
+							"height": 1145,
+							"position_x": 2,
+							"position_y": 27,
+							"width": 2052,
+							"window_name": "main_window"
+						},
+						{
+							"height": 720,
+							"position_x": 300,
+							"position_y": 300,
+							"width": 1280,
+							"window_name": "popout_window"
+						}
+					]
+				},
 				"description": "Windows layouts",
 				"value": {
 					"children": [
 						{
-							"window_name": "main_window",
-							"width": 800,
-							"height": 800,
-							"current_layout": 0,
-							"position_x": 100,
-							"position_y": 100,
 							"children": [
 								{
-									"layout_name": "Review",
-									"enabled": true,
 									"children": [
 										{
-											"split_horizontal": false, 
-											"child_dividers": [0.5],
 											"children": [
 												{
-													"split_horizontal": true, 
-													"child_dividers": [0.5],
-													"children": [
-														{
-															"current_tab": 2,
-															"children": [
-																{ "tab_view" : "Media" },
-																{ "tab_view" : "Timeline" },
-																{ "tab_view" : "Viewport" }
-															]
-														},
-														{
-															"current_tab": 0,
-															"children": [
-																{ "tab_view" : "Playlists" }
-															]
-														}
-													]
-												},
-												{
-													"current_tab": 0,
-													"children": [
-														{ "tab_view" : "Timeline" }
-													]
+													"tab_view": "Viewport"
 												}
-											]
+											],
+											"current_tab": 0,
+											"tabs_hidden": false
 										}
-									]
+									],
+									"enabled": true,
+									"layout_name": "Present"
 								},
 								{
-									"layout_name": "Present",
-									"enabled": true,
 									"children": [
 										{
-											"split_horizontal": false, 
-											"child_dividers": [0.5],
+											"child_dividers": [],
 											"children": [
 												{
-													"split_horizontal": true, 
-													"child_dividers": [0.5],
+													"child_dividers": [
+														0.23343080915438036
+													],
 													"children": [
 														{
-															"current_tab": 2,
+															"child_dividers": [
+																0.23253857919148035
+															],
 															"children": [
-																{ "tab_view" : "Media" },
-																{ "tab_view" : "Timeline" },
-																{ "tab_view" : "Viewport" }
-															]
+																{
+																	"children": [
+																		{
+																			"tab_view": "Playlists"
+																		}
+																	],
+																	"current_tab": 0
+																},
+																{
+																	"children": [
+																		{
+																			"tab_view": "Media"
+																		}
+																	],
+																	"current_tab": 0
+																}
+															],
+															"split_horizontal": false
 														},
 														{
-															"current_tab": 0,
 															"children": [
-																{ "tab_view" : "Playlists" }
+																{
+																	"current_tab": 0,
+																	"tab_view": "Viewport"
+																}
 															]
 														}
-													]
+													],
+													"split_horizontal": true
+												}
+											],
+											"split_horizontal": false
+										}
+									],
+									"enabled": true,
+									"layout_name": "Review"
+								},
+								{
+									"children": [
+										{
+											"child_dividers": [],
+											"children": [
+												{
+													"child_dividers": [
+														0.23947969854102322,
+														0.7451900797478812
+													],
+													"children": [
+														{
+															"children": [
+																{
+																	"tab_view": "Media"
+																}
+															],
+															"current_tab": 0
+														},
+														{
+															"child_dividers": [
+																0.6371668908380925
+															],
+															"children": [
+																{
+																	"children": [
+																		{
+																			"tab_view": "Viewport"
+																		}
+																	],
+																	"current_tab": 0,
+																	"tabs_hidden": false
+																},
+																{
+																	"child_dividers": [
+																		0.1619001161354552
+																	],
+																	"children": [
+																		{
+																			"children": [
+																				{
+																					"tab_view": "Drawing Tools"
+																				}
+																			],
+																			"current_tab": 0,
+																			"tabs_hidden": true
+																		},
+																		{
+																			"children": [
+																				{
+																					"tab_view": "Notes"
+																				}
+																			],
+																			"current_tab": 0,
+																			"tabs_hidden": true
+																		}
+																	],
+																	"split_horizontal": true
+																}
+															],
+															"split_horizontal": false
+														},
+														{
+															"children": [
+																{
+																	"tab_view": "Notes History"
+																}
+															],
+															"current_tab": 0
+														}
+													],
+													"split_horizontal": true
+												}
+											],
+											"split_horizontal": false
+										}
+									],
+									"enabled": true,
+									"layout_name": "Notes"
+								},
+								{
+									"children": [
+										{
+											"child_dividers": [],
+											"children": [
+												{
+													"child_dividers": [
+														0.25312492271256315,
+														0.7373928087927155
+													],
+													"children": [
+														{
+															"children": [
+																{
+																	"tab_view": "Shot History"
+																}
+															],
+															"current_tab": 0
+														},
+														{
+															"child_dividers": [
+																0.5880597479809497
+															],
+															"children": [
+																{
+																	"children": [
+																		{
+																			"tab_view": "Viewport"
+																		}
+																	],
+																	"current_tab": 0,
+																	"tabs_hidden": false
+																},
+																{
+																	"children": [
+																		{
+																			"tab_view": "Media"
+																		}
+																	],
+																	"current_tab": 0,
+																	"tabs_hidden": false
+																}
+															],
+															"split_horizontal": false
+														},
+														{
+															"children": [
+																{
+																	"tab_view": "Notes History"
+																}
+															],
+															"current_tab": 0
+														}
+													],
+													"split_horizontal": true
+												}
+											],
+											"split_horizontal": false
+										}
+									],
+									"enabled": true,
+									"layout_name": "History"
+								},
+								{
+									"children": [
+										{
+											"child_dividers": [
+												0.21773768807479976
+											],
+											"children": [
+												{
+													"child_dividers": [
+														0.2620028649057661
+													],
+													"children": [
+														{
+															"children": [
+																{
+																	"tab_view": "Playlists"
+																}
+															],
+															"current_tab": 0
+														},
+														{
+															"children": [
+																{
+																	"tab_view": "Media"
+																}
+															],
+															"current_tab": 0
+														}
+													],
+													"split_horizontal": false
 												},
 												{
-													"current_tab": 0,
+													"child_dividers": [
+														0.6245028649057661
+													],
 													"children": [
-														{ "tab_view" : "Timeline" }
-													]
+														{
+															"child_dividers": [
+																0.7173145512081954
+															],
+															"children": [
+																{
+																	"children": [
+																		{
+																			"tab_view": "Viewport"
+																		}
+																	],
+																	"current_tab": 0
+																},
+																{
+																	"children": [
+																		{
+																			"tab_view": "Shot History"
+																		}
+																	],
+																	"current_tab": 0
+																}
+															],
+															"split_horizontal": true
+														},
+														{
+															"children": [
+																{
+																	"tab_view": "Timeline"
+																}
+															],
+															"current_tab": 0
+														}
+													],
+													"split_horizontal": false
 												}
-											]
+											],
+											"split_horizontal": true
 										}
-									]
+									],
+									"enabled": true,
+									"layout_name": "NLE"
+								},
+								{
+									"children": [
+										{
+											"child_dividers": [
+												0.3020456802775288
+											],
+											"children": [
+												{
+													"child_dividers": [
+														0.2887885791914804
+													],
+													"children": [
+														{
+															"children": [
+																{
+																	"tab_view": "Playlists"
+																}
+															],
+															"current_tab": 0
+														},
+														{
+															"children": [
+																{
+																	"tab_view": "Media"
+																}
+															],
+															"current_tab": 0
+														}
+													],
+													"split_horizontal": false
+												},
+												{
+													"child_dividers": [
+														0.6637885791914804
+													],
+													"children": [
+														{
+															"children": [
+																{
+																	"tab_view": "Viewport"
+																}
+															],
+															"current_tab": 0
+														},
+														{
+															"children": [
+																{
+																	"tab_view": "Grading Tools"
+																}
+															],
+															"current_tab": 0
+														}
+													],
+													"split_horizontal": false
+												}
+											],
+											"split_horizontal": true
+										}
+									],
+									"enabled": true,
+									"layout_name": "Colour"
+								},
+								{
+									"children": [
+										{
+											"child_dividers": [
+												0.6753400272560863
+											],
+											"children": [
+												{
+													"children": [
+														{
+															"tab_view": "Shot Browser"
+														}
+													],
+													"current_tab": 0
+												},
+												{
+													"child_dividers": [
+														0.44682429347719466
+													],
+													"children": [
+														{
+															"children": [
+																{
+																	"tab_view": "Viewport"
+																}
+															],
+															"current_tab": 0
+														},
+														{
+															"children": [
+																{
+																	"tab_view": "Media"
+																},
+																{
+																	"tab_view": "Playlists"
+																}
+															],
+															"current_tab": 0
+														}
+													],
+													"split_horizontal": false
+												}
+											],
+											"split_horizontal": true
+										}
+									],
+									"enabled": true,
+									"layout_name": "Browser"
 								}
-							]
+							],
+							"current_layout": 1,
+							"height": 1145,
+							"position_x": 2,
+							"position_y": 27,
+							"width": 2052,
+							"window_name": "main_window"
+						},
+						{
+							"height": 720,
+							"position_x": 300,
+							"position_y": 300,
+							"width": 1280,
+							"window_name": "popout_window"
 						}
 					]
 				},
@@ -562,7 +1327,7 @@
 					"children": [
 					{
 						"title": "",
-						"size": 10,
+						"size": 2,
 						"resizable": false,
 						"data_type": "flag",
 						"sortable": false
@@ -583,18 +1348,19 @@
 					},
 					{
 						"title": "File",
-						"size": 300,
+						"size": 360,
 						"role_name": "pathRole",
 						"object": "MediaSource",
 						"resizable": true,
 						"data_type": "role_data",
-						"sortable": false,
+						"sortable": true,
+						"position": "left",
 						"format_regex": ".+\\/([^\\/]+)$",
 						"format_out": "$1"
 					},
 					{
 						"title": "Resolution",
-						"size": 70,
+						"size": 90,
 						"object": "MediaSource",
 						"role_name": "resolutionRole",
 						"resizable": true,
@@ -603,58 +1369,53 @@
 					},
 					{
 						"title": "Notes",
-						"size": 50,
-						"resizable": false,
+						"size": 100,
+						"resizable": true,
 						"data_type": "notes",
 						"sortable": false
 					},
 					{
-						"title": "Shot",
-						"metadata_path": "/metadata/shotgun/shot/attributes/code",
-						"object": "Media",
-						"size": 120,
-						"data_type": "metadata",
-						"resizable": true,
-						"sortable": false					
-					},
-					{
-						"title": "Pipeline Step",
-						"metadata_path": "/metadata/shotgun/version/attributes/sg_pipeline_step",
-						"object": "Media",
-						"size": 120,
-						"data_type": "metadata",
-						"resizable": true,
-						"sortable": true
-					},
-					{
-						"title": "Version",
-						"metadata_path": "/metadata/shotgun/version/attributes/sg_dneg_version",
-						"object": "Media",
-						"size": 80,
-						"data_type": "metadata",
-						"resizable": true,
-						"sortable": true
-					},
-					{
-						"title": "Author",
-						"metadata_path": "/metadata/shotgun/version/relationships/created_by/data/name",
-						"object": "Media",
-						"size": 120,
-						"data_type": "metadata",
-						"resizable": true,
-						"sortable": true
-					},
-					{
-						"title": "Date",
+						"title": "Created",
 						"metadata_path": "/metadata/shotgun/version/attributes/created_at",
 						"object": "Media",
 						"size": 120,
 						"data_type": "metadata",
 						"resizable": true,
-						"sortable": true,
+						"sortable": false,
 						"format_regex": "([0-9]+\\-[0-9]+\\-[0-9]+).+",
 						"format_out": "$1"
-					}
+					},
+					{
+						"title": "Duration",
+						"metadata_path": "/metadata/media/@/format/duration",
+						"object": "Media",
+						"size": 120,
+						"data_type": "metadata",
+						"resizable": true,
+						"sortable": false,
+						"format_regex": "([0-9]+)\\.([0-9]).+",
+						"format_out": "$1.$2"
+					},
+					{
+						"title": "Codec",
+						"metadata_path": "/metadata/stream/@/codec_name",
+						"object": "MediaStream",
+						"size": 120,
+						"data_type": "metadata",
+						"resizable": true,
+						"sortable": false
+					},
+					{
+						"title": "Frame Rate",
+						"size": 70,
+						"object": "MediaSource",
+						"role_name": "rateFPSRole",
+						"resizable": true,
+						"data_type": "role_data",
+						"sortable": false,
+						"format_regex": "([0-9]+)([\\.0-9]?)([0-9]?)([1-9]?).*",
+						"format_out": "$1$2$3$4"
+					}					
 				]},
 				"datatype": "json",
 				"context": ["QML_UI"]

@@ -8,8 +8,13 @@ import xStudioReskin 1.0
 Button {
     id: widget
 
+    text: ""
+
+    property alias imageDiv: imageDiv
     property alias imgSrc: imageDiv.source
     property bool isActive: false
+    property bool isColoured: false
+    property bool showHoverOnActive: false
     property bool onlyVisualyEnabled: false
  
     property color imgOverlayColor: "#C1C1C1"
@@ -32,21 +37,38 @@ Button {
     Item{
         anchors.fill: parent
         opacity: enabled || onlyVisualyEnabled ? 1.0 : 0.33
+        clip: true
+        
         XsImage {
             id: imageDiv
+            source: ""
             sourceSize.height: 16
             sourceSize.width: 16
-            imgOverlayColor: widget.imgOverlayColor
+            imgOverlayColor: isColoured ? palette.highlight : widget.imgOverlayColor
             anchors.centerIn: parent
+            
+            Behavior on rotation {NumberAnimation{duration: 150 }}
+        }
+        XsText {
+            id: textDiv
+            visible: imgSrc==""
+            text: widget.text
+            font: widget.font
+            color: textColorNormal 
+            elide: Text.ElideRight
+            horizontalAlignment: Text.AlignHCenter
+            verticalAlignment: Text.AlignVCenter
+            anchors.centerIn: parent
+            width: parent.width
+            height: parent.height
         }
     }
 
     background:
     Rectangle {
         id: bgDiv
-        implicitWidth: 100
-        implicitHeight: 40
-        border.color: widget.down || widget.hovered ? borderColorHovered: borderColorNormal
+        // border.color: widget.down || widget.hovered ? borderColorHovered: borderColorNormal
+        border.color: widget.down || widget.hovered ? (showHoverOnActive && isActive)? imgOverlayColor:borderColorHovered: borderColorNormal
         border.width: borderWidth
         color: widget.down || isActive? bgColorPressed : forcedBgColorNormal
 
@@ -68,7 +90,7 @@ Button {
         id: toolTip
         text: widget.text
         visible: false
-        width: visible? text.width : 0 //widget.width
+        width: visible? text.width + 15 : 0
         x: 0 //#TODO: flex/pointer
     }
 

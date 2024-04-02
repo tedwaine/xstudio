@@ -65,7 +65,22 @@ ColourAttribute::ColourAttribute(
     : TypeAttribute<utility::ColourTriplet>(
           title, abbr_title, value, type_name(Attribute::ColourAttribute)) {}
 
+Vec4fAttribute::Vec4fAttribute(
+    const std::string &title, const std::string &abbr_title, const Imath::V4f &value)
+    : TypeAttribute<Imath::V4f>(
+          title, abbr_title, value, type_name(Attribute::Vec4fAttribute)) {}
+
 JsonAttribute::JsonAttribute(
     const std::string &title, const std::string &abbr_title, const nlohmann::json &value)
     : TypeAttribute<nlohmann::json>(
           title, abbr_title, value, type_name(Attribute::JsonAttribute)) {}
+
+IntegerVecAttribute::IntegerVecAttribute(
+    const std::string &title, const std::string &abbr_title, const std::vector<int> &value)
+    : TypeAttribute<std::vector<int>>(
+          title, abbr_title, value, type_name(Attribute::IntegerAttribute)) {}
+
+FloatVectorAttribute::FloatVectorAttribute(
+    const std::string &title, const std::string &abbr_title, const std::vector<float> &value)
+    : TypeAttribute<std::vector<float>>(
+          title, abbr_title, value, type_name(Attribute::FloatVectorAttribute)) {}

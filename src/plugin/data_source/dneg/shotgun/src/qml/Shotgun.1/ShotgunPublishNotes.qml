@@ -88,7 +88,7 @@ XsWindow {
 
     XsModelNestedPropertyMap {
         id: prefs
-        index: app_window.globalStoreModel.search_recursive("/plugin/data_source/shotgun/note_publish_settings", "pathRole")
+        index: app_window.globalStoreModel.searchRecursive("/plugin/data_source/shotgun/note_publish_settings", "pathRole")
         property alias properties: prefs.values
     }
 
@@ -117,6 +117,7 @@ XsWindow {
     }
 
     function getNotifyGroups() {
+
         let result = []
         let email_group_names = []
         if(notify_group_cb.checked) {

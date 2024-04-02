@@ -14,10 +14,8 @@ using namespace xstudio::ui::qml;
 #include <QJSValue>
 #include <QMimeData>
 #include <QItemSelectionRange>
-
-QMLActor::QMLActor(QObject *parent) : super(parent) {}
-
-QMLActor::~QMLActor() {}
+#include <QVector4D>
+#include <QPainter>
 
 CafSystemObject::CafSystemObject(QObject *parent, caf::actor_system &sys)
     : QObject(parent), system_ref_(sys) {
@@ -206,6 +204,18 @@ QVariant xstudio::ui::qml::json_to_qvariant(const nlohmann::json &json) {
                 static_cast<int>(round(t.g * 255.0f)),
                 static_cast<int>(round(t.b * 255.0f)));
             return QVariant(c);
+
+        } else if (
+            json.size() == 6 && json[0].is_string() && json[0].get<std::string>() == "vec4") {
+
+            // it should be a color!
+            const auto t = json.get<Imath::V4f>();
+            QVector4D rt;
+            rt[0] = t[0];
+            rt[1] = t[1];
+            rt[2] = t[2];
+            rt[3] = t[3];
+            return QVariant(rt);
         }
         QList<QVariant> rt;
         for (auto p = json.begin(); p != json.end(); ++p) {
@@ -218,6 +228,67 @@ QVariant xstudio::ui::qml::json_to_qvariant(const nlohmann::json &json) {
     throw std::runtime_error("Unknown json type, no conversion to QVariant");
 }
 
+
+KeyEventsItem::KeyEventsItem(QQuickItem *parent) : QQuickItem(parent) {
+
+    keypress_monitor_ = CafSystemObject::get_actor_system().registry().template get<caf::actor>(
+        xstudio::keyboard_events);
+    setAcceptHoverEvents(true);
+}
+
+bool KeyEventsItem::event(QEvent *event) {
+
+    // Key events are forwarded to keypress_monitor_ - we pass our 'context'
+    // property so we have an idea WHERE (i.e. what UI element) the hotkey was
+    // pressed
+
+    /* This is where keyboard events are captured and sent to the backend!! */
+    if (event->type() == QEvent::KeyPress) {
+
+        auto key_event = dynamic_cast<QKeyEvent *>(event);
+        if (key_event) {
+            anon_send(
+                keypress_monitor_,
+                ui::keypress_monitor::key_down_atom_v,
+                key_event->key(),
+                context_,
+                key_event->isAutoRepeat());
+        }
+    } else if (event->type() == QEvent::KeyRelease) {
+
+        auto key_event = dynamic_cast<QKeyEvent *>(event);
+        if (key_event && !key_event->isAutoRepeat()) {
+            anon_send(
+                keypress_monitor_,
+                ui::keypress_monitor::key_up_atom_v,
+                key_event->key(),
+                context_);
+        }
+    } else if (
+        event->type() == QEvent::Leave || event->type() == QEvent::HoverLeave ||
+        event->type() == QEvent::DragLeave || event->type() == QEvent::GraphicsSceneDragLeave ||
+        event->type() == QEvent::GraphicsSceneHoverLeave) {
+        anon_send(keypress_monitor_, ui::keypress_monitor::all_keys_up_atom_v, context_);
+    } else if (event->type() == QEvent::HoverEnter) {
+        forceActiveFocus(Qt::MouseFocusReason);
+    }
+    return QQuickItem::event(event);
+}
+
+void KeyEventsItem::keyPressEvent(QKeyEvent *event) {
+
+    anon_send(
+        keypress_monitor_,
+        ui::keypress_monitor::text_entry_atom_v,
+        StdFromQString(event->text()),
+        context_);
+}
+void KeyEventsItem::keyReleaseEvent(QKeyEvent *event) {
+    if (!event->isAutoRepeat()) {
+        anon_send(
+            keypress_monitor_, ui::keypress_monitor::key_up_atom_v, event->key(), context_);
+    }
+}
 
 ClipboardProxy::ClipboardProxy(QObject *parent) : QObject(parent) {
     QClipboard *clipboard = QGuiApplication::clipboard();
@@ -279,6 +350,24 @@ QDateTime Helpers::getFileMTime(const QUrl &url) const {
         std::chrono::duration_cast<std::chrono::milliseconds>(mtim.time_since_epoch()).count());
 }
 
+QModelIndexList Helpers::getParentIndexesFromRange(const QItemSelection &l) const {
+    return getParentIndexes(l.indexes());
+}
+
+QModelIndexList Helpers::getParentIndexes(const QModelIndexList &l) const {
+    auto result = QModelIndexList();
+
+    for (auto i : l) {
+        while (i.isValid()) {
+            i = i.parent();
+            result.push_back(i);
+        }
+    }
+
+    return result;
+}
+
+
 bool Helpers::startDetachedProcess(
     const QString &program,
     const QStringList &arguments,
@@ -297,4 +386,43 @@ QString Helpers::readFile(const QUrl &url) const {
     }
 
     return "";
+}
+
+QObject *Helpers::contextPanel(QObject *obj) const {
+
+    // traverse up the qml context hierarchy until we hit an object named
+    // XsPanelParent - then we've gone one level beyond the actual panel
+    // item that we want
+    if (qmlContext(obj)) {
+        QQmlContext *c = qmlContext(obj);
+        QObject *pobj  = obj;
+        while (c) {
+            QObject *cobj = c->contextObject();
+            if (cobj && cobj->objectName() == "XsPanelParent") {
+                return pobj;
+            }
+            pobj = cobj;
+            c    = c->parentContext();
+        }
+    }
+    return nullptr;
+}
+
+ImagePainter::ImagePainter(QQuickItem *parent) : QQuickPaintedItem(parent) {}
+
+void ImagePainter::paint(QPainter *painter) {
+
+    if (image_.isNull())
+        return;
+
+    const float image_aspect  = float(image_.width()) / float(image_.height());
+    const float canvas_aspect = float(width()) / float(height());
+
+    if (image_aspect > canvas_aspect) {
+        float bottom = float(height()) * 0.5f * (image_aspect - canvas_aspect) / image_aspect;
+        painter->drawImage(QRectF(0.0f, bottom, width(), height() - (bottom * 2.0f)), image_);
+    } else {
+        float left = float(width()) * 0.5f * (canvas_aspect - image_aspect) / canvas_aspect;
+        painter->drawImage(QRectF(left, 0.0f, width() - (left * 2.0f), height()), image_);
+    }
 }

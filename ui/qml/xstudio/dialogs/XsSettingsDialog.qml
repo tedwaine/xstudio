@@ -438,6 +438,7 @@ XsDialogModal {
                 }
             }
 
+
             XsLabel {
                 text: "Image Cache (MB)"
                 Layout.alignment: Qt.AlignVCenter | Qt.AlignRight
@@ -642,7 +643,7 @@ XsDialogModal {
                 }
             }
 
-            /*RoundButton {
+            RoundButton {
                 id: btnHotkeys
                 text: qsTr("Hotkeys")
                 width: 60
@@ -679,7 +680,7 @@ XsDialogModal {
                         }
                     }
                 }
-            }*/
+            }
 
         }
     }

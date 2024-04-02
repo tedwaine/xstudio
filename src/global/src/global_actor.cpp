@@ -33,15 +33,6 @@
 #include "xstudio/utility/helpers.hpp"
 #include "xstudio/utility/logging.hpp"
 
-// include for system (soundcard) audio output
-#ifdef __linux__
-#include "xstudio/audio/linux_audio_output_device.hpp"
-#elif __APPLE__
-// TO DO
-#elif _WIN32
-// TO DO
-#endif
-
 using namespace caf;
 using namespace xstudio;
 using namespace xstudio::global;
@@ -95,6 +86,7 @@ void GlobalActor::init(const utility::JsonStore &prefs) {
 
     auto sga             = spawn<sync::SyncGatewayActor>();
     auto sgma            = spawn<sync::SyncGatewayManagerActor>();
+    auto keyboard_events = spawn<ui::keypress_monitor::KeypressMonitor>();
     auto ui_models       = spawn<ui::model_data::GlobalUIModelData>();
     auto pm              = spawn<plugin_manager::PluginManagerActor>();
     auto colour          = spawn<colour_pipeline::GlobalColourPipelineActor>();
@@ -105,8 +97,7 @@ void GlobalActor::init(const utility::JsonStore &prefs) {
     auto gcca            = spawn<colour_pipeline::GlobalColourCacheActor>();
     auto gmha            = spawn<media_hook::GlobalMediaHookActor>();
     auto thumbnail       = spawn<thumbnail::ThumbnailManagerActor>();
-    auto keyboard_events = spawn<ui::keypress_monitor::KeypressMonitor>();
-    auto audio           = spawn<audio::GlobalAudioOutputActor>();
+    auto audio           = spawn<audio::AudioOutputControlActor>();
     auto phev            = spawn<playhead::PlayheadGlobalEventsActor>();
     auto pa              = spawn<embedded_python::EmbeddedPythonActor>("Python");
     auto scanner         = spawn<scanner::ScannerActor>();
@@ -132,17 +123,6 @@ void GlobalActor::init(const utility::JsonStore &prefs) {
     link_to(sgma);
     link_to(thumbnail);
     link_to(ui_models);
-
-    
-    // Make default audio output
-#ifdef __linux__
-    auto audio_out = spawn<audio::AudioOutputActor<audio::LinuxAudioOutputDevice>>();
-    link_to(audio_out);
-#elif __APPLE__
-        // TO DO
-#elif _WIN32
-        // TO DO
-#endif
 
     python_enabled_ = false;
     connected_      = false;

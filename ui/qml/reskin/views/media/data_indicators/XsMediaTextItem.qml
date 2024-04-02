@@ -8,19 +8,23 @@ Item{
     id: dateDiv
 
     property var raw_text
+    property string raw_text_: "" + raw_text
+    property var leftMargin: 12
 
-    property var text: regex ? (raw_text ? raw_text.replace(regex, format_out) : "-") : (raw_text ? raw_text : "-")
+    property var text: regex ? (raw_text_ ? raw_text_.replace(regex, format_out) : "-") : (raw_text_ ? raw_text_ : "-")
 
     property var regex: format_regex ? new RegExp(format_regex) : undefined
 
+    property var arse: position
+
     XsText{ 
         text: "" + dateDiv.text
-        width: parent.width - itemPadding*2
-        anchors.horizontalCenter: parent.horizontalCenter
+        x: position == "left" ? leftMargin : (parent.width-width)/2
         anchors.verticalCenter: parent.verticalCenter
         font.weight: isActive? Font.ExtraBold : Font.Normal
         color: isActive && highlightTextOnActive? highlightColor : palette.text
     }
+
     Rectangle{
         width: headerThumbWidth; 
         height: parent.height

@@ -235,10 +235,33 @@ void ShotgunDataSourceActor<T>::get_action(
                 action.at("job").get<std::string>());
         } else if (operation == "GetShotFromId") {
             find_shot(rp, action.at("shot_id").get<int>());
+        } else if (operation == "VersionArtist") {
+            get_version_artist(rp, action.at("version_id").get<int>());
+        } else if (operation == "ExecutePreset") {
+            if(action.at("preset_paths").empty())
+                execute_preset(
+                    rp,
+                    {action.at("preset_path")},
+                    action.at("project_id"),
+                    action.at("context"),
+                    action.at("metadata")
+                );
+            else
+                execute_preset(
+                    rp,
+                    action.at("preset_paths"),
+                    action.at("project_id"),
+                    action.at("context"),
+                    action.at("metadata")
+                );
         } else if (operation == "LinkMedia") {
             link_media(rp, utility::Uuid(action.at("playlist_uuid")));
         } else if (operation == "DownloadMedia") {
             download_media(rp, utility::Uuid(action.at("media_uuid")));
+        } else if (operation == "GetData") {
+            get_data(rp, action.at("type"), action.at("project_id"));
+        } else if (operation == "Precache") {
+            get_precache(rp, action.at("project_id"));
         } else if (operation == "MediaCount") {
             get_valid_media_count(rp, utility::Uuid(action.at("playlist_uuid")));
         } else if (operation == "PrepareNotes") {

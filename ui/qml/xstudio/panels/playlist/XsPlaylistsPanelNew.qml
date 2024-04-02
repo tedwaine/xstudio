@@ -142,7 +142,7 @@ Rectangle {
 
                 // does media exist in our parent.
                 if(before) {
-                    let mi = app_window.sessionModel.search_recursive(
+                    let mi = app_window.sessionModel.searchRecursive(
                         helpers.QVariantFromUuidString(data["xstudio/media-ids"].split("\n")[0]), "idRole"
                     )
 

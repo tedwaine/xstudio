@@ -109,6 +109,20 @@ class CafRequest : public ControllableJob<QMap<int, QString>> {
                 }
                 break;
 
+            case SessionModel::Roles::bookmarkUuidsRole:
+                if (type == "Media") {
+
+                    auto uids = request_receive<utility::UuidList>(
+                        *sys,
+                        actorFromString(system_, json_.at("actor")),
+                        bookmark::get_bookmarks_atom_v);
+                    auto j = nlohmann::json::array();
+                    for (const auto &uuid : uids) {
+                        j.push_back(uuid);
+                    }
+                    result[SessionModel::Roles::bookmarkUuidsRole] = QStringFromStd(j.dump());
+                }
+                break;
             case SessionModel::Roles::bitDepthRole:
             case SessionModel::Roles::resolutionRole:
             case SessionModel::Roles::formatRole:
@@ -166,7 +180,6 @@ class CafRequest : public ControllableJob<QMap<int, QString>> {
                         *sys,
                         actorFromString(system_, json_.at("actor")),
                         media::media_reference_atom_v);
-
                     result[SessionModel::Roles::pathRole] =
                         QStringFromStd(json(to_string(rr.uri())).dump());
                     result[SessionModel::Roles::rateFPSRole] =
@@ -235,7 +248,6 @@ class CafRequest : public ControllableJob<QMap<int, QString>> {
                         try {
                             auto answer = request_receive<media::MediaStatus>(
                                 *sys, target, media::media_status_atom_v);
-
                             result[SessionModel::Roles::mediaStatusRole] =
                                 QStringFromStd(json(answer).dump());
                         } catch (...) {
@@ -288,14 +300,13 @@ class CafRequest : public ControllableJob<QMap<int, QString>> {
                     auto target = actorFromString(system_, json_.at("actor"));
                     if (target) {
 
-                        auto selection = request_receive<std::vector<utility::Uuid>>(
+                        auto selection = request_receive<utility::UuidList>(
                             *sys, target, playhead::get_selection_atom_v);
 
                         auto j = nlohmann::json::array();
                         for (const auto &uuid : selection) {
                             j.push_back(uuid);
                         }
-
                         result[SessionModel::Roles::selectionRole] = QStringFromStd(j.dump());
                     }
                 }
@@ -334,8 +345,8 @@ class CafRequest : public ControllableJob<QMap<int, QString>> {
                 }
                 break;
 
-            case SessionModel::Roles::childrenRole:
-                // spdlog::error("SessionModel::Roles::childrenRole {}", type);
+            case JSONTreeModel::Roles::childrenRole:
+                // spdlog::error("JSONTreeModel::Roles::childrenRole {}", type);
                 if (type == "Session") {
                     auto session    = actorFromString(system_, json_.at("actor"));
                     auto containers = request_receive<utility::PlaylistTree>(
@@ -345,7 +356,7 @@ class CafRequest : public ControllableJob<QMap<int, QString>> {
 
                     // session tree contains...
 
-                    result[SessionModel::Roles::childrenRole] =
+                    result[JSONTreeModel::Roles::childrenRole] =
                         QStringFromStd(SessionModel::sessionTreeToJson(
                                            containers, system_, uuidactor_vect_to_map(actors))
                                            .at("children")
@@ -368,7 +379,7 @@ class CafRequest : public ControllableJob<QMap<int, QString>> {
                     for (const auto &i : detail)
                         jsn.emplace_back(SessionModel::containerDetailToJson(i, system_));
 
-                    result[SessionModel::Roles::childrenRole] = QStringFromStd(jsn.dump());
+                    result[JSONTreeModel::Roles::childrenRole] = QStringFromStd(jsn.dump());
                 } else if (type == "Clip") {
                     auto target = actorFromString(system_, json_.at("actor"));
 
@@ -380,7 +391,7 @@ class CafRequest : public ControllableJob<QMap<int, QString>> {
                     auto jsn = R"([])"_json;
                     jsn.emplace_back(SessionModel::containerDetailToJson(detail, system_));
 
-                    result[SessionModel::Roles::childrenRole] = QStringFromStd(jsn.dump());
+                    result[JSONTreeModel::Roles::childrenRole] = QStringFromStd(jsn.dump());
                 } else if (type == "Container List") {
                     // // only happens from playlist.
                     auto containers = request_receive<utility::PlaylistTree>(
@@ -393,7 +404,7 @@ class CafRequest : public ControllableJob<QMap<int, QString>> {
                         playlist::get_container_atom_v,
                         true);
 
-                    result[SessionModel::Roles::childrenRole] =
+                    result[JSONTreeModel::Roles::childrenRole] =
                         QStringFromStd(SessionModel::playlistTreeToJson(
                                            containers, system_, uuidactor_vect_to_map(actors))
                                            .at("children")
@@ -407,8 +418,7 @@ class CafRequest : public ControllableJob<QMap<int, QString>> {
                         auto jsn = R"([])"_json;
                         for (const auto &i : detail)
                             jsn.emplace_back(SessionModel::containerDetailToJson(i, system_));
-
-                        result[SessionModel::Roles::childrenRole] = QStringFromStd(jsn.dump());
+                        result[JSONTreeModel::Roles::childrenRole] = QStringFromStd(jsn.dump());
                     }
                 } else if (type == "TimelineItem") {
                     auto owner = actorFromString(system_, json_.at("actor_owner"));
@@ -440,11 +450,12 @@ class CafRequest : public ControllableJob<QMap<int, QString>> {
                     // // result[SessionModel::Roles::typeRole] =
                     // QStringFromStd(jsn.at("type").dump());
 
-                    // result[SessionModel::Roles::childrenRole] =
+                    // result[JSONTreeModel::Roles::childrenRole] =
                     // QStringFromStd(jsn.at("children").dump()); we can also update other
                     // fields..
 
                 } else if (type == "MediaSource") {
+
                     auto idetail = request_receive<std::vector<ContainerDetail>>(
                         *sys,
                         actorFromString(system_, json_.at("actor")),
@@ -471,8 +482,7 @@ class CafRequest : public ControllableJob<QMap<int, QString>> {
                     for (const auto &i : adetail)
                         jsn[1]["children"].emplace_back(
                             SessionModel::containerDetailToJson(i, system_));
-
-                    result[SessionModel::Roles::childrenRole] = QStringFromStd(jsn.dump());
+                    result[JSONTreeModel::Roles::childrenRole] = QStringFromStd(jsn.dump());
                 } else if (type == "PlayheadSelection") {
                     auto actor = caf::actor();
                     // spdlog::warn("request children PlayheadSelection {}", json_.dump(2));
@@ -519,7 +529,7 @@ class CafRequest : public ControllableJob<QMap<int, QString>> {
                             jsn.emplace_back(sel);
                         }
                         // spdlog::warn("{}", jsn.dump(2));
-                        result[SessionModel::Roles::childrenRole] = QStringFromStd(jsn.dump());
+                        result[JSONTreeModel::Roles::childrenRole] = QStringFromStd(jsn.dump());
                     }
 
 
@@ -529,12 +539,12 @@ class CafRequest : public ControllableJob<QMap<int, QString>> {
                     spdlog::warn("CafRequest unhandled ChildrenRole type {}", type);
                 }
                 break;
-            default:
-
+            default: {
                 if (not metadata_paths_.empty()) {
+
                     const int max_index = metadata_paths_.rbegin()->first;
                     auto r              = nlohmann::json::array();
-                    if (type == "Media") {
+                    if (type == "Media" || type == "MediaSource" || type == "MediaStream") {
 
                         for (int idx = 0; idx <= max_index; idx++) {
                             if (metadata_paths_.find(idx) == metadata_paths_.end()) {
@@ -546,37 +556,15 @@ class CafRequest : public ControllableJob<QMap<int, QString>> {
                                 continue;
                             }
                             try {
+
                                 // get media actor to try the current media source
                                 // if it doesn't have this metadata item iteself
                                 auto data = request_receive<JsonStore>(
                                     *sys,
                                     actorFromString(system_, json_.at("actor")),
                                     json_store::get_json_atom_v,
-                                    metadata_paths_.find(idx)->second,
-                                    true);
-                                r.push_back(data);
-                            } catch (...) {
-                                r.push_back(nullptr);
-                            } // suppress 'no metadata' warnings
-                        }
-
-                    } else if (type == "MediaSource") {
-
-                        for (int idx = 0; idx <= max_index; idx++) {
-                            if (metadata_paths_.find(idx) == metadata_paths_.end()) {
-                                r.push_back(nullptr);
-                                continue;
-                            }
-                            if (metadata_paths_.find(idx)->second.empty()) {
-                                r.push_back(nullptr);
-                                continue;
-                            }
-                            try {
-                                auto data = request_receive<JsonStore>(
-                                    *sys,
-                                    actorFromString(system_, json_.at("actor")),
-                                    json_store::get_json_atom_v,
                                     metadata_paths_.find(idx)->second);
+
                                 r.push_back(data);
                             } catch (...) {
                                 r.push_back(nullptr);
@@ -585,7 +573,7 @@ class CafRequest : public ControllableJob<QMap<int, QString>> {
                     }
                     result[role_] = QStringFromStd(r.dump());
                 }
-                break;
+            } break;
             }
 
         } catch (const std::exception &err) {
@@ -602,6 +590,8 @@ class CafRequest : public ControllableJob<QMap<int, QString>> {
     const std::map<int, std::string> metadata_paths_;
 };
 
+static int ct = 0;
+
 CafResponse::CafResponse(
     const QVariant search_value,
     const int search_role,
@@ -615,7 +605,6 @@ CafResponse::CafResponse(
       search_role_(search_role),
       search_hint_(std::move(search_hint)),
       role_(role) {
-
 
     // create a future..
     connect(
@@ -647,7 +636,6 @@ CafResponse::CafResponse(
       search_hint_(std::move(search_hint)),
       role_(role) {
 
-
     // create a future..
     connect(
         &watcher_,
@@ -664,6 +652,8 @@ CafResponse::CafResponse(
         deleteLater();
     }
 }
+
+CafResponse::~CafResponse() {}
 
 void CafResponse::handleFinished() {
     emit finished(search_value_, search_role_, role_);

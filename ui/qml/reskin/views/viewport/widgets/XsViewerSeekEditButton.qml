@@ -7,11 +7,13 @@ import QtGraphicalEffects 1.15
 import xStudioReskin 1.0
 
 Control{ id: widget
+
     enabled: true
+
     property bool isPressed: false //mouseArea.containsPress
     property bool isMouseHovered: mouseArea.containsMouse
     property string text: ""
-    property string shortText: ""
+    property string shortText: text.substring(0,3)
     property real fromValue: 1
     property real toValue: 100
     property real defaultValue: toValue
@@ -39,6 +41,7 @@ Control{ id: widget
 
     signal editingCompleted()
     focusPolicy: Qt.NoFocus
+    clip: true
 
     onWidthChanged: {
         if(width < shortThresholdWidth) {
@@ -58,19 +61,17 @@ Control{ id: widget
     background:
         Rectangle {
             id: bgDiv
-            implicitWidth: 100
-            implicitHeight: 40
             border.color: widget.isPressed || widget.hovered ? bgColorPressed: borderColorNormal
             border.width: borderWidth
             color: "transparent"
 
-            Rectangle{
+            XsGradientRectangle{
                 visible: isBgGradientVisible
                 anchors.fill: parent
-                gradient: Gradient {
-                    GradientStop { position: 0.0; color: isPressed || (isActive && !subtleActive)? bgColorPressed: "#33FFFFFF" }
-                    GradientStop { position: 1.0; color: isPressed || (isActive && !subtleActive)? bgColorPressed: forcedBgColorNormal }
-                }
+                
+                flatColor: topColor
+                topColor: isPressed || (isActive && !subtleActive)? bgColorPressed: "#33FFFFFF" 
+                bottomColor: isPressed || (isActive && !subtleActive)? bgColorPressed: forcedBgColorNormal
             }
 
             Rectangle {
@@ -86,12 +87,16 @@ Control{ id: widget
             }
         }
 
-
-    Rectangle{id: midPoint; width:0; height:1; color:"transparent"; x:parent.width/1.5 } //anchors.centerIn: parent}
     Item{
-        anchors.centerIn: parent
-        width: valueDiv.visible? textDiv.width+valueDiv.width : textDiv.width
+        width: valueDiv.visible? 
+            parent.width>itemsWidth? itemsWidth : parent.width
+            : textDiv.width
         height: textDiv.height
+        anchors.centerIn: parent
+        clip: true
+        opacity: enabled ? 1.0 : 0.33
+
+        property real itemsWidth: textDiv.textWidth + valueDiv.textWidth
 
         XsText{ id: textDiv
             text: isShortened?
@@ -167,7 +172,7 @@ Control{ id: widget
                 //     }
                 //     else {
                 //         value = parseFloat(text)
-                //     }
+                //     } 
                 //     text = "" + value
                 //     selectAll()
                 // // }
@@ -183,7 +188,7 @@ Control{ id: widget
                         valueText = fromValue
                     }
                     else {
-                        valueText = parseFloat(text)
+                        valueText = parseFloat(text) 
                     }
                     text = "" + valueText
                     selectAll()
@@ -233,6 +238,7 @@ Control{ id: widget
                         value = valueToApply
                     }
                 }
+
             }
         }
         onPressed: {

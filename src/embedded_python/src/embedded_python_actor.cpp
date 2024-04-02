@@ -28,7 +28,9 @@ namespace py   = pybind11;
 namespace otio = opentimelineio::OPENTIMELINEIO_VERSION;
 
 #pragma GCC visibility push(hidden)
-class PyStdErrOutStreamRedirect {
+
+class PyStdErrOutStreamRedirect {};
+/*class PyStdErrOutStreamRedirect {
   public:
     PyStdErrOutStreamRedirect() {
         auto sysm      = py::module::import("sys");
@@ -60,7 +62,7 @@ class PyStdErrOutStreamRedirect {
     py::object stderr_;
     py::object stdout_buffer_;
     py::object stderr_buffer_;
-};
+};*/
 
 void send_output(
     caf::blocking_actor *act,
@@ -68,7 +70,7 @@ void send_output(
     PyStdErrOutStreamRedirect &output,
     const utility::Uuid &uuid = utility::Uuid()) {
 
-    auto stdo = output.stdout_string();
+    /*auto stdo = output.stdout_string();
     auto stde = output.stderr_string();
 
     if (not stdo.empty() or not stde.empty()) {
@@ -78,7 +80,7 @@ void send_output(
             python_output_atom_v,
             uuid,
             std::make_tuple(stdo, stde));
-    }
+    }*/
 }
 
 class PyObjectRef {

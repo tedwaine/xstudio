@@ -22,7 +22,7 @@ XsMultiWidget {
     XsModelProperty {
         id: timeline_units_pref
         role: "valueRole"
-        index: app_window.globalStoreModel.search_recursive("/ui/qml/timeline_units", "pathRole")
+        index: app_window.globalStoreModel.searchRecursive("/ui/qml/timeline_units", "pathRole")
         onValueChanged: {
             if (timeline_units == "Frames" && selected != 0) {
                 selected = 0

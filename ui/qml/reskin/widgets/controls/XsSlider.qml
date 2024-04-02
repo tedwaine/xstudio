@@ -10,7 +10,7 @@ Slider{ id: widget
     to: 10
     value: from
 
-    stepSize: 0
+    stepSize: 1
     snapMode: Slider.SnapAlways
     // orientation: Qt.Vertical
 

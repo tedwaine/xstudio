@@ -28,7 +28,7 @@ Rectangle {
     XsModelProperty {
         id: media_list_thumbnail_size
         role: "valueRole"
-        index: app_window.globalStoreModel.search_recursive("/ui/qml/media_list_thumbnail_size", "pathRole")
+        index: app_window.globalStoreModel.searchRecursive("/ui/qml/media_list_thumbnail_size", "pathRole")
     }
 
 // application/x-dneg-ivy-entities-v1 [{"type": "File", "show": "MEG2", "id": "a11d54b9-ab19-4b57-8ba1-b75071d256f9", "name": "main_proxy0", "path": "/jobs/MEG2/060_tre_1610/ELEMENT/E_060_tre_1610_comp_precomp_diffusion_v001/4222x1768/E_060_tre_1610_comp_precomp_diffusion_v001.1041-1135####.exr"}]

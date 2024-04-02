@@ -1,17 +1,21 @@
 # SPDX-License-Identifier: Apache-2.0
-from xstudio.core import add_attribute_atom, connect_to_ui_atom
+from xstudio.core import add_attribute_atom, connect_to_ui_atom, remove_attribute_atom
 from xstudio.core import disconnect_from_ui_atom
 from xstudio.core import attribute_role_data_atom, change_attribute_event_atom
 from xstudio.core import attribute_value_atom, register_hotkey_atom
 from xstudio.core import get_global_playhead_events_atom, join_broadcast_atom
 from xstudio.core import viewport_playhead_atom, hotkey_event_atom
 from xstudio.core import attribute_uuids_atom, request_full_attributes_description_atom
-from xstudio.core import AttributeRole, remove_attribute_atom
+from xstudio.core import AttributeRole, get_event_group_atom
+from xstudio.core import event_atom, show_atom, module_add_menu_item_atom
+from xstudio.core import menu_node_activated_atom, set_node_data_atom
 from xstudio.api.auxiliary import ActorConnection
 from xstudio.core import JsonStore, Uuid
 from xstudio.api.auxiliary.helpers import get_event_group
-import sys
+from xstudio.api.session.media import Media, MediaSource
+import json
 import os
+import sys
 import traceback
 
 try:
@@ -71,12 +75,25 @@ class ModuleAttribute:
             "tooltip",
             JsonStore(tool_tip))
 
+    def set_role_data(self, role_name, data):
+
+        r = self.connection.request_receive(
+            self.parent_remote,
+            attribute_role_data_atom(),
+            self.uuid,
+            role_name,
+            JsonStore(data))[0]
+        if r != True:
+            raise Exception("set_role_data with rolename: {0}, data: {1} failed with error {2}:",
+                role_name,
+                data,
+                r)
+
     def set_redraw_viewport_on_change(self, *args):
 
         pass
 
     def value(self):
-
         return self.connection.request_receive(
             self.parent_remote,
             attribute_value_atom(),
@@ -100,20 +117,12 @@ class ModuleAttribute:
             self.uuid,
             JsonStore(value))
 
-    def set_role_data(self, role_name, data):
+    def add_to_preferences(self):
 
-        r = self.connection.request_receive(
+        self.connection.send(
             self.parent_remote,
-            attribute_role_data_atom(),
-            self.uuid,
-            role_name,
-            JsonStore(data))[0]
-        if r != True:
-            raise Exception("set_role_data with rolename: {0}, data: {1} failed with error {2}:",
-                role_name,
-                data,
-                r)
-
+            attribute_value_atom(),
+            self.uuid)
 
 class ModuleBase(ActorConnection):
 
@@ -148,13 +157,15 @@ class ModuleBase(ActorConnection):
                 uuid=attr_uuid)
             self.attrs_by_name_[attr_wrapper.name] = attr_wrapper
 
-        remote_event_group = get_event_group(self.connection, remote)
+        # this call gets the event group for Module attribute change events
+        remote_event_group = connection.request_receive(remote, get_event_group_atom(), True)[0]
+
         if XStudioExtensions:
             XStudioExtensions.add_message_callback(
                 (remote_event_group, self.incoming_msg)
             )
         else:
-            connection.add_handler(remote, self.message_handler)
+            connection.add_handler(remote_event_group, self.incoming_msg)
 
         self.__attribute_changed = None
         self.__playhead_event_callback = None
@@ -266,7 +277,7 @@ class ModuleBase(ActorConnection):
         """
         self.__attribute_changed = handler
 
-    def subscribe_to_playhead_events(self, playhead_event_callback):
+    def subscribe_to_playhead_events(self, playhead_event_callback=None):
         """Set the callback function for receiving events specific to
         the playhead and subscrive to the playheads events broadcast
         group.
@@ -286,14 +297,22 @@ class ModuleBase(ActorConnection):
                 (gphev, self.__playhead_events)
             )
 
-            self.__playhead_event_callback = playhead_event_callback
+    def menu_item_activated(self, menu_item_data, user_data):
+        pass
+
+    def playhead_event_handler(self, event_args):
+
+        pass
 
     def __playhead_events(self, *args):
 
         try:
             message_content = self.connection.caf_message_to_tuple(args[0][0])
-            self.__playhead_event_callback(message_content)
+            self.playhead_event_handler(message_content)
+
         except Exception as e:
+            print (e)
+            print (traceback.format_exc())
             pass
 
     def register_hotkey(self,
@@ -368,6 +387,81 @@ class ModuleBase(ActorConnection):
         self.menu_trigger_callbacks[
             str(menu_item_uuid)] = menu_trigger_callback
 
+    def insert_menu_item(
+        self,
+        menu_model_name,
+        menu_text,
+        menu_path,
+        menu_item_position,
+        attr_id=Uuid(),
+        divider=False,
+        hotkey_uuid=Uuid(),
+        menu_trigger_callback=None,
+        user_data=""
+    ):
+
+        menu_item_uuid = self.connection.request_receive(
+            self.remote,
+            module_add_menu_item_atom(),
+            menu_model_name,
+            menu_text,
+            menu_path,
+            menu_item_position,
+            attr_id,
+            divider,
+            hotkey_uuid,
+            user_data)[0]
+
+        if menu_trigger_callback:
+            self.menu_trigger_callbacks[
+                str(menu_item_uuid)] = menu_trigger_callback
+
+        return menu_item_uuid
+
+    def insert_hotkey_into_menu(
+        self,
+        menu_model_name,
+        menu_path,
+        menu_item_position,
+        hotkey_uuid
+    ):
+
+        menu_item_uuid = self.connection.request_receive(
+            self.remote,
+            module_add_menu_item_atom(),
+            menu_model_name,
+            menu_path,
+            menu_item_position,
+            hotkey_uuid)[0]
+
+        return menu_item_uuid
+
+    def set_submenu_position(
+        self,
+        menu_model_name,
+        submenu_path,
+        menu_item_position
+    ):
+        """When adding menu items that are placed under a submenu, the position
+        of the submenu in the parent menu is not set by default. Use this method
+        to ensure the submenu appears in the parent menu at the position you
+        prefer
+
+        Args:
+            menu_model_name(str): The name of the menu model
+            submenu_path(str): The submenu name (preceded by parent submenus 
+                separated by a pipe symbol e.g. 'Publish|Notes' if you wish to
+                set the position of the Notes submenu within the Publish submenu.
+            menu_item_position(float): The relative position in the parent menu.
+        """
+
+        self.connection.request_receive(
+            self.remote,
+            set_node_data_atom(),
+            menu_model_name,
+            submenu_path,
+            menu_item_position)
+
     def message_handler(self, sender, req_id, message_content):
 
         try:
@@ -393,6 +487,14 @@ class ModuleBase(ActorConnection):
                     message_content) > 3 else ""                
                 if hotkey_uuid in self.hotkey_callbacks:
                     self.hotkey_callbacks[hotkey_uuid](activated, context)
+
+            elif isinstance(atom, type(menu_node_activated_atom())):
+                print (type(message_content[1]))
+                menu_item_data = json.loads(str(message_content[1])) if len(
+                    message_content) > 1 else None
+                user_data = str(message_content[2]) if len(
+                    message_content) > 2 else ""
+                self.menu_item_activated(menu_item_data, user_data)
                 
         except Exception as err:
             print (err)

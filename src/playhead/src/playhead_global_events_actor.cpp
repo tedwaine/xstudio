@@ -28,20 +28,19 @@ void PlayheadGlobalEventsActor::init() {
 
     system().registry().put(global_playhead_events_actor, this);
 
-    event_group_ = spawn<broadcast::BroadcastActor>(this);
+    event_group_             = spawn<broadcast::BroadcastActor>(this);
+    fine_grain_events_group_ = spawn<broadcast::BroadcastActor>(this);
 
     link_to(event_group_);
 
     set_down_handler([=](down_msg &msg) {
         // find in playhead list..
-        if (msg.source == on_screen_playhead_) {
-            demonitor(on_screen_playhead_);
-            on_screen_playhead_ = caf::actor();
-            send(
-                event_group_,
-                utility::event_atom_v,
-                ui::viewport::viewport_playhead_atom_v,
-                on_screen_playhead_);
+        auto p = viewport_playheads_.begin();
+        while (p != viewport_playheads_.end()) {
+            if (msg.source == p->second) {
+                demonitor(p->second);
+                p = viewport_playheads_.erase(p);
+            }
         }
     });
 
@@ -52,73 +51,110 @@ void PlayheadGlobalEventsActor::init() {
         [=](utility::get_event_group_atom) -> caf::actor { return event_group_; },
         [=](broadcast::join_broadcast_atom, caf::actor joiner) {
             delegate(event_group_, broadcast::join_broadcast_atom_v, joiner);
-            if (on_screen_playhead_) {
-                // re-send events so new joiner has current on-screen buffer etc.
-                send(
-                    event_group_,
-                    utility::event_atom_v,
-                    ui::viewport::viewport_playhead_atom_v,
-                    on_screen_playhead_);
-                request(on_screen_playhead_, infinite, buffer_atom_v)
-                    .then(
-                        [=](const media_reader::ImageBufPtr &buf) {
-                            /*send(
-                                event_group_,
-                                utility::event_atom_v,
-                                show_atom_v,
-                                buf,
-                                "viewport0");*/
-                        },
-                        [=](caf::error &) {});
-            }
         },
         [=](broadcast::leave_broadcast_atom, caf::actor joiner) {
             delegate(event_group_, broadcast::leave_broadcast_atom_v, joiner);
         },
+        [=](ui::viewport::viewport_playhead_atom) -> caf::actor {
+            return global_active_playhead_;
+        },
         [=](ui::viewport::viewport_playhead_atom, caf::actor playhead) {
-            if (on_screen_playhead_ != playhead) {
-                send(
-                    event_group_,
-                    utility::event_atom_v,
-                    ui::viewport::viewport_playhead_atom_v,
-                    playhead);
-                on_screen_playhead_ = playhead;
-                if (playhead) {
-                    // force an event broadcast for the on-screen media and 
-                    // media source (useful for plugins or anything else who
-                    // has joined our event group)
-                    request(playhead, infinite, playhead::media_atom_v).then(
-                        [=](caf::actor media) {
-                            request(playhead, infinite, playhead::media_source_atom_v).then(
-                                [=](caf::actor media_source) {
-                                    send(event_group_, utility::event_atom_v, show_atom_v, media, media_source);
-                                },
-                                [=](caf::error &) {});
-
-                        },
-                        [=](caf::error &) {});                    
+            // something can send us this message in order to set the 'global'
+            // playhead - i.e. the playhead that is being viewed by non-quickview
+            // viewports. SessionModel::setPlayheadTo does this for example.
+            for (auto &p : viewports_) {
+                auto viewport_actor = caf::actor_cast<caf::actor>(p.second);
+                if (viewport_actor) {
+                    anon_send(viewport_actor, ui::viewport::viewport_playhead_atom_v, playhead);
                 }
-                monitor(playhead);
+            }
+            global_active_playhead_ = playhead;
+        },
+        [=](ui::viewport::viewport_playhead_atom,
+            const std::string viewport_name,
+            caf::actor playhead) {
+            send(
+                event_group_,
+                utility::event_atom_v,
+                ui::viewport::viewport_playhead_atom_v,
+                viewport_name,
+                playhead);
+
+            if (viewport_playheads_[viewport_name] &&
+                viewport_playheads_[viewport_name] != playhead) {
+                bool playhead_still_active = false;
+                for (auto &p : viewport_playheads_) {
+                    if (p.second == playhead) {
+                        playhead_still_active = true;
+                    }
+                }
+                if (!playhead_still_active) {
+                    demonitor(viewport_playheads_[viewport_name]);
+                }
+                viewport_playheads_[viewport_name] = playhead;
+                if (playhead)
+                    monitor(playhead);
+            } else {
+                bool playhead_already_monitored = false;
+                for (auto &p : viewport_playheads_) {
+                    if (p.second == playhead) {
+                        playhead_already_monitored = true;
+                    }
+                }
+                if (!playhead_already_monitored && playhead)
+                    monitor(playhead);
+                viewport_playheads_[viewport_name] = playhead;
             }
         },
+
         [=](show_atom, const media_reader::ImageBufPtr &buf) {
-            // TODO: cleanup this stuff?
-            /*if (caf::actor_cast<caf::actor>(current_sender()) == on_screen_playhead_) {
-                send(event_group_, utility::event_atom_v, show_atom_v, buf, "viewport0");
-            }*/
+            // a playhead is telling us a new frame is being shown.
+
+            // Forward the info to our 'fine grain' message group with details
+            // of which viewport the frame is being shown on
+            auto playhead = caf::actor_cast<caf::actor>(current_sender());
+            for (auto &p : viewport_playheads_) {
+                if (p.second == playhead) {
+                }
+            }
         },
         [=](show_atom, caf::actor media, caf::actor media_source) {
-            // TODO: cleanup this stuff?
-            if (caf::actor_cast<caf::actor>(current_sender()) == on_screen_playhead_) {
-                send(event_group_, utility::event_atom_v, show_atom_v, media, media_source);
+            // a playhead is telling us the on-screen media has changed
+            auto playhead = caf::actor_cast<caf::actor>(current_sender());
+            for (auto &p : viewport_playheads_) {
+                if (p.second == playhead) {
+                    // forward the event, including the name of the viewport(s)
+                    // that are attached to the playhead
+                    send(
+                        event_group_,
+                        utility::event_atom_v,
+                        show_atom_v,
+                        media,
+                        media_source,
+                        p.first);
+                }
             }
         },
-        [=](ui::viewport::viewport_playhead_atom) -> caf::actor { return on_screen_playhead_; },
+        [=](ui::viewport::viewport_playhead_atom,
+            const std::string viewport_name) -> caf::actor {
+            if (viewports_.find(viewport_name) != viewports_.end()) {
+                return viewport_playheads_[viewport_name];
+            }
+            return caf::actor();
+        },
         [=](ui::viewport::viewport_atom, const std::string viewport_name, caf::actor viewport) {
+            // viewports register themselves by sending us this message
             viewports_[viewport_name] = caf::actor_cast<caf::actor_addr>(viewport);
+            send(
+                event_group_,
+                utility::event_atom_v,
+                ui::viewport::viewport_atom_v,
+                viewport_name,
+                viewport);
         },
         [=](ui::viewport::viewport_atom,
             const std::string viewport_name) -> result<caf::actor> {
+            // Here we can request a named viewport
             caf::actor r;
             auto p = viewports_.find(viewport_name);
             if (p != viewports_.end()) {

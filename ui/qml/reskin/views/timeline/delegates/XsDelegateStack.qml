@@ -275,7 +275,7 @@ DelegateChoice {
 								}
 								onFrameDragging:{
 									playheadLogicalFrame = frame
-								} 
+								}
 							}
 						}
 					}

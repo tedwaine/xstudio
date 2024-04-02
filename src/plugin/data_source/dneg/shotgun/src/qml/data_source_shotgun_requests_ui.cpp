@@ -35,48 +35,58 @@ using namespace xstudio::ui::qml;
     });
 
 
-QFuture<QString> ShotgunDataSourceUI::getProjectsFuture() {
+QFuture<QString> ShotgunDataSourceUI::loadPresetModelFuture() {
     REQUEST_BEGIN()
 
     scoped_actor sys{system()};
-    auto projects = request_receive_wait<JsonStore>(
-        *sys, backend_, SHOTGUN_TIMEOUT, shotgun_projects_atom_v);
-    // send to self..
 
-    if (not projects.count("data"))
-        throw std::runtime_error(projects.dump(2));
+    auto request    = JsonStore(GetData);
+    request["type"] = "preset_model";
 
-    anon_send(
-        as_actor(), shotgun_info_atom_v, JsonStore(R"({"type": "project"})"_json), projects);
+    auto data = R"({"uuid":null, "data":null })"_json;
 
-    return QStringFromStd(projects.dump());
+    auto uuid = request_receive<UuidVector>(*sys, backend_, json_store::sync_atom_v)[0];
 
-    REQUEST_END()
-}
+    data["uuid"] = uuid;
 
-QFuture<QString> ShotgunDataSourceUI::getSchemaFieldsFuture(
-    const QString &entity, const QString &field, const QString &update_name) {
-    REQUEST_BEGIN()
+    auto jsn = request_receive<JsonStore>(*sys, backend_, json_store::sync_atom_v, uuid);
 
-    scoped_actor sys{system()};
-    auto data = request_receive_wait<JsonStore>(
-        *sys,
-        backend_,
-        SHOTGUN_TIMEOUT,
-        shotgun_schema_entity_fields_atom_v,
-        StdFromQString(entity),
-        StdFromQString(field),
-        -1);
+    data["data"] = jsn;
 
-    if (not update_name.isEmpty()) {
-        auto jsn    = JsonStore(R"({"type": null})"_json);
-        jsn["type"] = StdFromQString(update_name);
-        anon_send(as_actor(), shotgun_info_atom_v, jsn, buildDataFromField(data));
-    }
+    anon_send(as_actor(), shotgun_info_atom_v, request, JsonStore(data));
 
     return QStringFromStd(data.dump());
 
     REQUEST_END()
+}
+
+
+QFuture<QString> ShotgunDataSourceUI::getDataFuture(const QString &type, const int project_id) {
+    REQUEST_BEGIN()
+
+    scoped_actor sys{system()};
+
+    auto request          = JsonStore(GetData);
+    request["type"]       = StdFromQString(type);
+    request["project_id"] = project_id;
+
+    auto data = request_receive_wait<JsonStore>(
+        *sys, backend_, SHOTGUN_TIMEOUT, get_data_atom_v, request);
+
+    anon_send(as_actor(), shotgun_info_atom_v, request, data);
+
+    return QStringFromStd(data.dump());
+
+    REQUEST_END()
+}
+
+
+QFuture<QString> ShotgunDataSourceUI::getProjectsFuture() {
+    return getDataFuture(QString("project"));
+}
+
+QFuture<QString> ShotgunDataSourceUI::getSchemaFieldsFuture(const QString &type) {
+    return getDataFuture(type);
 }
 
 // get json of versions data from shotgun.
@@ -168,329 +178,29 @@ QFuture<QString> ShotgunDataSourceUI::getPlaylistValidMediaCountFuture(const QUu
 }
 
 QFuture<QString> ShotgunDataSourceUI::getGroupsFuture(const int project_id) {
-    REQUEST_BEGIN()
-
-    scoped_actor sys{system()};
-    auto groups = request_receive_wait<JsonStore>(
-        *sys, backend_, SHOTGUN_TIMEOUT, shotgun_groups_atom_v, project_id);
-
-    if (not groups.count("data"))
-        throw std::runtime_error(groups.dump(2));
-
-    auto request  = R"({"type": "group", "id": 0})"_json;
-    request["id"] = project_id;
-    anon_send(as_actor(), shotgun_info_atom_v, JsonStore(request), groups);
-
-    return QStringFromStd(groups.dump());
-
-    REQUEST_END()
+    return getDataFuture(QString("group"), project_id);
 }
 
 QFuture<QString> ShotgunDataSourceUI::getSequencesFuture(const int project_id) {
-    REQUEST_BEGIN()
-
-    scoped_actor sys{system()};
-
-    auto filter = R"(
-    {
-        "logical_operator": "and",
-        "conditions": [
-            ["project", "is", {"type":"Project", "id":0}],
-            ["sg_status_list", "not_in", ["na","del"]]
-        ]
-    })"_json;
-
-    filter["conditions"][0][2]["id"] = project_id;
-
-    auto delfilter = R"(
-    {
-        "logical_operator": "and",
-        "conditions": [
-            ["project", "is", {"type":"Project", "id":0}],
-            ["sg_status_list", "in", ["na","del"]]
-        ]
-    })"_json;
-
-    delfilter["conditions"][0][2]["id"] = project_id;
-
-    // we've got more that 5000 employees....
-    auto data = request_receive_wait<JsonStore>(
-        *sys,
-        backend_,
-        SHOTGUN_TIMEOUT,
-        shotgun_entity_search_atom_v,
-        "Sequences",
-        JsonStore(filter),
-        std::vector<std::string>(
-            {"id", "code", "shots", "type", "sg_parent", "sg_sequence_type", "sg_status_list"}),
-        std::vector<std::string>({"code"}),
-        1,
-        4999);
-
-    if (not data.count("data"))
-        throw std::runtime_error(data.dump(2));
-
-    if (data.at("data").size() == 4999)
-        spdlog::warn("{} Sequence list truncated.", __PRETTY_FUNCTION__);
-
-    // get deleted shots list..
-    auto deldata = request_receive_wait<JsonStore>(
-        *sys,
-        backend_,
-        SHOTGUN_TIMEOUT,
-        shotgun_entity_search_atom_v,
-        "Shots",
-        JsonStore(delfilter),
-        std::vector<std::string>({"id"}),
-        std::vector<std::string>({"id"}),
-        1,
-        4999);
-
-    if (not deldata.count("data"))
-        throw std::runtime_error(deldata.dump(2));
-
-    if (deldata.at("data").size() == 4999)
-        spdlog::warn("{} Shot list truncated.", __PRETTY_FUNCTION__);
-
-    // build set of deleted shot id's
-    std::set<int64_t> del_shots;
-    for (const auto &i : deldata.at("data"))
-        del_shots.insert(i.at("id").get<int64_t>());
-
-    if (not del_shots.empty()) {
-        // iterate over sequence -> shots and remove deleted
-        for (auto &i : data["data"]) {
-            bool done = false;
-            auto &t   = i["relationships"]["shots"]["data"];
-            for (auto it = t.begin(); it != t.end();) {
-                if (del_shots.count(it->at("id"))) {
-                    it = t.erase(it);
-                } else {
-                    it++;
-                }
-            }
-        }
-    }
-
-    auto request  = R"({"type": "sequence", "id": 0})"_json;
-    request["id"] = project_id;
-    anon_send(as_actor(), shotgun_info_atom_v, JsonStore(request), data);
-
-    return QStringFromStd(data.dump());
-
-    REQUEST_END()
+    return getDataFuture(QString("sequence"), project_id);
 }
 
 QFuture<QString> ShotgunDataSourceUI::getPlaylistsFuture(const int project_id) {
-    REQUEST_BEGIN()
-
-    scoped_actor sys{system()};
-
-    auto filter = R"(
-    {
-        "logical_operator": "and",
-        "conditions": [
-            ["project", "is", {"type":"Project", "id":0}],
-            ["versions", "is_not", null]
-        ]
-    })"_json;
-    // ["updated_at", "in_last", [7, "DAY"]]
-
-    filter["conditions"][0][2]["id"] = project_id;
-
-    // we've got more that 5000 employees....
-    auto data = request_receive_wait<JsonStore>(
-        *sys,
-        backend_,
-        SHOTGUN_TIMEOUT,
-        shotgun_entity_search_atom_v,
-        "Playlists",
-        JsonStore(filter),
-        std::vector<std::string>({"id", "code"}),
-        std::vector<std::string>({"-created_at"}),
-        1,
-        4999);
-
-    if (not data.count("data"))
-        throw std::runtime_error(data.dump(2));
-
-    auto request  = R"({"type": "playlist", "id": 0})"_json;
-    request["id"] = project_id;
-    anon_send(as_actor(), shotgun_info_atom_v, JsonStore(request), data);
-
-    return QStringFromStd(data.dump());
-
-    REQUEST_END()
+    return getDataFuture(QString("playlist"), project_id);
 }
 
 
 QFuture<QString> ShotgunDataSourceUI::getShotsFuture(const int project_id) {
-    REQUEST_BEGIN()
-
-    scoped_actor sys{system()};
-
-    auto filter = R"(
-    {
-        "logical_operator": "and",
-        "conditions": [
-            ["project", "is", {"type":"Project", "id":0}],
-            ["sg_status_list", "not_in", ["na", "del"]]
-        ]
-    })"_json;
-
-    filter["conditions"][0][2]["id"] = project_id;
-
-    // we've got more that 5000 employees....
-    auto data = request_receive_wait<JsonStore>(
-        *sys,
-        backend_,
-        SHOTGUN_TIMEOUT,
-        shotgun_entity_search_atom_v,
-        "Shots",
-        JsonStore(filter),
-        ShotFields,
-        std::vector<std::string>({"code"}),
-        1,
-        4999);
-
-    if (not data.count("data"))
-        throw std::runtime_error(data.dump(2));
-
-    bool more_data = (data["data"].size() == 4999);
-    auto page      = 2;
-
-    while (more_data) {
-        more_data = false;
-
-        auto data2 = request_receive_wait<JsonStore>(
-            *sys,
-            backend_,
-            SHOTGUN_TIMEOUT,
-            shotgun_entity_search_atom_v,
-            "Shots",
-            JsonStore(filter),
-            ShotFields,
-            std::vector<std::string>({"code"}),
-            page,
-            4999);
-
-        if (data2["data"].size() == 4999) {
-            more_data = true;
-            page++;
-        }
-
-        data["data"].insert(data["data"].end(), data2["data"].begin(), data2["data"].end());
-    }
-
-    // spdlog::warn("shot count {}", data["data"].size());
-
-    auto request  = R"({"type": "shot", "id": 0})"_json;
-    request["id"] = project_id;
-    anon_send(as_actor(), shotgun_info_atom_v, JsonStore(request), data);
-
-    return QStringFromStd(data.dump());
-
-    REQUEST_END()
+    return getDataFuture(QString("shot"), project_id);
 }
 
 
 QFuture<QString> ShotgunDataSourceUI::getUsersFuture() {
-    REQUEST_BEGIN()
-
-    scoped_actor sys{system()};
-
-    auto filter = R"(
-    {
-        "logical_operator": "and",
-        "conditions": [
-            ["sg_status_list", "is", "act"]
-        ]
-    })"_json;
-
-    // we've got more that 5000 employees....
-    auto data = request_receive_wait<JsonStore>(
-        *sys,
-        backend_,
-        SHOTGUN_TIMEOUT,
-        shotgun_entity_search_atom_v,
-        "HumanUsers",
-        JsonStore(filter),
-        std::vector<std::string>({"name", "id", "login"}),
-        std::vector<std::string>({"name"}),
-        1,
-        4999);
-
-    if (not data.count("data"))
-        throw std::runtime_error(data.dump(2));
-
-    bool more_data = (data["data"].size() == 4999);
-    auto page      = 2;
-
-    while (more_data) {
-        more_data  = false;
-        auto data2 = request_receive_wait<JsonStore>(
-            *sys,
-            backend_,
-            SHOTGUN_TIMEOUT,
-            shotgun_entity_search_atom_v,
-            "HumanUsers",
-            JsonStore(filter),
-            std::vector<std::string>({"name", "id", "login"}),
-            std::vector<std::string>({"name"}),
-            page,
-            4999);
-
-        if (data2["data"].size() == 4999) {
-            more_data = true;
-            page++;
-        }
-
-        data["data"].insert(data["data"].end(), data2["data"].begin(), data2["data"].end());
-    }
-
-    // spdlog::warn("user count {}", data["data"].size());
-
-    anon_send(as_actor(), shotgun_info_atom_v, JsonStore(R"({"type": "user"})"_json), data);
-
-    return QStringFromStd(data.dump());
-
-    REQUEST_END()
+    return getDataFuture(QString("user"));
 }
 
 QFuture<QString> ShotgunDataSourceUI::getDepartmentsFuture() {
-    REQUEST_BEGIN()
-
-    scoped_actor sys{system()};
-
-    auto filter = R"(
-    {
-        "logical_operator": "and",
-        "conditions": [
-        ]
-    })"_json;
-    // ["sg_status_list", "is", "act"]
-
-    auto data = request_receive_wait<JsonStore>(
-        *sys,
-        backend_,
-        SHOTGUN_TIMEOUT,
-        shotgun_entity_search_atom_v,
-        "Departments",
-        JsonStore(filter),
-        std::vector<std::string>({"name", "id"}),
-        std::vector<std::string>({"name"}),
-        1,
-        4999);
-
-    if (not data.count("data"))
-        throw std::runtime_error(data.dump(2));
-
-    anon_send(
-        as_actor(), shotgun_info_atom_v, JsonStore(R"({"type": "department"})"_json), data);
-
-    return QStringFromStd(data.dump());
-
-    REQUEST_END()
+    return getDataFuture(QString("department"));
 }
 
 QFuture<QString> ShotgunDataSourceUI::getReferenceTagsFuture() {
@@ -536,44 +246,8 @@ QFuture<QString> ShotgunDataSourceUI::getReferenceTagsFuture() {
 }
 
 QFuture<QString> ShotgunDataSourceUI::getCustomEntity24Future(const int project_id) {
-    REQUEST_BEGIN()
-
-    scoped_actor sys{system()};
-
-    auto filter = R"(
-    {
-        "logical_operator": "and",
-        "conditions": [
-            ["project", "is", {"type":"Project", "id":0}]
-        ]
-    })"_json;
-
-    filter["conditions"][0][2]["id"] = project_id;
-
-    auto data = request_receive_wait<JsonStore>(
-        *sys,
-        backend_,
-        SHOTGUN_TIMEOUT,
-        shotgun_entity_search_atom_v,
-        "CustomEntity24",
-        JsonStore(filter),
-        std::vector<std::string>({"code", "id"}),
-        std::vector<std::string>({"code"}),
-        1,
-        4999);
-
-    if (not data.count("data"))
-        throw std::runtime_error(data.dump(2));
-
-    auto request  = R"({"type": "custom_entity_24", "id": 0})"_json;
-    request["id"] = project_id;
-    anon_send(as_actor(), shotgun_info_atom_v, JsonStore(request), data);
-
-    return QStringFromStd(data.dump());
-
-    REQUEST_END()
+    return getDataFuture(QString("unit"), project_id);
 }
-
 
 QFuture<QString> ShotgunDataSourceUI::addVersionToPlaylistFuture(
     const QString &version, const QUuid &playlist, const QUuid &before) {
@@ -599,7 +273,6 @@ QFuture<QString> ShotgunDataSourceUI::addVersionToPlaylistFuture(
 
     REQUEST_END()
 }
-
 
 QFuture<QString> ShotgunDataSourceUI::updateEntityFuture(
     const QString &entity, const int record_id, const QString &update_json) {

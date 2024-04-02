@@ -60,8 +60,6 @@ PySideQmlViewport::PySideQmlViewport(QWidget *parent) : QQuickWidget(parent) {
     // Register our custom types
     qmlRegisterType<StudioUI>("xstudio.qml.studio", 1, 0, "Studio");
     qmlRegisterType<SemVer>("xstudio.qml.semver", 1, 0, "SemVer");
-    qmlRegisterType<CursorPosProvider>(
-        "xstudio.qml.cursor_pos_provider", 1, 0, "CursorPosProvider");
     qmlRegisterType<QMLViewport>("xstudio.qml.viewport", 1, 0, "Viewport");
     qmlRegisterType<PlaylistUI>("xstudio.qml.playlist", 1, 0, "Playlist");
     qmlRegisterType<MediaUI>("xstudio.qml.media", 1, 0, "Media");

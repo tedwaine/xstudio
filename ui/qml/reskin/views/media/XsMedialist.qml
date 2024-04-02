@@ -11,12 +11,13 @@ import xStudioReskin 1.0
 import xstudio.qml.session 1.0
 import xstudio.qml.helpers 1.0
 import xstudio.qml.models 1.0
+import "./widgets"
 
 Item{
 
     id: panel
     anchors.fill: parent
-    property color bgColorPressed: palette.highlight 
+    property color bgColorPressed: palette.highlight
     property color bgColorNormal: "transparent"
     property color forcedBgColorNormal: bgColorNormal
     property color borderColorHovered: bgColorPressed
@@ -38,57 +39,61 @@ Item{
     //#TODO: just for testing
     property bool highlightTextOnActive: false
 
-    // background
-    Rectangle{
-        z: -1000
+    property alias mediaSelection: mediaList.selection
+
+    XsGradientRectangle{
         anchors.fill: parent
-        gradient: Gradient {
-            GradientStop { position: 0.0; color: "#5C5C5C" }
-            GradientStop { position: 1.0; color: "#474747" }
-        }
     }
 
-    Item{id: actionDiv
-        width: parent.width; 
-        height: btnHeight+(panelPadding*2)
+    ColumnLayout {
+
+        anchors.fill: parent
+        anchors.margins: panelPadding
+        spacing: panelPadding
 
         RowLayout{
-            x: panelPadding
+
             spacing: 1
-            width: parent.width-(x*2)
-            height: btnHeight
-            anchors.verticalCenter: parent.verticalCenter
-            
+            Layout.fillWidth: true
+
             XsPrimaryButton{ id: addBtn
                 Layout.preferredWidth: btnWidth
-                Layout.preferredHeight: parent.height
+                Layout.preferredHeight: btnHeight
                 Layout.alignment: Qt.AlignLeft
                 imgSrc: "qrc:/icons/add.svg"
+                onClicked: {
+                    var pos = mapToItem(panel, x+width/2, y+height/2)
+                    showMenu(pos.x ,pos.y)
+                }
             }
             XsPrimaryButton{ id: deleteBtn
                 Layout.preferredWidth: btnWidth
-                Layout.preferredHeight: parent.height
+                Layout.preferredHeight: btnHeight
                 imgSrc: "qrc:/icons/delete.svg"
+                onClicked: {
+                    mediaList.deleteSelected()
+                }
             }
             XsSearchButton{ id: searchBtn
                 Layout.preferredWidth: isExpanded? btnWidth*6 : btnWidth
-                Layout.preferredHeight: parent.height
+                Layout.preferredHeight: btnHeight
                 isExpanded: false
                 hint: "Search media..."
             }
             XsText{
                 Layout.fillWidth: true
                 Layout.minimumWidth: 0//btnWidth
-                Layout.preferredHeight: parent.height
+                Layout.preferredHeight: btnHeight
                 text: searchBtn.isExpanded? "" : selectedMediaSetProperties.values.nameRole ? selectedMediaSetProperties.values.nameRole : ""
                 font.bold: true
+                elide: Text.ElideRight
 
                 opacity: searchBtn.isExpanded? 0:1
                 Behavior on opacity { NumberAnimation { duration: 150; easing.type: Easing.OutQuart }  }
             }
             XsPrimaryButton{ id: listViewBtn
                 Layout.preferredWidth: btnWidth
-                Layout.preferredHeight: parent.height
+                Layout.preferredHeight: btnHeight
                 imgSrc: "qrc:/icons/list.svg"
                 isActive: true
                 onClicked:{
@@ -98,48 +103,72 @@ Item{
             }
             XsPrimaryButton{ id: gridViewBtn
                 Layout.preferredWidth: btnWidth
-                Layout.preferredHeight: parent.height
+                Layout.preferredHeight: btnHeight
                 imgSrc: "qrc:/icons/view_grid.svg"
-                onClicked:{
+                enabled: false
+                // onClicked:{
+                //     listViewBtn.isActive = false
+                //     gridViewBtn.isActive = true
+                // }
+                onPressed: {
                     listViewBtn.isActive = false
                     gridViewBtn.isActive = true
+                }
+                onReleased:{
+                    listViewBtn.isActive = true
+                    gridViewBtn.isActive = false
                 }
             }
             XsPrimaryButton{ id: moreBtn
                 Layout.preferredWidth: btnWidth
-                Layout.preferredHeight: parent.height
+                Layout.preferredHeight: btnHeight
                 Layout.alignment: Qt.AlignRight
                 imgSrc: "qrc:/icons/more_vert.svg"
             }
 
         }
-        
-    }
-    
-    Rectangle{ id: mediaListDiv
-        x: panelPadding
-        y: actionDiv.height
-        width: panel.width-(x*2)
-        height: panel.height-y-panelPadding
-        color: XsStyleSheet.panelBgColor
-        
+
         XsMediaHeader{
-            
+
             id: titleBar
-            width: mediaListDiv.width
+            Layout.fillWidth: true
             height: XsStyleSheet.widgetStdHeight
-        }        
+        }
 
-        XsMediaItems{ id: mediaList
+        XsMediaItems{
 
-            y: titleBar.height  
+            id: mediaList
+            Layout.fillWidth: true
+            Layout.fillHeight: true
+
+            y: titleBar.height
 
             columns_model: titleBar.columns_model
             itemRowHeight: rowHeight
-            itemRowWidth: mediaListDiv.width
-                   
+            itemRowWidth: width
+
         }
 
     }
-    
+
+    Loader {
+        id: menu_loader
+    }
+
+    Component {
+        id: plusMenuComponent
+        XsMediaListPlusMenu {
+        }
+    }
+                    
+    function showMenu(mx, my) {
+        if (menu_loader.item == undefined) {
+            menu_loader.sourceComponent = plusMenuComponent
+        }
+        showPopupMenu(
+            menu_loader.item,
+            panel,
+            mx,
+            my);
+    }
 }

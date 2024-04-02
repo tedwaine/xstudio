@@ -6,6 +6,7 @@
 #include "xstudio/data_source/data_source.hpp"
 #include "xstudio/utility/json_store.hpp"
 #include "xstudio/module/module.hpp"
+#include "data_source_shotgun_query_engine.hpp"
 
 using namespace xstudio;
 using namespace xstudio::data_source;
@@ -13,6 +14,7 @@ using namespace xstudio::data_source;
 namespace xstudio::shotgun_client {
 class AuthenticateShotgun;
 }
+
 
 class ShotgunDataSource : public DataSource, public module::Module {
   public:
@@ -68,6 +70,8 @@ class ShotgunDataSource : public DataSource, public module::Module {
     }
     using module::Module::connect_to_ui;
 
+    QueryEngine &engine() { return engine_; }
+
   protected:
     // void hotkey_pressed(const utility::Uuid &hotkey_uuid, const std::string &context)
     // override;
@@ -85,4 +89,6 @@ class ShotgunDataSource : public DataSource, public module::Module {
     std::function<void(const utility::Uuid &attr_uuid)> attribute_changed_callback_;
 
     void add_attributes();
+
+    QueryEngine engine_;
 };

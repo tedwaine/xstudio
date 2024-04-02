@@ -51,6 +51,9 @@ namespace ui {
             Q_PROPERTY(QString name READ name NOTIFY nameChanged)
             Q_PROPERTY(bool isQuickViewer READ isQuickViewer WRITE setIsQuickViewer NOTIFY
                            isQuickViewerChanged)
+            Q_PROPERTY(bool autoConnectToSelectedPlayhead READ autoConnectToSelectedPlayhead
+                           WRITE setAutoConnectToSelectedPlayhead NOTIFY
+                               autoConnectToSelectedPlayheadChanged)
 
           public:
             QMLViewport(QQuickItem *parent = nullptr);
@@ -69,6 +72,10 @@ namespace ui {
             [[nodiscard]] bool frameOutOfRange() const { return frame_out_of_range_; }
             [[nodiscard]] bool noAlphaChannel() const { return no_alpha_channel_; }
             [[nodiscard]] bool enableShortcuts() const { return enable_shortcuts_; }
+            [[nodiscard]] bool autoConnectToSelectedPlayhead() const {
+                return auto_connect_to_selected_playhead_;
+            }
+
             void setPlayhead(caf::actor playhead);
             QMLViewportRenderer *viewportActor() { return renderer_actor; }
             void deleteRendererActor();
@@ -93,8 +100,8 @@ namespace ui {
             void cleanup();
             void setZoom(const float z);
             void revertFitZoomToPrevious(const bool ignoreOtherViewport = false);
-            void linkToViewport(QObject *other_viewport);
             void handleScreenChanged(QScreen *screen);
+            void linkToViewport(QObject *other_viewport);
 
             void hideCursor();
             void showCursor();
@@ -106,18 +113,15 @@ namespace ui {
             QRectF imageBoundaryInViewport();
             void setFrameOutOfRange(bool frame_out_of_range);
             void setNoAlphaChannel(bool no_alpha_channel);
-            void renderImageToFile(
-                const QUrl filePath,
-                const int format,
-                const int compression,
-                const int width,
-                const int height,
-                const bool bakeColor);
             void sendResetShortcut();
             void setOverrideCursor(const QString &name, const bool centerOffset);
             void setOverrideCursor(const Qt::CursorShape cname);
             void setRegularCursor(const Qt::CursorShape cname);
             void setIsQuickViewer(const bool is_quick_viewer);
+            void setPlayhead(const QString actorAddress);
+            void reset();
+            void setAutoConnectToSelectedPlayhead(const bool autoconnect);
+            QString playheadActorAddress();
 
           private slots:
 
@@ -148,6 +152,7 @@ namespace ui {
             void pointerEntered();
             void pointerExited();
             void isQuickViewerChanged();
+            void autoConnectToSelectedPlayheadChanged();
 
           private:
             void releaseResources() override;
@@ -159,19 +164,19 @@ namespace ui {
             QQuickWindow *m_window = {nullptr};
             QMLViewportRenderer *renderer_actor{nullptr};
             PlayheadUI *playhead_{nullptr};
-            static qt::OffscreenViewport *offscreen_viewport_;
 
             bool connected_{false};
             QCursor cursor_;
             bool cursor_hidden{false};
             int mouse_buttons = {0};
             QPoint mouse_position;
-            int on_screen_logical_frame_ = {0};
-            bool frame_out_of_range_     = {false};
-            bool no_alpha_channel_       = {false};
-            bool enable_shortcuts_       = {true};
-            int viewport_index_          = {0};
-            bool is_quick_viewer_        = {false};
+            int on_screen_logical_frame_            = {0};
+            bool frame_out_of_range_                = {false};
+            bool no_alpha_channel_                  = {false};
+            bool enable_shortcuts_                  = {true};
+            bool auto_connect_to_selected_playhead_ = {false};
+            int viewport_index_                     = {0};
+            bool is_quick_viewer_                   = {false};
         };
 
     } // namespace qml

@@ -63,14 +63,14 @@ caf::behavior GlobalColourPipelineActor::make_behavior() {
         },
         [=](get_thumbnail_colour_pipeline_atom) -> result<caf::actor> {
             auto rp = make_response_promise<caf::actor>();
-            if (colour_piplines_.find("viewport0") != colour_piplines_.end()) {
-                rp.deliver(colour_piplines_["viewport0"]);
+            if (colour_piplines_.find("thumbnail_processor") != colour_piplines_.end()) {
+                rp.deliver(colour_piplines_["thumbnail_processor"]);
             } else {
                 request(
                     caf::actor_cast<caf::actor>(this),
                     infinite,
                     colour_pipeline_atom_v,
-                    "viewport0")
+                    "thumbnail_processor")
                     .then(
                         [=](caf::actor colour_pipe) mutable { rp.deliver(colour_pipe); },
                         [=](caf::error &err) mutable { rp.deliver(err); });
@@ -88,9 +88,9 @@ caf::behavior GlobalColourPipelineActor::make_behavior() {
             const media::AVFrameID &mptr,
             const thumbnail::ThumbnailBufferPtr &buf) -> result<thumbnail::ThumbnailBufferPtr> {
             auto rp = make_response_promise<thumbnail::ThumbnailBufferPtr>();
-            if (colour_piplines_.find("viewport0") != colour_piplines_.end()) {
+            if (colour_piplines_.find("thumbnail_processor") != colour_piplines_.end()) {
                 rp.delegate(
-                    colour_piplines_["viewport0"],
+                    colour_piplines_["thumbnail_processor"],
                     media_reader::process_thumbnail_atom_v,
                     mptr,
                     buf);

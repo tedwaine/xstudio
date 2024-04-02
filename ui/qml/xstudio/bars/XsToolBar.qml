@@ -94,6 +94,7 @@ Rectangle {
             property var qml_code_: qml_code ? qml_code : null
 
             onQml_code_Changed: {
+                console.log("qml_code_", qml_code_)
                 if (qml_code_) {
                     dynamic_widget = Qt.createQmlObject(qml_code_, parent_item)
                 }

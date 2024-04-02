@@ -75,7 +75,7 @@ namespace global_store {
     void from_json(const nlohmann::json &j, GlobalStoreDef &gsd);
 
     static const std::vector<std::string> PreferenceContexts{
-        "NEW_SESSION", "APPLICATION", "QML_UI", "PLUGIN"};
+        "NEW_SESSION", "APPLICATION", "QML_UI"};
     static const GlobalStoreDef gsd_hello{"/hello", "goodbye", "string", "Says goodbye"};
     // static const GlobalStoreDef gsd_beast{"/beast", 666, "Number of the beast"};
     // static const GlobalStoreDef gsd_happy{"/happy", true, "Am I happy"};
@@ -232,7 +232,7 @@ namespace global_store {
             const bool broacast_change = true) {
             JsonStoreHelper::set(value, path + "/value", async, broacast_change);
         }
-        
+
         /*If a preference is found at path return the value. Otherwise build
         a preference at path and return default.*/
         utility::JsonStore get_existing_or_create_new_preference(

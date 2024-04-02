@@ -10,38 +10,31 @@ import QtQml.Models 2.14
 import QtQuick.Dialogs 1.3 //for ColorDialog
 import QtGraphicalEffects 1.15 //for RadialGradient
 
-import xStudio 1.1
-import xstudio.qml.module 1.0
+import xStudioReskin 1.0
 
 Item {
+
     id: root
+    width: 20
+    height: 160
 
-    width: slider.width
-    height: slider.height
+    // Initialize to an arbitrary non-zero value so that we get a changed
+    // event when the slider is constructed (eg. Offset slider maps
+    // 0.0 to 0.5 position).
+    property real backend_value: -1e6
+    property real default_backend_value
+    property real from
+    property real to
+    property real step
+    property var colour
 
-    property real value: model.value
-    property real default_value: model.default_value
-    property real from: model.float_scrub_min
-    property real to: model.float_scrub_max
-    property real step: model.float_scrub_step
-    property var colour: model.attr_colour
-
-    // Manually update the value, needed in case the default value match
-    // the type default construction value. For example Offset slider has
-    // a default value of 0 that should map to 0.5 in the Slider.
-    Component.onCompleted: {
-        update_value()
-    }
-
-    onValueChanged: {
-        update_value()
-    }
-
-    function update_value() {
+    onBackend_valueChanged: {
         if (!slider.pressed) {
-            slider.value = val_to_pos(value)
+            slider.value = val_to_pos(backend_value)
         }
     }
+
+    signal setValue(v: real)
 
     // Note this is a naive log scale, in case the min and max are not
     // mirrored around mid, the derivate will not be continous at the
@@ -49,7 +42,7 @@ Item {
 
     function pos_to_val(v) {
         var min = root.from
-        var mid = root.default_value
+        var mid = root.default_backend_value
         var max = root.to
         var steepness = 4
 
@@ -68,7 +61,7 @@ Item {
 
     function val_to_pos(v) {
         var min = root.from
-        var mid = root.default_value
+        var mid = root.default_backend_value
         var max = root.to
         var steepness = 4
 
@@ -85,53 +78,66 @@ Item {
         }
     }
 
-    Column {
+    Slider {
+        id: slider
+        anchors.fill: parent
+        from: 0.0
+        to: 1.0
+        stepSize: 0.01
+        orientation: Qt.Vertical
+        focus: true
 
-        Slider {
-            id: slider
-            anchors.left: parent.horizontalCenter
-            width: sliderHandle.width + 20
-            height: 145
-            from: 0.0
-            to: 1.0
-            stepSize: 0.01
-            orientation: Qt.Vertical
-
-            onValueChanged: {
-                if (pressed) {
-                    model.value = pos_to_val(value)
-                }
+        onValueChanged: {
+            if (pressed) {
+                root.setValue(pos_to_val(slider.value))
             }
+        }
 
-            background: Rectangle {
-                x: slider.leftPadding + slider.availableWidth / 2 - width / 2
-                y: slider.topPadding
-                width: 4
-                height: slider.availableHeight
-                color: "grey"
-                radius: 2
+        background: Rectangle {
+            x: slider.leftPadding + slider.availableWidth / 2 - width / 2
+            y: slider.topPadding
+            width: 4
+            height: slider.availableHeight
+            color: "grey"
+            radius: 2
 
-                Rectangle {
-                    y: slider.visualPosition * parent.height
-                    width: parent.width
-                    height: parent.height - y
-                    color: root.colour
-                    radius: 2
-                }
-            }
-
-            handle: Rectangle {
-                id: sliderHandle
-
-                x: (slider.width - width) / 2
-                y: slider.topPadding + slider.visualPosition * (slider.availableHeight - height)
-                width: 15
-                height: 15
-
-                radius: 15
+            Rectangle {
+                y: slider.visualPosition * parent.height
+                width: parent.width
+                height: parent.height - y
                 color: root.colour
-                border.color: Qt.darker(root.colour, 4)
+                radius: 2
+            }
+        }
+
+        handle: Rectangle {
+
+            id: sliderHandle
+            x: (slider.width - width) / 2
+            y: slider.topPadding + slider.visualPosition * (slider.availableHeight - height)
+            width: 15
+            height: 15
+
+            radius: 15
+            color: root.colour
+            border.color: Qt.darker(root.colour, 4)
+
+            MouseArea {
+                anchors.fill: parent
+                hoverEnabled: true
+                propagateComposedEvents: true
+
+                onPressed: {
+                    mouse.accepted = mouse.flags & Qt.MouseEventCreatedDoubleClick
+                }
+
+                onDoubleClicked: {
+                    slider.value = val_to_pos(root.default_backend_value)
+                    root.setValue(root.default_backend_value)
+                    mouse.accepted = true
+                }
             }
         }
     }
+
 }

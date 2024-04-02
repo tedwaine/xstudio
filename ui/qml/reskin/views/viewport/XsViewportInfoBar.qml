@@ -1,18 +1,21 @@
-// SPDX-License-Identifier: Apache-2.0
 import QtQuick 2.12
 import QtQuick.Layouts 1.15
 // import QtQml.Models 2.14
 
 import xStudioReskin 1.0
 import xstudio.qml.models 1.0
+import xstudio.qml.helpers 1.0
 import "./widgets"
 
 Rectangle {
     id: toolBar
     x: barPadding
     width: parent.width-(x*2) //parent.width
-    height: btnHeight //+(barPadding*2)
     color: XsStyleSheet.panelTitleBarColor
+
+    height: btnHeight*opacity
+    visible: opacity != 0.0
+    Behavior on opacity {NumberAnimation{ duration: 150 }}
 
     property string panelIdForMenu: panelId
 
@@ -44,6 +47,18 @@ Rectangle {
     //     }
     // }
 
+    /* This gives us a 'model' with one row - the row is the attribute data
+    for the "Auto Align" attribute of the current playhead. We use it below
+    to build the Auto Align button */
+    XsFilterModel {
+        id: auto_align_attr_data
+        sourceModel: viewportPlayheadDataModel
+        sortAscending: true
+        Component.onCompleted: {
+            setRoleFilter("Auto Align", "title")
+        }
+    }
+
 
     RowLayout{
         id: rowDiv
@@ -66,27 +81,56 @@ Rectangle {
         width: (preferredBtnWidth+spacing)*btnCount //parent.width - (spacing*(btnCount))
         height: btnHeight
 
-        property int btnCount: 5
+        property int btnCount: 6
         property real maxBtnWidth: 110
         property real preferredBtnWidth: (maxBtnWidth*btnCount)>toolBar.width? (toolBar.width/btnCount) : maxBtnWidth
         property real preferredMenuWidth: preferredBtnWidth<100? 100 : preferredBtnWidth
        
-        // dummy 'value' property for offsetButton
-        property var value         
+        // dummy 'valueText' property for offsetButton
+        property var valueText         
 
-        XsViewerSeekEditButton{ id: offsetButton
+        Repeater {
+            model: auto_align_attr_data
+            XsViewerMenuButton { 
+                Layout.preferredWidth: rowDiv.preferredBtnWidth
+                Layout.preferredHeight: parent.height
+                text: title
+                shortText: abbr_title
+                valueText: value
+                isBgGradientVisible: false
+            }
+        }
+
+        XsViewerToolbarValueScrubber{ 
+            id: offsetButton
             Layout.preferredWidth: rowDiv.preferredBtnWidth
             Layout.preferredHeight: parent.height
             text: "Offset"
             shortText: "Oft" //#TODO
-            fromValue: -10
-            defaultValue: 0
-            toValue: 10
-            valueText: 0
+            fromValue: -100
+            toValue: 100
             stepSize: 1
             decimalDigits: 0
-            showValueWhenShortened: true
             isBgGradientVisible: false
+            property int value: 0
+            property real float_scrub_sensitivity: 0.05
+            property int default_value: 0
+            valueText: "" + value
+
+            // another awkward two way binding!
+            property int value__: view.playhead.sourceOffsetFrames
+            onValueChanged: {
+                if (value != view.playhead.sourceOffsetFrames) {
+                    view.playhead.sourceOffsetFrames = value
+                }
+            }
+
+            onValue__Changed: {
+                if (value != value__) {
+                    value = value__
+                }                
+            }
+
         }
         
         XsViewerMenuButton{  id: formatBtn
@@ -94,41 +138,36 @@ Rectangle {
             Layout.preferredHeight: parent.height
             text: "Format"
             shortText: "Fmt" //#TODO
-            valueText: "dnxhd"
-            clickDisabled: true
-            showValueWhenShortened: true
+            valueText: currentOnScreenMediaSourceData.values.formatRole ? currentOnScreenMediaSourceData.values.formatRole : ""
             isBgGradientVisible: false
         }
+
         XsViewerMenuButton{  id: bitBtn
             Layout.preferredWidth: rowDiv.preferredBtnWidth
             Layout.preferredHeight: parent.height
             text: "Bit Depth"
             shortText: "Bit" //#TODO
-            valueText: "8 bits"
-            clickDisabled: true
-            showValueWhenShortened: true
+            valueText: currentOnScreenMediaSourceData.values.bitDepthRole ? currentOnScreenMediaSourceData.values.bitDepthRole : "" 
             isBgGradientVisible: false
         }
+
         XsViewerMenuButton{  id: fpsBtn
             Layout.preferredWidth: rowDiv.preferredBtnWidth
             Layout.preferredHeight: parent.height
             text: "FPS"
             shortText: "FPS" //#TODO
-            valueText: "24.0"
-            clickDisabled: true
-            showValueWhenShortened: true
+            valueText: fps.toFixed(2)
+            property real fps: currentOnScreenMediaSourceData.values.rateFPSRole ? currentOnScreenMediaSourceData.values.rateFPSRole : 24.0
             isBgGradientVisible: false
         }
+
         XsViewerMenuButton{  id: resBtn
             Layout.preferredWidth: rowDiv.preferredBtnWidth
             Layout.preferredHeight: parent.height
             text: "Res"
             shortText: "Res" //#TODO
-            valueText: "1920x1080"
-            clickDisabled: true
-            showValueWhenShortened: true
+            valueText: currentOnScreenMediaSourceData.values.resolutionRole ? currentOnScreenMediaSourceData.values.resolutionRole : ""
             isBgGradientVisible: false
-            shortThresholdWidth: 99+10 //60+30
         }
         
 

@@ -150,7 +150,7 @@ plugin_manager::PluginFactoryCollection *plugin_factory_collection_ptr() {
             {std::make_shared<plugin_manager::PluginFactoryTemplate<EXRDataWindowHUD>>(
                 utility::Uuid("f8a09960-606d-11ed-9b6a-0242ac120002"),
                 "EXRDataWindowHUD",
-                plugin_manager::PluginFlags::PF_HEAD_UP_DISPLAY,
+                plugin_manager::PluginFlags::PF_HEAD_UP_DISPLAY | plugin_manager::PluginFlags::PF_VIEWPORT_OVERLAY,
                 true,
                 "Clement Jovet",
                 "Viewport HUD Plugin")}));

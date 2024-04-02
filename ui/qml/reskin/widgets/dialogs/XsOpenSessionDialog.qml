@@ -4,7 +4,7 @@ import QtQuick.Dialogs 1.0
 import QuickFuture 1.0
 import QuickPromise 1.0
 
-import xStudio 1.0
+import xStudioReskin 1.0
 
 FileDialog {
     title: "Open Session"
@@ -15,7 +15,6 @@ FileDialog {
     selectExisting: true
     selectMultiple: false
     onAccepted: {
-        console.log("fileUrl", fileUrl)
         Future.promise(studio.loadSessionFuture(fileUrl)).then(
             function(result){
                 // console.log(result)

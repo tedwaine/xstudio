@@ -10,21 +10,13 @@ import QtQml.Models 2.14
 import QtQuick.Dialogs 1.3 //for ColorDialog
 import QtGraphicalEffects 1.15 //for RadialGradient
 
-import xStudio 1.1
-import xstudio.qml.module 1.0
+import xStudioReskin 1.0
 
 Item {
 
     id: drawDialog
 
     property int maxDrawSize: 600
-
-    onVisibleChanged: {
-        if (!visible) {
-            // ensure keyboard events are returned to the viewport
-            sessionWidget.playerWidget.viewport.forceActiveFocus()
-        }
-    }
 
     property real buttonHeight: 20
     property real toolPropLoaderHeight: 0
@@ -37,48 +29,30 @@ Item {
     property real frameWidth: 1
     property real frameRadius: 2
     property real frameOpacity: 0.3
-    property color frameColor: XsStyle.menuBorderColor
+    property color frameColor: XsStyleSheet.menuBorderColor
 
 
-    property color hoverTextColor: palette.text //-whitish //XsStyle.hoverBackground
-    property color hoverToolInactiveColor: XsStyle.indevColor //-greyish
+    property color hoverTextColor: palette.text //-whitish //XsStyleSheet.hoverBackground
+    property color hoverToolInactiveColor: XsStyleSheet.baseColor //-greyish
     property color toolActiveBgColor: palette.highlight //-orangish
     property color toolActiveTextColor: "white" //palette.highlightedText
     property color toolInactiveBgColor: palette.base //-greyish
-    property color toolInactiveTextColor: XsStyle.controlTitleColor//-greyish
+    property color toolInactiveTextColor: XsStyleSheet.secondaryTextColor//-greyish
 
-    property real fontSize: XsStyle.menuFontSize/1.1
-    property string fontFamily: XsStyle.menuFontFamily
+    property real fontSize: XsStyleSheet.menuFontSize/1.1
+    property string fontFamily: XsStyleSheet.fontFamily
     property color textButtonColor: toolInactiveTextColor
     property color textValueColor: "white"
 
 
     property bool isAnyToolSelected: currentTool !== "None"
 
-    XsModuleAttributes {
-        id: grading_settings
-        attributesGroupNames: "grading_settings"
-    }
-
-    XsModuleAttributes {
+    MaskAttrs {
         id: mask_tool_settings
-        attributesGroupNames: "mask_tool_settings"
     }
 
-
-    // make a local binding to the backend attribute
-    property int currentDrawPenSizeBackendValue: mask_tool_settings.draw_pen_size ? mask_tool_settings.draw_pen_size : 0
-    property int currentErasePenSizeBackendValue: mask_tool_settings.erase_pen_size ? mask_tool_settings.erase_pen_size : 0
-    property color currentToolColourBackendValue: mask_tool_settings.pen_colour ? mask_tool_settings.pen_colour : "#000000"
-    property int currentOpacityBackendValue: mask_tool_settings.pen_opacity ? mask_tool_settings.pen_opacity : 0
-    property int currentSoftnessBackendValue: mask_tool_settings.pen_softness ? mask_tool_settings.pen_softness : 0
-    property string currentToolBackendValue: mask_tool_settings.drawing_tool ? mask_tool_settings.drawing_tool : ""
-
-    property color currentToolColour: currentToolColourBackendValue
-    property int currentToolSize: currentTool === "Erase" ? currentErasePenSizeBackendValue : currentDrawPenSizeBackendValue
-    property int currentToolOpacity: currentOpacityBackendValue
-    property int currentToolSoftness: currentSoftnessBackendValue
-    property string currentTool: currentToolBackendValue
+    property int currentToolSize: currentTool === "Erase" ? mask_tool_settings.erase_pen_size : mask_tool_settings.draw_pen_size
+    property var currentTool: mask_tool_settings.drawing_tool
 
     function setPenSize(penSize) {
         if(currentTool === "Draw")
@@ -103,7 +77,7 @@ Item {
     }
 
     // make a read only binding to the "mask_tool_active" backend attribute
-    property bool maskToolActive: mask_tool_settings.mask_tool_active ? mask_tool_settings.mask_tool_active : false
+    property bool maskToolActive: mask_tool_settings.tool_panel ? mask_tool_settings.tool_panel == "Mask" : false
 
     // Are we in an active drawing mode?
     property bool drawingActive: maskToolActive && currentTool !== "None"
@@ -111,9 +85,9 @@ Item {
     // Set the Cursor as required
     property var activeCursor: drawingActive ? Qt.CrossCursor : Qt.ArrowCursor
 
-    onActiveCursorChanged: {
+    /*onActiveCursorChanged: {
         playerWidget.viewport.setRegularCursor(activeCursor)
-    }
+    }*/
 
     // map the local property for currentToolSize to the backend value ... to modify the tool size, we only change the backend
     // value binding
@@ -124,7 +98,6 @@ Item {
     // events back to the viewport for consistent
     Item {
         anchors.fill: parent
-        Keys.forwardTo: [sessionWidget]
         focus: true
 
         Rectangle{
@@ -132,7 +105,7 @@ Item {
             width: parent.width - framePadding_x2
             x: framePadding
             anchors.top: parent.top
-            anchors.topMargin: framePadding
+            anchors.topMargin: 0
             anchors.bottom: toolProperties.bottom
             anchors.bottomMargin: -framePadding
 
@@ -173,7 +146,7 @@ Item {
                         width: parent.width/2-spacing
                         spacing: itemSpacing
 
-                        XsButton{ id: sizeProp
+                        XsPrimaryButton{ id: sizeProp
                             property bool isPressed: false
                             property bool isMouseHovered: sizeMArea.containsMouse
                             property real prevValue: maxDrawSize/2
@@ -316,7 +289,7 @@ Item {
                                 }
                             }
                         }
-                        XsButton{ id: opacityProp
+                        XsPrimaryButton{ id: opacityProp
                             property bool isPressed: false
                             property bool isMouseHovered: opacityMArea.containsMouse
                             property real prevValue: defaultValue/2
@@ -340,11 +313,11 @@ Item {
                             XsTextField{ id: opacityDisplay
                                 bgColorNormal: parent.enabled?palette.base:"transparent"
                                 borderColor: bgColorNormal
-                                text: currentTool != "Erase" ? currentToolOpacity : 100
-                                property var backendOpacity: currentTool != "Erase" ? currentToolOpacity : 100 // we don't set this anywhere else, so this is read-only - always tracks the backend opacity value
+                                text: currentTool != "Erase" ? mask_tool_settings.pen_opacity : 100
+                                property var backendOpacity: currentTool != "Erase" ? mask_tool_settings.pen_opacity : 100 // we don't set this anywhere else, so this is read-only - always tracks the backend opacity value
                                 onBackendOpacityChanged: {
                                     // if the backend value has changed, update the text
-                                    text = currentTool != "Erase" ? currentToolOpacity : 100
+                                    text = currentTool != "Erase" ? mask_tool_settings.pen_opacity : 100
                                 }
                                 focus: opacityMArea.containsMouse && !parent.isPressed
                                 onFocusChanged:{
@@ -432,7 +405,7 @@ Item {
                                             }
                                         }
 
-                                        opacityDisplay.text = currentTool != "Erase" ? currentToolOpacity : 100
+                                        opacityDisplay.text = currentTool != "Erase" ? mask_tool_settings.pen_opacity : 100
                                     }
                                 }
                                 onPressed: {
@@ -454,11 +427,11 @@ Item {
                                         opacityProp.prevValue = mask_tool_settings.pen_opacity
                                         mask_tool_settings.pen_opacity = opacityProp.defaultValue
                                     }
-                                    opacityDisplay.text = currentTool != "Erase" ? currentToolOpacity : 100
+                                    opacityDisplay.text = currentTool != "Erase" ? mask_tool_settings.pen_opacity : 100
                                 }
                             }
                         }
-                        XsButton{ id: softnessProp
+                        XsPrimaryButton{ id: softnessProp
                             property bool isPressed: false
                             property bool isMouseHovered: softnessMArea.containsMouse
                             property real prevValue: defaultValue/2
@@ -482,11 +455,11 @@ Item {
                             XsTextField{ id: softnessDisplay
                                 bgColorNormal: parent.enabled?palette.base:"transparent"
                                 borderColor: bgColorNormal
-                                text: currentTool != "Erase" ? currentToolSoftness : 100
-                                property var backendSoftness: currentTool != "Erase" ? currentToolSoftness : 100 // we don't set this anywhere else, so this is read-only - always tracks the backend opacity value
+                                text: currentTool != "Erase" ? mask_tool_settings.pen_softness : 100
+                                property var backendSoftness: currentTool != "Erase" ? mask_tool_settings.pen_softness : 100 // we don't set this anywhere else, so this is read-only - always tracks the backend opacity value
                                 onBackendSoftnessChanged: {
                                     // if the backend value has changed, update the text
-                                    text = currentTool != "Erase" ? currentToolSoftness : 100
+                                    text = currentTool != "Erase" ? mask_tool_settings.pen_softness : 100
                                 }
                                 focus: softnessMArea.containsMouse && !parent.isPressed
                                 onFocusChanged:{
@@ -574,7 +547,7 @@ Item {
                                             }
                                         }
 
-                                        softnessDisplay.text = currentTool != "Erase" ? currentToolSoftness : 100
+                                        softnessDisplay.text = currentTool != "Erase" ? mask_tool_settings.pen_softness : 100
                                     }
                                 }
                                 onPressed: {
@@ -596,11 +569,11 @@ Item {
                                         softnessProp.prevValue = mask_tool_settings.pen_softness
                                         mask_tool_settings.pen_softness = softnessProp.defaultValue
                                     }
-                                    softnessDisplay.text = currentTool != "Erase" ? currentToolSoftness : 0
+                                    softnessDisplay.text = currentTool != "Erase" ? mask_tool_settings.pen_softness : 0
                                 }
                             }
                         }
-                        XsButton{ id: colorProp
+                        XsPrimaryButton{ id: colorProp
                             property bool isPressed: false
                             property bool isMouseHovered: colorMArea.containsMouse
                             enabled: (isAnyToolSelected && currentTool !== "Erase")
@@ -639,9 +612,9 @@ Item {
                             Rectangle{ id: colorPreviewDuplicate
                                 opacity: (!isAnyToolSelected || currentTool === "Erase")? (parent.enabled?1:0.5): 0
                                 height: parent.height/1.4;
-                                color: currentTool === "Erase" ? "white" : currentToolColour
+                                color: currentTool === "Erase" ? "white" : mask_tool_settings.pen_colour
                                 border.width: frameWidth
-                                border.color: parent.enabled? (currentToolColour=="white" || currentToolColour=="#ffffff")? "black": "white" : Qt.darker("white",1.5)
+                                border.color: parent.enabled? (mask_tool_settings.pen_colour=="white" || mask_tool_settings.pen_colour=="#ffffff")? "black": "white" : Qt.darker("white",1.5)
                                 anchors.verticalCenter: parent.verticalCenter
                                 anchors.left: parent.horizontalCenter
                                 anchors.leftMargin: parent.width/7
@@ -658,7 +631,7 @@ Item {
                                     y= colorPreviewDuplicate.y
                                 }
                                 height: colorPreviewDuplicate.height
-                                color: currentTool === "Erase" ? "white" : currentToolColour;
+                                color: currentTool === "Erase" ? "white" : mask_tool_settings.pen_colour;
                                 border.width: frameWidth;
                                 border.color: (color=="white" || color=="#ffffff")? "black": "white"
 
@@ -697,8 +670,8 @@ Item {
                     }
 
                     Rectangle { id: toolPreview
-                        width: parent.width/2 - spacing
-                        height: parent.height - spacing
+                        width: parent.width/2
+                        height: parent.height
                         color: "#595959" //"transparent"
                         border.color: frameColor
                         border.width: frameWidth
@@ -737,8 +710,8 @@ Item {
                                 width: currentToolSize *sizeScaleFactor
                                 height: width
                                 radius: width/2
-                                color: currentToolColour
-                                opacity: currentToolOpacity/100
+                                color: mask_tool_settings.pen_colour
+                                opacity: mask_tool_settings.pen_opacity/100
 
                                 RadialGradient {
                                     visible: false
@@ -747,7 +720,7 @@ Item {
                                     gradient:
                                     Gradient {
                                         GradientStop {
-                                            position: 0.1; color: currentToolColour
+                                            position: 0.1; color: mask_tool_settings.pen_colour
                                         }
                                         GradientStop {
                                             position: 1.0; color: "black"
@@ -803,7 +776,7 @@ Item {
                                 radius: width/2
                                 color: preset
                                 border.width: 1
-                                border.color: parent.isMouseHovered? toolActiveBgColor: (currentToolColour === preset)? toolActiveTextColor: "black"
+                                border.color: parent.isMouseHovered? toolActiveBgColor: (mask_tool_settings.pen_colour === preset)? toolActiveTextColor: "black"
 
                                 MouseArea{
                                     id: presetMArea
@@ -833,7 +806,7 @@ Item {
                                         }
                                     }
                                     onDropped: {
-                                        currentColorPresetModel.setProperty(index, "preset", currentToolColour.toString())
+                                        currentColorPresetModel.setProperty(index, "preset", mask_tool_settings.pen_colour.toString())
                                     }
                                 }
                             }
@@ -849,7 +822,7 @@ Item {
 
             ColorDialog { id: colorDialog
                 title: "Please pick a color"
-                color: currentToolColour
+                color: mask_tool_settings.pen_colour
                 onAccepted: {
                     mask_tool_settings.pen_colour = currentColor
                     close()
@@ -959,7 +932,7 @@ Item {
             anchors.topMargin: framePadding
 
             width: parent.width - framePadding_x2
-            height: toolSelectorFrame.height/1.5
+            height: toolSelectorFrame.height/2.4
 
             color: "transparent"
             opacity: frameOpacity
@@ -994,12 +967,12 @@ Item {
                     }
                 }
                 delegate:
-                XsButton{
+                XsPrimaryButton{
                     text: model.action
                     width: toolActionUndoRedo.width/modelUndoRedo.count - toolActionUndoRedo.spacing
                     height: buttonHeight
                     onClicked: {
-                        grading_settings.drawing_action = text
+                        mask_tool_settings.drawing_action = text
                     }
                 }
             }
@@ -1030,13 +1003,13 @@ Item {
                     }
                 }
                 delegate:
-                XsButton{
+                XsPrimaryButton{
                     text: model.action
                     width: toolActionCopyPasteClear.width/modelCopyPasteClear.count - toolActionCopyPasteClear.spacing
                     height: buttonHeight
                     enabled: text == "Clear"
                     onClicked: {
-                        grading_settings.drawing_action = text
+                        mask_tool_settings.drawing_action = text
                     }
 
                 }
@@ -1059,18 +1032,18 @@ Item {
                     id: modelDisplayMode
                     ListElement{
                         action: "Mask"
-                        tooltip: "Show mask being draw"
+                        //tooltip: "Show mask being draw"
                     }
                     ListElement{
                         action: "Grade"
-                        tooltip: "Show masked grade result"
+                        //tooltip: "Show masked grade result"
                     }
                 }
                 delegate:
-                XsButton{
+                XsPrimaryButton{
                     isActive: mask_tool_settings.display_mode == text
                     text: model.action
-                    tooltip: model.tooltip
+                    //tooltip: model.tooltip
                     width: toolActionDisplayMode.width/modelDisplayMode.count - toolActionDisplayMode.spacing
                     height: buttonHeight
                     onClicked: {

@@ -271,6 +271,9 @@ void FFMpegMediaReader::update_preferences(const utility::JsonStore &prefs) {
     }
 }
 
+static std::mutex m;
+static int ct = 0;
+
 ImageBufPtr FFMpegMediaReader::image(const media::AVFrameID &mptr) {
     std::string path = uri_to_posix_path(mptr.uri_);
 

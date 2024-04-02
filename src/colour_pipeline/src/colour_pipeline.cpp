@@ -1,6 +1,8 @@
 // SPDX-License-Identifier: Apache-2.0
 #include <sstream>
 
+#include <caf/policy/select_all.hpp>
+
 #include "xstudio/colour_pipeline/colour_pipeline.hpp"
 #include "xstudio/utility/helpers.hpp"
 #include "xstudio/utility/logging.hpp"
@@ -21,24 +23,12 @@ std::string LUTDescriptor::as_string() const {
 
 
 ColourPipeline::ColourPipeline(caf::actor_config &cfg, const utility::JsonStore &init_settings)
-    : StandardPlugin(
-          cfg, init_settings.value<std::string>("name", "ColourPipeline"), init_settings),
-      uuid_(utility::Uuid::generate()),
-      init_data_(init_settings) {
+    : StandardPlugin(cfg, "ColourPipeline", init_settings), uuid_(utility::Uuid::generate()) {
 
     cache_ = system().registry().template get<caf::actor>(colour_cache_registry);
 
     // this ensures colour OPs get loaded
     load_colour_op_plugins();
-
-    if (!init_settings.value<bool>("is_worker", false)) {
-        delayed_anon_send(
-            caf::actor_cast<caf::actor>(this),
-            std::chrono::seconds(1),
-            std::string("Make Workers"));
-    } else {
-        is_worker_ = true;
-    }
 }
 
 ColourPipeline::~ColourPipeline() {}
@@ -53,79 +43,20 @@ size_t ColourOperationData::size() const {
 
 caf::message_handler ColourPipeline::message_handler_extensions() {
 
-    auto make_worker_func = [=] {
-        auto j         = init_data_;
-        j["is_worker"] = true;
-        static int ct  = 1;
-        std::stringstream nm;
-        nm << Module::name() << "_Worker" << ct++;
-        j["name"]   = nm.str();
-        auto worker = self_spawn(j);
-        link_to(worker);
-        if (worker) {
-            link_to_module(
-                worker,
-                true,   // link_all_attrs
-                false,  // both_ways
-                true    // initial_push_sync
-            );
-            workers_.push_back(worker);
-        }
-        return worker;
-    };
-
     return caf::message_handler(
-        [=](const std::string &make_workers) {
-            if (make_workers == "Make Workers" && allow_workers()) {
-                worker_pool_ = caf::actor_pool::make(
-                    system().dummy_execution_unit(),
-                    4,
-                    make_worker_func,
-                    caf::actor_pool::round_robin());
-
-                thumbnail_processor_pool_ = caf::actor_pool::make(
-                    system().dummy_execution_unit(),
-                    4,
-                    make_worker_func,
-                    caf::actor_pool::round_robin());
-
-                pixel_probe_worker_ = caf::actor_pool::make(
-                    system().dummy_execution_unit(),
-                    1,
-                    make_worker_func,
-                    caf::actor_pool::round_robin());
-            }
+        [=](colour_pipe_linearise_data_atom,
+            const media::AVFrameID &media_ptr) -> result<ColourOperationDataPtr> {
+            /* Call virtual method to make the linearise transform data object */
+            auto rp = make_response_promise<ColourOperationDataPtr>();
+            linearise_op_data(rp, media_ptr);
+            return rp;
         },
-        [=](get_colour_pipe_data_atom,
-            const media::AVFrameID &media_ptr,
-            const std::string stage) -> result<ColourOperationDataPtr> {
-            try {
-                if (stage == "to_linear_op") {
-                    const std::string lin_op_key =
-                        linearise_op_hash(media_ptr.source_uuid_, media_ptr.params_);
-
-                    ColourOperationDataPtr linearise_data =
-                        linearise_op_data(media_ptr.source_uuid_, media_ptr.params_);
-                    linearise_data->order_index_ = std::numeric_limits<float>::lowest();
-                    linearise_data->cache_id_    = lin_op_key;
-                    anon_send<message_priority::high>(
-                        cache_, media_cache::store_atom_v, lin_op_key, linearise_data);
-                    return linearise_data;
-
-                } else {
-
-                    const std::string display_op_key =
-                        linear_to_display_op_hash(media_ptr.source_uuid_, media_ptr.params_);
-
-                    ColourOperationDataPtr display_op_data =
-                        linear_to_display_op_data(media_ptr.source_uuid_, media_ptr.params_);
-                    display_op_data->order_index_ = std::numeric_limits<float>::max();
-                    display_op_data->cache_id_    = display_op_key;
-                    return display_op_data;
-                }
-            } catch (std::exception &e) {
-                return make_error(xstudio_error::error, e.what());
-            }
+        [=](colour_pipe_display_data_atom,
+            const media::AVFrameID &media_ptr) -> result<ColourOperationDataPtr> {
+            /* Call virtual method to make the display transform data object */
+            auto rp = make_response_promise<ColourOperationDataPtr>();
+            linear_to_display_op_data(rp, media_ptr);
+            return rp;
         },
 
         [=](get_colour_pipe_data_atom,
@@ -173,21 +104,26 @@ caf::message_handler ColourPipeline::message_handler_extensions() {
                 return rp;
             }
 
-            // No cached data, so we need to get the workers to do generate the
-            // data
-            auto worker = worker_pool_ ? worker_pool_ : self();
-
-            request(worker, infinite, get_colour_pipe_data_atom_v, media_ptr, "to_linear_op")
+            request(self(), infinite, colour_pipe_linearise_data_atom_v, media_ptr)
                 .then(
                     [=](ColourOperationDataPtr linearise_data) mutable {
-                        request(
-                            worker,
-                            infinite,
-                            get_colour_pipe_data_atom_v,
-                            media_ptr,
-                            "to_display_op")
+                        request(self(), infinite, colour_pipe_display_data_atom_v, media_ptr)
                             .then(
                                 [=](ColourOperationDataPtr &to_display_data) mutable {
+                                    // when colour operations are applied in the
+                                    // GPU display shader, we need to know what
+                                    // order they happen in. Linearise operation
+                                    // always comes first. Display transform is
+                                    // the last to happen before fragments hit
+                                    // the screen. In between, we may have other
+                                    // operations (applied in linear space)
+                                    // like gamma, saturation or other grading
+                                    // ops
+                                    linearise_data->order_index_ =
+                                        std::numeric_limits<float>::lowest();
+                                    to_display_data->order_index_ =
+                                        std::numeric_limits<float>::max();
+
                                     add_cache_keys(
                                         transform_id,
                                         linearise_data->cache_id_,
@@ -236,19 +172,7 @@ caf::message_handler ColourPipeline::message_handler_extensions() {
             const media::AVFrameID &mptr,
             const thumbnail::ThumbnailBufferPtr &buf) -> result<thumbnail::ThumbnailBufferPtr> {
             auto rp = make_response_promise<thumbnail::ThumbnailBufferPtr>();
-            if (thumbnail_processor_pool_) {
-                rp.delegate(
-                    thumbnail_processor_pool_,
-                    media_reader::process_thumbnail_atom_v,
-                    mptr,
-                    buf);
-            } else {
-                try {
-                    rp.deliver(process_thumbnail(mptr, buf));
-                } catch (const std::exception &err) {
-                    rp.deliver(make_error(sec::runtime_error, err.what()));
-                }
-            }
+            process_thumbnail(rp, mptr, buf);
             return rp;
         },
         [=](pixel_info_atom atom,
@@ -274,35 +198,31 @@ caf::message_handler ColourPipeline::message_handler_extensions() {
             const media_reader::ImageBufPtr &image) -> result<utility::JsonStore> {
             auto rp = make_response_promise<utility::JsonStore>();
 
-            if (worker_pool_) {
-                rp.delegate(worker_pool_, atom, image);
-            } else {
-                auto result = std::make_shared<utility::JsonStore>();
-                for (const auto &op : image.colour_pipe_data_->operations()) {
-                    result->merge(update_shader_uniforms(image, op->user_data_));
-                }
-                auto rcount = std::make_shared<int>((int)colour_op_plugins_.size());
+            auto result = std::make_shared<utility::JsonStore>();
+            for (const auto &op : image.colour_pipe_data_->operations()) {
+                result->merge(update_shader_uniforms(image, op->user_data_));
+            }
+            auto rcount = std::make_shared<int>((int)colour_op_plugins_.size());
 
-                if (!colour_op_plugins_.size()) {
-                    rp.deliver(*result);
-                    return rp;
-                }
-                for (auto &colour_op_plugin : colour_op_plugins_) {
+            if (!colour_op_plugins_.size()) {
+                rp.deliver(*result);
+                return rp;
+            }
+            for (auto &colour_op_plugin : colour_op_plugins_) {
 
-                    request(colour_op_plugin, infinite, colour_operation_uniforms_atom_v, image)
-                        .then(
-                            [=](const utility::JsonStore &uniforms) mutable {
-                                result->merge(uniforms);
-                                (*rcount)--;
-                                if (!(*rcount)) {
-                                    rp.deliver(*result);
-                                }
-                            },
-                            [=](const caf::error &err) mutable {
-                                (*rcount) = 0;
-                                rp.deliver(err);
-                            });
-                }
+                request(colour_op_plugin, infinite, colour_operation_uniforms_atom_v, image)
+                    .then(
+                        [=](const utility::JsonStore &uniforms) mutable {
+                            result->merge(uniforms);
+                            (*rcount)--;
+                            if (!(*rcount)) {
+                                rp.deliver(*result);
+                            }
+                        },
+                        [=](const caf::error &err) mutable {
+                            (*rcount) = 0;
+                            rp.deliver(err);
+                        });
             }
 
             return rp;
@@ -346,18 +266,44 @@ caf::message_handler ColourPipeline::message_handler_extensions() {
 
             return rp;
         },
+        [=](playhead::media_source_atom,
+            const utility::UuidActor &media_source) -> result<bool> {
+            // this message handler lets you force the colour pipeline actor
+            // to update based on a given media actor and get a response when
+            // it has finished updating. It's used by the offscreen viewport,
+            // for example, to make the OCIO view/display attributes to update
+            // for a given media source so we can show the view/display options
+            // in the snapshot dialog
+            auto rp = make_response_promise<bool>();
+
+            if (media_source) {
+                request(media_source.actor(), infinite, get_colour_pipe_params_atom_v)
+                    .then(
+                        [=](const utility::JsonStore colour_params) mutable {
+                            fan_out_request<policy::select_all>(
+                                colour_op_plugins_,
+                                infinite,
+                                playhead::media_source_atom_v,
+                                media_source.actor(),
+                                media_source.uuid(),
+                                colour_params)
+                                .then(
+                                    [=](const std::vector<bool>) mutable {
+                                        media_source_changed(media_source, colour_params);
+                                        rp.deliver(true);
+                                    },
+                                    [=](const caf::error &err) mutable { rp.deliver(err); });
+                        },
+                        [=](const caf::error &err) mutable { rp.deliver(err); });
+            } else {
+                rp.deliver(false);
+            }
+            return rp;
+        },
         [=](utility::event_atom,
             playhead::media_source_atom,
             caf::actor media_actor,
             const utility::Uuid &media_uuid) {
-            for (auto &worker : workers_) {
-                anon_send(
-                    worker,
-                    utility::event_atom_v,
-                    playhead::media_source_atom_v,
-                    media_actor,
-                    media_uuid);
-            }
             // This message comes from the playhead when the onscreen (key)
             // media source has changed.
             if (media_actor and media_uuid) {
@@ -413,36 +359,7 @@ caf::message_handler ColourPipeline::message_handler_extensions() {
         [=](ui::viewport::viewport_playhead_atom, caf::actor playhead) {
             // TODO: set something up to listen to playhead pre-compute colour
         },
-        [=](json_store::update_atom, const utility::JsonStore &) mutable {
-            /*try {
-                size_t count = 6;//preference_value<size_t>(j,
-            "/core/colour_pipeline/max_worker_count"); if (count > worker_count) {
-                    spdlog::debug(
-                        "colour_pipeline workers changed old {} new {}", worker_count,
-            count); while (worker_count < count) { anon_send( worker_pool_, sys_atom_v,
-                            put_atom_v,
-                            system().spawn<ColourPipelineWorkerActor>());
-                        worker_count++;
-                    }
-                } else if (count < worker_count) {
-                    // get actors..
-                    spdlog::debug(
-                        "colour_pipeline workers changed old {} new {}", worker_count,
-            count); worker_count = count; request(worker_pool_, infinite, sys_atom_v,
-            get_atom_v) .await(
-                            [=](const std::vector<actor> &ws) {
-                                for (auto i = worker_count; i < ws.size(); i++) {
-                                    anon_send(worker_pool_, sys_atom_v, delete_atom_v, ws[i]);
-                                }
-                            },
-                            [=](const error &err) {
-                                throw std::runtime_error(
-                                    "Failed to find pool " + to_string(err));
-                            });
-                }
-            } catch (...) {
-            }*/
-        },
+        [=](json_store::update_atom, const utility::JsonStore &) mutable {},
         [=](utility::serialise_atom) -> utility::JsonStore { return serialise(); },
         [=](ui::viewport::pre_render_gpu_hook_atom,
             const int viewer_index) -> result<plugin::GPUPreDrawHookPtr> {

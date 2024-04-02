@@ -93,6 +93,8 @@ PlayheadActor::PlayheadActor(
         expose_attribute_in_model_data(
             attr.get(), std::string("{") + to_string(Module::uuid()) + std::string("}"), true);
     }
+
+    make_source_menu_model();
 }
 
 PlayheadActor::PlayheadActor(
@@ -111,6 +113,8 @@ PlayheadActor::PlayheadActor(
         expose_attribute_in_model_data(
             attr.get(), std::string("{") + to_string(Module::uuid()) + std::string("}"), true);
     }
+
+    make_source_menu_model();
 }
 
 void PlayheadActor::init() {
@@ -131,6 +135,34 @@ void PlayheadActor::init() {
         default_exit_handler(a, m);
     });
 
+    // Make hotkeys for switching the on-screen (primary) source (e.g. for A/B compare)
+    for (int i = 0; i < 9; ++i) {
+
+        // numeric keys on a querty keyboard start with key '1' having a keyboard
+        // key id of 0x31
+        auto hotkey_id = register_hotkey(
+            0x31 + i,
+            ui::NoModifier,
+            fmt::format("View source {}", i + 1),
+            "When comparing multiple selected items hit the hotkey to switch the corresponding "
+            "item to show in the viewport.");
+        switch_key_playhead_hotkeys_[hotkey_id] = i;
+    }
+
+    move_selection_up_hotkey_ = register_hotkey(
+        "Up",
+        "Move backwards through selection",
+        "When comparing multiple selected items hit the hotkey to cycle back through the "
+        "selection. If only one item is selected then select the previous item in the "
+        "playlist.",
+        true);
+
+    move_selection_down_hotkey_ = register_hotkey(
+        "Down",
+        "Move forwards through selection",
+        "When comparing multiple selected items hit the hotkey to cycle forward through the "
+        "selection. If only one item is selected then select the next item in the playlist.",
+        true);
 
     set_down_handler([=](down_msg &msg) {
         /*if (msg.source == playlist_selection_) {
@@ -318,10 +350,43 @@ void PlayheadActor::init() {
             update_child_playhead_positions(true, true);
         },
 
-        [=](jump_atom, const timebase::flicks flicks) -> unit_t {
-            set_position(flicks);
-            update_child_playhead_positions(true);
-            return unit;
+        [=](jump_atom, const timebase::flicks flicks) -> result<bool> {
+
+            auto rp = make_response_promise<bool>();
+            // by requesting duration from self we ensure that we have updated
+            // internal data about source duration, incase this jump message
+            // has come immediately after a change in the source, for example
+            request(caf::actor_cast<caf::actor>(this), infinite, duration_flicks_atom_v)
+                .then(
+                    [=](const timebase::flicks duration) mutable {
+                        if (duration != timebase::k_flicks_zero_seconds) {
+                            set_position(flicks);
+                            update_child_playhead_positions(true);                                           
+                        } else {
+                            set_position(timebase::k_flicks_zero_seconds);
+                        }
+                        // we only deliver the result when we have waited for
+                        // the key playhead to update its position. This means
+                        // that whever made the original request can be sure 
+                        // that the playhead is ready to deliver the frame for
+                        // the requested 'flicks' position
+                        request(
+                            key_playhead_,
+                            infinite,
+                            jump_atom_v,
+                            position(),
+                            forward(),
+                            velocity(),
+                            playing(),
+                            true,
+                            connected_to_ui()).then(
+                                [=]() mutable {
+                                    rp.deliver(true);
+                                },
+                                [=](const caf::error &err) mutable { rp.deliver(err); });                 
+                    },
+                    [=](const caf::error &err) mutable { rp.deliver(err); });
+            return rp;
         },
 
         [=](jump_atom, const utility::Uuid &media_uuid) { jump_to_source(media_uuid); },
@@ -353,9 +418,6 @@ void PlayheadActor::init() {
 
         [=](loop_atom, const LoopMode loop) -> unit_t {
             set_loop(loop);
-            notify_loop_end_changed();
-            notify_loop_start_changed();
-            send(event_group_, utility::event_atom_v, loop_atom_v, loop);
             return unit;
         },
 
@@ -382,13 +444,12 @@ void PlayheadActor::init() {
 
         [=](media_source_atom atom) { delegate(key_playhead_, atom); },
 
-        [=](media_cache::cached_frames_atom) {
-            send(
-                event_group_,
-                utility::event_atom_v,
-                media_cache::cached_frames_atom_v,
-                cached_frames_ranges_);
-        },
+        [=](media_source_atom atom, bool) { delegate(key_playhead_, atom, true); },
+
+        // this is a 'hack'. We need to force the playhead to re-broadcast info about
+        // the current media source when setting up a new viewport. Calling
+        // connected_to_ui_changed will do what we want. see viewport_frame_queue_actor.cpp
+        [=](media_source_atom atom, bool, bool) { connected_to_ui_changed(); },
 
         [=](bookmark::get_bookmarks_atom) {
             send(
@@ -409,7 +470,19 @@ void PlayheadActor::init() {
             const std::vector<std::tuple<utility::Uuid, std::string, int, int>>
                 &bookmark_ranges) {
             if (caf::actor_cast<caf::actor>(current_sender()) == key_playhead_) {
+
                 bookmark_frames_ranges_ = bookmark_ranges;
+
+                std::vector<int> ranges;
+                std::vector<std::string> colours;
+                for (const auto &bm : bookmark_ranges) {
+                    colours.push_back(std::get<1>(bm));
+                    ranges.push_back(std::get<2>(bm));
+                    ranges.push_back(std::get<3>(bm) - std::get<2>(bm));
+                }
+                bookmarked_frames_->set_value(ranges);
+                bookmarked_frames_->set_role_data(module::Attribute::StringChoices, colours);
+
                 send(
                     event_group_,
                     utility::event_atom_v,
@@ -421,6 +494,10 @@ void PlayheadActor::init() {
                     utility::event_atom_v,
                     bookmark::get_bookmarks_atom_v,
                     bookmark_frames_ranges_);
+
+                // force fetch of a new frame with up-to-date bookmark/annotation
+                // sidecar data
+                anon_send(this, jump_atom_v);
             }
         },
 
@@ -431,6 +508,17 @@ void PlayheadActor::init() {
         [=](play_atom, const bool _play) -> unit_t {
             set_playing(_play);
             return unit;
+        },
+
+        [=](play_atom, const float left_right_key_id) {
+            // the messsage comes in with a delay when user hits forward step
+            // or backward step hotkey. If the user is continuing to hold 
+            // down the hotkey (wihtout lifting it since the delayed message
+            // was scheduled) then we can start playback
+            if (step_keypress_event_id_ == left_right_key_id) {
+                set_forward(step_keypress_event_id_ > 0.0f);
+                set_playing(true);
+            }
         },
 
         [=](play_forward_atom) -> bool { return forward(); },
@@ -543,6 +631,7 @@ void PlayheadActor::init() {
             if (child == key_playhead_) {
 
                 playhead_logical_frame_->set_value(logical_frame, false);
+                playhead_position_seconds_->set_value(timebase::to_seconds(position()));
                 playhead_media_logical_frame_->set_value(media_logical_frame, false);
                 current_source_frame_timecode_->set_value(to_string(tc), false);
                 playhead_media_frame_->set_value(media_frame, false);
@@ -961,9 +1050,9 @@ void PlayheadActor::init() {
                         [=](const std::string name) {
                             updating_source_list_ = true;
                             if (mt == media::MT_IMAGE) {
-                                image_source_->set_value(name);
+                                image_source_->set_value(name, false);
                             } else if (mt == media::MT_AUDIO) {
-                                audio_source_->set_value(name);
+                                audio_source_->set_value(name, false);
                             }
                             updating_source_list_ = false;
                         },
@@ -980,6 +1069,11 @@ void PlayheadActor::init() {
                 updating_source_list_ = false;
             }
         },
+
+        [=](utility::event_atom,
+            media_reader::get_thumbnail_atom,
+            const thumbnail::ThumbnailBufferPtr &buf) {},
+
         [=](utility::event_atom, media::media_status_atom, const media::MediaStatus ms) {},
 
         // controls creation and destruction of children
@@ -989,10 +1083,10 @@ void PlayheadActor::init() {
                 current_media_uuid_->set_value(to_string(utility::Uuid()));
                 current_media_source_uuid_->set_value(to_string(utility::Uuid()));
 
-                send(this, jump_atom_v);
+                anon_send(this, jump_atom_v);
                 send(event_group_, utility::event_atom_v, utility::change_atom_v);
             } else {
-                send(this, jump_atom_v);
+                anon_send(this, jump_atom_v);
             }
         },
 
@@ -1310,6 +1404,9 @@ void PlayheadActor::rebuild() {
 
 void PlayheadActor::switch_key_playhead(int idx) {
 
+    if (idx < sub_playheads_.size() && idx >= 0 && key_playhead_ == sub_playheads_[idx])
+        return;
+
     caf::scoped_actor sys(system());
     bool force_move = false;
     if (idx < 0) {
@@ -1323,8 +1420,9 @@ void PlayheadActor::switch_key_playhead(int idx) {
                 // got all the data it needs from its source
                 request_receive<caf::actor>(*sys, ph, source_atom_v);
 
-                if (to_string(request_receive<utility::Uuid>(
-                        *sys, ph, media_source_atom_v, true)) == current_media_uuid_->value()) {
+                if (to_string(
+                        request_receive<utility::UuidActor>(*sys, ph, media_source_atom_v, true)
+                            .uuid()) == current_media_source_uuid_->value()) {
                     idx = i;
                     break;
                 }
@@ -1343,6 +1441,7 @@ void PlayheadActor::switch_key_playhead(int idx) {
     if (idx >= 0 && idx < (int)sub_playheads_.size()) {
 
         key_playhead_ = sub_playheads_[idx];
+        key_playhead_index_->set_value(idx);
         anon_send(key_playhead_, bookmark::get_bookmarks_atom_v);
 
         try {
@@ -1350,7 +1449,7 @@ void PlayheadActor::switch_key_playhead(int idx) {
             // pass the uuid of the new key playhead to the broadcast group
             const Uuid uuid    = request_receive<Uuid>(*sys, key_playhead_, uuid_atom_v);
             key_playhead_uuid_ = uuid;
-            
+
             // if 'switch_key_playhead' is called rapidly, the broadcast made below
             // can reach the receiver out of order, so we need to give it a timestamp
             // so they can know if they have got an out-of-order notification and ignore it
@@ -1552,6 +1651,7 @@ void PlayheadActor::update_duration(caf::typed_response_promise<timebase::flicks
                 } else {
                     set_duration(duration);
                 }
+                duration_seconds_->set_value(timebase::to_seconds(duration));
                 rp.deliver(duration);
             },
             [=](const error &err) mutable {
@@ -1664,6 +1764,7 @@ void PlayheadActor::update_playback_rate() {
     }
 }
 
+
 void PlayheadActor::update_cached_frames_status(
     const media::MediaKeyVector &new_keys, const media::MediaKeyVector &remove_keys) {
 
@@ -1677,7 +1778,7 @@ void PlayheadActor::update_cached_frames_status(
             frames_cached_.erase(key);
     }
 
-    cached_frames_ranges_.clear();
+    std::vector<int> cached_frames_ranges;
     bool in_cache = false;
     std::pair<int, int> r;
 
@@ -1692,21 +1793,18 @@ void PlayheadActor::update_cached_frames_status(
             } else {
                 in_cache = false;
                 r.second = i - 1;
-                cached_frames_ranges_.push_back(r);
+                cached_frames_ranges.push_back(r.first);
+                cached_frames_ranges.push_back(r.second - r.first);
             }
         }
     }
 
     if (in_cache) {
         r.second = count - 1;
-        cached_frames_ranges_.push_back(r);
+        cached_frames_ranges.push_back(r.first);
+        cached_frames_ranges.push_back(r.second - r.first);
     }
-
-    send(
-        event_group_,
-        utility::event_atom_v,
-        media_cache::cached_frames_atom_v,
-        cached_frames_ranges_);
+    cached_frames_->set_value(cached_frames_ranges);
 }
 
 void PlayheadActor::rebuild_cached_frames_status() {
@@ -1872,7 +1970,8 @@ void PlayheadActor::move_playhead_to_last_viewed_frame_of_current_source() {
         scoped_actor sys{system()};
 
         const auto uuid =
-            request_receive<utility::Uuid>(*sys, key_playhead_, media_source_atom_v, true);
+            request_receive<utility::UuidActor>(*sys, key_playhead_, media_source_atom_v, true)
+                .uuid();
 
         if (uuid) {
             const auto p          = media_frame_per_media_uuid_.find(uuid);
@@ -1944,18 +2043,25 @@ void PlayheadActor::attribute_changed(const utility::Uuid &attr_uuid, const int 
         switch_media_source(image_source_->value(), media::MT_IMAGE);
     } else if (attr_uuid == audio_source_->uuid() && !updating_source_list_) {
         switch_media_source(audio_source_->value(), media::MT_AUDIO);
+    } else if (
+        attr_uuid == image_stream_->uuid() && !updating_source_list_ && media_actor_ &&
+        role == module::Attribute::Value) {
+        switch_media_stream(media_actor_, image_stream_->value(), media::MT_IMAGE, true);
     } else if (attr_uuid == playing_->uuid()) {
 
         if (playing()) {
-
-            revert_throttle();
+            revert_throttle();            
             last_step_ = clock::now();
 
             // This is where playback starts! The PlayLoopActor pings this PlayheadBase
             // with 'step' atoms in a ping-pong loop at regular intervals determined
             // by the PlayheadBase base class. See step_atom message handlers in this file.
             spawn<PlayLoopActor>(this);
+        } else {
+            // reset FFWD/FFRV when playback stops
+            velocity_multiplier_->set_value(1.0, false);
         }
+
         send(broadcast_, play_atom_v, playing());
         send(playhead_media_events_group_, utility::event_atom_v, play_atom_v, playing());
         anon_send(audio_output_actor_, play_atom_v, playing());
@@ -1972,8 +2078,107 @@ void PlayheadActor::attribute_changed(const utility::Uuid &attr_uuid, const int 
             caf::actor_cast<caf::actor>(this),
             scrub_frame_atom_v,
             playhead_logical_frame_->value());
+    } else if (attr_uuid == loop_mode_->value()) {
+        notify_loop_end_changed();
+        notify_loop_start_changed();
+        send(event_group_, utility::event_atom_v, loop_atom_v, loop());
+    } else if (attr_uuid == key_playhead_index_->uuid()) {
+        switch_key_playhead(key_playhead_index_->value());
     } else {
         PlayheadBase::attribute_changed(attr_uuid, role);
+    }
+}
+
+void PlayheadActor::hotkey_pressed(
+    const utility::Uuid &hotkey_uuid, const std::string &context) {
+
+    // If the context starts with 'viewport' the hotkey was hit while a viewport
+    // had mouse focus. If that viewport is NOT attached to this playhead we
+    // ignore the hotkey
+    if (context.find("viewport") == 0 &&
+        active_viewports_.find(context) == active_viewports_.end()) {
+        return;
+    }
+
+    if (hotkey_uuid == move_selection_down_hotkey_) {
+
+        if (sub_playheads_.size() <= 1) {
+
+            auto playlist_selection = caf::actor_cast<caf::actor>(playlist_selection_addr_);
+            if (playlist_selection) {
+                anon_send(playlist_selection, playhead::select_next_media_atom_v, 1);
+            }
+
+        } else {
+            for (size_t i = 0; i < sub_playheads_.size(); ++i) {
+                if (sub_playheads_[i] == key_playhead_) {
+                    if (i == (sub_playheads_.size() - 1)) {
+                        switch_key_playhead(0);
+                    } else {
+                        switch_key_playhead(i + 1);
+                    }
+                    break;
+                }
+            }
+        }
+
+    } else if (hotkey_uuid == move_selection_up_hotkey_) {
+
+        if (sub_playheads_.size() <= 1) {
+
+            auto playlist_selection = caf::actor_cast<caf::actor>(playlist_selection_addr_);
+            if (playlist_selection) {
+                anon_send(playlist_selection, playhead::select_next_media_atom_v, -1);
+            }
+
+        } else {
+            for (size_t i = 0; i < sub_playheads_.size(); ++i) {
+                if (sub_playheads_[i] == key_playhead_) {
+                    if (!i) {
+                        switch_key_playhead(sub_playheads_.size() - 1);
+                    } else {
+                        switch_key_playhead(i - 1);
+                    }
+                    break;
+                }
+            }
+        }
+
+    } else if (
+        switch_key_playhead_hotkeys_.find(hotkey_uuid) != switch_key_playhead_hotkeys_.end()) {
+        switch_key_playhead(switch_key_playhead_hotkeys_[hotkey_uuid]);
+    } else if (hotkey_uuid == set_loop_in_) {
+        anon_send(caf::actor_cast<caf::actor>(this), simple_loop_start_atom_v, position());
+    } else if (hotkey_uuid == set_loop_out_) {
+        anon_send(caf::actor_cast<caf::actor>(this), simple_loop_end_atom_v, position());
+    } else if (hotkey_uuid == step_forward_) {
+
+        set_playing(false);
+        anon_send(caf::actor_cast<caf::actor>(this), step_atom_v, 1);
+
+        // make some random number as in 'ID' for the key press. If the key
+        // is STILL being pressed 500ms later (we know this if step_keypress_event_id_
+        // matches the value in the delayed message), we start playback
+        step_keypress_event_id_ = drand48();
+        delayed_anon_send(
+            this, std::chrono::milliseconds(500), play_atom_v, step_keypress_event_id_);
+    } else if (hotkey_uuid == step_backward_) {
+        set_playing(false);
+        anon_send(caf::actor_cast<caf::actor>(this), step_atom_v, -1);
+        step_keypress_event_id_ = -drand48();
+        delayed_anon_send(
+            this, std::chrono::milliseconds(500), play_atom_v, step_keypress_event_id_);
+    } else {
+        PlayheadBase::hotkey_pressed(hotkey_uuid, context);
+    }
+}
+
+void PlayheadActor::hotkey_released(
+    const utility::Uuid &hotkey_uuid, const std::string &context) {
+
+    if (hotkey_uuid == step_forward_ || hotkey_uuid == step_backward_) {
+        set_playing(false);
+        step_keypress_event_id_ = 0.0f;
     }
 }
 
@@ -2029,6 +2234,7 @@ void PlayheadActor::current_media_changed(caf::actor media_actor, const bool for
 
     update_source_multichoice(image_source_, media::MT_IMAGE);
     update_source_multichoice(audio_source_, media::MT_AUDIO);
+    update_stream_multichoice(image_stream_, media::MT_IMAGE);
 }
 
 void PlayheadActor::update_source_multichoice(
@@ -2101,6 +2307,71 @@ void PlayheadActor::update_source_multichoice(
             });
 }
 
+void PlayheadActor::update_stream_multichoice(
+    module::StringChoiceAttribute *streams_attr, const media::MediaType mt) {
+
+    auto clear_attr = [=]() {
+        streams_attr->set_role_data(
+            module::Attribute::StringChoices, std::vector<std::string>(), false);
+        streams_attr->set_value("", false);
+    };
+
+    auto receive_error = [=](error &err) mutable {
+        spdlog::warn("{} {}", __PRETTY_FUNCTION__, to_string(err));
+        clear_attr();
+    };
+
+    // get the MediaSource items in the MediaActor
+    request(media_actor_, infinite, media::get_media_stream_atom_v, mt)
+        .then(
+            [=](const std::vector<UuidActor> &streams) mutable {
+                if (streams.size() <= 1) {
+                    // There is only one stream. We can blank the attr as
+                    // the streams menu will be hidden in this case
+                    clear_attr();
+                }
+
+                // get the name of the current source
+                request(media_actor_, infinite, media::current_media_stream_atom_v, mt)
+                    .then(
+                        [=](const UuidActor currentStream) mutable {
+                            std::vector<caf::actor> stream_actors;
+                            for (const auto &a : streams) {
+                                stream_actors.push_back(a.actor());
+                            }
+
+                            // get the container details of the streams
+                            fan_out_request<policy::select_all>(
+                                stream_actors, infinite, detail_atom_v)
+                                .then(
+                                    [=](std::vector<ContainerDetail> streams_details) mutable {
+                                        std::string current_stream;
+                                        std::vector<std::string> stream_names;
+                                        for (const auto &stream_detail : streams_details) {
+                                            stream_names.push_back(stream_detail.name_);
+                                            if (stream_detail.uuid_ == currentStream) {
+                                                current_stream = stream_detail.name_;
+                                            }
+                                        }
+                                        std::sort(stream_names.begin(), stream_names.end());
+
+                                        streams_attr->set_value(current_stream, false);
+                                        streams_attr->set_role_data(
+                                            module::Attribute::StringChoices,
+                                            stream_names,
+                                            false);
+                                        streams_attr->set_role_data(
+                                            module::Attribute::AbbrStringChoices,
+                                            stream_names,
+                                            false);
+                                    },
+                                    receive_error);
+                        },
+                        receive_error);
+            },
+            receive_error);
+}
+
 void PlayheadActor::restart_readahead_cacheing(
     const bool all_child_playheads, const bool force) {
 
@@ -2171,6 +2442,75 @@ void PlayheadActor::switch_media_source(
             });
 }
 
+void PlayheadActor::switch_media_stream(
+    caf::actor media_actor,
+    const std::string new_stream_name,
+    const media::MediaType mt,
+    bool apply_to_all_selected) {
+
+    auto error_handler = [=](error &err) mutable {
+        spdlog::warn("{} {}", __PRETTY_FUNCTION__, to_string(err));
+    };
+
+    auto apply_to_all = [=]() {
+        // now, if we have a selection actor we want to try and switch all the
+        // media sources in the selected media too:
+        auto playlist_selection = caf::actor_cast<caf::actor>(playlist_selection_addr_);
+        if (playlist_selection) {
+
+            request(playlist_selection, infinite, get_selection_atom_v, true)
+                .then(
+                    [=](std::vector<caf::actor> selected_sources) mutable {
+                        for (auto &media : selected_sources) {
+                            switch_media_stream(media, new_stream_name, mt, false);
+                        }
+                    },
+                    [=](error &err) mutable {
+                        if (to_string(err) != "No frames")
+                            spdlog::warn("{} {}", __PRETTY_FUNCTION__, to_string(err));
+                    });
+        }
+    };
+
+    // get the MediaSource items in the MediaActor
+    request(media_actor, infinite, media::get_media_stream_atom_v, mt)
+        .then(
+            [=](const std::vector<UuidActor> &streams) mutable {
+                std::vector<caf::actor> stream_actors;
+                for (const auto &a : streams) {
+                    stream_actors.push_back(a.actor());
+                }
+
+                // get the container details of the streams
+                fan_out_request<policy::select_all>(stream_actors, infinite, detail_atom_v)
+                    .then(
+                        [=](std::vector<ContainerDetail> streams_details) mutable {
+                            for (const auto &detail : streams_details) {
+                                if (detail.name_ != new_stream_name)
+                                    continue;
+                                request(
+                                    media_actor,
+                                    infinite,
+                                    media::current_media_stream_atom_v,
+                                    mt,
+                                    detail.uuid_)
+                                    .then(
+                                        [=](bool changed) {
+                                            if (changed) {
+                                                restart_readahead_cacheing(false, true);
+                                                if (apply_to_all_selected) {
+                                                    apply_to_all();
+                                                }
+                                            }
+                                        },
+                                        error_handler);
+                            }
+                        },
+                        error_handler);
+            },
+            error_handler);
+}
+
 
 void PlayheadActor::check_if_loop_range_makes_sense() {
 
@@ -2194,4 +2534,34 @@ bool PlayheadActor::has_selection_changed() {
     }
 
     return static_cast<int>(source_actors_.size()) != previous_selected_sources_count_;
+}
+
+void PlayheadActor::make_source_menu_model() {
+
+    // here we make a menu model unique to each instance of the playheadactor.
+    // We use the uuid of the playhead to construct the unique menu model name.
+    // This is picked up in the XsViewerSourceSelectorButton.qml script that
+    // adds the source selector button to the viewport toolbar
+
+    // set the image source and audio source attrs to be 'radiogroup' type
+    image_source_->set_role_data(module::Attribute::Type, "RadioGroup");
+    audio_source_->set_role_data(module::Attribute::Type, "RadioGroup");
+    // image_stream_->set_role_data(module::Attribute::Type, "RadioGroup");
+
+    const std::string source_menu_model_name =
+        "{" + to_string(Module::uuid()) + "}" + "source_menu";
+
+    // add a labelled divider saying 'Video Source'
+    insert_menu_item(source_menu_model_name, "Video Source", "", 1.0f, nullptr, true);
+
+    insert_menu_item(source_menu_model_name, "", "", 2.0f, image_source_);
+
+    insert_menu_item(source_menu_model_name, "Image Layer", "", 2.25f, nullptr, true);
+
+    insert_menu_item(source_menu_model_name, "USE_ATTR_VALUE", "", 2.5f, image_stream_);
+
+    // add a labelled divider saying 'Audio Source'
+    insert_menu_item(source_menu_model_name, "Audio Source", "", 3.0f, nullptr, true);
+
+    insert_menu_item(source_menu_model_name, "", "", 4.0f, audio_source_);
 }

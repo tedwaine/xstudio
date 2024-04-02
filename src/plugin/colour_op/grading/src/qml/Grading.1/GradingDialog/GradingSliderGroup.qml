@@ -10,82 +10,28 @@ import QtQml.Models 2.14
 import QtQuick.Dialogs 1.3 //for ColorDialog
 import QtGraphicalEffects 1.15 //for RadialGradient
 
-import xStudio 1.1
-import xstudio.qml.module 1.0
+import xStudioReskin 1.0
+import xstudio.qml.models 1.0
 
 Item {
+
     id: root
 
     width: Math.max(titleRow.width, sliderList.width)
-    height: titleRow.height + sliderList.height
 
     property string title
-    property string attr_group
-    property string attr_suffix
-    property real fixed_size: -1
 
-    XsModuleAttributesModel {
-        id: attr_model
-        attributesGroupNames: root.attr_group
-    }
-    XsModuleAttributes {
-        id: attr
-        attributesGroupNames: root.attr_group
+    property var colours: ["red", "green", "blue", "white"]
 
-        onAttrAdded: {
-            // Master is added last, we know all the other attributes are here
-            if (attr_name.includes("master")) {
-                inputRed.text    = Qt.binding(function() { return attr["red_"    + root.attr_suffix].toFixed(5) })
-                inputGreen.text  = Qt.binding(function() { return attr["green_"  + root.attr_suffix].toFixed(5) })
-                inputBlue.text   = Qt.binding(function() { return attr["blue_"   + root.attr_suffix].toFixed(5) })
-                inputMaster.text = Qt.binding(function() { return attr["master_" + root.attr_suffix].toFixed(5) })
-            } else if (attr_name === "saturation") {
-                inputRed.text   = Qt.binding(function() { return attr[attr_name].toFixed(5) })
-            }
-        }
-    }
-    XsModuleAttributes {
-        id: attr_default_value
-        attributesGroupNames: root.attr_group
-        roleName: "default_value"
-    }
-    XsModuleAttributes {
-        id: attr_float_scrub_min
-        attributesGroupNames: root.attr_group
-        roleName: "float_scrub_min"
+    ColumnLayout {
 
-        onAttrAdded: {
-            if (attr_name.includes("master")) {
-                inputRed.validator.bottom    = Qt.binding(function() { return attr_float_scrub_min["red_"    + root.attr_suffix] })
-                inputGreen.validator.bottom  = Qt.binding(function() { return attr_float_scrub_min["green_"  + root.attr_suffix] })
-                inputBlue.validator.bottom   = Qt.binding(function() { return attr_float_scrub_min["blue_"   + root.attr_suffix] })
-                inputMaster.validator.bottom = Qt.binding(function() { return attr_float_scrub_min["master_" + root.attr_suffix] })
-            }
-        }
-    }
-    XsModuleAttributes {
-        id: attr_float_scrub_max
-        attributesGroupNames: root.attr_group
-        roleName: "float_scrub_max"
-
-        onAttrAdded: {
-            if (attr_name.includes("master")) {
-                inputRed.validator.top    = Qt.binding(function() { return attr_float_scrub_max["red_"    + root.attr_suffix] })
-                inputGreen.validator.top  = Qt.binding(function() { return attr_float_scrub_max["green_"  + root.attr_suffix] })
-                inputBlue.validator.top   = Qt.binding(function() { return attr_float_scrub_max["blue_"   + root.attr_suffix] })
-                inputMaster.validator.top = Qt.binding(function() { return attr_float_scrub_max["master_" + root.attr_suffix] })
-            }
-        }
-    }
-
-    Column {
-        anchors.topMargin: 5
-        anchors.fill: parent
+        spacing: 10
 
         Row {
+
             id: titleRow
             spacing: 10
-            anchors.horizontalCenter: parent.horizontalCenter
+            Layout.alignment: Qt.AlignHCenter
             height: 30
 
             Text {
@@ -94,22 +40,14 @@ Item {
                 color: "white"
             }
 
-            XsButton {
+            XsPrimaryButton {
                 id: reloadButton
                 width: 20; height: 20
                 bgColorNormal: "transparent"
                 borderWidth: 0
 
                 onClicked: {
-                    if (root.title === "Sat") {
-                        attr["saturation"] = attr_default_value["saturation"]
-                    }
-                    else {
-                        attr["red_"    + root.attr_suffix] = attr_default_value["red_"    + root.attr_suffix]
-                        attr["green_"  + root.attr_suffix] = attr_default_value["green_"  + root.attr_suffix]
-                        attr["blue_"   + root.attr_suffix] = attr_default_value["blue_"   + root.attr_suffix]
-                        attr["master_" + root.attr_suffix] = attr_default_value["master_" + root.attr_suffix]
-                    }
+                    value = default_value
                 }
 
                 Image {
@@ -118,70 +56,60 @@ Item {
                     layer {
                         enabled: true
                         effect: ColorOverlay {
-                            color: reloadButton.down || reloadButton.hovered ? "white" : XsStyle.controlTitleColor
+                            color: reloadButton.down || reloadButton.hovered ? palette.brightText : palette.text
                         }
                     }
                 }
             }
         }
 
-        ListView {
+        Row {
             id: sliderList
-            anchors.horizontalCenter: parent.horizontalCenter
-            anchors.horizontalCenterOffset: -8
-            width: root.fixed_size > 0 ? root.fixed_size : contentItem.childrenRect.width
-            height: 155
-
-            orientation: Qt.Horizontal
-            model: attr_model
-            delegate: GradingVSlider {}
+            Layout.alignment: Qt.AlignHCenter
+            spacing: 10
+            Repeater {
+                model: value.length
+                GradingVSlider {
+                    backend_value: value[index]
+                    default_backend_value: default_value[index]
+                    from: float_scrub_min[index]
+                    to: float_scrub_max[index]
+                    step: float_scrub_step[index]
+                    colour: root.colours[index]
+                    onSetValue: {
+                        var _value = value;
+                        _value[index] = v
+                        value = _value
+                    }
+                }
+            }
         }
 
         Row {
-            anchors.horizontalCenter: parent.horizontalCenter
-            leftPadding: 20
 
+            Layout.alignment: Qt.AlignHCenter
+
+            // stacked text boxes for the R,G,B elements of slope/offset/power
             Column {
+                
                 id: sliderInputCol
-
-                XsTextField {
-                    id: inputRed
-                    width: 60
-                    bgColorNormal: "transparent"
-                    borderColor: bgColorNormal
-                    validator: DoubleValidator {}
-
-                    onEditingFinished: {
-                        if (root.title === "Sat") {
-                            attr["saturation"] = parseFloat(text)
+                Repeater {
+                    model: value.length-1
+                    XsTextField {
+                        id: inputRed
+                        width: 60
+                        bgColorNormal: "transparent"
+                        borderColor: bgColorNormal
+                        validator: DoubleValidator {
+                            bottom: float_scrub_min[index]
                         }
-                        else {
-                            attr["red_" + root.attr_suffix] = parseFloat(text)
+                        text: value[index].toFixed(5)
+
+                        onEditingFinished: {
+                            var _value = value;
+                            _value[index] = parseFloat(text)
+                            value = _value
                         }
-                    }
-                }
-                XsTextField {
-                    id: inputGreen
-                    visible: root.title != "Sat"
-                    width: 60
-                    bgColorNormal: "transparent"
-                    borderColor: bgColorNormal
-                    validator: DoubleValidator {}
-
-                    onEditingFinished: {
-                        attr["green_" + root.attr_suffix] = parseFloat(text)
-                    }
-                }
-                XsTextField {
-                    id: inputBlue
-                    visible: root.title != "Sat"
-                    width: 60
-                    bgColorNormal: "transparent"
-                    borderColor: bgColorNormal
-                    validator: DoubleValidator {}
-
-                    onEditingFinished: {
-                        attr["blue_" + root.attr_suffix] = parseFloat(text)
                     }
                 }
             }
@@ -191,27 +119,37 @@ Item {
                 leftPadding: 5
 
                 Label {
-                    visible: root.title != "Sat"
+                    visible: root.title != "Saturation"
                     text: root.title == "Offset" ? "+" : "x"
                 }
             }
 
+            // stacked text boxes for the 'master' control of slope/offset/power
             Column {
                 anchors.verticalCenter: parent.verticalCenter
-
                 XsTextField {
                     id: inputMaster
-                    visible: root.title != "Sat"
                     width: 60
                     bgColorNormal: "transparent"
                     borderColor: bgColorNormal
-                    validator: DoubleValidator {}
+                    validator: DoubleValidator {
+                        bottom: float_scrub_min[float_scrub_min.length-1]
+                    }
+                    text: value[value.length-1].toFixed(5)
 
                     onEditingFinished: {
-                        attr["master_" + root.attr_suffix] = parseFloat(text)
-                    }
+                        var _value = value;
+                        _value[value.length-1] = parseFloat(text)
+                        value = _value
+                }
                 }
             }
         }
     }
+
+    Item {
+        // spacer
+        Layout.fillHeight: true
+    }
+
 }
