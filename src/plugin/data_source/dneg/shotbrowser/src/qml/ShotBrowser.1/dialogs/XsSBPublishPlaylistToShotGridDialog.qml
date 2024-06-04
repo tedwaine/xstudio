@@ -11,7 +11,6 @@ import QuickFuture 1.0
 import xStudioReskin 1.0
 import ShotBrowser 1.0
 import xstudio.qml.helpers 1.0
-import xstudio.qml.module 1.0
 
 
 XsWindow {
@@ -66,13 +65,13 @@ XsWindow {
     }
 
     function publish() {
-		console.log(
-			helpers.QVariantFromUuidString(playlistProperties.values.actorUuidRole),
-			project_id,
-			playlist_name,
-			site_name,
-			playlist_type
-		)
+		// console.log(
+		// 	helpers.QVariantFromUuidString(playlistProperties.values.actorUuidRole),
+		// 	project_id,
+		// 	playlist_name,
+		// 	site_name,
+		// 	playlist_type
+		// )
 
 		ShotBrowserHelpers.publishPlaylistToShotGrid(
 			helpers.QVariantFromUuidString(playlistProperties.values.actorUuidRole),
@@ -127,13 +126,11 @@ XsWindow {
                 	if(model.length) {
                 		project_id = projectPref.value
 					    currentIndex = model.searchRecursive(projectPref.value, "idRole").row
-					    console.log(project_id)
                 	}
 				}
 
                 onActivated: {
                 	project_id = parseInt(currentValue)
-                	console.log(project_id)
                 }
             }
 
@@ -188,7 +185,7 @@ XsWindow {
                 Layout.fillWidth: true
                 Layout.rightMargin: 6
                 Layout.alignment: Qt.AlignVCenter|Qt.AlignLeft
-                text: playlistProperties.values.nameRole
+                text: playlistProperties ? playlistProperties.values.nameRole : ""
             }
             XsLabel {
                 text: "Valid ShotGrid Media : "

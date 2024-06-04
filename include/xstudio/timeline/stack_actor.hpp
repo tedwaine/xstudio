@@ -17,6 +17,9 @@ namespace timeline {
             caf::actor_config &cfg,
             const std::string &name   = "Stack",
             const utility::Uuid &uuid = utility::Uuid::generate());
+
+        StackActor(caf::actor_config &cfg, const Item &item);
+        StackActor(caf::actor_config &cfg, const Item &item, Item &nitem);
         ~StackActor() override = default;
 
         const char *name() const override { return NAME.c_str(); }
@@ -31,6 +34,7 @@ namespace timeline {
         void add_item(const utility::UuidActor &ua);
         caf::actor
         deserialise(const utility::JsonStore &value, const bool replace_item = false);
+        void deserialise();
         void item_event_callback(const utility::JsonStore &event, Item &item);
         void insert_items(
             const int index,

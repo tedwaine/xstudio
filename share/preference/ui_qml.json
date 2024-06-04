@@ -1318,16 +1318,26 @@
 				"datatype": "json",
 				"context": ["QML_UI"]
 			},
-			"media_list_columns_config": {
-				"path": "/ui/qml/media_list_columns_config",
+			"media_list_column_configuration": {
+				"path": "/ui/qml/media_list_column_configuration",
 				"default_value": "{}",
-				"description": "Media List Columns Configuration",
+				"description": "Data for building custom columns in media list panel instances",
+				"value": {
+					"children": []
+				},
+				"datatype": "json",
+				"context": ["QML_UI"]
+			},
+			"media_list_columns_default_config": {
+				"path": "/ui/qml/media_list_columns_default_config",
+				"default_value": "{}",
+				"description": "Default set-up for columns in a new media list panel",
 				"value": {
 					"target_role_data_slot": 0,
 					"children": [
 					{
 						"title": "",
-						"size": 2,
+						"size": 10,
 						"resizable": false,
 						"data_type": "flag",
 						"sortable": false
@@ -1348,23 +1358,36 @@
 					},
 					{
 						"title": "File",
+						"metadata_path": "/metadata/shotgun/version/attributes/code",
+						"data_type": "metadata",
 						"size": 360,
-						"role_name": "pathRole",
-						"object": "MediaSource",
+						"object": "Media",
 						"resizable": true,
-						"data_type": "role_data",
 						"sortable": true,
 						"position": "left",
-						"format_regex": ".+\\/([^\\/]+)$",
-						"format_out": "$1"
+						"children": [
+							{
+								"info_key": "File Path - MediaSource (Image)",
+								"data_type": "media_standard_details",
+								"regex_match": "(.+)\/([^\/]+)$",
+								"regex_format": "$2",
+								"children": [
+									{								
+										"info_key": "File Path - MediaSource (Audio)",
+										"data_type": "media_standard_details",
+										"regex_match": "(.+)\/([^\/]+)$",
+										"regex_format": "$2"		
+									}
+								]
+							}
+						]
 					},
 					{
 						"title": "Resolution",
 						"size": 90,
-						"object": "MediaSource",
-						"role_name": "resolutionRole",
 						"resizable": true,
-						"data_type": "role_data",
+						"info_key": "Resolution - MediaSource (Image)",
+						"data_type": "media_standard_details",
 						"sortable": false
 					},
 					{
@@ -1382,24 +1405,30 @@
 						"data_type": "metadata",
 						"resizable": true,
 						"sortable": false,
-						"format_regex": "([0-9]+\\-[0-9]+\\-[0-9]+).+",
-						"format_out": "$1"
+						"regex_match": "([0-9]+\\-[0-9]+\\-[0-9]+).+",
+						"regex_format": "$1"
 					},
 					{
-						"title": "Duration",
-						"metadata_path": "/metadata/media/@/format/duration",
+						"title": "Artist",
+						"metadata_path": "/metadata/shotgun/version/relationships/created_by/data/name",
 						"object": "Media",
-						"size": 120,
+						"size": 200,
 						"data_type": "metadata",
 						"resizable": true,
-						"sortable": false,
-						"format_regex": "([0-9]+)\\.([0-9]).+",
-						"format_out": "$1.$2"
+						"sortable": true
+					},
+					{
+						"title": "Frame Range",
+						"info_key": "Frame Range - MediaSource (Image)",
+						"data_type": "media_standard_details",
+						"size": 120,
+						"resizable": true,
+						"sortable": false
 					},
 					{
 						"title": "Codec",
-						"metadata_path": "/metadata/stream/@/codec_name",
-						"object": "MediaStream",
+						"metadata_path": "regex:/metadata/media/.*standard_fields/format",
+						"object": "MediaSource (Image)",
 						"size": 120,
 						"data_type": "metadata",
 						"resizable": true,
@@ -1408,13 +1437,10 @@
 					{
 						"title": "Frame Rate",
 						"size": 70,
-						"object": "MediaSource",
-						"role_name": "rateFPSRole",
+						"info_key": "Frame Rate - MediaSource (Image)",
+						"data_type": "media_standard_details",
 						"resizable": true,
-						"data_type": "role_data",
-						"sortable": false,
-						"format_regex": "([0-9]+)([\\.0-9]?)([0-9]?)([1-9]?).*",
-						"format_out": "$1$2$3$4"
+						"sortable": false
 					}					
 				]},
 				"datatype": "json",

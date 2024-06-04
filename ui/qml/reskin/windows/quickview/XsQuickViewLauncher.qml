@@ -16,8 +16,8 @@ Item {
 
         target: studio
 
-        function onOpenQuickViewers(media_actors, compare_mode) {
-            launchQuickViewer(media_actors, compare_mode)
+        function onOpenQuickViewers(media_actors, compare_mode, in_frame, out_frame) {
+            launchQuickViewer(media_actors, compare_mode, in_frame, out_frame)
         }
 
         function onSessionRequest(path, jsn) {
@@ -57,8 +57,8 @@ Item {
         quickWinPosSet = true
     }
 
-    function launchQuickViewer(sources, compare_mode) {
-        launchQuickViewerWithSize(sources, compare_mode, quickWinPosition, quickWinSize)
+    function launchQuickViewer(sources, compare_mode, in_frame, out_frame) {
+        launchQuickViewerWithSize(sources, compare_mode, in_frame, out_frame, quickWinPosition, quickWinSize)
         if (quickWinPosSet) {
             // rest the default position for the next QuickView window
             quickWinPosition = Qt.point(100, 100)
@@ -70,7 +70,7 @@ Item {
         }
     }
 
-    function launchQuickViewerWithSize(sources, compare_mode, __position, __size) {
+    function launchQuickViewerWithSize(sources, compare_mode, in_frame, out_frame, __position, __size) {
 
         var component = Qt.createComponent("XsQuickViewWindow.qml");
         if (component.status == Component.Ready) {
@@ -78,7 +78,7 @@ Item {
                 for (var source in sources) {
                     var quick_viewer = component.createObject(appWindow, {x: __position.x, y: __position.y, width: __size.width, height: __size.height});
                     quick_viewer.show()
-                    quick_viewer.viewport.view.quickViewSource([sources[source]], "Off")
+                    quick_viewer.viewport.view.quickViewSource([sources[source]], "Off", in_frame, out_frame)
                     quick_viewer.raise()
                     quick_viewer.requestActivate()
                     quick_viewer.raise()
@@ -86,7 +86,7 @@ Item {
             } else {
                 var quick_viewer = component.createObject(appWindow, {x: __position.x, y: __position.y, width: __size.width, height: __size.height});
                 quick_viewer.show()
-                quick_viewer.viewport.view.quickViewSource(sources, compare_mode)
+                quick_viewer.viewport.view.quickViewSource(sources, compare_mode, in_frame, out_frame)
                 quick_viewer.raise()
                 quick_viewer.requestActivate()
                 quick_viewer.raise()

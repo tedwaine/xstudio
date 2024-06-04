@@ -328,12 +328,12 @@ caf::message_handler ColourPipeline::message_handler_extensions() {
             }
         },
         [=](connect_to_viewport_atom,
-            caf::actor viewport_actor,
             const std::string &viewport_name,
             const std::string &viewport_toolbar_name,
-            bool connect) {
+            bool connect,
+            caf::actor viewport) {
             disable_linking();
-            connect_to_viewport(viewport_name, viewport_toolbar_name, connect);
+            connect_to_viewport(viewport_name, viewport_toolbar_name, connect, viewport);
             enable_linking();
             connect_to_ui();
         },
@@ -361,8 +361,7 @@ caf::message_handler ColourPipeline::message_handler_extensions() {
         },
         [=](json_store::update_atom, const utility::JsonStore &) mutable {},
         [=](utility::serialise_atom) -> utility::JsonStore { return serialise(); },
-        [=](ui::viewport::pre_render_gpu_hook_atom,
-            const int viewer_index) -> result<plugin::GPUPreDrawHookPtr> {
+        [=](ui::viewport::pre_render_gpu_hook_atom) -> result<plugin::GPUPreDrawHookPtr> {
             // This message handler overrides the one in PluginBase class.
             // op plugins themselves might have a GPUPreDrawHook that needs
             // to be passed back up to the Viewport object that is making this
@@ -370,10 +369,10 @@ caf::message_handler ColourPipeline::message_handler_extensions() {
             // (see load_colour_op_plugins) we therefore need our own logic here.
             auto rp = make_response_promise<plugin::GPUPreDrawHookPtr>();
             if (colour_ops_loaded_) {
-                make_pre_draw_gpu_hook(rp, viewer_index);
+                make_pre_draw_gpu_hook(rp);
             } else {
                 // add to a queue of these requests pending a response
-                hook_requests_.push_back(std::make_pair(rp, viewer_index));
+                hook_requests_.push_back(rp);
                 // load_colour_op_plugins() will respond to these requests
                 // when all the plugins are loaded.
             }
@@ -525,7 +524,7 @@ void ColourPipeline::load_colour_op_plugins() {
                 if (colour_op_plugin_details.empty()) {
                     colour_ops_loaded_ = true;
                     for (auto &hr : hook_requests_) {
-                        make_pre_draw_gpu_hook(hr.first, hr.second);
+                        make_pre_draw_gpu_hook(hr);
                     }
                     hook_requests_.clear();
                 }
@@ -548,14 +547,14 @@ void ColourPipeline::load_colour_op_plugins() {
                                 if (!(*count)) {
                                     colour_ops_loaded_ = true;
                                     for (auto &hr : hook_requests_) {
-                                        make_pre_draw_gpu_hook(hr.first, hr.second);
+                                        make_pre_draw_gpu_hook(hr);
                                     }
                                     hook_requests_.clear();
                                 }
                             },
                             [=](const caf::error &err) mutable {
                                 for (auto &hr : hook_requests_) {
-                                    hr.first.deliver(err);
+                                    hr.deliver(err);
                                 }
                                 hook_requests_.clear();
                             });
@@ -563,7 +562,7 @@ void ColourPipeline::load_colour_op_plugins() {
             },
             [=](const caf::error &err) mutable {
                 for (auto &hr : hook_requests_) {
-                    hr.first.deliver(err);
+                    hr.deliver(err);
                 }
                 hook_requests_.clear();
             });
@@ -594,7 +593,7 @@ class HookCollection : public plugin::GPUPreDrawHook {
 
 
 void ColourPipeline::make_pre_draw_gpu_hook(
-    caf::typed_response_promise<plugin::GPUPreDrawHookPtr> rp, const int viewer_index) {
+    caf::typed_response_promise<plugin::GPUPreDrawHookPtr> rp) {
 
     // assumption: requests made in load_colour_op_plugins have finished
     HookCollection *collection = new HookCollection();
@@ -612,8 +611,7 @@ void ColourPipeline::make_pre_draw_gpu_hook(
     auto count = std::make_shared<int>(colour_op_plugins_.size());
     for (auto &colour_op_plugin : colour_op_plugins_) {
 
-        request(
-            colour_op_plugin, infinite, ui::viewport::pre_render_gpu_hook_atom_v, viewer_index)
+        request(colour_op_plugin, infinite, ui::viewport::pre_render_gpu_hook_atom_v)
             .then(
                 [=](plugin::GPUPreDrawHookPtr &hook) mutable {
                     if (hook) {

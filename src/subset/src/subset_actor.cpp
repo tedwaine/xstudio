@@ -38,9 +38,11 @@ SubsetActor::SubsetActor(caf::actor_config &cfg, caf::actor playlist, const std:
 
 void SubsetActor::add_media(
     caf::actor actor, const utility::Uuid &uuid, const utility::Uuid &before_uuid) {
-    base_.insert_media(uuid, before_uuid);
-    actors_[uuid] = actor;
-    monitor(actor);
+    if (not base_.contains_media(uuid)) {
+        base_.insert_media(uuid, before_uuid);
+        actors_[uuid] = actor;
+        monitor(actor);
+    }
 }
 
 bool SubsetActor::remove_media(caf::actor actor, const utility::Uuid &uuid) {
@@ -293,7 +295,7 @@ void SubsetActor::init() {
                     event_group_,
                     utility::event_atom_v,
                     playlist::add_media_atom_v,
-                    UuidActor(uuid, actor));
+                    UuidActorVector({UuidActor(uuid, actor)}));
                 base_.send_changed(event_group_, this);
                 send(event_group_, utility::event_atom_v, change_atom_v);
                 send(change_event_group_, utility::event_atom_v, utility::change_atom_v);
@@ -332,7 +334,7 @@ void SubsetActor::init() {
                 //     event_group_,
                 //     utility::event_atom_v,
                 //     playlist::add_media_atom_v,
-                //     UuidActor(uuid, actor));
+                //     UuidActorVector({UuidActor(uuid, actor)}));
                 // base_.send_changed(event_group_, this);
                 // send(event_group_, utility::event_atom_v, change_atom_v);
                 // send(change_event_group_, utility::event_atom_v, utility::change_atom_v);
@@ -367,7 +369,7 @@ void SubsetActor::init() {
                         //     event_group_,
                         //     utility::event_atom_v,
                         //     playlist::add_media_atom_v,
-                        //     UuidActor(uuid, actor));
+                        //     UuidActorVector({UuidActor(uuid, actor)}));
                         // base_.send_changed(event_group_, this);
                         // rp.deliver(true);
                     },
@@ -398,7 +400,7 @@ void SubsetActor::init() {
                                         event_group_,
                                         utility::event_atom_v,
                                         playlist::add_media_atom_v,
-                                        UuidActor(i, ii.actor()));
+                                        UuidActorVector({UuidActor(i, ii.actor())}));
                                     break;
                                 }
                             }
@@ -428,8 +430,8 @@ void SubsetActor::init() {
             const utility::Uuid &uuid_before) -> result<bool> {
             for (const auto &i : media_actors) {
                 add_media(i.actor(), i.uuid(), uuid_before);
-                send(event_group_, utility::event_atom_v, playlist::add_media_atom_v, i);
             }
+            send(event_group_, utility::event_atom_v, playlist::add_media_atom_v, media_actors);
             send(event_group_, utility::event_atom_v, change_atom_v);
             send(change_event_group_, utility::event_atom_v, utility::change_atom_v);
             base_.send_changed(event_group_, this);
@@ -574,7 +576,12 @@ void SubsetActor::init() {
 
         [=](playlist::selection_actor_atom) -> caf::actor { return selection_actor_; },
 
-        [=](playlist::sort_alphabetically_atom) { sort_alphabetically(); },
+        [=](playlist::sort_by_media_display_info_atom,
+            const int info_set_idx,
+            const int info_item_idx,
+            const bool ascending) {
+            sort_by_media_display_info(info_set_idx, info_item_idx, ascending);
+        },
 
         [=](get_next_media_atom,
             const utility::Uuid &after_this_uuid,
@@ -626,6 +633,14 @@ void SubsetActor::init() {
                 "exists");
         },
 
+        // [=](json_store::get_json_atom atom, const std::string &path) {
+        //     delegate(caf::actor_cast<caf::actor>(playlist_), atom, path);
+        // },
+
+        // [=](json_store::set_json_atom atom, const JsonStore &json, const std::string &path) {
+        //     delegate(caf::actor_cast<caf::actor>(playlist_), atom, json, path);
+        // },
+
         [=](session::session_atom) {
             delegate(caf::actor_cast<caf::actor>(playlist_), session::session_atom_v);
         },
@@ -667,7 +682,11 @@ void SubsetActor::add_media(
         }
 
         add_media(actor, ua.uuid(), before_uuid);
-        send(event_group_, utility::event_atom_v, playlist::add_media_atom_v, ua);
+        send(
+            event_group_,
+            utility::event_atom_v,
+            playlist::add_media_atom_v,
+            UuidActorVector({ua}));
         base_.send_changed(event_group_, this);
         send(event_group_, utility::event_atom_v, change_atom_v);
         send(change_event_group_, utility::event_atom_v, utility::change_atom_v);
@@ -678,7 +697,8 @@ void SubsetActor::add_media(
     }
 }
 
-void SubsetActor::sort_alphabetically() {
+void SubsetActor::sort_by_media_display_info(
+    const int info_set_idx, const int info_item_idx, const bool ascending) {
 
     using SourceAndUuid = std::pair<std::string, utility::Uuid>;
     auto media_names_vs_uuids =

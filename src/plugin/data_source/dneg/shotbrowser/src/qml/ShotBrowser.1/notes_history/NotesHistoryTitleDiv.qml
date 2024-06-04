@@ -8,6 +8,7 @@ import Qt.labs.qmlmodels 1.0
 
 import xStudioReskin 1.0
 import ShotBrowser 1.0
+import xstudio.qml.helpers 1.0
 
 Item{id: titleDiv
 
@@ -15,11 +16,28 @@ Item{id: titleDiv
     property real titleButtonSpacing: 1
     property real titleButtonHeight: XsStyleSheet.widgetStdHeight+4
 
-    XsSortFilterModel {
+    ShotBrowserPresetFilterModel {
+        id: scopeFilterModel
+        showHidden: false
+        filterUserData: "scope"
+
+        sourceModel: ShotBrowserEngine.presetsModel
+    }
+
+    ShotBrowserPresetFilterModel {
+        id: typeFilterModel
+        showHidden: false
+        filterUserData: "type"
+
+        sourceModel: ShotBrowserEngine.presetsModel
+    }
+
+
+    DelegateModel {
         id: scopeGroupModel
 
-        // this is required as "model" doesn't issue notifications on change
-        // srcModel: ShotBrowserEngine.presetsModel
+        property var srcModel: scopeFilterModel
+        onSrcModelChanged: model = srcModel
 
         delegate: Item {
             width: ListView.view.width / ListView.view.count
@@ -29,22 +47,21 @@ Item{id: titleDiv
                 width: parent.width  - titleButtonSpacing
                 height: titleButtonHeight
                 text: nameRole
-                isActive: activeScopeIndex == scopeGroupModel.modelIndex(index)
+                isActive: activeScopeIndex == scopeGroupModel.srcModel.mapToSource(scopeGroupModel.modelIndex(index))
 
                 onClicked: {
-                    activateScope(scopeGroupModel.modelIndex(index))
+                    activateScope(scopeGroupModel.srcModel.mapToSource(scopeGroupModel.modelIndex(index)))
                 }
             }
         }
-
-        filterAcceptsItem: function(item) {
-            return item.userdataRole == "scope"
-        }
     }
 
-    XsSortFilterModel {
+    DelegateModel {
         id: typeGroupModel
 
+        property var srcModel: typeFilterModel
+        onSrcModelChanged: model = srcModel
+
         delegate: Item {
             width: ListView.view.width / ListView.view.count
             height: titleButtonHeight
@@ -53,33 +70,24 @@ Item{id: titleDiv
                 width: parent.width  - titleButtonSpacing
                 height: titleButtonHeight
                 text: nameRole
-                isActive: activeTypeIndex == typeGroupModel.modelIndex(index)
+                isActive: activeTypeIndex == typeGroupModel.srcModel.mapToSource(typeGroupModel.modelIndex(index))
 
                 onClicked: {
-                    activateType(typeGroupModel.modelIndex(index))
+                    activateType(typeGroupModel.srcModel.mapToSource(typeGroupModel.modelIndex(index)))
                 }
             }
         }
-
-        filterAcceptsItem: function(item) {
-            return item.userdataRole == "type"
-        }
     }
 
-
     function populateModels() {
-        typeGroupModel.srcModel = ShotBrowserEngine.presetsModel
-        typeGroupModel.rootIndex = ShotBrowserEngine.presetsModel.searchRecursive(
+        typeGroupModel.rootIndex = helpers.makePersistent(typeFilterModel.mapFromSource(ShotBrowserEngine.presetsModel.searchRecursive(
             "aac8207e-129d-4988-9e05-b59f75ae2f75", "idRole", ShotBrowserEngine.presetsModel.index(-1, -1), 0, 1
-        )
-        typeGroupModel.update()
+        )))
         typeList.model = typeGroupModel
 
-        scopeGroupModel.srcModel = ShotBrowserEngine.presetsModel
-        scopeGroupModel.rootIndex = ShotBrowserEngine.presetsModel.searchRecursive(
+        scopeGroupModel.rootIndex = helpers.makePersistent(scopeFilterModel.mapFromSource(ShotBrowserEngine.presetsModel.searchRecursive(
             "aac8207e-129d-4988-9e05-b59f75ae2f75", "idRole", ShotBrowserEngine.presetsModel.index(-1, -1), 0, 1
-        )
-        scopeGroupModel.update()
+        )))
         scopeList.model = scopeGroupModel
     }
 

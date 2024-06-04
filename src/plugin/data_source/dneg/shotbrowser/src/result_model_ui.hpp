@@ -28,7 +28,12 @@ class ShotBrowserResultModel : public JSONTreeModel {
     Q_PROPERTY(bool truncated READ truncated NOTIFY stateChanged)
 
     Q_PROPERTY(int page READ page NOTIFY stateChanged)
+    Q_PROPERTY(int executionMilliseconds READ executionMilliseconds NOTIFY stateChanged)
     Q_PROPERTY(int maxResult READ maxResult NOTIFY stateChanged)
+
+    Q_PROPERTY(QUuid presetId READ presetId NOTIFY stateChanged)
+    Q_PROPERTY(QUuid groupId READ groupId NOTIFY stateChanged)
+
     Q_PROPERTY(QString audioSource READ audioSource NOTIFY stateChanged)
     Q_PROPERTY(QString visualSource READ visualSource NOTIFY stateChanged)
     Q_PROPERTY(QString flagColour READ flagColour NOTIFY stateChanged)
@@ -50,6 +55,7 @@ class ShotBrowserResultModel : public JSONTreeModel {
         artistRole,
         assetRole,
         authorRole,
+        clientFilenameRole,
         clientNoteRole,
         contentRole,
         createdByRole,
@@ -71,6 +77,7 @@ class ShotBrowserResultModel : public JSONTreeModel {
         onSiteMum,
         onSiteSyd,
         onSiteVan,
+        otioRole,
         pipelineStatusFullRole,
         pipelineStatusRole,
         pipelineStepRole,
@@ -118,6 +125,11 @@ class ShotBrowserResultModel : public JSONTreeModel {
     [[nodiscard]] bool truncated() const;
     [[nodiscard]] int page() const;
     [[nodiscard]] int maxResult() const;
+    [[nodiscard]] int executionMilliseconds() const;
+
+    [[nodiscard]] QUuid presetId() const;
+    [[nodiscard]] QUuid groupId() const;
+
     [[nodiscard]] QString audioSource() const;
     [[nodiscard]] QString visualSource() const;
     [[nodiscard]] QString flagColour() const;

@@ -224,7 +224,7 @@ void PlayheadSelectionActor::init() {
         [=](utility::event_atom, playlist::move_media_atom, const UuidVector &, const Uuid &) {
         },
         [=](utility::event_atom, playlist::remove_media_atom, const UuidVector &) {},
-        [=](utility::event_atom, playlist::add_media_atom, utility::UuidActor media) {
+        [=](utility::event_atom, playlist::add_media_atom, const utility::UuidActorVector &) {
             if (base_.items().empty()) {
                 select_one();
             }

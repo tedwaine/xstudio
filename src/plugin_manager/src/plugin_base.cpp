@@ -48,11 +48,13 @@ StandardPlugin::StandardPlugin(
             const std::string &viewport_name,
             const bool playing) { images_going_on_screen(images, viewport_name, playing); },
 
-        [=](ui::viewport::overlay_render_function_atom, const int viewer_index)
-            -> ViewportOverlayRendererPtr { return make_overlay_renderer(viewer_index); },
+        [=](ui::viewport::overlay_render_function_atom) -> ViewportOverlayRendererPtr {
+            return make_overlay_renderer();
+        },
 
-        [=](ui::viewport::pre_render_gpu_hook_atom, const int viewer_index)
-            -> GPUPreDrawHookPtr { return make_pre_draw_gpu_hook(viewer_index); },
+        [=](ui::viewport::pre_render_gpu_hook_atom) -> GPUPreDrawHookPtr {
+            return make_pre_draw_gpu_hook();
+        },
 
         [=](bookmark::build_annotation_atom,
             const utility::JsonStore &data) -> result<AnnotationBasePtr> {
@@ -214,7 +216,6 @@ void StandardPlugin::join_studio_events() {
                 broadcast::join_broadcast_atom_v,
                 caf::actor_cast<caf::actor>(this));
         }
-
 
     } catch (const std::exception &err) {
         spdlog::warn("{} {}", __PRETTY_FUNCTION__, err.what());

@@ -57,20 +57,31 @@ Item{ id: toolDiv
 
         XsComboBoxEditable{
             id: combo
-            model: ShotBrowserEngine.presetsModel.termModel("Project")
+            model: ShotBrowserEngine.ready ? ShotBrowserEngine.presetsModel.termModel("Project") : []
             textRole: "nameRole"
             Layout.fillWidth: true
             Layout.minimumWidth: categoryBtnWidth
             Layout.preferredHeight: parent.height
             textField.font.weight: Font.Black
-            onCurrentIndexChanged: projectIndex = model.index(currentIndex, 0)
+
+            onActivated: projectIndex = model.index(index, 0)
+            onAccepted: {
+                projectIndex = model.index(currentIndex, 0)
+                toolDiv.forceActiveFocus()
+            }
 
             Connections {
                 target: panel
                 function onProjectIndexChanged() {
+                    // console.log(projectIndex, projectIndex.row)
                     if(combo.currentIndex != projectIndex.row) {
                         combo.currentIndex = projectIndex.row
                     }
+                }
+            }
+            Component.onCompleted: {
+                if(projectIndex && projectIndex.valid && combo.currentIndex != projectIndex.row) {
+                    combo.currentIndex = projectIndex.row
                 }
             }
         }

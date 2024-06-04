@@ -23,6 +23,8 @@ TextField { id: widget
     property bool forcedBg: false
     property bool forcedHover: false
 
+    opacity: enabled ? 1.0 : 0.5
+
     signal editingCompleted()
 
     font.bold: true

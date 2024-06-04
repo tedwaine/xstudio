@@ -42,8 +42,7 @@ void ViewportGLWidget::init(caf::actor_system &system) {
     the_viewport_.reset(new ui::viewport::Viewport(
         jsn,
         as_actor(),
-        true,
-        viewport::ViewportRendererPtr(new opengl::OpenGLViewportRenderer(true, false))));
+        viewport::ViewportRendererPtr(new opengl::OpenGLViewportRenderer(false))));
 
     auto callback = [this](auto &&PH1) {
         receive_change_notification(std::forward<decltype(PH1)>(PH1));

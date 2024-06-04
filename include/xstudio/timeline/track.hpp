@@ -24,6 +24,7 @@ namespace timeline {
             const utility::Uuid &uuid         = utility::Uuid::generate(),
             const caf::actor &actor           = caf::actor());
         Track(const utility::JsonStore &jsn);
+        Track(const Item &item, const caf::actor &actor);
 
         ~Track() override = default;
 

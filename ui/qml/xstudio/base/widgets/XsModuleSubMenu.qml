@@ -4,7 +4,6 @@ import QtQuick.Controls 2.5
 import QtGraphicalEffects 1.12
 
 import xStudio 1.0
-import xstudio.qml.module 1.0
 
 // Looking closely at the below, it looks a bit insane with the nested Instantiators!
 // The idea is that this allows us to have menu/submenus going to a depth of up to 4

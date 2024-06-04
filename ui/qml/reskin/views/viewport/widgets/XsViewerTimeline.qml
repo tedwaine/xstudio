@@ -15,77 +15,19 @@ Item {
     property var tickSpacings: [1, 2, 5, 10, 20, 50, 100, 200, 500, 1000, 2000, 5000, 10000, 20000, 50000, 100000, 200000]
     property real tickSpacing: 1.0
     property real minTickSpacing: 5
-    property real scaleFactor: width / (playheadDurationFrames-1)
+    property real scaleFactor: width / (viewportPlayhead.durationFrames-1)
     onScaleFactorChanged: {
         computeTickSpacing()
     }
 
-    XsAttributeValue {
-        id: __playheadLogicalFrame
-        attributeTitle: "Logical Frame"
-        model: viewportPlayheadDataModel
-    }
-    XsAttributeValue {
-        id: __playheadDurationFrames
-        attributeTitle: "Duration Frames"
-        model: viewportPlayheadDataModel
-    }
-    XsAttributeValue {
-        id: __playheadCachedFrames
-        attributeTitle: "Cached Frames"
-        model: viewportPlayheadDataModel
-    }
-    XsAttributeValue {
-        id: __playheadBookmarkedFrames
-        attributeTitle: "Bookmarked Frames"
-        model: viewportPlayheadDataModel
-    }
-    XsAttributeValue {
-        id: __playheadBookmarkedFrameColours
-        role: "combo_box_options"
-        attributeTitle: "Bookmarked Frames"
-        model: viewportPlayheadDataModel
-    }
-    XsAttributeValue {
-        id: __playheadLoopStartFrame
-        attributeTitle: "Loop Start Frame"
-        model: viewportPlayheadDataModel
-    }
-    XsAttributeValue {
-        id: __playheadLoopEndFrame
-        attributeTitle: "Loop End Frame"
-        model: viewportPlayheadDataModel
-    }
-    XsAttributeValue {
-        id: __playheadEnableLoopRange
-        attributeTitle: "Enable Loop Range"
-        model: viewportPlayheadDataModel
-    }
-
-    XsAttributeValue {
-        id: __playheadPlaying
-        attributeTitle: "playing"
-        model: viewportPlayheadDataModel
-    }
-
-    property alias playheadLogicalFrame: __playheadLogicalFrame.value
-    property alias playheadDurationFrames: __playheadDurationFrames.value
-    property alias playheadPlaying: __playheadPlaying.value
-    property alias playheadCachedFrames: __playheadCachedFrames.value
-    property alias playheadBookmarkedFrames: __playheadBookmarkedFrames.value
-    property alias playheadBookmarkedFrameColours: __playheadBookmarkedFrameColours.value
-    property alias playheadLoopStartFrame: __playheadLoopStartFrame.value
-    property alias playheadLoopEndFrame: __playheadLoopEndFrame.value
-    property alias playheadEnableLoopRange: __playheadEnableLoopRange.value
-
     property int numBookmarks: {
         // pretty ugly, but only way I can suppress errors before these attr
         // values are intialised
-        if (playheadBookmarkedFrames != undefined &&
-            playheadBookmarkedFrameColours != undefined &&
-            typeof playheadBookmarkedFrameColours.length != "undefined" &&
-            typeof playheadBookmarkedFrames.length != "undefined") {
-            return Math.min(playheadBookmarkedFrameColours.length, playheadBookmarkedFrames.length)
+        if (viewportPlayhead.bookmarkedFrames != undefined &&
+            viewportPlayhead.bookmarkedFrameColours != undefined &&
+            typeof viewportPlayhead.bookmarkedFrameColours.length != "undefined" &&
+            typeof viewportPlayhead.bookmarkedFrames.length != "undefined") {
+            return Math.min(viewportPlayhead.bookmarkedFrameColours.length, viewportPlayhead.bookmarkedFrames.length)
         }
         return 0;
     }
@@ -114,8 +56,8 @@ Item {
         anchors.top: parent.top
         anchors.bottom: parent.bottom
         anchors.left: parent.left
-        width: scaleFactor*playheadLoopStartFrame
-        visible: playheadLoopStartFrame != 0 && playheadEnableLoopRange != 0
+        width: scaleFactor*viewportPlayhead.loopStartFrame
+        visible: viewportPlayhead.loopStartFrame != 0 && viewportPlayhead.enableLoopRange != 0
     }
 
     Rectangle {
@@ -123,8 +65,8 @@ Item {
         anchors.top: parent.top
         anchors.bottom: parent.bottom
         anchors.right: parent.right
-        width: scaleFactor*(playheadDurationFrames-playheadLoopEndFrame)
-        visible: playheadDurationFrames != 0 && playheadEnableLoopRange != 0
+        width: scaleFactor*(viewportPlayhead.durationFrames-viewportPlayhead.loopEndFrame)
+        visible: viewportPlayhead.loopEndFrame < viewportPlayhead.durationFrames != 0 && viewportPlayhead.enableLoopRange != 0
     }
 
     Item {
@@ -152,7 +94,7 @@ Item {
     // house shape at the top
     Item {
 
-        x: scaleFactor*control.playheadLogicalFrame - width/2
+        x: scaleFactor*viewportPlayhead.logicalFrame - width/2
         width: control.handleWidth
         property alias handleColour: control.handleColour
 
@@ -195,14 +137,14 @@ Item {
     // Draws the image cache indicator bar(s)
     Item {
         Repeater {
-            model: control.playheadCachedFrames ? control.playheadCachedFrames.length/2 : []
+            model: viewportPlayhead.cachedFrames ? viewportPlayhead.cachedFrames.length/2 : []
             Rectangle {
                 height: 5
                 color: "green"
                 opacity: 0.5
                 radius: 2.5
-                x: scaleFactor*control.playheadCachedFrames[index*2]
-                width: scaleFactor*(control.playheadCachedFrames[index*2+1])
+                x: scaleFactor*viewportPlayhead.cachedFrames[index*2]
+                width: scaleFactor*(viewportPlayhead.cachedFrames[index*2+1])
                 y: 10
             }
         }
@@ -210,17 +152,17 @@ Item {
 
     Item {
         Repeater {
-            model: numBookmarks
+            model: viewportPlayhead.bookmarkedFrames
             Rectangle {
                 height: 5
                 color: bmColour ? bmColour : palette.highlight
-                property var bmColour: control.playheadBookmarkedFrameColours[index]
+                property var bmColour: viewportPlayhead.bookmarkedFrameColours[index]
                 opacity: 0.5
                 radius: 2.5
                 // if indicator width is less than diameter (5 pixels) of a dot then
                 // we need to adjust the x to ensure the dot is aligned with the frame number
-                x: scaleFactor*control.playheadBookmarkedFrames[index*2] - (w < 5 ? (5-w)/2 : 0.0)
-                property var w: scaleFactor*control.playheadBookmarkedFrames[index*2+1]
+                x: scaleFactor*viewportPlayhead.bookmarkedFrames[index*2] - (w < 5 ? (5-w)/2 : 0.0)
+                property var w: scaleFactor*viewportPlayhead.bookmarkedFrames[index*2+1]
                 width: Math.max(5, w)
                 y: 16
             }
@@ -238,22 +180,24 @@ Item {
         property bool preScrubPlaying: false
 
         onPressed: {
-            if (playheadPlaying) {
+            viewportPlayhead.scrubbingFrames = true
+            if (viewportPlayhead.playing) {
                 preScrubPlaying = true
-                playheadPlaying = false
+                viewportPlayhead.playing = false
             }
         }
 
         onReleased: {
+            viewportPlayhead.scrubbingFrames = false
             if (restorePlayAfterScrub && preScrubPlaying) {
-                playheadPlaying = preScrubPlaying
+                viewportPlayhead.playing = preScrubPlaying
             }
             preScrubPlaying = false
         }
 
         onMouseXChanged: {
             if (pressed) {
-                playheadLogicalFrame = Math.round(mouseX / scaleFactor)
+                viewportPlayhead.logicalFrame = Math.round(mouseX / scaleFactor)
             }
         }
 

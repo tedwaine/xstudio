@@ -49,8 +49,8 @@ void AnnotationsRenderer::render_opengl(
         // being edited. The reason is that the strokes and captions of this
         // annotation are already cloned into 'interaction_canvas_' which we
         // draw below.
-        if (anno->detail_.uuid_ == data->current_edited_bookmark_uuid_
-            && data->interaction_frame_key_ == to_string(frame.frame_id().key_)) {
+        if (anno->detail_.uuid_ == data->current_edited_bookmark_uuid_ &&
+            data->interaction_frame_key_ == to_string(frame.frame_id().key_)) {
             draw_interaction_canvas = true;
             continue;
         }

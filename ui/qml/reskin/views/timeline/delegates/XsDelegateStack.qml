@@ -7,9 +7,9 @@ import Qt.labs.qmlmodels 1.0
 import QtGraphicalEffects 1.0
 import QuickFuture 1.0
 import QuickPromise 1.0
+import QtQml 2.14
 
 import xStudioReskin 1.0
-import xstudio.qml.module 1.0
 import xstudio.qml.helpers 1.0
 
 DelegateChoice {
@@ -54,6 +54,8 @@ DelegateChoice {
             property alias list_view_video: list_view_video
             property alias list_view_audio: list_view_audio
 
+            property alias scrollbar: hbar
+
 			function modelIndex() {
 				return control.DelegateModel.model.srcModel.index(
 	    			index, 0, control.DelegateModel.model.rootIndex
@@ -78,6 +80,16 @@ DelegateChoice {
 					hbar.position = 1.0 - hbar.size
 			}
 
+			function jumpToPosition(value) {
+				if(hbar.size<1.0)
+					hbar.position = Math.max(0, Math.min(value, 1.0 - hbar.size))
+
+				return hbar.position
+			}
+
+			function currentPosition() {
+				return hbar.position
+			}
 
 			// ListView.Center
 			// ListView.Beginning
@@ -87,29 +99,40 @@ DelegateChoice {
 			// ListView.SnapPosition
 
 			function jumpToFrame(frame, mode) {
-				if(hbar.size<1.0) {
-					let new_position = hbar.position
-					let first = ((frame - trimmedStartRole) * scaleX) / myWidth
+				let new_position = 0.0
+				let moved = false
+				let first = ((frame - trimmedStartRole) * scaleX) / myWidth
 
-					if(mode == ListView.Center) {
-						new_position = first - (hbar.size / 2)
-					} else if(mode == ListView.Beginning) {
-						new_position = first
-					} else if(mode == ListView.End) {
-						new_position = (first - hbar.size) - (2 * (1.0 / (trimmedDurationRole * scaleX)))
-					} else if(mode == ListView.Visible) {
-						// calculate frame as position.
-						if(first < new_position) {
-							new_position -= (hbar.size / 2)
-						} else if(first > (new_position + hbar.size)) {
-							// reposition
-							new_position += (hbar.size / 2)
-						}
+				if(mode == ListView.Center) {
+					new_position = first - (hbar.size / 2)
+					moved = true
+				} else if(mode == ListView.Beginning) {
+					new_position = first
+					moved = true
+				} else if(mode == ListView.End) {
+					new_position = (first - hbar.size) - (2 * (1.0 / (trimmedDurationRole * scaleX)))
+					moved = true
+				} else if(mode == ListView.Visible) {
+					// calculate frame as position.
+					if(first < hbar.position) {
+						new_position = first - (hbar.size * 0.95) //(hbar.size / 2)
+						moved = true
+					} else if(first > (hbar.position + hbar.size)) {
+						// reposition
+						new_position = first - (hbar.size*0.05)//(hbar.size / 2)
+						moved = true
 					}
-
-					return hbar.position = Math.max(0, Math.min(new_position, 1.0 - hbar.size))
 				}
-				return hbar.position
+
+				if(moved) {
+					new_position = Math.max(0, Math.min(new_position, 1.0 - hbar.size))
+					if(hbar.position != new_position) {
+						hbar.position = new_position
+						return true
+					}
+				}
+
+				return false
 			}
 
 			Connections {
@@ -244,6 +267,34 @@ DelegateChoice {
 		    				color: trackBackground
 		    				Layout.preferredHeight: timelineHeaderHeight
 		    				Layout.preferredWidth: trackHeaderWidth
+
+				            XsText {
+				                XsModelPropertyMap {
+				                    id: timelineDetail
+				                    index: theTimeline.timelineModel.rootIndex
+				                    property real fps: index.valid ? values.rateFPSRole : 24.0
+				                    property int start: index.valid ? values.availableStartRole : 0
+				                }
+
+				                XsTimeCode {
+				                    id: ttc
+				                    dropFrame: false
+				                    frameRate: timelineDetail.fps
+				                    totalFrames: timelinePlayhead.logicalFrame + timelineDetail.start
+				                }
+
+				                id: timestampDiv
+				                // Layout.preferredWidth: btnWidth*3
+				                // Layout.preferredHeight: parent.height
+				                // text: timelinePlayhead.currentSourceTimecode ? timelinePlayhead.currentSourceTimecode : "00:00:00:00"
+
+				                anchors.fill: parent
+				                text: ttc.timeCode ? ttc.timeCode : "00:00:00:00"
+				                font.pixelSize: XsStyleSheet.fontSize + 6
+				                font.weight: Font.Bold
+				                font.family: XsStyleSheet.fixedWidthFontFamily
+				                horizontalAlignment: Text.AlignHCenter
+				            }
 		    			}
 
 				    	Rectangle {
@@ -271,11 +322,32 @@ DelegateChoice {
 								fps: rateFPSRole
 
 								onFramePressed: {
-									playheadLogicalFrame = frame
+									timelinePlayhead.logicalFrame = frame
 								}
 								onFrameDragging:{
-									playheadLogicalFrame = frame
+									timelinePlayhead.logicalFrame = frame
 								}
+							}
+
+							XsMarkerModel {
+								id: marker_model
+								markerData: markersRole
+								onMarkerDataChanged: markersRole = markerData
+							}
+
+							XsMarkers {
+								id: markersWidget
+								anchors.left: parent.left
+								anchors.right: parent.right
+								anchors.bottom: parent.bottom
+								height: 10
+								z:1
+								tickWidth: control.scaleX
+								fractionOffset: frameTrack.offset % control.scaleX
+								start: trimmedStartRole + (frameTrack.offset  / control.scaleX)
+								duration: Math.ceil(width / control.scaleX)
+
+								model: marker_model
 							}
 						}
 					}
@@ -305,6 +377,7 @@ DelegateChoice {
 			    			property var timelineSelection: control.timelineSelection
 							property var timelineFocusSelection: control.timelineFocusSelection
 
+			    			property real cY: vbar.position * ((((itemHeight*control.scaleY)+1) * list_view_video.count))
 			    			property real cX: hbar.position * myWidth
 					        property real parentWidth: control.parentWidth
 					        property int playheadFrame: control.playheadFrame
@@ -313,12 +386,14 @@ DelegateChoice {
 			                property real trackHeaderWidth: control.trackHeaderWidth
 							property string itemFlag: control.itemFlag
 				            property var setTrackHeaderWidth: control.setTrackHeaderWidth
+				            property real footerHeight: Math.max(0,list_view_video.parent.height - ((((itemHeight*control.scaleY)+1) * list_view_video.count)))
+
 
 		        			footerPositioning: ListView.InlineFooter
 					        footer: Rectangle {
 								color: timelineBackground
 								width: parent.width
-								height: Math.max(0,list_view_video.parent.height - ((((itemHeight*control.scaleY)+1) * list_view_video.count)))
+								height: list_view_video.footerHeight
 					        }
 
 					        displaced: Transition {
@@ -329,6 +404,7 @@ DelegateChoice {
 					        }
 
 					        ScrollBar.vertical: ScrollBar {
+					        	id: vbar
 					            policy: list_view_video.visibleArea.heightRatio < 1.0 ? ScrollBar.AlwaysOn : ScrollBar.AlwaysOff
 					        }
 					    }
@@ -387,6 +463,7 @@ DelegateChoice {
 			    			property var timelineSelection: control.timelineSelection
 							property var timelineFocusSelection: control.timelineFocusSelection
 			    			property real cX: hbar.position * myWidth
+			    			property real cY: abar.position * ((((itemHeight*control.scaleY)+1) * list_view_audio.count))
 					        property real parentWidth: control.parentWidth
 					        property int playheadFrame: control.playheadFrame
 			                property var timelineItem: control.timelineItem
@@ -410,6 +487,7 @@ DelegateChoice {
 					        }
 
   					        ScrollBar.vertical: ScrollBar {
+  					        	id: abar
 					            policy: list_view_audio.visibleArea.heightRatio < 1.0 ? ScrollBar.AlwaysOn : ScrollBar.AlwaysOff
 					        }
 					    }

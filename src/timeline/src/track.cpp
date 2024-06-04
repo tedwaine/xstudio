@@ -31,6 +31,14 @@ Track::Track(const JsonStore &jsn)
     media_type_ = jsn.at("media_type");
 }
 
+Track::Track(const Item &item, const caf::actor &actor)
+    : Container(item.name(), "Track", item.uuid()), item_(item) {
+    item_.set_actor_addr(caf::actor_cast<caf::actor_addr>(actor));
+    media_type_ =
+        (item_.item_type() == ItemType::IT_VIDEO_TRACK ? MediaType::MT_IMAGE
+                                                       : MediaType::MT_AUDIO);
+}
+
 Track Track::duplicate() const {
     utility::JsonStore jsn;
 

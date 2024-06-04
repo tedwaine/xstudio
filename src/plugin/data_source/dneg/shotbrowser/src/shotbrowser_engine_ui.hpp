@@ -23,7 +23,7 @@ namespace xstudio {
 namespace ui {
     namespace qml {
         using namespace std::chrono_literals;
-        const auto SHOTGUN_TIMEOUT = 120s;
+        const auto SHOTGRID_TIMEOUT = 120s;
 
         class ShotBrowserSequenceFilterModel;
         class ShotBrowserSequenceModel;

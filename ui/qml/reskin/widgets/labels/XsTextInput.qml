@@ -28,4 +28,8 @@ TextInput{
 
     selectedTextColor: textColorSelected
     selectionColor: highlightColor
+
+    onActiveFocusChanged: {
+        if(activeFocus) selectAll()
+    }
 }

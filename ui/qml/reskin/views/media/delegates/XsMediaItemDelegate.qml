@@ -10,12 +10,13 @@ import xStudioReskin 1.0
 import xstudio.qml.models 1.0
 import xstudio.qml.helpers 1.0
 
+
 Rectangle {
 
     id: contentDiv
-    width: parent.width;
-    height: parent.height
-
+    width: parent.width
+    implicitHeight: itemRowHeight + drag_target_indicator.height
+    
     color: "transparent"
     property color highlightColor: palette.highlight
     property color bgColorPressed: XsStyleSheet.widgetBgNormalColor
@@ -27,17 +28,22 @@ Rectangle {
     property color errorColor: XsStyleSheet.errorColor
 
     property bool isSelected: mediaSelectionModel.selectedIndexes.includes(media_item_model_index)
+    property bool isDragTarget: media_item_model_index == dragTargetIndex
 
-    property bool isOnScreen: mediaUuid == onScreenMediaUuid
+    property bool isOnScreen: actorUuidRole == currentPlayhead.mediaUuid
 
     property var selectionIndex: mediaSelectionModel.multiSelected ? mediaSelectionModel.selectedIndexes.indexOf(media_item_model_index)+1 : media_item_model_index.row+1
 
     // get the index into the session model for the MediaSource (image)
-    property var imageSourceUuid: media_item_model_index.model.get(media_item_model_index, "imageActorUuidRole")
-    property var imageSourceIndex: media_item_model_index.model.searchRecursive(
+    property var imageSourceUuid: media_item_model_index.valid ? media_item_model_index.model.get(media_item_model_index, "imageActorUuidRole") : ""
+    property var imageSourceIndex: media_item_model_index.valid && imageSourceUuid ? media_item_model_index.model.searchRecursive(
                                         imageSourceUuid,
                                         "actorUuidRole",
-                                        media_item_model_index)
+                                        media_item_model_index) : media_item_model_index
+
+    property real mouseX
+    property real mouseY
+    property bool playOnClick: false
 
     onImageSourceIndexChanged: {
         // horrible shenanegans!
@@ -48,7 +54,24 @@ Rectangle {
             }}( imageSourceIndex, contentDiv ), 200);
         }
     }
+    
+    Rectangle {
+        id: drag_target_indicator
+        width: parent.width
+        height: visible ? 4 : 0
+        visible: isDragTarget
+        color: palette.highlight
+        Behavior on height { NumberAnimation{duration: 250} }
+    }
 
+    Rectangle {
+        anchors.fill: parent
+        visible: dragTargetIndex != undefined && isSelected
+        opacity: 0.5
+        color: "white"
+        z: 100
+    }
+    
     // To index to the image stream we need to go two levels deeper into the model as
     // it looks like this:
     // Media {
@@ -65,15 +88,7 @@ Rectangle {
     //}
     property var imageStreamIndex: imageSourceIndex.valid? imageSourceIndex.model.index(0,0,imageSourceIndex.model.index(0,0,imageSourceIndex)) : undefined
 
-    property var mediaSourceMetadataFields: metadataSet0Role
-
-    XsModelProperty {
-        id: imageStreamMeta
-        role: "metadataSet0Role"
-        index: imageStreamIndex
-    }
-
-    property var mediaStreamMetadataFields: imageStreamMeta.value
+    property var mediaSourceMetadataFields: mediaDisplayInfoRole != undefined ? mediaDisplayInfoRole[columns_model_index.row] : []
 
     property bool isMissing: false
     property bool isActive: isOnScreen
@@ -92,11 +107,87 @@ Rectangle {
     //hoverEnabled: true
     opacity: enabled ? 1.0 : 0.33
 
-    property var columns_model
+    // Note: DelegateChooser has a flaw .. if the 'role' value that drives
+    // the choice changes AFTER completion, it does not trigger a switch of
+    // the DelegateChoice so I've rolled my own
+    Component {
+
+        id: chooser
+        Item {
+            property var what: data_type
+            width: loader.width
+            height: loader.height
+            onWhatChanged: {
+                if (what == "flag") {
+                    loader.sourceComponent = flag_indicator
+                } else if (what == "thumbnail") {
+                    loader.sourceComponent = thumbnail
+                } else if (what == "index") {
+                    loader.sourceComponent = selection_index
+                } else if (what == "notes") {
+                    loader.sourceComponent = notes_indicator
+                } else {
+                    loader.sourceComponent = metadata_value
+                }
+            }
+            Loader {
+                id: loader
+            }
+            Component {
+                id: flag_indicator
+                XsMediaFlagIndicator{
+                    width: size
+                    height: itemRowHeight
+                }
+            }
+            Component {
+                id: metadata_value
+                XsMediaTextItem {
+                    text: index < mediaSourceMetadataFields.length ? mediaSourceMetadataFields[index] : ""
+                    width: size
+                    height: itemRowHeight
+                }
+            }
+            Component {
+                id: selection_index
+                XsMediaTextItem {
+                    text: selectionIndex ? selectionIndex : ""
+                    width: size
+                    height: itemRowHeight
+                }
+            }
+            Component {
+                id: notes_indicator
+                XsMediaNotesIndicator{
+                    width: size
+                    height: itemRowHeight
+                }
+            }
+            Component {
+                id: thumbnail
+                XsMediaThumbnailImage {
+                    width: size
+                    height: itemRowHeight
+                    showBorder: isOnScreen
+                }
+            }
+        }
+    }
+
+    DelegateModel {
+
+        id: media_columns_model
+        model: columns_model_index.model
+        rootIndex: columns_model_index
+        delegate: chooser
+
+    }
 
     Item {
 
-        anchors.fill: parent
+        width: parent.width
+        height: itemRowHeight
+        y: drag_target_indicator.height
 
         Rectangle{
             id: rowDividerLine
@@ -107,126 +198,22 @@ Rectangle {
             z: 100 // on-top of thumbnails etc.
         }
 
-        RowLayout{
-
-            id: row
-            spacing: 0
-            height: parent.height
-
-            Repeater {
-
-                // Note: columns_model is set-up in the ui_qml.json preference
-                // file. Look for 'media_list_columns_config' item in that
-                // file. It specifies the title, size, data_type and so-on for
-                // each column in the media list view. The DelegateChooser
-                // here creates graphics/text items that go into the media list
-                // table depedning on the 'data_type'. To add new ways to view
-                // data like traffic lights, icons and so-on create a new
-                // indicator class with a new correspondinf 'data_type' in the
-                // ui_qml.json
-                model: columns_model
-                delegate: chooser
-
-                DelegateChooser {
-
-                    id: chooser
-                    role: "data_type"
-
-                    DelegateChoice {
-                        roleValue: "flag"
-                        
-                        XsMediaFlagIndicator{
-                            Layout.preferredWidth: size
-                            Layout.minimumHeight: itemHeight
-                        }
-                    }
-
-                    DelegateChoice {
-                        roleValue: "metadata"
-                        // we might want to pull metadata from the Media item (e.g. pipeline status of an asset/render)
-                        // Or we might want to pull metadata from the MediaSource (e.g. filesystem date stamp)
-                        // Or me might want to pull metadata from the MediaStream (e.g. codec name)
-                        XsMediaTextItem {
-                            property var mediaMetadataField: mediaItemMetadataFields ? mediaItemMetadataFields[index] : ""
-                            property var mediaSourceMetadataField: mediaSourceMetadataFields ? mediaSourceMetadataFields[index] : ""
-                            property var imageStreameMetadataField: mediaStreamMetadataFields ? mediaStreamMetadataFields[index] : "--"
-                            raw_text: mediaMetadataField ? mediaMetadataField : mediaSourceMetadataField ? mediaSourceMetadataField : imageStreameMetadataField
-                            Layout.preferredWidth: size
-                            Layout.minimumHeight: itemHeight
-                        }
-                    }
-
-                    DelegateChoice {
-                        roleValue: "role_data"
-
-                        XsMediaTextItem {
-                            Layout.preferredWidth: size
-                            Layout.minimumHeight: itemHeight
-                            raw_text: "" + modelProperty.value;
-                            XsModelProperty {
-                                id: modelProperty
-                                role: role_name
-                                index: object == "MediaStream" ? imageStreamIndex : object == "MediaSource" ? imageSourceIndex : media_item_model_index
-                            }
-                        }
-                    }
-
-                    DelegateChoice {
-                        roleValue: "index"
-
-                        XsMediaTextItem {
-                            text: selectionIndex ? selectionIndex : ""
-                            Layout.preferredWidth: size
-                            Layout.minimumHeight: itemHeight
-                        }
-                    }
-
-                    DelegateChoice {
-                        roleValue: "notes"
-                        
-                        XsMediaNotesIndicator{
-                            Layout.preferredWidth: size
-                            Layout.minimumHeight: itemHeight
-                        }
-                    }
-
-                    DelegateChoice {
-                        roleValue: "thumbnail"
-
-                        XsMediaThumbnailImage {
-                            Layout.preferredWidth: size
-                            Layout.fillHeight: true
-                            showBorder: isOnScreen
-                        }
-                    }
-
-                }
-
-            }
+        ListView {
+            anchors.fill: parent
+            model: media_columns_model
+            orientation: ListView.Horizontal
+            interactive: false
         }
     }
 
     //background:
     Rectangle {
         id: bgDiv
+        z: -1
         anchors.fill: parent
         border.color: contentDiv.down || contentDiv.hovered ? borderColorHovered: borderColorNormal
         border.width: borderWidth
         color: contentDiv.down || isSelected ? bgColorPressed : forcedBgColorNormal
-
-        Rectangle {
-            id: bgFocusDiv
-            implicitWidth: parent.width+borderWidth
-            implicitHeight: parent.height+borderWidth
-            visible: contentDiv.activeFocus
-            color: "transparent"
-            opacity: 0.33
-            border.color: borderColorHovered
-            border.width: borderWidth
-            anchors.centerIn: parent
-        }
-
-        // Rectangle{anchors.fill: parent; color: "grey"; opacity:(index%2==0?.2:0)}
     }
 
 

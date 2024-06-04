@@ -320,7 +320,6 @@ namespace media {
         [[nodiscard]] std::string flag_text() const { return flag_text_; }
         void set_flag_text(const std::string &flag_text) { flag_text_ = flag_text; }
 
-
       private:
         // will need extending.., tagging ?
         utility::Uuid current_image_source_;

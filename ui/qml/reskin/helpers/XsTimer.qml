@@ -1,9 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
 import QtQuick 2.12
 
-import xStudio 1.0
-
-
 Timer {
     id: timer
     function setTimeout(cb, delayTime) {

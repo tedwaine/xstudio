@@ -11,7 +11,6 @@ import QuickFuture 1.0
 import QuickPromise 1.0
 
 import xStudioReskin 1.0
-import xstudio.qml.module 1.0
 import xstudio.qml.bookmarks 1.0
 import xstudio.qml.models 1.0
 import xstudio.qml.helpers 1.0
@@ -22,10 +21,9 @@ Item{
     id: panel
     anchors.fill: parent
 
-    property bool isTestMode: false
     property string resultViewTitle: ""
 
-    property alias currentCategory: categoryPref.value
+    property alias currentCategory: prefs.category
     property bool isGroupedByLatest: false
 
     property real buttonSpacing: 1
@@ -34,9 +32,10 @@ Item{
     property real panelPadding: XsStyleSheet.panelPadding
     property color panelColor: XsStyleSheet.panelBgColor
 
-    property bool queryRunning: false
+    property bool queryRunning: queryRunningCount > 0
 
-    property var onScreenMediaUuid: appWindow.onScreenMediaUuid
+    property var onScreenMediaUuid: currentPlayhead.mediaUuid
+    property var onScreenLogicalFrame: currentPlayhead.logicalFrame
 
     property var projectIndex: null
     property var sequenceModel: null
@@ -51,10 +50,39 @@ Item{
     property alias pipeStep: resultsFilteredModel.filterPipeStep
     property alias nameFilter: resultsFilteredModel.filterName
 
-    property string onDisk: ""
-    property int queryCounter: 0
+    readonly property string panelType: "ShotBrowser"
 
-    onOnScreenMediaUuidChanged: updateMetaData()
+    property string onDisk: ""
+
+    property int queryCounter: 0
+    property int queryRunningCount: 0
+
+    property bool isPaused: false
+
+    onOnScreenMediaUuidChanged: {if(visible) updateTimer.start()}
+
+    onOnScreenLogicalFrameChanged: {
+        if(updateTimer.running)
+            updateTimer.restart()
+        if(!isPaused && (currentCategory == "Menus" && currentPresetIndex.valid) || (currentCategory == "Tree" && sequenceTreeLiveLink)) {
+            isPaused = true
+            resultsSelectionModel.clear()
+            resultsBaseModel.setResultData([])
+            ShotBrowserEngine.liveLinkKey = ""
+            ShotBrowserEngine.liveLinkMetadata = "null"
+        }
+    }
+
+    Timer {
+        id: updateTimer
+        interval: 500
+        running: false
+        repeat: false
+        onTriggered: {
+            isPaused = false
+            updateMetaData()
+        }
+    }
 
     Clipboard {
         id: clipboard
@@ -95,7 +123,7 @@ Item{
     Connections {
         target: ShotBrowserEngine
         function onLiveLinkMetadataChanged() {
-            if(panel.visible) {
+            if(panel.visible && !isPaused) {
                 updateSequenceSelection()
 
                 if(currentCategory == "Menus" && currentPresetIndex.valid) {
@@ -109,12 +137,17 @@ Item{
         target: ShotBrowserEngine
         function onReadyChanged() {
             if(ShotBrowserEngine.ready) {
+                prefs.updateFromValue()
                 if(projectIndex == null) {
-                    projectIndex = getProjectIndexFromId(projectPref.value)
+                    if(prefs.project) {
+                        let i = getProjectIndexFromName(prefs.project)
+                        if(i && i.valid)
+                            projectIndex = i
+                    }
+                    if(projectIndex == null)
+                        projectIndex = getProjectIndexFromId(projectPref.value)
                 }
-                ShotBrowserEngine.presetModels.tree.showHidden = showHiddenPref.value
-                ShotBrowserEngine.presetModels.recent.showHidden = showHiddenPref.value
-                ShotBrowserEngine.presetModels.menus.showHidden = showHiddenPref.value
+                // console.log("onReadyChanged", projectIndex, prefs.project, projectPref.value)
             }
         }
     }
@@ -141,36 +174,80 @@ Item{
     XsPreference {
         id: projectPref
         path: "/plugin/data_source/shotbrowser/browser/project_id"
+    }
 
-        onValueChanged: {
-            let i = getProjectIndexFromId(value)
-            if(ShotBrowserEngine.ready && i && i.valid && projectIndex != i)
-                projectIndex = i
+    XsModelProperty {
+        id: prefs
+        index: panels_layout_model_index
+        role: "user_data"
+
+        property int treeWidth: 200
+        property int presetWidth: 200
+        property string category: "Tree"
+        property string project: "NSFL"
+
+        onTreeWidthChanged: {
+            let i = createDefaults()
+            if(i["tree_width"] != treeWidth) {
+                i["tree_width"] = treeWidth
+                value = i
+            }
         }
-    }
 
-    XsPreference {
-        id: categoryPref
-        path: "/plugin/data_source/shotbrowser/browser/category"
-    }
+        onPresetWidthChanged: {
+            let i = createDefaults()
+            if(i["preset_width"] != presetWidth) {
+                i["preset_width"] = presetWidth
+                value = i
+            }
+        }
 
-    // XsPreference {
-    //     id: categoryWidthPref
-    //     path: "/plugin/data_source/shotbrowser/browser/category_width"
-    //     onValueChanged: {
-    //         ShotBrowserEngine.presetModels.tree.category_width = value
-    //         ShotBrowserEngine.presetModels.recent.category_width = value
-    //         ShotBrowserEngine.presetModels.menus.category_width = value
-    //     }
-    // }
+        onCategoryChanged: {
+            let i = createDefaults()
+            if(i["category"] != category) {
+                i["category"] = category
+                value = i
+            }
+        }
 
-    XsPreference {
-        id: showHiddenPref
-        path: "/plugin/data_source/shotbrowser/browser/show_hidden"
-        onValueChanged: {
-            ShotBrowserEngine.presetModels.tree.showHidden = value
-            ShotBrowserEngine.presetModels.recent.showHidden = value
-            ShotBrowserEngine.presetModels.menus.showHidden = value
+        onProjectChanged: {
+            let i = createDefaults()
+            if(i["project"] != project) {
+                i["project"] = project
+                value = i
+            }
+
+            if(ShotBrowserEngine.ready) {
+                let index = getProjectIndexFromName(project)
+                if(index.valid && projectIndex != index) {
+                    projectIndex = index
+                    // console.log("onProjectChanged", projectIndex, project)
+                }
+            }
+        }
+
+        function createDefaults() {
+            let i = {}
+            i["tree_width"] = value != undefined && value.hasOwnProperty("tree_width") ? value["tree_width"] : 200
+            i["preset_width"] = value != undefined && value.hasOwnProperty("preset_width") ? value["preset_width"] : 200
+            i["category"] = value != undefined && value.hasOwnProperty("category") ? value["category"] : "Tree"
+            i["project"] = value != undefined && value.hasOwnProperty("project") ? value["project"] : "NSFL"
+            return i
+        }
+
+        onValueChanged: updateFromValue()
+
+        function updateFromValue() {
+            if(value) {
+                if(value["preset_width"] && presetWidth != value["preset_width"])
+                    presetWidth = value["preset_width"]
+                if(value["tree_width"] && treeWidth != value["tree_width"])
+                    treeWidth = value["tree_width"]
+                if(value["category"] && category != value["category"])
+                    category = value["category"]
+                if(value["project"] && project != value["project"])
+                    project = value["project"]
+            }
         }
     }
 
@@ -222,7 +299,7 @@ Item{
 
     ItemSelectionModel {
         id: resultsSelectionModel
-        model: resultsBaseModel
+        model: results
     }
 
     ShotHistoryResultPopup {
@@ -247,18 +324,35 @@ Item{
         if(projectIndex && projectIndex.valid) {
             let m = ShotBrowserEngine.presetsModel.termModel("Project")
             let i = m.get(projectIndex, "idRole")
-            projectPref.value = i
             ShotBrowserEngine.cacheProject(i)
             sequenceModel = ShotBrowserEngine.sequenceTreeFilterModel(i)
+
+            if(projectPref.value != i)
+                projectPref.value = i
+
+            prefs.project = m.get(projectIndex, "nameRole")
+
+            // console.log("onProjectIndexChanged", projectPref.value, prefs.project)
         }
     }
 
+    onCurrentCategoryChanged: leftSection.SplitView.preferredWidth = currentCategory == "Tree" ? prefs.treeWidth + prefs.presetWidth : prefs.presetWidth
+
     XsSplitView {
+        id: main_split
         anchors.fill: parent
 
         XsSBLeftSection{ id: leftSection
-            SplitView.preferredWidth: visibleWidth
+            SplitView.preferredWidth: currentCategory == "Tree" ? prefs.treeWidth + prefs.presetWidth : prefs.presetWidth
             SplitView.fillHeight: true
+            onWidthChanged: {
+                if(SplitView.view.resizing) {
+                    if(currentCategory == "Tree")
+                        prefs.presetWidth = width - prefs.treeWidth
+                    else
+                        prefs.presetWidth = width
+                }
+            }
         }
         XsSBRightSection{
             SplitView.fillWidth: true
@@ -288,8 +382,8 @@ Item{
             // pipeStep
             if(currentCategory == "Menus") {
                 queryCounter += 1
+                queryRunningCount += 1
                 let i = queryCounter
-                queryRunning = true
 
                 Future.promise(
                     ShotBrowserEngine.executeQuery(
@@ -299,17 +393,19 @@ Item{
                         if(queryCounter == i) {
                             resultsSelectionModel.clear()
                             resultsBaseModel.setResultData([json_string])
-                            queryRunning = false
                         }
+                        queryRunningCount -= 1
                     },
                     function() {
                         resultsBaseModel.setResultData([])
+                        queryRunningCount -= 1
                     })
             } else if(currentCategory == "Recent") {
                 queryCounter += 1
+                queryRunningCount += 1
+
                 let i = queryCounter
                 let pi = ShotBrowserEngine.presetsModel.termModel("Project").get(projectIndex, "idRole")
-                queryRunning = true
 
                 Future.promise(
                     ShotBrowserEngine.executeProjectQuery(
@@ -319,11 +415,12 @@ Item{
                         if(queryCounter == i) {
                             resultsSelectionModel.clear()
                             resultsBaseModel.setResultData([json_string])
-                            queryRunning = false
                         }
+                        queryRunningCount -= 1
                     },
                     function() {
                         resultsBaseModel.setResultData([])
+                        queryRunningCount -= 1
                     })
             } else {
                 let pi = ShotBrowserEngine.presetsModel.termModel("Project").get(projectIndex, "idRole")
@@ -351,8 +448,9 @@ Item{
                 // only run, if selection in tree.
                 if(custom.length || ShotBrowserEngine.presetsModel.get(currentPresetIndex, "entityRole") == "Playlists") {
                     queryCounter += 1
+                    queryRunningCount += 1
+
                     let i = queryCounter
-                    queryRunning = true
                     Future.promise(
                         ShotBrowserEngine.executeProjectQuery(
                             [ShotBrowserEngine.presetsModel.get(currentPresetIndex, "jsonPathRole")], pi, {}, custom)
@@ -361,11 +459,12 @@ Item{
                             if(queryCounter == i) {
                                 resultsSelectionModel.clear()
                                 resultsBaseModel.setResultData([json_string])
-                                queryRunning = false
                             }
+                            queryRunningCount -= 1
                         },
                         function() {
                             resultsBaseModel.setResultData([])
+                            queryRunningCount -= 1
                         })
                 } else {
                     resultsBaseModel.setResultData([])
@@ -388,6 +487,7 @@ Item{
         if(visible) {
             ShotBrowserEngine.connected = true
         }
+        prefs.updateFromValue()
     }
 
     onVisibleChanged: {

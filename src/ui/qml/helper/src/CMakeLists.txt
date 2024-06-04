@@ -2,6 +2,7 @@ SET(LINK_DEPS
 	${CAF_LIBRARY_core}
 	Qt5::Core
 	Qt5::Qml
+	xstudio::global_store
 	xstudio::utility
 )
 
@@ -12,7 +13,6 @@ SET(EXTRAMOC
 	"${ROOT_DIR}/include/xstudio/ui/qml/json_tree_model_ui.hpp"
 	"${ROOT_DIR}/include/xstudio/ui/qml/model_data_ui.hpp"
 	"${ROOT_DIR}/include/xstudio/ui/qml/module_data_ui.hpp"
-	"${ROOT_DIR}/include/xstudio/ui/qml/snapshot_model_ui.hpp"
 	"${ROOT_DIR}/include/xstudio/ui/qml/actor_object.hpp"
 )
 

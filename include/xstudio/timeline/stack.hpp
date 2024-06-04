@@ -21,6 +21,7 @@ namespace timeline {
             const caf::actor &actor   = caf::actor());
 
         Stack(const utility::JsonStore &jsn);
+        Stack(const Item &item, const caf::actor &actor);
         ~Stack() override = default;
 
         [[nodiscard]] utility::JsonStore serialise() const override;

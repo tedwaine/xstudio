@@ -62,8 +62,8 @@ struct UiText {
     std::string DISPLAY                 = "Display";
     std::string DISPLAY_SHORT           = "Disp";
     std::string VIEW                    = "View";
-    std::string EXPOSURE                = "Exposure";
-    std::string EXPOSURE_SHORT          = "Exp";
+    std::string EXPOSURE                = "Exposure (E)";
+    std::string EXPOSURE_SHORT          = "Exp (E)";
     std::string GAMMA                   = "Gamma";
     std::string GAMMA_SHORT             = "Gam";
     std::string ENABLE_GAMMA            = "Gamma Control";
@@ -79,9 +79,11 @@ struct UiText {
     std::string CMS_OFF                 = "Bypass Colour Management";
     std::string CMS_OFF_SHORT           = "CMS OFF";
     std::string CMS_OFF_ICON            = "--";
-    std::string PREF_VIEW               = "Preferred View";
-    std::string VIEW_MODE               = "Global View Control";
-    std::string GLOBAL_VIEW_SHORT       = "Global View";
+    std::string PREF_VIEW               = "OCIO Preferred View";
+    std::string VIEW_MODE               = "Global OCIO View";
+    std::string GLOBAL_VIEW_SHORT       = "Global view";
+    std::string SOURCE_CS_MODE          = "Auto adjust source";
+    std::string SOURCE_CS_MODE_SHORT    = "Adjust source";
 
 
     std::string DEFAULT_VIEW                   = "Default";
@@ -146,6 +148,8 @@ struct UiText {
     std::string PREF_VIEW_TOOLTIP = "Set preferred view";
     std::string GLOBAL_VIEW_TOOLTIP =
         "Enable global view to affect every loaded media when changing the OCIO view.";
+    std::string SOURCE_CS_MODE_TOOLTIP =
+        "Automatically use the most appropriate source colour space for the selected view.";
 
     std::vector<std::string> OCIO_LOAD_ERROR = {"Error could not load OCIO config"};
 };

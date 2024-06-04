@@ -4,7 +4,6 @@ import QtQuick.Layouts 1.3
 import QtQuick.Controls 2.5
 
 import xStudio 1.0
-import xstudio.qml.module 1.0
 import xstudio.qml.helpers 1.0
 
 Rectangle {

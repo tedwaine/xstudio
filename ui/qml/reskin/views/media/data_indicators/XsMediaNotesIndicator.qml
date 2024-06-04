@@ -13,15 +13,15 @@ Item{
     property var gotBookmarkAnnotation: false
     property var gotBookmarkGrade: false
     property var gotBookmarkTransform: false
-    property var gotBookmarkUuids_: bookmarkUuids
+    property var gotBookmarkUuids_: bookmarkUuidsRole
 
     onGotBookmarkUuids_Changed: {
         var bm = false
         var anno = false
-        if (bookmarkUuids && bookmarkUuids.length) {
+        if (bookmarkUuidsRole && bookmarkUuidsRole.length) {
             bm = true
-            for (var i in bookmarkUuids) {
-                var idx = bookmarkModel.searchRecursive(bookmarkUuids[i], "uuidRole")
+            for (var i in bookmarkUuidsRole) {
+                var idx = bookmarkModel.searchRecursive(bookmarkUuidsRole[i], "uuidRole")
                 if (idx.valid) {                    
                     if (bookmarkModel.get(idx,"hasAnnotationRole")) {
                         anno = true
@@ -33,9 +33,10 @@ Item{
         gotBookmarkAnnotation = anno
     }
 
-    RowLayout{ id: attachmentIconsRow
-        anchors.left: parent.left
-        anchors.leftMargin: itemPadding*2
+    RowLayout{ 
+        
+        id: attachmentIconsRow
+        anchors.horizontalCenter: parent.horizontalCenter
         anchors.verticalCenter: parent.verticalCenter
         spacing: itemPadding/2
 

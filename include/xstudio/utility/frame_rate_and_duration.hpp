@@ -29,7 +29,11 @@ namespace utility {
         FrameRateDuration &operator=(const FrameRateDuration &) = default;
         FrameRateDuration &operator=(FrameRateDuration &&) = default;
 
+        FrameRateDuration &operator+=(const FrameRateDuration &);
+        FrameRateDuration &operator-=(const FrameRateDuration &);
+
         FrameRateDuration operator-(const FrameRateDuration &);
+        FrameRateDuration operator+(const FrameRateDuration &);
 
         [[nodiscard]] FrameRateDuration
         subtract_frames(const FrameRateDuration &, const bool remapped = true) const;

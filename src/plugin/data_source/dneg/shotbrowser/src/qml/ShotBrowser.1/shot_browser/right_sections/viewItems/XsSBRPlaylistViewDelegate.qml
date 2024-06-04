@@ -24,24 +24,20 @@ Item{ id: thisItem
     property bool isMouseHovered: mArea.containsMouse ||
                                 versionArrowBtn.hovered ||
                                 notesBtn.hovered ||
-                                authorMA.isHovered ||
-                                typeMA.isHovered ||
-                                timeMA.isHovered ||
-                                dateMA.isHovered ||
-                                deptMA.isHovered ||
-                                nameMA.isHovered
+                                authorDisplay.isHovered ||
+                                typeDisplay.isHovered ||
+                                timeDisplay.isHovered ||
+                                dateDisplay.isHovered ||
+                                deptDisplay.isHovered ||
+                                nameDisplay.isHovered
 
-    property bool isSelected: resultsSelectionModel.isSelected(resultModelIndex()) //delegateModel? selectionModel.isSelected(delegateModel.modelIndex(index)) : false
+    property bool isSelected: resultsSelectionModel.isSelected(delegateModel.modelIndex(index)) //delegateModel? selectionModel.isSelected(delegateModel.modelIndex(index)) : false
 
     Connections {
         target: resultsSelectionModel
         function onSelectionChanged(selected, deselected) {
-            isSelected = resultsSelectionModel.isSelected(resultModelIndex())
+            isSelected = resultsSelectionModel.isSelected(delegateModel.modelIndex(index))
         }
-    }
-
-    function resultModelIndex() {
-        return ShotBrowserHelpers.mapIndexToResultModel(delegateModel.modelIndex(index))
     }
 
     Rectangle {
@@ -58,23 +54,32 @@ Item{ id: thisItem
             anchors.fill: parent
             hoverEnabled: true
             acceptedButtons: Qt.LeftButton | Qt.RightButton
-            onDoubleClicked: ShotBrowserHelpers.loadShotgridPlaylists([resultModelIndex()])
 
-            propagateComposedEvents: true
+            // wierd workaround for flickable..
+            propagateComposedEvents: false
+            onReleased: {
+                if(!propagateComposedEvents)
+                    propagateComposedEvents = true
+            }
 
-            onClicked: (mouse)=>{
-                mouse.accepted = false
-            // onClicked: {
+            onDoubleClicked: ShotBrowserHelpers.loadShotgridPlaylists([delegateModel.modelIndex(index)])
+
+            onPressed: (mouse)=>{
+                // required for doubleclick to work
+                mouse.accepted = true
+
                 if (mouse.button == Qt.RightButton){
-                    if(popupMenu.visible) popupMenu.visible = false
+                    if(popupMenu.visible) {
+                        popupMenu.visible = false
+                    }
                     else{
                         if(!isSelected) {
                             if(mouse.modifiers == Qt.NoModifier) {
-                                ShotBrowserHelpers.selectItem(resultsSelectionModel, resultModelIndex())
+                                ShotBrowserHelpers.selectItem(resultsSelectionModel, delegateModel.modelIndex(index))
                             } else if(mouse.modifiers == Qt.ShiftModifier){
-                                ShotBrowserHelpers.shiftSelectItem(resultsSelectionModel, resultModelIndex())
+                                ShotBrowserHelpers.shiftSelectItem(resultsSelectionModel, delegateModel.modelIndex(index))
                             } else if(mouse.modifiers == Qt.ControlModifier) {
-                                ShotBrowserHelpers.ctrlSelectItem(resultsSelectionModel, resultModelIndex())
+                                ShotBrowserHelpers.ctrlSelectItem(resultsSelectionModel, delegateModel.modelIndex(index))
                             }
                         }
                         popupMenu.popupDelegateModel = delegateModel
@@ -86,11 +91,11 @@ Item{ id: thisItem
                 }
 
                 else if(mouse.modifiers == Qt.NoModifier) {
-                    ShotBrowserHelpers.selectItem(resultsSelectionModel, resultModelIndex())
+                    ShotBrowserHelpers.selectItem(resultsSelectionModel, delegateModel.modelIndex(index))
                 } else if(mouse.modifiers == Qt.ShiftModifier){
-                    ShotBrowserHelpers.shiftSelectItem(resultsSelectionModel, resultModelIndex())
+                    ShotBrowserHelpers.shiftSelectItem(resultsSelectionModel, delegateModel.modelIndex(index))
                 } else if(mouse.modifiers == Qt.ControlModifier) {
-                    ShotBrowserHelpers.ctrlSelectItem(resultsSelectionModel, resultModelIndex())
+                    ShotBrowserHelpers.ctrlSelectItem(resultsSelectionModel, delegateModel.modelIndex(index))
                 }
             }
 
@@ -154,28 +159,19 @@ Item{ id: thisItem
                 // onClicked:
             }
 
-            Item{ id: thumbDisplay
+            XsText{
                 Layout.preferredWidth: parent.height //* 1.5
                 Layout.fillHeight: true
                 Layout.rowSpan: 2
-
-                Rectangle{ id: bg
-                    anchors.fill: parent
-                    color: XsStyleSheet.panelBgColor
-                    visible: false
-                }
-                XsText{
-                    anchors.fill: bg
-                    text: versionCountRole
-                    wrapMode: Text.WordWrap
-                    elide: Text.ElideRight
-                    // font.weight: text=="0"? Font.Normal : Font.Black
-                    color: text=="0"? XsStyleSheet.hintColor : XsStyleSheet.secondaryTextColor
-                    font.pixelSize: XsStyleSheet.fontSize*1.2
-                    horizontalAlignment: Text.AlignHCenter
-                }
-
+                text: versionCountRole
+                wrapMode: Text.WordWrap
+                elide: Text.ElideRight
+                // font.weight: text=="0"? Font.Normal : Font.Black
+                color: text=="0"? XsStyleSheet.hintColor : XsStyleSheet.secondaryTextColor
+                font.pixelSize: XsStyleSheet.fontSize*1.2
+                horizontalAlignment: Text.AlignHCenter
             }
+
             XsText{ id: nameDisplay
                 Layout.columnSpan: 3
                 Layout.alignment: Qt.AlignLeft
@@ -188,12 +184,12 @@ Item{ id: thisItem
                 verticalAlignment: Text.AlignTop
                 topPadding: 2
 
-                MouseArea { id: nameMA
-                    property bool isHovered: containsMouse
-                    onIsHoveredChanged: parent.isHovered = isHovered
+                isHovered: nameTooltip.containsMouse
+
+                MouseArea { id: nameTooltip
                     anchors.fill: parent
                     hoverEnabled: true
-                    propagateComposedEvents: true
+                    acceptedButtons: Qt.NoButton
                 }
             }
             XsText{ id: deptDisplay
@@ -212,12 +208,12 @@ Item{ id: thisItem
                 topPadding: 2
                 rightPadding: 2
 
-                MouseArea { id: deptMA
-                    property bool isHovered: containsMouse
-                    onIsHoveredChanged: parent.isHovered = isHovered
+                isHovered: deptTooltip.containsMouse
+
+                MouseArea { id: deptTooltip
                     anchors.fill: parent
                     hoverEnabled: true
-                    propagateComposedEvents: true
+                    acceptedButtons: Qt.NoButton
                 }
             }
             XsText{ id: dateDisplay
@@ -237,12 +233,12 @@ Item{ id: thisItem
                 verticalAlignment: Text.AlignBottom
                 bottomPadding: 2
 
-                MouseArea { id: dateMA
-                    property bool isHovered: containsMouse
-                    onIsHoveredChanged: parent.isHovered = isHovered
+                isHovered: dateTooltip.containsMouse
+
+                MouseArea { id: dateTooltip
                     anchors.fill: parent
                     hoverEnabled: true
-                    propagateComposedEvents: true
+                    acceptedButtons: Qt.NoButton
                 }
             }
             XsText{ id: timeDisplay
@@ -267,12 +263,12 @@ Item{ id: thisItem
                 verticalAlignment: Text.AlignBottom
                 bottomPadding: 2
 
-                MouseArea { id: timeMA
-                    property bool isHovered: containsMouse
-                    onIsHoveredChanged: parent.isHovered = isHovered
+                isHovered: timeTooltip.containsMouse
+
+                MouseArea { id: timeTooltip
                     anchors.fill: parent
                     hoverEnabled: true
-                    propagateComposedEvents: true
+                    acceptedButtons: Qt.NoButton
                 }
             }
             XsText{ id: typeDisplay
@@ -288,12 +284,12 @@ Item{ id: thisItem
                 verticalAlignment: Text.AlignBottom
                 bottomPadding: 2
 
-                MouseArea { id: typeMA
-                    property bool isHovered: containsMouse
-                    onIsHoveredChanged: parent.isHovered = isHovered
+                isHovered: typeTooltip.containsMouse
+
+                MouseArea { id: typeTooltip
                     anchors.fill: parent
                     hoverEnabled: true
-                    propagateComposedEvents: true
+                    acceptedButtons: Qt.NoButton
                 }
             }
             XsText{ id: authorDisplay
@@ -308,15 +304,14 @@ Item{ id: thisItem
                 bottomPadding: 2
                 rightPadding: 2
 
-                MouseArea { id: authorMA
-                    property bool isHovered: containsMouse
-                    onIsHoveredChanged: parent.isHovered = isHovered
+                isHovered: authorTooltip.containsMouse
+
+                MouseArea { id: authorTooltip
                     anchors.fill: parent
                     hoverEnabled: true
-                    propagateComposedEvents: true
+                    acceptedButtons: Qt.NoButton
                 }
             }
         }
-
     }
 }

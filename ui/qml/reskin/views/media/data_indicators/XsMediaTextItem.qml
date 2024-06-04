@@ -6,16 +6,8 @@ import xStudioReskin 1.0
 Item{ 
     
     id: dateDiv
-
-    property var raw_text
-    property string raw_text_: "" + raw_text
     property var leftMargin: 12
-
-    property var text: regex ? (raw_text_ ? raw_text_.replace(regex, format_out) : "-") : (raw_text_ ? raw_text_ : "-")
-
-    property var regex: format_regex ? new RegExp(format_regex) : undefined
-
-    property var arse: position
+    property var text
 
     XsText{ 
         text: "" + dateDiv.text
@@ -31,5 +23,7 @@ Item{
         anchors.right: parent.right
         color: bgColorPressed
     }
+
+    clip: true
 
 } 

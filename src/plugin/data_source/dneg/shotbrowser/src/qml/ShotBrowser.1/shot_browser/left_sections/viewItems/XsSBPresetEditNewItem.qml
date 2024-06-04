@@ -42,7 +42,7 @@ Item{
 
             currentIndex: -1
             onModelChanged: {
-                console.log("new item", "onModelChanged", model)
+                // console.log("new item", "onModelChanged", model)
                 currentIndex = -1
             }
 

@@ -26,27 +26,19 @@
 					"datatype": "string",
 					"context": ["APPLICATION"]
 				},
-				"use_preferred_view": {
-					"path": "/plugin/colour_pipeline/ocio/use_preferred_view",
+				"global_view_mode": {
+					"path": "/plugin/colour_pipeline/ocio/global_view_mode",
 					"default_value": false,
 					"description": "User view mode (global if true, per media otherwise).",
 					"value": false,
 					"datatype": "bool",
 					"context": ["APPLICATION"]
 				},
-				"enable_gamma": {
-					"path": "/plugin/colour_pipeline/ocio/enable_gamma",
+				"user_source_mode": {
+					"path": "/plugin/colour_pipeline/ocio/user_source_mode",
 					"default_value": true,
-					"description": "Enable the gamma control in the viewport toolbar.",
-					"value": false,
-					"datatype": "bool",
-					"context": ["APPLICATION"]
-				},
-				"enable_saturation": {
-					"path": "/plugin/colour_pipeline/ocio/enable_saturation",
-					"default_value": true,
-					"description": "Enable the saturation control in the viewport toolbar.",
-					"value": false,
+					"description": "User source colour space mode (adjust from selected view if true).",
+					"value": true,
 					"datatype": "bool",
 					"context": ["APPLICATION"]
 				}

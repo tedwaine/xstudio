@@ -24,9 +24,7 @@ namespace ui {
         class ViewportFrameQueueActor : public caf::event_based_actor {
           public:
             ViewportFrameQueueActor(
-                caf::actor_config &cfg,
-                std::map<utility::Uuid, caf::actor> overlay_actors,
-                const int viewport_index);
+                caf::actor_config &cfg, std::map<utility::Uuid, caf::actor> overlay_actors);
 
           private:
             caf::behavior make_behavior() override { return behavior_; }
@@ -99,6 +97,8 @@ namespace ui {
 
             timebase::flicks predicted_playhead_position_at_next_video_refresh();
 
+            double average_video_refresh_period() const;
+
             bool playing_          = {false};
             bool playing_forwards_ = {true};
 
@@ -115,8 +115,6 @@ namespace ui {
             } video_refresh_data_;
 
             timebase::flicks playhead_vid_sync_phase_adjust_ = timebase::k_flicks_zero_seconds;
-
-            const int viewport_index_;
         };
 
     } // namespace viewport

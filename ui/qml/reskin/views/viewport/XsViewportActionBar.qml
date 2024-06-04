@@ -25,27 +25,9 @@ Item{id: actionDiv
 
     **************************************************************************/
 
-    // Get the UUID of the current onscreen media from the playhead
-    XsModelProperty {
-        id: __playheadSourceUuid
-        role: "value"
-        index: viewportPlayheadDataModel.searchRecursive("Current Media Uuid", "title")
-    }
-    XsModelProperty {
-        id: __playheadMediaSourceUuid
-        role: "value"
-        index: viewportPlayheadDataModel.searchRecursive("Current Media Source Uuid", "title")
-    }
-
-    Connections {
-        target: viewportPlayheadDataModel // this bubbles up from XsSessionWindow
-        function onJsonChanged() {
-            __playheadSourceUuid.index = viewportPlayheadDataModel.searchRecursive("Current Media Uuid", "title")
-            __playheadMediaSourceUuid.index = viewportPlayheadDataModel.searchRecursive("Current Media Source Uuid", "title")
-        }
-    }
-    property alias mediaUuid: __playheadSourceUuid.value
-    property alias mediaSourceUuid: __playheadMediaSourceUuid.value
+    property var mediaIndex
+    property var mediaUuid: viewportPlayhead.mediaUuid
+    property var mediaSourceUuid: viewportPlayhead.mediaSourceUuid
 
     // When the current onscreen media changes, search for the corresponding
     // node in the main session data model
@@ -53,19 +35,29 @@ Item{id: actionDiv
 
         // TODO - current this gets us to media actor, not media source actor,
         // so we can't get to the file name yet
-        mediaData.index = theSessionData.searchRecursive(
-            mediaUuid,
+        mediaIndex = theSessionData.searchRecursive(
+            viewportPlayhead.mediaUuid,
             "actorUuidRole",
-            viewedMediaSetIndex
+            viewedMediaSetIndex,
+            0,
+            2 // only go 2 levels deeper than the playlist
             )
+
     }
 
-    onMediaSourceUuidChanged: {
-        mediaSourceData.index = theSessionData.searchRecursive(
-            mediaSourceUuid,
-            "actorUuidRole",
-            viewedMediaSetIndex
-            )
+    onMediaSourceUuidChanged: lookupMediaSource()
+    onMediaIndexChanged: lookupMediaSource()
+
+    function lookupMediaSource() {
+        if (mediaIndex.valid) {
+            mediaSourceData.index = theSessionData.searchRecursive(
+                viewportPlayhead.mediaSourceUuid,
+                "actorUuidRole",
+                mediaIndex
+                )
+        } else {
+            mediaSourceData.index = theSessionData.index(-1, -1)
+        }
     }
 
     // this gives us access to the 'role' data of the entry in the session model
@@ -97,43 +89,56 @@ Item{id: actionDiv
         height: btnHeight
         anchors.verticalCenter: parent.verticalCenter
 
-        XsPrimaryButton{ id: transformBtn
+        XsPrimaryButton{ 
+            visible: !isPopoutViewer
+            id: popoutButton
             Layout.preferredWidth: 40
             Layout.preferredHeight: parent.height
-            imgSrc: "qrc:/icons/open_with.svg"
-            enabled: false
-            onClicked:{
-                isActive = !isActive
+            imgSrc: "qrc:/icons/open_in_new.svg"
+            isActive: appWindow.popoutIsOpen
+            onClicked: {
+                appWindow.toggle_popout_viewer()
             }
         }
-        XsPrimaryButton{ id: colourBtn
-            Layout.preferredWidth: 40
-            Layout.preferredHeight: parent.height
-            imgSrc: "qrc:/icons/tune.svg"
-            enabled: false
-            onClicked:{
-                isActive = !isActive
+
+        XsModuleData {
+
+            id: dockables
+            modelDataName: "dockable viewport toolboxes"
+            onJsonChanged: {
+                dump()
             }
         }
-        XsPrimaryButton{ id: drawBtn
-            Layout.preferredWidth: 40
-            Layout.preferredHeight: parent.height
-            imgSrc: "qrc:/icons/brush.svg"
-            enabled: false
-            onClicked:{
-                isActive = !isActive
+    
+        Repeater {
+            model: dockables
+            XsPrimaryButton{ 
+                Layout.preferredWidth: 40
+                Layout.preferredHeight: parent.height
+                imgSrc: icon_path
+                isActive: visible_doc_widgets.indexOf(title) != -1
+                //enabled: button_enabled
+                onClicked: {
+                    var isHidden = isActive
+                    toggle_dockable_widget(title)
+                    // set the 'activated' role data. This will send a message
+                    // to the backend Module that the dockable widget has been
+                    // either hidden or shown
+                    activated = isHidden ? 0 : 1
+                }
+                onVisibleChanged: {
+                    // if the button is hidden, this means the viewport has
+                    // been hidden (e.g. by user changing a tab or layout)
+                    // so we force the annotation tool off
+                    if (!visible) {
+                        activated = 0;
+                    }
+                }
             }
         }
-        XsPrimaryButton{ id: notesBtn
-            Layout.preferredWidth: 40
-            Layout.preferredHeight: parent.height
-            imgSrc: "qrc:/icons/sticky_note.svg"
-            enabled: false
-            onClicked:{
-                isActive = !isActive
-            }
-        }
-        XsText{
+
+        XsText {
+
             Layout.fillWidth: true
             Layout.preferredHeight: parent.height
             text: mediaSourceData.fileName

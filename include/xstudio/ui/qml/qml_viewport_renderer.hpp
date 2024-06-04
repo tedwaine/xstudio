@@ -18,13 +18,12 @@ namespace ui {
     namespace qml {
 
         class QMLViewport;
-        class PlayheadUI;
 
         class QMLViewportRenderer : public QMLActor {
             Q_OBJECT
 
           public:
-            QMLViewportRenderer(QObject *owner, const int viewport_index);
+            QMLViewportRenderer(QObject *owner);
             virtual ~QMLViewportRenderer();
 
             void setWindow(QQuickWindow *window);
@@ -34,7 +33,8 @@ namespace ui {
                 const QPointF topright,
                 const QPointF bottomright,
                 const QPointF bottomleft,
-                const QSize sceneSize);
+                const QSize sceneSize,
+                const float devicePixelRatio);
 
             void init_system();
             void join_playhead(caf::actor group) {
@@ -55,7 +55,7 @@ namespace ui {
                     spdlog::warn("{} {}", __PRETTY_FUNCTION__, err.what());
                 }
             }
-            void set_playhead(PlayheadUI *playhead);
+
             void set_playhead(caf::actor playhead);
 
             float zoom();
@@ -67,6 +67,7 @@ namespace ui {
             Imath::V2i imageResolutionCoords();
             Imath::V2f imageCoordsToViewport(const int x, const int y);
             [[nodiscard]] QRectF imageBoundsInViewportPixels() const;
+            [[nodiscard]] caf::actor playhead() { return viewport_renderer_->playhead(); }
             void setScale(const float s);
             void setTranslate(const QVector2D &t);
             bool pointerEvent(const PointerEvent &e);
@@ -79,7 +80,9 @@ namespace ui {
             [[nodiscard]] QString name() const {
                 return QStringFromStd(viewport_renderer_->name());
             }
-            void linkToViewport(QMLViewportRenderer *other_viewport);
+
+            [[nodiscard]] std::string std_name() const { return viewport_renderer_->name(); }
+
             void setIsQuickViewer(const bool is_quick_viewer);
 
           public slots:
@@ -91,7 +94,8 @@ namespace ui {
             void frameSwapped();
             float scale();
             QVector2D translate();
-            void quickViewSource(QStringList mediaActors, QString compareMode);
+            void quickViewSource(
+                QStringList mediaActors, QString compareMode, int in_pt, int out_pt);
             void reset();
             void autoConnectToSelectedPlayhead();
 
@@ -122,7 +126,6 @@ namespace ui {
             QString fps_expression_;
             bool frame_out_of_range_ = {false};
             QRectF imageBounds_;
-            int viewport_index_;
             class QMLViewport *viewport_qml_item_;
 
             caf::actor viewport_update_group;

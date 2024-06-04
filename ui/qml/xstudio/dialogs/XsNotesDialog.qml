@@ -327,6 +327,11 @@ XsWindow {
                                 horizontalAlignment: Qt.AlignLeft
                                 wrapMode: TextEdit.Wrap
                                 text: noteRole != undefined ? noteRole : ""
+                                onTextChanged: {
+                                    if (noteRole != text) {
+                                        noteRole = text
+                                    }
+                                }
                                 onEditingFinished: {
                                     app_window.requestActivate()
                                     noteRole = text
@@ -603,7 +608,7 @@ XsWindow {
                                     if(init) {
                                         init = false
                                     } else if(currentIndex !== -1) {
-                                        console.log(currentIndex)
+                                        // console.log(currentIndex)
                                         let ind = model.index(currentIndex, 0)
                                         let col = model.get(ind, "colourRole")
                                         let cat = model.get(ind, "valueRole")

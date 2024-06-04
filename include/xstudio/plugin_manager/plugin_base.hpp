@@ -104,15 +104,13 @@ namespace plugin {
             const bool /*playhead_playing*/
         ) {}
 
-        virtual ViewportOverlayRendererPtr make_overlay_renderer(const int /*viewer_index*/) {
+        virtual ViewportOverlayRendererPtr make_overlay_renderer() {
             return ViewportOverlayRendererPtr();
         }
 
         // Override this and return your own subclass of GPUPreDrawHook to allow
         // arbitrary GPU rendering (e.g. when in the viewport OpenGL context)
-        virtual GPUPreDrawHookPtr make_pre_draw_gpu_hook(const int /*viewer_index*/) {
-            return GPUPreDrawHookPtr();
-        }
+        virtual GPUPreDrawHookPtr make_pre_draw_gpu_hook() { return GPUPreDrawHookPtr(); }
 
         // reimplement this function in an annotations plugin to return your
         // custom annotation class, based on bookmark::AnnotationBase base class.

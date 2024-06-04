@@ -12,7 +12,6 @@ import QuickFuture 1.0
 import xStudioReskin 1.0
 import ShotBrowser 1.0
 import xstudio.qml.helpers 1.0
-import xstudio.qml.module 1.0
 
 XsWindow{
 
@@ -80,20 +79,25 @@ XsWindow{
     // maximumWidth: width
     minimumHeight: height
     maximumHeight: height
-    palette.base: XsStyleSheet.panelTitleBarColor
+    // palette.base: XsStyleSheet.panelTitleBarColor
+
+    XsSBPublishNotesFeedback {
+        id: publish_notes_feedback
+        property real btnHeight: XsStyleSheet.widgetStdHeight + 4
+    }
 
 
     function updatePublish() {
         if(visible) {
-            console.log("playlistUuid", playlistUuid)
-            console.log("notifyOwner", notifyOwner)
-            console.log("combineNotes", combineNotes)
-            console.log("addFrameTimeCode", addFrameTimeCode)
-            console.log("addPlaylistName", addPlaylistName)
-            console.log("addNoteType", addNoteType)
-            console.log("ignoreWithOnlyDrawing", ignoreWithOnlyDrawing)
-            console.log("skipAlreadyPublished", skipAlreadyPublished)
-            console.log("defaultType", defaultType)
+            // console.log("playlistUuid", playlistUuid)
+            // console.log("notifyOwner", notifyOwner)
+            // console.log("combineNotes", combineNotes)
+            // console.log("addFrameTimeCode", addFrameTimeCode)
+            // console.log("addPlaylistName", addPlaylistName)
+            // console.log("addNoteType", addNoteType)
+            // console.log("ignoreWithOnlyDrawing", ignoreWithOnlyDrawing)
+            // console.log("skipAlreadyPublished", skipAlreadyPublished)
+            // console.log("defaultType", defaultType)
 
             if(playlistUuid) {
                 payload = ShotBrowserEngine.preparePlaylistNotes(
@@ -134,7 +138,10 @@ XsWindow{
                 ShotBrowserEngine.pushPlaylistNotesFuture(payload, playlistUuid)
             ).then(function(json_string) {
                 console.log(json_string)
-                // ShotgunHelpers.handle_response(json_string, "ShotGrid Publish Note", false, "", error)
+
+                publish_notes_feedback.isPlaylistNotes = isPlaylistNotes
+                publish_notes_feedback.parseFeedback(json_string)
+                publish_notes_feedback.show()
             })
         }
     }
@@ -150,15 +157,13 @@ XsWindow{
             }
         }
 
-        console.log("E-mail notification groups for ShotGrid note publish: ", result)
-        console.log("E-mail notification groups for ShotGrid note publish: ", email_group_names)
         return result
     }
 
-    function publishFromPlaylist() {
+    function publishFromPlaylist(playlist_uuid) {
         isPlaylistNotes = true
         mediaUuids = []
-        playlistUuid = helpers.QVariantFromUuidString(selectedMediaSetProperties.values.actorUuidRole)
+        playlistUuid = playlist_uuid
     }
 
     function publishFromMedia(medialist) {
@@ -294,7 +299,9 @@ XsWindow{
             Layout.fillWidth: true
             Layout.preferredHeight: itemHeight
 
+            z: 100
             text: "Notify :"
+            hintText: "Recipients"
             checked: false
             model: ShotBrowserFilterModel {
                 sourceModel: ShotBrowserEngine.ready ? ShotBrowserEngine.presetsModel.termModel("Group", "", projectId) : null

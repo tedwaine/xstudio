@@ -13,7 +13,6 @@ namespace xstudio::colour_pipeline::ocio {
 by xstudio for colour management. */
 class OCIOEngine {
 
-  private:
   public:
     OCIOEngine() = default;
 
@@ -79,18 +78,21 @@ class OCIOEngine {
     colourspace.*/
     std::string detect_source_colourspace(const utility::JsonStore &src_colour_mgmt_metadata);
 
-  protected:
+    /* Select the most appropriate source colour space for the provided OCIO view */
+    std::string input_space_for_view(
+        const utility::JsonStore &src_colour_mgmt_metadata, const std::string &view) const;
+
     /* For the given information about the frame returns the ColourOperationData
     object with GPU shader and LUT data required for tranforming from
     source colourspace to linear colourspace. */
-    ColourOperationDataPtr
-    linearise_op_data(const media::AVFrameID &media_ptr, const bool colour_bypass_);
+    ColourOperationDataPtr linearise_op_data(
+        const utility::JsonStore &src_colour_mgmt_metadata, const bool colour_bypass_);
 
     /* For the given information about the frame plus OCIO display and view
     return the ColourOperationData object with GPU shader and LUT data required
     for tranforming from linear colourspace to display colourspace*/
     ColourOperationDataPtr linear_to_display_op_data(
-        const media::AVFrameID &media_ptr,
+        const utility::JsonStore &src_colour_mgmt_metadata,
         const std::string &display,
         const std::string &view,
         const bool bypass);
@@ -98,7 +100,7 @@ class OCIOEngine {
     /*Process an RGB float format thumbnail image from the source colourspace
     of the source media into display space*/
     thumbnail::ThumbnailBufferPtr process_thumbnail(
-        const media::AVFrameID &media_ptr,
+        const utility::JsonStore &src_colour_mgmt_metadata,
         const thumbnail::ThumbnailBufferPtr &buf,
         const std::string &display,
         const std::string &view);
@@ -190,12 +192,10 @@ class OCIOEngine {
 /* Actor wrapper for OCIOEngine, allowing us to execute 'heavy' OCIO based
 IO and computation via CAF messaging so that OCIOColourPipeline instances
 can offload tasks to a worker pool. */
-class OCIOEngineActor : public caf::event_based_actor, private OCIOEngine {
+class OCIOEngineActor : public caf::event_based_actor {
 
   public:
     OCIOEngineActor(caf::actor_config &cfg);
-
-    ~OCIOEngineActor();
 
     caf::behavior make_behavior() override { return behavior_; }
 
@@ -205,6 +205,8 @@ class OCIOEngineActor : public caf::event_based_actor, private OCIOEngine {
     inline static const std::string NAME = "OCIOEngineActor";
 
     caf::behavior behavior_;
+
+    OCIOEngine m_engine_;
 };
 
 } // namespace xstudio::colour_pipeline::ocio

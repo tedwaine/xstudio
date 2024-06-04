@@ -19,7 +19,7 @@ Item {
     // Create a menu 'Some Menu' with an item in it that says 'Do Something'
 
     XsMenuModelItem {
-        text: "Shotbrowser"
+        text: "Shot Browser"
         menuItemType: "divider"
         menuPath: ""
         menuItemPosition: 4
@@ -75,7 +75,7 @@ Item {
         menuModelName: "main menu bar"
         onActivated: {
             publish_notes.show()
-            publish_notes.publishFromPlaylist()
+            publish_notes.publishFromPlaylist(helpers.QVariantFromUuidString(viewedMediaSetProperties.values.actorUuidRole))
         }
     }
 
@@ -85,7 +85,7 @@ Item {
         menuItemPosition: 2
         menuModelName: "main menu bar"
         onActivated: ShotBrowserHelpers.syncPlaylistFromShotGrid(
-            helpers.QVariantFromUuidString(selectedMediaSetProperties.values.actorUuidRole)
+            helpers.QVariantFromUuidString(viewedMediaSetProperties.values.actorUuidRole)
         )
     }
 
@@ -96,7 +96,7 @@ Item {
         menuModelName: "main menu bar"
         onActivated: {
             sync_to_dialog.show()
-            sync_to_dialog.playlistProperties = selectedMediaSetProperties
+            sync_to_dialog.playlistProperties = viewedMediaSetProperties
         }
     }
 
@@ -107,10 +107,60 @@ Item {
         menuModelName: "main menu bar"
         onActivated: {
             publish_to_dialog.show()
-            publish_to_dialog.playlistProperties = selectedMediaSetProperties
+            publish_to_dialog.playlistProperties = viewedMediaSetProperties
         }
     }
 
+    XsMenuModelItem {
+        menuItemType: "divider"
+        text: "ShotBrowser"
+        menuPath: ""
+        menuItemPosition: 100
+        menuModelName: "playlist_context_menu"
+    }
+
+    XsMenuModelItem {
+        text: "Refresh Selected Playlist"
+        menuPath: ""
+        menuItemPosition: 101
+        menuModelName: "playlist_context_menu"
+        onActivated: ShotBrowserHelpers.syncPlaylistFromShotGrid(
+            helpers.QVariantFromUuidString(inspectedMediaSetProperties.values.actorUuidRole)
+        )
+    }
+
+    XsMenuModelItem {
+        text: "Push Current Playlist"
+        menuPath: ""
+        menuItemPosition: 102
+        menuModelName: "playlist_context_menu"
+        onActivated: {
+            sync_to_dialog.show()
+            sync_to_dialog.playlistProperties = inspectedMediaSetProperties
+        }
+    }
+
+    XsMenuModelItem {
+        text: "Publish Current Playlist"
+        menuPath: ""
+        menuItemPosition: 103
+        menuModelName: "playlist_context_menu"
+        onActivated: {
+            publish_to_dialog.show()
+            publish_to_dialog.playlistProperties = inspectedMediaSetProperties
+        }
+    }
+
+    XsMenuModelItem {
+        text: "Publish ShotGrid Playlist Notes"
+        menuPath: ""
+        menuItemPosition: 104
+        menuModelName: "playlist_context_menu"
+        onActivated: {
+            publish_notes.show()
+            publish_notes.publishFromPlaylist(helpers.QVariantFromUuidString(inspectedMediaSetProperties.values.actorUuidRole))
+        }
+    }
 
     XsSBPublishNotesDialog {
         id: publish_notes

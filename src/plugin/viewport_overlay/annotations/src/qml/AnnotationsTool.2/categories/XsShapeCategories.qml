@@ -9,7 +9,7 @@ import xstudio.qml.bookmarks 1.0
 import QtQml.Models 2.14
 
 import xStudioReskin 1.0
-import xstudio.qml.module 1.0
+import xstudio.qml.models 1.0
 
 Item{ 
                     
@@ -17,13 +17,15 @@ Item{
 
     property alias shapesModel: shapesModel
 
-    XsModuleAttributes {
-        id: anno_tool_backend_settings
-        attributesGroupNames: "annotations_tool_settings_0"
+    XsAttributeValue {
+        id: __shape_tool
+        attributeTitle: "Shape Tool"
+        model: annotations_model_data
     }
+    property alias shape_tool: __shape_tool.value
 
     // make a local binding to the backend attribute
-    property int shapeTool: anno_tool_backend_settings.shape_tool ? anno_tool_backend_settings.shape_tool : 0.0
+    property int shapeTool: shape_tool
 
     onShapeToolChanged: {
         shapesList.currentIndex = shapeTool
@@ -42,8 +44,8 @@ Item{
         model: shapesModel
 
         onCurrentIndexChanged: {
-            if (anno_tool_backend_settings.shape_tool != undefined) {
-                anno_tool_backend_settings.shape_tool = currentIndex
+            if (shape_tool != undefined) {
+                shape_tool = currentIndex
             }
         }
 

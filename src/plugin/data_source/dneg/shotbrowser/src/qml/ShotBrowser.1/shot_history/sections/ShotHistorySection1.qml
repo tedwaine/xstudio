@@ -127,7 +127,7 @@ Rectangle{
 
                 MouseArea { id: thumbMArea
                     anchors.fill: parent
-                    propagateComposedEvents: true
+                    acceptedButtons: Qt.NoButton
                     hoverEnabled: true
                 }
             }

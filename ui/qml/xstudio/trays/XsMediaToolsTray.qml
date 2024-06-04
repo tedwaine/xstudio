@@ -2,7 +2,6 @@
 import QtQuick 2.15
 import QtQuick.Layouts 1.15
 
-import xstudio.qml.module 1.0
 
 import xStudio 1.0
 

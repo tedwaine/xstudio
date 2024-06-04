@@ -5,12 +5,13 @@ import QtQuick.Controls 2.15
 import QtQuick.Layouts 1.15
 import QtQuick.Window 2.15
 import QtQml 2.15
-import xstudio.qml.bookmarks 1.0
 import QtQml.Models 2.14
 import QtQuick.Dialogs 1.3 //for ColorDialog
 import QtGraphicalEffects 1.15 //for RadialGradient
 
 import xStudioReskin 1.0
+import xstudio.qml.bookmarks 1.0
+import xstudio.qml.models 1.0
 
 Item {
 
@@ -54,25 +55,29 @@ Item {
     property int currentToolSize: currentTool === "Erase" ? mask_tool_settings.erase_pen_size : mask_tool_settings.draw_pen_size
     property var currentTool: mask_tool_settings.drawing_tool
 
+    property var toolSizeAttrName: "Draw Pen Size"
+
     function setPenSize(penSize) {
         if(currentTool === "Draw")
-        { //Draw
+        {
             mask_tool_settings.draw_pen_size = penSize
         }
         else if(currentTool === "Erase")
-        { //Erase
+        {
             mask_tool_settings.erase_pen_size = penSize
         }
     }
 
     onCurrentToolChanged: {
         if(currentTool === "Draw")
-        { //Draw
+        {
             currentColorPresetModel = drawColourPresetsModel
+            toolSizeAttrName = "Draw Pen Size"
         }
         else if(currentTool === "Erase")
-        { //Erase
+        {
             currentColorPresetModel = eraseColorPresetModel
+            toolSizeAttrName = "Erase Pen Size"
         }
     }
 
@@ -146,439 +151,41 @@ Item {
                         width: parent.width/2-spacing
                         spacing: itemSpacing
 
-                        XsPrimaryButton{ id: sizeProp
-                            property bool isPressed: false
-                            property bool isMouseHovered: sizeMArea.containsMouse
-                            property real prevValue: maxDrawSize/2
-                            property real newValue: maxDrawSize/2
+                        XsIntegerAttrControl {
+                            id: sizeProp
+                            visible: isAnyToolSelected && currentTool !== "Shape"
+                            width: parent.width-x; height: buttonHeight;
+                            text: (currentTool=="Shapes")? "Width" : "Size"
                             enabled: isAnyToolSelected
-                            isActive: isPressed
-                            x: spacing/2
-                            width: parent.width-x; height: buttonHeight;
-                            // color: isPressed || isMouseHovered? (enabled? toolActiveBgColor: hoverToolInactiveColor): toolInactiveBgColor;
-
-                            Text{
-                                text: (currentTool=="Shapes")?"Width": "Size"
-                                font.pixelSize: fontSize
-                                font.family: fontFamily
-                                color: parent.isPressed || parent.isMouseHovered? textValueColor: textButtonColor
-                                width: parent.width/1.8
-                                horizontalAlignment: Text.AlignHCenter
-                                anchors.left: parent.left
-                                anchors.leftMargin: 2
-                                topPadding: framePadding/1.4
-                            }
-                            XsTextField{ id: sizeDisplay
-                                text: currentToolSize
-                                property var backendSize: currentToolSize
-                                onBackendSizeChanged: {
-                                    text = currentToolSize
-                                }
-                                focus: sizeMArea.containsMouse && !parent.isPressed
-                                onFocusChanged:{
-                                    if(focus) {
-                                        selectAll()
-                                        forceActiveFocus()
-                                    }
-                                    else{
-                                        deselect()
-                                    }
-                                }
-                                maximumLength: 3
-                                inputMask: "900"
-                                inputMethodHints: Qt.ImhDigitsOnly 
-                                // validator: IntValidator {bottom: 0; top: maxDrawSize;}
-                                selectByMouse: false
-                                font.pixelSize: fontSize
-                                font.family: fontFamily
-                                color: parent.enabled? textValueColor : Qt.darker(textValueColor,1.5)
-                                width: parent.width/2.2
-                                height: parent.height
-                                horizontalAlignment: TextInput.AlignHCenter
-                                anchors.right: parent.right
-                                topPadding: framePadding/5
-                                onEditingCompleted: {
-                                    accepted()
-                                }
-                                onAccepted:{
-                                    if(parseInt(text) >= maxDrawSize){
-                                        setPenSize(maxDrawSize)
-                                    }
-                                    else if(parseInt(text) <= 1){
-                                        setPenSize(1)
-                                    }
-                                    else{
-                                        setPenSize(parseInt(text))
-                                    }
-
-                                    text = "" + backendSize
-                                    selectAll()
-                                }
-                            }
-                            MouseArea{
-                                id: sizeMArea
-                                anchors.fill: parent
-                                cursorShape: Qt.SizeHorCursor
-                                hoverEnabled: true
-                                propagateComposedEvents: true
-                                property real prevMX: 0
-                                property real deltaMX: 0
-                                property real stepSize: 0.25
-                                property int valueOnPress: 0
-                                onMouseXChanged: {
-                                    if(parent.isPressed && parent.enabled)
-                                    {
-                                        deltaMX = mouseX - prevMX
-
-                                        let deltaValue = parseInt(deltaMX*stepSize)
-                                        let valueToApply = Math.round(valueOnPress + deltaValue)
-
-                                        if(deltaMX>0)
-                                        {
-                                            if(valueToApply >= maxDrawSize){ 
-                                                setPenSize(maxDrawSize)
-                                                valueOnPress = maxDrawSize
-                                                prevMX = mouseX
-                                            }
-                                            else {
-                                                setPenSize(valueToApply)
-                                            }
-                                        }
-                                        else {
-                                            if(valueToApply < 1){
-                                                setPenSize(1)
-                                                valueOnPress = 1
-                                                prevMX = mouseX
-                                            }
-                                            else {
-                                                setPenSize(valueToApply)
-                                            }
-                                        }
-
-                                        sizeDisplay.text = currentToolSize
-
-                                        if(deltaMX!=0){
-                                            sizeProp.newValue = currentToolSize
-                                        }
-                                    }
-                                }
-                                onPressed: {
-                                    prevMX = mouseX
-                                    valueOnPress = currentToolSize
-
-                                    parent.isPressed = true
-                                    focus = true
-                                }
-                                onReleased: {
-                                    if(prevMX !== mouseX) {
-                                        sizeProp.prevValue = valueOnPress
-                                        sizeProp.newValue = currentToolSize
-                                    }
-                                    parent.isPressed = false
-                                    focus = false
-                                }
-                                onDoubleClicked: {
-                                    if(currentToolSize == sizeProp.newValue){
-                                        setPenSize(sizeProp.prevValue)
-                                    }
-                                    else{
-                                        sizeProp.prevValue = currentToolSize
-                                        setPenSize(sizeProp.newValue)
-                                    }
-                                    sizeDisplay.text = currentToolSize
-                                }
-                            }
+                            attr_group_model: mask_tool_settings.model
+                            attr_title: toolSizeAttrName
                         }
-                        XsPrimaryButton{ id: opacityProp
-                            property bool isPressed: false
-                            property bool isMouseHovered: opacityMArea.containsMouse
-                            property real prevValue: defaultValue/2
-                            property real defaultValue: 100
+
+                        XsIntegerAttrControl{
+                            id: opacityProp
+                            visible: isAnyToolSelected && currentTool != "Erase"
+                            width: parent.width-x; height: buttonHeight;
+                            text: "Opacity"
+                            attr_group_model: mask_tool_settings.model
+                            attr_title: "Pen Opacity"
                             enabled: isAnyToolSelected && currentTool != "Erase"
-                            isActive: isPressed
-                            x: spacing/2
-                            width: parent.width-x; height: buttonHeight;
-                            // color: isPressed || isMouseHovered? (enabled? toolActiveBgColor: hoverToolInactiveColor): toolInactiveBgColor;
-                            Text{
-                                text: "Opacity"
-                                font.pixelSize: fontSize
-                                font.family: fontFamily
-                                color: parent.isPressed || parent.isMouseHovered? textValueColor: textButtonColor
-                                width: parent.width/1.8
-                                horizontalAlignment: Text.AlignHCenter
-                                anchors.left: parent.left
-                                anchors.leftMargin: 2
-                                topPadding: framePadding/1.4
-                            }
-                            XsTextField{ id: opacityDisplay
-                                bgColorNormal: parent.enabled?palette.base:"transparent"
-                                borderColor: bgColorNormal
-                                text: currentTool != "Erase" ? mask_tool_settings.pen_opacity : 100
-                                property var backendOpacity: currentTool != "Erase" ? mask_tool_settings.pen_opacity : 100 // we don't set this anywhere else, so this is read-only - always tracks the backend opacity value
-                                onBackendOpacityChanged: {
-                                    // if the backend value has changed, update the text
-                                    text = currentTool != "Erase" ? mask_tool_settings.pen_opacity : 100
-                                }
-                                focus: opacityMArea.containsMouse && !parent.isPressed
-                                onFocusChanged:{
-                                    if(focus) {
-                                        selectAll()
-                                        forceActiveFocus()
-                                    }
-                                    else{
-                                        deselect()
-                                    }
-                                }
-                                maximumLength: 3
-                                inputMask: "900"
-                                inputMethodHints: Qt.ImhDigitsOnly
-                                // validator: IntValidator {bottom: 0; top: 100;}
-                                selectByMouse: false
-                                font.pixelSize: fontSize
-                                font.family: fontFamily
-                                color: parent.enabled? textValueColor : Qt.darker(textValueColor,1.5)
-                                width: parent.width/2.2
-                                height: parent.height
-                                horizontalAlignment: TextInput.AlignHCenter
-                                anchors.right: parent.right
-                                topPadding: framePadding/5
-                                onEditingCompleted:{
-                                    accepted()
-                                }
-                                onAccepted:{
-                                    if(currentTool != "Erase"){
-                                        if(parseInt(text) >= 100) {
-                                            mask_tool_settings.pen_opacity = 100
-                                        } 
-                                        else if(parseInt(text) <= 1) {
-                                            mask_tool_settings.pen_opacity = 1
-                                        }
-                                        else {
-                                            mask_tool_settings.pen_opacity = parseInt(text)
-                                        }
-                                        
-                                        text = "" + backendOpacity
-                                        selectAll()
-                                    }
-                                }
-                            }
-                            MouseArea{
-                                id: opacityMArea
-                                anchors.fill: parent
-                                cursorShape: Qt.SizeHorCursor
-                                hoverEnabled: true
-                                propagateComposedEvents: true
-                                property real prevMX: 0
-                                property real deltaMX: 0.0
-                                property real stepSize: 0.25
-                                property int valueOnPress: 0
-                                onMouseXChanged: {
-                                    if(parent.isPressed)
-                                    {
-                                        deltaMX = mouseX - prevMX
-                                        // prevMX = mouseX
-                                        // var new_opac =  (Math.max(Math.min(100.0, mask_tool_settings.pen_opacity + stepSize), 0.0) + 0.1) - 0.1
-                                        // mask_tool_settings.pen_opacity = parseInt(new_opac)
-
-                                        let deltaValue = parseInt(deltaMX*stepSize)
-                                        let valueToApply = Math.round(valueOnPress + deltaValue)
-
-                                        if(deltaMX>0)
-                                        {
-                                            if(valueToApply >= 100) {
-                                                mask_tool_settings.pen_opacity=100
-                                                valueOnPress = 100
-                                                prevMX = mouseX
-                                            }
-                                            else {
-                                                mask_tool_settings.pen_opacity = valueToApply
-                                            }
-                                        }
-                                        else {
-                                            if(valueToApply < 1){
-                                                mask_tool_settings.pen_opacity=1
-                                                valueOnPress = 1
-                                                prevMX = mouseX
-                                            }
-                                            else {
-                                                mask_tool_settings.pen_opacity = valueToApply
-                                            }
-                                        }
-
-                                        opacityDisplay.text = currentTool != "Erase" ? mask_tool_settings.pen_opacity : 100
-                                    }
-                                }
-                                onPressed: {
-                                    prevMX = mouseX
-                                    valueOnPress = mask_tool_settings.pen_opacity
-
-                                    parent.isPressed = true
-                                    focus = true
-                                }
-                                onReleased: {
-                                    parent.isPressed = false
-                                    focus = false
-                                }
-                                onDoubleClicked: {
-                                    if(mask_tool_settings.pen_opacity == opacityProp.defaultValue){
-                                        mask_tool_settings.pen_opacity = opacityProp.prevValue
-                                    }
-                                    else{
-                                        opacityProp.prevValue = mask_tool_settings.pen_opacity
-                                        mask_tool_settings.pen_opacity = opacityProp.defaultValue
-                                    }
-                                    opacityDisplay.text = currentTool != "Erase" ? mask_tool_settings.pen_opacity : 100
-                                }
-                            }
                         }
-                        XsPrimaryButton{ id: softnessProp
-                            property bool isPressed: false
-                            property bool isMouseHovered: softnessMArea.containsMouse
-                            property real prevValue: defaultValue/2
-                            property real defaultValue: 100
+
+                        XsIntegerAttrControl{
+                            id: softnessProp
+                            visible: isAnyToolSelected && currentTool != "Erase"
+                            width: parent.width-x; height: buttonHeight;
+                            text: "Softness"
+                            attr_group_model: mask_tool_settings.model
+                            attr_title: "Pen Softness"
                             enabled: isAnyToolSelected && currentTool != "Erase"
-                            isActive: isPressed
-                            x: spacing/2
-                            width: parent.width-x; height: buttonHeight;
-                            // color: isPressed || isMouseHovered? (enabled? toolActiveBgColor: hoverToolInactiveColor): toolInactiveBgColor;
-                            Text{
-                                text: "Softness"
-                                font.pixelSize: fontSize
-                                font.family: fontFamily
-                                color: parent.isPressed || parent.isMouseHovered? textValueColor: textButtonColor
-                                width: parent.width/1.8
-                                horizontalAlignment: Text.AlignHCenter
-                                anchors.left: parent.left
-                                anchors.leftMargin: 2
-                                topPadding: framePadding/1.4
-                            }
-                            XsTextField{ id: softnessDisplay
-                                bgColorNormal: parent.enabled?palette.base:"transparent"
-                                borderColor: bgColorNormal
-                                text: currentTool != "Erase" ? mask_tool_settings.pen_softness : 100
-                                property var backendSoftness: currentTool != "Erase" ? mask_tool_settings.pen_softness : 100 // we don't set this anywhere else, so this is read-only - always tracks the backend opacity value
-                                onBackendSoftnessChanged: {
-                                    // if the backend value has changed, update the text
-                                    text = currentTool != "Erase" ? mask_tool_settings.pen_softness : 100
-                                }
-                                focus: softnessMArea.containsMouse && !parent.isPressed
-                                onFocusChanged:{
-                                    if(focus) {
-                                        selectAll()
-                                        forceActiveFocus()
-                                    }
-                                    else{
-                                        deselect()
-                                    }
-                                }
-                                maximumLength: 3
-                                inputMask: "900"
-                                inputMethodHints: Qt.ImhDigitsOnly
-                                // validator: IntValidator {bottom: 0; top: 100;}
-                                selectByMouse: false
-                                font.pixelSize: fontSize
-                                font.family: fontFamily
-                                color: parent.enabled? textValueColor : Qt.darker(textValueColor,1.5)
-                                width: parent.width/2.2
-                                height: parent.height
-                                horizontalAlignment: TextInput.AlignHCenter
-                                anchors.right: parent.right
-                                topPadding: framePadding/5
-                                onEditingCompleted:{
-                                    accepted()
-                                }
-                                onAccepted:{
-                                    if(currentTool != "Erase"){
-                                        if(parseInt(text) >= 100) {
-                                            mask_tool_settings.pen_softness = 100
-                                        } 
-                                        else if(parseInt(text) <= 0) {
-                                            mask_tool_settings.pen_softness = 0
-                                        }
-                                        else {
-                                            mask_tool_settings.pen_softness = parseInt(text)
-                                        }
-                                        
-                                        text = "" + backendSoftness
-                                        selectAll()
-                                    }
-                                }
-                            }
-                            MouseArea{
-                                id: softnessMArea
-                                anchors.fill: parent
-                                cursorShape: Qt.SizeHorCursor
-                                hoverEnabled: true
-                                propagateComposedEvents: true
-                                property real prevMX: 0
-                                property real deltaMX: 0.0
-                                property real stepSize: 0.25
-                                property int valueOnPress: 0
-                                onMouseXChanged: {
-                                    if(parent.isPressed)
-                                    {
-                                        deltaMX = mouseX - prevMX
-                                        // prevMX = mouseX
-                                        // var new_opac =  (Math.max(Math.min(100.0, mask_tool_settings.pen_softness + stepSize), 0.0) + 0.1) - 0.1
-                                        // mask_tool_settings.pen_softness = parseInt(new_opac)
-
-                                        let deltaValue = parseInt(deltaMX*stepSize)
-                                        let valueToApply = Math.round(valueOnPress + deltaValue)
-
-                                        if(deltaMX>0)
-                                        {
-                                            if(valueToApply >= 100) {
-                                                mask_tool_settings.pen_softness=100
-                                                valueOnPress = 100
-                                                prevMX = mouseX
-                                            }
-                                            else {
-                                                mask_tool_settings.pen_softness = valueToApply
-                                            }
-                                        }
-                                        else {
-                                            if(valueToApply < 0){
-                                                mask_tool_settings.pen_softness=0
-                                                valueOnPress = 0
-                                                prevMX = mouseX
-                                            }
-                                            else {
-                                                mask_tool_settings.pen_softness = valueToApply
-                                            }
-                                        }
-
-                                        softnessDisplay.text = currentTool != "Erase" ? mask_tool_settings.pen_softness : 100
-                                    }
-                                }
-                                onPressed: {
-                                    prevMX = mouseX
-                                    valueOnPress = mask_tool_settings.pen_softness
-
-                                    parent.isPressed = true
-                                    focus = true
-                                }
-                                onReleased: {
-                                    parent.isPressed = false
-                                    focus = false
-                                }
-                                onDoubleClicked: {
-                                    if(mask_tool_settings.pen_softness == softnessProp.defaultValue){
-                                        mask_tool_settings.pen_softness = softnessProp.prevValue
-                                    }
-                                    else{
-                                        softnessProp.prevValue = mask_tool_settings.pen_softness
-                                        mask_tool_settings.pen_softness = softnessProp.defaultValue
-                                    }
-                                    softnessDisplay.text = currentTool != "Erase" ? mask_tool_settings.pen_softness : 0
-                                }
-                            }
                         }
+
                         XsPrimaryButton{ id: colorProp
                             property bool isPressed: false
                             property bool isMouseHovered: colorMArea.containsMouse
                             enabled: (isAnyToolSelected && currentTool !== "Erase")
                             isActive: isPressed
-                            x: spacing/2
                             width: parent.width-x; height: buttonHeight;
                             // color: isPressed || isMouseHovered? (enabled? toolActiveBgColor: hoverToolInactiveColor): toolInactiveBgColor;
 
@@ -669,6 +276,16 @@ Item {
                         }
                     }
 
+                    XsPrimaryButton {
+                        width: softnessProp.width; height: softnessProp.height
+                        visible: isAnyToolSelected && currentTool === "Shape"
+                        isActive: mask_tool_settings.shape_invert
+                        text: "Invert"
+                        onClicked: {
+                            mask_tool_settings.shape_invert = !mask_tool_settings.shape_invert
+                        }
+                    }
+
                     Rectangle { id: toolPreview
                         width: parent.width/2
                         height: parent.height
@@ -676,6 +293,7 @@ Item {
                         border.color: frameColor
                         border.width: frameWidth
                         // clip: true
+                        visible: (isAnyToolSelected && currentTool !== "Shape")
 
                         Grid {id: checkerBg;
                             property real tileSize: framePadding
@@ -750,7 +368,7 @@ Item {
                     y: row1.y + row1.height + presetColours.spacing
                     width: toolProperties.width
                     height: buttonHeight *1.5
-                    visible: (isAnyToolSelected && currentTool !== "Erase")
+                    visible: (isAnyToolSelected && currentTool !== "Erase" && currentTool !== "Shape")
                     color: "transparent"
 
                     ListView{ id: presetColours
@@ -808,6 +426,66 @@ Item {
                                     onDropped: {
                                         currentColorPresetModel.setProperty(index, "preset", mask_tool_settings.pen_colour.toString())
                                     }
+                                }
+                            }
+                        }
+                    }
+                }
+
+                Rectangle{ id: row2bis
+                    x: toolSelectorFrame.x
+                    y: row1.y + row1.height - presetColours.height / 2
+                    width: toolProperties.width
+                    height: buttonHeight *1.5
+                    visible: (isAnyToolSelected && currentTool === "Shape")
+                    color: "transparent"
+
+                    Column {
+                        spacing: 2
+
+                        Row {
+                            spacing: 2
+
+                            XsPrimaryButton {
+                                text: "Quad"
+                                width: toolActionUndoRedo.width/modelUndoRedo.count - toolActionUndoRedo.spacing
+                                height: buttonHeight
+                                onClicked: {
+                                    mask_tool_settings.drawing_action = "Add quad"
+                                }
+                            }
+                            XsPrimaryButton {
+                                text: "Ellipse"
+                                width: toolActionUndoRedo.width/modelUndoRedo.count - toolActionUndoRedo.spacing
+                                height: buttonHeight
+                                onClicked: {
+                                    mask_tool_settings.drawing_action = "Add ellipse"
+                                }
+                            }
+                        }
+
+                        Row {
+                            spacing: 2
+
+                            XsPrimaryButton {
+                                text: "Polygon"
+                                width: toolActionUndoRedo.width/modelUndoRedo.count - toolActionUndoRedo.spacing
+                                height: buttonHeight
+                                isActive: mask_tool_settings.polygon_init
+                                onClicked: {
+                                    if (mask_tool_settings.polygon_init) {
+                                        mask_tool_settings.drawing_action = "Cancel polygon"
+                                    } else {
+                                        mask_tool_settings.drawing_action = "Adding polygon"
+                                    }
+                                }
+                            }
+                            XsPrimaryButton {
+                                text: "Remove"
+                                width: toolActionUndoRedo.width/modelUndoRedo.count - toolActionUndoRedo.spacing
+                                height: buttonHeight
+                                onClicked: {
+                                    mask_tool_settings.drawing_action = "Remove shape"
                                 }
                             }
                         }

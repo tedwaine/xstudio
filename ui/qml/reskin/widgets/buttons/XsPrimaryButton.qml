@@ -19,6 +19,7 @@ Button {
     property alias imageDiv: imageDiv
     property alias bgDiv: bgDiv
     property alias activeIndicator: activeIndicator
+    property real rotaionAnimDuration: 150
 
     property color imgOverlayColor: palette.text
     property color textColor: palette.text
@@ -51,7 +52,7 @@ Button {
             anchors.centerIn: parent
             imgOverlayColor: palette.text
 
-            Behavior on rotation {NumberAnimation{duration: 150 }}
+            Behavior on rotation {NumberAnimation{duration: rotaionAnimDuration }}
         }
 
         XsText {

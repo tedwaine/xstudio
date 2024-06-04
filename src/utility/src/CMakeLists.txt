@@ -1,9 +1,11 @@
 SET(LINK_DEPS
+	PRIVATE
+	reproc++
+	PUBLIC
+	spdlog::spdlog
 	caf::core
 	fmt::fmt
 	nlohmann_json::nlohmann_json
-	reproc++
-	spdlog::spdlog
 	stdc++fs
 	uuid
 	ZLIB::ZLIB

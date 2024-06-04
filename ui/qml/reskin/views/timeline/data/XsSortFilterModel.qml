@@ -2,7 +2,7 @@
 import QtQuick 2.9
 import QtQml.Models 2.14
 
-import xStudio 1.0
+import xStudioReskin 1.0
 
 DelegateModel {
     id: delegateModel

@@ -97,6 +97,7 @@ uniform bool use_bilinear_filtering;
 
 uniform usampler2DRect the_tex;
 uniform ivec2 tex_dims;
+uniform bool pack_rgb_10_bit;
 
 ivec2 step_sample(ivec2 tex_coord)
 {
@@ -277,6 +278,31 @@ vec4 get_bicubic_filter(vec2 pos)
         mix(sample1, sample0, sx), sy);
 }
 
+vec4 pack_RGB_10_10_10_2(vec4 rgb) 
+{
+    // this sets up the rgba value so that if the fragment 
+    // bit depth is 8 bit RGBA, the 4 bytes contain the
+    // RGB as packed 10 bit colours. We use this for SDI
+    // output, for example.
+
+    // scale to 10 bits
+    uint offset = 64;
+    float scale = 876.0f;
+    uint r = offset + uint(max(0.0,min(rgb.r*scale,scale)));
+    uint g = offset + uint(max(0.0,min(rgb.g*scale,scale)));
+    uint b = offset + uint(max(0.0,min(rgb.b*scale,scale)));
+
+    // pack
+    uint RR = (r << 20) + (g << 10) + b;
+
+    // unpack!
+    return vec4(float((RR >> 24)&255)/255.0,
+        float((RR >> 16)&255)/255.0,
+        float((RR >> 8)&255)/255.0,
+        float(RR&255)/255.0);
+
+}
+
 void main(void)
 {
     if (texPosition.x < image_bounds_min.x || texPosition.x > image_bounds_max.x) FragColor = vec4(0.0,0.0,0.0,1.0);
@@ -294,6 +320,11 @@ void main(void)
         }
 
         //INJECT_COLOUR_OPS_CALL
+        if (pack_rgb_10_bit) {
+            rgb_frag_value = pack_RGB_10_10_10_2(rgb_frag_value);
+        } else {
+            rgb_frag_value.a = 1.0;
+        }
 
         FragColor = vec4(rgb_frag_value.rgb, 1.0);
     }
@@ -309,6 +340,7 @@ out vec4 FragColor;
 uniform ivec2 image_dims;
 uniform ivec2 image_bounds_min;
 uniform ivec2 image_bounds_max;
+uniform bool pack_rgb_10_bit;
 
 uniform bool use_bilinear_filtering;
 
@@ -469,6 +501,30 @@ vec4 get_bicubic_filter(vec2 pos)
         mix(sample1, sample0, sx), sy);
 }
 
+vec4 pack_RGB_10_10_10_2(vec4 rgb) 
+{
+    // this sets up the rgba value so that if the fragment 
+    // bit depth is 8 bit RGBA, the 4 bytes contain the
+    // RGB as packed 10 bit colours. We use this for SDI
+    // output, for example.
+
+    // scale to 10 bits
+    uint offset = 64;
+    float scale = 876.0f;
+    uint r = offset + uint(max(0.0,min(rgb.r*scale,scale)));
+    uint g = offset + uint(max(0.0,min(rgb.g*scale,scale)));
+    uint b = offset + uint(max(0.0,min(rgb.b*scale,scale)));
+
+    // pack
+    uint RR = (r << 20) + (g << 10) + b;
+
+    // unpack!
+    return vec4(float((RR >> 24)&255)/255.0,
+        float((RR >> 16)&255)/255.0,
+        float((RR >> 8)&255)/255.0,
+        float(RR&255)/255.0);
+}
+
 void main(void)
 {
     if (texPosition.x < image_bounds_min.x || texPosition.x > image_bounds_max.x) FragColor = vec4(0.0,0.0,0.0,1.0);
@@ -486,6 +542,13 @@ void main(void)
         }
 
         //INJECT_COLOUR_OPS_CALL
+
+        if (pack_rgb_10_bit) {
+            rgb_frag_value = pack_RGB_10_10_10_2(rgb_frag_value);
+        } else {
+            rgb_frag_value.a = 1.0;
+        }
+
         FragColor = vec4(rgb_frag_value.rgb, 1.0);
     }
 }

@@ -101,7 +101,7 @@ Rectangle {
         acceptIndex: -1
         width: 500
         text: "Choose item to add"
-        title: "Add Timeline Item"
+        title: "Add Sequence Item"
         property var insertion_parent: null
         property int insertion_row: 0
 
@@ -216,6 +216,12 @@ Rectangle {
     function enableItems(indexes, enabled) {
         for(let i=0;i<indexes.length; i++) {
             app_window.sessionModel.set(indexes[i], enabled, "enabledRole")
+        }
+    }
+
+    function lockItems(indexes, locked) {
+        for(let i=0;i<indexes.length; i++) {
+            app_window.sessionModel.set(indexes[i], locked, "lockedRole")
         }
     }
 
@@ -461,6 +467,14 @@ Rectangle {
         XsMenuItem {
             mytext: qsTr("Disable")
             onTriggered: enableItems(timelineSelection.selectedIndexes, false)
+        }
+        XsMenuItem {
+            mytext: qsTr("Lock")
+            onTriggered: lockItems(timelineSelection.selectedIndexes, true)
+        }
+        XsMenuItem {
+            mytext: qsTr("Unlock")
+            onTriggered: lockItems(timelineSelection.selectedIndexes, false)
         }
         XsMenuItem {
             mytext: qsTr("Add Media")

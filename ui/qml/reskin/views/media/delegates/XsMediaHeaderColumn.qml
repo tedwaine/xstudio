@@ -17,14 +17,13 @@ Item{
     property real thumbWidth: 1
     property real titleBarTotalWidth: 0
 
-    property bool sorted: false
-    property bool isSortedDesc: false
     property real itemPadding: XsStyleSheet.panelPadding/2
     property var leftMargin: 12
 
     property color highlightColor: palette.highlight
 
-    signal headerColumnClicked()
+    property var model_index
+
     signal headerColumnResizing()
     property alias isDragged: dragArea.isDragActive
     onIsDraggedChanged:{
@@ -37,55 +36,63 @@ Item{
             // sets the size of the media items
             rowHeight = width*9/16
         }
-    }
+    }    
 
-    Rectangle{ id: headerDiv
+    Rectangle{ 
+        
+        id: headerDiv
         width: parent.width //- dragThumbDiv.width
         height: parent.height
         color: XsStyleSheet.panelTitleBarColor
         anchors.verticalCenter: parent.verticalCenter
-
-        Rectangle{
-            anchors.fill: parent
-            color: highlightColor
-            visible: isDragged
-        }
-
-        Rectangle{ id: highlightDiv
-            visible: headerMArea.containsMouse && sortable //|| dragArea.isDragActive
-            anchors.fill: parent
-            gradient: Gradient {
-                GradientStop { position: 0.0; color: "transparent" }
-                GradientStop { position: 1.0; color: "#33FFFFFF" }
-                // dragArea.isDragActive? palette.highlight:"#33FFFFFF" } //!sortable? "#55000000": //headerMArea.pressed? palette.highlight
-            }
-        }
+        
         XsText{ id: titleDiv
-            text: title
+            text: title ? title : ""
             anchors.verticalCenter: parent.verticalCenter
             x: position == "left" ? leftMargin : (parent.width-width)/2
         }
-        MouseArea { id: headerMArea
+        
+        MouseArea { 
+            
+            id: headerMArea
             anchors.fill: parent
             hoverEnabled: true
             cursorShape: dragArea.isDragActive? Qt.SizeHorCursor : Qt.ArrowCursor
-
-            onClicked: headerColumnClicked()
+            propagateComposedEvents: true
         }
-        
-        XsSecondaryButton{ id: sortBtn
-            visible: sortable && sorted
+
+
+        XsSecondaryButton{ 
+            
+            id: settings_btn
+            visible: headerMArea.containsMouse || hovered || sort_btn.hovered
             width: XsStyleSheet.secondaryButtonStdWidth
             height: XsStyleSheet.secondaryButtonStdWidth
+            bgColorNormal: XsStyleSheet.panelTitleBarColor
+            imgSrc: "qrc:/icons/settings.svg"
+            anchors.right: sort_btn.left
+            anchors.rightMargin: itemPadding
+            anchors.verticalCenter: parent.verticalCenter
+            onClicked:{
+                configure(model_index)
+            }
+        }
+        
+        XsSecondaryButton{ 
+            
+            id: sort_btn
+            visible: headerMArea.containsMouse || hovered || settings_btn.hovered
+            width: XsStyleSheet.secondaryButtonStdWidth
+            height: XsStyleSheet.secondaryButtonStdWidth
+            bgColorNormal: XsStyleSheet.panelTitleBarColor
             imgSrc: "qrc:/icons/triangle.svg"
             rotation: isSortedDesc? 0 : 180
             anchors.right: parent.right
             anchors.rightMargin: itemPadding
             anchors.verticalCenter: parent.verticalCenter
-            enabled: false
-            onlyVisualyEnabled: true
-
+            property bool isSortedDesc: false
             onClicked:{
+                sort_media(model_index, !isSortedDesc)
                 isSortedDesc = !isSortedDesc
             }
         }
@@ -110,7 +117,7 @@ Item{
         Drag.active: dragArea.isDragActive
 
         MouseArea { id: dragArea
-            visible: resizable
+            visible: resizable ? resizable : false
             anchors.fill: parent
             hoverEnabled: true
             cursorShape: Qt.SizeHorCursor

@@ -280,7 +280,13 @@ namespace utility {
     }
 
     inline std::string preference_path_context(const std::string &context) {
-        return preference_path(to_lower(context) + ".json");
+        auto major = std::string(XSTUDIO_GLOBAL_VERSION);
+        // spdlog::warn("{}", major);
+        major = major.substr(0, major.find_first_of('.'));
+        if (major == "0" or major == "1")
+            return preference_path(to_lower(context) + ".json");
+
+        return preference_path(to_lower(context) + "-v" + major + ".json");
     }
 
     inline bool are_same(float a, float b, int decimals) {

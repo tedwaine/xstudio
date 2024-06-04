@@ -144,6 +144,12 @@ endif()
 add_subdirectory(src)
 
 if(INSTALL_XSTUDIO)
+
+  install(DIRECTORY include/xstudio
+          DESTINATION include)
+
+  INSTALL(DIRECTORY extern/ DESTINATION extern)
+
   add_subdirectory(share/preference)
   add_subdirectory(share/snippets)
   add_subdirectory(share/fonts)
@@ -156,6 +162,29 @@ if(INSTALL_XSTUDIO)
   else()
     install(DIRECTORY share/docs/ DESTINATION share/xstudio/docs)
   endif ()
+
+  include(CMakePackageConfigHelpers)
+
+  configure_package_config_file(xStudioConfig.cmake.in
+    ${CMAKE_CURRENT_BINARY_DIR}/xStudioConfig.cmake
+    INSTALL_DESTINATION lib/cmake/${PROJECT_NAME}
+  )
+  write_basic_package_version_file("xStudioConfigVersion.cmake"
+    VERSION ${PROJECT_VERSION}
+    COMPATIBILITY SameMajorVersion
+  )
+
+  install(FILES ${CMAKE_CURRENT_BINARY_DIR}/xStudioConfig.cmake
+              ${CMAKE_CURRENT_BINARY_DIR}/xStudioConfigVersion.cmake
+      DESTINATION lib/cmake/${PROJECT_NAME}
+  )
+
+  install(EXPORT xstudio
+    DESTINATION lib/cmake/${PROJECT_NAME}
+    FILE ${PROJECT_NAME}Targets.cmake
+    NAMESPACE xstudio::
+    EXPORT_LINK_INTERFACE_LIBRARIES
+  )
 
 endif ()
 

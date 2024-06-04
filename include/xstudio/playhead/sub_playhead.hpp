@@ -28,7 +28,7 @@ namespace playhead {
             const utility::TimeSourceMode time_source_mode_,
             const utility::FrameRate override_frame_rate_,
             const media::MediaType media_type);
-        ~SubPlayhead() override = default;
+        ~SubPlayhead();
 
         const char *name() const override { return NAME.c_str(); }
 
@@ -38,10 +38,11 @@ namespace playhead {
         void set_position(
             const timebase::flicks time,
             const bool forwards,
-            const bool playing            = false,
-            const float velocity          = 1.0f,
-            const bool force_updates      = false,
-            const bool timeline_scrubbing = false);
+            const bool playing,
+            const float velocity,
+            const bool force_updates,
+            const bool active_in_ui,
+            const bool scrubbing);
 
         void init();
 
@@ -100,7 +101,8 @@ namespace playhead {
 
         void full_bookmarks_update(caf::typed_response_promise<bool> done);
 
-        void fetch_bookmark_annotations(BookmarkRanges bookmark_ranges, caf::typed_response_promise<bool> done);
+        void fetch_bookmark_annotations(
+            BookmarkRanges bookmark_ranges, caf::typed_response_promise<bool> done);
 
         void add_annotations_data_to_frame(media_reader::ImageBufPtr &frame);
 
@@ -146,8 +148,9 @@ namespace playhead {
 
         typedef std::pair<media_reader::ImageBufPtr, colour_pipeline::ColourPipelineDataPtr>
             ImageAndLut;
-        bool content_changed_{false};
         bool up_to_date_{false};
+        utility::time_point last_change_timepoint_;
+        std::vector<caf::typed_response_promise<caf::actor>> inflight_update_requests_;
     };
 } // namespace playhead
 } // namespace xstudio

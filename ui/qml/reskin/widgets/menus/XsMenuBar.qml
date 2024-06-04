@@ -42,7 +42,10 @@ Item {
     function hideOtherSubMenus(widget) {
         for (var i = 0; i < view.count; ++i) {
             let item = view.itemAtIndex(i)
-            if (item != widget && typeof item.hideSubMenus != "undefined") item.hideSubMenus()
+            if (item != widget) {
+                if (typeof item.hideSubMenus != "undefined") item.hideSubMenus()
+                if (typeof item.hideOtherSubMenus != "undefined") item.hideOtherSubMenus(widget)
+            }
         }
     }
 
@@ -52,28 +55,53 @@ Item {
         anchors.fill: parent
         orientation: ListView.Horizontal
         isScrollbarVisibile: false
+        interactive: false
 
         model: DelegateModel {
 
             model: menus_model
             rootIndex: root_index
 
-            delegate: XsMenuItemNew {
+            delegate: chooser
 
-                menu_model: menus_model
+            DelegateChooser {
+                id: chooser
+                role: "menu_item_type" 
 
-                // As we loop over the top level items in the 'main menu bar'
-                // here, we set the index to row=index, column=0. This takes
-                // us one step deeper into the tree on each iteration
-                menu_model_index: menus_model.index(index, 0, root_index)
+                DelegateChoice {
+                    roleValue: "menu"
+                    
+                    XsMenuItemNew {
 
-                // This var simply tells the pop-up to appear below the menu
-                // item rather than to the right of it.
-                is_in_bar: true
+                        menu_model: menus_model
+        
+                        // As we loop over the top level items in the 'main menu bar'
+                        // here, we set the index to row=index, column=0. This takes
+                        // us one step deeper into the tree on each iteration
+                        menu_model_index: menus_model.index(index, 0, root_index)
+        
+                        // This var simply tells the pop-up to appear below the menu
+                        // item rather than to the right of it.
+                        is_in_bar: true
+        
+                        parent_menu: menu_bar
+                        width: minWidth
+        
+                    }
+                }
 
-                parent_menu: menu_bar
-                width: minWidth
-
+                DelegateChoice {
+                    roleValue: "custom"
+                    
+                    XsMenuItemCustom { 
+                        menu_model: menus_model
+                        is_in_bar: true
+                        menu_model_index: menus_model.index(index, 0, root_index)
+                        parent_menu: menu_bar
+                        width: minWidth
+                    }
+                    
+                }
             }
 
         }

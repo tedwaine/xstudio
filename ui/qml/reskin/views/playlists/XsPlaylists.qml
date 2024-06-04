@@ -16,7 +16,7 @@ Item{
     anchors.fill: parent
 
     property color panelColor: XsStyleSheet.panelBgColor
-    property color bgColorPressed: palette.highlight 
+    property color bgColorPressed: palette.highlight
     property color bgColorNormal: "transparent"
     property color forcedBgColorNormal: bgColorNormal
     property color borderColorHovered: bgColorPressed
@@ -37,13 +37,13 @@ Item{
     XsGradientRectangle{
         anchors.fill: parent
     }
-    
+
     ColumnLayout {
-        
+
         id: titleDiv
         anchors.fill: parent
         anchors.margins: panelPadding
-        
+
         RowLayout{
 
             x: panelPadding
@@ -64,6 +64,9 @@ Item{
                 Layout.preferredWidth: btnWidth
                 Layout.preferredHeight: btnHeight
                 imgSrc: "qrc:/icons/delete.svg"
+                onClicked: {
+                    removeSelected()
+                }
             }
             // XsSearchButton{ id: searchBtn
             //     Layout.preferredWidth: isExpanded? btnWidth*6 : btnWidth
@@ -71,44 +74,36 @@ Item{
             //     isExpanded: false
             //     hint: "Search playlists..."
             // }
-            Item{
+            XsText {
                 Layout.fillWidth: true
                 Layout.preferredHeight: btnHeight
+                elide: Text.ElideMiddle
+                text: filename
+                font.bold: true
+                property string path: sessionProperties.values.pathRole ? sessionProperties.values.pathRole : ""
+                property string filename: path ? path.substring(path.lastIndexOf("/")+1) : sessionProperties.values.nameRole ? sessionProperties.values.nameRole : ""
             }
-            XsPrimaryButton{ id: morePlaylistBtn
+
+            XsPrimaryButton{ 
+                id: morePlaylistBtn
                 Layout.preferredWidth: btnWidth
                 Layout.preferredHeight: btnHeight
                 imgSrc: "qrc:/icons/more_vert.svg"
+                onClicked: {
+                    showContextMenu(width/2, height/2, morePlaylistBtn)
+                }
             }
         }
 
-        ColumnLayout{ 
-        
+        XsPlaylistItems{
+
+            id: playlistItems
             Layout.fillWidth: true
             Layout.fillHeight: true
-            
-            XsPlaylistHeader{
-    
-                id: playlistHeader        
-                Layout.fillWidth: true
-                height: XsStyleSheet.widgetStdHeight
-    
-            }
-                            
-            XsPlaylistItems{
-                       
-                id: playlistItems
-                Layout.fillWidth: true
-                Layout.fillHeight: true 
-                y: playlistHeader.height
-                itemRowWidth: width
-    
-            }
-    
-        }    
-        
+        }
+
     }
-    
+
     Loader {
         id: menu_loader
     }
@@ -118,14 +113,85 @@ Item{
         XsPlaylistPlusMenu {
         }
     }
-                    
+
     function showMenu(mx, my) {
         if (menu_loader.item == undefined) {
             menu_loader.sourceComponent = plusMenuComponent
         }
         menu_loader.item.x = mx
         menu_loader.item.y = my
-        menu_loader.item.visible = true    
+        menu_loader.item.visible = true
     }
-    
+
+    Loader {
+        id: context_menu_loader
+    }
+
+    Component {
+        id: contextMenuComponent
+        XsPlaylistContextMenu {
+        }
+    }
+
+    function removeSelected() {
+
+        let msg = "Remove the following items: "
+        for (var i = 0; i < sessionSelectionModel.selectedIndexes.length; ++i) {
+            msg = msg + theSessionData.get(sessionSelectionModel.selectedIndexes[i], "nameRole") + ", "
+        }
+
+        dialogHelpers.multiChoiceDialog(
+            doRemove,
+            "Remove Selected Items",
+            msg,
+            ["Cancel", "Remove Items"], 
+            undefined)
+
+    }
+
+    function doRemove(button) {
+
+        if (button == "Cancel") return
+
+        let perst_indeces = []
+        for (var i = 0; i < sessionSelectionModel.selectedIndexes.length; ++i) {
+            let index = sessionSelectionModel.selectedIndexes[i]
+            perst_indeces.push(helpers.makePersistent(index))
+        }
+
+        for (var i = 0; i < perst_indeces.length; ++i) {
+            console.log("Removing", theSessionData.get(perst_indeces[i], "nameRole"), perst_indeces[i])
+            theSessionData.removeRows(
+                perst_indeces[i].row,
+                1,
+                false,
+                perst_indeces[i].parent
+                )
+        }
+    }
+
+    function showContextMenu(mx, my, parentWidget) {
+        if (context_menu_loader.item == undefined) {
+            context_menu_loader.sourceComponent = contextMenuComponent
+        }
+        context_menu_loader.item.visible = true
+        repositionPopupMenu(
+            context_menu_loader.item,
+            parentWidget,
+            mx,
+            my);
+    }
+
+    MouseArea {
+        id: ma
+        anchors.fill: parent
+        propagateComposedEvents: true
+        acceptedButtons: Qt.RightButton
+        onPressed: {
+            if (mouse.buttons == Qt.RightButton) {
+                showContextMenu(mouseX, mouseY, ma)
+            }
+        }
+    }
+
 }

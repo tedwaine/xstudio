@@ -30,10 +30,10 @@ XsPopupMenu {
         onActivated: {
             dialogHelpers.textInputDialog(
                 plusMenu.addPlaylist,
-                "Enter New Playlist Name",
+                "Add Playlist",
                 "Enter a name for the new playlist.",
                 "New Playlist",
-                ["Ok", "Cancel"])
+                ["Cancel", "Add"])
         }
         panelContext: plusMenu.panelContext
     }
@@ -47,16 +47,16 @@ XsPopupMenu {
         onActivated: {
             dialogHelpers.textInputDialog(
                 plusMenu.addSubset,
-                "Enter New Subset Name",
+                "Add Subset",
                 "Enter a name for the new subset.",
                 "New Subset",
-                ["Ok", "Cancel"])
+                ["Cancel", "Add"])
         }
         panelContext: plusMenu.panelContext
     }
 
     XsMenuModelItem {
-        text: "Add Timeline"
+        text: "Add Sequence"
         menuItemType: "button"
         menuPath: ""
         menuItemPosition: 3
@@ -64,10 +64,10 @@ XsPopupMenu {
         onActivated: {
             dialogHelpers.textInputDialog(
                 plusMenu.addTimeline,
-                "Enter New Timline Name",
-                "Enter a name for the new timline.",
-                "New Timline",
-                ["Ok", "Cancel"])
+                "Add Sequence",
+                "Enter a name for the new sequence.",
+                "New Sequence",
+                ["Cancel", "Add"])
         }
         panelContext: plusMenu.panelContext
     }
@@ -105,19 +105,19 @@ XsPopupMenu {
     }
 
     function addPlaylist(new_name, button) {
-        if (button == "Ok") {
+        if (button == "Add") {
             theSessionData.createPlaylist(new_name)
         }
     }
 
     function addSubset(new_name, button) {
-        if (button == "Ok") {
+        if (button == "Add") {
             addSubitem(new_name, "Subset")
         }
     }
 
     function addTimeline(new_name, button) {
-        if (button == "Ok") {
+        if (button == "Add") {
             addSubitem(new_name, "Timeline")
         }
     }
@@ -129,6 +129,8 @@ XsPopupMenu {
             callbackTimer.setTimeout(function(subsetIdx, media) { return function() {
                 subsetIdx.model.copyRows(media, 0, subsetIdx)
             }}( subsetIdx, media ), 100);
+            // make sure parent is not collapsed in Playlists panel
+            theSessionData.set(subsetIdx.parent.parent, true, "expandedRole")
         }
     }    
 }

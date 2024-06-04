@@ -2,7 +2,6 @@
 import QtQuick 2.15
 import QtQuick.Dialogs 1.0
 import QtQuick.Controls 2.15
-import QtQuick.Controls 2.15
 import QtQuick.Layouts 1.15
 
 import QuickFuture 1.0
@@ -18,6 +17,7 @@ Item {
         id: loader
     }
 
+    
     function hideLastDialog() {
         loader.item.visible = false
     }
@@ -56,7 +56,7 @@ Item {
                 loader.sourceComponent = undefined
             }
             onRejected: {
-                result(false)
+                result(false, undefined, chaser)
                 // unload (important!)
                 loader.sourceComponent = undefined
             }
@@ -83,7 +83,25 @@ Item {
         loader.item.selectExisting = selectExisting
         loader.item.selectMultiple = selectMultiple
         loader.item.chaser = chaser
-        loader.item.visible = true
+        loader.item.selectFolder = false
+        loader.item.open()
+
+    }
+
+    function showFileDialogFolderMode(
+        resultCallback,
+        folder,
+        title) {
+
+        loader.sourceComponent = fileDialog
+        loader.item.result.connect(resultCallback)
+        loader.item.folder = folder
+        loader.item.title = title
+        loader.item.selectFolder = true
+        loader.item.selectExisting = true
+        loader.item.selectMultiple = false
+        loader.item.open()
+
     }
 
     /**************************************************************
@@ -94,13 +112,14 @@ Item {
 
     Component {
         id: errorDialog
-        XsPopup {
+        XsWindow {
 
-            property string title: "Error"
+            id: errorDialog
+            title: "Error"
             property string body: ""
             width: 400
             height: 200
-            id: errorDialog
+
 
             ColumnLayout {
 
@@ -108,35 +127,34 @@ Item {
                 anchors.margins: 20
                 spacing: 20
 
-                Text {
-                    Layout.fillWidth: true
-                    text: title
-                    verticalAlignment: Text.AlignVCenter
-                    horizontalAlignment: Text.AlignHCenter
-                    wrapMode: Text.Wrap
-                }
+                focus: true
+                Keys.onEscapePressed: errorDialog.visible = false
 
                 RowLayout {
                     Layout.fillWidth: true
                     Layout.fillHeight: true
                     spacing: 20
+
                     Image {
                         id: thumbnailImgDiv
                         width: 40
                         height: 40
                         source: "qrc:/icons/error.svg"                
                     }
-                    Text {
+                    XsText {
                         Layout.fillWidth: true
                         Layout.fillHeight: true
                         text: body
                         verticalAlignment: Text.AlignVCenter
                         horizontalAlignment: Text.AlignHCenter
                         wrapMode: Text.Wrap
+                        font.weight: Font.Bold
+                        font.pixelSize: XsStyleSheet.fontSize*1.2
                     }
                 }
                 XsSimpleButton {
                     text: "Close"
+                    width: XsStyleSheet.primaryButtonStdWidth*2
                     Layout.alignment: Qt.AlignRight
                     onClicked: {
                         errorDialog.visible = false
@@ -147,8 +165,6 @@ Item {
                 if (!visible) {
                     loader.sourceComponent = undefined
                 }
-            }
-            background: XsGradientRectangle{
             }
         }
     }
@@ -169,14 +185,15 @@ Item {
     Component {
 
         id: multiChoice
-        XsPopup {
 
-            property string title: ""
+        XsWindow {
+            id: popup
+
+            title: ""
             property string body: ""
             property var choices: []
             width: 400
             height: 200
-            id: popup
             signal response(variant p, variant chaser)
             property var chaser
 
@@ -186,27 +203,32 @@ Item {
                 anchors.margins: 20
                 spacing: 20
 
-                Text {
-                    Layout.fillWidth: true
-                    text: title
-                    verticalAlignment: Text.AlignVCenter
-                    horizontalAlignment: Text.AlignHCenter
-                    wrapMode: Text.Wrap
+                focus: true
+                Keys.onReturnPressed: {
+                    popup.response(popup.choices[popup.choices.length-1], popup.chaser)
+                    popup.visible = false
+                }
+                Keys.onEscapePressed: {
+                    popup.response(popup.choices[0], popup.chaser)
+                    popup.visible = false
                 }
 
-                Text {
+                XsText {
                     Layout.fillWidth: true
                     Layout.fillHeight: true
                     text: body
                     verticalAlignment: Text.AlignVCenter
                     horizontalAlignment: Text.AlignHCenter
                     wrapMode: Text.Wrap
+                    font.weight: Font.Bold
+                    font.pixelSize: XsStyleSheet.fontSize*1.2
                 }
 
                 RowLayout {
                     Layout.alignment: Qt.AlignRight
                     Repeater {
                         model: popup.choices
+
                         XsSimpleButton {
                             text: popup.choices[index]
                             Layout.alignment: Qt.AlignRight
@@ -222,8 +244,6 @@ Item {
                 if (!visible) {
                     loader.sourceComponent = undefined
                 }
-            }
-            background: XsGradientRectangle{
             }
         }
     }
@@ -252,41 +272,25 @@ Item {
     Component {
 
         id: textInput
-        XsPopup {
 
-            property string title: ""
+        XsWindow{
+            id: popup
+
+            title: ""
             property string body: ""
             property string initialText: ""
             property var choices: []
             width: 400
             height: 200
-            id: popup
             signal response(variant text, variant button_press)
             property var chaser
 
-            Rectangle {
-                id: titleBar
-                anchors.top: parent.top                
-                anchors.left: parent.left
-                anchors.right: parent.right
-                height: 30
-                color: XsStyleSheet.menuBarColor
-                XsText {
-                    anchors.centerIn: parent
-                    text: title
-                    verticalAlignment: Text.AlignVCenter
-                    horizontalAlignment: Text.AlignHCenter
-                    wrapMode: Text.Wrap
-                    font.bold: true
-                    font.pixelSize: XsStyleSheet.fontSize*1.2
-                }    
-            }
             ColumnLayout {
 
                 anchors.left: parent.left
                 anchors.right: parent.right
                 anchors.bottom: parent.bottom
-                anchors.top: titleBar.bottom
+                anchors.top: parent.top
                 anchors.margins: 20
                 spacing: 20
 
@@ -297,6 +301,8 @@ Item {
                     verticalAlignment: Text.AlignVCenter
                     horizontalAlignment: Text.AlignHCenter
                     wrapMode: Text.Wrap
+                    font.weight: Font.Bold
+                    font.pixelSize: XsStyleSheet.fontSize*1.2
                 }
 
                 Rectangle {
@@ -304,13 +310,32 @@ Item {
                     Layout.preferredHeight: 30
                     color: "transparent"
                     border.color: "black"
-                    XsTextInput {
+
+                    Keys.onReturnPressed:{
+                        popup.response(input.text, popup.choices[popup.choices.length-1])
+                        popup.visible = false
+                    } 
+                    Keys.onEscapePressed: {
+                        popup.response(input.text, popup.choices[0])
+                        popup.visible = false
+                    }
+
+                    XsTextField{ id: input
                         anchors.fill: parent
-                        id: input
                         text: initialText
-                        verticalAlignment: Text.AlignVCenter
-                        horizontalAlignment: Text.AlignHCenter
                         wrapMode: Text.Wrap
+                        clip: true
+                        focus: true
+                        onActiveFocusChanged:{
+                            if(activeFocus) selectAll()
+                        }
+
+                        background: Rectangle{
+                            color: input.activeFocus? Qt.darker(palette.highlight, 1.5): input.hovered? Qt.lighter(palette.base, 2):Qt.lighter(palette.base, 1.5)
+                            border.width: input.hovered || input.active? 1:0
+                            border.color: palette.highlight
+                            opacity: enabled? 0.7 : 0.3
+                        }
                     }
                 }
 
@@ -318,8 +343,10 @@ Item {
                     Layout.alignment: Qt.AlignRight
                     Repeater {
                         model: popup.choices
+
                         XsSimpleButton {
                             text: popup.choices[index]
+                            //width: XsStyleSheet.primaryButtonStdWidth*2
                             Layout.alignment: Qt.AlignRight
                             onClicked: {
                                 popup.response(input.text, popup.choices[index])
@@ -333,8 +360,6 @@ Item {
                 if (!visible) {
                     loader.sourceComponent = undefined
                 }
-            }
-            background: XsGradientRectangle{
             }
         }
     }

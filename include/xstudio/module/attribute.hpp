@@ -79,7 +79,8 @@ namespace module {
             TextContainerBox,
             Colour,
             HotkeyUuid,
-            UserData
+            UserData,
+            IconPath
         };
 
         inline static const std::map<int, std::string> role_names = {
@@ -119,7 +120,8 @@ namespace module {
             {TextContainerBox, "text_alignment_box"},
             {Colour, "attr_colour"},
             {HotkeyUuid, "hotkey_uuid"},
-            {UserData, "user_data"}};
+            {UserData, "user_data"},
+            {IconPath, "icon_path"}};
 
         ~Attribute() = default;
 
@@ -144,6 +146,9 @@ namespace module {
         }
 
         [[nodiscard]] nlohmann::json role_data_as_json(const int role) const;
+
+        void update_role_data_from_json(
+            const int role, const nlohmann::json &data, const bool notify);
 
         [[nodiscard]] nlohmann::json as_json() const;
 

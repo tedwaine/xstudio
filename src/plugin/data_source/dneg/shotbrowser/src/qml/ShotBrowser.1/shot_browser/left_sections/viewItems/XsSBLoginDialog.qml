@@ -8,7 +8,7 @@ import QtQuick.Window 2.14
 import xStudioReskin 1.0
 import ShotBrowser 1.0
 import xstudio.qml.helpers 1.0
-import xstudio.qml.module 1.0
+import xstudio.qml.models 1.0
 import QtQml.Models 2.14
 import Qt.labs.qmlmodels 1.0
 
@@ -28,15 +28,62 @@ XsWindow{
     maximumHeight: height
     palette.base: XsStyleSheet.panelTitleBarColor
 
-    XsModuleAttributes {
-        id: attrs_values
-        attributesGroupNames: "shotbrowser_datasource_preference"
+    XsModuleData {
+        id: shotbrowser_datasource_preference_model
+        modelDataName: "shotbrowser_datasource_preference"
     }
-    XsModuleAttributes {
-        id: attrs_options
-        attributesGroupNames: "shotbrowser_datasource_preference"
-        roleName: "combo_box_options"
+
+    XsAttributeValue {
+        id: __authentication_method
+        attributeTitle: "authentication_method"
+        model: shotbrowser_datasource_preference_model
     }
+    property alias authentication_method: __authentication_method.value
+
+    XsAttributeValue {
+        id: __client_id
+        attributeTitle: "client_id"
+        model: shotbrowser_datasource_preference_model
+    }
+    property alias client_id: __client_id.value
+
+    XsAttributeValue {
+        id: __client_secret
+        attributeTitle: "client_secret"
+        model: shotbrowser_datasource_preference_model
+    }
+    property alias client_secret: __client_secret.value
+
+
+    XsAttributeValue {
+        id: __username
+        attributeTitle: "username"
+        model: shotbrowser_datasource_preference_model
+    }
+    property alias username: __username.value
+
+    XsAttributeValue {
+        id: __password
+        attributeTitle: "password"
+        model: shotbrowser_datasource_preference_model
+    }
+    property alias password: __password.value
+
+    XsAttributeValue {
+        id: __session_token
+        attributeTitle: "session_token"
+        model: shotbrowser_datasource_preference_model
+    }
+    property alias session_token: __session_token.value
+
+    
+    XsAttributeValue {
+        id: __authentication_methods
+        attributeTitle: "authentication_method"
+        model: shotbrowser_datasource_preference_model
+        role: "combo_box_options"
+    }
+    property alias authentication_methods: __authentication_methods.value
 
     ColumnLayout {
         anchors.fill: parent
@@ -55,22 +102,22 @@ XsWindow{
 
             onCurrentIndexChanged: {
                 if(ready && currentIndex != -1 ) {
-                    attrs_values.authentication_method = model[currentIndex]
+                    authentication_method = model[currentIndex]
                 }
             }
 
-            model: attrs_options.authentication_method && attrs_options.authentication_method.length ? attrs_options.authentication_method : []
+            model: authentication_methods && authentication_methods.length ? authentication_methods : []
             onModelChanged: {
-                if(model.length && attrs_values.authentication_method != undefined) {
+                if(model.length && authentication_method != undefined) {
                     ready = true
-                    currentIndex = valueDiv.find(attrs_values.authentication_method)
+                    currentIndex = valueDiv.find(authentication_method)
                 }
             }
 
-            property var auth_method: attrs_values.authentication_method ? attrs_values.authentication_method : null
+            property var auth_method: authentication_method ? authentication_method : null
             onAuth_methodChanged: {
-                if(ready && valueDiv.find(attrs_values.authentication_method) != -1 && currentIndex != valueDiv.find(attrs_values.authentication_method)){
-                    currentIndex = valueDiv.find(attrs_values.authentication_method)
+                if(ready && valueDiv.find(authentication_method) != -1 && currentIndex != valueDiv.find(authentication_method)){
+                    currentIndex = valueDiv.find(authentication_method)
                 }
             }
 
@@ -85,10 +132,10 @@ XsWindow{
             Layout.preferredHeight: itemHeight
 
             label: "Client Identifier :"
-            visible: attrs_values.authentication_method == "client_credentials"
-            value: attrs_values.client_id ? attrs_values.client_id : null
+            visible: authentication_method == "client_credentials"
+            value: client_id ? client_id : null
 
-            onEditingCompleted: {attrs_values.client_id = text}
+            onEditingCompleted: {client_id = text}
         }
         XsTextWithInputField{ id: clSecret
             Layout.fillWidth: true
@@ -96,10 +143,10 @@ XsWindow{
 
             label: "Client Secret :"
             echoMode: TextInput.Password
-            visible: attrs_values.authentication_method == "client_credentials"
-            value: attrs_values.client_secret ? attrs_values.client_secret : null
+            visible: authentication_method == "client_credentials"
+            value: client_secret ? client_secret : null
 
-            onEditingCompleted: {attrs_values.client_secret = text}
+            onEditingCompleted: {client_secret = text}
         }
 
         XsTextWithInputField{ id: userName
@@ -107,10 +154,10 @@ XsWindow{
             Layout.preferredHeight: itemHeight
 
             label: "Username :"
-            visible: attrs_values.authentication_method == "password"
-            value: attrs_values.username ? attrs_values.username : null
+            visible: authentication_method == "password"
+            value: username ? username : null
 
-            onEditingCompleted: {attrs_values.username = text}
+            onEditingCompleted: {username = text}
         }
         XsTextWithInputField{ id: passWord
             Layout.fillWidth: true
@@ -118,10 +165,10 @@ XsWindow{
 
             label: "Password :"
             echoMode: TextInput.Password //PasswordEchoOnEdit
-            visible: attrs_values.authentication_method == "password"
-            value: attrs_values.password ? attrs_values.password : null
+            visible: authentication_method == "password"
+            value: password ? password : null
 
-            onEditingCompleted: {attrs_values.password = text}
+            onEditingCompleted: {password = text}
         }
 
         XsTextWithInputField{ id: sessToken
@@ -129,16 +176,16 @@ XsWindow{
             Layout.preferredHeight: itemHeight
 
             label: "Session Token :"
-            visible: attrs_values.authentication_method == "session_token"
-            value: attrs_values.session_token ? attrs_values.session_token : null
+            visible: authentication_method == "session_token"
+            value: session_token ? session_token : null
 
-            onEditingCompleted: {attrs_values.username = text}
+            onEditingCompleted: {username = text}
         }
         Item{ id: sessDummy
             Layout.fillWidth: true
             Layout.preferredHeight: itemHeight
 
-            visible: attrs_values.authentication_method == "session_token"
+            visible: authentication_method == "session_token"
         }
 
         Item{ id: msgDiv

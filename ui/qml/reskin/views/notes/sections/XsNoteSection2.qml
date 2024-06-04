@@ -44,7 +44,7 @@ Rectangle{
             Layout.fillHeight: true
             color: notesEdit.activeFocus? Qt.lighter(panelColor, 1.4) : Qt.lighter(panelColor, 1.2)
 
-            property bool isHovered: isTestMode? (mArea.containsMouse || notesEdit.activeFocus) : mArea.containsMouse 
+            property bool isHovered: mArea.containsMouse || notesEdit.activeFocus
 
             MouseArea{ id: mArea
                 anchors.fill: parent;
@@ -86,7 +86,7 @@ Rectangle{
                     hint: "Enter note here..."
                     onCursorRectangleChanged: flickDiv.ensureVisible(cursorRectangle)
                 
-                    focus: isTestMode? activeFocus : (mArea.containsMouse || activeFocus)
+                    focus: (mArea.containsMouse || activeFocus)
                     onFocusChanged: if(focus) forceActiveFocus()
 
                     onEditingFinished: { //#TODO

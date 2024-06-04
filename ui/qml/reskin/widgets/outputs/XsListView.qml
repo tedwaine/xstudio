@@ -25,7 +25,7 @@ ListView { id: widget
     snapMode: ListView.NoSnap //SnapToItem //SnapOneItem
     // highlightRangeMode: ListView.StrictlyEnforceRange
 
-    ScrollBar.vertical: XsScrollBar {id: scrollBar; x:width; visible: isScrollbarVisibile && widget.height < widget.contentHeight;}
+    ScrollBar.vertical: XsScrollBar {id: scrollBar; x:0; visible: isScrollbarVisibile && widget.height < widget.contentHeight;}
     // ScrollBar.horizontal: XsScrollBar { y:height; }//visible: isScrollbarVisibile && widget.width < widget.contentWidth}
 
     // model: delegateModel

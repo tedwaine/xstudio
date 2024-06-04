@@ -2,6 +2,7 @@
 #include <set>
 #include <nlohmann/json.hpp>
 
+#include "xstudio/global_store/global_store.hpp"
 #include "xstudio/ui/qml/model_data_ui.hpp"
 #include "xstudio/utility/string_helpers.hpp"
 #include "xstudio/utility/logging.hpp"
@@ -16,10 +17,15 @@ using namespace std::chrono_literals;
 
 
 UIModelData::UIModelData(
-    QObject *parent, const std::string &model_name, const std::string &data_preference_path)
+    QObject *parent, const std::string &model_name, const std::string &data_preference_path,
+    const std::vector<std::string> &role_names)
     : super(parent), model_name_(model_name), data_preference_path_(data_preference_path) {
 
     init(CafSystemObject::get_actor_system());
+
+    if (!role_names.empty()) {
+        setRoleNames(role_names);
+    }    
 
     try {
 
@@ -42,6 +48,7 @@ UIModelData::UIModelData(
         spdlog::warn("{} {}", __PRETTY_FUNCTION__, e.what());
     }
 }
+
 
 std::mutex UIModelData::mutex_;
 QMap<QString, QObject *> UIModelData::context_object_lookup_map_;
@@ -74,16 +81,32 @@ void UIModelData::setModelDataName(QString name) {
 
         // we send empty data to 'register' but if the model already exists
         // we'll be sent back what's already in the model
-        auto data = request_receive<utility::JsonStore>(
-            *sys,
-            central_models_data_actor_,
-            ui::model_data::register_model_data_atom_v,
-            model_name_,
-            utility::JsonStore(nlohmann::json::parse("{}")),
-            as_actor());
+        if (data_preference_path_.empty()) {
+            auto data = request_receive<utility::JsonStore>(
+                *sys,
+                central_models_data_actor_,
+                ui::model_data::register_model_data_atom_v,
+                model_name_,
+                utility::JsonStore(nlohmann::json::parse("{}")),
+                as_actor());
 
-        // now we update with the returned model data
-        setModelData(data);
+            // now we update with the returned model data
+            setModelData(data);
+
+        } else {
+
+            auto data = request_receive<utility::JsonStore>(
+                *sys,
+                central_models_data_actor_,
+                ui::model_data::register_model_data_atom_v,
+                model_name_,
+                data_preference_path_,
+                utility::JsonStore(modelData()),
+                as_actor());
+
+            // now we update with the returned model data
+            setModelData(data);
+        }
         emit lengthChanged();
 
         // process app/user..
@@ -254,6 +277,11 @@ bool UIModelData::setData(const QModelIndex &index, const QVariant &value, int r
         }
 
     } catch (const std::exception &err) {
+        auto id = role - Roles::LASTROLE;
+        if (id >= 0 and id < static_cast<int>(role_names_.size())) {
+            std::cerr << "ROLE " << role_names_.at(id) << "\n";
+        }
+        qDebug() << QStringFromStd(model_name_) << " " << value << " " << index << "\n";
         spdlog::warn("{} {}", __PRETTY_FUNCTION__, err.what());
     }
 
@@ -511,7 +539,8 @@ MenusModelData::MenusModelData(QObject *parent) : UIModelData(parent) {
         "user_data",
         "hotkey_sequence",
         "menu_item_enabled",
-        "menu_item_context"});
+        "menu_item_context",
+        "watch_visibility"});
 }
 
 
@@ -551,15 +580,15 @@ void SingletonsModelData::register_singleton_qml(const QString &qml_code) {
     int rc = rowCount();
     insertRowsSync(rc, 1);
     QModelIndex idx = index(rc, 0);
-    std::ignore = set(idx, qml_code, "source");
+    std::ignore     = set(idx, qml_code, "source");
 }
 
 ReskinPanelsModel::ReskinPanelsModel(QObject *parent)
     : UIModelData(
           parent,
           std::string("reskin panels model"),
-          std::string("/ui/qml/reskin_windows_and_panels_model")) {
-    setRoleNames(std::vector<std::string>{
+          std::string("/ui/qml/reskin_windows_and_panels_model"),
+          std::vector<std::string>{
         "window_name",
         "width",
         "height",
@@ -573,7 +602,8 @@ ReskinPanelsModel::ReskinPanelsModel(QObject *parent)
         "child_dividers",
         "current_tab",
         "tab_view",
-        "tabs_hidden"});
+        "tabs_hidden",
+        "user_data"}) {
 }
 
 
@@ -744,8 +774,63 @@ QModelIndex ReskinPanelsModel::duplicate_layout(QModelIndex layout_index) {
 MediaListColumnsModel::MediaListColumnsModel(QObject *parent)
     : UIModelData(
           parent,
-          std::string("media list columns model"),
-          std::string("/ui/qml/media_list_columns_config")) {}
+          "media metata exposure model",
+          std::string("/ui/qml/media_list_column_configuration")) {
+    setRoleNames(std::vector<std::string>{
+        "title",
+        "metadata_path",
+        "data_type",
+        "size",
+        "object",
+        "resizable",
+        "sortable",
+        "position",
+        "uuid",
+        "info_key",
+        "regex_match",
+        "regex_format"});
+}
+
+QUuid MediaListColumnsModel::new_media_list() {
+
+    try {
+
+        // look up our preference that configures default media list columns.
+        auto prefs = global_store::GlobalStoreHelper(system());
+        auto new_row_data =
+            prefs.value<utility::JsonStore>("/ui/qml/media_list_columns_default_config");
+
+        auto uuid            = utility::Uuid::generate();
+        new_row_data["uuid"] = uuid;
+
+        int row = rowCount(index(-1, -1));
+
+        auto path = getIndexPath(index(-1, -1)).to_string();
+
+        // update the backend model, but don't broadcast the change back to
+        // this instance of UIModelData, because we are going to update our
+        // own local copy of the model data
+        auto a = caf::actor_cast<caf::event_based_actor *>(self());
+        a->send(
+            central_models_data_actor_,
+            xstudio::ui::model_data::insert_rows_atom_v,
+            model_name_,
+            path,
+            row,
+            1,
+            new_row_data,
+            false);
+
+        // here we update our own
+        JSONTreeModel::insertRows(row, 1, index(-1, -1), new_row_data);
+
+        return QUuidFromUuid(uuid);
+
+    } catch (const std::exception &err) {
+        spdlog::warn("{} {}", __PRETTY_FUNCTION__, err.what());
+    }
+    return QUuid();
+}
 
 MenuModelItem::MenuModelItem(QObject *parent) : super(parent) {
     init(CafSystemObject::get_actor_system());
@@ -773,6 +858,7 @@ void MenuModelItem::init(caf::actor_system &system) {
 
     set_message_handler([=](caf::actor_companion * /*self*/) -> caf::message_handler {
         return {
+
             [=](utility::event_atom,
                 xstudio::ui::model_data::menu_node_activated_atom,
                 const std::string path,
@@ -891,9 +977,14 @@ void MenuModelItem::insertIntoMenuModel() {
             // model. If multiple MenuModelItems exist for the same point in
             // the tree (due to multiple panel instances resulting in multiple
             // instances of MenuModelItem) they will share
-            const std::string full_path = StdFromQString(menu_name_) +
-                                          StdFromQString(menu_path_) + StdFromQString(text_) +
-                                          context;
+            std::string full_path = StdFromQString(menu_name_) + StdFromQString(menu_path_) +
+                                    StdFromQString(text_) + context;
+
+            if (menu_item_type_ == "divider") {
+                // since dividers often don't have a 'text_' string we use their
+                // menu item position to make their ID
+                full_path += fmt::format("{}", menu_item_position_);
+            }
             const auto item_id = utility::Uuid::generate_from_name(full_path.c_str());
 
             if (!model_entry_id_.is_null() && item_id != model_entry_id_) {
@@ -918,6 +1009,7 @@ void MenuModelItem::insertIntoMenuModel() {
                 menu_item_data["user_data"] = qvariant_to_json(user_data_);
             }
 
+
             anon_send(
                 central_models_data_actor,
                 ui::model_data::insert_or_update_menu_node_atom_v,
@@ -932,19 +1024,26 @@ void MenuModelItem::insertIntoMenuModel() {
     }
 }
 
-void MenuModelItem::setMenuPathPosition(const QString &menu_path, const float position) {
+void MenuModelItem::setMenuPathPosition(const QString &menu_path, const QVariant position) {
     if (!menu_path.isEmpty() && !menu_name_.isEmpty()) {
 
         auto central_models_data_actor =
             self()->home_system().registry().template get<caf::actor>(
                 global_ui_model_data_registry);
 
-        anon_send(
-            central_models_data_actor,
-            ui::model_data::insert_or_update_menu_node_atom_v,
-            StdFromQString(menu_name_),
-            StdFromQString(menu_path),
-            position);
+        bool ok;
+        const float pos = position.toFloat(&ok);
+
+        if (ok) {
+            anon_send(
+                central_models_data_actor,
+                ui::model_data::insert_or_update_menu_node_atom_v,
+                StdFromQString(menu_name_),
+                StdFromQString(menu_path),
+                pos);
+        } else {
+            spdlog::warn("{} {}", __PRETTY_FUNCTION__, "Third parameter should be a number.");
+        }
     }
 }
 
@@ -962,28 +1061,25 @@ QObject *MenuModelItem::contextPanel() {
     return nullptr;
 }
 
-PanelMenuModelFilter::PanelMenuModelFilter(QObject *parent) : 
-    QSortFilterProxyModel(parent) {
-    
+PanelMenuModelFilter::PanelMenuModelFilter(QObject *parent) : QSortFilterProxyModel(parent) {
+
     QObject::connect(this, &QSortFilterProxyModel::sourceModelChanged, [=]() {
         if (auto m = dynamic_cast<UIModelData *>(sourceModel())) {
             menu_item_context_role_id_ = m->roleId(QString("menu_item_context"));
-            source_model_ = m;
+            source_model_              = m;
         }
     });
 }
 
 bool PanelMenuModelFilter::filterAcceptsRow(
-    int source_row,
-    const QModelIndex &source_parent) const 
-{
+    int source_row, const QModelIndex &source_parent) const {
 
     if (menu_item_context_role_id_) {
 
         QModelIndex index = sourceModel()->index(source_row, 0, source_parent);
-        auto menu_item_context = sourceModel()->data(index, menu_item_context_role_id_).toString();
+        auto menu_item_context =
+            sourceModel()->data(index, menu_item_context_role_id_).toString();
         return menu_item_context.isEmpty() || menu_item_context == panel_address_;
-
     }
 
     return true;

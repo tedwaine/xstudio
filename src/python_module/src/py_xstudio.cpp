@@ -90,6 +90,12 @@ PYBIND11_MODULE(__pybind_xstudio, m) {
         .value("ST_BUSY", global::StatusType::ST_BUSY)
         .export_values();
 
+    py::enum_<utility::MediaReference::FramePadFormat>(m, "FramePadFormat")
+        .value("FPF_XSTUDIO", utility::MediaReference::FramePadFormat::FPF_XSTUDIO)
+        .value("FPF_NUKE", utility::MediaReference::FramePadFormat::FPF_NUKE)
+        .value("FPF_SHAKE", utility::MediaReference::FramePadFormat::FPF_SHAKE)
+        .export_values();
+
     py::enum_<module::Attribute::Role>(m, "AttributeRole")
         .value("Type", module::Attribute::Role::Type)
         .value("Enabled", module::Attribute::Role::Enabled)

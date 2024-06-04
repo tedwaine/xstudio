@@ -11,7 +11,6 @@ import QtQuick.Dialogs 1.3
 import QtGraphicalEffects 1.15
 
 import xStudioReskin 1.0
-import xstudio.qml.module 1.0
 import xstudio.qml.models 1.0
 import xstudio.qml.helpers 1.0
 

@@ -7,7 +7,7 @@ import QtQuick.Layouts 1.15
 import xStudioReskin 1.0
 import xstudio.qml.helpers 1.0
 
-Rectangle{
+Rectangle{ id: sec1
     color: "transparent"
 
     property bool isHovered: thumbMArea.containsMouse    
@@ -18,7 +18,31 @@ Rectangle{
         hoverEnabled: true
         cursorShape: Qt.PointingHandCursor
         
-        onClicked: { //#TODO: for test
+        onClicked: {
+
+            // user has clicked on the 'Go to frame'.            
+            if (theSessionData.get(viewedMediaSetIndex, "typeRole") == "Timeline") {
+
+                var media_idx = theSessionData.searchRecursive(ownerRole, "actorUuidRole", viewedMediaSetIndex)
+                // if we are seeking to a note within a timeline, need some different
+                // logic here.
+                if (media_idx.valid) {
+                    let c = theSessionData.getTimelineVisibleClipIndexes(
+                        viewedMediaSetIndex,
+                        media_idx,
+                        frameFromTimecodeRole
+                        )
+
+                    if(c.length) {
+                        currentPlayhead.logicalFrame = theSessionData.getTimelineFrameFromClip(c[0], frameFromTimecodeRole)                        
+                        // this is a signal we emit - XsTimeline has a connection to
+                        // the signal allowing us to control timeline selection
+                        theSessionData.makeTimelineSelection(viewedMediaSetIndex, [c[0]]);
+                        return
+                    }
+                }
+
+            }
 
             theSessionData.putMediaOnScreen(ownerRole)
 
@@ -26,19 +50,19 @@ Rectangle{
             // a moment for the 'currentPlayheadData' to connect to a playhead
             // if the playhead has changed (if we're jumping to a new playlist)
             callbackTimer.setTimeout(function(frame) { return function() {
-                var idx = currentPlayheadData.searchRecursive("Logical Frame", "title")
-                currentPlayheadData.set(idx, frame, "value")
+                currentPlayhead.logicalFrame = frame
                 }}(startFrameRole), 100);
+
+                list.currentIndex = index
            
         }
-        onDoubleClicked: isTestMode = !isTestMode
     }
 
 
     Item{
         anchors.fill: parent
                 
-        XsImagePainter {
+        XsImagePainter { id: thumb
             image: thumbnailRole
             width: parent.width
             height: width / (16/9)
@@ -48,9 +72,9 @@ Rectangle{
         Rectangle{visible: isActive; anchors.fill: parent; color: "transparent"; border.width: borderWidth*2; border.color: highlightColor }
 
         XsText{
-            visible: isHovered
+            visible: sec1.isHovered
             text: "Go To Frame"
-            anchors.centerIn: parent
+            anchors.centerIn: thumb
             style: Text.Outline
             font.pixelSize: XsStyleSheet.fontSize + 4
             color: highlightColor

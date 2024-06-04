@@ -28,6 +28,8 @@ namespace studio {
         struct QuickviewRequest {
             utility::UuidActorVector media_actors;
             std::string compare_mode;
+            utility::JsonStore in_point;
+            utility::JsonStore out_point;
         };
         std::vector<QuickviewRequest> quickview_requests_;
     };

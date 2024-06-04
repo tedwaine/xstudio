@@ -6,7 +6,6 @@ import QtQuick.Window 2.2
 import QtQuick.Dialogs 1.0
 
 import xStudioReskin 1.0
-import xstudio.qml.module 1.0
 
 Rectangle {
 
@@ -22,7 +21,7 @@ Rectangle {
         width: height*1.66
         color: value
 
-        border.color: ma.containsMouse ? XsStyle.hoverColor : XsStyle.mainColor
+        border.color: ma.containsMouse ? XsStyleSheet.accentColor : XsStyleSheet.baseColor
 
         MouseArea {
             id: ma

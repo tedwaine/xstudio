@@ -3,8 +3,9 @@ import QtQuick 2.15
 import QtQuick.Controls 2.15
 import QtQuick.Layouts 1.15
 import QtGraphicalEffects 1.0
+import QtQml.Models 2.15
 
-import xStudio 1.1
+import xStudioReskin 1.0
 
 Rectangle {
 	id: control
@@ -15,8 +16,8 @@ Rectangle {
     property real fps: 24
     property real tickWidth: (control.width / duration)
 	property color tickColor: "black"
-	property bool renderFrames: duration > 2 && tickWidth > 5
-	property bool renderSeconds: duration > fps && tickWidth * fps > 5
+	property bool renderFrames: tickWidth >= 3
+	property bool renderSeconds: duration > fps && tickWidth * fps >= 3
     property bool endTicks: true
 
 	color: "transparent"
@@ -37,9 +38,21 @@ Rectangle {
         }
         onReleased: {
             dragging = false
+            timelinePlayhead.scrubbingFrames = false
         }
         onPressed: {
+
+            if (viewedMediaSetIndex != timelineModel.rootIndex.parent) {
+                viewedMediaSetIndex = timelineModel.rootIndex.parent
+            }
+
+            // here we make sure the viewport is attached to the correct
+            // playhead - we want the 'main' playhead of the timeline not the
+            // auxillary one which is used for showing individual clips
+            theSessionData.setPlayheadTo(viewedMediaSetIndex, false)
+
             if (mouse.button == Qt.LeftButton) {
+                timelinePlayhead.scrubbingFrames = true
                 framePressed(start + ((mouse.x + fractionOffset)/ tickWidth))
                 dragging = true
             }

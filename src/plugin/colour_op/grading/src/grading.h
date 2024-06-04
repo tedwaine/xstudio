@@ -60,12 +60,20 @@ class GradingTool : public plugin::StandardPlugin {
   private:
     void start_stroke(const Imath::V2f &point);
     void update_stroke(const Imath::V2f &point);
+
+    void start_quad(const std::vector<Imath::V2f> &corners);
+    void start_polygon(const std::vector<Imath::V2f> &points);
+    void start_ellipse(const Imath::V2f &center, const Imath::V2f &radius, float angle);
+
+    void remove_shape(uint32_t id);
+
     void end_drawing();
 
     void undo();
     void redo();
 
     void clear_mask();
+    void clear_shapes();
     void clear_cdl();
     void save_cdl(const std::string &filepath) const;
 
@@ -111,24 +119,31 @@ class GradingTool : public plugin::StandardPlugin {
     module::IntegerAttribute      *grade_in_         {nullptr};
     module::IntegerAttribute      *grade_out_        {nullptr};
 
-    module::FloatVectorAttribute *slope_  {nullptr};
-    module::FloatVectorAttribute *offset_ {nullptr};
-    module::FloatVectorAttribute *power_  {nullptr};
-    module::FloatAttribute       *sat_    {nullptr};
+    module::FloatVectorAttribute  *slope_  {nullptr};
+    module::FloatVectorAttribute  *offset_ {nullptr};
+    module::FloatVectorAttribute  *power_  {nullptr};
+    module::FloatAttribute        *sat_    {nullptr};
 
     // Drawing Mask
-    enum class DrawingTool { Draw, Erase, None };
+    enum class DrawingTool { Draw, Erase, Shape, None };
     const std::map<DrawingTool, std::string> drawing_tool_names_ = {
         {DrawingTool::Draw, "Draw"},
-        {DrawingTool::Erase, "Erase"}
+        {DrawingTool::Erase, "Erase"},
+        {DrawingTool::Shape, "Shape"}
     };
 
     module::StringChoiceAttribute *drawing_tool_ {nullptr};
-    module::IntegerAttribute *draw_pen_size_     {nullptr};
-    module::IntegerAttribute *erase_pen_size_    {nullptr};
-    module::IntegerAttribute *pen_opacity_       {nullptr};
-    module::IntegerAttribute *pen_softness_      {nullptr};
-    module::ColourAttribute  *pen_colour_        {nullptr};
+    module::IntegerAttribute      *draw_pen_size_     {nullptr};
+    module::IntegerAttribute      *erase_pen_size_    {nullptr};
+    module::IntegerAttribute      *pen_opacity_       {nullptr};
+    module::IntegerAttribute      *pen_softness_      {nullptr};
+    module::ColourAttribute       *pen_colour_        {nullptr};
+    module::BooleanAttribute      *shape_invert_      {nullptr};
+
+    module::BooleanAttribute      *polygon_init_      {nullptr};
+
+    module::IntegerAttribute *mask_selected_shape_{nullptr};
+    std::vector<module::Attribute *> mask_shapes_;
 
     enum DisplayMode { Mask, Grade };
     const std::map<DisplayMode, std::string> display_mode_names_ = {

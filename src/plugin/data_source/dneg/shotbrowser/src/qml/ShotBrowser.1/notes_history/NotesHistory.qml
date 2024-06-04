@@ -13,7 +13,6 @@ import QuickFuture 1.0
 import QuickPromise 1.0
 
 import xStudioReskin 1.0
-import xstudio.qml.module 1.0
 import xstudio.qml.models 1.0
 import xstudio.qml.helpers 1.0
 import ShotBrowser 1.0
@@ -34,11 +33,41 @@ Item{
     property var activeTypeIndex: ShotBrowserEngine.presetsModel.index(-1,-1)
 
     // Track the uuid of the media that is currently visible in the Viewport
-    property var onScreenMediaUuid: appWindow.onScreenMediaUuid
+    property var onScreenMediaUuid: currentPlayhead.mediaUuid
+    property var onScreenLogicalFrame: currentPlayhead.logicalFrame
+
+    readonly property string panelType: "NotesHistory"
 
     property int queryCounter: 0
+    property int queryRunning: 0
 
-    onOnScreenMediaUuidChanged: {if(visible) ShotBrowserHelpers.updateMetadata(isPanelEnabled, onScreenMediaUuid)}
+    property bool isPaused: false
+
+    onOnScreenMediaUuidChanged: {if(visible) updateTimer.start()}
+
+    onOnScreenLogicalFrameChanged: {
+        if(updateTimer.running) {
+            updateTimer.restart()
+            if(isPanelEnabled && !isPaused) {
+                isPaused = true
+                resultsSelectionModel.clear()
+                results.setResultData([])
+                ShotBrowserEngine.liveLinkKey = ""
+                ShotBrowserEngine.liveLinkMetadata = "null"
+            }
+        }
+    }
+
+    Timer {
+        id: updateTimer
+        interval: 500
+        running: false
+        repeat: false
+        onTriggered: {
+            isPaused = false
+            ShotBrowserHelpers.updateMetadata(isPanelEnabled, onScreenMediaUuid)
+        }
+    }
 
     ShotBrowserResultModel {
         id: results
@@ -52,15 +81,36 @@ Item{
     Connections {
         target: ShotBrowserEngine
         function onReadyChanged() {
-            if(ShotBrowserEngine.ready) {
-                if(! activeScopeIndex.valid && noteScopePref.value) {
-                    let i = getScopeIndex(noteScopePref.value)
-                    if(i && i.valid && activeScopeIndex != i)
+            setIndexesFromPreferences()
+        }
+    }
+
+    function setIndexesFromPreferences() {
+        if(ShotBrowserEngine.ready) {
+            prefs.updateFromValue()
+            if(! activeScopeIndex.valid && (noteScopePref.value || prefs.scope)) {
+                if(prefs.scope) {
+                    let i = getScopeIndex(prefs.scope)
+                    if(i.valid && activeScopeIndex != i)
                         activeScopeIndex = i
                 }
-                if(! activeTypeIndex.valid && noteTypePref.value) {
+
+                if(!activeScopeIndex.valid) {
+                    let i = getScopeIndex(noteScopePref.value)
+                    if(i.valid && activeScopeIndex != i)
+                        activeScopeIndex = i
+                }
+            }
+
+            if(! activeTypeIndex.valid && (noteTypePref.value || prefs.type)){
+                if(prefs.type) {
+                    let i = getTypeIndex(prefs.type)
+                    if(i.valid && activeTypeIndex != i)
+                        activeTypeIndex = i
+                }
+                if(!activeTypeIndex.valid) {
                     let i = getTypeIndex(noteTypePref.value)
-                    if(i && i.valid && activeTypeIndex != i)
+                    if(i.valid && activeTypeIndex != i)
                         activeTypeIndex = i
                 }
             }
@@ -80,27 +130,57 @@ Item{
         return m.searchRecursive(type_name, "nameRole", p, 0, 1)
     }
 
+    XsModelProperty {
+        id: prefs
+        index: panels_layout_model_index
+        role: "user_data"
+
+        property string scope: ""
+        property string type: ""
+
+        onTypeChanged: {
+            let i = createDefaults()
+            if(i["type"] != type) {
+                i["type"] = type
+                value = i
+            }
+        }
+
+        onScopeChanged: {
+            let i = createDefaults()
+            if(i["scope"] != scope) {
+                i["scope"] = scope
+                value = i
+            }
+        }
+
+        onValueChanged: updateFromValue()
+
+        function createDefaults() {
+            let i = {}
+            i["type"] = value != undefined && value.hasOwnProperty("type") ? value["type"] : ""
+            i["scope"] = value != undefined && value.hasOwnProperty("scope") ? value["scope"] : ""
+            return i
+        }
+
+        function updateFromValue() {
+            if(value) {
+                if(value["scope"] && scope != value["scope"])
+                    scope = value["scope"]
+                if(value["type"] && type != value["type"])
+                    type = value["type"]
+            }
+        }
+    }
 
     XsPreference {
         id: noteScopePref
         path: "/plugin/data_source/shotbrowser/note_history/scope"
-
-        onValueChanged: {
-            let i = getScopeIndex(value)
-            if(i && i.valid && activeScopeIndex != i)
-                activeScopeIndex = i
-        }
     }
 
     XsPreference {
         id: noteTypePref
         path: "/plugin/data_source/shotbrowser/note_history/type"
-
-        onValueChanged: {
-            let i = getTypeIndex(value)
-            if(i && i.valid && activeTypeIndex != i)
-                activeTypeIndex = i
-        }
     }
 
     onActiveScopeIndexChanged: {
@@ -108,6 +188,7 @@ Item{
             let m = activeScopeIndex.model
             let i = m.get(activeScopeIndex, "nameRole")
             noteScopePref.value = i
+            prefs.scope = i
         }
     }
 
@@ -116,6 +197,7 @@ Item{
             let m = activeTypeIndex.model
             let i = m.get(activeTypeIndex, "nameRole")
             noteTypePref.value = i
+            prefs.type = i
         }
     }
 
@@ -124,7 +206,7 @@ Item{
     Connections {
         target: ShotBrowserEngine
         function onLiveLinkMetadataChanged() {
-            if(isPanelEnabled && panel.visible) {
+            if(!isPaused && isPanelEnabled && panel.visible) {
                 runQuery()
             }
         }
@@ -138,10 +220,11 @@ Item{
     }
 
     function runQuery() {
-        if(isPanelEnabled && activeScopeIndex.valid && activeTypeIndex.valid) {
+        if(isPanelEnabled && !isPaused && activeScopeIndex.valid && activeTypeIndex.valid) {
 
             // make sure the results appear in sync.
             queryCounter += 1
+            queryRunning += 1
             let i = queryCounter
 
             Future.promise(
@@ -162,10 +245,13 @@ Item{
                         resultsSelectionModel.clear()
                         results.setResultData([json_string])
                     }
+                    queryRunning -= 1
+
                 },
                 function() {
                     resultsSelectionModel.clear()
                     results.setResultData([])
+                    queryRunning -= 1
                 })
         }
     }
@@ -190,6 +276,7 @@ Item{
             if(!ShotBrowserHelpers.updateMetadata(isPanelEnabled, onScreenMediaUuid))
                 runQuery()
         }
+        setIndexesFromPreferences()
     }
 
     onVisibleChanged: {

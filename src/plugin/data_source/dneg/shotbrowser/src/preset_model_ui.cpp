@@ -81,10 +81,11 @@ bool ShotBrowserPresetModel::paste(
     auto result = true;
 
     try {
-        auto items             = R"([])"_json;
-        auto data              = mapFromValue(qdata);
-        const auto parent_type = StdFromQString(parent.data(typeRole).toString());
-        auto current_row       = row;
+        auto items           = R"([])"_json;
+        auto data            = mapFromValue(qdata);
+        auto parent_type     = StdFromQString(parent.data(typeRole).toString());
+        auto current_row     = row;
+        auto adjusted_parent = parent;
 
         if (not data.is_array()) {
             items.push_back(data);
@@ -93,11 +94,49 @@ bool ShotBrowserPresetModel::paste(
         }
 
         for (auto &i : items) {
-            if (parent_type == "presets" and i["type"] == "preset") {
+            // pasting preset into group, adjust parent..
+            if (parent_type == "" and
+                (not i.count("type") or i.at("type") == "system" or i.at("type") == "preset")) {
+                adjusted_parent = index(1, 0, parent);
+                parent_type     = StdFromQString(adjusted_parent.data(typeRole).toString());
+                current_row     = rowCount(adjusted_parent);
+            }
+
+            if (parent_type == "presets" and
+                (not i.count("type") or i.at("type") == "system")) {
+                // old style preset.
+                try {
+                    auto tmppreset    = PresetTemplate;
+                    tmppreset["name"] = i.at("name");
+                    for (const auto &j : i.at("queries")) {
+                        auto term     = TermTemplate;
+                        term["value"] = j.at("value");
+                        term["term"]  = j.at("term");
+
+                        if (TermProperties.count(j["term"]))
+                            term.update(TermProperties[j["term"]]);
+
+                        if (j.count("enabled"))
+                            term["enabled"] = j.at("enabled");
+
+                        if (j.count("livelink"))
+                            term["livelink"] = j.at("livelink");
+
+                        if (j.count("negated"))
+                            term["negated"] = j.at("negated");
+                        tmppreset["children"].push_back(term);
+                    }
+                    QueryEngine::regenerate_ids(tmppreset);
+                    insertRows(current_row, 1, adjusted_parent, tmppreset);
+                    current_row++;
+                } catch (const std::exception &err) {
+                    spdlog::warn("{} {}", __PRETTY_FUNCTION__, err.what());
+                }
+            } else if (parent_type == "presets" and i.at("type") == "preset") {
                 QueryEngine::regenerate_ids(i);
-                insertRows(current_row, 1, parent, i);
+                insertRows(current_row, 1, adjusted_parent, i);
                 current_row++;
-            } else if (parent_type == "" and i["type"] == "group") {
+            } else if (parent_type == "" and i.at("type") == "group") {
                 QueryEngine::regenerate_ids(i);
                 insertRows(current_row, 1, parent, i);
                 current_row++;
@@ -291,9 +330,12 @@ bool ShotBrowserPresetModel::setData(
 
         case Roles::hiddenRole:
             result = baseSetData(index, value, "hidden", QVector<int>({role}), true);
+
             // if changed mark update field.
-            if (result)
+            if (result) {
+                emit presetHidden(index, value.toBool());
                 markedAsUpdated(index.parent());
+            }
             break;
 
         case Roles::negatedRole:
@@ -625,9 +667,18 @@ void ShotBrowserPresetFilterModel::setFilter(const QString &filter) {
     filter_ = QVariant::fromValue(filter);
 }
 
+void ShotBrowserPresetFilterModel::setFilterUserData(const QVariant &filter) {
+    if (filter != filter_user_data_) {
+        filter_user_data_ = filter;
+        emit filterUserDataChanged();
+        invalidate();
+    }
+}
+
 bool ShotBrowserPresetFilterModel::filterAcceptsRow(
     int source_row, const QModelIndex &source_parent) const {
     const static auto grp    = QVariant::fromValue(QString("group"));
+    const static auto preset = QVariant::fromValue(QString("preset"));
     const static auto hidden = QVariant::fromValue(true);
 
     auto accept = true;
@@ -644,6 +695,11 @@ bool ShotBrowserPresetFilterModel::filterAcceptsRow(
 
         if (not show_hidden_ and
             source_index.data(ShotBrowserPresetModel::Roles::hiddenRole) == hidden)
+            accept = false;
+
+        if (not filter_user_data_.isNull() and type == preset and
+            source_index.data(ShotBrowserPresetModel::Roles::userdataRole).toString() !=
+                filter_user_data_.toString())
             accept = false;
     }
 

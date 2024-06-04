@@ -14,11 +14,12 @@ ToolTip {
     property color textColor: palette.base
     property real panelPadding: XsStyleSheet.panelPadding
 
-    delay: 300
-    timeout: 1000
+    delay: 500
     
     font.pixelSize: XsStyleSheet.fontSize
     font.family: XsStyleSheet.fontFamily
+
+    width: metricsDiv.width
 
     rightPadding: 0
     leftPadding: 0
@@ -34,7 +35,7 @@ ToolTip {
         text: widget.text
         font: widget.font
         color: textColor
-        // width: widget.width
+        width: 200
         leftPadding: panelPadding
         rightPadding: panelPadding
         wrapMode: Text.Wrap //WrapAnywhere

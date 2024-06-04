@@ -131,6 +131,7 @@ const auto ValidTerms = R"({
     "Versions" : [
         "Operator",
         "Author",
+        "Client Filename",
         "Completion Location",
         "Disable Global",
         "Entity",
@@ -252,6 +253,7 @@ const auto SourceTermValues = R"([
 
 const auto TermProperties = R"({
     "Author": { "negated": null, "livelink": false },
+    "Client Filename": { "negated": false, "livelink": null },
     "Completion Location": { "negated": false, "livelink": null },
     "Department": { "negated": false, "livelink": null },
     "Disable Global": { "negated": null, "livelink": null },
@@ -314,6 +316,7 @@ const std::set<std::string> TermHasProjectKey = {
     "Playlist"};
 
 const std::set<std::string> TermHasNoModel = {
+    "Client Filename",
     "Entity",
     "Filter",
     "Newer Version",
@@ -333,6 +336,7 @@ class QueryEngine {
     static utility::JsonStore build_query(
         const int project_id,
         const std::string &entity,
+        const utility::Uuid &group_id,
         const utility::JsonStore &group_terms,
         const utility::JsonStore &terms,
         const utility::JsonStore &custom_terms,
@@ -391,7 +395,41 @@ class QueryEngine {
         const utility::JsonStore &metadata,
         const utility::JsonStore &lookup);
 
-    static std::string get_shot_name(const utility::JsonStore &metadata);
+    static std::string
+    get_shot_name(const utility::JsonStore &metadata, const bool strict = false) {
+        auto name = std::string();
+
+        try {
+            std::vector<std::string> locations(
+                {{"/metadata/external/DNeg/shot"},
+                 {"/metadata/external/ivy/file/version/scope/name"},
+                 {"/metadata/shotgun/version/relationships/entity/data/name"},
+                 {"/metadata/shotgun/shot/attributes/code"},
+                 {"/metadata/image_source_metadata/metadata/external/DNeg/shot"},
+                 {"/metadata/audio_source_metadata/metadata/external/DNeg/shot"},
+                 {"/metadata/image_source_metadata/metadata/external/ivy/file/version/scope/"
+                  "name"},
+                 {"/metadata/audio_source_metadata/metadata/external/ivy/file/version/scope/"
+                  "name"},
+                 {"/metadata/image_source_metadata/colour_pipeline/ocio_context/SHOT"}});
+            for (const auto &i : locations) {
+                if (metadata.contains(json::json_pointer(i))) {
+                    if (strict and i == locations.at(2) and
+                        metadata.value(
+                            json::json_pointer(
+                                "/metadata/shotgun/version/relationships/entity/data/type"),
+                            std::string()) != "Shot")
+                        continue;
+                    name = metadata.at(json::json_pointer(i)).get<std::string>();
+                    break;
+                }
+            }
+        } catch (...) {
+        }
+
+        return name;
+    }
+
     static std::string get_version_name(const utility::JsonStore &metadata);
 
     static std::string get_project_name(const utility::JsonStore &metadata) {
@@ -399,7 +437,9 @@ class QueryEngine {
 
         try {
             std::vector<std::string> project_name_locations(
-                {{"/metadata/shotgun/version/relationships/project/data/name"},
+                {{"/metadata/external/DNeg/show"},
+                 {"/metadata/external/ivy/file/show"},
+                 {"/metadata/shotgun/version/relationships/project/data/name"},
                  {"/metadata/shotgun/shot/relationships/project/data/name"},
                  {"/metadata/image_source_metadata/metadata/external/DNeg/show"},
                  {"/metadata/audio_source_metadata/metadata/external/DNeg/show"},
@@ -441,7 +481,7 @@ class QueryEngine {
                 // use project cache to get id from name.
                 auto name = get_project_name(metadata);
                 if (not name.empty()) {
-                    auto key = QueryEngine::cache_name("Project");
+                    auto key = QueryEngine::cache_name("project");
                     if (cache.count(key)) {
                         for (const auto &i : cache.at(key)) {
                             if (i.at("attributes").at("name") == name) {

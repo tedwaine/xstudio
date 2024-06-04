@@ -1227,9 +1227,6 @@ void ShotBrowser::add_media_to_playlist(
 
         // get a new media item created for each of the names in our list
         for (const auto &i : versions) {
-
-            std::string name(i.at("attributes").at("code"));
-
             // create a task data item, with the raw shotgun data that
             // can be used to build the media sources for each media
             // item in the playlist
@@ -1237,7 +1234,7 @@ void ShotBrowser::add_media_to_playlist(
             build_playlist_media_tasks_.emplace_back(std::make_shared<BuildPlaylistMediaJob>(
                 playlist,
                 ordered_uuids->back(),
-                name, // name for the media
+                i.at("attributes").at("code").get<std::string>(), // name for the media
                 JsonStore(i),
                 media_rate,
                 visual_source,
@@ -1461,7 +1458,9 @@ void ShotBrowser::do_add_media_sources_from_shotgun(
         build_media_task_data->media_name_,
         build_media_task_data->media_uuid_,
         UuidActorVector());
-    UuidActor ua(build_media_task_data->media_uuid_, build_media_task_data->media_actor_);
+
+    auto ua =
+        UuidActor(build_media_task_data->media_uuid_, build_media_task_data->media_actor_);
 
     // this is called when we get a result back - keeps track of the number
     // of jobs being processed and sends a message to self to continue working
@@ -1564,20 +1563,57 @@ void ShotBrowser::do_add_media_sources_from_ivy(
                 [=](const bool) {
                     // media sources all in media actor.
                     // we can now select the ones we want..
-                    anon_send(
+                    //
+                    // get list of valid sources for media..
+                    request(
                         ivy_media_task_data->media_actor_,
-                        playhead::media_source_atom_v,
-                        ivy_media_task_data->preferred_visual_source_,
-                        media::MT_IMAGE,
-                        true);
+                        infinite,
+                        media::get_media_source_names_atom_v,
+                        media::MT_IMAGE)
+                        .then(
+                            [=](const std::vector<std::pair<utility::Uuid, std::string>>
+                                    &names) {
+                                auto name = std::string("movie_dneg");
+                                for (const auto &i : names) {
+                                    if (i.second ==
+                                        ivy_media_task_data->preferred_visual_source_)
+                                        name = i.second;
+                                }
+                                anon_send(
+                                    ivy_media_task_data->media_actor_,
+                                    playhead::media_source_atom_v,
+                                    name,
+                                    media::MT_IMAGE,
+                                    true);
+                            },
+                            [=](error &err) {
+                                spdlog::warn("{} {}", __PRETTY_FUNCTION__, to_string(err));
+                            });
 
-                    anon_send(
+                    request(
                         ivy_media_task_data->media_actor_,
-                        playhead::media_source_atom_v,
-                        ivy_media_task_data->preferred_audio_source_,
-                        media::MT_AUDIO,
-                        true);
-
+                        infinite,
+                        media::get_media_source_names_atom_v,
+                        media::MT_AUDIO)
+                        .then(
+                            [=](const std::vector<std::pair<utility::Uuid, std::string>>
+                                    &names) {
+                                auto name = std::string("movie_dneg");
+                                for (const auto &i : names) {
+                                    if (i.second ==
+                                        ivy_media_task_data->preferred_audio_source_)
+                                        name = i.second;
+                                }
+                                anon_send(
+                                    ivy_media_task_data->media_actor_,
+                                    playhead::media_source_atom_v,
+                                    name,
+                                    media::MT_AUDIO,
+                                    true);
+                            },
+                            [=](error &err) {
+                                spdlog::warn("{} {}", __PRETTY_FUNCTION__, to_string(err));
+                            });
                     continue_processing_job_queue();
                 },
                 [=](error &err) {

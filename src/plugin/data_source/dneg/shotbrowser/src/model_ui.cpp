@@ -342,7 +342,8 @@ bool ShotBrowserSequenceFilterModel::filterAcceptsRow(
     return result;
 }
 
-bool ShotBrowserFilterModel::filterAcceptsRow(int source_row, const QModelIndex &source_parent) const {
+bool ShotBrowserFilterModel::filterAcceptsRow(
+    int source_row, const QModelIndex &source_parent) const {
     // check level
     if (not selection_filter_.empty() and sourceModel()) {
         QModelIndex index = sourceModel()->index(source_row, 0, source_parent);

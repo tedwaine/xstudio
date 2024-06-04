@@ -25,8 +25,20 @@ namespace OCIO = OCIO_NAMESPACE;
 
 namespace xstudio::colour_pipeline::ocio {
 
-class OCIOColourPipeline : public ColourPipeline, private OCIOEngine {
+/*  OCIOColourPipeline provides colour management for medias.
 
+    It is instanciated per xStudio viewport and maintains it's own list of
+    settings (source space, display, view, gamma, exposure, saturation, etc).
+    Settings that should be shared accross multiple viewports are sync'ed
+    using a global OCIOGlobalControls actor. The latter also provides
+    application wide settings related to colour management.
+
+    Long running tasks are delegated to a worker pool of OCIOEngineActor.
+    This includes linearization and display shaders generation, thumbnail
+    colour rendering.
+*/
+
+class OCIOColourPipeline : public ColourPipeline {
 
   public:
     explicit OCIOColourPipeline(
@@ -59,9 +71,19 @@ class OCIOColourPipeline : public ColourPipeline, private OCIOEngine {
         const thumbnail::ThumbnailBufferPtr &buf) override;
 
     // GUI handling
+
+    void register_hotkeys() override;
+
+    void hotkey_pressed(const utility::Uuid &hotkey_uuid, const std::string &context) override;
+
+    void hotkey_released(const utility::Uuid &hotkey_uuid, const std::string &context) override;
+
+    bool pointer_event(const ui::PointerEvent &e) override;
+
     void media_source_changed(
         const utility::Uuid &source_uuid,
         const utility::JsonStore &src_colour_mgmt_metadata) override;
+
     void attribute_changed(const utility::Uuid &attribute_uuid, const int /*role*/) override;
 
     void screen_changed(
@@ -73,7 +95,8 @@ class OCIOColourPipeline : public ColourPipeline, private OCIOEngine {
     void connect_to_viewport(
         const std::string &viewport_name,
         const std::string &viewport_toolbar_name,
-        bool connect) override;
+        bool connect,
+        caf::actor viewport) override;
 
     void extend_pixel_info(
         media_reader::PixelInfo &pixel_info, const media::AVFrameID &frame_id) override;
@@ -81,38 +104,46 @@ class OCIOColourPipeline : public ColourPipeline, private OCIOEngine {
     caf::message_handler message_handler_extensions() override;
 
   private:
-    std::string display() const;
-
-    std::string view(const media::AVFrameID &media_ptr) const;
-
     void setup_ui();
 
     void populate_ui(const utility::JsonStore &src_colour_mgmt_metadata);
 
-    void update_views(const std::string new_display);
+    void update_views(const std::string &new_display);
 
     void update_bypass(bool bypass);
 
+    void reset() override;
+    void update_media_metadata(
+        const utility::Uuid &media_uuid, const std::string &key, const std::string &val);
+
+    utility::JsonStore patch_media_metadata(const media::AVFrameID &media_ptr);
+
+    void synchronize_attribute(const utility::Uuid &uuid, int role, bool ocio);
+
   private:
+    caf::actor global_controls_;
+    caf::actor worker_pool_;
+
     // GUI handling
     UiText ui_text_;
 
-    caf::actor global_controls_;
+    std::map<utility::Uuid, std::string> channel_hotkeys_;
+    utility::Uuid exposure_hotkey_;
+    utility::Uuid gamma_hotkey_;
+    utility::Uuid saturation_hotkey_;
+    utility::Uuid reset_hotkey_;
 
-    caf::actor worker_pool_;
-
+    // Viewport colour settings
+    module::StringChoiceAttribute *source_colour_space_;
     module::StringChoiceAttribute *display_;
     module::StringChoiceAttribute *view_;
+    module::StringChoiceAttribute *channel_;
+    module::FloatAttribute *exposure_;
+    module::FloatAttribute *gamma_;
+    module::FloatAttribute *saturation_;
 
-    struct OCIOControlsData {
-        bool colour_bypass_      = {false};
-        bool use_preferred_view_ = {true};
-        std::string preferred_view_;
-        float exposure_      = {0.0f};
-        float gamma_         = {1.0f};
-        float saturation_    = {1.0f};
-        std::string channel_ = {"RGB"};
-    } settings_;
+    // Global colour settings
+    OCIOGlobalData global_settings_;
 
     // Holds info about the currently on screen media
     utility::Uuid current_source_uuid_;
@@ -124,9 +155,10 @@ class OCIOColourPipeline : public ColourPipeline, private OCIOEngine {
     std::string monitor_name_;
     std::string viewport_name_;
 
-    std::vector<std::string> all_colourspaces_;
-    std::vector<std::string> displays_;
     std::map<std::string, std::vector<std::string>> display_views_;
+
+    // Processing
+    OCIOEngine m_engine_;
 };
 
 } // namespace xstudio::colour_pipeline::ocio

@@ -73,6 +73,10 @@ void PlayheadGlobalEventsActor::init() {
         [=](ui::viewport::viewport_playhead_atom,
             const std::string viewport_name,
             caf::actor playhead) {
+            if (viewport_playheads_[viewport_name] == playhead)
+                return;
+
+            // a viewport named 'viewport_name' is connecting to a playhead
             send(
                 event_group_,
                 utility::event_atom_v,
@@ -80,30 +84,58 @@ void PlayheadGlobalEventsActor::init() {
                 viewport_name,
                 playhead);
 
-            if (viewport_playheads_[viewport_name] &&
-                viewport_playheads_[viewport_name] != playhead) {
-                bool playhead_still_active = false;
-                for (auto &p : viewport_playheads_) {
-                    if (p.second == playhead) {
-                        playhead_still_active = true;
-                    }
+            // what's the playhead that is currently attached to the viewport
+            // (if any)
+            auto playhead_to_be_disconnected = viewport_playheads_[viewport_name];
+
+            // is this old playhead connected to another viewport?
+            bool disconnect_old_playhead = true;
+            for (auto &p : viewport_playheads_) {
+                if (p.first != viewport_name && p.second == playhead_to_be_disconnected) {
+                    disconnect_old_playhead = false;
+                    break;
                 }
-                if (!playhead_still_active) {
-                    demonitor(viewport_playheads_[viewport_name]);
-                }
-                viewport_playheads_[viewport_name] = playhead;
-                if (playhead)
-                    monitor(playhead);
-            } else {
-                bool playhead_already_monitored = false;
-                for (auto &p : viewport_playheads_) {
-                    if (p.second == playhead) {
-                        playhead_already_monitored = true;
-                    }
-                }
-                if (!playhead_already_monitored && playhead)
-                    monitor(playhead);
-                viewport_playheads_[viewport_name] = playhead;
+            }
+
+            if (disconnect_old_playhead) {
+                // No, no other viewports are using the playhead that is to
+                // be disconnected from the viewport. Therefore we tell the
+                // playhead to stop playing (if it is playing).
+                anon_send(viewport_playheads_[viewport_name], playhead::play_atom_v, false);
+                anon_send(
+                    viewport_playheads_[viewport_name], module::disconnect_from_ui_atom_v);
+                // we can stop monitoring it as we don't care if it exits or
+                // not - we're only keeping track of playheads that are
+                // connected to viewports
+                demonitor(viewport_playheads_[viewport_name]);
+            }
+
+            viewport_playheads_[viewport_name] = playhead;
+            if (playhead) {
+                monitor(playhead);
+                // since the playhead has changed we want to tell subscribers
+                // the new media/media_source
+                request(playhead, infinite, playhead::media_atom_v)
+                    .then(
+                        [=](caf::actor media) {
+                            request(playhead, infinite, playhead::media_source_atom_v)
+                                .then(
+                                    [=](caf::actor media_source) {
+                                        send(
+                                            event_group_,
+                                            utility::event_atom_v,
+                                            show_atom_v,
+                                            media,
+                                            media_source,
+                                            viewport_name);
+                                    },
+                                    [=](caf::error &err) {
+
+                                    });
+                        },
+                        [=](caf::error &err) {
+
+                        });
             }
         },
 

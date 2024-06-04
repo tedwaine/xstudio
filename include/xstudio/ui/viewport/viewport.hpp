@@ -36,8 +36,8 @@ namespace ui {
             Viewport(
                 const utility::JsonStore &state_data,
                 caf::actor parent_actor,
-                const int viewport_index,
-                ViewportRendererPtr the_renderer);
+                ViewportRendererPtr the_renderer,
+                const std::string &name = std::string());
             virtual ~Viewport();
 
             bool process_pointer_event(PointerEvent &);
@@ -45,7 +45,7 @@ namespace ui {
             void set_pointer_event_viewport_coords(PointerEvent &pointer_event);
 
             void set_scale(const float scale);
-            void set_size(const float w, const float h);
+            void set_size(const float w, const float h, const float devicePixelRatio);
             void set_pan(const float x_pan, const float y_pan);
             void set_fit_mode(const FitMode md);
             void set_mirror_mode(const MirrorMode md);
@@ -137,7 +137,8 @@ namespace ui {
                 const Imath::V2f topright,
                 const Imath::V2f bottomright,
                 const Imath::V2f bottomleft,
-                const Imath::V2i scene_size);
+                const Imath::V2i scene_size,
+                const float devicePixelRatio);
 
             /**
              *  @brief Inform the viewport of the size of the image currently on screen to
@@ -186,6 +187,7 @@ namespace ui {
             [[nodiscard]] caf::actor playhead() {
                 return caf::actor_cast<caf::actor>(playhead_addr_);
             }
+            [[nodiscard]] utility::Uuid playhead_uuid() { return playhead_uuid_; }
 
             [[nodiscard]] caf::actor colour_pipeline() { return colour_pipeline_; }
 
@@ -271,16 +273,23 @@ namespace ui {
 
             caf::actor fps_monitor() { return fps_monitor_; }
 
-            void framebuffer_swapped();
+            void framebuffer_swapped(const utility::time_point swap_time);
 
             void reset() override;
 
-            media_reader::ImageBufPtr get_onscreen_image(const bool force_playhead_sync = false);
+            media_reader::ImageBufPtr get_onscreen_image(const bool force_playhead_sync);
+
+            void set_aux_shader_uniforms(
+                const utility::JsonStore &j, const bool clear_and_overwrite = false);
 
           protected:
             void register_hotkeys() override;
 
             void attribute_changed(const utility::Uuid &attr_uuid, const int role) override;
+
+            void menu_item_activated(
+                const utility::JsonStore &menu_item_data,
+                const std::string &user_data) override;
 
             /**
              *  @brief Update viewport properties like frame number, error message or
@@ -303,9 +312,9 @@ namespace ui {
              * Returns an empty pointer if the image does not need to be refreshed since the
              * last draw.
              */
-            void get_frames_for_display(std::vector<media_reader::ImageBufPtr> &next_images,
-                const bool force_playhead_sync = false
-                );
+            void get_frames_for_display(
+                std::vector<media_reader::ImageBufPtr> &next_images,
+                const bool force_playhead_sync = false);
 
             void instance_overlay_plugins();
 
@@ -336,6 +345,7 @@ namespace ui {
             Imath::M44f interact_start_inv_projection_matrix_;
             Imath::M44f viewport_to_canvas_;
             Imath::M44f fit_mode_matrix_;
+            float devicePixelRatio_ = {1.0};
 
             Imath::V4f normalised_pointer_position() const;
 
@@ -345,8 +355,11 @@ namespace ui {
 
             void setup_menus();
 
-            void
-            quickview_media(std::vector<caf::actor> &media_items, std::string compare_mode);
+            void quickview_media(
+                std::vector<caf::actor> &media_items,
+                std::string compare_mode,
+                const int in_pt  = -1,
+                const int out_pt = -1);
 
             utility::JsonStore settings_;
 
@@ -369,21 +382,23 @@ namespace ui {
             caf::actor fps_monitor_;
             caf::actor keypress_monitor_;
             caf::actor viewport_events_actor_;
-            caf::actor other_viewport_;
+            std::vector<caf::actor> other_viewports_;
             caf::actor colour_pipeline_;
             caf::actor keyboard_events_actor_;
             caf::actor quickview_playhead_;
 
             caf::actor_addr playhead_addr_;
+            utility::Uuid playhead_uuid_;
+
+            utility::JsonStore aux_shader_uniforms_;
 
             void dummy_evt_callback(ChangeCallbackId) {}
             ChangeCallback event_callback_;
 
           protected:
             utility::Uuid current_playhead_, new_playhead_;
-            bool done_init_     = {false};
-            int viewport_index_ = {0};
-            bool playing_       = {false};
+            bool done_init_ = {false};
+            bool playing_   = {false};
             std::set<int> held_keys_;
 
             std::map<utility::Uuid, caf::actor> overlay_plugin_instances_;
@@ -405,6 +420,8 @@ namespace ui {
             utility::Uuid reset_hotkey_;
             utility::Uuid fit_mode_hotkey_;
             utility::Uuid mirror_mode_hotkey_;
+
+            utility::Uuid reset_menu_item_;
 
             utility::time_point t1_;
 

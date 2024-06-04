@@ -481,7 +481,17 @@ void OpenEXRMediaReader::stream_ids_from_exr_part(
     if (channel_names_by_layer.find("RGBA") != channel_names_by_layer.end()) {
         // make sure RGBA layer is first Stream
         stream_ids.emplace_back("RGBA");
+    } else {
+        // optherwise look for a layer matching *.rgb to pick as the first one
+        for (auto p = channel_names_by_layer.begin(); p != channel_names_by_layer.end(); ++p) {
+            if (utility::to_lower(p->first).find(".rgb") != std::string::npos) {
+                stream_ids.emplace_back(p->first);
+                channel_names_by_layer.erase(p);
+                break;
+            }
+        }
     }
+
     if (channel_names_by_layer.find("XYZ") != channel_names_by_layer.end()) {
         // make sure XYZ layer is first or second Stream
         stream_ids.emplace_back("XYZ");

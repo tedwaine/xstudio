@@ -10,7 +10,6 @@ import QtQuick.Dialogs 1.3
 import QtGraphicalEffects 1.15
 
 import xStudioReskin 1.0
-import xstudio.qml.module 1.0
 import xstudio.qml.models 1.0
 import xstudio.qml.helpers 1.0
 
@@ -39,7 +38,7 @@ Item{
 
     XsModuleData {
         id: annotations_model_data
-        modelDataName: "annotations_tool_settings_0"
+        modelDataName: "annotations_tool_settings"
     }
     Connections {
         target: annotations_model_data // this bubbles up from XsSessionWindow
@@ -136,6 +135,10 @@ Item{
                 anchors.right: parent.right
                 anchors.rightMargin: parent.width/10
                 height: buttonHeight/1.4;
+                onYChanged: {
+                    colorPreview.x= colorPreviewDuplicate.x
+                    colorPreview.y= colorPreviewDuplicate.y
+                }
             }
             Rectangle{ id: colorPreview
                 visible: (isAnyToolSelected && currentTool !== "Erase")

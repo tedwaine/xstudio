@@ -6,7 +6,6 @@ import QtQuick.Extras 1.4
 
 import xStudio 1.0
 
-import xstudio.qml.module 1.0
 import xstudio.qml.models 1.0
 
 import BasicViewportMask 1.0
@@ -94,7 +93,7 @@ Rectangle {
             property var qml_code_: qml_code ? qml_code : null
 
             onQml_code_Changed: {
-                console.log("qml_code_", qml_code_)
+                // console.log("qml_code_", qml_code_)
                 if (qml_code_) {
                     dynamic_widget = Qt.createQmlObject(qml_code_, parent_item)
                 }

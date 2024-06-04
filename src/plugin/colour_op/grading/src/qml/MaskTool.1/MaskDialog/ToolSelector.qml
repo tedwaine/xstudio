@@ -24,8 +24,9 @@ Item{
     }
 
     property var toolImages: [
-        "qrc:///icons/drawing.png",
-        "qrc:///feather_icons/book.svg"
+        "qrc:///icons/brush.svg",
+        "qrc:///feather_icons/book.svg",
+        "qrc:///feather_icons/square.svg",
     ]
 
     // we have to use a repeater to hook the model into the ListView

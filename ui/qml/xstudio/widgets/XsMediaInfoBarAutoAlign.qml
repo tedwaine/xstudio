@@ -8,7 +8,6 @@ import QtQuick.Dialogs 1.3 //for ColorDialog
 import QtGraphicalEffects 1.15 //for RadialGradient
 
 import xStudio 1.1
-import xstudio.qml.module 1.0
 
 
 Rectangle {

@@ -16,6 +16,25 @@ using namespace xstudio::utility;
 using namespace xstudio;
 using namespace caf;
 
+namespace {
+
+void recursive_get_all_paths(
+    std::string curr_path,
+    std::vector<std::string> &allpaths,
+    nlohmann::json::const_iterator b,
+    nlohmann::json::const_iterator e) {
+    allpaths.push_back(curr_path);
+    for (auto p = b; p != e; ++p) {
+        if (p.value().is_object() && !p.value().is_array()) {
+            recursive_get_all_paths(
+                curr_path + "/" + p.key(), allpaths, p.value().cbegin(), p.value().cend());
+        } else {
+            allpaths.push_back(curr_path + "/" + p.key());
+        }
+    }
+}
+} // namespace
+
 JsonStoreActor::JsonStoreActor(
     caf::actor_config &cfg,
     const Uuid &uuid,
@@ -38,7 +57,28 @@ JsonStoreActor::JsonStoreActor(
 
         [=](get_json_atom, const std::string &path) -> caf::result<JsonStore> {
             try {
+
+                if (path.find("regex:") == 0) {
+                    // if the 'path' starts with 'regex:' we do regex matching
+                    // between path and the actual paths available in the json
+                    // returning the data at the first path that matches
+                    std::vector<std::string> allpaths;
+                    recursive_get_all_paths(
+                        "", allpaths, json_store_.cbegin(), json_store_.cend());
+                    std::regex path_re(std::string(path, 6)); // strip the 'regex:' token
+                    std::cmatch m;
+                    for (const auto &a : allpaths) {
+                        if (std::regex_match(a.c_str(), m, path_re)) {
+                            return JsonStore(json_store_.get(a));
+                        }
+                    }
+                    return make_error(
+                        xstudio_error::error,
+                        std::string("Failed to do regex json path match to ") +
+                            std::string(path, 6));
+                }
                 return JsonStore(json_store_.get(path));
+
             } catch (const std::exception &e) {
                 return make_error(
                     xstudio_error::error, std::string("get_json_atom ") + e.what());

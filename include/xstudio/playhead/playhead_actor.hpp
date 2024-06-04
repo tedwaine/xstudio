@@ -51,8 +51,7 @@ namespace playhead {
         void new_source_list(const std::vector<caf::actor> &sl);
         void switch_key_playhead(int idx);
         void calculate_duration();
-        void update_child_playhead_positions(
-            const bool force_broadcast = false, const bool playhead_scrubbing = false);
+        void update_child_playhead_positions(const bool force_broadcast);
         void notify_loop_end_changed();
         void notify_loop_start_changed();
         void update_duration(caf::typed_response_promise<timebase::flicks> rp);
@@ -89,11 +88,6 @@ namespace playhead {
             bool apply_to_selected);
         bool has_selection_changed();
         int previous_selected_sources_count_ = {-1};
-
-        void manage_playback_video_refresh_sync(
-            const utility::time_point &when_video_framebuffer_was_swapped_to_screen,
-            const timebase::flicks video_refresh_rate_hint,
-            const int viewer_index);
 
       protected:
         void attribute_changed(const utility::Uuid &attr_uuid, const int /*role*/) override;
@@ -144,7 +138,7 @@ namespace playhead {
         bool child_playhead_changed_                    = {false};
         timebase::flicks vid_refresh_sync_phase_adjust_ = timebase::flicks{0};
         int media_logical_frame_                        = {0};
-        float step_keypress_event_id_                           = {0};
+        float step_keypress_event_id_                   = {0};
     };
 } // namespace playhead
 } // namespace xstudio

@@ -5,11 +5,12 @@ import QtQuick.Layouts 1.3
 import QtQuick.Window 2.2
 
 import xStudioReskin 1.0
-import xstudio.qml.module 1.0
 
 Rectangle {
 
     id: control
+    color: "transparent"
+
     property var value_: value ? value : 0.0
     property var min_: float_scrub_min ? float_scrub_min : 0.0
     property var max_: float_scrub_max ? float_scrub_max : 1.0
@@ -38,6 +39,7 @@ Rectangle {
             width: 40
             border.width: 1
             height: valueInput.font.pixelSize*1.4
+            color: "transparent"
 
             MouseArea {
                 id: ma3
@@ -45,7 +47,7 @@ Rectangle {
                 hoverEnabled: true
             }
 
-            TextInput {
+            XsTextInput {
 
                 id: valueInput
                 text: value_.toFixed(2) // 'value' property provided via the xStudio attributes model            
@@ -60,19 +62,22 @@ Rectangle {
             }
         }
 
-        Slider {
+        XsSlider {
 
             id: slider
+            value: 0.0
             to: max_
             from: min_
+
             stepSize: step_
             orientation: Qt.Horizontal
-            value: 0.0
+            fillColor: palette.base
+            baseColor: palette.highlight
 
             Layout.fillWidth: true
             Layout.fillHeight: true
 
-            onValueChanged : {
+            onValueChanged: {
                 if (pressed) {
                     control.setValue(value)
                 }

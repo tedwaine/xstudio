@@ -67,7 +67,10 @@ ApplicationWindow {
     // if we are doing it relative to some button that is not the parent of
     // the pop-up. This convenience function makes that easy ... it also makes
     // sure menus don't get placed so they go outside the application window
-    function showPopupMenu(menu, refItem, refX, refY, altRightEdge) {
+    function repositionPopupMenu(menu, refItem, refX, refY, altRightEdge) {
+
+        if (menu.visible) return
+        
         var global_pos = refItem.mapToItem(
             appWindow.contentItem,
             refX,
@@ -167,8 +170,12 @@ ApplicationWindow {
     property bool popoutIsOpen: false
     property bool isPopoutViewer: true
 
-    XsViewport {
+    XsViewportPanel {
         anchors.fill: parent
+    }
+
+    function set_menu_bar_visibility(menu_bar_visible) {
+        // dummy function needed by XsViewportPanel. No menu bar in pop-out window
     }
 
 }

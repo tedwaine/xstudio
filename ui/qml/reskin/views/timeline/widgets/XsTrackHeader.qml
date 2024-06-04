@@ -9,6 +9,7 @@ Item {
 	id: control
 
 	property bool isHovered: false
+	property bool isSelected: false
 	property string itemFlag: ""
 	property string text: ""
 	property int trackIndex: 0
@@ -16,17 +17,29 @@ Item {
 	property string title: "Video Track"
 
 	property bool isEnabled: false
+	property bool isLocked: false
+	property bool isConformSource: false
+	property bool dragTarget: false
+
 	signal enabledClicked()
+	signal lockedClicked()
+	signal conformSourceClicked()
+	signal flagSet(string flag, string flag_text)
 
-	property bool isFocused: false
-	signal focusClicked()
-
-	Rectangle {
+	XsGradientRectangle {
 		id: control_background
 
-		color: Qt.darker(  trackBackground, isSelected ? 0.6 : 1.0)
-
 		anchors.fill: parent
+
+		border.width: 1
+        border.color: (isHovered || dragTarget) ? palette.highlight : "transparent"
+
+		flatColor: topColor
+
+        topColor: isSelected ? Qt.darker(palette.highlight, 2) : "#FF5B5B5B"
+        bottomColor: isSelected ? Qt.darker(palette.highlight, 2) :  "#FF484848"
+
+		// opacity: isEnabled ? 1.0 : 0.33
 
 		RowLayout {
 			clip: true
@@ -38,28 +51,24 @@ Item {
 			anchors.bottomMargin: 5
 
 			Rectangle {
-				Layout.preferredHeight: parent.height/3
-				Layout.preferredWidth: Layout.preferredHeight
+				// Layout.preferredHeight: control.height - 4
+				Layout.fillHeight: true
+				Layout.preferredWidth: height / 2
 				color: itemFlag != "" ? helpers.saturate(itemFlag, 0.4) : control_background.color
 				border.width: 2
 				border.color: Qt.lighter(color, 1.2)
 
 				MouseArea {
-
 					anchors.fill: parent
-					onPressed: trackFlag.popup()
+					onPressed: showFlagMenu(mouse.x, mouse.y, this, flagSet)
 					cursorShape: Qt.PointingHandCursor
-
-					/*XsFlagMenu {
-						id:trackFlag
-						onFlagSet: flagColourRole = (hex == "#00000000" ? "" : hex)
-					}*/
 				}
 			}
 
 		    Label {
-		    	// Layout.preferredWidth: 20
 		    	Layout.fillHeight: true
+		    	Layout.alignment: Qt.AlignVCenter | Qt.AlignLeft
+
 		    	horizontalAlignment: Text.AlignLeft
 		    	verticalAlignment: Text.AlignVCenter
 				text: control.title[0] + trackIndex
@@ -80,51 +89,40 @@ Item {
 		    	Layout.fillHeight: true
 		    	Layout.alignment: Qt.AlignRight
 
-				Rectangle {
-					Layout.preferredHeight: Math.min(Math.min(control.height - 20, control.width/3/4), 40)
-					Layout.preferredWidth: Layout.preferredHeight
+				XsPrimaryButton{
+			    	Layout.fillHeight: true
+					Layout.preferredWidth: height
+					isActiveViaIndicator: false
+    	            isActive: isConformSource
+    	            text: "C"
+					onClicked: control.conformSourceClicked()
+				}
 
-					color: control.isEnabled ? trackEdge : Qt.darker(trackEdge, 1.4)
+				XsPrimaryButton{
+			    	Layout.fillHeight: true
+					Layout.preferredWidth: height
+					imageDiv.sourceSize.height: height-2
+					imageDiv.sourceSize.width: height-2
+	                imgSrc: isEnabled ? "qrc:/icons/visibility.svg" : "qrc:/icons/visibility_off.svg"
+					isActiveViaIndicator: false
+    	            isActive: !isEnabled
+					onClicked: control.enabledClicked()
+				}
 
-					Label {
-				    	horizontalAlignment: Text.AlignHCenter
-				    	verticalAlignment: Text.AlignVCenter
-						anchors.fill: parent
-						text: "E"
-					}
-			    	MouseArea {
-						anchors.fill: parent
-						cursorShape: Qt.PointingHandCursor
 
-						onClicked: {
-							control.enabledClicked()
-						}
-				    }
-		    	}
-
-				Rectangle {
-					Layout.preferredHeight: Math.min(Math.min(control.height - 20, control.width/3/4), 40)
-					Layout.preferredWidth: Layout.preferredHeight
-
-					color: control.isFocused ? trackEdge : Qt.darker(trackEdge, 1.4)
-
-					Label {
-				    	horizontalAlignment: Text.AlignHCenter
-				    	verticalAlignment: Text.AlignVCenter
-						anchors.fill: parent
-						text: "F"
-					}
-			    	MouseArea {
-						anchors.fill: parent
-						cursorShape: Qt.PointingHandCursor
-
-						onClicked: {
-							control.focusClicked()
-						}
-				    }
-		    	}
+				XsPrimaryButton{
+			    	Layout.fillHeight: true
+					Layout.preferredWidth: height
+					imageDiv.sourceSize.height: height-2
+					imageDiv.sourceSize.width: height-2
+	                imgSrc: isLocked ? "qrc:/icons/lock.svg" : "qrc:/icons/unlock.svg"
+					isActiveViaIndicator: false
+    	            isActive: isLocked
+					onClicked: control.lockedClicked()
+				}
 		    }
-
+		}
+	}
 
 		// Label {
 		// 	anchors.top: parent.top
@@ -153,8 +151,6 @@ Item {
 		// 	visible: extraDetail
 		// 	z:4
 		// }
-		}
-	}
 
 	Rectangle {
 		width: 4
@@ -180,5 +176,42 @@ Item {
 			}
 		}
 	}
+
+	XsDragDropHandler {
+
+        id: drag_drop_handler   
+        onDragEntered: {
+            if (source == "MediaList") {
+                dragTarget = true                
+            }
+        }
+
+        onDragExited: {
+            dragTarget = false
+        }
+
+		onDropped: {
+            
+            if (!dragTarget) return
+            dragTarget = false
+			if (source == "MediaList" && typeof data == "object" && data.length) {
+				// drops from MediaList is a QModelIndexList - the seletcted media from
+				// the MediaList that is being dragged over
+
+				// root playlist:
+				theSessionData.dump(data[0].parent.parent)
+				theSessionData.dump(modelIndex())
+
+				var rc = theSessionData.rowCount(modelIndex());
+				for (var c = 0; c < data.length; ++c) {
+					var mediaName = theSessionData.get(data[c], "pathRole")
+					theSessionData.insertTimelineClip(rc+c, modelIndex(), data[c], mediaName)
+				}
+
+			}
+
+        }
+	}
+
 }
 

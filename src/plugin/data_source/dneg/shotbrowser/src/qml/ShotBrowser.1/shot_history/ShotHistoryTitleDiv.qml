@@ -8,6 +8,7 @@ import Qt.labs.qmlmodels 1.0
 
 import xStudioReskin 1.0
 import ShotBrowser 1.0
+import xstudio.qml.helpers 1.0
 
 Item{id: titleDiv
 
@@ -15,15 +16,16 @@ Item{id: titleDiv
     property real titleButtonSpacing: 1
     property real titleButtonHeight: XsStyleSheet.widgetStdHeight+4
 
+    ShotBrowserPresetFilterModel {
+        id: filterModel
+        showHidden: false
+        sourceModel: ShotBrowserEngine.presetsModel
+    }
 
     DelegateModel {
         id: groupModel
-
-        // this is required as "model" doesn't issue notifications on change
-        property var notifyModel: ShotBrowserEngine.presetsModel
-
-        // our model is the main sessionData instance
-        model: notifyModel
+        property var srcModel: filterModel
+        onSrcModelChanged: model = srcModel
 
         delegate: Item {
             width: ListView.view.width / ListView.view.count
@@ -33,19 +35,19 @@ Item{id: titleDiv
                 width: parent.width  - titleButtonSpacing
                 height: titleButtonHeight
                 text: nameRole
-                isActive: activeScopeIndex == groupModel.modelIndex(index)
+                isActive: activeScopeIndex == groupModel.srcModel.mapToSource(groupModel.modelIndex(index))
 
                 onClicked: {
-                    activateScope(groupModel.modelIndex(index))
+                    activateScope(groupModel.srcModel.mapToSource(groupModel.modelIndex(index)))
                 }
             }
         }
     }
 
     function populateModels() {
-        groupModel.rootIndex = ShotBrowserEngine.presetsModel.searchRecursive(
+        groupModel.rootIndex = helpers.makePersistent(filterModel.mapFromSource(ShotBrowserEngine.presetsModel.searchRecursive(
             "c5ce1db6-dac0-4481-a42b-202e637ac819", "idRole", ShotBrowserEngine.presetsModel.index(-1, -1), 0, 1
-        )
+        )))
         scopeList.model = groupModel
     }
 
@@ -61,8 +63,6 @@ Item{id: titleDiv
                  populateModels()
         }
     }
-
-
 
     ColumnLayout{ id: col
         x: panelPadding

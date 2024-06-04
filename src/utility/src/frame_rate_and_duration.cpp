@@ -80,6 +80,21 @@ FrameRateDuration FrameRateDuration::operator-(const FrameRateDuration &other) {
     return FrameRateDuration(frames() - frame(other), rate_);
 }
 
+FrameRateDuration FrameRateDuration::operator+(const FrameRateDuration &other) {
+    return FrameRateDuration(frames() + frame(other), rate_);
+}
+
+FrameRateDuration &FrameRateDuration::operator+=(const FrameRateDuration &other) {
+    set_frames(frames() + other.frames());
+    return *this;
+}
+
+FrameRateDuration &FrameRateDuration::operator-=(const FrameRateDuration &other) {
+    set_frames(frames() - other.frames());
+    return *this;
+}
+
+
 FrameRateDuration
 FrameRateDuration::subtract_frames(const FrameRateDuration &other, const bool remapped) const {
     return FrameRateDuration(frames() - other.frames(remapped ? FrameRate() : rate_), rate_);

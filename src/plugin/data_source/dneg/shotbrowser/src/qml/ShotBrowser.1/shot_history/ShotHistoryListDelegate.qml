@@ -16,7 +16,7 @@ import xstudio.qml.models 1.0
 Item{ id: thisItem
 
     property bool isActive: false
-    property bool isSelected: resultsSelectionModel.isSelected(resultModelIndex())
+    property bool isSelected: resultsSelectionModel.isSelected(delegateModel.modelIndex(index))
 
     property int modelDepth: 0
 
@@ -42,6 +42,7 @@ Item{ id: thisItem
     required property string pipelineStatusFullRole
     required property string authorRole
     required property string thumbRole
+    required property string clientFilenameRole
 
     required property int onSiteChn
     required property int onSiteLon
@@ -59,11 +60,6 @@ Item{ id: thisItem
 
     required property var createdDateRole
 
-    function resultModelIndex() {
-        return ShotBrowserHelpers.mapIndexToResultModel(delegateModel.modelIndex(index))
-    }
-
-
     property bool isHovered: mArea.containsMouse ||
         sec1.isHovered ||
         sec2.isHovered ||
@@ -73,7 +69,7 @@ Item{ id: thisItem
     Connections {
         target: resultsSelectionModel
         function onSelectionChanged(selected, deselected) {
-            isSelected = resultsSelectionModel.isSelected(resultModelIndex())
+            isSelected = resultsSelectionModel.isSelected(delegateModel.modelIndex(index))
         }
     }
 
@@ -90,21 +86,35 @@ Item{ id: thisItem
             hoverEnabled: true
             acceptedButtons: Qt.LeftButton | Qt.RightButton
 
-            onDoubleClicked: (mouse)=> {
-                ShotBrowserHelpers.addToCurrentPlaylist([resultModelIndex()])
+            // wierd workaround for flickable..
+            propagateComposedEvents: false
+            onReleased: {
+                if(!propagateComposedEvents)
+                    propagateComposedEvents = true
             }
 
-            onClicked: {
+            onDoubleClicked: (mouse)=> {
+                let m = ShotBrowserHelpers.mapIndexesToResultModel([delegateModel.modelIndex(index)])[0].model
+                if(m.groupId != helpers.QVariantFromUuidString("087c4ff5-2da0-4e54-afcf-c7914a247fae"))
+                    ShotBrowserHelpers.addToCurrent([delegateModel.modelIndex(index)], panelType != "ShotBrowser")
+                else
+                    ShotBrowserHelpers.addSequencesToCurrentPlaylist([delegateModel.modelIndex(index)])
+            }
+
+            onPressed: {
+                // required for doubleclick to work
+                mouse.accepted = true
+
                 if (mouse.button == Qt.RightButton){
                     if(popupMenu.visible) popupMenu.visible = false
                     else{
                         if(!isSelected) {
                             if(mouse.modifiers == Qt.NoModifier) {
-                                ShotBrowserHelpers.selectItem(resultsSelectionModel, resultModelIndex())
+                                ShotBrowserHelpers.selectItem(resultsSelectionModel, delegateModel.modelIndex(index))
                             } else if(mouse.modifiers == Qt.ShiftModifier){
-                                ShotBrowserHelpers.shiftSelectItem(resultsSelectionModel, resultModelIndex())
+                                ShotBrowserHelpers.shiftSelectItem(resultsSelectionModel, delegateModel.modelIndex(index))
                             } else if(mouse.modifiers == Qt.ControlModifier) {
-                                ShotBrowserHelpers.ctrlSelectItem(resultsSelectionModel, resultModelIndex())
+                                ShotBrowserHelpers.ctrlSelectItem(resultsSelectionModel, delegateModel.modelIndex(index))
                             }
                         }
                         popupMenu.popupDelegateModel = delegateModel
@@ -116,11 +126,11 @@ Item{ id: thisItem
                 }
 
                 else if(mouse.modifiers == Qt.NoModifier) {
-                    ShotBrowserHelpers.selectItem(resultsSelectionModel, resultModelIndex())
+                    ShotBrowserHelpers.selectItem(resultsSelectionModel, delegateModel.modelIndex(index))
                 } else if(mouse.modifiers == Qt.ShiftModifier){
-                    ShotBrowserHelpers.shiftSelectItem(resultsSelectionModel, resultModelIndex())
+                    ShotBrowserHelpers.shiftSelectItem(resultsSelectionModel, delegateModel.modelIndex(index))
                 } else if(mouse.modifiers == Qt.ControlModifier) {
-                    ShotBrowserHelpers.ctrlSelectItem(resultsSelectionModel, resultModelIndex())
+                    ShotBrowserHelpers.ctrlSelectItem(resultsSelectionModel, delegateModel.modelIndex(index))
                 }
             }
         }
@@ -171,6 +181,15 @@ Item{ id: thisItem
                     font.pixelSize: XsStyleSheet.fontSize * 1.1
                     font.bold: true
                     leftPadding: panelPadding
+                }
+                XsText{
+                    anchors.fill: parent
+                    horizontalAlignment: Text.AlignRight
+                    text: clientFilenameRole ? clientFilenameRole : ""
+                    font.pixelSize: XsStyleSheet.fontSize * 1.1
+                    font.bold: true
+                    rightPadding: panelPadding
+                    opacity: 0.5
                 }
             }
 

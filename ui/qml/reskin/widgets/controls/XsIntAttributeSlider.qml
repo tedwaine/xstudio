@@ -5,7 +5,6 @@ import QtQuick.Layouts 1.3
 import QtQuick.Window 2.2
 
 import xStudioReskin 1.0
-import xstudio.qml.module 1.0
 
 XsFloatAttributeSlider {
     

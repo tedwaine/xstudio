@@ -4,10 +4,12 @@
 #include <caf/all.hpp>
 #include <functional>
 #include <semver.hpp>
+#include <filesystem>
 
 #include "xstudio/ui/qml/actor_object.hpp"
 #include "xstudio/ui/qml/json_tree_model_ui.hpp"
 #include "xstudio/utility/helpers.hpp"
+#include "xstudio/utility/timecode.hpp"
 #include "xstudio/utility/string_helpers.hpp"
 #include "xstudio/utility/json_store.hpp"
 #include "xstudio/utility/uuid.hpp"
@@ -37,14 +39,125 @@ CAF_PUSH_WARNINGS
 
 CAF_POP_WARNINGS
 
+
 namespace xstudio {
 namespace ui {
     namespace qml {
         using namespace caf;
 
+        namespace fs = std::filesystem;
 
         QVariant mapFromValue(const nlohmann::json &value);
         nlohmann::json mapFromValue(const QVariant &value);
+
+        inline QString QStringFromStd(const std::string &str) {
+            return QString::fromUtf8(str.c_str());
+        }
+        inline std::string StdFromQString(const QString &str) {
+            return str.toUtf8().constData();
+        }
+
+
+        class TimeCode : public QObject {
+            Q_OBJECT
+
+            Q_PROPERTY(unsigned int hours READ hours WRITE setHours NOTIFY timeCodeChanged)
+            Q_PROPERTY(
+                unsigned int minutes READ minutes WRITE setMinutes NOTIFY timeCodeChanged)
+            Q_PROPERTY(
+                unsigned int seconds READ seconds WRITE setSeconds NOTIFY timeCodeChanged)
+            Q_PROPERTY(unsigned int frames READ frames WRITE setFrames NOTIFY timeCodeChanged)
+            Q_PROPERTY(
+                double frameRate READ frameRate WRITE setFrameRate NOTIFY timeCodeChanged)
+            Q_PROPERTY(bool dropFrame READ dropFrame WRITE setDropFrame NOTIFY timeCodeChanged)
+            Q_PROPERTY(unsigned int totalFrames READ totalFrames WRITE setTotalFrames NOTIFY
+                           timeCodeChanged)
+            Q_PROPERTY(QString timeCode READ timeCode NOTIFY timeCodeChanged)
+
+          public:
+            explicit TimeCode(QObject *parent = nullptr) : QObject(parent) {}
+
+            [[nodiscard]] unsigned int hours() const { return timecode_.hours(); }
+            [[nodiscard]] unsigned int minutes() const { return timecode_.minutes(); }
+            [[nodiscard]] unsigned int seconds() const { return timecode_.seconds(); }
+            [[nodiscard]] unsigned int frames() const { return timecode_.frames(); }
+            [[nodiscard]] double frameRate() const { return timecode_.framerate(); }
+            [[nodiscard]] bool dropFrame() const { return timecode_.dropframe(); }
+            [[nodiscard]] unsigned int totalFrames() const { return timecode_.total_frames(); }
+            [[nodiscard]] QString timeCode() const {
+                return QStringFromStd(timecode_.to_string());
+            }
+
+            void setHours(const unsigned int value) {
+                timecode_.hours(value);
+                emit timeCodeChanged();
+            }
+
+            void setMinutes(const unsigned int value) {
+                timecode_.minutes(value);
+                emit timeCodeChanged();
+            }
+
+            void setSeconds(const unsigned int value) {
+                timecode_.seconds(value);
+                emit timeCodeChanged();
+            }
+
+            void setFrames(const unsigned int value) {
+                timecode_.frames(value);
+                emit timeCodeChanged();
+            }
+
+            void setFrameRate(const double value) {
+                timecode_.framerate(value);
+                emit timeCodeChanged();
+            }
+
+            void setDropFrame(const bool value) {
+                timecode_.dropframe(value);
+                emit timeCodeChanged();
+            }
+
+            void setTotalFrames(const unsigned int value) {
+                timecode_.total_frames(value);
+                emit timeCodeChanged();
+            }
+
+            Q_INVOKABLE void setTimeCodeFromString(
+                const QString &code,
+                const double frameRate = 30.0,
+                const bool dropFrame   = false) {
+                timecode_ = utility::Timecode(StdFromQString(code), frameRate, dropFrame);
+                emit timeCodeChanged();
+            }
+
+            Q_INVOKABLE void setTimeCodeFromFrames(
+                const unsigned int frames,
+                const double frameRate = 30.0,
+                const bool dropFrame   = false) {
+                timecode_ = utility::Timecode(frames, frameRate, dropFrame);
+                emit timeCodeChanged();
+            }
+
+            Q_INVOKABLE void setTimeCode(
+                const unsigned int hour,
+                const unsigned int minute,
+                const unsigned int second,
+                const unsigned int frame,
+                const double frameRate = 30.0,
+                const bool dropFrame   = false) {
+                timecode_ =
+                    utility::Timecode(hour, minute, second, frame, frameRate, dropFrame);
+                emit timeCodeChanged();
+            }
+
+
+          signals:
+            void timeCodeChanged();
+
+          private:
+            utility::Timecode timecode_;
+        };
 
         class ModelRowCount : public QObject {
             Q_OBJECT
@@ -180,6 +293,7 @@ namespace ui {
           signals:
             void indexChanged();
             void valuesChanged();
+            void contentChanged();
 
           protected slots:
             void dataChanged(
@@ -190,7 +304,7 @@ namespace ui {
 
           protected:
             virtual void valueChanged(const QString &key, const QVariant &value);
-            virtual void updateValues(const QVector<int> &roles = {});
+            virtual bool updateValues(const QVector<int> &roles = {});
             [[nodiscard]] int getRoleId(const QString &role) const;
 
             QPersistentModelIndex index_;
@@ -246,7 +360,7 @@ namespace ui {
 
 
           protected:
-            void updateValues(const QVector<int> &roles = {}) override;
+            bool updateValues(const QVector<int> &roles = {}) override;
             void valueChanged(const QString &key, const QVariant &value) override;
 
             QString data_role_    = {"valueRole"};
@@ -269,13 +383,6 @@ namespace ui {
           private:
             std::reference_wrapper<caf::actor_system> system_ref_;
         };
-
-        inline QString QStringFromStd(const std::string &str) {
-            return QString::fromUtf8(str.c_str());
-        }
-        inline std::string StdFromQString(const QString &str) {
-            return str.toUtf8().constData();
-        }
 
         inline QUrl QUrlFromUri(const caf::uri &uri) {
             if (uri.empty())
@@ -381,6 +488,15 @@ namespace ui {
                 return QPersistentModelIndex(index);
             }
 
+            Q_INVOKABLE [[nodiscard]] bool urlExists(const QUrl &url) const {
+                auto path   = fs::path(utility::uri_to_posix_path(UriFromQUrl(url)));
+                auto result = false;
+                try {
+                    result = fs::exists(path);
+                } catch (...) {
+                }
+                return result;
+            }
 
             Q_INVOKABLE [[nodiscard]] QString fileFromURL(const QUrl &url) const {
                 static const std::regex as_hash_pad(R"(\{:0(\d+)d\})");
@@ -468,6 +584,16 @@ namespace ui {
             }
 
             Q_INVOKABLE [[nodiscard]] QItemSelection
+            intersectItemSelection(const QItemSelection &a, const QItemSelection &b) const {
+                auto s = QItemSelection();
+                for (const auto &i : a.indexes()) {
+                    if (b.contains(i))
+                        s.select(i, i);
+                }
+                return s;
+            }
+
+            Q_INVOKABLE [[nodiscard]] QItemSelection
             createItemSelectionFromList(const QVariantList &l) const {
                 auto s = QItemSelection();
                 for (const auto &i : l)
@@ -525,6 +651,9 @@ namespace ui {
             Q_INVOKABLE [[nodiscard]] QString contextPanelAddress(QObject *obj) const {
                 return objPtrTostring(contextPanel(obj));
             }
+
+            Q_INVOKABLE void setMenuPathPosition(
+                const QString &menu_path, const QString &menu_name, const float position) const;
 
             static inline QString objPtrTostring(QObject *obj) {
                 if (!obj)
@@ -787,6 +916,44 @@ namespace ui {
           private:
             QVariant image_property_;
             QImage image_;
+        };
+
+
+        class MarkerModel : public JSONTreeModel {
+            Q_OBJECT
+
+
+            Q_PROPERTY(QVariant markerData READ markerData WRITE setMarkerData NOTIFY
+                           markerDataChanged)
+
+
+          public:
+            enum Roles {
+                commentRole = JSONTreeModel::Roles::LASTROLE,
+                durationRole,
+                flagRole,
+                nameRole,
+                rateRole,
+                startRole
+            };
+            explicit MarkerModel(QObject *parent = nullptr);
+
+            Q_INVOKABLE bool setMarkerData(const QVariant &data);
+
+            [[nodiscard]] QVariant markerData() const;
+
+            QVariant data(const QModelIndex &index, int role = Qt::DisplayRole) const override;
+
+            bool setData(
+                const QModelIndex &index,
+                const QVariant &value,
+                int role = Qt::EditRole) override;
+
+          signals:
+            void markerDataChanged();
+
+
+          private:
         };
 
 

@@ -88,7 +88,7 @@ set(SOURCES
 	plain_viewport.cpp
 	qml_viewport.cpp
 	caf_system.cpp
-	../../../../ui/qml/xstudio/qml.qrc
+	../../../../ui/qml/xstudio/qml_reskin.qrc
 	${GENERATED_SOURCES}
 )
 
@@ -109,10 +109,8 @@ target_link_libraries(${PROJECT_NAME}
 		xstudio::ui::viewport
 		xstudio::ui::opengl::viewport
 		xstudio::ui::qt::viewport_widget
-		xstudio::ui::qml::module
 		xstudio::ui::qml::global_store
 		xstudio::ui::qml::helper
-		xstudio::ui::qml::playhead
 		xstudio::ui::qml::bookmark
 		xstudio::ui::qml::session
 		xstudio::ui::qml::studio

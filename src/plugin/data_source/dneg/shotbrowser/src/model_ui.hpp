@@ -97,26 +97,26 @@ namespace ui::qml {
         Q_PROPERTY(int length READ length NOTIFY lengthChanged)
         Q_PROPERTY(int count READ length NOTIFY lengthChanged)
 
-        Q_PROPERTY(QItemSelection selectionFilter READ selectionFilter WRITE
-                       setSelectionFilter NOTIFY selectionFilterChanged)
+        Q_PROPERTY(QItemSelection selectionFilter READ selectionFilter WRITE setSelectionFilter
+                       NOTIFY selectionFilterChanged)
 
       public:
         ShotBrowserFilterModel(QObject *parent = nullptr) : QSortFilterProxyModel(parent) {
-                connect(
-                    this,
-                    &QAbstractListModel::rowsInserted,
-                    this,
-                    &ShotBrowserFilterModel::lengthChanged);
-                connect(
-                    this,
-                    &QAbstractListModel::modelReset,
-                    this,
-                    &ShotBrowserFilterModel::lengthChanged);
-                connect(
-                    this,
-                    &QAbstractListModel::rowsRemoved,
-                    this,
-                    &ShotBrowserFilterModel::lengthChanged);
+            connect(
+                this,
+                &QAbstractListModel::rowsInserted,
+                this,
+                &ShotBrowserFilterModel::lengthChanged);
+            connect(
+                this,
+                &QAbstractListModel::modelReset,
+                this,
+                &ShotBrowserFilterModel::lengthChanged);
+            connect(
+                this,
+                &QAbstractListModel::rowsRemoved,
+                this,
+                &ShotBrowserFilterModel::lengthChanged);
         }
 
         Q_INVOKABLE [[nodiscard]] QVariant
@@ -145,18 +145,18 @@ namespace ui::qml {
             }
         }
 
-        signals:
-            void lengthChanged();
-            void selectionFilterChanged();
+      signals:
+        void lengthChanged();
+        void selectionFilterChanged();
 
-          protected:
-            [[nodiscard]] bool
-            filterAcceptsRow(int source_row, const QModelIndex &source_parent) const override;
-            // [[nodiscard]] bool
-            // lessThan(const QModelIndex &source_left, const QModelIndex &source_right) const;
+      protected:
+        [[nodiscard]] bool
+        filterAcceptsRow(int source_row, const QModelIndex &source_parent) const override;
+        // [[nodiscard]] bool
+        // lessThan(const QModelIndex &source_left, const QModelIndex &source_right) const;
 
-        private:
-            QItemSelection selection_filter_;
+      private:
+        QItemSelection selection_filter_;
     };
 
 

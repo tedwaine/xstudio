@@ -66,6 +66,7 @@ void py_config::add_atoms() {
 
     ADD_ATOM(xstudio::timeline, active_range_atom);
     ADD_ATOM(xstudio::timeline, available_range_atom);
+    ADD_ATOM(xstudio::timeline, bake_atom);
     ADD_ATOM(xstudio::timeline, duration_atom);
     ADD_ATOM(xstudio::timeline, erase_item_at_frame_atom);
     ADD_ATOM(xstudio::timeline, erase_item_atom);
@@ -73,7 +74,10 @@ void py_config::add_atoms() {
     ADD_ATOM(xstudio::timeline, insert_item_atom);
     ADD_ATOM(xstudio::timeline, item_atom);
     ADD_ATOM(xstudio::timeline, item_name_atom);
+    ADD_ATOM(xstudio::timeline, item_lock_atom);
     ADD_ATOM(xstudio::timeline, item_flag_atom);
+    ADD_ATOM(xstudio::timeline, item_marker_atom);
+    ADD_ATOM(xstudio::timeline, item_prop_atom);
     ADD_ATOM(xstudio::timeline, focus_atom);
     ADD_ATOM(xstudio::timeline, move_item_atom);
     ADD_ATOM(xstudio::timeline, move_item_at_frame_atom);
@@ -130,7 +134,7 @@ void py_config::add_atoms() {
     ADD_ATOM(xstudio::playlist, select_all_media_atom);
     ADD_ATOM(xstudio::playlist, select_media_atom);
     ADD_ATOM(xstudio::playlist, set_playlist_in_viewer_atom);
-    ADD_ATOM(xstudio::playlist, sort_alphabetically_atom);
+    ADD_ATOM(xstudio::playlist, sort_by_media_display_info_atom);
     ADD_ATOM(xstudio::session, session_atom);
     ADD_ATOM(xstudio::session, session_request_atom);
     ADD_ATOM(xstudio::session, add_playlist_atom);
@@ -173,9 +177,6 @@ void py_config::add_atoms() {
     ADD_ATOM(xstudio::module, attribute_role_data_atom);
     ADD_ATOM(xstudio::module, attribute_value_atom);
     ADD_ATOM(xstudio::module, module_ui_events_group_atom);
-    ADD_ATOM(xstudio::module, full_attributes_description_atom);
-    ADD_ATOM(xstudio::module, request_full_attributes_description_atom);
-    ADD_ATOM(xstudio::module, request_menu_attributes_description_atom);
     ADD_ATOM(xstudio::module, change_attribute_request_atom);
     ADD_ATOM(xstudio::module, change_attribute_value_atom);
     ADD_ATOM(xstudio::module, attribute_deleted_event_atom);
@@ -186,14 +187,13 @@ void py_config::add_atoms() {
     ADD_ATOM(xstudio::module, disconnect_from_ui_atom);
     ADD_ATOM(xstudio::module, join_module_attr_events_atom);
     ADD_ATOM(xstudio::module, leave_module_attr_events_atom);
-    ADD_ATOM(xstudio::module, remove_attrs_from_ui_atom);
     ADD_ATOM(xstudio::module, grab_all_keyboard_input_atom);
     ADD_ATOM(xstudio::module, grab_all_mouse_input_atom);
     ADD_ATOM(xstudio::module, attribute_uuids_atom);
     ADD_ATOM(xstudio::module, module_add_menu_item_atom);
     ADD_ATOM(xstudio::module, remove_attribute_atom);
     ADD_ATOM(xstudio::module, set_node_data_atom);
-    
+
     ADD_ATOM(xstudio::global, exit_atom);
     ADD_ATOM(xstudio::global, api_exit_atom);
     ADD_ATOM(xstudio::global, busy_atom);
@@ -272,7 +272,6 @@ void py_config::add_atoms() {
     ADD_ATOM(xstudio::playhead, get_selection_atom);
     ADD_ATOM(xstudio::playhead, selection_changed_atom);
     ADD_ATOM(xstudio::playhead, jump_atom);
-    ADD_ATOM(xstudio::playhead, scrub_frame_atom);
     ADD_ATOM(xstudio::playhead, key_child_playhead_atom);
     ADD_ATOM(xstudio::playhead, key_playhead_index_atom);
     ADD_ATOM(xstudio::playhead, logical_frame_atom);

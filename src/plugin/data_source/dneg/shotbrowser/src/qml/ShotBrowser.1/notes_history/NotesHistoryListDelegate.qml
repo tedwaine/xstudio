@@ -52,12 +52,8 @@ Item{ id: thisItem
     Connections {
         target: resultsSelectionModel
         function onSelectionChanged(selected, deselected) {
-            isSelected = resultsSelectionModel.isSelected(resultModelIndex())
+            isSelected = resultsSelectionModel.isSelected(delegateModel.modelIndex(index))
         }
-    }
-
-    function resultModelIndex() {
-        return ShotBrowserHelpers.mapIndexToResultModel(delegateModel.modelIndex(index))
     }
 
     Rectangle{ id: frame
@@ -72,20 +68,27 @@ Item{ id: thisItem
             hoverEnabled: true
             acceptedButtons: Qt.LeftButton | Qt.RightButton
 
-            propagateComposedEvents: true
-            onClicked: (mouse)=>{
-                mouse.accepted = false
-            // onClicked: {
+            // wierd workaround for flickable..
+            propagateComposedEvents: false
+            onReleased: {
+                if(!propagateComposedEvents)
+                    propagateComposedEvents = true
+            }
+
+            onPressed: (mouse)=>{
+                // required for doubleclick to work
+                mouse.accepted = true
+
                 if (mouse.button == Qt.RightButton){
                     if(popupMenu.visible) popupMenu.visible = false
                     else{
                         if(!isSelected) {
                             if(mouse.modifiers == Qt.NoModifier) {
-                                ShotBrowserHelpers.selectItem(resultsSelectionModel, resultModelIndex())
+                                ShotBrowserHelpers.selectItem(resultsSelectionModel, delegateModel.modelIndex(index))
                             } else if(mouse.modifiers == Qt.ShiftModifier){
-                                ShotBrowserHelpers.shiftSelectItem(resultsSelectionModel, resultModelIndex())
+                                ShotBrowserHelpers.shiftSelectItem(resultsSelectionModel, delegateModel.modelIndex(index))
                             } else if(mouse.modifiers == Qt.ControlModifier) {
-                                ShotBrowserHelpers.ctrlSelectItem(resultsSelectionModel, resultModelIndex())
+                                ShotBrowserHelpers.ctrlSelectItem(resultsSelectionModel, delegateModel.modelIndex(index))
                             }
                         }
                         popupMenu.popupDelegateModel = delegateModel
@@ -94,18 +97,18 @@ Item{ id: thisItem
                         popupMenu.y = ppos.y
                         popupMenu.visible = true
                     }
-                }
-
-                else if(mouse.modifiers == Qt.NoModifier) {
-                    ShotBrowserHelpers.selectItem(resultsSelectionModel, resultModelIndex())
+                } else if(mouse.modifiers == Qt.NoModifier) {
+                    ShotBrowserHelpers.selectItem(resultsSelectionModel, delegateModel.modelIndex(index))
                 } else if(mouse.modifiers == Qt.ShiftModifier){
-                    ShotBrowserHelpers.shiftSelectItem(resultsSelectionModel, resultModelIndex())
+                    ShotBrowserHelpers.shiftSelectItem(resultsSelectionModel, delegateModel.modelIndex(index))
                 } else if(mouse.modifiers == Qt.ControlModifier) {
-                    ShotBrowserHelpers.ctrlSelectItem(resultsSelectionModel, resultModelIndex())
+                    ShotBrowserHelpers.ctrlSelectItem(resultsSelectionModel, delegateModel.modelIndex(index))
                 }
             }
+
             onDoubleClicked: (mouse)=> {
-                ShotBrowserHelpers.addToCurrentPlaylist([resultModelIndex()])
+                // need to know context, Which panel am I in.
+                ShotBrowserHelpers.addToCurrent([delegateModel.modelIndex(index)], panelType != "ShotBrowser")
             }
         }
 

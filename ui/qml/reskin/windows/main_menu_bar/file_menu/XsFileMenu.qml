@@ -91,6 +91,16 @@ Item {
         }
     }
 
+    XsMenuModelItem {
+        text: "Import OTIO ..."
+        menuPath: "File"
+        menuItemPosition: 3.1
+        menuModelName: "main menu bar"
+        onActivated: {
+            file_functions.importOTIO()
+        }
+    }
+
     Repeater {
         model: file_functions.recentFiles
         Item {

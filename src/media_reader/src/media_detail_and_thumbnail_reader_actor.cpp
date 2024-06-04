@@ -65,16 +65,11 @@ MediaDetailAndThumbnailReaderActor::MediaDetailAndThumbnailReaderActor(
         [=](xstudio::broadcast::broadcast_down_atom, const caf::actor_addr &) {},
 
         [=](get_media_detail_atom) {
-            // here we process a thumbnail request once for every 4 'get_media_detail' requests
-            // - this is to balance thumbnail delivery to the UI (which is nice but not
-            // essential) against building media sources (which is essential)
-            if (num_detail_requests_since_thumbnail_request_ > 4 &&
-                !thumbnail_request_queue_.empty()) {
-                process_get_thumbnail_queue();
-            } else if (not media_detail_request_queue_.empty()) {
+            // Continue processing requests in the queue in a loop (loop
+            // happens as we ping ourselves another get_media_detail_atom when
+            // we've completed a request in the queue)
+            if (not media_detail_request_queue_.empty()) {
                 process_get_media_detail_queue();
-            } else {
-                process_get_thumbnail_queue();
             }
         },
 
@@ -116,32 +111,18 @@ MediaDetailAndThumbnailReaderActor::MediaDetailAndThumbnailReaderActor(
         [=](get_thumbnail_atom,
             const media::AVFrameID &mptr,
             const size_t size) -> result<thumbnail::ThumbnailBufferPtr> {
-            bool start = queues_empty();
-            auto rp    = make_response_promise<thumbnail::ThumbnailBufferPtr>();
-            thumbnail_request_queue_.emplace(mptr, size, rp);
-            if (start)
-                anon_send(
-                    caf::actor_cast<caf::actor>(this),
-                    get_media_detail_atom_v); // starts loop to chew through the request queue
+            auto rp = make_response_promise<thumbnail::ThumbnailBufferPtr>();
+            get_thumbnail(rp, mptr, size);
             return rp;
         },
 
         [=](utility::uuid_atom) -> Uuid { return uuid_; });
 }
 
-void MediaDetailAndThumbnailReaderActor::process_get_thumbnail_queue() {
-
-    if (!thumbnail_request_queue_.size())
-        return;
-
-    num_detail_requests_since_thumbnail_request_ = 0;
-
-    const auto thumbnail_request = thumbnail_request_queue_.front();
-    thumbnail_request_queue_.pop();
-
-    media::AVFrameID mptr = thumbnail_request.media_pointer_;
-    const size_t size     = thumbnail_request.size_;
-    caf::typed_response_promise<thumbnail::ThumbnailBufferPtr> rp = thumbnail_request.rp_;
+void MediaDetailAndThumbnailReaderActor::get_thumbnail(
+    caf::typed_response_promise<thumbnail::ThumbnailBufferPtr> rp,
+    const media::AVFrameID &mptr,
+    const size_t size) {
 
     try {
         fan_out_request<policy::select_all>(
@@ -163,31 +144,26 @@ void MediaDetailAndThumbnailReaderActor::process_get_thumbnail_queue() {
                     }
 
                     if (best_match == MRC_NO) {
-                        spdlog::warn("{} Unsupported format.", __PRETTY_FUNCTION__);
                         rp.deliver(make_error(media_error::unsupported, "Unsupported format"));
-                        continue_processing_queue();
                     } else {
                         get_thumbnail_from_reader_plugin(
-                            plugins_map_[best_reader_plugin_uuid], mptr, size, rp);
+                            plugins_map_[best_reader_plugin_uuid], rp, mptr, size);
                     }
                 },
                 [=](const caf::error &err) mutable {
                     spdlog::warn("{} {}", err.category(), to_string(err));
                     rp.deliver(err);
-                    continue_processing_queue();
                 });
     } catch (std::exception &e) {
         rp.deliver(make_error(media_error::unsupported, e.what()));
-        // spdlog::info("{} {}", __PRETTY_FUNCTION__, e.what());
-        continue_processing_queue();
     }
 }
 
 void MediaDetailAndThumbnailReaderActor::get_thumbnail_from_reader_plugin(
     caf::actor &reader_plugin,
-    const media::AVFrameID mptr,
-    const size_t size,
-    caf::typed_response_promise<thumbnail::ThumbnailBufferPtr> rp) {
+    caf::typed_response_promise<thumbnail::ThumbnailBufferPtr> rp,
+    const media::AVFrameID &mptr,
+    const size_t size) {
 
     auto colour_pipe_manager = system().registry().get<caf::actor>(colour_pipeline_registry);
     request(reader_plugin, infinite, get_thumbnail_atom_v, mptr, size)
@@ -196,8 +172,14 @@ void MediaDetailAndThumbnailReaderActor::get_thumbnail_from_reader_plugin(
                 if (buf && buf->format() == thumbnail::THUMBNAIL_FORMAT::TF_RGB24)
                     rp.deliver(buf);
                 else if (buf) {
-                    // send to colour pipeline..
-                    rp.delegate(colour_pipe_manager, process_thumbnail_atom_v, mptr, buf);
+                    // send to colour pipeline.. (requires RGB64 format, i.e. floating pt)
+                    // Colour pipeline will convert float images to display space.
+                    request(colour_pipe_manager, infinite, process_thumbnail_atom_v, mptr, buf)
+                        .then(
+                            [=](const thumbnail::ThumbnailBufferPtr &buf) mutable {
+                                rp.deliver(buf);
+                            },
+                            [=](const caf::error &err) mutable { rp.deliver(err); });
                 } else {
                     if (mptr.actor_addr_) {
                         auto dest = caf::actor_cast<caf::actor>(mptr.actor_addr_);
@@ -207,12 +189,10 @@ void MediaDetailAndThumbnailReaderActor::get_thumbnail_from_reader_plugin(
                     rp.deliver(make_error(
                         media_error::corrupt, "thumbnail loaded returned empty buffer."));
                 }
-                continue_processing_queue();
             },
             [=](const caf::error &err) mutable {
                 spdlog::error("{} {}", err.category(), to_string(err));
                 rp.deliver(err);
-                continue_processing_queue();
             });
 }
 
@@ -221,7 +201,6 @@ void MediaDetailAndThumbnailReaderActor::process_get_media_detail_queue() {
     if (media_detail_request_queue_.empty())
         return;
 
-    num_detail_requests_since_thumbnail_request_++;
     const auto media_detail_request = media_detail_request_queue_.front();
     media_detail_request_queue_.pop();
 

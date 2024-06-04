@@ -11,7 +11,7 @@ Rectangle {
 
     id: booboo
     color: "transparent"
-    clip: true
+    // clip: true
     property string title: ""
     property bool has_header: true
     property bool header_visible: true

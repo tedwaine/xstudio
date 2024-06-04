@@ -31,7 +31,6 @@ class SessionModel : public caf::mixin::actor_object<JSONTreeModel> {
     Q_PROPERTY(QQmlPropertyMap *tags READ tags NOTIFY tagsChanged)
     Q_PROPERTY(bool modified READ modified WRITE setModified NOTIFY modifiedChanged)
     Q_PROPERTY(QString bookmarkActorAddr READ bookmarkActorAddr NOTIFY bookmarkActorAddrChanged)
-
     Q_PROPERTY(QVariant playlists READ playlists NOTIFY playlistsChanged)
 
   public:
@@ -44,6 +43,7 @@ class SessionModel : public caf::mixin::actor_object<JSONTreeModel> {
         availableDurationRole,
         availableStartRole,
         bitDepthRole,
+        bookmarkUuidsRole,
         busyRole,
         clipMediaUuidRole,
         containerUuidRole,
@@ -54,36 +54,31 @@ class SessionModel : public caf::mixin::actor_object<JSONTreeModel> {
         formatRole,
         groupActorRole,
         imageActorUuidRole,
+        lockedRole,
+        markersRole,
         mediaCountRole,
+        mediaDisplayInfoRole,
         mediaStatusRole,
-        metadataSet0Role,
-        metadataSet10Role,
-        metadataSet1Role,
-        metadataSet2Role,
-        metadataSet3Role,
-        metadataSet4Role,
-        metadataSet5Role,
-        metadataSet6Role,
-        metadataSet7Role,
-        metadataSet8Role,
-        metadataSet9Role,
         mtimeRole,
         nameRole,
         parentStartRole,
         pathRole,
+        pathShakeRole,
         pixelAspectRole,
         placeHolderRole,
+        propertyRole,
         rateFPSRole,
         resolutionRole,
         selectionRole,
         thumbnailImageRole,
         thumbnailURLRole,
+        timecodeAsFramesRole,
         trackIndexRole,
         trimmedDurationRole,
         trimmedStartRole,
         typeRole,
         uuidRole,
-        bookmarkUuidsRole
+        expandedRole,
     };
 
     using super = caf::mixin::actor_object<JSONTreeModel>;
@@ -99,6 +94,12 @@ class SessionModel : public caf::mixin::actor_object<JSONTreeModel> {
     setData(const QModelIndex &index, const QVariant &value, int role = Qt::EditRole) override;
 
     Q_INVOKABLE void dump() const { spdlog::warn("{}", modelData().dump(2)); }
+
+    Q_INVOKABLE void dump(const QModelIndex &index) const {
+        qDebug() << "Dumping index " << index;
+        const nlohmann::json &j = indexToData(index);
+        std::cerr << j.dump(2) << "\n";
+    }
 
     Q_INVOKABLE bool
     removeRows(int row, int count, const QModelIndex &parent = QModelIndex()) override;
@@ -126,15 +127,74 @@ class SessionModel : public caf::mixin::actor_object<JSONTreeModel> {
             sourceParent, sourceRow, count, destinationParent, destinationChild);
     }
 
-    Q_INVOKABLE QModelIndexList
-    moveRows(const QModelIndexList &indexes, const int row, const QModelIndex &parent);
+    Q_INVOKABLE QModelIndexList moveRows(
+        const QModelIndexList &indexes,
+        const int row,
+        const QModelIndex &parent,
+        const bool doCopy = false);
 
     Q_INVOKABLE void
     mergeRows(const QModelIndexList &indexes, const QString &name = "Combined Playlist");
 
     // timeline operations
     Q_INVOKABLE bool removeTimelineItems(const QModelIndexList &indexes);
+    Q_INVOKABLE bool
+    removeTimelineItems(const QModelIndex &track_index, const int frame, const int duration);
+
+    Q_INVOKABLE QModelIndex bakeTimelineItems(
+        const QModelIndexList &indexes, const QString &trackName = "Flattened Tracks");
+
+    Q_INVOKABLE QModelIndexList duplicateTimelineClips(
+        const QModelIndexList &indexes,
+        const QString &trackSuffix = "Duplicate",
+        const bool append          = true);
+
+    Q_INVOKABLE bool replaceTimelineTrack(const QModelIndex &src, const QModelIndex &dst);
+
+    Q_INVOKABLE QRect timelineRect(const QModelIndexList &indexes) const;
+
     Q_INVOKABLE QModelIndex getTimelineIndex(const QModelIndex &index) const;
+    Q_INVOKABLE QModelIndex getTimelineTrackIndex(const QModelIndex &index) const;
+
+    Q_INVOKABLE QModelIndex
+    getTimelineClipIndex(const QModelIndex &timelineIndex, const int frame);
+
+    // return clips using media
+    Q_INVOKABLE QModelIndexList
+    getTimelineClipIndexes(const QModelIndex &timelineIndex, const QModelIndex &mediaIndex);
+
+    Q_INVOKABLE QModelIndexList
+    modifyClipSelection(const QModelIndexList &clips, const int left, const int right);
+
+    Q_INVOKABLE QModelIndexList getTimelineVisibleClipIndexes(
+        const QModelIndex &timelineIndex,
+        const QModelIndex &mediaIndex,
+        const int logicalMediaFrame,
+        const bool skipDisabled = false);
+
+    Q_INVOKABLE QModelIndexList getTimelineVideoClipIndexesFromRect(
+        const QModelIndex &timelineIndex,
+        const int left,
+        const int top,
+        const int right,
+        const int bottom,
+        const double frameScale,
+        const double trackScale,
+        const bool skipLocked = false);
+
+    Q_INVOKABLE QModelIndexList getTimelineAudioClipIndexesFromRect(
+        const QModelIndex &timelineIndex,
+        const int left,
+        const int top,
+        const int right,
+        const int bottom,
+        const double frameScale,
+        const double trackScale,
+        const bool skipLocked = false);
+
+    Q_INVOKABLE int
+    getTimelineFrameFromClip(const QModelIndex &clipIndex, const int logicalMediaFrame);
+
     Q_INVOKABLE QModelIndex insertTimelineGap(
         const int row,
         const QModelIndex &parent,
@@ -148,8 +208,6 @@ class SessionModel : public caf::mixin::actor_object<JSONTreeModel> {
         const QString &name = "Clip");
     Q_INVOKABLE QModelIndex splitTimelineClip(const int frame, const QModelIndex &index);
 
-    Q_INVOKABLE bool
-    removeTimelineItems(const QModelIndex &track_index, const int frame, const int duration);
 
     Q_INVOKABLE bool moveTimelineItem(const QModelIndex &index, const int distance);
     Q_INVOKABLE bool moveRangeTimelineItems(
@@ -264,18 +322,27 @@ class SessionModel : public caf::mixin::actor_object<JSONTreeModel> {
     Q_INVOKABLE QFuture<bool>
     setJSONFuture(const QModelIndex &index, const QString &json, const QString &path = "");
 
-    Q_INVOKABLE void sortAlphabetically(const QModelIndex &index);
+    Q_INVOKABLE void sortByMediaDisplayInfo(
+        const QModelIndex &index,
+        const int info_set_idx,
+        const int info_item_idx,
+        const bool ascending);
 
-    Q_INVOKABLE void setPlayheadTo(const QModelIndex &index);
+    Q_INVOKABLE void setPlayheadTo(const QModelIndex &index, const bool aux_playhead = false);
     Q_INVOKABLE void setCurrentPlaylist(const QModelIndex &index);
 
     Q_INVOKABLE void relinkMedia(const QModelIndexList &indexes, const QUrl &path);
     Q_INVOKABLE void decomposeMedia(const QModelIndexList &indexes);
     Q_INVOKABLE void rescanMedia(const QModelIndexList &indexes);
     Q_INVOKABLE QModelIndex getPlaylistIndex(const QModelIndex &index) const;
+    Q_INVOKABLE QModelIndex getContainerIndex(const QModelIndex &index) const;
 
     Q_INVOKABLE QFuture<bool> undoFuture(const QModelIndex &index);
     Q_INVOKABLE QFuture<bool> redoFuture(const QModelIndex &index);
+
+    Q_INVOKABLE void purgePlaylist(const QModelIndex &index);
+
+    Q_INVOKABLE QModelIndex currentPlaylistIndex();
 
     Q_INVOKABLE void
     setTimelineFocus(const QModelIndex &timeline, const QModelIndexList &indexes) const;
@@ -290,12 +357,11 @@ class SessionModel : public caf::mixin::actor_object<JSONTreeModel> {
     //     return conformInsertFuture(task, indexes).result();
     // }
 
-    Q_INVOKABLE void updateMetadataSelection(const int slot, QStringList metadata_paths);
-
   public slots:
     void updateMedia();
 
   signals:
+
     void bookmarkActorAddrChanged();
     void sessionActorAddrChanged();
     void mediaAdded(const QModelIndex &index);
@@ -305,6 +371,8 @@ class SessionModel : public caf::mixin::actor_object<JSONTreeModel> {
     void playlistsChanged();
     void
     mediaSourceChanged(const QModelIndex &media, const QModelIndex &source, const int mode);
+    void makeTimelineSelection(QModelIndex timeline, QModelIndexList items);
+    void playheadChanged(const QModelIndex &parent_index, bool aux_playhead);
 
   public:
     caf::actor_system &system() const { return self()->home_system(); }
@@ -340,6 +408,18 @@ class SessionModel : public caf::mixin::actor_object<JSONTreeModel> {
 
     void updateErroredCount(const QModelIndex &media_index);
 
+    QModelIndexList getTimelineClipIndexesFromRect(
+        const QModelIndex &timelineIndex,
+        const int left,
+        const int top,
+        const int right,
+        const int bottom,
+        const double frameScale,
+        const double trackScale,
+        const timeline::ItemType type,
+        const bool skipLocked);
+
+
     QModelIndexList insertRows(
         int row,
         int count,
@@ -369,19 +449,19 @@ class SessionModel : public caf::mixin::actor_object<JSONTreeModel> {
         const int search_role,
         const QPersistentModelIndex &search_hint,
         const QModelIndex &index,
-        const int role,
-        const std::map<int, std::string> &metadata_paths = std::map<int, std::string>()) const;
+        const int role) const;
 
     void requestData(
         const QVariant &search_value,
         const int search_role,
         const QPersistentModelIndex &search_hint,
         const nlohmann::json &data,
-        const int role,
-        const std::map<int, std::string> &metadata_paths = std::map<int, std::string>()) const;
+        const int role) const;
 
     caf::actor actorFromIndex(const QModelIndex &index, const bool try_parent = false) const;
     utility::Uuid actorUuidFromIndex(const QModelIndex &index, const bool try_parent = false);
+    utility::Uuid
+    containerUuidFromIndex(const QModelIndex &index, const bool try_parent = false);
 
     void processChildren(const nlohmann::json &result_json, const QModelIndex &index);
 
@@ -429,7 +509,6 @@ class SessionModel : public caf::mixin::actor_object<JSONTreeModel> {
     bool mediaStatusChangePending_{false};
     QPersistentModelIndex mediaStatusIndex_;
 
-    std::map<int, std::map<int, std::string>> metadata_sets_;
     QMap<QString, QImage> media_thumbnails_; // key is actor string
 };
 

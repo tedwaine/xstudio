@@ -583,20 +583,21 @@ void BookmarksActor::init() {
         },
 
         [=](default_category_atom) -> std::string { return default_category_; },
-        
-        [=](
-            media_reader::get_thumbnail_atom,
+
+        [=](media_reader::get_thumbnail_atom,
             const BookmarkDetail detail,
             int width,
             caf::actor receiver) {
-
             auto offscreen_renderer =
                 system().registry().template get<caf::actor>(offscreen_viewport_registry);
             if (!offscreen_renderer) {
                 spdlog::warn("{} : Offscreen viewport not found.", __PRETTY_FUNCTION__);
+                return;
             }
-            if (!detail.owner_ || !detail.start_ | !detail.owner_->actor()) return;
-            request(offscreen_renderer,
+            if (!detail.owner_ || !detail.start_ | !detail.owner_->actor())
+                return;
+            request(
+                offscreen_renderer,
                 infinite,
                 ui::viewport::render_viewport_to_image_atom_v,
                 detail.owner_->actor(),
@@ -604,12 +605,23 @@ void BookmarksActor::init() {
                 thumbnail::THUMBNAIL_FORMAT::TF_RGB24,
                 width,
                 false, // autoscale (renders at source imate fomat if true)
-                true /*show annotations*/).then(
-                    [=](const thumbnail::ThumbnailBufferPtr & thumbnail) {
-                        anon_send(receiver, media_reader::get_thumbnail_atom_v, detail, thumbnail);
+                true /*show annotations*/)
+                .then(
+                    [=](const thumbnail::ThumbnailBufferPtr &thumbnail) {
+                        if (thumbnail)
+                            anon_send(
+                                receiver,
+                                media_reader::get_thumbnail_atom_v,
+                                detail,
+                                thumbnail);
+                        else
+                            spdlog::warn(
+                                "{} {}",
+                                __PRETTY_FUNCTION__,
+                                "Null thumbanil returned by offscreen renderer.");
                     },
-                    [=](caf::error &err) { 
-                        spdlog::warn("{} {}", __PRETTY_FUNCTION__, to_string(err)); 
+                    [=](caf::error &err) {
+                        spdlog::warn("{} {}", __PRETTY_FUNCTION__, to_string(err));
                     });
         });
 }

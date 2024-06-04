@@ -56,7 +56,7 @@ function getAllIndexes(model) {
 	let indexes = []
 
 	for(let r =0; r < model.count; r++) {
-		indexes.push(mapIndexToResultModel(model.modelIndex(r)))
+		indexes.push(model.modelIndex(r))
 	}
 	return indexes
 }
@@ -137,8 +137,9 @@ function downloadMissingMovies(indexes=[]) {
 
 function downloadMovies(indexes=[]) {
 	if(indexes.length) {
+		let m = indexes[0].model
 		for(let i = 0; i< indexes.length; i++) {
-			let m = indexes[i].model
+			console.log(m.get(indexes[i], "actorUuidRole"))
 
 		    Future.promise(ShotBrowserEngine.addDownloadToMediaFuture(m.get(indexes[i], "actorUuidRole"))).then(
 		        function(result) {
@@ -229,13 +230,21 @@ function compareMediaCallback(playlist_uuid, uuids) {
 // add next to media selection ?
 function compareSelectedResults(indexes=[]) {
 	// insert after first media selection..
-	if(mediaSelectionModel.selectedIndexes.length && indexes.length) {
-        let media_uuid = null
-        let next = nextItem(mediaSelectionModel.selectedIndexes[mediaSelectionModel.selectedIndexes.length-1])
-        if(next.valid) {
-			media_uuid = mediaSelectionModel.model.get(next, "actorUuidRole")
-        }
-		addToCurrentPlaylist(indexes, media_uuid, compareMediaCallback)
+	if(viewedMediaSetProperties.values.typeRole == "Timeline") {
+		// add media to playlist
+		// add media on to new track based off sparse track ?
+		// but only if metadata matches ..
+		addToSequence(indexes)
+
+	} else {
+		if(mediaSelectionModel.selectedIndexes.length && indexes.length) {
+	        let media_uuid = null
+	        let next = nextItem(mediaSelectionModel.selectedIndexes[mediaSelectionModel.selectedIndexes.length-1])
+	        if(next.valid) {
+				media_uuid = mediaSelectionModel.model.get(next, "actorUuidRole")
+	        }
+			addToCurrentPlaylist(indexes, media_uuid, true, compareMediaCallback)
+		}
 	}
 }
 
@@ -254,35 +263,141 @@ function replaceMediaCallback(playlist_uuid, uuids) {
 }
 
 function replaceSelectedResults(indexes=[]) {
-	if(mediaSelectionModel.selectedIndexes.length && indexes.length) {
-	    let media_uuid = null
-	    let next = nextItem(mediaSelectionModel.selectedIndexes[0])
-	    if(next.valid) {
-			media_uuid = mediaSelectionModel.model.get(next, "actorUuidRole")
-	    }
-		addToCurrentPlaylist([indexes[0]], media_uuid, replaceMediaCallback)
+	if(viewedMediaSetProperties.values.typeRole == "Timeline") {
+		// add media to playlist
+		// replace media into clip current in view port.
+		// but only if metadata matches ..
+		replaceToSequence(indexes)
+	} else {
+		if(mediaSelectionModel.selectedIndexes.length && indexes.length) {
+		    let media_uuid = null
+		    let next = nextItem(mediaSelectionModel.selectedIndexes[0])
+		    if(next.valid) {
+				media_uuid = mediaSelectionModel.model.get(next, "actorUuidRole")
+		    }
+			addToCurrentPlaylist([indexes[0]], media_uuid, true, replaceMediaCallback)
+		}
 	}
 }
 
 function selectFirstMediaCallback(playlist_uuid, uuids) {
     if(uuids.length) {
         let plindex =  theSessionData.searchRecursive(playlist_uuid,"actorUuidRole")
-
-        viewedMediaSetIndex = plindex
-	    selectedMediaSetIndex = plindex
+		sessionSelectionModel.setCurrentIndex(
+			plindex,
+			ItemSelectionModel.ClearAndSelect)
     	mediaSelectionModel.selectFirstNewMedia(plindex, uuids)
     }
 }
 
-function addToCurrentPlaylist(indexes=[], media_uuid=null, callback=selectFirstMediaCallback) {
-	let current_pl = selectedMediaSetProperties.values.actorUuidRole
+function _conformMediaCallback(playlist_uuid, uuids, conformTrackIndex) {
+	let sindex = theSessionData.searchRecursive(playlist_uuid,"actorUuidRole")
+	if(uuids.length && sindex.model.get(sindex, "typeRole") == "Timeline") {
+		// get indexes from media uuids.
+		let tmp = []
+		// console.log(uuids,sindex, sindex.model.rowCount(sindex), sindex.model.get(sindex.model.index(0,0,sindex), "typeRole"))
+        for(let i=0;i<uuids.length;i++) {
+        	let mi = sindex.model.search(uuids[i], "actorUuidRole", sindex.model.index(0,0,sindex))
+        	if(mi.valid)
+	            tmp.push(mi)
+        }
+        // assumes clips are not nested..
+		appWindow.conformTool.conformToSequence(tmp, sindex, "Added Media", conformTrackIndex)
+	}
+}
+
+
+function conformMediaCallback(playlist_uuid, uuids) {
+	let sindex = theSessionData.searchRecursive(playlist_uuid,"actorUuidRole")
+    let clipIndex = theSessionData.getTimelineClipIndex(sindex, currentPlayhead.logicalFrame)
+    _conformMediaCallback(playlist_uuid, uuids, theSessionData.getTimelineTrackIndex(clipIndex))
+}
+
+function conformMediaToConformTrackCallback(playlist_uuid, uuids) {
+	let sindex = theSessionData.searchRecursive(playlist_uuid,"actorUuidRole")
+    let clipIndex = theSessionData.getTimelineClipIndex(sindex, currentPlayhead.logicalFrame)
+    _conformMediaCallback(playlist_uuid, uuids, theSessionData.index(-1,-1))
+}
+
+function replaceConformMediaCallback(playlist_uuid, uuids) {
+	let sindex = theSessionData.searchRecursive(playlist_uuid,"actorUuidRole")
+	if(uuids.length && sindex.model.get(sindex, "typeRole") == "Timeline") {
+		// get indexes from media uuids.
+		let tmp = []
+		// console.log(uuids,sindex, sindex.model.rowCount(sindex), sindex.model.get(sindex.model.index(0,0,sindex), "typeRole"))
+        for(let i=0;i<uuids.length;i++) {
+        	let mi = sindex.model.search(uuids[i], "actorUuidRole", sindex.model.index(0,0,sindex))
+        	if(mi.valid)
+	            tmp.push(mi)
+        }
+
+        // we use the current active clip to select the conform track.
+        let clipIndex = theSessionData.getTimelineClipIndex(sindex, currentPlayhead.logicalFrame)
+        // assumes clips are not nested..
+		appWindow.conformTool.replaceToSequence(tmp, sindex, theSessionData.getTimelineTrackIndex(clipIndex))
+	}
+}
+
+function _Timer() {
+     return Qt.createQmlObject("import QtQuick 2.0; Timer {}", root);
+}
+
+function delayCallback(delayTime, cb) {
+     let timer = new _Timer();
+     timer.interval = delayTime;
+     timer.repeat = false;
+     timer.triggered.connect(cb);
+     timer.start();
+}
+
+function selectTimelineCallback(playlist_index, uuids, wait=4) {
+	playlist_index = theSessionData.getPlaylistIndex(playlist_index)
+    if(uuids.length) {
+    	let tindex = theSessionData.searchRecursive(helpers.QVariantFromUuidString(uuids[0]), "actorUuidRole", playlist_index)
+    	if(tindex.valid) {
+			sessionSelectionModel.setCurrentIndex(
+				tindex,
+				ItemSelectionModel.ClearAndSelect)
+			// prepare timeline...
+			appWindow.conformTool.conformPrepareSequence(tindex)
+		} else if(wait) {
+			delayCallback(1000, function() {
+		     	selectTimelineCallback(playlist_index, uuids, wait-1)
+			});
+		} else {
+			console.log("Failed to get timeline index", uuids, playlist_index)
+		}
+    }
+}
+
+function addToSequence(indexes=[], viewed=true) {
+	let current_pl = viewed ? viewedMediaSetProperties.values.actorUuidRole : inspectedMediaSetProperties.values.actorUuidRole
+	if(viewed)
+		addToPlaylist(indexes, current_pl, null, conformMediaCallback)
+	else
+		addToPlaylist(indexes, current_pl, null, conformMediaToConformTrackCallback)
+}
+
+function replaceToSequence(indexes=[], callback=replaceConformMediaCallback) {
+	let current_pl = viewedMediaSetProperties.values.actorUuidRole
+
+	addToPlaylist(indexes, current_pl, null, callback)
+}
+
+function addToCurrentPlaylist(indexes=[], media_uuid=null, viewed=true, callback=selectFirstMediaCallback) {
+	let current_pl = viewed ? viewedMediaSetProperties.values.actorUuidRole : inspectedMediaSetProperties.values.actorUuidRole
 
 	addToPlaylist(indexes, current_pl, media_uuid, callback)
 }
 
+function addToNewPlaylist(indexes=[], media_uuid=null, callback=selectFirstMediaCallback) {
+	addToPlaylist(indexes, null, media_uuid, callback)
+}
+
+
 function loadShotGridPlaylist(shotgrid_playlist_id, name, context={}) {
 
-	console.log("createPlaylist", name)
+	// console.log("createPlaylist", name)
 	let plindex = theSessionData.createPlaylist(name)
 
 	// mark playlist as busy.
@@ -326,8 +441,10 @@ function loadShotGridPlaylist(shotgrid_playlist_id, name, context={}) {
 
                         plindex.model.set(plindex, false, "busyRole")
 
-			            appWindow.viewedMediaSetIndex = plindex
-			            appWindow.selectedMediaSetIndex = plindex
+						// selects the playlist so it is what's showing in
+						// the viewport
+						sessionSelectionModel.setCurrentIndex(plindex, ItemSelectionModel.ClearAndSelect)
+
                         // ShotgunHelpers.handle_response(json_string)
                     },
                     function() {
@@ -339,24 +456,23 @@ function loadShotGridPlaylist(shotgrid_playlist_id, name, context={}) {
                 console.log("loadShotgridPlaylist", json_string)
             }
 	        } catch(err) {
-		    plindex.model.set(plindex, false, "busyRole")
+			    plindex.model.set(plindex, false, "busyRole")
     		// error.title = "Load ShotGrid Playlist " + name
     		// error.text = err + "\n" + json_string
     		// error.open()
-    		console.log("loadShotgridPlaylist", err, json_string)
+    			console.log("loadShotgridPlaylist", err, json_string)
 		}
 	})
 }
 
 function loadShotgridPlaylists(indexes=[]) {
 	indexes = mapIndexesToResultModel(indexes)
-	console.log("loadShotgridPlaylists", indexes)
 
 	if(indexes.length) {
-		console.log("loadShotgridPlaylists", indexes.length)
+		// console.log("loadShotgridPlaylists", indexes.length)
 		let m = indexes[0].model
 		for(let i=0; i<indexes.length; i++) {
-			console.log("loadShotgridPlaylists", m.get(indexes[i], "typeRole"))
+			// console.log("loadShotgridPlaylists", m.get(indexes[i], "typeRole"))
 
 			if(m.get(indexes[i], "typeRole") == "Playlist") {
 				// create playlist
@@ -364,6 +480,48 @@ function loadShotgridPlaylists(indexes=[]) {
 		        let shotgrid_playlist_id = m.get(indexes[i], "idRole")
 				loadShotGridPlaylist(shotgrid_playlist_id, name, m.context)
 			}
+		}
+	}
+}
+
+function addToCurrent(indexes=[], viewed=true) {
+	if(viewedMediaSetProperties.values.typeRole == "Timeline") {
+		addToSequence(indexes, viewed)
+	} else {
+        addToCurrentPlaylist(indexes, null, viewed)
+	}
+}
+
+function addSequencesToCurrentPlaylist(indexes=[], viewed=true, callback=selectTimelineCallback) {
+	let current_pl = viewed ? viewedMediaSetProperties.index : inspectedMediaSetProperties.index
+
+	addSequencesToPlaylist(indexes, current_pl, callback)
+}
+
+function addSequencesToPlaylist(indexes, playlist_index=null, callback=selectTimelineCallback) {
+	indexes = mapIndexesToResultModel(indexes)
+
+	if(indexes.length) {
+		let m = indexes[0].model
+
+		// console.log("playlist_index", playlist_index)
+
+		for(let i =0; i <indexes.length; i++) {
+			let path = m.get(indexes[i], "otioRole");
+			if(helpers.urlExists(path)) {
+				if(!playlist_index || !playlist_index.valid)
+					playlist_index = theSessionData.createPlaylist("Imported OTIO")
+
+		        Future.promise(theSessionData.handleDropFuture(Qt.CopyAction, {"text/uri-list": path}, playlist_index)).then(
+		            function(quuids){
+		            	callback(playlist_index, [quuids[0]])
+		            },
+			        function() {
+			        }
+		        )
+		    } else {
+		    	console.log("Path doesn't exist ", path)
+		    }
 		}
 	}
 }
@@ -498,7 +656,6 @@ function updateMetadata(enabled, mediaUuid) {
 		                jsn["metadata"]["audio_source"] = "movie_dneg"
 	                }
 	            }catch(err){}
-
                 ShotBrowserEngine.liveLinkMetadata = JSON.stringify(jsn)
             })
             return true
@@ -558,7 +715,7 @@ function transfer(destination, indexes) {
 
 function syncPlaylistFromShotGrid(playlistUuid, callback=console.log) {
     Future.promise(
-        ShotBrowserEngine.refreshPlaylistVersionsFuture(uuid)
+        ShotBrowserEngine.refreshPlaylistVersionsFuture(playlistUuid)
     ).then(function(json_string) {
     	callback(json_string)
     })

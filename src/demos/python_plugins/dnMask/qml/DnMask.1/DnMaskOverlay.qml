@@ -8,7 +8,6 @@ import QuickPromise 1.0
 // These imports are necessary to have access to custom QML types that are
 // part of the xSTUDIO UI implementation.
 import xStudio 1.0
-import xstudio.qml.module 1.0
 
 // Our Overlay is based on a transparent rectangle that simply fills the 
 // xSTUDIO viewport. Within this we draw the overlay graphics as required.
@@ -16,7 +15,7 @@ Rectangle {
 
     // Note that viewport overlays are instanced by the Viewport QML instance
     // which has the id 'viewport' and is visible to us here. To learn more
-    // about the viewport see files XsViewport.qml and qml_viewport.cpp from
+    // about the viewport see files XsViewportPanel.qml and qml_viewport.cpp from
     // the xSTUDIO source code.
 
     id: control

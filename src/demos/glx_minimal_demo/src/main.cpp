@@ -127,7 +127,7 @@ class GLXWindowViewportActor : public caf::event_based_actor {
 
             // this is crucial for video refresh sync, the viewport
             // needs to know when the image was put on the screen
-            viewport_renderer->framebuffer_swapped();
+            viewport_renderer->framebuffer_swapped(utility::clock::now());
         }
 
         glXMakeCurrent(display, 0, 0); // releases the context so that this function can be
@@ -166,7 +166,8 @@ GLXWindowViewportActor::GLXWindowViewportActor(caf::actor_config &cfg)
         jsn,
         caf::actor_cast<caf::actor>(this),
         true,
-        ui::viewport::ViewportRendererPtr(new opengl::OpenGLViewportRenderer(true, false)));
+        ui::viewport::ViewportRendererPtr(new opengl::OpenGLViewportRenderer(true, false)),
+        "GLXViewport");
 
     /* Provide a callback so the xstudio OpenGLViewportRenderer can tell this class when some
     property of the viewport has changed, or a redraw is needed, so the window

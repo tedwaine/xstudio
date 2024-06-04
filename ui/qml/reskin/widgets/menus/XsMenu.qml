@@ -46,9 +46,18 @@ XsPopup {
     }
 
     function hideOtherSubMenus(widget) {
+        
         for (var i = 0; i < view.count; ++i) {
             let item = view.itemAtIndex(i)
-            if (item != widget && typeof item.hideSubMenus != "undefined") item.hideSubMenus()
+            if (item != null && item != widget && typeof item.hideSubMenus != "undefined") {
+                item.hideSubMenus()
+            }
+        }
+    }
+
+    onVisibleChanged: {
+        if (typeof watch_visibility !== "undefined" && typeof menu_model.menuItemVisibilityChanged !== "undefined") {
+            menu_model.menuItemVisibilityChanged(menu_model_index, visible, helpers.contextPanel(the_popup))
         }
     }
 

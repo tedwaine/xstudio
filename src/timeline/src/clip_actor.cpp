@@ -35,6 +35,17 @@ ClipActor::ClipActor(caf::actor_config &cfg, const JsonStore &jsn, Item &pitem)
     init();
 }
 
+ClipActor::ClipActor(caf::actor_config &cfg, const Item &item)
+    : caf::event_based_actor(cfg), base_(item, this) {
+    base_.item().set_system(&system());
+    init();
+}
+
+ClipActor::ClipActor(caf::actor_config &cfg, const Item &item, Item &nitem)
+    : ClipActor(cfg, item) {
+    nitem = base_.item();
+}
+
 ClipActor::ClipActor(
     caf::actor_config &cfg,
     const utility::UuidActor &media,
@@ -55,17 +66,22 @@ ClipActor::ClipActor(
 
         try {
             caf::scoped_actor sys(system());
-            auto ref = request_receive<std::vector<MediaReference>>(
-                *sys, media.actor(), media::media_reference_atom_v)[0];
+            auto ref = request_receive<std::pair<Uuid, MediaReference>>(
+                           *sys, media.actor(), media::media_reference_atom_v, utility::Uuid())
+                           .second;
 
             if (name.empty()) {
                 base_.item().set_name(
                     fs::path(uri_to_posix_path(ref.uri())).filename().string());
             }
 
-            if (ref.frame_count())
-                base_.item().set_available_range(utility::FrameRange(ref.duration()));
-            else
+            if (ref.frame_count()) {
+                // base_.item().set_available_range(utility::FrameRange(ref.duration()));
+                auto tc_start = static_cast<int>(ref.timecode().total_frames());
+
+                base_.item().set_available_range(utility::FrameRange(
+                    FrameRateDuration(tc_start, ref.duration().rate()), ref.duration()));
+            } else
                 delayed_send(
                     caf::actor_cast<caf::actor>(this),
                     std::chrono::milliseconds(100),
@@ -107,21 +123,94 @@ void ClipActor::init() {
         make_get_event_group_handler(event_group_),
         base_.make_get_detail_handler(this, event_group_),
 
-        [=](link_media_atom, const UuidActorMap &media) -> bool {
-            if (media.count(base_.media_uuid())) {
-                auto media_actor = media.at(base_.media_uuid());
-                auto addr        = caf::actor_cast<caf::actor_addr>(media_actor);
+        // replace current media..
+        [=](link_media_atom, const UuidActor &media) -> bool {
+            // spdlog::warn("link_media_atom {}", to_string(media));
+            auto old_media_actor = caf::actor_cast<caf::actor>(media_);
+            if (old_media_actor) {
+                demonitor(old_media_actor);
+                leave_event_group(this, old_media_actor);
+            }
 
-                if (media_ != addr) {
-                    monitor(media_actor);
-                    join_event_group(this, media_actor);
-                    media_ = addr;
+            monitor(media.actor());
+            join_event_group(this, media.actor());
+            media_ = caf::actor_cast<caf::actor_addr>(media.actor());
+
+            auto jsn = base_.set_media_uuid(media.uuid());
+            if (not jsn.is_null())
+                send(event_group_, event_atom_v, item_atom_v, jsn, false);
+
+            // clear ptr cache
+            image_ptr_cache_.clear();
+            audio_ptr_cache_.clear();
+
+            // force update ?
+            // cache available range ?
+            delayed_send(
+                caf::actor_cast<caf::actor>(this),
+                std::chrono::milliseconds(100),
+                media::acquire_media_detail_atom_v);
+
+            // replace clip name ?
+            request(media.actor(), infinite, name_atom_v)
+                .then(
+                    [=](const std::string &value) mutable {
+                        anon_send(this, item_name_atom_v, value);
+                    },
+                    [=](const caf::error &err) mutable {
+                        spdlog::warn("{} {}", __PRETTY_FUNCTION__, to_string(err));
+                    });
+
+            return true;
+        },
+
+        [=](link_media_atom, const UuidActorMap &media, const bool force) -> result<bool> {
+            auto rp = make_response_promise<bool>();
+
+            if (media.count(base_.media_uuid())) {
+                if (force) {
+                    rp.delegate(
+                        caf::actor_cast<caf::actor>(this),
+                        link_media_atom_v,
+                        UuidActor(base_.media_uuid(), media.at(base_.media_uuid())));
+                } else {
+                    auto media_actor = media.at(base_.media_uuid());
+                    auto addr        = caf::actor_cast<caf::actor_addr>(media_actor);
+
+                    if (media_ != addr) {
+                        monitor(media_actor);
+                        join_event_group(this, media_actor);
+                        media_ = addr;
+                    }
+                    rp.deliver(true);
                 }
             } else {
                 media_ = caf::actor_addr();
+                rp.deliver(true);
             }
-            return true;
+
+            return rp;
         },
+
+        [=](playhead::source_atom,
+            const UuidUuidMap &swap,
+            const utility::UuidActorMap &media) -> result<bool> {
+            auto rp = make_response_promise<bool>();
+
+            if (swap.count(base_.media_uuid())) {
+                // spdlog::warn("{} {} {}", base_.item().name(), to_string(base_.media_uuid()),
+                // to_string(media.at(swap.at(base_.media_uuid()))));
+                rp.delegate(
+                    caf::actor_cast<caf::actor>(this),
+                    link_media_atom_v,
+                    UuidActor(
+                        swap.at(base_.media_uuid()), media.at(swap.at(base_.media_uuid()))));
+            } else
+                rp.deliver(false);
+
+            return rp;
+        },
+
 
         [=](broadcast::broadcast_down_atom, const caf::actor_addr &) {},
         [=](const group_down_msg & /*msg*/) {},
@@ -140,12 +229,44 @@ void ClipActor::init() {
             return jsn;
         },
 
+        [=](item_lock_atom, const bool value) -> JsonStore {
+            auto jsn = base_.item().set_locked(value);
+            if (not jsn.is_null())
+                send(event_group_, event_atom_v, item_atom_v, jsn, false);
+            return jsn;
+        },
+
         [=](item_flag_atom, const std::string &value) -> JsonStore {
             auto jsn = base_.item().set_flag(value);
             if (not jsn.is_null())
                 send(event_group_, event_atom_v, item_atom_v, jsn, false);
             return jsn;
         },
+
+        [=](item_prop_atom, const utility::JsonStore &value) -> JsonStore {
+            auto jsn = base_.item().set_prop(value);
+            if (not jsn.is_null())
+                send(event_group_, event_atom_v, item_atom_v, jsn, false);
+            return jsn;
+        },
+
+        [=](item_prop_atom,
+            const utility::JsonStore &value,
+            const std::string &path) -> JsonStore {
+            auto prop = base_.item().prop();
+            try {
+                auto ptr = nlohmann::json::json_pointer(path);
+                prop.at(ptr).update(value);
+            } catch (const std::exception &err) {
+                spdlog::warn("{} {}", __PRETTY_FUNCTION__, err.what());
+            }
+            auto jsn = base_.item().set_prop(prop);
+            if (not jsn.is_null())
+                send(event_group_, event_atom_v, item_atom_v, jsn, false);
+            return jsn;
+        },
+
+        [=](item_prop_atom) -> JsonStore { return base_.item().prop(); },
 
         [=](active_range_atom, const FrameRange &fr) -> JsonStore {
             auto jsn = base_.item().set_active_range(fr);
@@ -253,29 +374,102 @@ void ClipActor::init() {
         // events from media actor
 
         // re-evaluate media reference.., needed for lazy loading
+        // [=](media_reference_atom atom,
+        //     const Uuid &uuid) -> caf::result<std::pair<Uuid, MediaReference>> {
+
         [=](media::acquire_media_detail_atom) {
             auto actor = caf::actor_cast<caf::actor>(media_);
             if (actor) {
-                request(actor, infinite, media::media_reference_atom_v)
+                request(actor, infinite, media::media_reference_atom_v, utility::Uuid())
                     .then(
-                        [=](const std::vector<MediaReference> &refs) {
-                            if (not refs.empty() and refs[0].frame_count()) {
-                                auto jsn = base_.item().set_available_range(
-                                    utility::FrameRange(refs[0].duration()));
+                        [=](const std::pair<Uuid, MediaReference> &ref) {
+                            if (ref.second.frame_count()) {
+                                // clear ptr cache
+                                auto tc_start =
+                                    static_cast<int>(ref.second.timecode().total_frames());
+
+                                // spdlog::warn("{} {} {}", base_.item().name(), tc_start,
+                                // ref.second.timecode().to_string());
+
+                                // if(base_.item().available_range()) {
+                                //     spdlog::warn("before {} available_range start {} duration
+                                //     {}",
+                                //         base_.item().name(),
+                                //         base_.item().available_range()->frame_start().frames(),
+                                //         base_.item().available_range()->frame_duration().frames()
+                                //     );
+                                //     spdlog::warn("before {} trimmed start {} duration {}",
+                                //         base_.item().name(),
+                                //         base_.item().trimmed_range().frame_start().frames(),
+                                //         base_.item().trimmed_range().frame_duration().frames()
+                                //     );
+                                // }
+                                // else
+                                //     spdlog::warn("no available range
+                                //     {}",base_.item().name());
+
+                                auto jsn = base_.item().set_available_range(utility::FrameRange(
+                                    FrameRateDuration(tc_start, ref.second.duration().rate()),
+                                    ref.second.duration()));
+
+                                // spdlog::warn("after {} available_range start {} duration {}",
+                                //     base_.item().name(),
+                                //     base_.item().available_range()->frame_start().frames(),
+                                //     base_.item().available_range()->frame_duration().frames()
+                                // );
+                                // spdlog::warn("after {} trimmed start {} duration {}",
+                                //     base_.item().name(),
+                                //     base_.item().trimmed_range().frame_start().frames(),
+                                //     base_.item().trimmed_range().frame_duration().frames()
+                                // );
 
                                 if (not jsn.is_null())
                                     send(event_group_, event_atom_v, item_atom_v, jsn, false);
                             } else {
                                 // retry ?
+                                // spdlog::warn("delayed get detail");
                                 delayed_send(
                                     caf::actor_cast<caf::actor>(this),
                                     std::chrono::seconds(1),
                                     media::acquire_media_detail_atom_v);
                             }
                         },
-                        [=](const error &err) {});
+                        [=](const error &err) {
+                            // retry not ready ? Or no sources?
+                            delayed_send(
+                                caf::actor_cast<caf::actor>(this),
+                                std::chrono::seconds(1),
+                                media::acquire_media_detail_atom_v);
+                        });
             }
         },
+
+        // [=](media::acquire_media_detail_atom) {
+        //     auto actor = caf::actor_cast<caf::actor>(media_);
+        //     if (actor) {
+        //         request(actor, infinite, media::media_reference_atom_v)
+        //             .then(
+        //                 [=](const std::vector<MediaReference> &refs) {
+        //                     if (not refs.empty() and refs[0].frame_count()) {
+        //                         // clear ptr cache
+        //                         auto jsn = base_.item().set_available_range(
+        //                             utility::FrameRange(refs[0].duration()));
+
+        //                         if (not jsn.is_null())
+        //                             send(event_group_, event_atom_v, item_atom_v, jsn,
+        //                             false);
+        //                     } else {
+        //                         // retry ?
+        //                         // spdlog::warn("delayed get detail");
+        //                         delayed_send(
+        //                             caf::actor_cast<caf::actor>(this),
+        //                             std::chrono::seconds(1),
+        //                             media::acquire_media_detail_atom_v);
+        //                     }
+        //                 },
+        //                 [=](const error &err) {});
+        //     }
+        // },
 
         [=](utility::event_atom,
             playlist::reflag_container_atom,
@@ -305,6 +499,9 @@ void ClipActor::init() {
         [=](utility::event_atom, bookmark::add_bookmark_atom, const utility::UuidActor &) {},
 
         [=](utility::event_atom, media::media_status_atom, const media::MediaStatus ms) {},
+
+        [=](utility::event_atom, media::media_display_info_atom, const utility::JsonStore &) {},
+
         [=](utility::event_atom,
             media::current_media_source_atom,
             const UuidActor &,
@@ -316,6 +513,26 @@ void ClipActor::init() {
         [=](utility::event_atom,
             media::add_media_source_atom,
             const utility::UuidActorVector &) {},
+
+        [=](playlist::get_media_atom, const bool) -> UuidUuidActor {
+            return UuidUuidActor(
+                base_.uuid(),
+                UuidActor(base_.media_uuid(), caf::actor_cast<caf::actor>(media_)));
+        },
+
+        [=](playlist::get_media_atom,
+            json_store::get_json_atom,
+            const utility::Uuid &uuid,
+            const std::string &path) -> result<JsonStore> {
+            auto rp    = make_response_promise<JsonStore>();
+            auto actor = caf::actor_cast<caf::actor>(media_);
+            if (actor)
+                rp.delegate(actor, json_store::get_json_atom_v, uuid, path);
+            else
+                rp.deliver(make_error(xstudio_error::error, "No media assigned."));
+
+            return rp;
+        },
 
         [=](playlist::get_media_atom) -> UuidActor {
             return UuidActor(base_.media_uuid(), caf::actor_cast<caf::actor>(media_));
@@ -424,6 +641,9 @@ void ClipActor::init() {
                         FrameRate())
                         .then(
                             [=](const media::AVFrameIDs &mps) mutable {
+                                // spdlog::warn("const media::AVFrameIDs &mps {} {}",
+                                // base_.item().name(), mps.size());
+
                                 auto mp = mps.begin();
                                 for (size_t i = 0; i < indexs.size(); i++) {
                                     auto ind = indexs[i];
@@ -432,6 +652,8 @@ void ClipActor::init() {
                                         if (media_type == media::MediaType::MT_IMAGE) {
                                             image_ptr_cache_[ii] = *mp;
                                             (*result)[ind]       = image_ptr_cache_[ii];
+
+                                            // spdlog::warn("{}", (*mp)->key_);
                                         } else if (media_type == media::MediaType::MT_AUDIO) {
                                             audio_ptr_cache_[ii] = *mp;
                                             (*result)[ind]       = audio_ptr_cache_[ii];
@@ -443,13 +665,13 @@ void ClipActor::init() {
                                 rp.deliver(*result);
                             },
                             [=](error &err) mutable {
+                                // spdlog::warn("{} {}", __PRETTY_FUNCTION__, to_string(err));
                                 for (size_t i = 0; i < indexs.size(); i++) {
                                     auto ind = indexs[i];
                                     auto rng = ranges[i];
                                     for (auto ii = rng.first; ii <= rng.second; ii++, ind++)
                                         (*result)[ind] = media::make_blank_frame(media_type);
                                 }
-                                spdlog::warn("{} {}", __PRETTY_FUNCTION__, to_string(err));
                                 // rp.deliver(std::move(err));
                                 rp.deliver(*result);
                             });
@@ -560,7 +782,7 @@ void ClipActor::init() {
 
             auto rp = make_response_promise<UuidActor>();
 
-            request(actor, infinite, link_media_atom_v, media_map)
+            request(actor, infinite, link_media_atom_v, media_map, false)
                 .then(
                     [=](const bool) mutable { rp.deliver(UuidActor(dup.uuid(), actor)); },
                     [=](const caf::error &err) mutable {
@@ -575,8 +797,7 @@ void ClipActor::init() {
             JsonStore jsn;
             jsn["base"] = base_.serialise();
             return jsn;
-        }
-    );
+        });
 }
 
 // void ClipActor::update_edit_list() {

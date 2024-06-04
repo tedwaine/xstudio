@@ -14,7 +14,17 @@ Item {
 
     property var dynamic_widget
     property real minWidth: dynamic_widget ? dynamic_widget.minWidth : 0
-    height: dynamic_widget ? dynamic_widget.height : 0
+    height: !is_in_bar ? dynamic_widget ? dynamic_widget.height : 0 : 20
+
+    onHeightChanged: {
+        if (is_in_bar && dynamic_widget) dynamic_widget.height = height
+    }
+
+    onWidthChanged: {
+        if (is_in_bar) dynamic_widget.width = width
+    }
+
+    width: minWidth
 
     property var custom_menu_qml_: custom_menu_qml ? custom_menu_qml : null
 
@@ -27,8 +37,14 @@ Item {
     property var parent_menu
     property var menu_model
     property var menu_model_index
+
+    property bool is_in_bar: false
     
-    function hideSubMenus() {}
+    function hideSubMenus() {
+        if (dynamic_widget && dynamic_widget.hideSubMenus != undefined) {
+            dynamic_widget.hideSubMenus()
+        }
+    }
 
     MouseArea
     { 

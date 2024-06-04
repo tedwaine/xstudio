@@ -8,7 +8,8 @@ XsPopupMenu {
 
     id: plusMenu
     visible: false
-    menu_model_name: "playlsit_plus_button_menu"
+    menu_model_name: "playlist_plus_button_menu"
+    property var path: ""
 
     XsFileFunctions {
         id: file_functions
@@ -24,50 +25,50 @@ XsPopupMenu {
     XsMenuModelItem {
         text: "Add Playlist"
         menuItemType: "button"
-        menuPath: ""
+        menuPath: path
         menuItemPosition: 1
         menuModelName: plusMenu.menu_model_name
         onActivated: {
             dialogHelpers.textInputDialog(
                 plusMenu.addPlaylist,
-                "Enter New Playlist Name",
+                "Add Playlist",
                 "Enter a name for the new playlist.",
                 "New Playlist",
-                ["Ok", "Cancel"])
-        }
-        panelContext: plusMenu.panelContext
-    }
-        
-    XsMenuModelItem {
-        text: "Add Subset"
-        menuItemType: "button"
-        menuPath: ""
-        menuItemPosition: 2
-        menuModelName: plusMenu.menu_model_name
-        onActivated: {
-            dialogHelpers.textInputDialog(
-                plusMenu.addSubset,
-                "Enter New Subset Name",
-                "Enter a name for the new subset.",
-                "New Subset",
-                ["Ok", "Cancel"])
+                ["Cancel", "Add"])
         }
         panelContext: plusMenu.panelContext
     }
 
     XsMenuModelItem {
-        text: "Add Timeline"
+        text: "Add Subset"
         menuItemType: "button"
-        menuPath: ""
+        menuPath: path
+        menuItemPosition: 2
+        menuModelName: plusMenu.menu_model_name
+        onActivated: {
+            dialogHelpers.textInputDialog(
+                plusMenu.addSubset,
+                "Add Subset",
+                "Enter a name for the new subset.",
+                "New Subset",
+                ["Cancel", "Add"])
+        }
+        panelContext: plusMenu.panelContext
+    }
+
+    XsMenuModelItem {
+        text: "Add Sequence"
+        menuItemType: "button"
+        menuPath: path
         menuItemPosition: 3
         menuModelName: plusMenu.menu_model_name
         onActivated: {
             dialogHelpers.textInputDialog(
                 plusMenu.addTimeline,
-                "Enter New Timline Name",
-                "Enter a name for the new timline.",
-                "New Timline",
-                ["Ok", "Cancel"])
+                "Add Sequence",
+                "Enter a name for the new sequence.",
+                "New Sequence",
+                ["Cancel", "Add"])
         }
         panelContext: plusMenu.panelContext
     }
@@ -75,36 +76,36 @@ XsPopupMenu {
     XsMenuModelItem {
         text: "Add Contact Sheet"
         menuItemType: "button"
-        menuPath: ""
+        menuPath: path
         menuItemPosition: 3
         menuModelName: plusMenu.menu_model_name
         enabled: false
         onActivated: {
-            
+
         }
         panelContext: plusMenu.panelContext
     }
 
     XsMenuModelItem {
-        text: "Add Group Divider"
+        text: "Add Divider"
         menuItemType: "button"
-        menuPath: ""
+        menuPath: path
         menuItemPosition: 3.5
         menuModelName: plusMenu.menu_model_name
         onActivated: {
             dialogHelpers.textInputDialog(
                 plusMenu.addDivider,
-                "Enter New Divider Name",
+                "Add Playlist Divider",
                 "Enter a name for the new divider.",
                 "New Divider",
-                ["Ok", "Cancel"])
+                ["Cancel", "Add"])
         }
         panelContext: plusMenu.panelContext
     }
 
     XsMenuModelItem {
         menuItemType: "divider"
-        menuPath: ""
+        menuPath: path
         menuItemPosition: 4
         menuModelName: plusMenu.menu_model_name
     }
@@ -112,7 +113,7 @@ XsPopupMenu {
     XsMenuModelItem {
         text: "Add Media ..."
         menuItemType: "button"
-        menuPath: ""
+        menuPath: path
         menuItemPosition: 5
         menuModelName: plusMenu.menu_model_name
         onActivated: {
@@ -122,25 +123,25 @@ XsPopupMenu {
     }
 
     function addPlaylist(new_name, button) {
-        if (button == "Ok") {
+        if (button == "Add") {
             theSessionData.createPlaylist(new_name)
         }
     }
 
     function addSubset(new_name, button) {
-        if (button == "Ok") {
+        if (button == "Add") {
             theSessionData.createSubItem(new_name, "Subset")
         }
     }
 
     function addTimeline(new_name, button) {
-        if (button == "Ok") {
+        if (button == "Add") {
             theSessionData.createSubItem(new_name, "Timeline")
         }
     }
 
     function addDivider(new_name, button) {
-        if (button == "Ok") {
+        if (button == "Add") {
             theSessionData.createDivider(new_name)
         }
     }

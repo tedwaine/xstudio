@@ -139,6 +139,7 @@ namespace ui {
             void activated();
             void autoRepeatChanged();
             void uuidChanged();
+            void released();
 
           private:
             QString sequence_;

@@ -23,7 +23,7 @@ XsViewerToolbarButtonBase {
             if (menu_loader.item == undefined) {
                 menu_loader.sourceComponent = menuComponent
             }
-            showPopupMenu(
+            repositionPopupMenu(
                 menu_loader.item,
                 theButton,
                 0,

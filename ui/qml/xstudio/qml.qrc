@@ -524,7 +524,7 @@
 		<file>player/XsPlayerWindow.qml</file>
 		<file>player/XsPopoutViewerWidget.qml</file>
 		<file>player/XsSessionWidget.qml</file>
-		<file>player/XsViewport.qml</file>
+		<file>player/XsViewportPanel.qml</file>
 		<file>qmldir</file>
 		<file>trays/XsLayoutTray.qml</file>
 		<file>trays/XsMediaToolsTray.qml</file>

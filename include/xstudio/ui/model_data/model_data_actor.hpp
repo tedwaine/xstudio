@@ -99,8 +99,7 @@ namespace ui {
                 caf::actor requester = caf::actor());
 
             void remove_attribute_from_model(
-                const std::string &model_name,
-                const utility::Uuid &attr_uuid);
+                const std::string &model_name, const utility::Uuid &attr_uuid);
 
             void push_to_prefs(const std::string &model_name, const bool actually_push = false);
 

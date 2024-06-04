@@ -18,37 +18,6 @@ XsViewerTextDisplay
     property int selected: 0
     fontFamily: XsStyleSheet.fixedWidthFontFamily
 
-    XsAttributeValue {
-        id: __playheadLogicalFrame
-        attributeTitle: "Logical Frame"
-        model: viewportPlayheadDataModel
-    }
-    XsAttributeValue {
-        id: __playheadPositionSeconds
-        attributeTitle: "Position Seconds"
-        model: viewportPlayheadDataModel
-    }
-    XsAttributeValue {
-        id: __playheadDurationSeconds
-        attributeTitle: "Duration Seconds"
-        model: viewportPlayheadDataModel
-    }
-    XsAttributeValue {
-        id: __playheadDurationFrames
-        attributeTitle: "Duration Frames"
-        model: viewportPlayheadDataModel
-    }
-    XsAttributeValue {
-        id: __playheadFrameRate
-        attributeTitle: "Frame Rate"
-        model: viewportPlayheadDataModel
-    }
-    property alias playheadLogicalFrame: __playheadLogicalFrame.value
-    property alias playheadPositionSeconds: __playheadPositionSeconds.value
-    property alias playheadDurationSeconds: __playheadDurationSeconds.value
-    property alias playheadDurationFrames: __playheadDurationFrames.value
-    property alias playheadFrameRate: __playheadFrameRate.value
-
     XsModelProperty {
         id: durationPref
         role: "valueRole"
@@ -84,26 +53,26 @@ XsViewerTextDisplay
     property var duration: {
         switch(display_mode) {
             case 0:
-                return pad("" + playheadDurationFrames, 4);
+                return pad("" + viewportPlayhead.durationFrames, 4);
             case 1:
-                return timeStr(playheadDurationSeconds);
+                return timeStr(viewportPlayhead.durationSeconds);
             case 2:
                 return getTimeCodeStr(
-                    playheadDurationFrames,
-                    Math.round(1.0/playheadFrameRate));
+                    viewportPlayhead.durationFrames,
+                    Math.round(1.0/viewportPlayhead.frameRate));
         }
         return "--"
     }
     property string remaining: {
         switch(display_mode) {
             case 0:
-                return pad("" + playheadDurationFrames-playheadLogicalFrame, 4);
+                return pad("" + viewportPlayhead.durationFrames-viewportPlayhead.logicalFrame, 4);
             case 1:
-                return timeStr(playheadDurationSeconds - playheadPositionSeconds);
+                return timeStr(viewportPlayhead.durationSeconds - viewportPlayhead.positionSeconds);
             case 2:
                 return getTimeCodeStr(
-                    playheadDurationFrames-playheadLogicalFrame,
-                    Math.round(1.0/playheadFrameRate));
+                    viewportPlayhead.durationFrames-viewportPlayhead.logicalFrame,
+                    Math.round(1.0/viewportPlayhead.frameRate));
         }
         return "--"
     }

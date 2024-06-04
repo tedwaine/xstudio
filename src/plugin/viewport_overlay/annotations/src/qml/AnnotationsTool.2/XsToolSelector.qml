@@ -10,7 +10,6 @@ import QtQuick.Dialogs 1.3
 import QtGraphicalEffects 1.15
 
 import xStudioReskin 1.0
-import xstudio.qml.module 1.0
 import xstudio.qml.models 1.0
 import xstudio.qml.helpers 1.0
 
@@ -28,7 +27,7 @@ Item{
     ui data via model data */
     XsModuleData {
         id: annotations_tool_types
-        modelDataName: "annotations_tool_types_0"
+        modelDataName: "annotations_tool_settings"
     }
 
     XsAttributeValue {
@@ -45,20 +44,8 @@ Item{
 
     property alias current_tool: tool_types_value.value
 
-    // adding 'Laser' here as it's not actually part of combo_box_options
-    // because currently laser is a separate toggle attribute and we can't
-    // change it without breaking the 'old' UI.
-    property var tool_choices: {
-        if (tool_types_choices.value) {
-            var r = tool_types_choices.value
-            r.push("Laser")
-            return r;
-        }
-        return []
-    }
-
     // Un-comment this when Laser is implemented in combo_box_options
-    // property alias tool_choices: tool_types_choices.value
+    property alias tool_choices: tool_types_choices.value
 
     property var toolImages: [
         "qrc:///anno_icons/draw_brush.svg",
@@ -116,8 +103,6 @@ Item{
 
                     text: tool_choices[index]
                     imgSrc: toolImages[index]
-                    enabled: index < 4 // exlclude "Laser" mode for now, see note above
-                    visible: index < 5 // exlclude "Laser" mode for now, see note above
 
                     onClicked: {
                         if (!isEnabled) return;

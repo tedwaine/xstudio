@@ -244,6 +244,12 @@ std::string xstudio::utility::uri_encode(const std::string &s) {
 
     for (size_t i = 0; s[i]; i++) {
         switch (s[i]) {
+        case '#':
+            result += "%23";
+            break;
+        case '%':
+            result += "%25";
+            break;
         case ' ':
             result += "%20";
             break;

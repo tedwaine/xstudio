@@ -11,9 +11,11 @@ import xstudio.qml.models 1.0
 import ShotBrowser 1.0
 import xstudio.qml.helpers 1.0
 import xstudio.qml.clipboard 1.0
+import QuickFuture 1.0
 
 
 XsPopupMenu {
+
     id: rightClickMenu
     visible: false
 
@@ -22,6 +24,21 @@ XsPopupMenu {
 
     Clipboard {
        id: clipboard
+    }
+
+    XsMenuModelItem {
+        text: "Add To New Playlist"
+        menuItemPosition: 0.1
+        menuPath: ""
+        menuModelName: rightClickMenu.menu_model_name
+        onActivated:  ShotBrowserHelpers.addToNewPlaylist(popupSelectionModel.selectedIndexes)
+    }
+
+    XsMenuModelItem {
+        menuItemType: "divider"
+        menuItemPosition: 0.5
+        menuPath: ""
+        menuModelName: rightClickMenu.menu_model_name
     }
 
     XsMenuModelItem {
@@ -111,43 +128,49 @@ XsPopupMenu {
     }
     XsMenuModelItem {
         text: "To Montreal"
-        menuItemPosition: 2
+        menuItemPosition: 3
         menuPath: "Transfer Selected"
         menuModelName: rightClickMenu.menu_model_name
         onActivated: ShotBrowserHelpers.transfer("mtl", popupSelectionModel.selectedIndexes)
     }
     XsMenuModelItem {
         text: "To Mumbai"
-        menuItemPosition: 2
+        menuItemPosition: 4
         menuPath: "Transfer Selected"
         menuModelName: rightClickMenu.menu_model_name
         onActivated: ShotBrowserHelpers.transfer("mum", popupSelectionModel.selectedIndexes)
     }
     XsMenuModelItem {
         text: "To Sydney"
-        menuItemPosition: 2
+        menuItemPosition: 5
         menuPath: "Transfer Selected"
         menuModelName: rightClickMenu.menu_model_name
         onActivated: ShotBrowserHelpers.transfer("syd", popupSelectionModel.selectedIndexes)
     }
     XsMenuModelItem {
         text: "To Vancouver"
-        menuItemPosition: 2
+        menuItemPosition: 6
         menuPath: "Transfer Selected"
         menuModelName: rightClickMenu.menu_model_name
         onActivated: ShotBrowserHelpers.transfer("van", popupSelectionModel.selectedIndexes)
     }
     XsMenuModelItem {
         menuItemType: "divider"
-        menuItemPosition: 3
-        menuPath: ""
+        menuItemPosition: 7
+        menuPath: "Transfer Selected"
         menuModelName: rightClickMenu.menu_model_name
     }
     XsMenuModelItem {
         text: "Open Transfer Tool"
-        menuItemPosition: 4
+        menuItemPosition: 8
         menuPath: "Transfer Selected"
         menuModelName: rightClickMenu.menu_model_name
         onActivated: helpers.startDetachedProcess("dnenv-do", [helpers.getEnv("SHOW"), helpers.getEnv("SHOT"), "--", "maketransfer"])
+
+        Component.onCompleted: {
+            // we need this so the menu model knows where to insert the 
+            // "Transfer Selected" sub menu in the top level menu
+            setMenuPathPosition("Transfer Selected", 8.0)
+        }
     }
 }

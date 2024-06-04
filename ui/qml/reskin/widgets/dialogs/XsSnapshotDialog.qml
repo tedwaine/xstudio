@@ -1,16 +1,15 @@
 // SPDX-License-Identifier: Apache-2.0
-import QtQuick 2.12
-import QtQuick.Controls 2.14
+import QtQuick 2.15
+import QtQuick.Controls 2.15
 import QtGraphicalEffects 1.12
 import QtQuick.Layouts 1.3
 import QtQuick.Window 2.2
 import QtQuick.Dialogs 1.0
 
-import xstudio.qml.module 1.0
 import xstudio.qml.models 1.0
 import xStudioReskin 1.0
 
-Window {
+XsWindow {
 
 	id: dialog
 	width: 450
@@ -18,6 +17,9 @@ Window {
 
     property int imageSourceWidth: 1920
     property int imageSourceHeight: 1080
+
+    property int viewerWidth: 0
+    property int viewerHeight: 0
 
     maximumHeight: height
     maximumWidth: width
@@ -27,6 +29,7 @@ Window {
     color: "transparent"
 
     title: "Viewer Snapshot"
+    
 
     XsGradientRectangle{ id: bgDiv
         z: -10
@@ -39,6 +42,14 @@ Window {
     ColumnLayout {
         anchors.fill: parent
         anchors.margins: 10
+        
+        focus: true
+        Keys.onReturnPressed:{
+            btnSave.clicked()
+        } 
+        Keys.onEscapePressed: {
+            btnCancel.clicked()
+        }
 
         Rectangle {
             color: "transparent"
@@ -102,7 +113,7 @@ Window {
                             text: "xStudio Viewport Size"
                         }
                         ListElement {
-                            text: "User defined"
+                            text: "User Defined"
                         }
                     }
                     width: 200
@@ -111,7 +122,7 @@ Window {
                         widthInput.enabled = currentIndex == 3
                         heightInput.enabled = currentIndex == 3
                         widthInput.text = currentIndex == 0 ? imageSourceWidth: currentIndex == 1 ? Math.round(imageSourceWidth / 2) : currentIndex == 2 ? viewerWidth : widthInput.text
-                        heightInput.text = currentIndex == 0 ? imageSourceHeight: currentIndex == 1 ? Math.round(imageSourceHeight / 2) : currentIndex == 2 ? viewerHeight : viewerHeight.text
+                        heightInput.text = currentIndex == 0 ? imageSourceHeight: currentIndex == 1 ? Math.round(imageSourceHeight / 2) : currentIndex == 2 ? viewerHeight : heightInput.text
                     }
                 }
 
@@ -125,22 +136,15 @@ Window {
                         opacity: widthInput.enabled ? 1: 0.5
                     }
                     XsTextField {
-                        // anchors.fill: parent
                         id: widthInput
                         text: imageSourceWidth
-                        // width: font.pixelSize*2
                         width: 50
                         height: 24
                         enabled: false
-                        color: enabled ? XsStyleSheet.controlColor: XsStyleSheet.controlColorDisabled
                         selectByMouse: true
                         horizontalAlignment: Qt.AlignHCenter
                         verticalAlignment: Qt.AlignVCenter
                         validator: IntValidator{bottom: 1}
-
-                        font {
-                            family: XsStyleSheet.fontFamily
-                        }
 
                         onEditingFinished: {
                             focus = false
@@ -153,22 +157,15 @@ Window {
                         opacity: heightInput.enabled ? 1: 0.5
                     }
                     XsTextField {
-                        // anchors.fill: parent
                         id: heightInput
                         text: imageSourceHeight
-                        // width: font.pixelSize*2
                         width: 50
                         height: 24
                         enabled: false
-                        color: enabled ? XsStyleSheet.controlColor: XsStyleSheet.controlColorDisabled
                         selectByMouse: true
                         horizontalAlignment: Qt.AlignHCenter
                         verticalAlignment: Qt.AlignVCenter
                         validator: IntValidator{bottom: 1}
-
-                        font {
-                            family: XsStyleSheet.fontFamily
-                        }
 
                         onEditingFinished: {
                             focus = false
@@ -212,31 +209,29 @@ Window {
 
             Layout.alignment: Qt.AlignRight
             Layout.fillHeight: false
-            spacing: 10
+            spacing: 5
 
-            XsPrimaryButton {
+            XsSimpleButton {
                 id: btnCancel
                 text: qsTr("Cancel")
-                implicitHeight: 24
-                onClicked: accept()
+                width: XsStyleSheet.primaryButtonStdWidth*2
+                onClicked: dialog.visible = false
             }
-
-            XsPrimaryButton {
-                id: btnSave
-                text: qsTr("Save Snapshot ...")
-                implicitHeight: 24
-                onClicked: filedialog.open()
-            }
-
-            XsPrimaryButton {
+            XsSimpleButton {
                 id: btnToClipboard
-                text: qsTr("Snapshot to Clipboard")
-                implicitHeight: 24
+                text: qsTr("Save to Clipboard")
+                width: XsStyleSheet.primaryButtonStdWidth*4
                 onClicked: {
                     studio.renderScreenShotToClipboard(
                         parseInt(widthInput.text),
                         parseInt(heightInput.text))
                 }
+            }
+            XsSimpleButton {
+                id: btnSave
+                text: qsTr("Save")
+                width: XsStyleSheet.primaryButtonStdWidth*2
+                onClicked: filedialog.open()
             }
 
         }

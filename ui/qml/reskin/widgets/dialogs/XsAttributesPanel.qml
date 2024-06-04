@@ -5,15 +5,16 @@ import QtQuick.Layouts 1.3
 import QtQuick.Window 2.2
 import Qt.labs.qmlmodels 1.0
 
-import xstudio.qml.module 1.0
 import xstudio.qml.models 1.0
 import xStudioReskin 1.0
 
-Window {
+XsWindow {
 
 	id: dialog
-	width: 300
-	height: r1.count*20 + 100
+	width: 450
+	height: r1.count*20 + 120
+
+
     property var attributesGroupName
 
     XsModuleData {
@@ -155,12 +156,9 @@ Window {
         }
     }
 
-    RoundButton {
-
+    XsSimpleButton {
         text: qsTr("Close")
-        width: 60
-        height: 24
-        radius: 5
+        width: XsStyleSheet.primaryButtonStdWidth*2
         anchors.right: parent.right
         anchors.bottom: parent.bottom
         anchors.margins: 10

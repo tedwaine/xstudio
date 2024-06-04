@@ -2,13 +2,14 @@
 #include <fmt/format.h>
 #include <caf/policy/select_all.hpp>
 #include "xstudio/atoms.hpp"
+#include "xstudio/global_store/global_store.hpp"
 #include "xstudio/json_store/json_store_actor.hpp"
 #include "xstudio/utility/logging.hpp"
 #include "xstudio/utility/helpers.hpp"
-#include "xstudio/module/global_module_events_actor.hpp"
 #include "xstudio/module/attribute.hpp"
 #include "xstudio/broadcast/broadcast_actor.hpp"
 #include "xstudio/ui/model_data/model_data_actor.hpp"
+#include "xstudio/ui/keyboard.hpp"
 
 #include <iostream>
 
@@ -38,23 +39,31 @@ inline void dump_tree2(const JsonTree &node, const int depth = 0) {
 }
 
 utility::JsonTree *find_node_matching_string_field(
-    utility::JsonTree *data, const std::string &field_name, const std::string &field_value) {
+    utility::JsonTree *data,
+    const std::string &field_name,
+    const std::string &field_value,
+    int depth      = -1,
+    int real_depth = 0) {
     if (data->data().value(field_name, std::string()) == field_value) {
         return data;
     }
-    for (auto c = data->begin(); c != data->end(); c++) {
-        try {
-            utility::JsonTree *r =
-                find_node_matching_string_field(&(*c), field_name, field_value);
-            if (r)
-                return r;
-        } catch (...) {
+    if (depth) {
+        for (auto c = data->begin(); c != data->end(); c++) {
+            try {
+                utility::JsonTree *r = find_node_matching_string_field(
+                    &(*c), field_name, field_value, depth - 1, real_depth + 1);
+                if (r)
+                    return r;
+            } catch (...) {
+            }
         }
     }
-    std::stringstream ss;
-    ss << "Failed to find field \"" << field_name << "\" with value matching \"" << field_value
-       << "\"";
-    throw std::runtime_error(ss.str().c_str());
+    if (!real_depth) {
+        std::stringstream ss;
+        ss << "Failed to find field \"" << field_name << "\" with value matching \""
+           << field_value << "\"";
+        throw std::runtime_error(ss.str().c_str());
+    }
     return nullptr;
 }
 
@@ -203,6 +212,18 @@ GlobalUIModelData::GlobalUIModelData(caf::actor_config &cfg) : caf::event_based_
         [=](register_model_data_atom,
             const std::string &model_name,
             const std::string &preferences_path,
+            const utility::JsonStore &model_data,
+            caf::actor client) -> result<utility::JsonStore> {
+            try {
+                register_model(model_name, model_data, client, false, preferences_path);
+                return model_data_as_json(model_name);
+            } catch (std::exception &e) {
+                return caf::make_error(xstudio_error::error, e.what());
+            }
+        },
+        [=](register_model_data_atom,
+            const std::string &model_name,
+            const std::string &preferences_path,
             caf::actor client) -> result<utility::JsonStore> {
             try {
                 register_model(
@@ -288,9 +309,8 @@ GlobalUIModelData::GlobalUIModelData(caf::actor_config &cfg) : caf::event_based_
 
         [=](remove_rows_atom,
             const std::string &model_name,
-            const utility::Uuid &attribute_uuid) 
-        { 
-            remove_attribute_from_model(model_name, attribute_uuid); 
+            const utility::Uuid &attribute_uuid) {
+            remove_attribute_from_model(model_name, attribute_uuid);
         },
 
         [=](remove_rows_atom,
@@ -453,7 +473,7 @@ void GlobalUIModelData::set_data(
         }
 
     } catch (std::exception &e) {
-        // spdlog::warn("{} {} {}", __PRETTY_FUNCTION__, e.what());
+        // spdlog::warn("{} {}", __PRETTY_FUNCTION__, e.what());
     }
 }
 
@@ -702,10 +722,18 @@ void GlobalUIModelData::register_model(
         JsonStore j;
         prefs.get_group(j);
         auto data_from_prefs = global_store::preference_value<JsonStore>(j, preference_path);
+
         models_[model_name] =
             std::make_shared<ModelData>(model_name, data_from_prefs, client, preference_path);
         anon_send(
             client, utility::event_atom_v, model_data_atom_v, model_name, data_from_prefs);
+        monitor(client);
+
+    } else if (!preference_path.empty()) {
+
+        // don't load from preferennces, but make the model data a saved preference
+        models_[model_name] =
+            std::make_shared<ModelData>(model_name, model_data, client, preference_path);
         monitor(client);
 
     } else {
@@ -738,7 +766,6 @@ void GlobalUIModelData::register_model(
 
         models_[model_name] = new_model_data;
         monitor(client);
-
     }
 }
 
@@ -807,18 +834,24 @@ void GlobalUIModelData::insert_rows(
 
         if (j and row >= 0 and row <= static_cast<int>(j->size())) {
             while (count--) {
-                j->insert(std::next(j->begin(), row), data);
+                j->insert(std::next(j->begin(), row), utility::json_to_tree(data, "children"));
             }
-        } else {
+
+        } else if (j) {
             std::stringstream ss;
             ss << "Trying to insert row @ " << row << " where only " << j->size()
                << " rows exist already";
+            throw std::runtime_error(ss.str().c_str());
+        } else {
+            std::stringstream ss;
+            ss << "Trying to insert row @ " << row << " to node with path \"" << path
+               << "\" - no node at this path!";
             throw std::runtime_error(ss.str().c_str());
         }
 
         auto model_data_json = model_data_as_json(model_name);
 
-        //caf::scoped_actor sys(system());
+        // caf::scoped_actor sys(system());
         for (auto &client : models_[model_name]->clients_) {
 
             // if we know 'requester', then the requester does not want to
@@ -833,6 +866,8 @@ void GlobalUIModelData::insert_rows(
                     model_data_json);
             }
         }
+
+        push_to_prefs(model_name);
 
     } catch (std::exception &e) {
         spdlog::warn(
@@ -881,8 +916,8 @@ void GlobalUIModelData::remove_rows(
     }
 }
 
-void GlobalUIModelData::remove_attribute_from_model(const std::string &model_name, const utility::Uuid &attr_uuid)
-{
+void GlobalUIModelData::remove_attribute_from_model(
+    const std::string &model_name, const utility::Uuid &attr_uuid) {
     try {
 
         check_model_is_registered(model_name);
@@ -895,7 +930,6 @@ void GlobalUIModelData::remove_attribute_from_model(const std::string &model_nam
     } catch (std::exception &e) {
         spdlog::warn("{} {}", __PRETTY_FUNCTION__, e.what());
     }
-
 }
 
 void GlobalUIModelData::push_to_prefs(const std::string &model_name, const bool actually_push) {
@@ -903,6 +937,7 @@ void GlobalUIModelData::push_to_prefs(const std::string &model_name, const bool 
     try {
 
         check_model_is_registered(model_name);
+
         if (models_[model_name]->preference_path_.empty())
             return;
 
@@ -917,7 +952,7 @@ void GlobalUIModelData::push_to_prefs(const std::string &model_name, const bool 
             models_[model_name]->pending_prefs_update_ = true;
             delayed_anon_send(
                 caf::actor_cast<caf::actor>(this),
-                std::chrono::seconds(20),
+                std::chrono::seconds(2),
                 json_store::update_atom_v,
                 model_name);
         } else if (actually_push) {
@@ -973,7 +1008,6 @@ void GlobalUIModelData::node_activated(
     }
 }
 
-
 void GlobalUIModelData::insert_into_menu_model(
     const std::string &model_name,
     const std::string &menu_path,
@@ -1003,7 +1037,8 @@ void GlobalUIModelData::insert_into_menu_model(
             while (parent_menus.size()) {
                 try {
                     menu_model_data = find_node_matching_string_field(
-                        menu_model_data, "name", parent_menus.front());
+                        menu_model_data, "name", parent_menus.front(), 1);
+
                     parent_menus.erase(parent_menus.begin());
                 } catch (std::exception &e) {
                     // exception is thrown if we fail to find a match
@@ -1077,7 +1112,8 @@ void GlobalUIModelData::insert_into_menu_model(
                 }
             }
 
-            do_ordering(&(mmn->data_));
+            if (menu_model_data->parent())
+                do_ordering(menu_model_data->parent());
 
             utility::Uuid uuid(menu_data["uuid"].get<std::string>());
             auto &watchers = models_[model_name]->menu_watchers_[uuid];
@@ -1112,6 +1148,7 @@ void GlobalUIModelData::insert_into_menu_model(
 
 void GlobalUIModelData::set_menu_node_position(
     const std::string &model_name, const std::string &menu_path, const float position_in_menu) {
+    utility::JsonTree *menu_model_data = nullptr;
     try {
 
         check_model_is_registered(model_name, true);
@@ -1119,7 +1156,7 @@ void GlobalUIModelData::set_menu_node_position(
         auto menu_models = get_menu_models(model_name);
         for (auto mmn : menu_models) {
 
-            utility::JsonTree *menu_model_data = &(mmn->data_);
+            menu_model_data = &(mmn->data_);
 
             // see note in insert_into_menu_model for an explanation of this
             std::vector<std::string> parent_menus = utility::split(menu_path, '|');
@@ -1134,13 +1171,16 @@ void GlobalUIModelData::set_menu_node_position(
             }
 
             menu_model_data->data()["menu_item_position"] = position_in_menu;
+
             if (menu_model_data->parent()) {
                 do_ordering(menu_model_data->parent());
             }
+
             broadcast_whole_model_data(model_name);
         }
 
     } catch (std::exception &e) {
+
         spdlog::warn("{} {}", __PRETTY_FUNCTION__, e.what());
     }
 }

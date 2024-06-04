@@ -109,6 +109,8 @@ EditListActor::EditListActor(
 
         [=](utility::event_atom, media::media_status_atom, const media::MediaStatus ms) {},
 
+        [=](utility::event_atom, media::media_display_info_atom, const utility::JsonStore &) {},
+
         [=](const error &err) { spdlog::warn("{} {}", __PRETTY_FUNCTION__, to_string(err)); },
 
         [=](broadcast::broadcast_down_atom, const caf::actor_addr &) {},

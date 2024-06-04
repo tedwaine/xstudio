@@ -22,41 +22,63 @@ caf::actor StackActor::deserialise(const utility::JsonStore &value, const bool r
     auto actor = caf::actor();
     auto type  = value.at("base").at("container").at("type").get<std::string>();
 
+    auto item = Item();
+
     if (type == "Track") {
-        auto item = Item();
-        actor     = spawn<TrackActor>(static_cast<utility::JsonStore>(value), item);
-        add_item(UuidActor(key, actor));
-        if (replace_item) {
-            auto itemit = find_uuid(base_.item().children(), key);
-            (*itemit)   = item;
-        }
+        actor = spawn<TrackActor>(static_cast<utility::JsonStore>(value), item);
     } else if (type == "Clip") {
-        auto item = Item();
-        actor     = spawn<ClipActor>(static_cast<utility::JsonStore>(value), item);
-        add_item(UuidActor(key, actor));
-        if (replace_item) {
-            auto itemit = find_uuid(base_.item().children(), key);
-            (*itemit)   = item;
-        }
+        actor = spawn<ClipActor>(static_cast<utility::JsonStore>(value), item);
     } else if (type == "Gap") {
-        auto item = Item();
-        actor     = spawn<GapActor>(static_cast<utility::JsonStore>(value), item);
-        add_item(UuidActor(key, actor));
-        if (replace_item) {
-            auto itemit = find_uuid(base_.item().children(), key);
-            (*itemit)   = item;
-        }
+        actor = spawn<GapActor>(static_cast<utility::JsonStore>(value), item);
     } else if (type == "Stack") {
-        auto item = Item();
-        actor     = spawn<StackActor>(static_cast<utility::JsonStore>(value), item);
+        actor = spawn<StackActor>(static_cast<utility::JsonStore>(value), item);
+    }
+
+    if (actor) {
         add_item(UuidActor(key, actor));
         if (replace_item) {
             auto itemit = find_uuid(base_.item().children(), key);
-            (*itemit)   = item;
+            if (itemit != base_.item().end()) {
+                (*itemit) = item;
+            } else {
+                spdlog::warn(
+                    "{} Invalid item to replace {} {}",
+                    __PRETTY_FUNCTION__,
+                    to_string(key),
+                    value.dump(2));
+            }
         }
     }
+
     return actor;
 }
+
+void StackActor::deserialise() {
+    for (auto &i : base_.item().children()) {
+        switch (i.item_type()) {
+        case IT_CLIP: {
+            auto actor = spawn<ClipActor>(i, i);
+            add_item(UuidActor(i.uuid(), actor));
+        } break;
+        case IT_GAP: {
+            auto actor = spawn<GapActor>(i, i);
+            add_item(UuidActor(i.uuid(), actor));
+        } break;
+        case IT_STACK: {
+            auto actor = spawn<StackActor>(i, i);
+            add_item(UuidActor(i.uuid(), actor));
+        } break;
+        case IT_AUDIO_TRACK:
+        case IT_VIDEO_TRACK: {
+            auto actor = spawn<TrackActor>(i, i);
+            add_item(UuidActor(i.uuid(), actor));
+        } break;
+        default:
+            break;
+        }
+    }
+}
+
 
 StackActor::StackActor(caf::actor_config &cfg, const utility::JsonStore &jsn)
     : caf::event_based_actor(cfg), base_(static_cast<utility::JsonStore>(jsn.at("base"))) {
@@ -71,7 +93,7 @@ StackActor::StackActor(caf::actor_config &cfg, const utility::JsonStore &jsn)
         }
     }
     base_.item().set_system(&system());
-    base_.item().bind_item_event_func([this](const utility::JsonStore &event, Item &item) {
+    base_.item().bind_item_post_event_func([this](const utility::JsonStore &event, Item &item) {
         item_event_callback(event, item);
     });
 
@@ -91,7 +113,7 @@ StackActor::StackActor(caf::actor_config &cfg, const utility::JsonStore &jsn, It
         }
     }
     base_.item().set_system(&system());
-    base_.item().bind_item_event_func([this](const utility::JsonStore &event, Item &item) {
+    base_.item().bind_item_post_event_func([this](const utility::JsonStore &event, Item &item) {
         item_event_callback(event, item);
     });
     pitem = base_.item();
@@ -105,10 +127,22 @@ StackActor::StackActor(
 
     base_.item().set_system(&system());
     base_.item().set_name(name);
-    base_.item().bind_item_event_func([this](const utility::JsonStore &event, Item &item) {
+    base_.item().bind_item_post_event_func([this](const utility::JsonStore &event, Item &item) {
         item_event_callback(event, item);
     });
     init();
+}
+
+StackActor::StackActor(caf::actor_config &cfg, const Item &item)
+    : caf::event_based_actor(cfg), base_(item, this) {
+    base_.item().set_system(&system());
+    deserialise();
+    init();
+}
+
+StackActor::StackActor(caf::actor_config &cfg, const Item &item, Item &nitem)
+    : StackActor(cfg, item) {
+    nitem = base_.item();
 }
 
 void StackActor::on_exit() {
@@ -120,7 +154,7 @@ void StackActor::on_exit() {
 void StackActor::item_event_callback(const utility::JsonStore &event, Item &item) {
 
     switch (static_cast<ItemAction>(event.at("action"))) {
-    case IT_INSERT: {
+    case IA_INSERT: {
         auto cuuid = utility::Uuid(event.at("item").at("uuid"));
         // spdlog::warn("{} {} {} {}", find_uuid(base_.item().children(), cuuid) !=
         // base_.item().cend(), actors_.count(cuuid), not event["blind"].is_null(),
@@ -150,7 +184,7 @@ void StackActor::item_event_callback(const utility::JsonStore &event, Item &item
         }
     } break;
 
-    case IT_REMOVE: {
+    case IA_REMOVE: {
         auto cuuid = utility::Uuid(event.at("item_uuid"));
         // child destroyed
         if (actors_.count(cuuid)) {
@@ -162,11 +196,12 @@ void StackActor::item_event_callback(const utility::JsonStore &event, Item &item
         }
     } break;
 
-    case IT_ENABLE:
-    case IT_ACTIVE:
-    case IT_AVAIL:
-    case IT_SPLICE:
-    case IT_ADDR:
+    case IA_LOCK:
+    case IA_ENABLE:
+    case IA_ACTIVE:
+    case IA_AVAIL:
+    case IA_SPLICE:
+    case IA_ADDR:
     case IA_NONE:
     default:
         break;
@@ -219,17 +254,64 @@ void StackActor::init() {
             // should we handle child down ?
         },
 
-        [=](link_media_atom, const UuidActorMap &media) -> result<bool> {
+        [=](link_media_atom, const UuidActorMap &media, const bool force) -> result<bool> {
             auto rp = make_response_promise<bool>();
 
-            // pool direct children for state.
-            fan_out_request<policy::select_all>(
-                map_value_to_vec(actors_), infinite, link_media_atom_v, media)
-                .await(
-                    [=](std::vector<bool> items) mutable { rp.deliver(true); },
-                    [=](error &err) mutable { rp.deliver(err); });
-
+            if (actors_.empty()) {
+                rp.deliver(true);
+            } else {
+                // pool direct children for state.
+                fan_out_request<policy::select_all>(
+                    map_value_to_vec(actors_), infinite, link_media_atom_v, media, force)
+                    .await(
+                        [=](std::vector<bool> items) mutable { rp.deliver(true); },
+                        [=](error &err) mutable {
+                            spdlog::warn(
+                                "{} {} {}",
+                                __PRETTY_FUNCTION__,
+                                to_string(err),
+                                base_.item().name());
+                            rp.deliver(false);
+                        });
+            }
             return rp;
+        },
+
+        [=](item_marker_atom, insert_item_atom, const Marker &value) -> JsonStore {
+            auto markers = base_.item().markers();
+            markers.push_back(value);
+            auto jsn = base_.item().set_markers(markers);
+
+            if (not jsn.is_null())
+                send(event_group_, event_atom_v, item_atom_v, jsn, false);
+
+            return jsn;
+        },
+
+        [=](item_marker_atom, insert_item_atom, const std::vector<Marker> &value) -> JsonStore {
+            auto markers = base_.item().markers();
+            markers.insert(markers.end(), value.begin(), value.end());
+            auto jsn = base_.item().set_markers(markers);
+
+            if (not jsn.is_null())
+                send(event_group_, event_atom_v, item_atom_v, jsn, false);
+
+            return jsn;
+        },
+
+        [=](item_marker_atom, const std::vector<Marker> &markers) -> JsonStore {
+            auto jsn = base_.item().set_markers(markers);
+
+            if (not jsn.is_null())
+                send(event_group_, event_atom_v, item_atom_v, jsn, false);
+
+            return jsn;
+        },
+
+        [=](item_marker_atom) -> std::vector<Marker> {
+            std::vector<Marker> result(
+                base_.item().markers().begin(), base_.item().markers().end());
+            return result;
         },
 
         [=](item_atom) -> Item { return base_.item(); },
@@ -252,6 +334,13 @@ void StackActor::init() {
             return jsn;
         },
 
+        [=](item_lock_atom, const bool value) -> JsonStore {
+            auto jsn = base_.item().set_locked(value);
+            if (not jsn.is_null())
+                send(event_group_, event_atom_v, item_atom_v, jsn, false);
+            return jsn;
+        },
+
         [=](item_name_atom, const std::string &value) -> JsonStore {
             auto jsn = base_.item().set_name(value);
             if (not jsn.is_null())
@@ -267,6 +356,31 @@ void StackActor::init() {
             std::advance(it, index);
             return *it;
         },
+
+        [=](item_prop_atom, const utility::JsonStore &value) -> JsonStore {
+            auto jsn = base_.item().set_prop(value);
+            if (not jsn.is_null())
+                send(event_group_, event_atom_v, item_atom_v, jsn, false);
+            return jsn;
+        },
+
+        [=](item_prop_atom,
+            const utility::JsonStore &value,
+            const std::string &path) -> JsonStore {
+            auto prop = base_.item().prop();
+            try {
+                auto ptr = nlohmann::json::json_pointer(path);
+                prop.at(ptr).update(value);
+            } catch (const std::exception &err) {
+                spdlog::warn("{} {}", __PRETTY_FUNCTION__, err.what());
+            }
+            auto jsn = base_.item().set_prop(prop);
+            if (not jsn.is_null())
+                send(event_group_, event_atom_v, item_atom_v, jsn, false);
+            return jsn;
+        },
+
+        [=](item_prop_atom) -> JsonStore { return base_.item().prop(); },
 
         [=](plugin_manager::enable_atom, const bool value) -> JsonStore {
             auto jsn = base_.item().set_enabled(value);
@@ -412,22 +526,23 @@ void StackActor::init() {
         },
 
         [=](remove_item_atom,
-            const int index) -> result<std::pair<JsonStore, std::vector<Item>>> {
+            const int index,
+            const bool) -> result<std::pair<JsonStore, std::vector<Item>>> {
             auto rp = make_response_promise<std::pair<JsonStore, std::vector<Item>>>();
             remove_items(index, 1, rp);
             return rp;
         },
 
-        [=](remove_item_atom,
-            const int index,
-            const int count) -> result<std::pair<JsonStore, std::vector<Item>>> {
+        [=](remove_item_atom, const int index, const int count, const bool)
+            -> result<std::pair<JsonStore, std::vector<Item>>> {
             auto rp = make_response_promise<std::pair<JsonStore, std::vector<Item>>>();
             remove_items(index, count, rp);
             return rp;
         },
 
         [=](remove_item_atom,
-            const utility::Uuid &uuid) -> result<std::pair<JsonStore, std::vector<Item>>> {
+            const utility::Uuid &uuid,
+            const bool) -> result<std::pair<JsonStore, std::vector<Item>>> {
             auto rp = make_response_promise<std::pair<JsonStore, std::vector<Item>>>();
 
             auto it = find_uuid(base_.item().children(), uuid);
@@ -441,19 +556,20 @@ void StackActor::init() {
             return rp;
         },
 
-        [=](erase_item_atom, const int index) -> result<JsonStore> {
+        [=](erase_item_atom, const int index, const bool) -> result<JsonStore> {
             auto rp = make_response_promise<JsonStore>();
             erase_items(index, 1, rp);
             return rp;
         },
 
-        [=](erase_item_atom, const int index, const int count) -> result<JsonStore> {
+        [=](erase_item_atom, const int index, const int count, const bool)
+            -> result<JsonStore> {
             auto rp = make_response_promise<JsonStore>();
             erase_items(index, count, rp);
             return rp;
         },
 
-        [=](erase_item_atom, const utility::Uuid &uuid) -> result<JsonStore> {
+        [=](erase_item_atom, const utility::Uuid &uuid, const bool) -> result<JsonStore> {
             auto rp = make_response_promise<JsonStore>();
 
             auto it = find_uuid(base_.item().children(), uuid);
@@ -463,6 +579,31 @@ void StackActor::init() {
 
             if (rp.pending())
                 erase_items(std::distance(base_.item().begin(), it), 1, rp);
+
+            return rp;
+        },
+
+        [=](playhead::source_atom,
+            const UuidUuidMap &swap,
+            const utility::UuidActorMap &media) -> result<bool> {
+            auto rp = make_response_promise<bool>();
+
+            if (actors_.empty()) {
+                rp.deliver(true);
+            } else {
+                fan_out_request<policy::select_all>(
+                    map_value_to_vec(actors_), infinite, playhead::source_atom_v, swap, media)
+                    .await(
+                        [=](std::vector<bool> items) mutable { rp.deliver(true); },
+                        [=](error &err) mutable {
+                            spdlog::warn(
+                                "{} {} {}",
+                                __PRETTY_FUNCTION__,
+                                to_string(err),
+                                base_.item().name());
+                            rp.deliver(err);
+                        });
+            }
 
             return rp;
         },
@@ -572,6 +713,7 @@ void StackActor::insert_items(
                     for (const auto &i : items) {
                         if (ua.uuid() == i.uuid()) {
                             auto tmp = base_.item().insert(it, i);
+                            it       = std::next(base_.item().begin(), index);
                             changes.insert(changes.begin(), tmp.begin(), tmp.end());
                             found = true;
                             break;
@@ -636,7 +778,8 @@ void StackActor::remove_items(
 void StackActor::erase_items(
     const int index, const int count, caf::typed_response_promise<JsonStore> rp) {
 
-    request(caf::actor_cast<caf::actor>(this), infinite, remove_item_atom_v, index, count)
+    request(
+        caf::actor_cast<caf::actor>(this), infinite, remove_item_atom_v, index, count, false)
         .then(
             [=](const std::pair<JsonStore, std::vector<Item>> &hist_item) mutable {
                 for (const auto &i : hist_item.second)

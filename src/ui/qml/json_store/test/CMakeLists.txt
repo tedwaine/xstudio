@@ -1,6 +1,6 @@
 include(CTest)
 
-add_executable(json_store_qml_test json_store_ui_test.cpp qml.qrc)
+add_executable(json_store_qml_test json_store_ui_test.cpp)
 default_options_gtest(json_store_qml_test)
 target_link_libraries(json_store_qml_test
 	PUBLIC

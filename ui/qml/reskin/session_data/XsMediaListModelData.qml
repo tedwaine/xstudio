@@ -20,7 +20,7 @@ DelegateModel {
     // we listen to the main selection model that selects stuff in the
     // main sessionData - this thing decides which playlist, subset, timeline
     // etc. is selected to be displayed in our media list
-    property var currentSelectedPlaylistIndex: sessionSelectionModel.currentIndex
+    property var currentSelectedPlaylistIndex: inspectedMediaSetIndex
     property var name: theSessionData.get(currentSelectedPlaylistIndex, "nameRole")
     property var uuid: theSessionData.get(currentSelectedPlaylistIndex, "uuidRole")
 

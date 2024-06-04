@@ -105,8 +105,8 @@ namespace module {
 
         Attribute *add_attribute(
             const std::string &title,
-            const utility::JsonStore &value,
-            const utility::JsonStore &role_data);
+            const utility::JsonStore &value     = utility::JsonStore(),
+            const utility::JsonStore &role_data = utility::JsonStore());
 
         [[nodiscard]] virtual AttributeSet full_module(
             const std::vector<std::string> &attr_groups = std::vector<std::string>()) const;
@@ -144,6 +144,8 @@ namespace module {
             bool link_all_attrs,
             const bool both_ways,
             const bool initial_push_sync);
+
+        void unlink_module(caf::actor other_module);
 
         /* If this Module instance is linked to another Module instance, only
         attributes that have been registered with this function will be synced
@@ -231,7 +233,8 @@ namespace module {
         virtual void connect_to_viewport(
             const std::string &viewport_name,
             const std::string &viewport_toolbar_name,
-            bool connect);
+            bool connect,
+            caf::actor viewport);
 
         // re-implement to execute useful state reset for your module when the
         // user hits the 'reset-viewport' hotkey or button. For example, a
@@ -325,12 +328,13 @@ namespace module {
         caf::actor_addr parent_actor_addr_;
 
         void connect_to_ui();
-        void disconnect_from_ui();
         void grab_mouse_focus();
         void release_mouse_focus();
         void grab_keyboard_focus();
         void release_keyboard_focus();
         void listen_to_playhead_events(const bool listen = true);
+
+        virtual void disconnect_from_ui();
 
         [[nodiscard]] bool connected_to_ui() const { return connected_to_ui_; }
         virtual void connected_to_ui_changed() {}
@@ -344,6 +348,32 @@ namespace module {
         // annotations tool for an example.
         void register_ui_panel_qml(const std::string &panel_name, const std::string &qml_code);
 
+        // Call this code to expose a widget that can dock to the left/right or
+        // top/bottom of the viewport
+        Attribute *register_viewport_dockable_widget(
+            const std::string &widget_name,
+            const std::string &button_icon_qrc_path,
+            const std::string &button_tooltip,
+            const float button_position,
+            const bool enabled,
+            const std::string &left_right_dockable_widget_qml,
+            const std::string &top_bottom_dockable_widget_qml);
+
+        std::set<utility::Uuid> dock_widget_attributes_;
+
+        // re-implement to get a callback when your dockable widget has been
+        // made visible by the user clicking on the toggle button in the
+        // viewport action bar
+        virtual void viewport_dockable_widget_activated(std::string &widget_name) {}
+
+        // re-implement to get a callback when your dockable widget has been
+        // hidden by the user clicking on the toggle button in the
+        // viewport action bar. Also this callback is made when the dockable
+        // widget is hidden or goes off screen.
+        // If you have a tool that captures mouse events, for example, you may
+        // want to stop grabbing mouse events when the widget is hidden
+        virtual void viewport_dockable_widget_deactivated(std::string &widget_name) {}
+
         // To instance a single global UI item on startup (which might, for
         // example, insert menu items into the xstudio interface) pass the
         // necessary qml to this function.
@@ -354,11 +384,8 @@ namespace module {
         void attribute_changed(const utility::Uuid &attr_uuid, const int role_id, bool notify);
         void add_attribute(Attribute *attr);
 
-        caf::actor global_module_events_actor_;
         caf::actor keypress_monitor_actor_;
         caf::actor keyboard_and_mouse_group_;
-        caf::actor ui_attribute_events_group_;
-        caf::actor module_events_group_;
         caf::actor attribute_events_group_;
 
         caf::actor_addr attr_sync_source_adress_;
@@ -366,7 +393,8 @@ namespace module {
         std::set<caf::actor_addr> fully_linked_modules_;
         std::set<utility::Uuid> linked_attrs_;
         std::set<utility::Uuid> attrs_in_toolbar_;
-        std::set<std::string> connected_viewports_;
+        std::set<std::string> connected_viewport_names_;
+        std::set<caf::actor> connected_viewports_;
 
         bool connected_to_ui_  = {false};
         bool linking_disabled_ = {false};

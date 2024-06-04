@@ -31,7 +31,8 @@ class UIModelData : public caf::mixin::actor_object<JSONTreeModel> {
     explicit UIModelData(
         QObject *parent,
         const std::string &model_name,
-        const std::string &data_preference_path);
+        const std::string &data_preference_path,
+        const std::vector<std::string> &role_names = {});
 
     explicit UIModelData(QObject *parent);
 
@@ -132,7 +133,6 @@ class SingletonsModelData : public UIModelData {
   public slots:
 
     void register_singleton_qml(const QString &qml_code);
-
 };
 
 class ReskinPanelsModel : public UIModelData {
@@ -154,6 +154,8 @@ class MediaListColumnsModel : public UIModelData {
 
   public:
     explicit MediaListColumnsModel(QObject *parent = nullptr);
+
+    Q_INVOKABLE QUuid new_media_list();
 };
 
 class MenuModelItem : public caf::mixin::actor_object<QObject> {
@@ -190,7 +192,6 @@ class MenuModelItem : public caf::mixin::actor_object<QObject> {
     Q_PROPERTY(bool enabled READ enabled WRITE setEnabled NOTIFY enabledChanged)
     Q_PROPERTY(QObject *panelContext READ panelContext WRITE setPanelContext NOTIFY
                    panelContextChanged)
-
 
     const QString &menuPath() const { return menu_path_; }
     const QString &text() const { return text_; }
@@ -293,7 +294,7 @@ class MenuModelItem : public caf::mixin::actor_object<QObject> {
         }
     }
 
-    void setMenuPathPosition(const QString &menu_path, const float position);
+    void setMenuPathPosition(const QString &menu_path, const QVariant position);
 
   signals:
 
@@ -337,18 +338,18 @@ class MenuModelItem : public caf::mixin::actor_object<QObject> {
 };
 
 /* In the xSTUDIO interface, we can have multiple instances of the same type
-of panel. For example, the media list view might be instanced several times. 
+of panel. For example, the media list view might be instanced several times.
 Each instance will declare its own 'MenuModelItems' to insert items into the
 right click menu model. However, there is only one 'model' that describes what's
-in the right click menu... we do it this way because there are other plugins 
+in the right click menu... we do it this way because there are other plugins
 that might want to insert items into the media list menu and they only want to
 deal with one menu model, not separate menu models for each media list view.
 
 Our solution is that a MenuModelItem can declare which panel instance it was
 created in. Then, on the creation of the menu itself, we use this filter
 to only include menu items that originated from the panel that has created the
-menu. The MenuModelItem has a string property panelContext - we set this to 
-the stringified address of the parent panel. When the corresponding entry is 
+menu. The MenuModelItem has a string property panelContext - we set this to
+the stringified address of the parent panel. When the corresponding entry is
 made in the central menu model this is recorded in the role 'menu_item_context'.
 Then when the pop-up menu is built from the central menu model, we check if the
 menu item has 'menu_item_context' and only add an entry on the menu *IF* the
@@ -362,18 +363,17 @@ class PanelMenuModelFilter : public QSortFilterProxyModel {
         QString panelAddress READ panelAddress WRITE setPanelAddress NOTIFY panelAddressChanged)
 
   public:
-
     PanelMenuModelFilter(QObject *parent = nullptr);
 
     const QString &panelAddress() const { return panel_address_; }
 
     Q_INVOKABLE [[nodiscard]] QVariant
-        get(const QModelIndex &item, const QString &role = "display") const {
-            if (source_model_) {
-                return source_model_->get(mapToSource(item), role);
-            }
-            return QVariant();
+    get(const QModelIndex &item, const QString &role = "display") const {
+        if (source_model_) {
+            return source_model_->get(mapToSource(item), role);
         }
+        return QVariant();
+    }
 
   public slots:
 
@@ -390,7 +390,6 @@ class PanelMenuModelFilter : public QSortFilterProxyModel {
     }
 
   protected:
-
     [[nodiscard]] bool
     filterAcceptsRow(int source_row, const QModelIndex &source_parent) const override;
 
@@ -400,8 +399,7 @@ class PanelMenuModelFilter : public QSortFilterProxyModel {
   private:
     QString panel_address_;
     int menu_item_context_role_id_ = {0};
-    UIModelData *source_model_ = nullptr;
-
+    UIModelData *source_model_     = nullptr;
 };
 
 } // namespace xstudio::ui::qml

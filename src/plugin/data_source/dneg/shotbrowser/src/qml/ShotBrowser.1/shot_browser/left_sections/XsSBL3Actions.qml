@@ -83,7 +83,7 @@ Rectangle{
                                     let indexes = []
                                     for(let i=0;i<quickResults.rowCount();i++)
                                         indexes.push(quickResults.index(i,0))
-                                    ShotBrowserHelpers.addToCurrentPlaylist(indexes)
+                                    ShotBrowserHelpers.addToCurrent(indexes, false)
                                 }
                             }
                         },
@@ -96,7 +96,7 @@ Rectangle{
                                     let indexes = []
                                     for(let i=0;i<quickResults.rowCount();i++)
                                         indexes.push(quickResults.index(i,0))
-                                    ShotBrowserHelpers.addToCurrentPlaylist(indexes)
+                                    ShotBrowserHelpers.addToCurrent(indexes, false)
                                 }
                             }
                         })

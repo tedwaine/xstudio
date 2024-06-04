@@ -110,10 +110,8 @@ Rectangle{
                 anchors.fill: parent
                 text: "Set"
                 onClicked: {
-                    if (ownerRole == onScreenMediaUuid) {
-                        var idx = currentPlayheadData.searchRecursive("Media Frame", "title")
-                        var frame = currentPlayheadData.get(idx, "value")
-                        startFrameRole = currentPlayheadData.get(idx, "value")
+                    if (ownerRole == currentPlayhead.mediaUuid) {
+                        startFrameRole = currentPlayhead.mediaFrame
                     }
                 }
             }
@@ -153,10 +151,8 @@ Rectangle{
                 anchors.fill: parent
                 text: "Set"
                 onClicked: {
-                    if (ownerRole == onScreenMediaUuid) {
-                        var idx = currentPlayheadData.searchRecursive("Media Frame", "title")
-                        var frame = currentPlayheadData.get(idx, "value")
-                        endFrameRole = currentPlayheadData.get(idx, "value")
+                    if (ownerRole == currentPlayhead.mediaUuid) {
+                        endFrameRole = currentPlayhead.mediaFrame
                     }
                 }
 

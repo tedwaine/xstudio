@@ -42,6 +42,17 @@ GapActor::GapActor(
     init();
 }
 
+GapActor::GapActor(caf::actor_config &cfg, const Item &item)
+    : caf::event_based_actor(cfg), base_(item, this) {
+    base_.item().set_system(&system());
+    init();
+}
+
+GapActor::GapActor(caf::actor_config &cfg, const Item &item, Item &nitem)
+    : GapActor(cfg, item) {
+    nitem = base_.item();
+}
+
 void GapActor::init() {
     print_on_create(this, base_.name());
     print_on_exit(this, base_.name());
@@ -60,6 +71,14 @@ void GapActor::init() {
         base_.make_get_type_handler(),
         make_get_event_group_handler(event_group_),
         base_.make_get_detail_handler(this, event_group_),
+
+        [=](item_lock_atom, const bool value) -> JsonStore {
+            auto jsn = base_.item().set_locked(value);
+            if (not jsn.is_null())
+                send(event_group_, event_atom_v, item_atom_v, jsn, false);
+            return jsn;
+        },
+
         [=](item_name_atom, const std::string &value) -> JsonStore {
             auto jsn = base_.item().set_name(value);
             if (not jsn.is_null())
@@ -95,6 +114,31 @@ void GapActor::init() {
             return jsn;
         },
 
+        [=](item_prop_atom, const utility::JsonStore &value) -> JsonStore {
+            auto jsn = base_.item().set_prop(value);
+            if (not jsn.is_null())
+                send(event_group_, event_atom_v, item_atom_v, jsn, false);
+            return jsn;
+        },
+
+        [=](item_prop_atom,
+            const utility::JsonStore &value,
+            const std::string &path) -> JsonStore {
+            auto prop = base_.item().prop();
+            try {
+                auto ptr = nlohmann::json::json_pointer(path);
+                prop.at(ptr).update(value);
+            } catch (const std::exception &err) {
+                spdlog::warn("{} {}", __PRETTY_FUNCTION__, err.what());
+            }
+            auto jsn = base_.item().set_prop(prop);
+            if (not jsn.is_null())
+                send(event_group_, event_atom_v, item_atom_v, jsn, false);
+            return jsn;
+        },
+
+        [=](item_prop_atom) -> JsonStore { return base_.item().prop(); },
+
         [=](active_range_atom) -> std::optional<utility::FrameRange> {
             return base_.item().active_range();
         },
@@ -105,7 +149,7 @@ void GapActor::init() {
 
         [=](trimmed_range_atom) -> utility::FrameRange { return base_.item().trimmed_range(); },
 
-        [=](link_media_atom, const UuidActorMap &) -> bool { return true; },
+        [=](link_media_atom, const UuidActorMap &, const bool) -> bool { return true; },
 
         [=](item_atom) -> Item { return base_.item(); },
 
@@ -141,6 +185,10 @@ void GapActor::init() {
             auto actor = spawn<GapActor>(jsn);
             return UuidActor(dup.uuid(), actor);
         },
+
+        [=](playhead::source_atom,
+            const UuidUuidMap &swap,
+            const utility::UuidActorMap &media) -> result<bool> { return true; },
 
         [=](utility::serialise_atom) -> JsonStore {
             JsonStore jsn;

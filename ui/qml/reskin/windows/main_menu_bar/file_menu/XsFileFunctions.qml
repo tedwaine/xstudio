@@ -21,14 +21,23 @@ Item {
         studio.clearImageCache()
     }
 
+    function modSaveWarning(incoming) {
+        console.log("sessionPath", sessionPath)
+        if (sessionPath != undefined) {
+            return incoming.replace("This Session has been modified", "This Session (" + sessionPath + ") has been modified")
+        }
+        return incoming
+    }
+
     function newSessionWithCheck() {
 
         if (theSessionData.modified) {
+
             dialogHelpers.multiChoiceDialog(
                 newSessionWithCheckCallback,
                 "New Session",
-                "This Session has been modified. Would you like to save it before loading a new one?",
-                ["Cancel", "Don't Save", "Save"],
+                modSaveWarning("This Session has been modified. Would you like to save it before loading a new one?"),
+                ["Cancel", "Don't Save", "Save"], 
                 undefined)
         } else {
             newSession()
@@ -46,12 +55,14 @@ Item {
 
     function saveSelectionAs(path, folder, chaserFunc) {
 
+        if (path == false) return; // save was cancelled
+
         Future.promise(theSessionData.saveFuture(path, sessionSelectionModel.selectedIndexes)).then(function(result){
             if (result == false) {
                 // cancelled
                 if (chaserFunc != undefined) chaserFunc()
             } else if (result != "") {
-                dialogHelpers.errorDialogFunc("Save session failed", result)
+                dialogHelpers.errorDialogFunc("Save Session Failed", result)
             } else {
                 newRecentPath(path)
                 if (chaserFunc != undefined) chaserFunc()
@@ -61,12 +72,14 @@ Item {
 
     function saveSessionAs(path, folder, chaserFunc) {
 
+        if (path == false) return; // save was cancelled
+
         Future.promise(theSessionData.saveFuture(path)).then(function(result) {
             if (result == false) {
                 // cancelled
                 if (chaserFunc != undefined) chaserFunc()
             } else if (result != "") {
-                dialogHelpers.errorDialogFunc("Save session failed", result)
+                dialogHelpers.errorDialogFunc("Save Session Failed", result)
             } else {
                 newRecentPath(path)
                 if (chaserFunc != undefined) chaserFunc()
@@ -91,6 +104,7 @@ Item {
                 "Session File Modified",
                 "Session file \"" + sessionPath + "\" has been modified by something else, do you want to overwrite?",
                 ["Cancel", "Overwrite", "Save As..."],
+                ["Cancel", "Overwrite", "Save As..."], 
                 chaserFunc
                 )
         } else {
@@ -128,19 +142,41 @@ Item {
     }
 
     function doLoadSession(path) {
+
+        if (path == false) return; // load was cancelled
+
         Future.promise(studio.loadSessionFuture(path)).then(function(result) {
             if (result != true) {
-                dialogHelpers.errorDialogFunc("Load session failed", result)
+                dialogHelpers.errorDialogFunc("Load Session Failed", result)
             } else {
                 newRecentPath(path)
             }})
     }
 
     function doImportSession(path) {
+
+        if (path == false) return; // load was cancelled
+
         Future.promise(theSessionData.importFuture(path, null)).then(
             function(result) {
                 newRecentPath(path)
             })
+    }
+
+    function doImportOTIO(path) {
+
+        if (path == false) return; // import was cancelled in file dialog
+
+        let index=null
+
+        if(index == null) {
+            // create new playlist..
+            index = theSessionData.createPlaylist("Imported OTIO")
+        }
+
+        Future.promise(index.model.handleDropFuture(Qt.CopyAction, {"text/uri-list": path}, index)).then(
+            function(quuids){}
+        )
     }
 
     function loadSession() {
@@ -156,13 +192,41 @@ Item {
 
     }
 
+    property var file_to_load
+
+    function loadSessionPath() {
+        doLoadSession(file_to_load)
+    }
+
+    function loadSessionPathWithCheckCallback(result) {
+        if (result == "Don't Save") {
+            loadSessionPath()
+        } else if (result == "Save") {
+            saveSessionCheck(loadSessionPath)
+        }
+    }
+
+    function loadSessionFile(session_file_path, file_name) {
+        if (theSessionData.modified) {
+            file_to_load = session_file_path
+            dialogHelpers.multiChoiceDialog(
+                loadSessionPathWithCheckCallback,
+                "Load Snapshot Session",
+                modSaveWarning("This Session has been modified. Would you like to save it before loading " + file_name + " ?"),
+                ["Cancel", "Don't Save", "Save"],
+                undefined)
+        } else {
+            doLoadSession(session_file_path)
+        }
+    }
+
     function loadSessionWithCheck() {
 
         if (theSessionData.modified) {
             dialogHelpers.multiChoiceDialog(
                 loadSessionWithCheckCallback,
                 "Load Session",
-                "This Session has been modified. Would you like to save it before loading a new one?",
+                modSaveWarning("This Session has been modified. Would you like to save it before loading a new one?"),
                 ["Cancel", "Don't Save", "Save"],
                 undefined)
         } else {
@@ -201,7 +265,7 @@ Item {
             uris = uris + String(item) +"\n"
         })
 
-        if(!sessionSelectionModel.currentIndex.valid) {
+        if(!inspectedMediaSetIndex.valid) {
             // create new playlist..
             var index = theSessionData.createPlaylist("New Playlist")
             callbackTimer.setTimeout(function(capture) { return function(){
@@ -214,10 +278,9 @@ Item {
 
         } else {
 
-            let index = sessionSelectionModel.currentIndex
-            Future.promise(index.model.handleDropFuture(Qt.CopyAction, {"text/uri-list": uris}, index)).then(
+            Future.promise(theSessionData.handleDropFuture(Qt.CopyAction, {"text/uri-list": uris}, inspectedMediaSetIndex)).then(
                 function(quuids){
-                    mediaSelectionModel.selectFirstNewMedia(index, quuids)
+                    mediaSelectionModel.selectFirstNewMedia(inspectedMediaSetIndex, quuids)
                 }
             )
         }
@@ -267,7 +330,7 @@ Item {
             dialogHelpers.multiChoiceDialog(
                 quitWithCheckCallback,
                 "Quit xSTUDIO",
-                "This Session has been modified. Would you like to save it before loading a new one?",
+                modSaveWarning("This Session has been modified. Would you like to save it before closing xSTUDIO?"),
                 ["Cancel", "Quit Without Saving", "Save and Quit"],
                 undefined)
         } else {
@@ -287,10 +350,22 @@ Item {
             false)
     }
 
+    function importOTIO() {
+        dialogHelpers.showFileDialog(
+            doImportOTIO,
+            defaultSessionFolder(),
+            "Import OTIO",
+            "",
+            ["All files (*)"],
+            true,
+            false)
+    }
+
     function exportNotedToCSV() {
 
         dialogHelpers.showFileDialog(
             function(path) {
+                if (path == false) return
                 Future.promise(
                     bookmarkModel.exportCSVFuture(path)
                 ).then(function(result) {
@@ -309,7 +384,7 @@ Item {
 
     function defaultSessionFolder() {
         // pick most recent path
-        if(recentFiles.length) {
+        if(recentFiles.length && typeof recentFiles[0] == "string") {            
             let p = recentFiles[0]
             return p.substr(0, p.lastIndexOf("/"))
         }

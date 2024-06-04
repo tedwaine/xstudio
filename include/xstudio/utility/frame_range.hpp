@@ -19,6 +19,11 @@ namespace utility {
         FrameRange(const FrameRateDuration &duration)
             : rate_(duration.rate()), duration_(duration.duration()) {}
 
+        FrameRange(const FrameRate start, const FrameRate duration, const FrameRate rate)
+            : start_(std::move(start)),
+              duration_(std::move(duration)),
+              rate_(std::move(rate)) {}
+
         FrameRange(const FrameRateDuration &start, const FrameRateDuration &duration)
             : rate_(duration.rate()),
               start_(start.duration()),

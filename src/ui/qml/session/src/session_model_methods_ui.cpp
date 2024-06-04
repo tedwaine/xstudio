@@ -52,6 +52,46 @@ QModelIndex SessionModel::getPlaylistIndex(const QModelIndex &index) const {
     return result;
 }
 
+QModelIndex SessionModel::getContainerIndex(const QModelIndex &index) const {
+    const static std::set<std::string> container_names(
+        {"Timeline", "Subset", "ContactSheet", "Playlist"});
+    try {
+        if (index.isValid()) {
+            auto type = StdFromQString(index.data(typeRole).toString());
+            if (container_names.count(type))
+                return index;
+            else
+                return getContainerIndex(index.parent());
+        }
+    } catch (const std::exception &err) {
+        spdlog::warn("{} {}", __PRETTY_FUNCTION__, err.what());
+    }
+
+    return QModelIndex();
+}
+
+Q_INVOKABLE void SessionModel::purgePlaylist(const QModelIndex &index) {
+    if (index.isValid() and index.data(typeRole).toString() == QString("Playlist")) {
+        auto actor = actorFromQString(system(), index.data(actorRole).toString());
+        if (actor)
+            anon_send(actor, playlist::remove_orphans_atom_v, UuidVector());
+    }
+}
+
+Q_INVOKABLE QModelIndex SessionModel::currentPlaylistIndex() {
+
+    scoped_actor sys{system()};
+    try {
+        auto actor =
+            request_receive<caf::actor>(*sys, session_actor_, session::current_playlist_atom_v);
+        auto actor_string = QStringFromStd(actorToString(system(), actor));
+        return searchRecursive(actor_string, "actorRole");
+    } catch (const std::exception &e) {
+        spdlog::warn("{} {}", __PRETTY_FUNCTION__, e.what());
+    }
+    return index(-1, -1);
+}
+
 Q_INVOKABLE void SessionModel::decomposeMedia(const QModelIndexList &indexes) {
     for (const auto &i : indexes) {
         if (i.isValid() and i.data(typeRole).toString() == QString("Media")) {
@@ -1195,7 +1235,11 @@ QFuture<bool> SessionModel::setJSONFuture(
     });
 }
 
-void SessionModel::sortAlphabetically(const QModelIndex &index) {
+void SessionModel::sortByMediaDisplayInfo(
+    const QModelIndex &index,
+    const int info_set_idx,
+    const int info_item_idx,
+    const bool ascending) {
     try {
 
         if (index.isValid()) {
@@ -1203,7 +1247,12 @@ void SessionModel::sortAlphabetically(const QModelIndex &index) {
             auto actor        = actorFromString(system(), j.at("actor"));
             auto type         = j.at("type").get<std::string>();
             if (actor and (type == "Subset" or type == "Playlist" or type == "Timeline")) {
-                anon_send(actor, playlist::sort_alphabetically_atom_v);
+                anon_send(
+                    actor,
+                    playlist::sort_by_media_display_info_atom_v,
+                    info_set_idx,
+                    info_item_idx,
+                    ascending);
             }
         }
 
@@ -1229,7 +1278,7 @@ void SessionModel::setCurrentPlaylist(const QModelIndex &index) {
     }
 }
 
-void SessionModel::setPlayheadTo(const QModelIndex &index) {
+void SessionModel::setPlayheadTo(const QModelIndex &index, const bool aux_playhead) {
     try {
         if (index.isValid()) {
 
@@ -1242,14 +1291,27 @@ void SessionModel::setPlayheadTo(const QModelIndex &index) {
                     system().registry().template get<caf::actor>(global_playhead_events_actor);
                 scoped_actor sys{system()};
                 try {
-                    auto playhead = request_receive<UuidActor>(
-                                        *sys, actor, playlist::create_playhead_atom_v)
-                                        .actor();
+                    caf::actor playhead;
+                    if (aux_playhead && type == "Timeline") {
+                        // note only TimelineActor has the appropriate message handler here
+                        // for (create_playhead_atom_v, bool)
+                        playhead = request_receive<UuidActor>(
+                                       *sys, actor, playlist::create_playhead_atom_v, 1)
+                                       .actor();
+                    } else {
+                        playhead = request_receive<UuidActor>(
+                                       *sys, actor, playlist::create_playhead_atom_v)
+                                       .actor();
+                    }
+                    emit playheadChanged(index, aux_playhead);
                     anon_send(ph_events, viewport::viewport_playhead_atom_v, playhead);
+
                 } catch (const std::exception &err) {
                     spdlog::warn("{} {}", __PRETTY_FUNCTION__, err.what());
                 }
             }
+        } else {
+            spdlog::warn("{} {}", __PRETTY_FUNCTION__, "Invalid index.");
         }
     } catch (const std::exception &err) {
         spdlog::warn("{} {}", __PRETTY_FUNCTION__, err.what());

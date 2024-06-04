@@ -40,6 +40,13 @@ nlohmann::json Attribute::role_data_as_json(const int role) const {
     return p->second.to_json();
 }
 
+void Attribute::update_role_data_from_json(
+    const int role, const nlohmann::json &data, const bool notify) {
+
+    if (role != UuidRole)
+        set_role_data(role, data, notify);
+}
+
 void Attribute::notify_change(
     const int role, const nlohmann::json &data, const bool self_notify) {
     if (owner_) {

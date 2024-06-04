@@ -39,9 +39,11 @@ ContactSheetActor::ContactSheetActor(
 
 void ContactSheetActor::add_media(
     caf::actor actor, const utility::Uuid &uuid, const utility::Uuid &before_uuid) {
-    base_.insert_media(uuid, before_uuid);
-    actors_[uuid] = actor;
-    monitor(actor);
+    if (not base_.contains_media(uuid)) {
+        base_.insert_media(uuid, before_uuid);
+        actors_[uuid] = actor;
+        monitor(actor);
+    }
 }
 
 bool ContactSheetActor::remove_media(caf::actor actor, const utility::Uuid &uuid) {
@@ -238,7 +240,7 @@ void ContactSheetActor::init() {
                     event_group_,
                     utility::event_atom_v,
                     playlist::add_media_atom_v,
-                    UuidActor(uuid, actor));
+                    UuidActorVector({UuidActor(uuid, actor)}));
                 base_.send_changed(event_group_, this);
                 send(event_group_, utility::event_atom_v, change_atom_v);
                 send(change_event_group_, utility::event_atom_v, utility::change_atom_v);
@@ -267,7 +269,7 @@ void ContactSheetActor::init() {
                             event_group_,
                             utility::event_atom_v,
                             playlist::add_media_atom_v,
-                            UuidActor(uuid, actor));
+                            UuidActorVector({UuidActor(uuid, actor)}));
                         base_.send_changed(event_group_, this);
                         rp.deliver(true);
                     },
@@ -298,7 +300,7 @@ void ContactSheetActor::init() {
                                         event_group_,
                                         utility::event_atom_v,
                                         playlist::add_media_atom_v,
-                                        UuidActor(i, ii.actor()));
+                                        UuidActorVector({UuidActor(i, ii.actor())}));
                                     break;
                                 }
                             }
@@ -328,8 +330,8 @@ void ContactSheetActor::init() {
             const utility::Uuid &uuid_before) -> result<bool> {
             for (const auto &i : media_actors) {
                 add_media(i.actor(), i.uuid(), uuid_before);
-                send(event_group_, utility::event_atom_v, playlist::add_media_atom_v, i);
             }
+            send(event_group_, utility::event_atom_v, playlist::add_media_atom_v, media_actors);
             send(event_group_, utility::event_atom_v, change_atom_v);
             send(change_event_group_, utility::event_atom_v, utility::change_atom_v);
             base_.send_changed(event_group_, this);
@@ -465,7 +467,12 @@ void ContactSheetActor::init() {
             return changed;
         },
 
-        [=](playlist::sort_alphabetically_atom) { sort_alphabetically(); },
+        [=](playlist::sort_by_media_display_info_atom,
+            const int info_set_idx,
+            const int info_item_idx,
+            const bool ascending) {
+            sort_by_media_display_info(info_set_idx, info_item_idx, ascending);
+        },
 
         [=](get_next_media_atom,
             const utility::Uuid &after_this_uuid,
@@ -528,7 +535,8 @@ void ContactSheetActor::init() {
         });
 }
 
-void ContactSheetActor::sort_alphabetically() {
+void ContactSheetActor::sort_by_media_display_info(
+    const int info_set_idx, const int info_item_idx, const bool ascending) {
 
     using SourceAndUuid = std::pair<std::string, utility::Uuid>;
     auto media_names_vs_uuids =

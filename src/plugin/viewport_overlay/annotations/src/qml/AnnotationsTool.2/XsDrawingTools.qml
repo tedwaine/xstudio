@@ -11,7 +11,6 @@ import QtQuick.Dialogs 1.3
 import QtGraphicalEffects 1.15
 
 import xStudioReskin 1.0
-import xstudio.qml.module 1.0
 import xstudio.qml.models 1.0
 import xstudio.qml.helpers 1.0
 
@@ -39,21 +38,11 @@ Item{
     property int maxDrawSize: 250
     property bool isAnyToolSelected: currentTool !== "None"
 
-    onVisibleChanged: {
-        tool_is_active.value = visible
-    }
-
-    Component.onCompleted: {
-        if (visible) {
-            tool_is_active.value = true
-        }
-    }
-
     /* This connects to the backend annotations tool object and exposes its
     ui data via model data */
     XsModuleData {
         id: annotations_model_data
-        modelDataName: "annotations_tool_settings_0"
+        modelDataName: "annotations_tool_settings"
     }
 
     /* Here we locate particular nodes in the annotations_model_data giving
@@ -103,21 +92,6 @@ Item{
         id: text_background_opacity
         attributeTitle: "Text Background Opacity"
         model: annotations_model_data
-    }
-    XsAttributeValue {
-        id: tool_is_active
-        attributeTitle: "annotations_tool_active"
-        model: annotations_model_data
-
-        // if draw tools panel was created before the backend attribute values 
-        // were synced with QML item here, and if the draw tools panel is
-        // visible we should set the 'tool_active' attribute to true so user
-        // can start drawing
-        onIndexBecameValid: {
-            if (drawDialog.visible) {
-                value = true
-            }
-        }
     }
 
     // make a local binding to the backend attribute

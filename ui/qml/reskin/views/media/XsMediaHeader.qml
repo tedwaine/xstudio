@@ -11,6 +11,8 @@ import xstudio.qml.models 1.0
 
 import xStudioReskin 1.0
 
+import "./widgets"
+
 Rectangle{ id: header
     width: parent.width
     height: XsStyleSheet.widgetStdHeight
@@ -22,19 +24,83 @@ Rectangle{ id: header
 
     property alias columns_model: columns_model
 
+    property var columns_model_index: columns_root_model.index(-1, -1)
+
     XsMediaListColumnsModel {
+        id: columns_root_model
+    }
+
+    // we need to somehow update these...
+    Connections {
+        target: columns_root_model
+        function onJsonChanged() {
+            columns_model_index = columns_root_model.searchRecursive(user_data, "uuid")
+        }
+    }
+    
+    Component {
+        id: configureDialog
+        XsMediaListConfigureDialog {
+            onVisibleChanged: {
+                if (!visible) {
+                    loader.sourceComponent = undefined
+                }
+            }
+        }
+    }
+
+    Loader {
+        id: loader
+    }
+
+    function configure(index) {
+        loader.sourceComponent = configureDialog
+        loader.item.model_index = index
+        loader.item.visible = true
+    }    
+
+    DelegateModel {
+
         id: columns_model
+        model: columns_root_model
+        rootIndex: columns_model_index
+
+        delegate: XsMediaHeaderColumn{
+
+            Layout.preferredWidth: size ? size : 20
+            Layout.minimumHeight: XsStyleSheet.widgetStdHeight 
+
+            titleBarTotalWidth: titleBar.width
+
+            model_index: columns_root_model.index(index, 0 , columns_model_index)
+
+            onHeaderColumnResizing:{
+                if(isDragged) {
+                    isSomeColumnResizedByDrag = true
+                }
+                else {
+                    isSomeColumnResizedByDrag = false
+                }
+            }
+
+        }
+    }
+
+
+    Component.onCompleted: {
+        if (user_data === undefined) {
+            user_data = columns_root_model.new_media_list()
+            columns_model_index = columns_root_model.searchRecursive(user_data, "uuid")
+        } else {
+            columns_model_index = columns_root_model.searchRecursive(user_data, "uuid")
+            if (!columns_model_index.valid) {
+                user_data = columns_root_model.new_media_list()
+                columns_model_index = columns_root_model.searchRecursive(user_data, "uuid")    
+            }
+        }
     }
 
     property var metadataPaths: []
-
-    onMetadataPathsChanged: {
-        // this call means that Media items in the session model will
-        // have metadataSet0Role data consisting of an array of strings
-        // corresponding to the metadata values found at the paths defined
-        // by the array metadataPaths
-        theSessionData.updateMetadataSelection(0, metadataPaths)
-    }
 
     RowLayout{ id: titleBar
         // width: parent.width
@@ -45,44 +111,7 @@ Rectangle{ id: header
             
             id: repeater
             model: columns_model
-
-            XsMediaHeaderColumn{
-                Layout.preferredWidth: size
-                Layout.minimumHeight: XsStyleSheet.widgetStdHeight 
-
-                titleBarTotalWidth: titleBar.width
-
-                onHeaderColumnResizing:{
-                    if(isDragged) {
-                        isSomeColumnResizedByDrag = true
-                    }
-                    else {
-                        isSomeColumnResizedByDrag = false
-                    }
-                }
-
-                property var metadataPath: metadata_path
-                // the 'metadata_path' property is injected from the 'columns_model'
-                // data model. Here we update the metadataPaths property which
-                // will in turn update the global session model data so it knows
-                // how to populate the dynamic metadata fields for Media items.
-                //
-                // Each column in the media list view has a metadata path ... this
-                // will define the metadata fetched for the Nth array item in 
-                // the 
-                onMetadataPathChanged: {
-                    var _paths = metadataPaths;
-                    while (_paths.length < index) {
-                        _paths.push("")
-                    }
-                    _paths[index] = metadata_path ? metadata_path : ""
-                    metadataPaths = _paths
-                }
-
-            }
-
         }
-
     }
 
 }

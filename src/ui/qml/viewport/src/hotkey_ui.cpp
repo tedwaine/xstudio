@@ -165,10 +165,13 @@ void HotkeyUI::init(actor_system &system_) {
                 const utility::Uuid &uuid,
                 const bool hotkey_pressed,
                 const std::string &context) {
-                if (hotkey_uuid_ == QUuidFromUuid(uuid) && hotkey_pressed) {
+                if (hotkey_uuid_ == QUuidFromUuid(uuid)) {
                     if (context_.isNull() || context_ == QString("any") ||
                         StdFromQString(context_) == context) {
-                        emit activated();
+                        if (hotkey_pressed)
+                            emit activated();
+                        else
+                            emit released();
                     }
                 }
             }

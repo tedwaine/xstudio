@@ -17,6 +17,34 @@ class ConformWorkerActor : public caf::event_based_actor {
     const char *name() const override { return NAME.c_str(); }
 
   private:
+    void conform_step_get_playlist_json(
+        caf::typed_response_promise<ConformReply> rp,
+        const std::string &conform_task,
+        ConformRequest conform_request);
+
+    void conform_step_get_clip_json(
+        caf::typed_response_promise<ConformReply> rp,
+        const std::string &conform_task,
+        ConformRequest &conform_request);
+
+    void conform_step_get_clip_media(
+        caf::typed_response_promise<ConformReply> rp,
+        const std::string &conform_task,
+        ConformRequest &conform_request);
+
+    void conform_step_get_media_json(
+        caf::typed_response_promise<ConformReply> rp,
+        const std::string &conform_task,
+        ConformRequest &conform_request);
+
+    void conform_step_get_media_source(
+        caf::typed_response_promise<ConformReply> rp,
+        const std::string &conform_task,
+        ConformRequest &conform_request);
+
+    void conform_chain(
+        caf::typed_response_promise<ConformReply> rp, ConformRequest &conform_request);
+
     inline static const std::string NAME = "ConformWorkerActor";
     caf::behavior behavior_;
 };

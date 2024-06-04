@@ -14,7 +14,7 @@ XsMenu {
     id: snapshotMenu
     title: "Snapshots"
 
-    XsSnapshotModel {
+    XsSnapshotMenuModel {
     	id: snapshotModel
     	paths: preferences.snapshot_paths.value
     	onModelReset: snapshot_items.rootIndex = index(-1,-1)

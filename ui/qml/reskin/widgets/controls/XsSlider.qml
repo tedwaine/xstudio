@@ -20,6 +20,7 @@ Slider{ id: widget
 
     property bool isHorizontal: orientation==Qt.Horizontal
     property color fillColor: palette.highlight
+    property color baseColor: palette.base
     property color handleColor: palette.text
 
     signal released()
@@ -47,20 +48,21 @@ Slider{ id: widget
         Rectangle {
             width: isHorizontal? widget.visualPosition*parent.width : parent.width
             height: isHorizontal?  parent.height : widget.visualPosition*parent.height
-            color: palette.base
+            color: baseColor
             radius: parent.radius
         }
     }
 
     handle: Rectangle {
+        id: handleDiv
         x: isHorizontal?
             widget.leftPadding + widget.visualPosition * (widget.availableWidth - width) :
             widget.leftPadding + widget.availableWidth / 2 - width / 2
         y: isHorizontal?
             widget.topPadding + widget.availableHeight / 2 - height / 2 :
             widget.topPadding + widget.visualPosition * (widget.availableHeight - height)
-        implicitWidth: 16
-        implicitHeight: 6
+        implicitWidth: orientation==Qt.Vertical? 16:6
+        implicitHeight:  orientation==Qt.Vertical? 6:16
         // radius: implicitHeight/2
         color: widget.pressed ? Qt.darker(handleColor,1.3) : handleColor 
         border.color: widget.hovered? palette.highlight : "transparent"

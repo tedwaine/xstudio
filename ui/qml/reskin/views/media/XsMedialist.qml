@@ -84,7 +84,7 @@ Item{
                 Layout.fillWidth: true
                 Layout.minimumWidth: 0//btnWidth
                 Layout.preferredHeight: btnHeight
-                text: searchBtn.isExpanded? "" : selectedMediaSetProperties.values.nameRole ? selectedMediaSetProperties.values.nameRole : ""
+                text: searchBtn.isExpanded? "" : inspectedMediaSetProperties.values.nameRole ? inspectedMediaSetProperties.values.nameRole : ""
                 font.bold: true
                 elide: Text.ElideRight
 
@@ -143,12 +143,22 @@ Item{
 
             y: titleBar.height
 
-            columns_model: titleBar.columns_model
+            columns_model_index: titleBar.columns_model_index
             itemRowHeight: rowHeight
             itemRowWidth: width
 
         }
 
+    }
+
+    function sort_media(media_list_column_index, ascending) {
+        var col = media_list_column_index.row
+        var media_list_idx = media_list_column_index.parent.row
+        theSessionData.sortByMediaDisplayInfo(
+            inspectedMediaSetIndex,
+            media_list_idx,
+            col,
+            ascending)
     }
 
     Loader {
@@ -165,7 +175,7 @@ Item{
         if (menu_loader.item == undefined) {
             menu_loader.sourceComponent = plusMenuComponent
         }
-        showPopupMenu(
+        repositionPopupMenu(
             menu_loader.item,
             panel,
             mx,

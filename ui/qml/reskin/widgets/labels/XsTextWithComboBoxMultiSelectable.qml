@@ -11,7 +11,17 @@ Item{ id: widget
 
     property alias text: labelDiv.text
     property alias valueDiv: valueDiv
+    property alias hintText: valueDiv.hint
+    
     property alias checked: checkBoxDiv.checked
+    onCheckedChanged:{
+        if(!checked){
+            if(valueDiv.popup.visible) valueDiv.close()
+        }
+        else{
+           if(valueDiv.checkedCount == 0) valueDiv.open()
+        }
+    }
     property alias checkedIndexes: valueDiv.checkedIndexes
 
     property alias model: valueDiv.valuesModel

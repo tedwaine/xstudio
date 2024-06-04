@@ -33,15 +33,13 @@ Module::Module(const std::string name, const utility::Uuid &uuid)
 
 Module::~Module() {
     disconnect_from_ui();
-    global_module_events_actor_ = caf::actor();
-    keypress_monitor_actor_     = caf::actor();
+    keypress_monitor_actor_ = caf::actor();
 }
 
 void Module::set_parent_actor_addr(caf::actor_addr addr) {
 
     parent_actor_addr_ = addr;
-    if (!module_events_group_) {
-        module_events_group_ = self()->home_system().spawn<broadcast::BroadcastActor>(self());
+    if (!attribute_events_group_) {
         attribute_events_group_ =
             self()->home_system().spawn<broadcast::BroadcastActor>(self());
         try {
@@ -51,12 +49,10 @@ void Module::set_parent_actor_addr(caf::actor_addr addr) {
             auto a = caf::actor_cast<caf::event_based_actor *>(self());
             if (a) {
                 join_broadcast(a, prefs.get_group(j));
-                a->link_to(module_events_group_);
             } else {
                 auto b = caf::actor_cast<caf::blocking_actor *>(self());
                 if (b) {
                     join_broadcast(b, prefs.get_group(j));
-                    b->link_to(module_events_group_);
                 }
             }
             update_attrs_from_preferences(j);
@@ -86,6 +82,16 @@ void Module::set_parent_actor_addr(caf::actor_addr addr) {
         unregistered_hotkeys_.clear();
     }
 
+    auto a = caf::actor_cast<caf::event_based_actor *>(self());
+    if (a) {
+        a->set_down_handler([=](down_msg &msg) {
+            a->demonitor(msg.source);
+            auto p = connected_viewports_.find(caf::actor_cast<caf::actor>(msg.source));
+            if (p != connected_viewports_.end()) {
+                connected_viewports_.erase(p);
+            }
+        });
+    }
     /*if (self()) {
         self()->attach_functor([=](const caf::error &reason) {
             spdlog::debug(
@@ -131,17 +137,12 @@ void Module::link_to_module(
             for (auto &attribute : attributes_) {
                 if (link_all_attrs ||
                     linked_attrs_.find(attribute->uuid()) != linked_attrs_.end()) {
-                    try {
-                        utility::request_receive<bool>(
-                            *sys,
-                            other_module,
-                            change_attribute_value_atom_v,
-                            attribute->get_role_data<std::string>(Attribute::Title),
-                            utility::JsonStore(attribute->role_data_as_json(Attribute::Value)),
-                            true);
-                    } catch (std::exception &e) {
-                        spdlog::warn("{} {}", __PRETTY_FUNCTION__, e.what());
-                    }
+                    anon_send(
+                        other_module,
+                        change_attribute_value_atom_v,
+                        attribute->get_role_data<std::string>(Attribute::Title),
+                        utility::JsonStore(attribute->role_data_as_json(Attribute::Value)),
+                        true);
                 }
             }
         }
@@ -149,6 +150,25 @@ void Module::link_to_module(
         if (both_ways)
             anon_send(
                 other_module, module::link_module_atom_v, self(), link_all_attrs, false, false);
+    }
+}
+
+void Module::unlink_module(caf::actor other_module) {
+    auto addr = caf::actor_cast<caf::actor_addr>(other_module);
+    auto p    = std::find(fully_linked_modules_.begin(), fully_linked_modules_.end(), addr);
+    bool found_link = false;
+    if (p != fully_linked_modules_.end()) {
+        fully_linked_modules_.erase(p);
+        found_link = true;
+    }
+    p = std::find(partially_linked_modules_.begin(), partially_linked_modules_.end(), addr);
+    if (p != partially_linked_modules_.end()) {
+        partially_linked_modules_.erase(p);
+        found_link = true;
+    }
+
+    if (found_link) {
+        anon_send(other_module, module::link_module_atom_v, self(), false);
     }
 }
 
@@ -171,8 +191,6 @@ FloatAttribute *Module::add_float_attribute(
         float_step,
         float_display_decimals,
         fscrub_sensitivity));
-    rt->set_owner(this);
-
     add_attribute(static_cast<Attribute *>(rt));
 
     return rt;
@@ -187,7 +205,6 @@ StringChoiceAttribute *Module::add_string_choice_attribute(
     auto *rt(new StringChoiceAttribute(
         title, abbr_title, value, options, abbr_options.empty() ? options : abbr_options));
     // rt->set_role_data(module::Attribute::StringChoicesEnabled, std::vector<bool>{}, false);
-    rt->set_owner(this);
     add_attribute(static_cast<Attribute *>(rt));
     return rt;
 }
@@ -197,7 +214,6 @@ Module::add_int_vec_attribute(const std::string &title, const std::string &abbr_
 
     auto *rt(new IntegerVecAttribute(title, abbr_title, std::vector<int>()));
     // rt->set_role_data(module::Attribute::StringChoicesEnabled, std::vector<bool>{}, false);
-    rt->set_owner(this);
     add_attribute(static_cast<Attribute *>(rt));
     return rt;
 }
@@ -205,7 +221,6 @@ Module::add_int_vec_attribute(const std::string &title, const std::string &abbr_
 JsonAttribute *Module::add_json_attribute(
     const std::string &title, const std::string &abbr_title, const nlohmann::json &value) {
     auto *rt(new JsonAttribute(title, abbr_title, value));
-    rt->set_owner(this);
     add_attribute(static_cast<Attribute *>(rt));
     return rt;
 }
@@ -213,8 +228,6 @@ JsonAttribute *Module::add_json_attribute(
 BooleanAttribute *Module::add_boolean_attribute(
     const std::string &title, const std::string &abbr_title, const bool value) {
     auto *rt(new BooleanAttribute(title, abbr_title, value));
-    rt->set_owner(this);
-
     add_attribute(static_cast<Attribute *>(rt));
     return rt;
 }
@@ -222,8 +235,6 @@ BooleanAttribute *Module::add_boolean_attribute(
 StringAttribute *Module::add_string_attribute(
     const std::string &title, const std::string &abbr_title, const std::string &value) {
     auto rt = new StringAttribute(title, abbr_title, value);
-    rt->set_owner(this);
-
     add_attribute(static_cast<Attribute *>(rt));
     return rt;
 }
@@ -236,7 +247,6 @@ IntegerAttribute *Module::add_integer_attribute(
     const int int_max) {
 
     auto rt = new IntegerAttribute(title, abbr_title, value, int_min, int_max);
-    rt->set_owner(this);
     add_attribute(static_cast<Attribute *>(rt));
     return rt;
 }
@@ -245,7 +255,6 @@ IntegerAttribute *Module::add_integer_attribute(
 QmlCodeAttribute *
 Module::add_qml_code_attribute(const std::string &name, const std::string &qml_code) {
     auto rt = new QmlCodeAttribute(name, qml_code);
-    rt->set_owner(this);
     add_attribute(static_cast<Attribute *>(rt));
     return rt;
 }
@@ -255,8 +264,6 @@ ColourAttribute *Module::add_colour_attribute(
     const std::string &abbr_title,
     const utility::ColourTriplet &value) {
     auto rt = new ColourAttribute(title, abbr_title, value);
-    rt->set_owner(this);
-
     add_attribute(static_cast<Attribute *>(rt));
     return rt;
 }
@@ -264,8 +271,6 @@ ColourAttribute *Module::add_colour_attribute(
 Vec4fAttribute *Module::add_vec4f_attribute(
     const std::string &title, const std::string &abbr_title, const Imath::V4f &value) {
     auto rt = new Vec4fAttribute(title, abbr_title, value);
-    rt->set_owner(this);
-
     add_attribute(static_cast<Attribute *>(rt));
     return rt;
 }
@@ -278,7 +283,6 @@ Vec4fAttribute *Module::add_vec4f_attribute(
     const Imath::V4f &max,
     const Imath::V4f &step) {
     auto rt = new Vec4fAttribute(title, abbr_title, value);
-    rt->set_owner(this);
     add_attribute(static_cast<Attribute *>(rt));
     rt->set_role_data(Attribute::DefaultValue, value);
     rt->set_role_data(Attribute::FloatScrubMin, min);
@@ -295,7 +299,6 @@ FloatVectorAttribute *Module::add_float_vector_attribute(
     const std::vector<float> &max,
     const std::vector<float> &step) {
     auto rt = new FloatVectorAttribute(title, abbr_title, value);
-    rt->set_owner(this);
     add_attribute(static_cast<Attribute *>(rt));
     rt->set_role_data(Attribute::DefaultValue, value);
     rt->set_role_data(Attribute::FloatScrubMin, min);
@@ -308,8 +311,6 @@ FloatVectorAttribute *Module::add_float_vector_attribute(
 ActionAttribute *
 Module::add_action_attribute(const std::string &title, const std::string &abbr_title) {
     auto rt = new ActionAttribute(title, abbr_title);
-    rt->set_owner(this);
-
     add_attribute(static_cast<Attribute *>(rt));
     return rt;
 }
@@ -343,12 +344,9 @@ void Module::remove_attribute(const utility::Uuid &attribute_uuid) {
     } else {
         throw std::runtime_error(
             fmt::format(
-                "{}: No attribute with id {}",
-                __PRETTY_FUNCTION__,
-                to_string(attribute_uuid)).c_str()
-                );
+                "{}: No attribute with id {}", __PRETTY_FUNCTION__, to_string(attribute_uuid))
+                .c_str());
     }
-
 }
 
 utility::JsonStore Module::serialise() const {
@@ -674,17 +672,14 @@ caf::message_handler Module::message_handler() {
              }
          },
 
-         [=](remove_attribute_atom,
-            const utility::Uuid & uuid) -> result<bool> {
-
-            try {
-                remove_attribute(uuid);
-            } catch (std::exception &e) {
-                return caf::make_error(xstudio_error::error, e.what());
-            }
-            return true;
-
-        },
+         [=](remove_attribute_atom, const utility::Uuid &uuid) -> result<bool> {
+             try {
+                 remove_attribute(uuid);
+             } catch (std::exception &e) {
+                 return caf::make_error(xstudio_error::error, e.what());
+             }
+             return true;
+         },
 
          [=](attribute_uuids_atom) -> std::vector<xstudio::utility::Uuid> {
              std::vector<xstudio::utility::Uuid> rt;
@@ -694,40 +689,18 @@ caf::message_handler Module::message_handler() {
              return rt;
          },
 
-         [=](request_full_attributes_description_atom) -> utility::JsonStore {
-             utility::JsonStore r;
-             for (auto &attr : attributes_) {
-                 r[attr->get_role_data<std::string>(Attribute::Title)] = attr->as_json();
-             }
-             return r;
-         },
-
-         [=](request_full_attributes_description_atom,
-             const std::vector<std::string> &attr_group,
-             const utility::Uuid &requester_uuid) {
-             anon_send(
-                 module_events_group_,
-                 full_attributes_description_atom_v,
-                 full_module(attr_group),
-                 requester_uuid);
-         },
-
-         [=](request_menu_attributes_description_atom,
-             const std::string &root_menu_name,
-             const utility::Uuid &requester_uuid) {
-             anon_send(
-                 module_events_group_,
-                 full_attributes_description_atom_v,
-                 menu_attrs(root_menu_name),
-                 requester_uuid);
-         },
-
          [=](link_module_atom,
              caf::actor linkwith,
              bool all_attrs,
              bool both_ways,
              bool intial_push_sync) {
              link_to_module(linkwith, all_attrs, both_ways, intial_push_sync);
+         },
+
+         [=](link_module_atom, caf::actor linkwith, bool unlink) {
+             if (unlink) {
+                 unlink_module(linkwith);
+             }
          },
 
          [=](connect_to_ui_atom) { connect_to_ui(); },
@@ -743,7 +716,8 @@ caf::message_handler Module::message_handler() {
              const bool auto_repeat) { key_pressed(key, context, auto_repeat); },
 
          [=](ui::keypress_monitor::mouse_event_atom, const ui::PointerEvent &e) {
-             if (connected_viewports_.find(e.context()) != connected_viewports_.end() &&
+             if (connected_viewport_names_.find(e.context()) !=
+                     connected_viewport_names_.end() &&
                  !pointer_event(e)) {
                  // pointer event was not used
              }
@@ -819,7 +793,7 @@ caf::message_handler Module::message_handler() {
                  context);
 
              if (activated && connected_to_ui_ /*&&
-                 connected_viewports_.find(context) != connected_viewports_.end()*/)
+                 connected_viewport_names_.find(context) != connected_viewport_names_.end()*/)
                  hotkey_pressed(uuid, context);
              else if (!activated)
                  hotkey_released(uuid, context);
@@ -851,14 +825,14 @@ caf::message_handler Module::message_handler() {
              }
              attrs_waiting_to_update_prefs_.clear();
          },
-         [=](module::current_viewport_playhead_atom, const std::string &name, caf::actor_addr) ->bool {
-            return true;
-         },
+         [=](module::current_viewport_playhead_atom, const std::string &name, caf::actor_addr)
+             -> bool { return true; },
          [=](ui::viewport::connect_to_viewport_toolbar_atom,
              const std::string &viewport_name,
              const std::string &viewport_toolbar_name,
+             caf::actor viewport,
              bool connect) {
-             connect_to_viewport(viewport_name, viewport_toolbar_name, connect);
+             connect_to_viewport(viewport_name, viewport_toolbar_name, connect, viewport);
          },
          [=](utility::name_atom) -> std::string { return name(); },
          [=](utility::event_atom,
@@ -897,8 +871,10 @@ caf::message_handler Module::message_handler() {
              // For menu specific one we need to fiddle a bit to map the
              // role data.
              try {
+
+
                  int role_index;
-                 if (role == "is_checked" || "current_choice")
+                 if (role == "is_checked" || role == "current_choice")
                      role_index = Attribute::Value;
                  else if (role == "choices")
                      role_index = Attribute::Value;
@@ -908,6 +884,7 @@ caf::message_handler Module::message_handler() {
                  if (attr) {
                      attr->set_role_data(role_index, data);
                  }
+
              } catch (std::exception &e) {
                  spdlog::warn("{} {}", __PRETTY_FUNCTION__, e.what());
              }
@@ -1036,13 +1013,13 @@ caf::message_handler Module::message_handler() {
              }
          },
          [=](xstudio::ui::model_data::set_node_data_atom,
-            const std::string &menu_model_name,
-            const std::string &submenu,
-            const float submenu_position) {
-            set_submenu_position_in_parent(menu_model_name, submenu, submenu_position);
-        },
+             const std::string &menu_model_name,
+             const std::string &submenu,
+             const float submenu_position) {
+             set_submenu_position_in_parent(menu_model_name, submenu, submenu_position);
+         },
 
-        [=](reset_module_atom) { reset(); }});
+         [=](reset_module_atom) { reset(); }});
 
     return h.or_else(playhead::PlayheadGlobalEventsActor::default_event_handler());
 }
@@ -1056,15 +1033,7 @@ void Module::notify_change(
 
     Attribute *attr = get_attribute(attr_uuid);
 
-    if (module_events_group_) {
-        anon_send(
-            module_events_group_,
-            change_attribute_event_atom_v,
-            module_uuid_,
-            attr_uuid,
-            role,
-            value,
-            redraw_viewport);
+    if (attribute_events_group_) {
 
         anon_send(
             attribute_events_group_,
@@ -1096,30 +1065,24 @@ void Module::notify_change(
     }
 
     if (role == Attribute::PreferencePath) {
-        
-        // looks like the preference path is being set on the attribute. Note 
+
+        // looks like the preference path is being set on the attribute. Note
         // we might get here before ser_parent_actor_addr' has been called so
         // we don't have 'self()' which is why I use the ActorSystemSingleton
         // to get to the caf system to get a GlobalStoreHelper
         auto prefs = global_store::GlobalStoreHelper(
-            xstudio::utility::ActorSystemSingleton::actor_system_ref()
-            );
+            xstudio::utility::ActorSystemSingleton::actor_system_ref());
 
         std::string pref_path;
         try {
 
-            pref_path =  attr->get_role_data<std::string>(Attribute::PreferencePath);
+            pref_path = attr->get_role_data<std::string>(Attribute::PreferencePath);
             attr->set_role_data(
                 Attribute::Value,
                 prefs.get_existing_or_create_new_preference(
-                    pref_path,
-                    attr->role_data_as_json(Attribute::Value),
-                    true,
-                    false
-                    )
-                );
+                    pref_path, attr->role_data_as_json(Attribute::Value), true, false));
 
-        } catch (std::exception & e) {
+        } catch (std::exception &e) {
 
             spdlog::warn("{} : {} {}", name(), __PRETTY_FUNCTION__, e.what());
         }
@@ -1183,6 +1146,32 @@ void Module::attribute_changed(const utility::Uuid &attr_uuid, const int role_id
                 Attribute::role_name(Attribute::ToolbarPosition),
                 self());
         }
+    }
+
+    if (dock_widget_attributes_.find(attr_uuid) != dock_widget_attributes_.end() &&
+        role_id == module::Attribute::Activated) {
+
+        // this happens when the user has clicked on the button that shows/hides
+        // a dockable toolbar (e.g. annotation tools) OR when a toolbar goes
+        // offscreen
+        module::Attribute *attr = get_attribute(attr_uuid);
+        int activated           = 0;
+        std::string name;
+        try {
+            activated = attr->get_role_data<int>(module::Attribute::Activated);
+            name      = attr->get_role_data<std::string>(module::Attribute::Title);
+        } catch (...) {
+        }
+
+        if (activated == 1) {
+            viewport_dockable_widget_activated(name);
+        } else if (activated == 0) {
+            viewport_dockable_widget_deactivated(name);
+        }
+
+        // silently set the 'Activated' role data to -1 so the UI can set it
+        // to 0 or 1 (again) and we still get notification
+        attr->set_role_data(module::Attribute::Activated, -1, false);
     }
 
     // This is where the 'linking' mechanism is enacted. We send a change_attribute
@@ -1378,20 +1367,11 @@ void Module::listen_to_playhead_events(const bool listen) {
 void Module::connect_to_ui() {
 
     // if necessary, get the global module events actor and the associated events groups
-    if ((!global_module_events_actor_ || !keypress_monitor_actor_ ||
-         !keyboard_and_mouse_group_) &&
-        self()) {
+    if ((!keypress_monitor_actor_ || !keyboard_and_mouse_group_) && self()) {
 
         try {
 
-            global_module_events_actor_ =
-                self()->home_system().registry().template get<caf::actor>(
-                    module_events_registry);
-
             scoped_actor sys{self()->home_system()};
-
-            ui_attribute_events_group_ = utility::request_receive<caf::actor>(
-                *sys, global_module_events_actor_, module_ui_events_group_atom_v);
 
             keypress_monitor_actor_ =
                 self()->home_system().registry().template get<caf::actor>(keyboard_events);
@@ -1411,12 +1391,10 @@ void Module::connect_to_ui() {
         auto a = caf::actor_cast<caf::event_based_actor *>(self());
         if (a) {
             join_broadcast(a, keyboard_and_mouse_group_);
-            join_broadcast(a, ui_attribute_events_group_);
         } else {
             auto b = caf::actor_cast<caf::blocking_actor *>(self());
             if (b) {
                 join_broadcast(b, keyboard_and_mouse_group_);
-                join_broadcast(b, ui_attribute_events_group_);
             } else {
                 spdlog::warn(
                     "{} {}",
@@ -1436,10 +1414,6 @@ void Module::connect_to_ui() {
     }
 
     register_hotkeys();
-
-    anon_send(
-        global_module_events_actor_, join_module_attr_events_atom_v, module_events_group_);
-    anon_send(global_module_events_actor_, full_attributes_description_atom_v, full_module());
 
     // here we set-up a tree model that holds the state of attributes that we want
     // to make visible in the UI (Qt/QML) layer using QAbstractItemModel.
@@ -1476,12 +1450,11 @@ void Module::disconnect_from_ui() {
     if (!connected_to_ui_)
         return;
 
-    if (keyboard_and_mouse_group_ && ui_attribute_events_group_ && self()) {
+    if (keyboard_and_mouse_group_ && self()) {
         // got to be a better way of doing this?
         auto a = caf::actor_cast<caf::event_based_actor *>(self());
         if (a) {
             leave_broadcast(a, keyboard_and_mouse_group_);
-            leave_broadcast(a, ui_attribute_events_group_);
         } else {
             auto b = caf::actor_cast<caf::blocking_actor *>(self());
             if (b) {
@@ -1494,9 +1467,14 @@ void Module::disconnect_from_ui() {
             }
         }
 
-        // tell the UI middleman to remove our attributes from its data models
+        // Note: Ted, May 2024 - commenting out the below. If a module (like the
+        // playhead) is disconnected from the UI (because it's not being viewed
+        // in a viewport) we still want it's attributes to be live in the front
+        // end because things like a timeline that might not be in the viewport
+        // but active in the UI needs to know where the playhead is etc.
 
-        auto central_models_data_actor =
+        // tell the UI middleman to remove our attributes from its data models
+        /*auto central_models_data_actor =
             self()->home_system().registry().template get<caf::actor>(
                 global_ui_model_data_registry);
 
@@ -1513,26 +1491,10 @@ void Module::disconnect_from_ui() {
                         self());
                 }
             }
-        }
+        }*/
     }
 
-    if (global_module_events_actor_) {
-
-        // TODO: remoe this stuff when global_module_events_actor is fully retired after resking
-        // is complete
-        /*anon_send(
-            global_module_events_actor_, leave_module_attr_events_atom_v,
-           module_events_group_);*/
-        std::vector<utility::Uuid> attr_uuids;
-        for (const auto &p : attributes_) {
-            attr_uuids.push_back(p->uuid());
-        }
-        anon_send(global_module_events_actor_, remove_attrs_from_ui_atom_v, attr_uuids);
-    }
-
-    keyboard_and_mouse_group_   = caf::actor();
-    ui_attribute_events_group_  = caf::actor();
-    global_module_events_actor_ = caf::actor();
+    keyboard_and_mouse_group_ = caf::actor();
 
     if (connected_to_ui_) {
         connected_to_ui_ = false;
@@ -1580,31 +1542,64 @@ void Module::update_attrs_from_preferences(const utility::JsonStore &entire_pref
             try {
 
                 auto pref_path  = attr->get_role_data<std::string>(Attribute::PreferencePath);
+
+                try {
+
+                    if (entire_prefs_dict.get(pref_path+"/value").is_null()) {
+
+                        // if get "/default_value" throws an exception, we silence
+                        // the warning as it means we have a preference that isn't
+                        // forward declared in the default prefs files, and that
+                        // is ok for module preferences as these can have a
+                        // preference path for saving their value without the
+                        // pref being declared in the .json pref files that
+                        // are part of the codebase
+                        std::ignore = entire_prefs_dict.get(pref_path+"/default_value");
+                    }
+
+                } catch (...) {
+                    continue;
+                }
+
                 auto pref_value = global_store::preference_value<nlohmann::json>(
                     entire_prefs_dict, pref_path);
-
                 attr->set_role_data(Attribute::Value, pref_value, true);
 
             } catch (std::exception &e) {
-                spdlog::warn("{} failed to set preference {}", __PRETTY_FUNCTION__, e.what());
+                spdlog::warn(
+                    "{} failed to set preference {} : attr - {}",
+                    __PRETTY_FUNCTION__,
+                    e.what(),
+                    attr->role_data_as_json(Attribute::PreferencePath).dump()
+                    );
             }
         } else if (attr->has_role_data(Attribute::InitOnlyPreferencePath)) {
 
             try {
-
                 auto pref_path =
                     attr->get_role_data<std::string>(Attribute::InitOnlyPreferencePath);
-                auto pref_value = global_store::preference_value<nlohmann::json>(
-                    entire_prefs_dict, pref_path);
 
-                attr->set_role_data(Attribute::Value, pref_value, false);
+                if (!entire_prefs_dict.get(pref_path+"/value").is_null() ||
+                        !entire_prefs_dict.get(pref_path+"/default_value").is_null()) {
 
-                // wipe the 'InitOnlyPreferencePath' data so we never update again
-                // when preferences are updated
-                attr->delete_role_data(Attribute::InitOnlyPreferencePath);
+                    auto pref_value = global_store::preference_value<nlohmann::json>(
+                        entire_prefs_dict, pref_path);
+
+                    attr->set_role_data(Attribute::Value, pref_value, false);
+
+                    // wipe the 'InitOnlyPreferencePath' data so we never update again
+                    // when preferences are updated
+                    attr->delete_role_data(Attribute::InitOnlyPreferencePath);
+                    
+                }
 
             } catch (std::exception &e) {
-                spdlog::warn("{} failed to set preference {}", __PRETTY_FUNCTION__, e.what());
+                spdlog::warn(
+                    "{} failed to set preference {} : attr2 - {}",
+                    __PRETTY_FUNCTION__,
+                    e.what(),
+                    attr->role_data_as_json(Attribute::PreferencePath).dump()
+                    );
             }
         }
     }
@@ -1928,7 +1923,6 @@ void Module::set_submenu_position_in_parent(
         menu_model_name,
         submenu,
         submenu_position);
-
 }
 
 void Module::make_attribute_visible_in_viewport_toolbar(
@@ -1946,7 +1940,7 @@ void Module::make_attribute_visible_in_viewport_toolbar(
 
         if (central_models_data_actor) {
 
-            for (const auto &viewport_name : connected_viewports_) {
+            for (const auto &viewport_name : connected_viewport_names_) {
 
                 std::string toolbar_name = viewport_name + "_toolbar";
                 attr->expose_in_ui_attrs_group(toolbar_name, true);
@@ -1976,7 +1970,7 @@ void Module::make_attribute_visible_in_viewport_toolbar(
                 global_ui_model_data_registry);
 
         if (central_models_data_actor) {
-            for (const auto &viewport_name : connected_viewports_) {
+            for (const auto &viewport_name : connected_viewport_names_) {
 
                 std::string toolbar_name = viewport_name + "_toolbar";
                 attr->expose_in_ui_attrs_group(toolbar_name, false);
@@ -1993,7 +1987,9 @@ void Module::make_attribute_visible_in_viewport_toolbar(
 }
 
 void Module::redraw_viewport() {
-    anon_send(module_events_group_, playhead::redraw_viewport_atom_v);
+    for (auto &vp : connected_viewports_) {
+        anon_send(vp, playhead::redraw_viewport_atom_v);
+    }
 }
 
 
@@ -2078,7 +2074,7 @@ Attribute *Module::add_attribute(
 void Module::expose_attribute_in_model_data(
     Attribute *attr, const std::string &model_name, const bool expose) {
 
-    attr->expose_in_ui_attrs_group(model_name, connect);
+    attr->expose_in_ui_attrs_group(model_name, expose);
     auto central_models_data_actor = self()->home_system().registry().template get<caf::actor>(
         global_ui_model_data_registry);
 
@@ -2107,12 +2103,24 @@ void Module::expose_attribute_in_model_data(
 }
 
 void Module::connect_to_viewport(
-    const std::string &viewport_name, const std::string &viewport_toolbar_name, bool connect) {
+    const std::string &viewport_name,
+    const std::string &viewport_toolbar_name,
+    bool connect,
+    caf::actor viewport) {
 
     if (connect) {
-        connected_viewports_.insert(viewport_name);
-    } else if (connected_viewports_.find(viewport_name) != connected_viewports_.end()) {
-        connected_viewports_.erase(connected_viewports_.find(viewport_name));
+        auto a = caf::actor_cast<caf::event_based_actor *>(self());
+        if (a)
+            a->monitor(viewport);
+        connected_viewport_names_.insert(viewport_name);
+        connected_viewports_.insert(viewport);
+    } else if (
+        connected_viewport_names_.find(viewport_name) != connected_viewport_names_.end()) {
+        auto a = caf::actor_cast<caf::event_based_actor *>(self());
+        if (a)
+            a->demonitor(viewport);
+        connected_viewport_names_.erase(connected_viewport_names_.find(viewport_name));
+        connected_viewports_.erase(connected_viewports_.find(viewport));
     }
 
     for (const auto &toolbar_attr_id : attrs_in_toolbar_) {
@@ -2123,7 +2131,10 @@ void Module::connect_to_viewport(
     }
 }
 
-void Module::add_attribute(Attribute *attr) { attributes_.emplace_back(attr); }
+void Module::add_attribute(Attribute *attr) {
+    attributes_.emplace_back(attr);
+    attr->set_owner(this);
+}
 
 utility::JsonStore Module::public_state_data() {
 
@@ -2187,6 +2198,27 @@ void Module::register_ui_panel_qml(const std::string &panel_name, const std::str
     } catch (std::exception &e) {
         spdlog::warn("{} {}", __PRETTY_FUNCTION__, e.what());
     }
+}
+
+Attribute *Module::register_viewport_dockable_widget(
+    const std::string &widget_name,
+    const std::string &button_icon_qrc_path,
+    const std::string &button_tooltip,
+    const float button_position,
+    const bool enabled,
+    const std::string &left_right_dockable_widget_qml,
+    const std::string &top_bottom_dockable_widget_qml) {
+
+    auto attr = new QmlCodeAttribute(widget_name, left_right_dockable_widget_qml);
+    attr->set_role_data(Attribute::IconPath, button_icon_qrc_path);
+    attr->set_role_data(Attribute::ToolbarPosition, button_position);
+    attr->set_role_data(Attribute::ToolTip, button_tooltip);
+    attr->set_role_data(Attribute::Activated, -1);
+    attr->set_role_data(Attribute::Enabled, enabled);
+    add_attribute(static_cast<Attribute *>(attr));
+    expose_attribute_in_model_data(attr, "dockable viewport toolboxes", true);
+    dock_widget_attributes_.insert(attr->uuid());
+    return attr;
 }
 
 void Module::register_singleton_qml(const std::string &qml_code) {

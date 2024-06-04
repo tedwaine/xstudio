@@ -19,8 +19,8 @@ Image {
     // leftPadding: 8
     // rightPadding: 8
 
-    // sourceSize.height: 24
-    // sourceSize.width: 24
+    sourceSize.height: height
+    sourceSize.width: width
 
     horizontalAlignment: Image.AlignHCenter
     verticalAlignment: Image.AlignVCenter

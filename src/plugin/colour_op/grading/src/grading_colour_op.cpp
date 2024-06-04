@@ -320,8 +320,7 @@ std::shared_ptr<ColourOperationData> GradingColourOperator::setup_shader_data(
     return colour_op_data;
 }
 
-plugin::GPUPreDrawHookPtr
-GradingColourOperator::make_pre_draw_gpu_hook(const int /*viewer_index*/) {
+plugin::GPUPreDrawHookPtr GradingColourOperator::make_pre_draw_gpu_hook() {
     return plugin::GPUPreDrawHookPtr(
         static_cast<plugin::GPUPreDrawHook *>(new GradingMaskRenderer()));
 }

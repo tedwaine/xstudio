@@ -6,7 +6,6 @@ import QtQuick.Window 2.2
 import QtQuick.Dialogs 1.0
 
 import xStudio 1.0
-import xstudio.qml.module 1.0
 
 Rectangle {
 

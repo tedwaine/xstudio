@@ -20,7 +20,7 @@ Rectangle{
 
     MouseArea { id: thumbMArea
         anchors.fill: parent
-        propagateComposedEvents: true
+        acceptedButtons: Qt.NoButton
         hoverEnabled: true
     }
 
@@ -64,7 +64,7 @@ Rectangle{
                 MouseArea { id: noThumbnailDisplayMArea
                     anchors.fill: parent
                     hoverEnabled: true
-                    propagateComposedEvents: true
+                    acceptedButtons: Qt.NoButton
                     enabled: thumbRole
 
                     XsToolTip{
@@ -121,7 +121,7 @@ Rectangle{
                 height: parent.valueDiv.height
                 anchors.right: parent.right
                 hoverEnabled: true
-                propagateComposedEvents: true
+                acceptedButtons: Qt.NoButton
             }
         }
 

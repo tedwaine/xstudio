@@ -12,7 +12,6 @@ Label{
     property var textElide: widget.elide
     property real textWidth: metrics.width
     property alias toolTip: toolTip
-    property alias tooltipText: toolTip.text
     property alias tooltipVisibility: toolTip.visible
     property real toolTipWidth: widget.width+5 //150
     property bool shadow: false
@@ -21,6 +20,7 @@ Label{
     color: textColorNormal
     elide: Text.ElideRight
     wrapMode: Text.WordWrap
+    opacity: enabled ? 1.0 : 0.5
 
     font.pixelSize: XsStyleSheet.fontSize
     font.family: XsStyleSheet.fontFamily
@@ -53,18 +53,19 @@ Label{
         text: widget.text
     }
 
-    // MouseArea{
-    //     id: mArea
-    //     anchors.fill: parent
-    //     hoverEnabled: true
-    //     propagateComposedEvents: true
-    // }
+    MouseArea{
+         id: mArea
+         anchors.fill: parent
+         hoverEnabled: true
+         propagateComposedEvents: true
+    }
+
+    property var tooltipText: ""
 
     XsToolTip{
         id: toolTip
-        text: widget.text
-        visible: false //mArea.containsMouse && parent.truncated
-        width: metrics.width == 0? 0 : toolTipWidth
-        x: 0 //#TODO: flex/pointer
+        text: tooltipText ? tooltipText : ""
+        visible: mArea.containsMouse && tooltipText
+        width: metrics.width
     }
 }

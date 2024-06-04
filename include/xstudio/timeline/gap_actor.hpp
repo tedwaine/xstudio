@@ -18,6 +18,10 @@ namespace timeline {
             const std::string &name                    = "Gap",
             const utility::FrameRateDuration &duration = utility::FrameRateDuration(),
             const utility::Uuid &uuid                  = utility::Uuid::generate());
+
+        GapActor(caf::actor_config &cfg, const Item &item);
+        GapActor(caf::actor_config &cfg, const Item &item, Item &nitem);
+
         ~GapActor() override = default;
 
         const char *name() const override { return NAME.c_str(); }

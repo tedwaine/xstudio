@@ -5,7 +5,6 @@ import QtQuick.Controls 2.12
 
 import xStudio 1.0
 
-import xstudio.qml.module 1.0
 import xstudio.qml.embedded_python 1.0
 
 XsMenu {

@@ -106,7 +106,7 @@ ImageBoundaryHUD::ImageBoundaryHUD(
     add_hud_settings_attribute(width_);
 }
 
-plugin::ViewportOverlayRendererPtr ImageBoundaryHUD::make_overlay_renderer(const int) {
+plugin::ViewportOverlayRendererPtr ImageBoundaryHUD::make_overlay_renderer() {
     return plugin::ViewportOverlayRendererPtr(new ImageBoundaryRenderer());
 }
 
@@ -146,7 +146,8 @@ plugin_manager::PluginFactoryCollection *plugin_factory_collection_ptr() {
             {std::make_shared<plugin_manager::PluginFactoryTemplate<ImageBoundaryHUD>>(
                 utility::Uuid("95268f7c-88d1-48da-8543-c5275ef5b2c5"),
                 "ImageBoundaryHUD",
-                plugin_manager::PluginFlags::PF_HEAD_UP_DISPLAY | plugin_manager::PluginFlags::PF_VIEWPORT_OVERLAY,
+                plugin_manager::PluginFlags::PF_HEAD_UP_DISPLAY |
+                    plugin_manager::PluginFlags::PF_VIEWPORT_OVERLAY,
                 true,
                 "Clement Jovet",
                 "Viewport HUD Plugin")}));

@@ -14,22 +14,28 @@ import xstudio.qml.models 1.0
 import xstudio.qml.viewport 1.0
 
 import "./widgets"
+import "./functions"
 
 XsListView {
 
     id: mediaList
     model: mediaListModelData
 
-    property var columns_model: null
+    property var columns_model_index: null
+    property var dragTargetIndex
 
     property real itemRowHeight: 0
     property real itemRowWidth: 0
+
     cacheBuffer: 80
+    boundsBehavior: Flickable.StopAtBounds
 
     XsMediaListModelData {
         id: mediaListModelData
         delegate: chooser
     }
+
+    property alias mediaListModelData: mediaListModelData
 
     PropertyAnimation{
         id: autoScrollAnimator
@@ -73,14 +79,11 @@ XsListView {
 
             roleValue: "Media";
 
-            XsMediaSourceSelector {
-
+            XsMediaItemDelegate {
                 width: itemRowWidth
-                height: itemRowHeight
-                media_index_in_playlist: index
-                media_item_model_index: theSessionData.index(index, 0, mediaListModelData.rootIndex)
-                columns_model: mediaList.columns_model
+                property var media_item_model_index: theSessionData.index(index, 0, mediaListModelData.rootIndex)
             }
+
         }
     }
 
@@ -91,75 +94,21 @@ XsListView {
         focus: true
     }
 
-    MouseArea {
+    XsMediaListMouseArea {
         id: mouseArea
         anchors.fill: parent
-        propagateComposedEvents: true
-        acceptedButtons: Qt.LeftButton | Qt.RightButton
-        hoverEnabled: true
-        property bool singleSelect: false
-        onPressed: {
-            if (mouse.button == Qt.RightButton) {
-                showMenu(mouse.x, mouse.y)
-            } else if (underMouseItem) {
-                singleSelect = false
-                if (mouse.modifiers == Qt.ControlModifier) {
-
-                    underMouseItem.content.toggleSelection()
-
-                } else if (mouse.modifiers == Qt.ShiftModifier) {
-
-                    underMouseItem.content.inclusiveSelect()
-
-                } else {
-
-                    // behaviour should be similar to file browsers, for example.
-                    // If you have multi-selection when you click on something that
-                    // is already selected the selection does not change. When
-                    // the mouse is released only the thing clicked on remains
-                    // selected
-                    if (underMouseItem.content.isSelected) {
-                        singleSelect = true
-                    } else {
-                        underMouseItem.content.exclusiveSelect()
-                    }
-
-                }
-            }
-        }
-
-        onReleased: {
-
-            if (singleSelect) {
-                underMouseItem.content.exclusiveSelect()
-            }
-
-        }
-
-        onDoubleClicked: {
-            if (underMouseItem) {
-                underMouseItem.content.exclusiveSelect()
-                // this sets the *viewed* playlist to match the playlist that this
-                // media item belongs to so that this media item is shown in the
-                // viewport
-                viewedMediaSetIndex = mediaListModelData.rootIndex.parent
-            }
-        }
-
-        property var underMouseItem
-        onMouseYChanged: {
-            var newUnderMouseItem = mediaList.itemAt(mouseArea.mouseX, mouseArea.mouseY + contentY)
-            if (newUnderMouseItem != underMouseItem) {
-                if (underMouseItem) underMouseItem.content.hovered = false
-                underMouseItem = newUnderMouseItem
-                if (underMouseItem) underMouseItem.content.hovered = true
-            }
-        }
-        onContainsMouseChanged: {
-            if (containsMouse) hotkey_area.forceActiveFocus()
-        }
-
     }
+
+    XsMediaListFunctions {
+        id: functions
+    }
+
+    property var selectAll: functions.selectAll
+    property var deselectAll: functions.deselectAll
+    property var mediaIndexAfterRemoved: functions.mediaIndexAfterRemoved
+    property var deleteSelected: functions.deleteSelected
+    property var selectUp: functions.selectUp
+    property var selectDown: functions.selectDown
 
     Loader {
         id: menu_loader
@@ -179,7 +128,7 @@ XsListView {
         if (menu_loader.item == undefined) {
             menu_loader.sourceComponent = menuComponent
         }
-        showPopupMenu(
+        repositionPopupMenu(
             menu_loader.item,
             mediaList,
             mx,
@@ -198,7 +147,7 @@ XsListView {
         description: "Selects all the media in the playlist/subset"
         context: "" + mediaList
         onActivated: {
-            selectAll()
+            functions.selectAll()
         }
     }
 
@@ -209,7 +158,7 @@ XsListView {
         description: "De-selects all the media in the playlist/subset"
         context: "" + mediaList
         onActivated: {
-            deselectAll()
+            functions.deselectAll()
         }
     }
 
@@ -220,77 +169,157 @@ XsListView {
         description: "Removes selected media from media list"
         context: "" + mediaList
         onActivated: {
-            deleteSelected()
+            functions.deleteSelected()
         }
+    }
+
+    XsHotkey {
+        sequence: "Shift+Up"
+        name: "Add to selected media (upwards)"
+        description: "Adds the media item immediately above the first selected media item."
+        context: "" + mediaList
+        onActivated: functions.selectUp()
+    }
+
+    XsHotkey {
+        sequence: "Shift+Down"
+        name: "Add to selected media (downwards)"
+        description: "Adds the media item immediately below the last selected media item."
+        context: "" + mediaList
+        onActivated: functions.selectDown()
     }
 
     property alias select_all_hotkey: select_all_hotkey
     property alias deselect_all_hotkey: deselect_all_hotkey
 
-    function selectAll() {
-        var media_idx = theSessionData.index(0,0,selectedMediaSetIndex)
-        var rc = theSessionData.rowCount(media_idx)
-        var selection = []
-        for (var i = 0; i < rc; ++i) {
-            selection.push(theSessionData.index(i,0,media_idx))
-        }
-       mediaSelectionModel.select(
-            helpers.createItemSelection(selection),
-            ItemSelectionModel.ClearAndSelect
-        )
-    }
 
-    function deselectAll() {
-        mediaSelectionModel.clear()
-    }
+    XsDragDropHandler {
 
-    function mediaIndexAfterRemoved(indexes) {
-
-        let select_row = -1;
-        let to_remove = []
-        let parent = indexes[0].parent;
-
-        for(let i =0; i<indexes.length; ++i)
-            to_remove.push(indexes[i].row)
-
-        to_remove = to_remove.sort(function(a,b){return a-b})
-
-        while(select_row == -1 && to_remove.length) {
-            select_row = to_remove[0] - 1
-            to_remove.shift()
+        id: drag_drop_handler
+        dragSourceName: "MediaList"
+        dragData: mediaSelectionModel.selectedIndexes
+    
+        onDragged: {
+            computeTargetDropIndex(mousePosition.y)
+            autoScroll(mousePosition.y)
         }
 
-        return parent.model.index(select_row, 0, parent)
+        onDropped: {
+            
+            if (!dragTargetIndex) return
+
+            if (dragSourceName == "MediaList") {
+                // selection being dropped from a media list. 'data' should be
+                // a list of model indeces
+
+                // are these indeces from the same list as our list here?
+                if (data.length && data[0].parent == mediaListModelData.rootIndex) {
+                    // do a move rows
+                    theSessionData.moveRows(
+                        data,
+                        dragTargetIndex.row,
+                        dragTargetIndex.parent.parent
+                        )
+                    dragTargetIndex = undefined
+                }
+            }
+        }
+    
     }
 
-    function deleteSelected() {
+    property alias drag_drop_handler: drag_drop_handler
 
-        dialogHelpers.multiChoiceDialog(
-            deleteSelectedCallback,
-            "Delete Media",
-            "Remove the selected meda?",
-            ["Yes", "No"],
-            undefined)
+    function isInSelection(idx) {
+        return mediaList.itemAtIndex(idx).isSelected
+    }
+
+    function computeTargetDropIndex(dropCoordY) {
+
+        if (dropCoordY < 0 || dropCoordY > height) {
+            dragTargetIndex = undefined
+            return
+        }
+
+        var idx = mediaList.indexAt(10, dropCoordY + contentY)
+        if (idx != -1) {
+            var y = mediaList.mapToItem(mediaList.itemAtIndex(idx), 10, dropCoordY).y
+            if (y > itemRowHeight/2 && idx < (mediaList.count-1)) {
+                idx = idx+1
+            }
+
+            // the index that we are going to drop items into cannot
+            // be one of the selected items. Find the nearest unselected
+            // index
+            if (isInSelection(idx)) {
+                var lidx = idx
+                while (isInSelection(lidx)) {
+                    lidx = lidx-1
+                    if (!lidx) break
+                }
+                var hidx = idx
+                while (isInSelection(hidx)) {
+                    if (hidx = (mediaList.count-1)) break
+                    hidx = hidx+1
+                }
+
+                if ((idx-lidx) < (hidx-idx)) {
+                    idx = lidx
+                } else {
+                    idx = hidx
+                }
+
+            }
+            dragTargetIndex = mediaList.itemAtIndex(idx).media_item_model_index
+        } else {
+            dragTargetIndex = undefined
+        }
 
     }
 
-    function deleteSelectedCallback(response) {
+    property var autoScrollVelocity: 200
+    function autoScroll(mouseY) {
+        if ((height-mouseY) < 0 || mouseY < 0) {
+            scrollUp.cancel()
+            scrollDown.cancel()
+        } else if ((height-mouseY) < 60) {
+            scrollUp.cancel()
+            scrollDown.run()
+        } else if (mouseY < 60) {
+            scrollDown.cancel()
+            scrollUp.run()
+        } else if (scrollUp.running) {
+            scrollUp.cancel()
+        } else if (scrollDown.running) {
+            scrollDown.cancel()
+        }
+    }
 
-        if (response != "Yes") return;
+    SmoothedAnimation { 
+        id: scrollDown
+        target: mediaList;
+        properties: "contentY"; 
+        velocity: autoScrollVelocity 
+        to: mediaList.count*itemRowHeight - mediaList.height + originY
+        function cancel() {
+            if (running) stop()
+        }
+        function run() {
+            if (!running && mediaList.contentY < (mediaList.count*itemRowHeight - mediaList.height + originY)) start()
+        }
+    }
 
-        let items = []
-        var l = mediaSelectionModel.selectedIndexes;
-        for(let i=0;i<l.length;++i)
-            items[i] = l[i]
-        items = items.sort((a,b) => b.row - a.row )
-
-        var onscreen_idx = mediaIndexAfterRemoved(items)
-        mediaSelectionModel.setCurrentIndex(onscreen_idx, ItemSelectionModel.setCurrentIndex)
-        mediaSelectionModel.select(onscreen_idx, ItemSelectionModel.ClearAndSelect | ItemSelectionModel.setCurrentIndex)
-
-        items.forEach(function (item, index) {
-            item.model.removeRows(item.row, 1, false, item.parent)
-        })
+    SmoothedAnimation { 
+        id: scrollUp
+        target: mediaList;
+        properties: "contentY"; 
+        velocity: autoScrollVelocity 
+        to: originY
+        function cancel() {
+            if (running) stop()
+        }
+        function run() {
+            if (!running && mediaList.contentY > originY) start()
+        }
     }
 
 }

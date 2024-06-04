@@ -22,44 +22,12 @@ Item {
     property real btnWidth: XsStyleSheet.primaryButtonStdWidth
     property real btnHeight: XsStyleSheet.widgetStdHeight+(2*2)
 
-    /*************************************************************************
-
-        Access Playhead data
-
-    **************************************************************************/
-    XsAttributeValue {
-        id: __playheadPlaying
-        attributeTitle: "playing"
-        model: viewportPlayheadDataModel
-    }
-    XsAttributeValue {
-        id: __playheadForward
-        attributeTitle: "forward"
-        model: viewportPlayheadDataModel
-    }
-    XsAttributeValue {
-        id: __playheadFFWD
-        attributeTitle: "Velocity Multiplier"
-        model: viewportPlayheadDataModel
-    }
-    XsAttributeValue {
-        id: __playheadLoopMode
-        attributeTitle: "Loop Mode"
-        model: viewportPlayheadDataModel
-    }
-
-    property alias playheadPlaying: __playheadPlaying.value
-    property alias fastForward: __playheadFFWD.value
-    property alias playingForwards: __playheadForward.value
-    property alias playheadLoopMode: __playheadLoopMode.value
-    /*************************************************************************/
-
     function skipToNext(forwards) {
 
         // jumpToNext will return false if there is only one source selected
-        if (forwards && view.playhead.jumpToNextSource()) {
+        if (forwards && viewportPlayhead.jumpToNextSource()) {
             return;
-        } else if (view.playhead.jumpToPreviousSource()) {
+        } else if (viewportPlayhead.jumpToPreviousSource()) {
             return;
         }
 
@@ -74,21 +42,21 @@ Item {
     }
 
     function fastPlayback(rewind) {
-        if (!rewind && !playingForwards) {
+        if (!rewind && !viewportPlayhead.playginForwards) {
             // playing backwards but fast forward was hit ... play forwards
             // at normal speed
-            playingForwards = true
-            fastForward = 1.0
-        } else if (rewind && playingForwards) {
+            viewportPlayhead.playginForwards = true
+            viewportPlayhead.velocityMultiplier = 1.0
+        } else if (rewind && viewportPlayhead.playginForwards) {
             // playing forwards but fast rewind was hit ... play backwards
             // at normal speed
-            playingForwards = false
-            fastForward = 1.0
+            viewportPlayhead.playginForwards = false
+            viewportPlayhead.velocityMultiplier = 1.0
         } else {
-            if (fastForward == 16.0) {
-                fastForward = 1.0
+            if (viewportPlayhead.velocityMultiplier == 16.0) {
+                viewportPlayhead.velocityMultiplier = 1.0
             } else {
-                fastForward = fastForward*2.0;
+                viewportPlayhead.velocityMultiplier = viewportPlayhead.velocityMultiplier*2.0;
             }
         }
     }
@@ -102,26 +70,26 @@ Item {
 
         RowLayout{
             spacing: 1
-            Layout.preferredWidth: btnWidth*5
+            Layout.preferredWidth: btnWidth*3
             Layout.maximumHeight: parent.height
 
-            XsPrimaryButton{ 
-                id: rewindButton
-                Layout.preferredWidth: btnWidth
-                Layout.preferredHeight: parent.height
-                imgSrc: "qrc:/icons/fast_rewind.svg"
-                onClicked: fastPlayback(true)
-                isActive: !playingForwards && fastForward > 1
-                XsLabel {
-                    anchors.right: parent.right
-                    anchors.bottom: parent.bottom
-                    anchors.margins: 3
-                    color: palette.highlight
-                    text: fastForward > 1 ? "x" + fastForward : ""
-                    shadow: true
-                    visible: rewindButton.isActive
-                }
-            }
+            // XsPrimaryButton{ 
+            //     id: rewindButton
+            //     Layout.preferredWidth: btnWidth
+            //     Layout.preferredHeight: parent.height
+            //     imgSrc: "qrc:/icons/fast_rewind.svg"
+            //     onClicked: fastPlayback(true)
+            //     isActive: !viewportPlayhead.playginForwards && viewportPlayhead.velocityMultiplier > 1
+            //     XsLabel {
+            //         anchors.right: parent.right
+            //         anchors.bottom: parent.bottom
+            //         anchors.margins: 3
+            //         color: palette.highlight
+            //         text: viewportPlayhead.velocityMultiplier > 1 ? "x" + viewportPlayhead.velocityMultiplier : ""
+            //         shadow: true
+            //         visible: rewindButton.isActive
+            //     }
+            // }
             XsPrimaryButton{ id: previousButton
                 Layout.preferredWidth: btnWidth
                 Layout.preferredHeight: parent.height
@@ -131,8 +99,8 @@ Item {
             XsPrimaryButton{ id: playButton
                 Layout.preferredWidth: btnWidth
                 Layout.preferredHeight: parent.height
-                imgSrc: playheadPlaying ? "qrc:/icons/pause.svg" : "qrc:/icons/play_arrow.svg"
-                onClicked: playheadPlaying = !playheadPlaying
+                imgSrc: viewportPlayhead.playing ? "qrc:/icons/pause.svg" : "qrc:/icons/play_arrow.svg"
+                onClicked: viewportPlayhead.playing = !viewportPlayhead.playing
             }
             XsPrimaryButton{ id: nextButton
                 Layout.preferredWidth: btnWidth
@@ -140,23 +108,22 @@ Item {
                 imgSrc: "qrc:/icons/skip_next.svg"
                 onPressed: skipToNext(true)
             }
-            XsPrimaryButton{ id: forwardButton
-                Layout.preferredWidth: btnWidth
-                Layout.preferredHeight: parent.height
-                imgSrc: "qrc:/icons/fast_forward.svg"
-                onClicked: fastPlayback(false)
-                isActive: (playingForwards == true && fastForward > 1.0)
-                XsLabel {
-                    anchors.right: parent.right
-                    anchors.bottom: parent.bottom
-                    anchors.margins: 3
-                    color: palette.highlight
-                    text: fastForward > 1 ? "x" + fastForward : ""
-                    shadow: true
-                    visible: forwardButton.isActive
-                }
-
-            }
+            // XsPrimaryButton{ id: forwardButton
+            //     Layout.preferredWidth: btnWidth
+            //     Layout.preferredHeight: parent.height
+            //     imgSrc: "qrc:/icons/fast_forward.svg"
+            //     onClicked: fastPlayback(false)
+            //     isActive: (viewportPlayhead.playginForwards == true && viewportPlayhead.velocityMultiplier > 1.0)
+            //     XsLabel {
+            //         anchors.right: parent.right
+            //         anchors.bottom: parent.bottom
+            //         anchors.margins: 3
+            //         color: palette.highlight
+            //         text: viewportPlayhead.velocityMultiplier > 1 ? "x" + viewportPlayhead.velocityMultiplier : ""
+            //         shadow: true
+            //         visible: forwardButton.isActive
+            //     }
+            // }
         }
 
         XsCurrentFrameIndicator {
@@ -168,15 +135,14 @@ Item {
             color: "black"
             Layout.fillWidth: true
             Layout.preferredHeight: parent.height
+
             XsViewerTimeline {
                 anchors.fill: parent
                 anchors.leftMargin: 4
                 anchors.rightMargin: 4
                 anchors.topMargin: 2
                 anchors.bottomMargin: 2
-
             }
-
         }
         
 
@@ -201,9 +167,9 @@ Item {
                 id: loopModeButton
                 Layout.preferredWidth: btnWidth
                 Layout.preferredHeight: parent.height
-                imgSrc: playheadLoopMode == "Loop" ? "qrc:/icons/repeat.svg" : playheadLoopMode == "Play Once" ? "qrc:/icons/keyboard_tab.svg" : "qrc:/icons/arrow_range.svg"
+                imgSrc: viewportPlayhead.loopMode == "Loop" ? "qrc:/icons/repeat.svg" : viewportPlayhead.loopMode == "Play Once" ? "qrc:/icons/keyboard_tab.svg" : "qrc:/icons/arrow_range.svg"
                 isActive: loopModeBtnMenu.visible
-                enabled: playheadLoopMode != undefined
+                enabled: viewportPlayhead.loopMode != undefined
 
                 onClicked: {
                     loopModeBtnMenu.x = x-width//*2
@@ -232,16 +198,16 @@ Item {
                     menuItemType: "radiogroup"
                     menuItemPosition: 1
                     choices: ["Play Once", "Loop", "Ping Pong"]
-                    currentChoice: playheadLoopMode ? playheadLoopMode : "Loop"
-                    property var lm: playheadLoopMode
+                    currentChoice: viewportPlayhead.loopMode ? viewportPlayhead.loopMode : "Loop"
+                    property var lm: viewportPlayhead.loopMode
                     onLmChanged: {
-                        if (playheadLoopMode != currentChoice && playheadLoopMode != undefined) {
-                            currentChoice = playheadLoopMode
+                        if (viewportPlayhead.loopMode != currentChoice && viewportPlayhead.loopMode != undefined) {
+                            currentChoice = viewportPlayhead.loopMode
                         }                        
                     }
                     onCurrentChoiceChanged: {
-                        if (playheadLoopMode != currentChoice) {
-                            playheadLoopMode = currentChoice
+                        if (viewportPlayhead.loopMode != currentChoice) {
+                            viewportPlayhead.loopMode = currentChoice
                         }
                     }
                     menuModelName: "LoopModeMenu-"+panelIdForMenu
@@ -256,17 +222,6 @@ Item {
                 imgSrc: "qrc:/icons/photo_camera.svg"
                 onClicked: {                    
                     view.doSnapshot()
-                }
-            }
-            XsPrimaryButton{ 
-                visible: !isPopoutViewer
-                id: popoutButton
-                Layout.preferredWidth: btnWidth
-                Layout.preferredHeight: parent.height
-                imgSrc: "qrc:/icons/open_in_new.svg"
-                isActive: appWindow.popoutIsOpen
-                onClicked: {
-                    appWindow.toggle_popout_viewer()
                 }
             }
 

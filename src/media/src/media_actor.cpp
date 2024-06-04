@@ -2,9 +2,11 @@
 #include <caf/policy/select_all.hpp>
 #include <chrono>
 #include <tuple>
+#include <regex>
 
 #include "xstudio/atoms.hpp"
 #include "xstudio/broadcast/broadcast_actor.hpp"
+#include "xstudio/global_store/global_store.hpp"
 #include "xstudio/json_store/json_store_actor.hpp"
 #include "xstudio/media/media_actor.hpp"
 #include "xstudio/playhead/sub_playhead.hpp"
@@ -64,7 +66,9 @@ void MediaActor::deserialise(const JsonStore &jsn) {
 MediaActor::MediaActor(caf::actor_config &cfg, const JsonStore &jsn, const bool async)
     : caf::event_based_actor(cfg), base_(JsonStore(jsn.at("base"))) {
 
+
     init();
+
 
     if (async)
         anon_send(this, module::deserialise_atom_v, jsn);
@@ -115,7 +119,9 @@ caf::message_handler MediaActor::default_event_handler() {
             const std::tuple<std::string, std::string> &) {},
         [=](utility::event_atom, add_media_source_atom, const utility::UuidActorVector &) {},
         [=](utility::event_atom, media_status_atom, const MediaStatus ms) {},
-        [=](utility::event_atom, bookmark::bookmark_change_atom, const utility::Uuid &) {}};
+        [=](utility::event_atom, media_status_atom, const MediaStatus ms) {},
+        [=](utility::event_atom, media::media_display_info_atom, const utility::JsonStore &) {
+        }};
 }
 
 void MediaActor::init() {
@@ -125,6 +131,11 @@ void MediaActor::init() {
 
     print_on_create(this, base_);
     print_on_exit(this, base_);
+
+    // get updates from the GlobalMetadataManager instance that manages the
+    // filters used to get metadata from the MediaActors to the UI layer.
+    auto metadata_filter_actor = home_system().registry().template get<caf::actor>(
+        global_media_metadata_manager_registry);
 
     behavior_.assign(
         base_.make_set_name_handler(event_group_, this),
@@ -143,6 +154,19 @@ void MediaActor::init() {
         // },
 
         [=](module::deserialise_atom, const utility::JsonStore &jsn) { deserialise(jsn); },
+
+        [=](utility::event_atom,
+            media::media_display_info_atom,
+            const utility::JsonStore &metadata_filter_sets) {
+            metadata_filter_sets_ = utility::json_to_tree(metadata_filter_sets, "children");
+            num_metadata_filter_results_ = 0;
+            for (const auto &i : metadata_filter_sets_) {
+                for (const auto &j : i) {
+                    num_metadata_filter_results_++;
+                }
+            }
+            anon_send(this, media_display_info_atom_v);
+        },
 
         [=](utility::event_atom,
             bookmark::bookmark_change_atom,
@@ -278,31 +302,43 @@ void MediaActor::init() {
         },
 
         [=](add_media_source_atom, const UuidActor &source_media) -> result<Uuid> {
+
+            auto rp = make_response_promise<Uuid>();
+
             if (source_media.uuid().is_null() or not source_media.actor()) {
                 spdlog::warn(
                     "{} Invalid source {} {}",
                     __PRETTY_FUNCTION__,
                     to_string(source_media.uuid()),
                     to_string(source_media.actor()));
-                return make_error(xstudio_error::error, "Invalid MediaSource");
+                rp.deliver(make_error(xstudio_error::error, "Invalid MediaSource"));
+                return rp;
             }
 
             media_sources_[source_media.uuid()] = source_media.actor();
             link_to(source_media.actor());
             join_event_group(this, source_media.actor());
             base_.add_media_source(source_media.uuid());
-            auto_set_current_source(media::MT_IMAGE);
-            auto_set_current_source(media::MT_AUDIO);
-            base_.send_changed(event_group_, this);
-            send(source_media.actor(), utility::parent_atom_v, UuidActor(base_.uuid(), this));
+            request(caf::actor_cast<caf::actor>(this), infinite, playhead::media_source_atom_v).then(
+                [=](bool) mutable {
 
-            send(
-                event_group_,
-                utility::event_atom_v,
-                add_media_source_atom_v,
-                UuidActorVector({source_media}));
+                    base_.send_changed(event_group_, this);
+                    send(source_media.actor(), utility::parent_atom_v, UuidActor(base_.uuid(), this));
 
-            return source_media.uuid();
+                    send(
+                        event_group_,
+                        utility::event_atom_v,
+                        add_media_source_atom_v,
+                        UuidActorVector({source_media}));
+
+                    rp.deliver(source_media.uuid());
+
+                },
+                [=](caf::error & err) mutable {
+                    rp.deliver(err);
+                });
+            
+            return rp;
         },
 
         [=](add_media_source_atom atom, caf::actor source_media) -> result<Uuid> {
@@ -318,6 +354,9 @@ void MediaActor::init() {
         },
 
         [=](add_media_source_atom, const UuidActorVector &sources) -> result<bool> {
+
+            auto rp = make_response_promise<bool>();
+
             UuidActorVector good_sources;
 
             for (const auto &source_media : sources) {
@@ -333,19 +372,34 @@ void MediaActor::init() {
                     link_to(source_media.actor());
                     join_event_group(this, source_media.actor());
                     base_.add_media_source(source_media.uuid());
-                    auto_set_current_source(media::MT_IMAGE);
-                    auto_set_current_source(media::MT_AUDIO);
                     send(
                         source_media.actor(),
                         utility::parent_atom_v,
                         UuidActor(base_.uuid(), this));
+                    send(
+                        event_group_,
+                        utility::event_atom_v,
+                        add_media_source_atom_v,
+                        UuidActorVector({source_media}));
                 }
             }
 
             base_.send_changed(event_group_, this);
             send(event_group_, utility::event_atom_v, add_media_source_atom_v, good_sources);
 
-            return true;
+            // select a current media source if necessary
+            request(caf::actor_cast<caf::actor>(this), infinite, playhead::media_source_atom_v).then(
+                [=](bool) mutable {
+
+                    base_.send_changed(event_group_, this);
+                    rp.deliver(true);
+
+                },
+                [=](caf::error & err) mutable {
+                    rp.deliver(err);
+                });
+
+            return rp;
         },
 
         [=](add_media_source_atom,
@@ -509,6 +563,7 @@ void MediaActor::init() {
             // do we need to specify which media type is changing ?
             if (result) {
                 base_.send_changed(event_group_, this);
+                anon_send(this, media_display_info_atom_v);
                 send(
                     event_group_,
                     utility::event_atom_v,
@@ -522,7 +577,32 @@ void MediaActor::init() {
             return result;
         },
 
-        [=](utility::event_atom, media_reader::get_thumbnail_atom, thumbnail::ThumbnailBufferPtr buf) {
+        [=](utility::event_atom,
+            media_reader::get_thumbnail_atom,
+            thumbnail::ThumbnailBufferPtr buf) {},
+
+        [=](media_reader::get_thumbnail_atom,
+            float position) -> result<thumbnail::ThumbnailBufferPtr> {
+            if (base_.empty() or not media_sources_.count(base_.current(MT_IMAGE)))
+                return make_error(xstudio_error::error, "No MediaSources");
+
+            auto rp = make_response_promise<thumbnail::ThumbnailBufferPtr>();
+            request(
+                media_sources_.at(base_.current(media::MT_IMAGE)),
+                infinite,
+                media_reader::get_thumbnail_atom_v,
+                position)
+                .then(
+                    [=](thumbnail::ThumbnailBufferPtr &buf) mutable {
+                        rp.deliver(buf);
+                        send(
+                            event_group_,
+                            utility::event_atom_v,
+                            media_reader::get_thumbnail_atom_v,
+                            buf);
+                    },
+                    [=](error &err) mutable { rp.deliver(err); });
+            return rp;
         },
 
         [=](media_reader::get_thumbnail_atom,
@@ -556,6 +636,7 @@ void MediaActor::init() {
             // might need this when adding initial media source ?
             // do we need to specify which media type is changing ?
             if (result) {
+                anon_send(this, media_display_info_atom_v);
                 base_.send_changed(event_group_, this);
                 send(
                     event_group_,
@@ -1243,6 +1324,40 @@ void MediaActor::init() {
             return rp;
         },
 
+        [=](playhead::media_source_atom) -> result<bool> {
+            // ensures media sources have had their details filled in and 
+            // we've set the media sources (image and audio) where possible
+            auto rp = make_response_promise<bool>();
+            request(caf::actor_cast<caf::actor>(this), infinite, playhead::media_source_atom_v, media::MT_IMAGE).then(
+                [=](bool) mutable {
+                    request(caf::actor_cast<caf::actor>(this), infinite, playhead::media_source_atom_v, media::MT_AUDIO).then(
+                        [=](bool) mutable {
+                            rp.deliver(true);
+                        },
+                        [=](caf::error & err) mutable {
+                            rp.deliver(err);
+                        });
+                },
+                [=](caf::error & err) mutable {
+                    rp.deliver(err);
+                });
+            return rp;
+
+        },
+
+        [=](playhead::media_source_atom,
+            const media::MediaType mt) -> result<bool> {
+            // ensures media sources have had their details filled in and 
+            // we've set the media sources (image OR audio) where possible
+            auto rp = make_response_promise<bool>();
+            if (base_.empty() or not media_sources_.count(base_.current(mt))) {
+                auto_set_current_source(mt, rp);
+            } else {
+                rp.deliver(true);
+            }
+            return rp;
+        },
+
         [=](playhead::media_source_atom,
             const std::string &source_name,
             const media::MediaType mt) -> result<bool> {
@@ -1345,6 +1460,9 @@ void MediaActor::init() {
             // spdlog::warn("{} {}", __PRETTY_FUNCTION__,
             // to_string(caf::actor_cast<caf::actor>(this)));
             pending_change_ = false;
+            // update any display info about this media item used in the
+            // front end
+            anon_send(this, media_display_info_atom_v);
             send(event_group_, utility::event_atom_v, utility::change_atom_v);
         },
 
@@ -1418,7 +1536,47 @@ void MediaActor::init() {
                         rp.deliver(std::move(err));
                     });
             return rp;
+        },
+
+
+        [=](json_store::update_atom,
+            const JsonStore & /*change*/,
+            const std::string & /*path*/,
+            const JsonStore & /*full*/) {
+            // here we watch for changes to preferences in the global store
+        },
+
+        [=](json_store::update_atom, const JsonStore & /*j*/) mutable {
+            // from global store
+        },
+
+        [=](media_display_info_atom,
+            const utility::JsonStore &item_query_info) -> result<utility::JsonStore> {
+            auto rp = make_response_promise<utility::JsonStore>();
+            display_info_item(item_query_info, rp);
+            return rp;
+        },
+        [=](human_readable_info_atom, bool update) -> result<utility::JsonStore> {
+            auto rp = make_response_promise<utility::JsonStore>();
+            update_human_readable_details(rp);
+            return rp;
+        },
+        [=](media_display_info_atom) -> result<utility::JsonStore> {
+            auto rp = make_response_promise<utility::JsonStore>();
+            request(
+                caf::actor_cast<caf::actor>(this), infinite, human_readable_info_atom_v, true)
+                .then(
+                    [=](const utility::JsonStore &human_readable) mutable {
+                        build_display_info(rp);
+                    },
+                    [=](caf::error &err) mutable { rp.deliver(err); });
+            return rp;
         });
+
+    // this message kicks the metadata filter actor to send us the dictionary
+    // for filtering our metadata
+    send(metadata_filter_actor, media::media_display_info_atom_v, true);
+    join_event_group(this, metadata_filter_actor);
 }
 
 void MediaActor::add_or_rename_media_source(
@@ -1578,10 +1736,12 @@ void MediaActor::switch_current_source_to_named_source(
     }
 }
 
-void MediaActor::auto_set_current_source(const media::MediaType media_type) {
+
+void MediaActor::auto_set_current_source(const media::MediaType media_type, caf::typed_response_promise<bool> rp) {
 
     auto set_current = [=](const media::MediaType mt, const utility::Uuid &uuid) mutable {
         if (base_.set_current(uuid, mt)) {
+            anon_send(this, media_display_info_atom_v);
             send(
                 event_group_,
                 utility::event_atom_v,
@@ -1589,6 +1749,9 @@ void MediaActor::auto_set_current_source(const media::MediaType media_type) {
                 UuidActor(
                     base_.current(media_type), media_sources_.at(base_.current(media_type))),
                 media_type);
+            if (rp.pending()) rp.deliver(true);
+        } else if (rp.pending()) {
+            rp.deliver(false);
         }
     };
 
@@ -1613,29 +1776,353 @@ void MediaActor::auto_set_current_source(const media::MediaType media_type) {
                     // source - the reason is that xSTUDIO always needs and image source to set
                     // frame rate and duration, even if it can't provide images.
                     set_current(media::MT_IMAGE, base_.media_sources().front());
+                } else if (rp.pending()) {
+                    rp.deliver(false);
                 }
+            } else {
+                rp.deliver(false);
             }
         };
 
     // TODO: do these requests asynchronously, as it could be heavy and slow
     // loading of big playlists etc
 
-    std::set<utility::Uuid> sources_matching_media_type;
-    caf::scoped_actor sys(system());
+
+    auto sources_matching_media_type = std::make_shared<std::set<utility::Uuid>>();
+    auto count                       = std::make_shared<int>(media_sources_.size());
+
+    // caf::scoped_actor sys(system());
 
     for (auto source_uuid : base_.media_sources()) {
-
         auto source_actor = media_sources_[source_uuid];
 
-        try {
-            auto stream_details = request_receive<std::vector<ContainerDetail>>(
-                *sys, source_actor, detail_atom_v, media_type);
+        request(source_actor, infinite, detail_atom_v, media_type)
+            .then(
+                [=](const std::vector<ContainerDetail> &stream_details) mutable {
+                    if (stream_details.size())
+                        sources_matching_media_type->insert(source_uuid);
 
-            if (stream_details.size())
-                sources_matching_media_type.insert(source_uuid);
-        } catch (...) {
-        }
+                    (*count)--;
+                    if (not *count)
+                        auto_set_sources_mt(*sources_matching_media_type);
+                },
+                [=](caf::error err) mutable {
+                    (*count)--;
+                    if (not *count)
+                        auto_set_sources_mt(*sources_matching_media_type);
+                });
+
+        // try {
+        //     auto stream_details = request_receive<std::vector<ContainerDetail>>(
+        //         *sys, source_actor, detail_atom_v, media_type);
+
+        //     if (stream_details.size())
+        //         sources_matching_media_type.insert(source_uuid);
+        // } catch (...) {
+        // }
     }
 
-    auto_set_sources_mt(sources_matching_media_type);
+    // auto_set_sources_mt(sources_matching_media_type);
+}
+
+void MediaActor::update_human_readable_details(
+    caf::typed_response_promise<utility::JsonStore> rp) {
+
+    // The goal with this function is make a simple dictionary with the most
+    // useful info about the media - filename, duration, frame rate, resolution
+    // etc. This is then used to (partly) make the 'display_info' data that
+    // is used to show info about the media in the xSTUDIO UI, or perhaps used
+    // in plguins via API
+
+    // we're making 4 async requests to other actors, so we need to store the
+    // result in a shared ptr captured by the lambda and deliver the response
+    // only when each request has returned a response
+    auto result         = std::make_shared<utility::JsonStore>();
+    auto response_count = std::make_shared<int>(0);
+
+    auto check_deliver = [=]() mutable {
+        (*response_count)++;
+        if (*response_count == 4) {
+            if (human_readable_info_ != *result) {
+                human_readable_info_ = *result;
+                // rebuild our display info data
+                anon_send(this, media_display_info_atom_v);
+            }
+            rp.deliver(human_readable_info_);
+        }
+    };
+
+    // get info about IMAGE stream
+    request(
+        caf::actor_cast<caf::actor>(this), infinite, get_stream_detail_atom_v, media::MT_IMAGE)
+        .then(
+            [=](const StreamDetail &image_stream_detail) mutable {
+                auto &r = *result;
+
+                r["Duration / seconds - MediaSource (Image)"] =
+                    image_stream_detail.duration_.seconds();
+                r["Duration / frames - MediaSource (Image)"] =
+                    image_stream_detail.duration_.frames();
+                r["Frame Rate - MediaSource (Image)"] =
+                    fmt::format("{:.2f}", image_stream_detail.duration_.rate().to_fps());
+                r["Name - MediaSource (Image)"]       = image_stream_detail.name_;
+                r["Resolution - MediaSource (Image)"] = fmt::format(
+                    "{}x{}:{}",
+                    image_stream_detail.resolution_.x,
+                    image_stream_detail.resolution_.y,
+                    image_stream_detail.pixel_aspect_);
+                r["Pixel Aspect - MediaSource (Image)"] = image_stream_detail.pixel_aspect_;
+                check_deliver();
+            },
+            [=](caf::error err) mutable { check_deliver(); });
+
+    // get info about AUDIO stream
+    request(
+        caf::actor_cast<caf::actor>(this), infinite, get_stream_detail_atom_v, media::MT_AUDIO)
+        .then(
+            [=](const StreamDetail &audio_stream_detail) mutable {
+                auto &r = *result;
+                r["Duration / seconds - MediaSource (Audio)"] =
+                    audio_stream_detail.duration_.seconds();
+                r["Name - MediaSource (Audio)"] = audio_stream_detail.name_;
+                check_deliver();
+            },
+            [=](caf::error err) mutable { check_deliver(); });
+
+    // get info about IMAGE source
+    if (media_sources_.count(base_.current(MT_IMAGE))) {
+        request(media_sources_[base_.current(MT_IMAGE)], infinite, media_reference_atom_v)
+            .then(
+                [=](const MediaReference &ref) mutable {
+                    auto &r = *result;
+
+                    // The uri for frame based formats is a bit ugly ... here replace the frame
+                    // expr with some hashes
+                    static std::regex re(R"(\.\{\:[0-9]+d\}\.)");
+                    r["File Path - MediaSource (Image)"] =
+                        std::regex_replace(uri_to_posix_path(ref.uri()), re, ".####.");
+                    r["Timecode - MediaSource (Image)"]    = ref.timecode().to_string();
+                    r["Frame Range - MediaSource (Image)"] = to_string(ref.frame_list());
+
+                    check_deliver();
+                },
+                [=](caf::error err) mutable { check_deliver(); });
+    } else {
+        check_deliver();
+    }
+
+    // get info about AUDIO source
+    if (media_sources_.count(base_.current(MT_AUDIO))) {
+        request(media_sources_[base_.current(MT_AUDIO)], infinite, media_reference_atom_v)
+            .then(
+                [=](const MediaReference &ref) mutable {
+                    auto &r                                = *result;
+                    r["File Path - MediaSource (Audio)"]   = uri_to_posix_path(ref.uri());
+                    r["Timecode - MediaSource (Audio)"]    = ref.timecode().to_string();
+                    r["Frame Range - MediaSource (Image)"] = to_string(ref.frame_list());
+                    check_deliver();
+                },
+                [=](caf::error err) mutable { check_deliver(); });
+    } else {
+        check_deliver();
+    }
+}
+
+void MediaActor::display_info_item(
+    const JsonStore item_query_info, caf::typed_response_promise<utility::JsonStore> rp) {
+
+    // fetch specific info about the media, current media source or current
+    // media stream (either a metadata value or a value from the
+    // human_readable_info_ json dict).
+    //
+    // item_query_info is json that is a segment of the
+    // /ui/qml/media_list_column_configuration preference and tells us whether to
+    // fetch a metadata value or on of our entries in the human_readable_info_
+    // dictionary
+    //
+    // We also allow the facility to to a regex replace on the resulting metadata
+    // value to format it in some way convenient for the media list.
+    //
+    // We can also define indefinite 'fallbacks' to try if our metadata fetch
+    // fails to match something in the metadata.
+    //
+    // In this example for "File" we show a particular shotgun metadata value,
+    // but if that isn't present the we fallback onto the media path, with a
+    // regex to show the filename only and not the full filesystem path.
+    /*{
+        "title": "File",
+        "metadata_path": "/metadata/shotgun/version/attributes/code",
+        "data_type": "metadata",
+        "size": 360,
+        "object": "Media",
+        "resizable": true,
+        "sortable": true,
+        "position": "left",
+        "fallback": {
+            "info_key": "File Path - MediaSource (Image)",
+            "data_type": "media_standard_details",
+            "regex_match": "(.+)\/([^\/]+)$",
+            "regex_format": "$2",
+            "fallback": {
+                "info_key": "File Path - MediaSource (Audio)",
+                "data_type": "media_standard_details",
+                "regex_match": "(.+)\/([^\/]+)$",
+                "regex_format": "$2"
+            }
+        }
+    }
+    */
+
+    // lambda to recurse into the 'fallback'
+    auto fallback = [=]() mutable {
+        if (item_query_info.contains("children") && item_query_info["children"].size() &&
+            item_query_info["children"].is_array()) {
+            display_info_item(item_query_info["children"][0], rp);
+        } else {
+            rp.deliver(JsonStore());
+        }
+    };
+
+    // lambda to apply optional regex replace formatting
+    auto do_regex_format = [=](const JsonStore &data) -> JsonStore {
+        if (item_query_info.contains("regex_match") &&
+            item_query_info.contains("regex_format")) {
+            try {
+                std::regex re(item_query_info.value("regex_match", ""));
+                auto fonk = JsonStore(std::regex_replace(
+                    data.is_string() ? data.get<std::string>() : data.dump(),
+                    re,
+                    item_query_info.value("regex_format", "")));
+                return fonk;
+            } catch (const std::regex_error &e) {
+                return JsonStore(e.what());
+            }
+        }
+        return data;
+    };
+
+    const std::string data_type = item_query_info.value("data_type", "");
+    if (data_type == "metadata") {
+
+        const std::string metadata_path = item_query_info.value("metadata_path", "");
+
+        // "object" should be Media, MediaSource or MediaStream to tell us
+        // which one we should do the metadata search on. For example, codec
+        // related metadata will be found on the MediaStream. File metadata
+        // might be found on the MediaSource. Pipeline metadata (version stream
+        // metadata) will be attached to Media.
+        const std::string object = item_query_info.value("object", "");
+
+        auto get_metadata_value = [=](caf::actor target) mutable {
+            request(target, infinite, json_store::get_json_atom_v, metadata_path)
+                .then(
+                    [=](const JsonStore &data) mutable { rp.deliver(do_regex_format(data)); },
+                    [=](caf::error &err) mutable { fallback(); });
+        };
+
+        if (object == "MediaSource (Image)" &&
+            media_sources_.count(base_.current(media::MT_IMAGE))) {
+            // ask for metadata from MediaSource
+            get_metadata_value(media_sources_.at(base_.current(media::MT_IMAGE)));
+        } else if (
+            object == "MediaSource (Audio)" &&
+            media_sources_.count(base_.current(media::MT_AUDIO))) {
+            // ask for metadata from MediaSource
+            get_metadata_value(media_sources_.at(base_.current(media::MT_AUDIO)));
+        } else if (object == "Image Stream") {
+            // ask for metadata from MediaStream - as it stands, the streams
+            // have no metadata, by the way! The stream metadata all lives on
+            // the media source.
+            request(
+                caf::actor_cast<caf::actor>(this),
+                infinite,
+                current_media_stream_atom_v,
+                media::MT_IMAGE)
+                .then(
+                    [=](caf::actor t) mutable { get_metadata_value(t); },
+                    [=](caf::error &err) mutable { fallback(); });
+        } else if (object == "Audio Stream") {
+            // ask for metadata from MediaStream
+            request(
+                caf::actor_cast<caf::actor>(this),
+                infinite,
+                current_media_stream_atom_v,
+                media::MT_AUDIO)
+                .then(
+                    [=](caf::actor t) mutable { get_metadata_value(t); },
+                    [=](caf::error &err) mutable { fallback(); });
+        } else {
+            // By defaul use media level json store
+            get_metadata_value(json_store_);
+        }
+    } else if (data_type == "media_standard_details") {
+        auto key = item_query_info.value("info_key", "");
+        if (human_readable_info_.contains(key)) {
+            rp.deliver(do_regex_format(human_readable_info_[key]));
+        } else {
+            fallback();
+        }
+    } else {
+        fallback();
+    }
+}
+
+inline void dump_tree3(const utility::JsonTree &node, const int depth = 0) {
+    std::cerr << fmt::format("{:>{}} {}", " ", depth * 4, node.data().dump()) << "\n";
+    for (const auto &i : node.base())
+        dump_tree3(i, depth + 1);
+}
+
+void MediaActor::build_display_info(caf::typed_response_promise<utility::JsonStore> rp) {
+
+    // empty json array for results of the filter sets
+    auto result = std::make_shared<JsonStore>(nlohmann::json::parse(R"([])"));
+
+    int set_idx = 0;
+    // because do this by firing off a bunch of asynchronous requests, we count
+    // the number of results we get until it matches num_metadata_filter_results_
+    // before delivering the response promise
+    auto result_countdown = std::make_shared<int>(num_metadata_filter_results_);
+
+    auto check_if_finished = [=]() mutable {
+        (*result_countdown)--;
+        if (*result_countdown == 0) {
+            if (filtered_metadata_ != *result) {
+                filtered_metadata_ = *result;
+                send(
+                    event_group_,
+                    utility::event_atom_v,
+                    media_display_info_atom_v,
+                    filtered_metadata_);
+            }
+            rp.deliver(*result);
+        }
+    };
+
+    for (const auto &i : metadata_filter_sets_.base()) {
+
+        // empty json array for results of the filter set items
+        result->push_back(nlohmann::json::parse(R"([])"));
+
+        int item_idx = 0;
+
+        for (const auto &j : i.base()) {
+
+            (*result)[set_idx][item_idx]             = nlohmann::json();
+            const utility::JsonStore metadata_filter = utility::tree_to_json(j);
+            request(
+                caf::actor_cast<caf::actor>(this),
+                infinite,
+                media_display_info_atom_v,
+                metadata_filter)
+                .then(
+                    [=](utility::JsonStore &data) mutable {
+                        (*result)[set_idx][item_idx] = data;
+                        check_if_finished();
+                    },
+                    [=](caf::error &err) mutable { check_if_finished(); });
+            item_idx++;
+        }
+        set_idx++;
+    }
 }

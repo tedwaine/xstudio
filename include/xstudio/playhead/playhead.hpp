@@ -110,6 +110,8 @@ namespace playhead {
         void throttle();
         void revert_throttle();
 
+        void disconnect_from_ui() override;
+
         bool pointer_event(const ui::PointerEvent &) override;
         void
         hotkey_pressed(const utility::Uuid &hotkey_uuid, const std::string &context) override;
@@ -117,7 +119,8 @@ namespace playhead {
         void connect_to_viewport(
             const std::string &viewport_name,
             const std::string &viewport_toolbar_name,
-            bool connect) override;
+            bool connect,
+            caf::actor viewport) override;
 
         void menu_item_activated(
             const utility::JsonStore &menu_item_data, const std::string &user_data) override;
@@ -201,10 +204,12 @@ namespace playhead {
         module::IntegerAttribute *duration_frames_;
         module::IntegerAttribute *key_playhead_index_;
         module::FloatAttribute *duration_seconds_;
-        module::StringAttribute *current_source_frame_timecode_;
+        module::StringAttribute *current_frame_timecode_;
+        module::IntegerAttribute *current_frame_timecode_as_frame_;
         module::StringAttribute *current_media_uuid_;
         module::StringAttribute *current_media_source_uuid_;
         module::BooleanAttribute *loop_range_enabled_;
+        module::BooleanAttribute *user_is_frame_scrubbing_;
 
         bool was_playing_when_scrub_started_ = {false};
         std::set<std::string> active_viewports_;

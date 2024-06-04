@@ -125,42 +125,40 @@ void StudioActor::init() {
         [=](ui::open_quickview_window_atom atom,
             const utility::UuidActorVector &media_items,
             std::string compare_mode) {
-            delegate(actor_cast<caf::actor>(this), atom, media_items, compare_mode, false);
+            delegate(
+                actor_cast<caf::actor>(this),
+                atom,
+                media_items,
+                compare_mode,
+                utility::JsonStore(),
+                utility::JsonStore());
         },
         [=](ui::open_quickview_window_atom,
             const utility::UuidActorVector &media_items,
             std::string compare_mode,
-            bool force) {
-            bool do_quickview = force;
-            if (!do_quickview) {
-                try {
-                    auto prefs = global_store::GlobalStoreHelper(system());
-                    do_quickview =
-                        prefs.value<bool>("/core/session/quickview_all_incoming_media");
-                } catch (...) {
-                }
-            }
+            const utility::JsonStore in_point,
+            const utility::JsonStore out_point) {
+            caf::actor studio_ui_actor =
+                system().registry().template get<caf::actor>(studio_ui_registry);
 
-            if (do_quickview) {
-
-                caf::actor studio_ui_actor =
-                    system().registry().template get<caf::actor>(studio_ui_registry);
-
-                if (studio_ui_actor) {
-                    // forward to StudioUI instance
-                    anon_send(
-                        studio_ui_actor,
-                        utility::event_atom_v,
-                        ui::open_quickview_window_atom_v,
-                        media_items,
-                        compare_mode);
-                } else {
-                    // UI hasn't started up yet, store the request
-                    QuickviewRequest request;
-                    request.media_actors = media_items;
-                    request.compare_mode = compare_mode;
-                    quickview_requests_.push_back(request);
-                }
+            if (studio_ui_actor) {
+                // forward to StudioUI instance
+                anon_send(
+                    studio_ui_actor,
+                    utility::event_atom_v,
+                    ui::open_quickview_window_atom_v,
+                    media_items,
+                    compare_mode,
+                    in_point,
+                    out_point);
+            } else {
+                // UI hasn't started up yet, store the request
+                QuickviewRequest request;
+                request.media_actors = media_items;
+                request.compare_mode = compare_mode;
+                request.in_point     = in_point;
+                request.out_point    = out_point;
+                quickview_requests_.push_back(request);
             }
         },
         [=](ui::open_quickview_window_atom, caf::actor studio_ui_actor) {
@@ -173,7 +171,9 @@ void StudioActor::init() {
                     utility::event_atom_v,
                     ui::open_quickview_window_atom_v,
                     r.media_actors,
-                    r.compare_mode);
+                    r.compare_mode,
+                    r.in_point,
+                    r.out_point);
             }
             quickview_requests_.clear();
         });

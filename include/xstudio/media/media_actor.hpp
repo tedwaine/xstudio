@@ -7,6 +7,7 @@
 #include "xstudio/media/media.hpp"
 #include "xstudio/utility/container.hpp"
 #include "xstudio/utility/json_store.hpp"
+#include "xstudio/utility/tree.hpp"
 #include "xstudio/utility/uuid.hpp"
 
 namespace xstudio {
@@ -55,7 +56,15 @@ namespace media {
             const media::MediaType mt,
             const bool auto_select_source_if_failed = false);
 
-        void auto_set_current_source(const media::MediaType media_type);
+        void auto_set_current_source(const media::MediaType media_type, caf::typed_response_promise<bool> rp);
+
+        void update_human_readable_details(caf::typed_response_promise<utility::JsonStore> rp);
+
+        void build_display_info(caf::typed_response_promise<utility::JsonStore> rp);
+
+        void display_info_item(
+            const utility::JsonStore item_query_info,
+            caf::typed_response_promise<utility::JsonStore> rp);
 
         caf::behavior behavior_;
         Media base_;
@@ -64,6 +73,10 @@ namespace media {
         std::map<utility::Uuid, caf::actor> media_sources_;
         utility::UuidList bookmark_uuids_;
         bool pending_change_{false};
+        utility::JsonTree metadata_filter_sets_;
+        int num_metadata_filter_results_ = 0;
+        utility::JsonStore human_readable_info_;
+        utility::JsonStore filtered_metadata_;
     };
 
     class MediaSourceActor : public caf::event_based_actor {

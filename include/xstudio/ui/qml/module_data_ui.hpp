@@ -29,7 +29,8 @@ class ModulesModelData : public UIModelData {
 
     Q_INVOKABLE void setSingleAttributeName(const QString single_attr_name);
 
-    Q_INVOKABLE QVariant attributeRoleData(const QString attr_name, const QString role_name = QString("value"));
+    Q_INVOKABLE QVariant
+    attributeRoleData(const QString attr_name, const QString role_name = QString("value"));
 
     void setModelData(const nlohmann::json &data) override;
 

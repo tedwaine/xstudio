@@ -780,6 +780,8 @@ void ShotBrowser::prepare_playlist_notes(
 void ShotBrowser::execute_query(
     caf::typed_response_promise<utility::JsonStore> rp, const utility::JsonStore &action) {
 
+    auto dispatched = utility::sysclock::now();
+
     request(
         shotgun_,
         infinite,
@@ -792,7 +794,10 @@ void ShotBrowser::execute_query(
         action.at("max_result").get<int>())
         .then(
             [=](const JsonStore &data) mutable {
-                auto result      = action;
+                auto result            = action;
+                result["execution_ms"] = std::chrono::duration_cast<std::chrono::milliseconds>(
+                                             utility::sysclock::now() - dispatched)
+                                             .count();
                 result["result"] = data;
                 rp.deliver(result);
             },
@@ -1560,7 +1565,7 @@ void ShotBrowser::get_data_sequence(
 void ShotBrowser::execute_preset(
     caf::typed_response_promise<utility::JsonStore> rp,
     const std::vector<std::string> &preset_paths,
-    const int project_id,
+    const int _project_id,
     const utility::JsonStore &context,
     const utility::JsonStore &metadata,
     const utility::JsonStore &env,
@@ -1569,10 +1574,12 @@ void ShotBrowser::execute_preset(
     // we want the preset and it's group.
 
     // spdlog::warn("{}", __PRETTY_FUNCTION__);
+    auto project_id = _project_id;
 
     try {
         auto presets      = R"([])"_json;
         auto preset_group = R"([])"_json;
+        auto group_id     = utility::Uuid();
         auto entity       = std::string();
 
         for (const auto &i : preset_paths) {
@@ -1581,6 +1588,7 @@ void ShotBrowser::execute_preset(
                 if (preset.value("type", "") == "group") {
                     entity       = preset.at("entity");
                     preset_group = preset.at("children").at(0).at("children");
+                    group_id     = preset.value("id", utility::Uuid());
                 } else {
                     auto tmp = engine().user_presets().at(json::json_pointer(i)
                                                               .parent_pointer()
@@ -1590,12 +1598,18 @@ void ShotBrowser::execute_preset(
 
                     entity       = tmp.at("entity");
                     preset_group = tmp.at("children").at(0).at("children");
+                    group_id     = tmp.value("id", utility::Uuid());
                 }
             }
 
             if (preset.value("type", "") == "preset")
                 presets.push_back(preset.at("children"));
         }
+
+        // derive from metadata.
+
+        if (not project_id)
+            project_id = engine().get_project_id(metadata, engine().cache());
 
         // spdlog::warn("{}", entity);
         // spdlog::warn("{}", preset_group.dump(2));
@@ -1616,6 +1630,7 @@ void ShotBrowser::execute_preset(
                             auto request = QueryEngine::build_query(
                                 project_id,
                                 entity,
+                                group_id,
                                 preset_group,
                                 presets,
                                 custom_terms,
@@ -1623,7 +1638,6 @@ void ShotBrowser::execute_preset(
                                 metadata,
                                 env,
                                 engine().lookup());
-                            // spdlog::warn("{}\n", request.dump(2));
 
                             execute_query(rp, request);
                         } catch (const std::exception &err) {
@@ -1637,6 +1651,7 @@ void ShotBrowser::execute_preset(
             auto request = QueryEngine::build_query(
                 project_id,
                 entity,
+                group_id,
                 preset_group,
                 presets,
                 custom_terms,

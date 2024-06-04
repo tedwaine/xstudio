@@ -8,7 +8,8 @@ import xStudioReskin 1.0
 
 
 XsComboBox{ id: widget
-    
+
+    focus: false
     editable: true
     textField.font.weight: Font.Black
 

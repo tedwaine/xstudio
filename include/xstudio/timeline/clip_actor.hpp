@@ -21,6 +21,9 @@ namespace timeline {
             const utility::UuidActor &media,
             const std::string &name   = "ClipActor",
             const utility::Uuid &uuid = utility::Uuid::generate());
+        ClipActor(caf::actor_config &cfg, const Item &item);
+        ClipActor(caf::actor_config &cfg, const Item &item, Item &nitem);
+
         ~ClipActor() override = default;
 
         const char *name() const override { return NAME.c_str(); }

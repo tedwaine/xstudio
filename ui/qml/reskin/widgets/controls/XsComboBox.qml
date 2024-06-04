@@ -95,7 +95,9 @@ T.ComboBox { id: widget
             }
         }
         onReleased: focus = false
-        onAccepted: focus = false
+        // onAccepted: focus = false
+
+        onEditingFinished: accepted()
 
         enabled: widget.editable
         autoScroll: widget.editable

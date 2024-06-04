@@ -23,8 +23,8 @@ XsMenuBar {
         menuPath: "Panels"
         menuModelName: "main menu bar"
         Component.onCompleted: {
-            setMenuPathPosition("Color", 20.0)
-            setMenuPathPosition("Help", 21.0)
+            setMenuPathPosition("Colour", 20.0)
+            //setMenuPathPosition("Help", 21.0)
         }    
     }
 

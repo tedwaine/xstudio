@@ -15,7 +15,7 @@ XsGridView{ id: editToolsView
     property real btnHeight: XsStyleSheet.widgetStdHeight+4
     property real spacing: 1
 
-    currentIndex: toolsModel? 0:-1
+    currentIndex: toolsModel ? 0 : -1
     isScrollbarVisibile: false
     flow: GridView.FlowTopToBottom
 
@@ -23,36 +23,37 @@ XsGridView{ id: editToolsView
     cellHeight: btnHeight + spacing
 
     model: delegateModel
-    
+
     DelegateModel { id: delegateModel
         rootIndex: 0
         model: null
-        delegate: chooser 
+        delegate: chooser
     }
 
 
     DelegateChooser {
         id: chooser
         role: "_type"
-    
+
         DelegateChoice {
             roleValue: "basic";
-        
-            XsTimelineEditToolItems{ 
-                width: btnWidth 
+
+            XsTimelineEditToolItems{
+                width: btnWidth
                 height: btnHeight
-                
+
                 imgSrc: _icon
                 text: _name
+                enabled: _enabled
 
                 isActive: editToolsView.currentIndex == index
                 onClicked:{
                     editToolsView.currentIndex = index
                 }
 
-            } 
+            }
         }
 
     }
-    
+
 }

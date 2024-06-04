@@ -11,25 +11,12 @@ XsViewerTextDisplay
 {
 
     id: playheadPosition
-    Layout.preferredWidth: textWidth + 8
+    Layout.preferredWidth: 100
     Layout.preferredHeight: parent.height
     modelDataName: playheadPosition + "_menu"
     menuWidth: 175
     property int selected: 0
     fontFamily: XsStyleSheet.fixedWidthFontFamily
-
-    XsAttributeValue {
-        id: __playheadLogicalFrame
-        attributeTitle: "Logical Frame"
-        model: viewportPlayheadDataModel
-    }
-    XsAttributeValue {
-        id: __playheadPositionSeconds
-        attributeTitle: "Position Seconds"
-        model: viewportPlayheadDataModel
-    }
-    property alias playheadLogicalFrame: __playheadLogicalFrame.value
-    property alias playheadPositionSeconds: __playheadPositionSeconds.value
 
     XsModelProperty {
         id: timeline_units_pref
@@ -58,11 +45,11 @@ XsViewerTextDisplay
         }
     }
 
-    property string timecode: view.playhead.timecode
-    property string timecodeFrame: pad(""+view.playhead.timecodeFrames, 4)
-    property string frame: pad("" + playheadLogicalFrame, 4)
+    property string timecode: viewportPlayhead.timecode ? viewportPlayhead.timecode : ""
+    property string timecodeFrame: pad(""+viewportPlayhead.timecodeAsFrame, 4)
+    property string frame: pad("" + viewportPlayhead.logicalFrame, 4)
     property string seconds: {
-        var seconds = Math.floor(playheadPositionSeconds)
+        var seconds = Math.floor(viewportPlayhead.positionSeconds)
         var minutes = Math.floor(seconds / 60)
         var hours = Math.floor(minutes / 60)
         var SS = pad(seconds % 60, 2)

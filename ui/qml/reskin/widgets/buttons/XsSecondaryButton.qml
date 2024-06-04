@@ -16,7 +16,8 @@ Button {
     property bool isColoured: false
     property bool showHoverOnActive: false
     property bool onlyVisualyEnabled: false
- 
+    property real imageSrcSize: 16
+
     property color imgOverlayColor: "#C1C1C1"
     property color bgColorPressed: palette.highlight
     property color bgColorNormal: "transparent"
@@ -42,11 +43,11 @@ Button {
         XsImage {
             id: imageDiv
             source: ""
-            sourceSize.height: 16
-            sourceSize.width: 16
             imgOverlayColor: isColoured ? palette.highlight : widget.imgOverlayColor
             anchors.centerIn: parent
-            
+            sourceSize.height: imageSrcSize
+            sourceSize.width: imageSrcSize
+
             Behavior on rotation {NumberAnimation{duration: 150 }}
         }
         XsText {

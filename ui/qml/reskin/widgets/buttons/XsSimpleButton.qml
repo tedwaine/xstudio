@@ -14,7 +14,8 @@ Rectangle {
     property var text
     property var margin: 10
 
-    width: metrics.width+margin*2
+    property var minWidth: 0
+    width: Math.max(metrics.width+margin*2)
     height: metrics.height+margin
     color: "transparent"
     border.color: palette.highlight
@@ -50,9 +51,18 @@ Rectangle {
 
     TextMetrics {
         id: metrics
-        font: widget.font
         text: widget.text
     }
+
+    property var tooltipText: ""
+
+    XsToolTip{
+        id: toolTip
+        text: tooltipText
+        visible: mouseArea.containsMouse && text
+        width: metrics.width
+    }
+
 
 }
 

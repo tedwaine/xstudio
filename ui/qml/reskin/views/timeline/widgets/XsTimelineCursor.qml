@@ -1,13 +1,13 @@
 // SPDX-License-Identifier: Apache-2.0
 import QtQuick 2.15
 import QtQuick.Shapes 1.12
-import xStudio 1.1
+import xStudioReskin 1.0
 
-Shape {
+Item {
     id: control
 
     property real thickness: 2
-    property color color: palette.highlight
+    property color color: playheadActive ? palette.highlight : Qt.darker(palette.highlight, 1.8)
 
     property int position: start
     property int start: 0
@@ -20,42 +20,31 @@ Shape {
     readonly property real cursorX: ((position-start) * tickWidth) - fractionOffset
     property int cursorSize: 20
 
-    visible: position >= start
+    property bool playheadActive: currentPlayhead.uuid == timelinePlayhead.uuid
 
-    ShapePath {
+    Rectangle {
         id: line
-        strokeWidth: control.thickness
-        strokeColor: control.color
-        fillColor: "transparent"
+        width: 2.0
+        color: control.color
 
-        startX: cursorX
-        startY: 0
-
-        // to bottom right
-        PathLine {x: cursorX; y: control.height}
+        x: cursorX
+        height: parent.height
     }
 
-    ShapePath {
-        strokeWidth: control.thickness
-        fillColor: control.color
-        strokeColor: control.color
+    // Note: the qml Shape stuff REALLY slows down drawing of the interface.
+    // Avoid!
 
-        startX: cursorX-(cursorSize/2)
-        startY: 0
+    // ShapePath {
+    //     strokeWidth: control.thickness
+    //     fillColor: control.color
+    //     strokeColor: control.color
 
-        // to bottom right
-        PathLine {x: cursorX+(cursorSize/2); y: 0}
-        PathLine {x: cursorX; y: cursorSize}
-        // PathLine {x: cursorX-(cursorSize/2); y: 0}
-    }
+    //     startX: cursorX-(cursorSize/2)
+    //     startY: 0
+
+    //     // to bottom right
+    //     PathLine {x: cursorX+(cursorSize/2); y: 0}
+    //     PathLine {x: cursorX; y: cursorSize}
+    //     // PathLine {x: cursorX-(cursorSize/2); y: 0}
+    // }
 }
-
-	// // frame repeater
- //    Rectangle {
- //        anchors.top: parent.top
- //        height: control.height
- //        color: cursorColor
- //        visible: position >= start
- //        x: ((position-start) * tickWidth) - fractionOffset
- //        width: 2
- //    }

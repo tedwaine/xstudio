@@ -11,6 +11,7 @@ import xstudio.qml.models 1.0
 import ShotBrowser 1.0
 import xstudio.qml.helpers 1.0
 import xstudio.qml.clipboard 1.0
+import QuickFuture 1.0
 
 XsPopupMenu {
     id: rightClickMenu
@@ -24,8 +25,23 @@ XsPopupMenu {
     }
 
     XsMenuModelItem {
-        text: "Select All"
+        text: "Add To New Playlist"
         menuItemPosition: 1
+        menuPath: ""
+        menuModelName: rightClickMenu.menu_model_name
+        onActivated:  ShotBrowserHelpers.addToNewPlaylist(popupSelectionModel.selectedIndexes)
+    }
+
+    XsMenuModelItem {
+        menuItemType: "divider"
+        menuItemPosition: 2
+        menuPath: ""
+        menuModelName: rightClickMenu.menu_model_name
+    }
+
+    XsMenuModelItem {
+        text: "Select All"
+        menuItemPosition: 3
         menuPath: ""
         menuModelName: rightClickMenu.menu_model_name
         onActivated:  popupSelectionModel.select(
@@ -35,14 +51,14 @@ XsPopupMenu {
     }
     XsMenuModelItem {
         text: "Deselect All"
-        menuItemPosition: 2
+        menuItemPosition: 4
         menuPath: ""
         menuModelName: rightClickMenu.menu_model_name
         onActivated: popupSelectionModel.clear()
     }
     XsMenuModelItem {
         text: "Invert Selection"
-        menuItemPosition: 3
+        menuItemPosition: 5
         menuPath: ""
         menuModelName: rightClickMenu.menu_model_name
         onActivated: popupSelectionModel.select(
@@ -52,27 +68,27 @@ XsPopupMenu {
     }
     XsMenuModelItem {
         menuItemType: "divider"
-        menuItemPosition: 4
+        menuItemPosition: 6
         menuPath: ""
         menuModelName: rightClickMenu.menu_model_name
     }
     XsMenuModelItem {
         text: "Reveal In ShotGrid"
-        menuItemPosition: 5
+        menuItemPosition: 7
         menuPath: ""
         menuModelName: rightClickMenu.menu_model_name
         onActivated: ShotBrowserHelpers.revealInShotgrid(popupSelectionModel.selectedIndexes)
     }
     XsMenuModelItem {
         text: "Copy"
-        menuItemPosition: 6
+        menuItemPosition: 8
         menuPath: ""
         menuModelName: rightClickMenu.menu_model_name
         onActivated: clipboard.text = ShotBrowserHelpers.getNote(popupSelectionModel.selectedIndexes)
     }
     XsMenuModelItem {
         text: "Copy JSON"
-        menuItemPosition: 7
+        menuItemPosition: 9
         menuPath: ""
         menuModelName: rightClickMenu.menu_model_name
         onActivated: clipboard.text = JSON.stringify(ShotBrowserHelpers.getJSON(popupSelectionModel.selectedIndexes))

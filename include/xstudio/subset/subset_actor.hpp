@@ -26,7 +26,8 @@ namespace subset {
         void deliver_media_pointer(
             const int logical_frame, caf::typed_response_promise<media::AVFrameID> rp);
 
-        void sort_alphabetically();
+        void sort_by_media_display_info(
+            const int info_set_idx, const int info_item_idx, const bool ascending);
 
         void add_media(
             const utility::UuidActor &ua,

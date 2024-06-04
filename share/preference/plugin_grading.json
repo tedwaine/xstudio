@@ -25,6 +25,14 @@
 				"datatype": "bool",
 				"context": ["APPLICATION"]
 			},
+			"drawing_tool": {
+				"path": "/plugin/grading/drawing_tool",
+				"default_value": "Shape",
+				"description": "Drawing tool",
+				"value": "Shape",
+				"datatype": "string",
+				"context": ["APPLICATION"]
+			},
 			"draw_pen_size": {
 				"path": "/plugin/grading/draw_pen_size",
 				"default_value": 10,

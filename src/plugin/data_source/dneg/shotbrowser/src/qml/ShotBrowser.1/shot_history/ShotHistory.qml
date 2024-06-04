@@ -13,7 +13,6 @@ import QuickFuture 1.0
 import QuickPromise 1.0
 
 import xStudioReskin 1.0
-import xstudio.qml.module 1.0
 import xstudio.qml.models 1.0
 import xstudio.qml.helpers 1.0
 
@@ -22,8 +21,6 @@ import ShotBrowser 1.0
 Item{
     id: panel
     anchors.fill: parent
-
-    property bool isTestMode: false
 
     property bool isPanelEnabled: true
     property var dataModel: results
@@ -36,13 +33,43 @@ Item{
     property var activeScopeIndex: ShotBrowserEngine.presetsModel.index(-1,-1)
 
     // Track the uuid of the media that is currently visible in the Viewport
-    property var onScreenMediaUuid: appWindow.onScreenMediaUuid
+    property var onScreenMediaUuid: currentPlayhead.mediaUuid
+    property var onScreenLogicalFrame: currentPlayhead.logicalFrame
 
     property int queryCounter: 0
+    property int queryRunning: 0
+    readonly property string panelType: "ShotHistory"
 
+    // used ?
     property real btnHeight: XsStyleSheet.widgetStdHeight + 4
 
-    onOnScreenMediaUuidChanged: {if(visible) ShotBrowserHelpers.updateMetadata(isPanelEnabled, onScreenMediaUuid)}
+    property bool isPaused: false
+
+    onOnScreenMediaUuidChanged: {if(visible) updateTimer.start()}
+
+    onOnScreenLogicalFrameChanged: {
+        if(updateTimer.running) {
+            updateTimer.restart()
+            if(isPanelEnabled && !isPaused) {
+                isPaused = true
+                resultsSelectionModel.clear()
+                results.setResultData([])
+                ShotBrowserEngine.liveLinkKey = ""
+                ShotBrowserEngine.liveLinkMetadata = "null"
+            }
+        }
+    }
+
+    Timer {
+        id: updateTimer
+        interval: 500
+        running: false
+        repeat: false
+        onTriggered: {
+            isPaused = false
+            ShotBrowserHelpers.updateMetadata(isPanelEnabled, onScreenMediaUuid)
+        }
+    }
 
     Connections {
         target: ShotBrowserEngine
@@ -52,10 +79,20 @@ Item{
     }
 
     function setIndexFromPreference() {
-        if(ShotBrowserEngine.ready && !activeScopeIndex.valid && shotScopePref.value) {
-            let i = getScopeIndex(shotScopePref.value)
-            if(i && i.valid && activeScopeIndex != i)
-                activeScopeIndex = i
+        if(ShotBrowserEngine.ready && !activeScopeIndex.valid && (shotScopePref.value || prefs.value)) {
+            // from panel.
+            if(prefs.value != undefined) {
+                let i = getScopeIndex(prefs.value)
+                if(i.valid && activeScopeIndex != i)
+                    activeScopeIndex = i
+            }
+
+            // from settings.
+            if(!activeScopeIndex.valid) {
+                let i = getScopeIndex(shotScopePref.value)
+                if(i.valid && activeScopeIndex != i)
+                    activeScopeIndex = i
+            }
         }
     }
 
@@ -68,8 +105,6 @@ Item{
     XsPreference {
         id: shotScopePref
         path: "/plugin/data_source/shotbrowser/shot_history/scope"
-
-        onValueChanged: setIndexFromPreference()
     }
 
     onActiveScopeIndexChanged: {
@@ -77,13 +112,14 @@ Item{
             let m = activeScopeIndex.model
             let i = m.get(activeScopeIndex, "nameRole")
             shotScopePref.value = i
+            prefs.value = i
         }
     }
 
     Connections {
         target: ShotBrowserEngine
         function onLiveLinkMetadataChanged() {
-            if(isPanelEnabled && panel.visible) {
+            if(!isPaused && isPanelEnabled && panel.visible) {
                 runQuery()
             }
         }
@@ -114,10 +150,18 @@ Item{
         }
     }
 
+    XsModelProperty {
+        id: prefs
+        index: panels_layout_model_index
+        role: "user_data"
+    }
+
     function runQuery() {
         if(isPanelEnabled && activeScopeIndex.valid) {
             // make sure the results appear in sync.
             queryCounter += 1
+            queryRunning += 1
+
             let i = queryCounter
             Future.promise(
                 ShotBrowserEngine.executeQuery(
@@ -127,10 +171,12 @@ Item{
                         resultsSelectionModel.clear()
                         results.setResultData([json_string])
                     }
+                    queryRunning -= 1
                 },
                 function() {
                     resultsSelectionModel.clear()
                     results.setResultData([])
+                    queryRunning -= 1
                 })
         }
     }

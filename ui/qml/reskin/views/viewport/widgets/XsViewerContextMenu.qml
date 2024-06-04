@@ -38,7 +38,7 @@ XsPopupMenu {
         }
         panelContext: btnMenu.panelContext
     }
-        
+
     XsMenuModelItem {
         text: viewportWidget.elementsVisible ? "Hide UI" : "Show UI"
         menuPath: ""

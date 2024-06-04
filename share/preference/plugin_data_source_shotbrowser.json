@@ -144,38 +144,6 @@
                         "path": "/plugin/data_source/shotbrowser/browser/location",
                         "value": "${DNSITEDATA_SHORT_NAME}"
                     },
-                    "show_hidden": {
-                        "context": [
-                            "APPLICATION"
-                        ],
-                        "datatype": "bool",
-                        "default_value": false,
-                        "description": "Show hidden presets/groups",
-                        "path": "/plugin/data_source/shotbrowser/browser/show_hidden",
-                        "value": false
-                    },
-                    "category": {
-                        "context": [
-                            "APPLICATION"
-                        ],
-                        "datatype": "string",
-                        "default_value": "Tree",
-                        "description": "Current category",
-                        "path": "/plugin/data_source/shotbrowser/browser/category",
-                        "value": "Tree"
-                    },
-                    "maximum_result_count": {
-                        "context": [
-                            "APPLICATION"
-                        ],
-                        "datatype": "int",
-                        "default_value": 1000,
-                        "description": "Maximum results returned.*NOT USED CURRENTLY*",
-                        "maximum": 4999,
-                        "minimum": 50,
-                        "path": "/plugin/data_source/shotbrowser/browser/maximum_result_count",
-                        "value": 1000
-                    },
                     "project_id": {
                         "context": [
                             "APPLICATION"
@@ -380,6 +348,7 @@
                     "default_value": [
 
 
+
         {
             "children": [
                 {
@@ -418,7 +387,7 @@
                             "negated": false,
                             "term": "Twig Type",
                             "type": "term",
-                            "value": "render/element"
+                            "value": "scan"
                         },
                         {
                             "enabled": true,
@@ -440,15 +409,6 @@
                         },
                         {
                             "enabled": true,
-                            "id": "a9dd6101-3744-4171-bb9b-b20d33738ead",
-                            "livelink": null,
-                            "negated": null,
-                            "term": "Preferred Visual",
-                            "type": "term",
-                            "value": "movie_dneg"
-                        },
-                        {
-                            "enabled": true,
                             "id": "cb2acc79-9d55-42c9-b617-ce53ce403ca4",
                             "livelink": null,
                             "negated": null,
@@ -462,6 +422,15 @@
                             "livelink": true,
                             "negated": null,
                             "term": "Entity",
+                            "type": "term",
+                            "value": ""
+                        },
+                        {
+                            "enabled": true,
+                            "id": "cc3d5598-4fd5-4f86-9568-e3f76ad947ee",
+                            "livelink": true,
+                            "negated": null,
+                            "term": "Preferred Visual",
                             "type": "term",
                             "value": ""
                         }
@@ -1042,34 +1011,6 @@
                             "children": [
                                 {
                                     "enabled": true,
-                                    "id": "d06cbe61-d872-40a9-8a61-3a4541650477",
-                                    "livelink": null,
-                                    "negated": false,
-                                    "term": "Filter",
-                                    "type": "term",
-                                    "value": "Dailies"
-                                },
-                                {
-                                    "enabled": true,
-                                    "id": "7e2273fa-ef3e-4a99-b41b-c77d3f6ad3b9",
-                                    "livelink": null,
-                                    "negated": null,
-                                    "term": "Lookback",
-                                    "type": "term",
-                                    "value": "3 Days"
-                                }
-                            ],
-                            "hidden": false,
-                            "id": "1025cc97-f781-465c-9b99-3dbcff9510e6",
-                            "name": "Dailies",
-                            "type": "preset",
-                            "update": false,
-                            "userdata": ""
-                        },
-                        {
-                            "children": [
-                                {
-                                    "enabled": true,
                                     "id": "962422da-5733-4a42-8f90-b062dda1e830",
                                     "livelink": null,
                                     "negated": false,
@@ -1099,6 +1040,34 @@
                             "hidden": false,
                             "id": "cfc5103f-1ca4-4c09-b7cb-54074d1e6fe9",
                             "name": "Sent To Client",
+                            "type": "preset",
+                            "update": false,
+                            "userdata": ""
+                        },
+                        {
+                            "children": [
+                                {
+                                    "enabled": true,
+                                    "id": "d06cbe61-d872-40a9-8a61-3a4541650477",
+                                    "livelink": null,
+                                    "negated": false,
+                                    "term": "Filter",
+                                    "type": "term",
+                                    "value": "Dailies"
+                                },
+                                {
+                                    "enabled": true,
+                                    "id": "7e2273fa-ef3e-4a99-b41b-c77d3f6ad3b9",
+                                    "livelink": null,
+                                    "negated": null,
+                                    "term": "Lookback",
+                                    "type": "term",
+                                    "value": "3 Days"
+                                }
+                            ],
+                            "hidden": false,
+                            "id": "1025cc97-f781-465c-9b99-3dbcff9510e6",
+                            "name": "Dailies",
                             "type": "preset",
                             "update": false,
                             "userdata": ""
@@ -1196,25 +1165,25 @@
                         },
                         {
                             "enabled": true,
-                            "id": "486d3f78-7694-4b14-b181-af1604ac05e1",
+                            "id": "0f3cae7e-3728-433f-8f90-fa3e13d3a16e",
                             "livelink": null,
                             "negated": null,
-                            "term": "Twig Type",
+                            "term": "Preferred Visual",
                             "type": "term",
-                            "value": "render/out"
+                            "value": "movie_dneg"
                         },
                         {
                             "enabled": true,
-                            "id": "83a894a6-7537-42d2-befd-e2fdc5fa5f4a",
+                            "id": "84748f8b-886f-4e1d-9ba1-3219de90b288",
                             "livelink": false,
                             "negated": false,
                             "term": "Twig Type",
                             "type": "term",
-                            "value": "render/playblast"
+                            "value": "render/2D"
                         },
                         {
                             "enabled": true,
-                            "id": "c25c821a-fb02-40b8-86ba-8b489c75349e",
+                            "id": "4939e1ac-8e61-44af-96f7-c51e91a48c93",
                             "livelink": false,
                             "negated": false,
                             "term": "Twig Type",
@@ -1223,12 +1192,30 @@
                         },
                         {
                             "enabled": true,
-                            "id": "0f3cae7e-3728-433f-8f90-fa3e13d3a16e",
-                            "livelink": null,
-                            "negated": null,
-                            "term": "Preferred Visual",
+                            "id": "2a2f8d27-49df-468d-a01f-bd6d83878910",
+                            "livelink": false,
+                            "negated": false,
+                            "term": "Twig Type",
                             "type": "term",
-                            "value": "movie_dneg"
+                            "value": "render/playblast"
+                        },
+                        {
+                            "enabled": true,
+                            "id": "1e3033a7-b1f0-48ce-bc25-05364c70b2f0",
+                            "livelink": false,
+                            "negated": false,
+                            "term": "Twig Type",
+                            "type": "term",
+                            "value": "render/cg"
+                        },
+                        {
+                            "enabled": true,
+                            "id": "97188e24-9119-4c2b-b015-0c46c9bcab08",
+                            "livelink": false,
+                            "negated": false,
+                            "term": "Twig Type",
+                            "type": "term",
+                            "value": "render/out"
                         }
                     ],
                     "hidden": false,
@@ -1248,7 +1235,7 @@
                                     "negated": null,
                                     "term": "Lookback",
                                     "type": "term",
-                                    "value": "7 Days"
+                                    "value": "Today"
                                 },
                                 {
                                     "enabled": false,
@@ -1258,11 +1245,56 @@
                                     "term": "Sent To Dailies",
                                     "type": "term",
                                     "value": "True"
+                                },
+                                {
+                                    "enabled": false,
+                                    "id": "35e883e4-8c44-492d-89c4-a86779f3f910",
+                                    "livelink": null,
+                                    "negated": false,
+                                    "term": "Filter",
+                                    "type": "term",
+                                    "value": "fish"
                                 }
                             ],
                             "hidden": false,
                             "id": "42a40bab-16d4-4490-8aab-22748f53f090",
-                            "name": "Latest Dailies",
+                            "name": "Today's Dailies",
+                            "type": "preset",
+                            "update": false
+                        },
+                        {
+                            "children": [
+                                {
+                                    "enabled": true,
+                                    "id": "5866236d-ad98-4a1e-bcb3-a2e90910ad3d",
+                                    "livelink": null,
+                                    "negated": null,
+                                    "term": "Lookback",
+                                    "type": "term",
+                                    "value": "7 Days"
+                                },
+                                {
+                                    "enabled": false,
+                                    "id": "9ff66666-4df4-4ea7-a389-1fd5b1b63728",
+                                    "livelink": null,
+                                    "negated": null,
+                                    "term": "Sent To Dailies",
+                                    "type": "term",
+                                    "value": "True"
+                                },
+                                {
+                                    "enabled": false,
+                                    "id": "a58d3a03-e6fa-4773-b6e0-9aae81cb59a8",
+                                    "livelink": null,
+                                    "negated": false,
+                                    "term": "Filter",
+                                    "type": "term",
+                                    "value": "fish"
+                                }
+                            ],
+                            "hidden": false,
+                            "id": "6343df0c-eb3e-4f76-8712-ac60eee10ba6",
+                            "name": "Previous Week",
                             "type": "preset",
                             "update": false
                         },
@@ -1324,12 +1356,48 @@
                             "children": [
                                 {
                                     "enabled": true,
-                                    "id": "bc45e233-909e-4f33-b12f-5b4efa0911cc",
+                                    "id": "cf816b2f-8f7a-4518-beb1-7f1eeca769e4",
                                     "livelink": null,
                                     "negated": null,
                                     "term": "Lookback",
                                     "type": "term",
                                     "value": "20 Days"
+                                },
+                                {
+                                    "enabled": false,
+                                    "id": "1b5eda16-af0a-46e5-953d-fd64dac8e3e1",
+                                    "livelink": false,
+                                    "negated": false,
+                                    "term": "Pipeline Step",
+                                    "type": "term",
+                                    "value": "Comp"
+                                },
+                                {
+                                    "enabled": true,
+                                    "id": "45f94618-bf87-46ac-9020-61f2e6eabf2f",
+                                    "livelink": null,
+                                    "negated": false,
+                                    "term": "Filter",
+                                    "type": "term",
+                                    "value": "ShoCo"
+                                }
+                            ],
+                            "hidden": false,
+                            "id": "14b4ed8d-92cd-4c4b-9ad7-6719e98dd511",
+                            "name": "Latest ShoCos",
+                            "type": "preset",
+                            "update": false
+                        },
+                        {
+                            "children": [
+                                {
+                                    "enabled": true,
+                                    "id": "bc45e233-909e-4f33-b12f-5b4efa0911cc",
+                                    "livelink": null,
+                                    "negated": null,
+                                    "term": "Lookback",
+                                    "type": "term",
+                                    "value": "7 Days"
                                 },
                                 {
                                     "enabled": true,
@@ -1490,6 +1558,34 @@
                             "name": "All Finals",
                             "type": "preset",
                             "update": false
+                        },
+                        {
+                            "children": [
+                                {
+                                    "enabled": true,
+                                    "id": "3557ad90-dd4a-42a5-9c92-18dfe5132e03",
+                                    "livelink": null,
+                                    "negated": false,
+                                    "term": "Filter",
+                                    "type": "term",
+                                    "value": "VIDREF_"
+                                },
+                                {
+                                    "enabled": true,
+                                    "id": "ab538dc5-2cc2-4a72-acb2-54d39d752ce4",
+                                    "livelink": null,
+                                    "negated": null,
+                                    "term": "Disable Global",
+                                    "type": "term",
+                                    "value": "Twig Type"
+                                }
+                            ],
+                            "hidden": false,
+                            "id": "be3d9365-1bb1-47ba-8231-570c09df838e",
+                            "name": "Reference",
+                            "type": "preset",
+                            "update": false,
+                            "userdata": ""
                         }
                     ],
                     "id": "7d85dd2d-753c-4063-a31d-99a5d7095608",
@@ -1500,6 +1596,163 @@
             "hidden": false,
             "id": "4689c10f-eb27-4e16-8164-468cdd69142e",
             "name": "Latest Versions",
+            "type": "group",
+            "update": false,
+            "userdata": "recent"
+        },
+        {
+            "children": [
+                {
+                    "children": [
+                        {
+                            "enabled": true,
+                            "id": "33683243-526f-4090-abae-7a861fec18a8",
+                            "livelink": null,
+                            "negated": null,
+                            "term": "Preferred Visual",
+                            "type": "term",
+                            "value": "movie_dneg"
+                        }
+                    ],
+                    "hidden": false,
+                    "id": "16ed5522-8a35-4849-bda2-ad98f1e7ccff",
+                    "name": "OVERRIDE",
+                    "type": "preset",
+                    "update": false
+                },
+                {
+                    "children": [
+                        {
+                            "children": [
+                                {
+                                    "enabled": true,
+                                    "id": "cb5ce114-73a3-44fb-b6f0-a065086a6b5d",
+                                    "livelink": null,
+                                    "negated": false,
+                                    "term": "Filter",
+                                    "type": "term",
+                                    "value": "^ARTCON_"
+                                }
+                            ],
+                            "hidden": false,
+                            "id": "5da432ec-e017-4b8d-9bbe-cd199bdaacbf",
+                            "name": "Concept Art",
+                            "type": "preset",
+                            "update": false,
+                            "userdata": ""
+                        },
+                        {
+                            "children": [
+                                {
+                                    "enabled": true,
+                                    "id": "617c8bcd-d7d5-43a6-879e-37ab4a5c0fb2",
+                                    "livelink": null,
+                                    "negated": false,
+                                    "term": "Filter",
+                                    "type": "term",
+                                    "value": "^VIDREF_"
+                                },
+                                {
+                                    "enabled": true,
+                                    "id": "b24657d8-0b68-44ec-8bdc-f76fb2a6a7ad",
+                                    "livelink": null,
+                                    "negated": null,
+                                    "term": "Result Limit",
+                                    "type": "term",
+                                    "value": "1000"
+                                },
+                                {
+                                    "enabled": false,
+                                    "id": "97b3dadd-fbe4-4346-88da-b8cd6b45c352",
+                                    "livelink": null,
+                                    "negated": false,
+                                    "term": "Filter",
+                                    "type": "term",
+                                    "value": ""
+                                }
+                            ],
+                            "hidden": false,
+                            "id": "d3813842-e11f-43e3-b6b6-e36ff62c6abf",
+                            "name": "Video Reference",
+                            "type": "preset",
+                            "update": false,
+                            "userdata": ""
+                        },
+                        {
+                            "children": [
+                                {
+                                    "enabled": true,
+                                    "id": "440fa63f-2e91-44f0-a201-b836128d9997",
+                                    "livelink": null,
+                                    "negated": false,
+                                    "term": "Filter",
+                                    "type": "term",
+                                    "value": "^HDR_"
+                                }
+                            ],
+                            "hidden": false,
+                            "id": "84683d75-0f02-46e1-a150-cb109f05ceeb",
+                            "name": "HDRI",
+                            "type": "preset",
+                            "update": false,
+                            "userdata": ""
+                        },
+                        {
+                            "children": [
+                                {
+                                    "enabled": true,
+                                    "id": "026c0e71-b051-4750-936e-6831dd75f931",
+                                    "livelink": null,
+                                    "negated": false,
+                                    "term": "Filter",
+                                    "type": "term",
+                                    "value": "^WIT"
+                                },
+                                {
+                                    "enabled": true,
+                                    "id": "b4ac4130-04b5-4425-a593-f3e369ee72d4",
+                                    "livelink": null,
+                                    "negated": false,
+                                    "term": "Filter",
+                                    "type": "term",
+                                    "value": "witcam"
+                                }
+                            ],
+                            "hidden": false,
+                            "id": "0ee25a3b-758b-4ef5-b2fd-9ef04273b414",
+                            "name": "Witness Cams",
+                            "type": "preset",
+                            "update": false,
+                            "userdata": ""
+                        },
+                        {
+                            "children": [
+                                {
+                                    "enabled": true,
+                                    "id": "1e2ad668-760b-450f-86f1-2b1ad2fad46b",
+                                    "livelink": null,
+                                    "negated": false,
+                                    "term": "Filter",
+                                    "type": "term",
+                                    "value": "^TEXREF_"
+                                }
+                            ],
+                            "hidden": false,
+                            "id": "10d4d0f1-4c5f-4a44-b74e-c2b847b7ab74",
+                            "name": "Texture Reference",
+                            "type": "preset",
+                            "update": false,
+                            "userdata": ""
+                        }
+                    ],
+                    "id": "4a5ba67f-3fd1-46f0-9ea8-9aa0cbd9b5d2",
+                    "type": "presets"
+                }
+            ],
+            "entity": "Versions",
+            "hidden": false,
+            "id": "dfca8981-e759-4ccc-bdff-95019200f1f9",
+            "name": "Reference",
             "type": "group",
             "update": false,
             "userdata": "recent"
@@ -1686,6 +1939,15 @@
                             "term": "Preferred Visual",
                             "type": "term",
                             "value": "movie_dneg"
+                        },
+                        {
+                            "enabled": true,
+                            "id": "a740d999-4fd3-4c8a-982d-7273f85ec517",
+                            "livelink": null,
+                            "negated": null,
+                            "term": "Result Limit",
+                            "type": "term",
+                            "value": "500"
                         }
                     ],
                     "id": "2cb25b6b-2b09-4a76-8246-4a1f5916908d",
@@ -1704,12 +1966,12 @@
                                     "negated": null,
                                     "term": "Lookback",
                                     "type": "term",
-                                    "value": "7 Days"
+                                    "value": "20 Days"
                                 }
                             ],
                             "hidden": false,
                             "id": "9a946b2a-0124-4360-8ea3-2df99a351781",
-                            "name": "Recent Playlists",
+                            "name": "Latest Playlists",
                             "type": "preset",
                             "update": false,
                             "userdata": ""
@@ -1901,6 +2163,15 @@
                                     "term": "Disable Global",
                                     "type": "term",
                                     "value": "Has Contents"
+                                },
+                                {
+                                    "enabled": true,
+                                    "id": "43b5bac9-e62e-49ff-944e-d3c0571adc4a",
+                                    "livelink": null,
+                                    "negated": null,
+                                    "term": "Result Limit",
+                                    "type": "term",
+                                    "value": "4500"
                                 }
                             ],
                             "hidden": false,
@@ -1945,6 +2216,123 @@
                 },
                 {
                     "children": [
+                        {
+                            "children": [
+                                {
+                                    "enabled": true,
+                                    "id": "a0bcafc6-a933-4f95-8233-590714b30647",
+                                    "livelink": false,
+                                    "negated": false,
+                                    "term": "Twig Type",
+                                    "type": "term",
+                                    "value": "render"
+                                },
+                                {
+                                    "enabled": true,
+                                    "id": "de9b0afa-eef9-401d-8f61-d6a9cc37adb9",
+                                    "livelink": false,
+                                    "negated": false,
+                                    "term": "Twig Type",
+                                    "type": "term",
+                                    "value": "render/2D"
+                                },
+                                {
+                                    "enabled": true,
+                                    "id": "14ce50db-3a8a-465a-a042-401dad722a08",
+                                    "livelink": false,
+                                    "negated": false,
+                                    "term": "Twig Type",
+                                    "type": "term",
+                                    "value": "render/cg"
+                                },
+                                {
+                                    "enabled": true,
+                                    "id": "c7e41322-289d-445d-b53e-7944b4717031",
+                                    "livelink": false,
+                                    "negated": false,
+                                    "term": "Twig Type",
+                                    "type": "term",
+                                    "value": "render/deep"
+                                },
+                                {
+                                    "enabled": true,
+                                    "id": "b2564698-0e3c-40aa-b4d5-25138682d9d5",
+                                    "livelink": false,
+                                    "negated": false,
+                                    "term": "Twig Type",
+                                    "type": "term",
+                                    "value": "render/element"
+                                },
+                                {
+                                    "enabled": true,
+                                    "id": "21c77d17-27c4-4adb-a956-b996cfe5670a",
+                                    "livelink": false,
+                                    "negated": false,
+                                    "term": "Twig Type",
+                                    "type": "term",
+                                    "value": "render/out"
+                                },
+                                {
+                                    "enabled": true,
+                                    "id": "6341b729-d4c3-4f9e-a12b-471f0778fb46",
+                                    "livelink": false,
+                                    "negated": false,
+                                    "term": "Twig Type",
+                                    "type": "term",
+                                    "value": "render/playblast"
+                                },
+                                {
+                                    "enabled": true,
+                                    "id": "59961350-271e-4837-851f-f86fb9751a5e",
+                                    "livelink": false,
+                                    "negated": false,
+                                    "term": "Twig Type",
+                                    "type": "term",
+                                    "value": "render/playblast/working"
+                                },
+                                {
+                                    "enabled": true,
+                                    "id": "3284fb37-ea40-4539-88ab-489cd701ac23",
+                                    "livelink": false,
+                                    "negated": false,
+                                    "term": "Twig Type",
+                                    "type": "term",
+                                    "value": "render/wireframe"
+                                },
+                                {
+                                    "enabled": true,
+                                    "id": "7546247e-03d0-49eb-8eee-9e8bf45fb2a2",
+                                    "livelink": false,
+                                    "negated": false,
+                                    "term": "Twig Type",
+                                    "type": "term",
+                                    "value": "data/clip/cut"
+                                },
+                                {
+                                    "enabled": true,
+                                    "id": "3f9b4a9c-2dbc-4216-9c1c-cd2b6b79c3dd",
+                                    "livelink": false,
+                                    "negated": false,
+                                    "term": "Twig Type",
+                                    "type": "term",
+                                    "value": "cut"
+                                },
+                                {
+                                    "enabled": true,
+                                    "id": "7fd2dc0e-3eda-4db2-8b08-ca420d7a7682",
+                                    "livelink": false,
+                                    "negated": false,
+                                    "term": "Twig Type",
+                                    "type": "term",
+                                    "value": "scan"
+                                }
+                            ],
+                            "hidden": false,
+                            "id": "d2423374-859b-4ecc-9edc-a1b6e6eb4eee",
+                            "name": "All Viewable Outputs",
+                            "type": "preset",
+                            "update": false
+                        },
                         {
                             "children": [
                                 {
@@ -2022,7 +2410,7 @@
                             ],
                             "hidden": false,
                             "id": "fbaece6c-e91d-4aac-8a9a-56a99748d4bf",
-                            "name": "CG & ShoCo",
+                            "name": "CG Renders & ShoCo",
                             "type": "preset",
                             "update": false
                         },
@@ -2198,6 +2586,15 @@
                                     "term": "Twig Type",
                                     "type": "term",
                                     "value": "render/element"
+                                },
+                                {
+                                    "enabled": true,
+                                    "id": "3ca5e764-1d41-47c2-9895-5addae745ec7",
+                                    "livelink": null,
+                                    "negated": false,
+                                    "term": "Filter",
+                                    "type": "term",
+                                    "value": "rerack"
                                 }
                             ],
                             "hidden": false,
@@ -2412,114 +2809,6 @@
                             "name": "Sent To Client",
                             "type": "preset",
                             "update": false
-                        },
-                        {
-                            "children": [
-                                {
-                                    "enabled": true,
-                                    "id": "a0bcafc6-a933-4f95-8233-590714b30647",
-                                    "livelink": false,
-                                    "negated": false,
-                                    "term": "Twig Type",
-                                    "type": "term",
-                                    "value": "render"
-                                },
-                                {
-                                    "enabled": true,
-                                    "id": "de9b0afa-eef9-401d-8f61-d6a9cc37adb9",
-                                    "livelink": false,
-                                    "negated": false,
-                                    "term": "Twig Type",
-                                    "type": "term",
-                                    "value": "render/2D"
-                                },
-                                {
-                                    "enabled": true,
-                                    "id": "14ce50db-3a8a-465a-a042-401dad722a08",
-                                    "livelink": false,
-                                    "negated": false,
-                                    "term": "Twig Type",
-                                    "type": "term",
-                                    "value": "render/cg"
-                                },
-                                {
-                                    "enabled": true,
-                                    "id": "c7e41322-289d-445d-b53e-7944b4717031",
-                                    "livelink": false,
-                                    "negated": false,
-                                    "term": "Twig Type",
-                                    "type": "term",
-                                    "value": "render/deep"
-                                },
-                                {
-                                    "enabled": true,
-                                    "id": "b2564698-0e3c-40aa-b4d5-25138682d9d5",
-                                    "livelink": false,
-                                    "negated": false,
-                                    "term": "Twig Type",
-                                    "type": "term",
-                                    "value": "render/element"
-                                },
-                                {
-                                    "enabled": true,
-                                    "id": "21c77d17-27c4-4adb-a956-b996cfe5670a",
-                                    "livelink": false,
-                                    "negated": false,
-                                    "term": "Twig Type",
-                                    "type": "term",
-                                    "value": "render/out"
-                                },
-                                {
-                                    "enabled": true,
-                                    "id": "6341b729-d4c3-4f9e-a12b-471f0778fb46",
-                                    "livelink": false,
-                                    "negated": false,
-                                    "term": "Twig Type",
-                                    "type": "term",
-                                    "value": "render/playblast"
-                                },
-                                {
-                                    "enabled": true,
-                                    "id": "59961350-271e-4837-851f-f86fb9751a5e",
-                                    "livelink": false,
-                                    "negated": false,
-                                    "term": "Twig Type",
-                                    "type": "term",
-                                    "value": "render/playblast/working"
-                                },
-                                {
-                                    "enabled": true,
-                                    "id": "3284fb37-ea40-4539-88ab-489cd701ac23",
-                                    "livelink": false,
-                                    "negated": false,
-                                    "term": "Twig Type",
-                                    "type": "term",
-                                    "value": "render/wireframe"
-                                },
-                                {
-                                    "enabled": true,
-                                    "id": "7546247e-03d0-49eb-8eee-9e8bf45fb2a2",
-                                    "livelink": false,
-                                    "negated": false,
-                                    "term": "Twig Type",
-                                    "type": "term",
-                                    "value": "data/clip/cut"
-                                },
-                                {
-                                    "enabled": true,
-                                    "id": "3f9b4a9c-2dbc-4216-9c1c-cd2b6b79c3dd",
-                                    "livelink": false,
-                                    "negated": false,
-                                    "term": "Twig Type",
-                                    "type": "term",
-                                    "value": "cut"
-                                }
-                            ],
-                            "hidden": false,
-                            "id": "d2423374-859b-4ecc-9edc-a1b6e6eb4eee",
-                            "name": "All Viewable Outputs",
-                            "type": "preset",
-                            "update": false
                         }
                     ],
                     "id": "a07eab89-7672-4b9d-8559-57b1b6b20577",
@@ -2539,7 +2828,7 @@
                 {
                     "children": [
                         {
-                            "enabled": true,
+                            "enabled": false,
                             "id": "150127c3-efa5-47b1-82fc-4a326896fb1e",
                             "livelink": false,
                             "negated": null,
@@ -2555,6 +2844,25 @@
                 },
                 {
                     "children": [
+                        {
+                            "children": [
+                                {
+                                    "enabled": true,
+                                    "id": "3788b53e-fc31-48b7-89d0-bfed2104c97d",
+                                    "livelink": false,
+                                    "negated": false,
+                                    "term": "Pipeline Step",
+                                    "type": "term",
+                                    "value": "Editorial"
+                                }
+                            ],
+                            "hidden": false,
+                            "id": "77abb8be-4147-476b-ac4b-b39f18b18b6e",
+                            "name": "All Editorial Outputs",
+                            "type": "preset",
+                            "update": false,
+                            "userdata": ""
+                        },
                         {
                             "children": [
                                 {
@@ -2676,25 +2984,6 @@
                             "type": "preset",
                             "update": false,
                             "userdata": ""
-                        },
-                        {
-                            "children": [
-                                {
-                                    "enabled": true,
-                                    "id": "3788b53e-fc31-48b7-89d0-bfed2104c97d",
-                                    "livelink": false,
-                                    "negated": false,
-                                    "term": "Pipeline Step",
-                                    "type": "term",
-                                    "value": "Editorial"
-                                }
-                            ],
-                            "hidden": false,
-                            "id": "77abb8be-4147-476b-ac4b-b39f18b18b6e",
-                            "name": "All Editorial Outputs",
-                            "type": "preset",
-                            "update": false,
-                            "userdata": ""
                         }
                     ],
                     "id": "b0c1b7f1-2f46-4655-93cc-89a61822326d",
@@ -2704,10 +2993,109 @@
             "entity": "Versions",
             "hidden": false,
             "id": "9731813e-81e8-4e05-9e16-6e4a1dee5d5f",
-            "name": "Editorial Outputs",
+            "name": "Editorial QTs",
             "type": "group",
             "update": false,
             "userdata": "tree"
+        },
+        {
+            "children": [
+                {
+                    "children": [
+                        {
+                            "enabled": true,
+                            "id": "8c0a2058-a7d2-4776-99c6-3ea2079a0215",
+                            "livelink": false,
+                            "negated": false,
+                            "term": "Twig Type",
+                            "type": "term",
+                            "value": "data/clip/cut"
+                        }
+                    ],
+                    "id": "b7a77c2d-efe6-4ba3-a5be-a060ee4c3678",
+                    "name": "PRESET",
+                    "type": "preset",
+                    "update": false
+                },
+                {
+                    "children": [
+                        {
+                            "children": [
+                                {
+                                    "enabled": true,
+                                    "id": "3994c1d5-a4c5-4752-a664-e477ed8935fc",
+                                    "livelink": null,
+                                    "negated": false,
+                                    "term": "Filter",
+                                    "type": "term",
+                                    "value": "turnover"
+                                },
+                                {
+                                    "enabled": true,
+                                    "id": "90f00922-14f1-49e9-8349-6647ec46f40c",
+                                    "livelink": null,
+                                    "negated": false,
+                                    "term": "Pipeline Status",
+                                    "type": "term",
+                                    "value": "Approved"
+                                },
+                                {
+                                    "enabled": false,
+                                    "id": "b91f76d6-82a7-45fa-a802-d744ee74f5b1",
+                                    "livelink": null,
+                                    "negated": null,
+                                    "term": "Latest Version",
+                                    "type": "term",
+                                    "value": "True"
+                                }
+                            ],
+                            "hidden": false,
+                            "id": "d7b60fad-b655-46cf-b187-2b817fc4a8b8",
+                            "name": "Approved Turnovers",
+                            "type": "preset",
+                            "update": false,
+                            "userdata": ""
+                        },
+                        {
+                            "children": [
+                                {
+                                    "enabled": true,
+                                    "id": "bc23247d-be70-47e3-9d52-be2d3ff591be",
+                                    "livelink": null,
+                                    "negated": false,
+                                    "term": "Filter",
+                                    "type": "term",
+                                    "value": "turnover"
+                                },
+                                {
+                                    "enabled": false,
+                                    "id": "b33e998b-ea20-4ce7-8b23-dd9940a9acef",
+                                    "livelink": null,
+                                    "negated": false,
+                                    "term": "Pipeline Status",
+                                    "type": "term",
+                                    "value": "Approved"
+                                }
+                            ],
+                            "hidden": false,
+                            "id": "cfc9304d-f102-4b16-adf5-cf1516c9ecb0",
+                            "name": "All Turnovers",
+                            "type": "preset",
+                            "update": false,
+                            "userdata": ""
+                        }
+                    ],
+                    "id": "71c983d9-731f-472d-95b4-6437cd179ab5",
+                    "type": "presets"
+                }
+            ],
+            "entity": "Versions",
+            "hidden": false,
+            "id": "087c4ff5-2da0-4e54-afcf-c7914a247fae",
+            "name": "Sequences",
+            "type": "group",
+            "userdata": "tree",
+            "update": false
         },
         {
             "children": [
@@ -3213,7 +3601,7 @@
                             "negated": null,
                             "term": "Result Limit",
                             "type": "term",
-                            "value": "500"
+                            "value": "1000"
                         }
                     ],
                     "id": "55009e65-58ee-41e5-9503-bf6fdb012551",
@@ -3226,7 +3614,7 @@
                         {
                             "children": [
                                 {
-                                    "enabled": true,
+                                    "enabled": false,
                                     "id": "43be422c-f0de-4eaa-b86d-c55eea7a9fe0",
                                     "livelink": false,
                                     "negated": false,
@@ -3235,18 +3623,46 @@
                                     "value": "art"
                                 },
                                 {
-                                    "enabled": true,
+                                    "enabled": false,
                                     "id": "a89a15bb-3802-42d2-828e-31db97c1208f",
                                     "livelink": false,
                                     "negated": false,
                                     "term": "Twig Type",
                                     "type": "term",
                                     "value": "concept_art"
+                                },
+                                {
+                                    "enabled": true,
+                                    "id": "18c10ea7-e218-40a8-b9f6-7c4775a709ed",
+                                    "livelink": null,
+                                    "negated": false,
+                                    "term": "Filter",
+                                    "type": "term",
+                                    "value": "^ARTCON_"
                                 }
                             ],
                             "hidden": false,
                             "id": "ebcc8123-4670-4535-8c87-37d380af0fda",
                             "name": "Concept Art",
+                            "type": "preset",
+                            "update": false,
+                            "userdata": ""
+                        },
+                        {
+                            "children": [
+                                {
+                                    "enabled": true,
+                                    "id": "3f38d30c-f5e5-4da3-8168-c95dd33ea683",
+                                    "livelink": null,
+                                    "negated": false,
+                                    "term": "Filter",
+                                    "type": "term",
+                                    "value": "REF_"
+                                }
+                            ],
+                            "hidden": false,
+                            "id": "8472a7e8-45a9-44f3-8731-b88a5a18cf55",
+                            "name": "Reference",
                             "type": "preset",
                             "update": false,
                             "userdata": ""
@@ -3297,6 +3713,24 @@
                                     "term": "Filter",
                                     "type": "term",
                                     "value": "witcam"
+                                },
+                                {
+                                    "enabled": true,
+                                    "id": "942cb425-3f11-4346-9222-42d32e9a2dff",
+                                    "livelink": null,
+                                    "negated": false,
+                                    "term": "Filter",
+                                    "type": "term",
+                                    "value": "_dx"
+                                },
+                                {
+                                    "enabled": true,
+                                    "id": "26067442-c2de-4bf7-9cb6-173e3470ccd2",
+                                    "livelink": null,
+                                    "negated": null,
+                                    "term": "Disable Global",
+                                    "type": "term",
+                                    "value": "Twig Type"
                                 }
                             ],
                             "hidden": false,
@@ -3525,7 +3959,7 @@
                             "value": "contactSheet"
                         },
                         {
-                            "enabled": true,
+                            "enabled": false,
                             "id": "1d76b952-de15-4d4a-b5b6-9b3a8ac97b0b",
                             "livelink": false,
                             "negated": null,
@@ -3541,6 +3975,15 @@
                             "term": "Flag Media",
                             "type": "term",
                             "value": "Orange"
+                        },
+                        {
+                            "enabled": true,
+                            "id": "eea985d0-e902-44c9-b01e-b14c262f66a4",
+                            "livelink": true,
+                            "negated": null,
+                            "term": "Preferred Visual",
+                            "type": "term",
+                            "value": ""
                         }
                     ],
                     "id": "52a9bf1a-814a-4cd7-a718-1f543adb67b4",
@@ -3801,6 +4244,33 @@
                             "name": "Latest CFX",
                             "type": "preset",
                             "update": false
+                        },
+                        {
+                            "children": [
+                                {
+                                    "enabled": true,
+                                    "id": "e960a3b8-9c90-461e-8681-e502138b6d4e",
+                                    "livelink": null,
+                                    "negated": null,
+                                    "term": "Sent To Client",
+                                    "type": "term",
+                                    "value": "True"
+                                },
+                                {
+                                    "enabled": true,
+                                    "id": "3e06511c-5848-4a58-860c-895cfcfe7b3d",
+                                    "livelink": null,
+                                    "negated": null,
+                                    "term": "Result Limit",
+                                    "type": "term",
+                                    "value": "1"
+                                }
+                            ],
+                            "hidden": false,
+                            "id": "d04ecb05-509a-4d33-8876-5af78fb06455",
+                            "name": "Latest Client Version",
+                            "update": false,
+                            "type": "preset"
                         },
                         {
                             "children": [
@@ -4661,32 +5131,6 @@
                             "children": [
                                 {
                                     "enabled": true,
-                                    "id": "e960a3b8-9c90-461e-8681-e502138b6d4e",
-                                    "livelink": null,
-                                    "negated": null,
-                                    "term": "Sent To Client",
-                                    "type": "term",
-                                    "value": "True"
-                                },
-                                {
-                                    "enabled": true,
-                                    "id": "3e06511c-5848-4a58-860c-895cfcfe7b3d",
-                                    "livelink": null,
-                                    "negated": null,
-                                    "term": "Result Limit",
-                                    "type": "term",
-                                    "value": "1"
-                                }
-                            ],
-                            "hidden": false,
-                            "id": "d04ecb05-509a-4d33-8876-5af78fb06455",
-                            "name": "Latest Client Send",
-                            "type": "preset"
-                        },
-                        {
-                            "children": [
-                                {
-                                    "enabled": true,
                                     "id": "fd12a34f-530d-45b3-bfec-97082e44539b",
                                     "livelink": null,
                                     "negated": null,
@@ -4774,15 +5218,6 @@
                     "children": [
                         {
                             "enabled": true,
-                            "id": "8058b51c-1e60-4626-bca3-310a02f3cc85",
-                            "livelink": true,
-                            "negated": null,
-                            "term": "Preferred Visual",
-                            "type": "term",
-                            "value": "movie_dneg"
-                        },
-                        {
-                            "enabled": true,
                             "id": "871465a7-e1d4-48c1-8f06-1545e89c2d2f",
                             "livelink": true,
                             "negated": null,
@@ -4798,6 +5233,69 @@
                             "term": "Flag Media",
                             "type": "term",
                             "value": "Orange"
+                        },
+                        {
+                            "enabled": true,
+                            "id": "d0a8e965-e126-4dd2-a720-e11942e92fc7",
+                            "livelink": true,
+                            "negated": null,
+                            "term": "Preferred Visual",
+                            "type": "term",
+                            "value": ""
+                        },
+                        {
+                            "enabled": true,
+                            "id": "0a29fa11-1aca-493f-bbb6-eec706de1822",
+                            "livelink": false,
+                            "negated": false,
+                            "term": "Twig Type",
+                            "type": "term",
+                            "value": "render/2D"
+                        },
+                        {
+                            "enabled": true,
+                            "id": "d5f88abf-2ca5-4f0d-b469-e6d870e7e3dd",
+                            "livelink": false,
+                            "negated": false,
+                            "term": "Twig Type",
+                            "type": "term",
+                            "value": "render/out"
+                        },
+                        {
+                            "enabled": true,
+                            "id": "d1163e11-fa85-4ec9-b408-67e328d1b16c",
+                            "livelink": false,
+                            "negated": false,
+                            "term": "Twig Type",
+                            "type": "term",
+                            "value": "render/cg"
+                        },
+                        {
+                            "enabled": true,
+                            "id": "0b423110-8319-4a61-9356-e18ea2ac1797",
+                            "livelink": false,
+                            "negated": false,
+                            "term": "Twig Type",
+                            "type": "term",
+                            "value": "render/playblast"
+                        },
+                        {
+                            "enabled": true,
+                            "id": "6ce8286c-fc2e-41c0-bf93-6b3242bf9a0d",
+                            "livelink": false,
+                            "negated": false,
+                            "term": "Twig Type",
+                            "type": "term",
+                            "value": "render/playblast/working"
+                        },
+                        {
+                            "enabled": true,
+                            "id": "31ae935b-a894-4b42-b9ee-b60282f90824",
+                            "livelink": false,
+                            "negated": false,
+                            "term": "Twig Type",
+                            "type": "term",
+                            "value": "scan"
                         }
                     ],
                     "id": "e1cdf832-127c-4405-b946-02b0c6ee9228",
@@ -4894,6 +5392,96 @@
                             "hidden": false,
                             "id": "74546d37-5349-43f7-8b59-78d5b7d7f3ec",
                             "name": "Latest Anim",
+                            "type": "preset",
+                            "update": false
+                        },
+                        {
+                            "children": [
+                                {
+                                    "enabled": false,
+                                    "id": "e49768b9-62ce-464d-8b36-32c8c4c2c985",
+                                    "livelink": false,
+                                    "negated": false,
+                                    "term": "Twig Type",
+                                    "type": "term",
+                                    "value": "render/cg"
+                                },
+                                {
+                                    "enabled": true,
+                                    "id": "ac926b04-273f-4f6e-a7b1-159171ed968d",
+                                    "livelink": null,
+                                    "negated": null,
+                                    "term": "Latest Version",
+                                    "type": "term",
+                                    "value": "True"
+                                },
+                                {
+                                    "enabled": true,
+                                    "id": "48c85852-1969-494c-a05e-59e43d68c875",
+                                    "livelink": false,
+                                    "negated": false,
+                                    "term": "Pipeline Step",
+                                    "type": "term",
+                                    "value": "Anim"
+                                },
+                                {
+                                    "enabled": true,
+                                    "id": "b4d815d7-0a4c-4308-aa80-7ca367d4259b",
+                                    "livelink": false,
+                                    "negated": false,
+                                    "term": "Twig Type",
+                                    "type": "term",
+                                    "value": "render/out"
+                                },
+                                {
+                                    "enabled": false,
+                                    "id": "b28c26f4-49d9-4b91-8f9f-d00f26cb1e83",
+                                    "livelink": false,
+                                    "negated": false,
+                                    "term": "Twig Type",
+                                    "type": "term",
+                                    "value": "render/playblast/working"
+                                },
+                                {
+                                    "enabled": true,
+                                    "id": "e2156800-301b-4216-95ae-240b4b37acae",
+                                    "livelink": null,
+                                    "negated": null,
+                                    "term": "Result Limit",
+                                    "type": "term",
+                                    "value": "1"
+                                },
+                                {
+                                    "enabled": false,
+                                    "id": "e7e3aedd-3944-4365-9f59-b5f1ce574465",
+                                    "livelink": null,
+                                    "negated": true,
+                                    "term": "Filter",
+                                    "type": "term",
+                                    "value": "qc"
+                                },
+                                {
+                                    "enabled": true,
+                                    "id": "94bdbb30-89ba-4c0a-93a9-1723600b0e68",
+                                    "livelink": null,
+                                    "negated": false,
+                                    "term": "Filter",
+                                    "type": "term",
+                                    "value": "shoco"
+                                },
+                                {
+                                    "enabled": false,
+                                    "id": "786f44e9-aa4c-4544-95fb-90e4aa60d2b7",
+                                    "livelink": null,
+                                    "negated": true,
+                                    "term": "Filter",
+                                    "type": "term",
+                                    "value": "slap"
+                                }
+                            ],
+                            "hidden": false,
+                            "id": "850d6034-0b89-4504-8687-f203e04fc289",
+                            "name": "Latest Anim ShoCo",
                             "type": "preset",
                             "update": false
                         },
@@ -5114,6 +5702,15 @@
                                     "term": "Result Limit",
                                     "type": "term",
                                     "value": "1"
+                                },
+                                {
+                                    "enabled": true,
+                                    "id": "ff66aa84-3e37-42d3-a12c-d21b1af2c1c2",
+                                    "livelink": null,
+                                    "negated": true,
+                                    "term": "Filter",
+                                    "type": "term",
+                                    "value": "contactsheet"
                                 }
                             ],
                             "hidden": false,
@@ -5206,7 +5803,7 @@
                         {
                             "children": [
                                 {
-                                    "enabled": true,
+                                    "enabled": false,
                                     "id": "1f6b5f89-4fe5-4961-bc5c-c099da77c796",
                                     "livelink": null,
                                     "negated": null,
@@ -5215,7 +5812,7 @@
                                     "value": "True"
                                 },
                                 {
-                                    "enabled": true,
+                                    "enabled": false,
                                     "id": "72964cab-cc03-494a-ab49-a016481400c7",
                                     "livelink": false,
                                     "negated": false,
@@ -5224,13 +5821,31 @@
                                     "value": "Editorial"
                                 },
                                 {
-                                    "enabled": true,
+                                    "enabled": false,
                                     "id": "10d670e4-adeb-4242-ad39-3403ec437791",
                                     "livelink": null,
                                     "negated": false,
                                     "term": "Filter",
                                     "type": "term",
                                     "value": "edit_ref"
+                                },
+                                {
+                                    "enabled": true,
+                                    "id": "f0528e96-07a0-4e1c-b1e4-4ee047ccca07",
+                                    "livelink": null,
+                                    "negated": null,
+                                    "term": "Disable Global",
+                                    "type": "term",
+                                    "value": "Twig Type"
+                                },
+                                {
+                                    "enabled": true,
+                                    "id": "77c5aebc-6362-4e51-bc34-a52f90d6aff2",
+                                    "livelink": false,
+                                    "negated": false,
+                                    "term": "Twig Name",
+                                    "type": "term",
+                                    "value": "edit_ref$"
                                 }
                             ],
                             "hidden": false,
@@ -5378,6 +5993,51 @@
                             "children": [
                                 {
                                     "enabled": true,
+                                    "id": "18917b7e-271b-4aa8-bfa9-25636c94948e",
+                                    "livelink": null,
+                                    "negated": null,
+                                    "term": "Latest Version",
+                                    "type": "term",
+                                    "value": "True"
+                                },
+                                {
+                                    "enabled": true,
+                                    "id": "54fb19c0-760b-4fb6-9d50-61bca7d03e1e",
+                                    "livelink": false,
+                                    "negated": false,
+                                    "term": "Pipeline Step",
+                                    "type": "term",
+                                    "value": "Layout"
+                                },
+                                {
+                                    "enabled": true,
+                                    "id": "e595aa53-a6fb-483a-b686-a328bbba863b",
+                                    "livelink": null,
+                                    "negated": false,
+                                    "term": "Filter",
+                                    "type": "term",
+                                    "value": "shoco"
+                                },
+                                {
+                                    "enabled": true,
+                                    "id": "301846e3-7347-40ad-897e-b59c1bad406a",
+                                    "livelink": null,
+                                    "negated": null,
+                                    "term": "Result Limit",
+                                    "type": "term",
+                                    "value": "1"
+                                }
+                            ],
+                            "hidden": false,
+                            "id": "a1851804-5878-4bc1-a2bd-119541641678",
+                            "name": "Latest Layout ShoCo",
+                            "type": "preset",
+                            "update": false
+                        },
+                        {
+                            "children": [
+                                {
+                                    "enabled": true,
                                     "id": "c0b4f293-6d0a-4c74-832d-589eb45f0868",
                                     "livelink": null,
                                     "negated": null,
@@ -5416,6 +6076,60 @@
                             "hidden": false,
                             "id": "4584980d-a6bb-416e-b328-d5b632f7de1a",
                             "name": "Latest Lighting",
+                            "type": "preset",
+                            "update": false
+                        },
+                        {
+                            "children": [
+                                {
+                                    "enabled": true,
+                                    "id": "406b361e-f22e-481c-b653-2e1691256347",
+                                    "livelink": null,
+                                    "negated": null,
+                                    "term": "Latest Version",
+                                    "type": "term",
+                                    "value": "True"
+                                },
+                                {
+                                    "enabled": true,
+                                    "id": "ae56ce15-8f70-45e4-9965-53334d376cd0",
+                                    "livelink": false,
+                                    "negated": false,
+                                    "term": "Pipeline Step",
+                                    "type": "term",
+                                    "value": "Lighting"
+                                },
+                                {
+                                    "enabled": true,
+                                    "id": "a940c50a-2345-4f7a-afbf-dc4cb581f380",
+                                    "livelink": null,
+                                    "negated": true,
+                                    "term": "Filter",
+                                    "type": "term",
+                                    "value": "contact"
+                                },
+                                {
+                                    "enabled": true,
+                                    "id": "3d1038ba-8412-44f5-a402-bd1676b084ac",
+                                    "livelink": null,
+                                    "negated": null,
+                                    "term": "Result Limit",
+                                    "type": "term",
+                                    "value": "1"
+                                },
+                                {
+                                    "enabled": true,
+                                    "id": "a5d9b078-c470-4da4-a9f5-93d2087e858c",
+                                    "livelink": null,
+                                    "negated": false,
+                                    "term": "Filter",
+                                    "type": "term",
+                                    "value": "slap"
+                                }
+                            ],
+                            "hidden": false,
+                            "id": "e01a73ff-c715-494c-b0ae-6ac989ad94da",
+                            "name": "Latest Lighting Slap",
                             "type": "preset",
                             "update": false
                         },
@@ -5954,6 +6668,105 @@
                             "children": [
                                 {
                                     "enabled": true,
+                                    "id": "ab7ffee5-e396-4ef3-a70d-da44650ce436",
+                                    "livelink": null,
+                                    "negated": null,
+                                    "term": "Latest Version",
+                                    "type": "term",
+                                    "value": "True"
+                                },
+                                {
+                                    "enabled": true,
+                                    "id": "3d017907-88da-43a9-88c8-772f0d485511",
+                                    "livelink": null,
+                                    "negated": false,
+                                    "term": "Filter",
+                                    "type": "term",
+                                    "value": "shoco"
+                                },
+                                {
+                                    "enabled": true,
+                                    "id": "96659bbf-89e8-46d5-a768-7c6d1ff4e292",
+                                    "livelink": null,
+                                    "negated": null,
+                                    "term": "Result Limit",
+                                    "type": "term",
+                                    "value": "1"
+                                },
+                                {
+                                    "enabled": true,
+                                    "id": "2205e9d4-8def-44b7-a55d-be74aaff4fee",
+                                    "livelink": null,
+                                    "negated": true,
+                                    "term": "Filter",
+                                    "type": "term",
+                                    "value": "track"
+                                }
+                            ],
+                            "hidden": false,
+                            "id": "e59028b1-15e3-44cc-ba8e-93e56f71008f",
+                            "name": "Latest  ShoCo",
+                            "type": "preset",
+                            "update": false
+                        },
+                        {
+                            "children": [
+                                {
+                                    "enabled": true,
+                                    "id": "904558b3-a633-486c-82fc-87cebf804c59",
+                                    "livelink": null,
+                                    "negated": null,
+                                    "term": "Latest Version",
+                                    "type": "term",
+                                    "value": "True"
+                                },
+                                {
+                                    "enabled": true,
+                                    "id": "2df1eb5a-0f57-4c07-afb3-694b63b256cf",
+                                    "livelink": null,
+                                    "negated": false,
+                                    "term": "Filter",
+                                    "type": "term",
+                                    "value": "shoco"
+                                },
+                                {
+                                    "enabled": true,
+                                    "id": "bd9974c6-ef83-406c-9c1f-0e3271dc5d93",
+                                    "livelink": null,
+                                    "negated": null,
+                                    "term": "Result Limit",
+                                    "type": "term",
+                                    "value": "1"
+                                },
+                                {
+                                    "enabled": true,
+                                    "id": "92662ed4-b015-4830-86b2-1c7760676014",
+                                    "livelink": null,
+                                    "negated": true,
+                                    "term": "Filter",
+                                    "type": "term",
+                                    "value": "track"
+                                },
+                                {
+                                    "enabled": true,
+                                    "id": "69110a3c-f0f3-40a5-959a-dfd45264b227",
+                                    "livelink": false,
+                                    "negated": false,
+                                    "term": "Pipeline Step",
+                                    "type": "term",
+                                    "value": "Sweatbox"
+                                }
+                            ],
+                            "hidden": false,
+                            "id": "98975cb3-d177-4f5d-a117-ecce587b2abb",
+                            "name": "Latest  Sweatbox",
+                            "type": "preset",
+                            "update": false
+                        },
+                        {
+                            "children": [
+                                {
+                                    "enabled": true,
                                     "id": "49a0022e-7a8f-4416-8bee-89a13ac16efd",
                                     "livelink": null,
                                     "negated": null,
@@ -5974,6 +6787,42 @@
                             "hidden": false,
                             "id": "bf60020b-fd01-48c3-a126-a563f1d02b29",
                             "name": "Latest Output",
+                            "type": "preset",
+                            "update": false
+                        },
+                        {
+                            "children": [
+                                {
+                                    "enabled": false,
+                                    "id": "6400c83e-de8a-4e97-80b8-e43f91172268",
+                                    "livelink": null,
+                                    "negated": null,
+                                    "term": "Latest Version",
+                                    "type": "term",
+                                    "value": "True"
+                                },
+                                {
+                                    "enabled": true,
+                                    "id": "52c807f9-2f5d-47ea-90c0-daf9b6797696",
+                                    "livelink": null,
+                                    "negated": false,
+                                    "term": "Filter",
+                                    "type": "term",
+                                    "value": "_dx0"
+                                },
+                                {
+                                    "enabled": true,
+                                    "id": "4970e7f7-d095-4b1d-8639-639158f46550",
+                                    "livelink": null,
+                                    "negated": null,
+                                    "term": "Disable Global",
+                                    "type": "term",
+                                    "value": "Twig Type"
+                                }
+                            ],
+                            "hidden": false,
+                            "id": "ccf3bf5c-8735-4d5a-8e0e-d2a113ebbcb0",
+                            "name": "Latest Witness Cam",
                             "type": "preset",
                             "update": false
                         },
@@ -6155,6 +7004,7 @@
             "update": false,
             "userdata": "menus"
         }
+
 
 
 

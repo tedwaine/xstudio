@@ -24,7 +24,6 @@ import xstudio.qml.bookmarks 1.0
 import xstudio.qml.clipboard 1.0
 import xstudio.qml.event 1.0
 import xstudio.qml.global_store_model 1.0
-import xstudio.qml.module 1.0
 // import xstudio.qml.playlist 1.0
 import xstudio.qml.semver 1.0
 import xstudio.qml.session 1.0
@@ -257,7 +256,7 @@ ApplicationWindow {
         }
     }
 
-    function launchQuickViewerWithSize(sources, compare_mode, __position, __size) {
+    function launchQuickViewerWithSize(sources, compare_mode, in_point, out_point, __position, __size) {
 
         var component = Qt.createComponent("player/XsLightPlayerWindow.qml");
         if (component.status == Component.Ready) {
@@ -265,7 +264,7 @@ ApplicationWindow {
                 for (var source in sources) {
                     var light_viewer = component.createObject(app_window, {x: __position.x, y: __position.y, width: __size.width, height: __size.height, sessionModel: sessionModel});
                     light_viewer.show()
-                    light_viewer.viewport.quickViewSource([sources[source]], "Off")
+                    light_viewer.viewport.quickViewSource([sources[source]], "Off", in_point, out_point)
                     light_viewer.raise()
                     light_viewer.requestActivate()
                     light_viewer.raise()
@@ -273,7 +272,7 @@ ApplicationWindow {
             } else {
                 var light_viewer = component.createObject(app_window, {x: __position.x, y: __position.y, width: __size.width, height: __size.height, sessionModel: sessionModel});
                 light_viewer.show()
-                light_viewer.viewport.quickViewSource(sources, compare_mode)
+                light_viewer.viewport.quickViewSource(sources, compare_mode, in_point, out_point)
                 light_viewer.raise()
                 light_viewer.requestActivate()
                 light_viewer.raise()
@@ -297,8 +296,8 @@ ApplicationWindow {
         quickWinPosSet = true
     }
 
-    function launchQuickViewer(sources, compare_mode) {
-        launchQuickViewerWithSize(sources, compare_mode, quickWinPosition, quickWinSize)
+    function launchQuickViewer(sources, compare_mode, in_point, out_point) {
+        launchQuickViewerWithSize(sources, compare_mode, in_point, out_point, quickWinPosition, quickWinSize)
         if (quickWinPosSet) {
             // rest the default position for the next QuickView window
             quickWinPosition = Qt.point(100, 100)
@@ -1155,8 +1154,8 @@ ApplicationWindow {
 
         function newTimeline(index, text=null, centeron=null) {
             if(index != null) {
-                request_new.text = "Untitled Timeline"
-                request_new.okay_text = "Add Timeline"
+                request_new.text = "Untitled Sequence"
+                request_new.okay_text = "Add Sequence"
                 request_new.type = "Timeline"
                 request_new.centerOn = centeron
                 request_new.index = index
@@ -1614,8 +1613,8 @@ ApplicationWindow {
         //     session.sessionActorAddr = session_addr
         // }
 
-        function onOpenQuickViewers(media_actors, compare_mode) {
-            launchQuickViewer(media_actors, compare_mode)
+        function onOpenQuickViewers(media_actors, compare_mode, in_point, out_point) {
+            launchQuickViewer(media_actors, compare_mode, in_point, out_point)
         }
 
         function onSessionRequest(path, jsn) {

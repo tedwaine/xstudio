@@ -10,31 +10,15 @@ import ShotBrowser 1.0
 Item{
     clip: true
 
-    property var presetsFilterModel: ShotBrowserEngine.presetModels.recent
-
-    property real treeTabWidth: visibleWidth
-    property real menusRecentTabWidth: visibleWidth
-
-    property real leftSecWidth: parent.parent.width
-    onLeftSecWidthChanged: {
-        if(currentCategory == "Tree") {
-            treeTabWidth = leftSecWidth
-        }
-        else if(currentCategory == "Recent" || currentCategory == "Menus") {
-            menusRecentTabWidth = leftSecWidth
+    property var presetsFilterModel: {
+        if(!ShotBrowserEngine.ready)
+            return null
+        else {
+            if(currentCategory == "Tree") return ShotBrowserEngine.presetModels.tree
+            else if(currentCategory == "Recent") return ShotBrowserEngine.presetModels.recent
+            else return ShotBrowserEngine.presetModels.menus
         }
     }
-
-    property string selectedCategory: currentCategory
-    onSelectedCategoryChanged: {
-        if(currentCategory == "Tree") {
-            parent.parent.SplitView.preferredWidth = treeTabWidth
-        }
-        else if(currentCategory == "Recent" || currentCategory == "Menus") {
-            parent.parent.SplitView.preferredWidth = menusRecentTabWidth
-        }
-    }
-
 
     XsSplitView { id: viewDiv
 
@@ -43,26 +27,19 @@ Item{
         thumbWidth: currentCategory == "Tree"? panelPadding/2 : 0
 
         XsSBL2V1Tree{ id: treeView
-            SplitView.preferredWidth: treeView.actualWidth
+            SplitView.preferredWidth: prefs.treeWidth
             SplitView.fillHeight: true
 
             visible: currentCategory == "Tree"
-            property real actualWidth: parent.width/2
-            onWidthChanged: if(currentCategory == "Tree") treeView.actualWidth = width
+            onWidthChanged: {
+                if(SplitView.view.resizing && currentCategory == "Tree")
+                    prefs.treeWidth = width
+            }
         }
 
         XsSBL2V2Presets{ id: presetsView
             SplitView.fillWidth: true
             SplitView.fillHeight: true
-
-            property var selectedCategory: currentCategory
-            onSelectedCategoryChanged: {
-                if(currentCategory == "Tree") presetsFilterModel = ShotBrowserEngine.presetModels.tree
-                else if(currentCategory == "Recent") presetsFilterModel = ShotBrowserEngine.presetModels.recent
-                else presetsFilterModel = ShotBrowserEngine.presetModels.menus
-            }
         }
-
     }
-
 }

@@ -81,11 +81,8 @@ void ColourPipeLutCollection::bind_luts(GLShaderProgramPtr shader, int &tex_idx)
     }
 }
 
-OpenGLViewportRenderer::OpenGLViewportRenderer(
-    const int viewer_index, const bool gl_context_shared)
-    : viewport::ViewportRenderer(),
-      gl_context_shared_(gl_context_shared),
-      viewport_index_(viewer_index) {}
+OpenGLViewportRenderer::OpenGLViewportRenderer(const bool /*gl_context_shared*/)
+    : viewport::ViewportRenderer(), gl_context_shared_(false) {}
 
 void OpenGLViewportRenderer::upload_image_and_colour_data(
     std::vector<media_reader::ImageBufPtr> &next_images) {
@@ -335,7 +332,7 @@ void OpenGLViewportRenderer::render(
         }
 
         // coordinate system set-up
-        utility::JsonStore shader_params;
+        utility::JsonStore shader_params        = shader_uniforms_;
         shader_params["to_coord_system"]        = transform_viewport_to_image_space;
         shader_params["to_canvas"]              = to_scene_matrix;
         shader_params["use_bilinear_filtering"] = use_bilinear_filtering;
@@ -392,7 +389,8 @@ void OpenGLViewportRenderer::render(
 
     /* N.B. this glfinish is required to keep the popout viewport in sync with the main viewport
     because the two may viewports share textures, shaders and other resources (they can be the
-    same GL context)* - without this segfault in graphics driver is possible */
+    same GL context)* - without this segfault in graphics driver is possible.
+    ... More: sharing GL contexts across windows does not work (on Linux)! */
     if (gl_context_shared_)
         glFinish();
 
@@ -501,9 +499,9 @@ void OpenGLViewportRenderer::pre_init() {
 
     // N.B. - if sharing of GL contexts is set-up for multiple GL viewport
     // then we only create one set of textures and use them in both viewports
-    // thus meaning we only upload image data once.
-    static std::vector<GLTexturePtr> shared_textures;
-
+    // thus meaning we only upload image data once. However, this experiment
+    // has not been successful so far so removing it for now.
+    /*static std::vector<GLTexturePtr> shared_textures;
     if (shared_textures.size()) {
         textures_ = shared_textures;
     } else {
@@ -511,7 +509,9 @@ void OpenGLViewportRenderer::pre_init() {
         if (gl_context_shared_) {
             shared_textures = textures_;
         }
-    }
+    }*/
+
+    textures_.emplace_back(new GLDoubleBufferedTexture());
 
     glGenBuffers(1, &vbo_);
     glGenVertexArrays(1, &vao_);

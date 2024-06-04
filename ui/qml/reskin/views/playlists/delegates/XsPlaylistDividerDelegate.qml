@@ -2,117 +2,144 @@
 import QtQuick 2.12
 import QtQuick.Controls 2.14
 import QtGraphicalEffects 1.15
+import QtQuick.Layouts 1.15
+import QtQml.Models 2.15
 
+import xstudio.qml.helpers 1.0
 import xStudioReskin 1.0
 
 Item {
-    id: dividerDiv
-    width: parent.width
-    height: parent.height
-    opacity: enabled ? 1.0 : 0.33
+    id: contentDiv
+    width: parent.width;
+    height: itemRowStdHeight
 
-    property real itemRealHeight: XsStyleSheet.widgetStdHeight -2
-    property real panelPadding: XsStyleSheet.panelPadding
+    property real itemPadding: XsStyleSheet.panelPadding/2
     property real buttonWidth: XsStyleSheet.secondaryButtonStdWidth
 
-    property color panelColor: XsStyleSheet.panelBgColor
     property color bgColorPressed: XsStyleSheet.widgetBgNormalColor
     property color bgColorNormal: "transparent"
     property color forcedBgColorNormal: bgColorNormal
-   
+
+    property color highlightColor: palette.highlight
     property color hintColor: XsStyleSheet.hintColor
-    property color dividerColor: XsStyleSheet.menuBarColor
+    property color errorColor: XsStyleSheet.errorColor
+
+    property var iconSource: "qrc:/icons/list_alt.svg"
+    property bool indent: false
     
-    property bool isSelected: false
-    property bool isSubDivider: false
+    // background
+    Rectangle {
 
-    Button{ id: visibleItemDiv
+        id: bgDiv
+        anchors.left: parent.left
+        anchors.right: parent.right
+        anchors.top: parent.top
+        height: itemRowStdHeight
 
-        y: panelPadding
-        width: parent.width
-        height: itemRealHeight
+        border.color: (down || hovered) ? borderColorHovered : borderColorNormal
+        border.width: borderWidth
+        color: down || isCurrent ? Qt.darker(palette.highlight, 2) : isSelected ? Qt.darker(palette.highlight, 3) : forcedBgColorNormal
         
-        text: nameRole
-        font.pixelSize: textSize
-        font.family: textFont
+    }
+
+    // flag
+    Rectangle{ 
+        color: flagColourRole
+        height: itemRowStdHeight
+        width: flagIndicatorWidth
+    }
+
+    /* modelIndex should be set to point into the session data model and get
+    to the playlist that we are representing */
+    property var modelIndex
+
+    /* first index in playlist is media ... */
+    property var itemCount: mediaCountRole? mediaCountRole : 0
+
+    property bool isCurrent: modelIndex == inspectedMediaSetIndex
+    property bool isSelected: sessionSelectionModel.isSelected(modelIndex)
+    property bool isMissing: false
+    property bool isExpanded: false
+    property bool isExpandable: false
+    property bool isViewed: modelIndex == viewedMediaSetIndex
+    //property bool mouseOverInspect: false
+
+    property var hovered: ma.containsMouse
+    property var down: ma.pressed
+
+    Connections {
+        target: sessionSelectionModel // this bubbles up from XsSessionWindow
+        function onSelectedIndexesChanged() {
+            isSelected = sessionSelectionModel.isSelected(modelIndex)
+        }
+    }
+
+    MouseArea {
+
+        id: ma
+        anchors.fill: bgDiv
+        height: parent.height
         hoverEnabled: true
-        padding: 0
-        
-        contentItem:
-        Item{
-            width: parent.width - panelPadding //for scrollbar
-            height: parent.height
-            anchors.top: parent.top
-            anchors.topMargin: panelPadding
-            anchors.bottom: parent.bottom
-            anchors.bottomMargin: panelPadding
-
-            Rectangle{ id: leftLine; height: 1; color: isSelected?hintColor:dividerColor; anchors.verticalCenter: parent.verticalCenter
-                anchors.left: parent.left; anchors.leftMargin: isSubDivider? buttonWidth*2+panelPadding : buttonWidth
-                anchors.right: textDiv.left; anchors.rightMargin: panelPadding*2
-
-            }
-            Rectangle{ id: rightLine; height: 1; color: isSelected?hintColor:dividerColor; anchors.verticalCenter: parent.verticalCenter
-                anchors.left: textDiv.right; anchors.leftMargin: panelPadding*2
-                anchors.right: moreBtn.visible? moreBtn.left : parent.right; anchors.rightMargin: moreBtn.visible? panelPadding : panelPadding*2
-            }
-            XsText {
-                id: textDiv
-                property real titlePadding: leftLine.anchors.leftMargin
-                text: visibleItemDiv.text
-                font: visibleItemDiv.font
-                color: hintColor 
-                anchors.verticalCenter: parent.verticalCenter
-                anchors.horizontalCenter: parent.horizontalCenter
-                width: (parent.width-textDiv.titlePadding*2) > textWidth? textWidth : (parent.width-textDiv.titlePadding*2)
-                height: parent.height
-
-                // XsToolTip{
-                    //     text: visibleItemDiv.text
-                    //     visible: visibleItemDiv.hovered && parent.truncated
-                    //     width: metricsDiv.width == 0? 0 : visibleItemDiv.width
-                    // }
-                }
-
-            XsSecondaryButton{ id: moreBtn
-                visible: visibleItemDiv.hovered
-                width: buttonWidth
-                height: buttonWidth
-                imgSrc: "qrc:/icons/more_horiz.svg"
-                anchors.right: parent.right
-                anchors.rightMargin: panelPadding
-                anchors.verticalCenter: parent.verticalCenter
-                imgOverlayColor: hintColor
-            }
-        }
-
-        background:
-        Rectangle {
-            id: bgDiv
-            implicitWidth: 100
-            implicitHeight: 40
-            border.color: visibleItemDiv.down || visibleItemDiv.hovered ? borderColorHovered: borderColorNormal
-            border.width: borderWidth
-            color: visibleItemDiv.down || isSelected? bgColorPressed : forcedBgColorNormal
-
-            Rectangle {
-                id: bgFocusDiv
-                implicitWidth: parent.width+borderWidth
-                implicitHeight: parent.height+borderWidth
-                visible: visibleItemDiv.activeFocus
-                color: "transparent"
-                opacity: 0.33
-                border.color: borderColorHovered
-                border.width: borderWidth
-                anchors.centerIn: parent
-            }
-        }
+        acceptedButtons: Qt.LeftButton | Qt.RightButton
 
         onPressed: {
-            focus = true
-            isSelected = !isSelected
+
+            if (mouse.buttons == Qt.RightButton) {
+                showContextMenu(mouseX, mouseY, ma)
+            }
+
+            // Put the content of the playlist into the media browser etc.
+            // but don't put it on screen.
+            if (mouse.modifiers == Qt.ControlModifier) {
+
+                if (!(sessionSelectionModel.selectedIndexes.length == 1 &&
+                    sessionSelectionModel.selectedIndexes[0] == modelIndex)) {
+                    sessionSelectionModel.select(modelIndex, ItemSelectionModel.Toggle)
+                    if (sessionSelectionModel.isSelected(modelIndex)) {
+                        sessionSelectionModel.setCurrentIndex(modelIndex, ItemSelectionModel.NoUpdate)
+                    }
+                }
+
+            } else if (mouse.buttons != Qt.RightButton || (mouse.buttons == Qt.RightButton && !isSelected)) {
+                sessionSelectionModel.setCurrentIndex(modelIndex, ItemSelectionModel.ClearAndSelect)
+            }
+
         }
-        onReleased: focus = false
+
+    }
+
+    RowLayout {
+
+        id: layout
+        anchors.fill: bgDiv
+        anchors.leftMargin: indent ? subitemIndent+itemPadding*6 : rightSpacing
+        anchors.rightMargin: rightSpacing
+        spacing: 10
+
+        Rectangle{ 
+            height: 1; 
+            color: hintColor
+            Layout.alignment: Qt.AlignVCenter
+            Layout.fillWidth: true
+        }
+        
+        XsText {
+            
+            id: textDiv
+            text: nameRole
+            color: hintColor 
+            Layout.alignment: Qt.AlignVCenter
+
+        }
+
+        Rectangle{ 
+            height: 1; 
+            color: hintColor
+            Layout.alignment: Qt.AlignVCenter
+            Layout.fillWidth: true
+        }
+
+
     }
 
 }

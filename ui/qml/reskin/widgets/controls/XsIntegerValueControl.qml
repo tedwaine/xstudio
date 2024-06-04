@@ -26,7 +26,7 @@ Control
     property var stepSize: 0.25
 
     property bool isShortened: false
-    property real shortThresholdWidth: 99
+    property real shortThresholdWidth: 75
     property bool isShortTextOnly: false
     property bool showValueWhenShortened: false
     property real shortOnlyThresholdWidth: 60
@@ -71,10 +71,8 @@ Control
             color: "transparent"
 
             XsGradientRectangle{
-                id: bgDiv
                 visible: isBgGradientVisible
-                anchors.fill: parent
-        
+                anchors.fill: parent        
                 flatColor: topColor
                 topColor: isPressed || (isActive && !subtleActive)? bgColorPressed: "#33FFFFFF"
                 bottomColor: isPressed || (isActive && !subtleActive)? bgColorPressed: forcedBgColorNormal

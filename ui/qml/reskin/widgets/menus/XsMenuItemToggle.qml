@@ -17,26 +17,27 @@ Item {
     // same menu. This creates a circular dependency .. the menu item width
     // depends on the widest item. If it is the widest item its width 
     // depends on itself. There must be a better QML solution for this
-    property real minWidth: final_spacer.width + indentSpacer.width + iconDiv.width + hotkey_metrics.width + label_metrics.width + margin*4    
+    property real minWidth: leftIconSize + final_spacer.width + hotkey_metrics.width + label_metrics.width + margin*4    
 
-    property real leftIconSize: indentSpacer.width + iconDiv.width
+    property real leftIconSize: menuIcon? indentSpacer.width + checkDiv.width + iconDiv.width : indentSpacer.width + checkDiv.width
 
     property bool isChecked: isRadioButton? radioSelectedChoice==label : is_checked
     property bool isRadioButton: false
     property var radioSelectedChoice: ""
     property var label: name ? name : ""
+    property var menuIcon: ""
 
     property var margin: 4 // don't need this ?
     property var sub_menu
     property var menu_model
     property var menu_model_index
     property var parent_menu
-    property alias icon: iconDiv.source
+    property alias icon: checkDiv.source
 
     property bool isHovered: menuMouseArea.containsMouse
     property bool isActive: menuMouseArea.pressed
  
-    property color hotKeyColor: palette.highlight
+    property color hotKeyColor: palette.text //highlight
     property real borderWidth: XsStyleSheet.widgetBorderWidth
 
     opacity: enabled ? 1 : 0.5
@@ -68,28 +69,45 @@ Item {
     }
 
     RowLayout {
-
         anchors.fill: parent
         anchors.margins: margin
         spacing: 0
 
-        XsImage { 
-        
-            id: iconDiv
-            source: isRadioButton? 
-                isChecked ? "qrc:/icons/radio_button_checked.svg" : "qrc:/icons/radio_button_unchecked.svg" :
-                isChecked ? "qrc:/icons/check_box_checked.svg" : "qrc:/icons/check_box_unchecked.svg"
+        Item{
             width: XsStyleSheet.menuCheckboxSize
             height: XsStyleSheet.menuCheckboxSize
+
+            XsImage { 
+                id: checkDiv
+                anchors.fill: parent
+                source: isRadioButton? 
+                    isChecked ? "qrc:/icons/radio_button_checked.svg" : "qrc:/icons/radio_button_unchecked.svg" :
+                    isChecked ? "qrc:/icons/check_box_checked.svg" : "qrc:/icons/check_box_unchecked.svg"
+                sourceSize.height: height
+                sourceSize.width: width
+                Layout.alignment: Qt.AlignLeft | Qt.AlignVCenter
+                layer {
+                    enabled: true
+                    effect: ColorOverlay { color: hotKeyColor }
+                }
+            }
+        }
+        XsImage { 
+            id: iconDiv
+            visible: source != ""
+            width: source != "" ? height : 0
+            height: XsStyleSheet.menuCheckboxSize
+            source: menuIcon ? menuIcon : ""
+            // source: "qrc:/icons/swap_horiz.svg"
             sourceSize.height: height
             sourceSize.width: width
             Layout.alignment: Qt.AlignLeft | Qt.AlignVCenter
             layer {
                 enabled: true
                 effect: ColorOverlay { color: hotKeyColor }
-            }            
-    
+            }
         }
+
     
         Item {
             id: indentSpacer
@@ -97,7 +115,6 @@ Item {
         }
 
         Text { 
-            
             id: labelDiv
             text: label ? label : "Unknown" //+ (sub_menu && !is_in_bar ? "   >>" : "")
             font.pixelSize: XsStyleSheet.fontSize
@@ -119,10 +136,9 @@ Item {
             Layout.fillWidth: true
         }
 
-        Text { 
-
-            Layout.alignment: Qt.AlignRight | Qt.AlignVCenter
+        Text {
             id: hotKeyDiv
+            Layout.alignment: Qt.AlignRight | Qt.AlignVCenter
             text: hotkey_sequence ? hotkey_sequence : ""
             font: labelDiv.font
             color: hotKeyColor 

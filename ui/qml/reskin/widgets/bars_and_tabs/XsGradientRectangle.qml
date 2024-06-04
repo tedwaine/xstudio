@@ -7,26 +7,16 @@ import xStudioReskin 1.0
 
 Rectangle { id: widget
 
-    // property bool isFlatTheme: false
-
     property color flatColor: XsStyleSheet.panelBgFlatColor
     property color topColor: XsStyleSheet.panelBgGradTopColor
     property color bottomColor: XsStyleSheet.panelBgGradBottomColor
 
-    // XsStyleSheet.panelBgColor 
+    property real topPosition: 0.0
+    property real bottomPosition: 1.0
 
     gradient: Gradient {
-        GradientStop { position: 0.0; color: isFlatTheme ? flatColor : topColor }
-        GradientStop { position: 1.0; color: isFlatTheme ? flatColor : bottomColor } 
+        GradientStop { position: topPosition; color: isFlatTheme ? flatColor : topColor }
+        GradientStop { position: bottomPosition; color: isFlatTheme ? flatColor : bottomColor } 
     }
-
-    // Timer {
-    //     running: true
-    //     repeat: true
-    //     interval: 1000
-    //     onTriggered: {
-    //         isFlatTheme = !isFlatTheme
-    //     }
-    // }
 
 }

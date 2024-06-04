@@ -21,6 +21,7 @@ ShotBrowserResultModel::ShotBrowserResultModel(QObject *parent) : JSONTreeModel(
          "artistRole",
          "assetRole",
          "authorRole",
+         "clientFilenameRole",
          "clientNoteRole",
          "contentRole",
          "createdByRole",
@@ -42,6 +43,7 @@ ShotBrowserResultModel::ShotBrowserResultModel(QObject *parent) : JSONTreeModel(
          "onSiteMum",
          "onSiteSyd",
          "onSiteVan",
+         "otioRole",
          "pipelineStatusFullRole",
          "pipelineStatusRole",
          "pipelineStepRole",
@@ -79,6 +81,10 @@ int ShotBrowserResultModel::page() const { return getResultValue("/page", 0); }
 
 int ShotBrowserResultModel::maxResult() const { return getResultValue("/max_result", 0); }
 
+int ShotBrowserResultModel::executionMilliseconds() const {
+    return getResultValue("/execution_ms", 0);
+}
+
 bool ShotBrowserResultModel::truncated() const {
     return getResultValue("/context/truncated", false);
 }
@@ -110,6 +116,13 @@ void ShotBrowserResultModel::setCanBeGrouped(const bool value) {
     emit isGroupedChanged();
 }
 
+
+QUuid ShotBrowserResultModel::presetId() const {
+    return QUuidFromUuid(getResultValue("/preset_id", Uuid()));
+}
+QUuid ShotBrowserResultModel::groupId() const {
+    return QUuidFromUuid(getResultValue("/group_id", Uuid()));
+}
 
 QString ShotBrowserResultModel::audioSource() const {
     return QStringFromStd(getResultValue("/context/audio_source", std::string("")));
@@ -293,6 +306,10 @@ QVariant ShotBrowserResultModel::data(const QModelIndex &index, int role) const 
             result = j.at("attributes").value("client_note", false);
             break;
 
+        case Roles::clientFilenameRole:
+            result = QString::fromStdString(j.at("attributes").value("sg_client_filename", ""));
+            break;
+
         case Roles::subjectRole:
             result = QString::fromStdString(j.at("attributes").value("subject", ""));
             break;
@@ -336,6 +353,19 @@ QVariant ShotBrowserResultModel::data(const QModelIndex &index, int role) const 
         case Roles::movieRole:
             result = QString::fromStdString(j.at("attributes").at("sg_path_to_movie"));
             break;
+
+        case Roles::otioRole: {
+            auto fspath =
+                fs::path(j.at("attributes").value("sg_path_to_frames", std::string()));
+            // no idea why we have to do parent path twice.. BUG ?
+            auto otiopath = fspath.parent_path().parent_path() /
+                            (fspath.stem().string() + std::string(".otio"));
+            try {
+                auto uri = posix_path_to_uri(otiopath.string());
+                result   = QVariant::fromValue(QUrlFromUri(uri));
+            } catch (...) {
+            }
+        } break;
 
         case Roles::sequenceRole: {
             if (j.at("relationships").at("entity").at("data").value("type", "") == "Sequence") {

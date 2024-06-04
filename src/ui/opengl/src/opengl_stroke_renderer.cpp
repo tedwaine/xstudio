@@ -199,7 +199,7 @@ void OpenGLStrokeRenderer::render_strokes(
     bool have_alpha_buffer) {
 
     // Temp hack - Ted. Erase strokes go negative with float target buffers
-    const bool do_erase_strokes_first = true;//!have_alpha_buffer;
+    const bool do_erase_strokes_first = true; //! have_alpha_buffer;
 
     if (!shader_)
         init_gl();

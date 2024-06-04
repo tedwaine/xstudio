@@ -94,6 +94,16 @@ bool BookmarkFilterModel::filterAcceptsRow(
         "--:--:--:--")
         return false;
 
+    if (included_categories_.size()) {
+        if (!included_categories_.contains(
+                index.data(BookmarkModel::Roles::categoryRole).toString()))
+            return false;
+    } else if (excluded_categories_.size()) {
+        if (excluded_categories_.contains(
+                index.data(BookmarkModel::Roles::categoryRole).toString()))
+            return false;
+    }
+
     switch (depth_) {
     case 2:
         break;
@@ -161,6 +171,22 @@ void BookmarkFilterModel::setShowHidden(const bool value) {
     if (value != showHidden_) {
         showHidden_ = value;
         emit showHiddenChanged();
+        invalidateFilter();
+    }
+}
+
+void BookmarkFilterModel::setExcludedCategories(const QStringList value) {
+    if (value != excluded_categories_) {
+        excluded_categories_ = value;
+        emit excludedCategoriesChanged();
+        invalidateFilter();
+    }
+}
+
+void BookmarkFilterModel::setIncludedCategories(const QStringList value) {
+    if (value != included_categories_) {
+        included_categories_ = value;
+        emit includedCategoriesChanged();
         invalidateFilter();
     }
 }
@@ -244,7 +270,6 @@ void BookmarkModel::init(caf::actor_system &_system) {
             [=](utility::event_atom,
                 bookmark::bookmark_change_atom,
                 const utility::UuidActor &ua) {
-                
                 auto ind = searchRecursive(QUuidFromUuid(ua.uuid()), "uuidRole");
 
                 if (ind.isValid()) {
@@ -267,16 +292,15 @@ void BookmarkModel::init(caf::actor_system &_system) {
                         // about when an annotation has been created/updated
                         // so we re-render the thumnail on every change.
                         // However, notes don't 'change' that much - we only get
-                        // a change when user stops editing the note, for 
-                        // example, not on every letter entered so we can 
+                        // a change when user stops editing the note, for
+                        // example, not on every letter entered so we can
                         // easily get away with this:
                         anon_send(
                             bookmark_actor_,
                             media_reader::get_thumbnail_atom_v,
                             detail,
                             256,
-                            as_actor()
-                            );
+                            as_actor());
 
                         // }
                     } catch (const std::exception &err) {
@@ -332,21 +356,17 @@ void BookmarkModel::init(caf::actor_system &_system) {
 
             [=](media_reader::get_thumbnail_atom,
                 const bookmark::BookmarkDetail &detail,
-                const thumbnail::ThumbnailBufferPtr & thumbnail) {
-
+                const thumbnail::ThumbnailBufferPtr &thumbnail) {
                 // this is the response we made for a thumbnail, sent to us
                 // from the global BookmarksActor
-                thumbnail_cache_[detail.uuid_] = QImage(
-                        thumbnail->width(),
-                        thumbnail->height(),
-                        QImage::Format_RGB888);
+                thumbnail_cache_[detail.uuid_] =
+                    QImage(thumbnail->width(), thumbnail->height(), QImage::Format_RGB888);
 
                 uint8_t *bits = thumbnail_cache_[detail.uuid_].bits();
                 memcpy(
                     bits,
                     (uchar *)&(thumbnail->data()[0]),
-                    3 * thumbnail->width()*thumbnail->height()
-                    );                
+                    3 * thumbnail->width() * thumbnail->height());
                 auto ind = searchRecursive(QUuidFromUuid(detail.uuid_), "uuidRole");
                 if (ind.isValid()) {
                     dataChanged(ind, ind, QVector<int>({thumbnailRole}));
@@ -617,7 +637,12 @@ QVariant BookmarkModel::data(const QModelIndex &index, int role) const {
                 if (thumbnail_cache_.count(detail.uuid_)) {
                     result = thumbnail_cache_.at(detail.uuid_);
                 } else {
-                    anon_send(bookmark_actor_, media_reader::get_thumbnail_atom_v, detail, 256, as_actor());
+                    anon_send(
+                        bookmark_actor_,
+                        media_reader::get_thumbnail_atom_v,
+                        detail,
+                        256,
+                        as_actor());
                 }
                 break;
             case ownerRole:

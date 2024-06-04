@@ -122,31 +122,6 @@ template <typename T>
 media_reader::AudioBufPtr
 super_simple_respeed_audio_buffer(const media_reader::AudioBufPtr in, const float velocity);
 
-AudioOutputControl::AudioOutputControl(const utility::JsonStore &jsn)
-    : Module("AudioOutputControl"), prefs_(jsn) {
-
-    audio_repitch_ = add_boolean_attribute("Audio Repitch", "Audio Repitch", false);
-    audio_repitch_->set_role_data(
-        module::Attribute::PreferencePath, "/core/audio/audio_repitch");
-
-    audio_scrubbing_ = add_boolean_attribute("Audio Scrubbing", "Audio Scrubbing", false);
-    audio_repitch_->set_role_data(
-        module::Attribute::PreferencePath, "/core/audio/audio_scrubbing");
-
-
-    volume_ = add_float_attribute("volume", "volume", 100.0f, 0.0f, 100.0f, 0.05f);
-    volume_->set_role_data(module::Attribute::PreferencePath, "/core/audio/volume");
-
-    // by setting static UUIDs on these module we only create them once in the UI
-    volume_->set_role_data(module::Attribute::UuidRole, "d1545257-5540-4f2e-9c90-9012232fedb8");
-    volume_->set_role_data(module::Attribute::Groups, nlohmann::json{"audio_output"});
-
-    muted_ = add_boolean_attribute("muted", "muted", false);
-    muted_->set_role_data(module::Attribute::UuidRole, "59b08f8c-8d86-433e-82f3-ee9c2bc7a27e");
-    muted_->set_role_data(module::Attribute::Groups, nlohmann::json{"audio_output"});
-    muted_->set_role_data(module::Attribute::PreferencePath, "/core/audio/muted");
-}
-
 void AudioOutputControl::prepare_samples_for_soundcard(
     std::vector<int16_t> &v,
     const long num_samps_to_push,
@@ -178,6 +153,17 @@ void AudioOutputControl::prepare_samples_for_soundcard(
                     utility::clock::now() + std::chrono::microseconds(microseconds_delay) +
                     std::chrono::microseconds((num_samps_pushed * 1000000) / sample_rate);
 
+                if (!playing_) {
+
+                    // when the user is scrubbing the timeline, the playhead pushes a couple
+                    // of frames worth of samples to be played immediately. Because
+                    // playback accuracy is out of the window when scrubbing, we can
+                    // ignore the samples in the buffer and just pick the buffer
+                    // in the queue closest to 'now' to push into the soundcard
+                    // buffer
+                    next_sample_play_time = utility::clock::now();
+                }
+
                 current_buf_ = pick_audio_buffer(next_sample_play_time, true);
 
                 if (current_buf_) {
@@ -202,6 +188,13 @@ void AudioOutputControl::prepare_samples_for_soundcard(
 
             } else if (!current_buf_ && sample_data_.empty()) {
                 break;
+            }
+
+            if (!playing_) {
+                // when scrubbing, audio sample buffers are unlikely to be
+                // continguous, so we fade out head and tail of the buffer to
+                // reduce distortion
+                fade_in_out_ = DoFadeHeadAndTail;
             }
 
             copy_from_xstudio_audio_buffer_to_soundcard_buffer(
@@ -236,36 +229,29 @@ void AudioOutputControl::prepare_samples_for_soundcard(
     }
 }
 
-void AudioOutputControl::queue_samples_for_playing(
+bool AudioOutputControl::queue_samples_for_playing(
     const std::vector<media_reader::AudioBufPtr> &audio_frames,
     const bool playing,
     const bool forwards,
     const float velocity) {
 
-    if (!playing) {
-
-        return;
-    }
-
     playback_velocity_ = audio_repitch_ ? std::max(0.1f, velocity) : 1.0f;
+    playing_           = playing;
+    bool result        = false;
 
     for (const auto &a : audio_frames) {
 
-        auto audio_frame = a;
-        // if we're not playing and the last audio buffer played is the same as
-        // the one we're receiving now we don't queue it for playing. This is because
-        // a viewport refresh (for e.g. exposure scrubbing) results in the same
-        // image frame being broadcast by the playhead
-        if (!audio_frame ||
-            (previous_buf_ && previous_buf_->media_key() == audio_frame->media_key()) ||
-            (current_buf_ && current_buf_->media_key() == audio_frame->media_key()) ||
-            !audio_frame->num_samples())
+        if (!a)
             continue;
 
+        // mutable copy of the ptr
+        media_reader::AudioBufPtr audio_frame = a;
 
         // xstudio stores a frame of audio samples for every video frame for any
         // given source (if the source has no video it is assigned a 'virtual' video
-        // frame rate to maintain this approach). However, audio frames generally
+        // frame rate to maintain this approach).
+        //
+        // However, audio frames generally
         // do not have the same duration as video frames, so there is always some
         // offset between when the video frame is shown and when the audio samples
         // associated with that frame should sound.
@@ -281,7 +267,7 @@ void AudioOutputControl::queue_samples_for_playing(
             }
         }
 
-        if (audio_repitch_->value() && velocity != 1.0f) {
+        if (audio_repitch_ && velocity != 1.0f) {
             audio_frame =
                 super_simple_respeed_audio_buffer<int16_t>(audio_frame, fabs(velocity));
         }
@@ -311,7 +297,9 @@ void AudioOutputControl::queue_samples_for_playing(
         } else {
             sample_data_[when_to_sound_audio] = audio_frame;
         }
+        result = true;
     }
+    return result;
 }
 
 void AudioOutputControl::clear_queued_samples() {
@@ -324,8 +312,15 @@ media_reader::AudioBufPtr AudioOutputControl::pick_audio_buffer(
 
     auto r = sample_data_.lower_bound(tp);
 
-    if (r == sample_data_.end())
-        return media_reader::AudioBufPtr();
+    if (r == sample_data_.end()) {
+        auto r = media_reader::AudioBufPtr();
+        if (!playing_ && sample_data_.size()) {
+            // user is scrubbing. This means we
+            r = sample_data_.rbegin()->second;
+            sample_data_.clear();
+        }
+        return r;
+    }
 
     // gtp et the audio buf with a 'show' time that is CLOSEST
     // to now, need to look at the previous element to see if
@@ -484,7 +479,7 @@ void copy_from_xstudio_audio_buffer_to_soundcard_buffer(
         T *tt = ((T *)current_buf->buffer()) + current_buf_position * num_channels;
 
         if (fade_in_out & AudioOutputControl::DoFadeHead) {
-            while (current_buf_position < 32 && num_samples_to_copy &&
+            while (current_buf_position < FADE_FUNC_SAMPS && num_samples_to_copy &&
                    current_buf_position < current_buf->num_samples()) {
 
                 for (int chn = 0; chn < num_channels; ++chn) {
@@ -515,7 +510,7 @@ void copy_from_xstudio_audio_buffer_to_soundcard_buffer(
             while (num_samples_to_copy && current_buf_position < current_buf->num_samples()) {
 
                 const int i   = current_buf->num_samples() - current_buf_position - 1;
-                const float f = i < 32 ? fade_coeffs[i] : 1.0f;
+                const float f = i < FADE_FUNC_SAMPS ? fade_coeffs[i] : 1.0f;
 
                 for (int chn = 0; chn < num_channels; ++chn) {
                     (*stream++) = T(round((*tt++) * f));

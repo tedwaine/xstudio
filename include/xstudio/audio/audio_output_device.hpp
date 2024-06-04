@@ -58,8 +58,11 @@ class AudioOutputDevice {
      *  number of channels and sample rate that the soundcard expects. This function may
      *  block while the soundcard consumes samples, depending on the implementation of
      *  the subclass.
+     *
+     *  @return (bool) returns true if samples were able to be consumed. Returning
+     *  false will stop audio samples playback loop.
      */
-    virtual void push_samples(const void *sample_data, const long num_samples) = 0;
+    virtual bool push_samples(const void *sample_data, const long num_samples) = 0;
 
     /**
      *  @brief Query the audio pipeline delay from the last sample in the soundcard

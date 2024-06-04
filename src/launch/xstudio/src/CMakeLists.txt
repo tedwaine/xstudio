@@ -3,7 +3,6 @@ project(xstudio VERSION ${XSTUDIO_GLOBAL_VERSION} LANGUAGES CXX)
 set(SOURCES
 	xstudio.cpp
 	../../../../ui/qml/reskin/qml_reskin.qrc
-	../../../../ui/qml/xstudio/qml.qrc
 )
 
 find_package(OpenGL REQUIRED)
@@ -37,8 +36,6 @@ target_link_libraries(${PROJECT_NAME}
 		xstudio::ui::qml::global_store
 		xstudio::ui::qml::helper
 		xstudio::ui::qml::log
-		xstudio::ui::qml::module
-		xstudio::ui::qml::playhead
 		xstudio::ui::qml::quickfuture
 		xstudio::ui::qml::session
 		xstudio::ui::qml::studio

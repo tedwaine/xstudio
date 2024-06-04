@@ -12,54 +12,106 @@ import QuickPromise 1.0
 import xStudioReskin 1.0
 import xstudio.qml.helpers 1.0
 import xstudio.qml.models 1.0
+import xstudio.qml.viewport 1.0
 
-Rectangle {
+Item {
 
     id: timeline
-    color: timelineBackground
 
     property var hovered: null
     property real scaleX: 3.0
     property real scaleY: 1.0
     property real itemHeight: 30.0
-    property real trackHeaderWidth: 200.0
+    property real trackHeaderWidth: 250.0
 
-    property color timelineBackground: "#FF333333"
+    property color timelineBackground: "#FF333333" //palette.panelBgColor
     property color timelineText: "#FFAFAFAF"
     property color trackBackground: "#FF474747"
-    property color trackEdge: "#FF5B5B5B"
-    property color defaultClip: "#FF595959"
+    property color trackEdge: "#FF3B3B3B"
+    property color defaultClip: "#FF888888"
 
-    focus: true
     property alias timelineSelection: timelineSelection
-    property alias timelineFocusSelection: timelineFocusSelection
-    // onActiveFocusChanged: {
-    //     console.log("onActiveFocusChanged", activeFocusItem)
-    //     forceActiveFocus()
-    // }
+
+    property alias select_next_hotkey: select_next_hotkey
+    property alias select_previous_hotkey: select_previous_hotkey
+    property alias expand_next_hotkey: expand_next_hotkey
+    property alias expand_previous_hotkey: expand_previous_hotkey
+    property alias expand_both_hotkey: expand_both_hotkey
+    property alias contract_next_hotkey: contract_next_hotkey
+    property alias contract_previous_hotkey: contract_previous_hotkey
+    property alias contract_both_hotkey: contract_both_hotkey
+
+    property bool selectionIsLocked: false
+    property bool selectionIsEnabled: false
+    property bool loopSelection: false
+    property bool focusSelection: false
+    property alias timelineModel: timeline_items
+
+    property alias timelineMarkerMenu: markerMenu
+    property string editMode: ""
+
+    property bool scalingModeActive: false
+    property bool scrollingModeActive: false
+    property var conformSourceIndex: null
 
     signal jumpToStart()
     signal jumpToEnd()
     signal jumpToFrame(int frame, bool center)
 
-    /*************************************************************************
-
-        Access Playhead data
-
-    **************************************************************************/
     XsModelProperty {
-        id: __playheadLogicalFrame
-        role: "value"
-        index: currentPlayheadData.searchRecursive("Logical Frame", "title")
+        index: timeline_items.rootIndex
+        role: "propertyRole"
+
+        onValueChanged: updateConformSourceIndex()
     }
-    Connections {
-        target: currentPlayheadData // this bubbles up from XsSessionWindow
-        function onJsonChanged() {
-            __playheadLogicalFrame.index = currentPlayheadData.searchRecursive("Logical Frame", "title")
+
+    function updateConformSourceIndex() {
+        // resolve to track index.
+        let m = timeline_items.srcModel
+        let current = m.get(timeline_items.rootIndex, "propertyRole")
+        let tindex = getVideoTrackIndex(1)
+
+        if(current != undefined) {
+            let stack = m.index(0, 0, timeline_items.rootIndex)
+            let ncsi = m.search(helpers.QVariantFromUuidString(current.conform_track_uuid), "idRole", stack, 0)
+            if(ncsi.valid) {
+                tindex = helpers.makePersistent(ncsi)
+            }
+        }
+
+        conformSourceIndex = tindex
+    }
+
+    onConformSourceIndexChanged: {
+        if(conformSourceIndex && conformSourceIndex.valid) {
+            let m = timeline_items.srcModel
+            let current = m.get(timeline_items.rootIndex, "propertyRole")
+            let tid = m.get(conformSourceIndex, "idRole")
+
+            if(current == undefined || current.conform_track_uuid != tid) {
+                if(current == undefined) {
+                    current = {"conform_track_uuid": tid}
+                } else {
+                    current.conform_track_uuid = tid
+                }
+                m.set(timeline_items.rootIndex, current, "propertyRole")
+            }
         }
     }
-    property alias playheadLogicalFrame: __playheadLogicalFrame.value
-    /*************************************************************************/
+
+    onLoopSelectionChanged: {
+        if(loopSelection)
+            updateLoop()
+        else
+            timelinePlayhead.enableLoopRange = false
+    }
+
+    onFocusSelectionChanged: {
+        if(focusSelection)
+            updateFocus()
+        else
+            focusItems([])
+    }
 
     DelegateChooser {
         id: chooser
@@ -80,16 +132,58 @@ Rectangle {
         delegate: chooser
     }
 
-    ItemSelectionModel {
-        id: timelineSelection
-        model: timeline_items.srcModel
+    function updateLoop() {
+        if(loopSelection) {
+            // get min/max timepoints.
+            if(timelineSelection.selectedIndexes.length) {
+                let minFrame = null
+                let maxFrame = null
+                timelinePlayhead.enableLoopRange = true
+
+                for(let i=0;i<timelineSelection.selectedIndexes.length; ++i) {
+                    [minFrame, maxFrame] = findItemBounds(timelineSelection.selectedIndexes[i], minFrame, maxFrame)
+                }
+                timelinePlayhead.loopStartFrame = minFrame
+                timelinePlayhead.loopEndFrame = maxFrame
+            } else {
+                timelinePlayhead.enableLoopRange = false
+            }
+        }
+    }
+
+    function findItemBounds(index, min, max) {
+        let m = index.model
+        let type = m.get(index, "typeRole")
+        if(type == "Clip") {
+            let imin = m.get(index, "parentStartRole")
+            let imax = imin + m.get(index, "trimmedDurationRole")
+            if(min == null || min > imin)
+                min = imin
+            if(max == null || max < imax)
+                max = imax
+        } else if(type == "Audio Track" || type == "Video Track") {
+            for(let i=0;i<m.rowCount(index); ++i) {
+                [min, max] = findItemBounds(m.index(i,0,index), min, max)
+            }
+        }
+
+        return [min, max]
+
+    }
+
+    function updateFocus() {
+        if(focusSelection) {
+            focusItems(timelineSelection.selectedIndexes)
+        }
     }
 
     ItemSelectionModel {
-        id: timelineFocusSelection
+        id: timelineSelection
         model: timeline_items.srcModel
-
-        onSelectionChanged: focusItems(timelineFocusSelection.selectedIndexes)
+        onSelectionChanged: {
+            updateFocus()
+            updateLoop()
+        }
     }
 
     function viewedMediaSetChanged() {
@@ -107,18 +201,33 @@ Rectangle {
                 callbackTimer.setTimeout(function(index) { return function() {
                     timeline_items.srcModel = theSessionData
                     timeline_items.rootIndex = index
+                    updateConformSourceIndex()
+                    fitItems()
+                    // conformSourceIndex = getVideoTrackIndex(1)
                     }}( timelineIndex ), 200);
             } else {
                 timeline_items.rootIndex = timelineIndex
+                updateConformSourceIndex()
+                fitItems()
+                // conformSourceIndex = getVideoTrackIndex(1)
             }
 
-        } else {
+        } else if (!timeline_items.rootIndex.valid) {
+            // if the user has selected something that is not a timeline (playlist,
+            // subset etc.), we do  not update our index here (unless the timeline
+            // has been deleted or something). So the NLE continues to show the last
+            // timeline that we interacted with. This is so the user can hop
+            // bewtween individual media and the playlist without the playlist
+            // interface clearing
             timeline_items.rootIndex = theSessionData.index(-1,-1)
+            updateConformSourceIndex()
         }
     }
 
     Component.onCompleted: {
         viewedMediaSetChanged()
+        clipMenu.debugSetMenuPathPosition("Debug", 20.0)
+        trackMenu.debugSetMenuPathPosition("Debug", 20.0)
     }
 
     Connections {
@@ -128,15 +237,22 @@ Rectangle {
       }
     }
 
-    /*XsStringRequestDialog {
-        id: set_name_dialog
-        title: "Change Name"
-        okay_text: "Set Name"
-        text: "Tag"
-        property var index: null
-        onOkayed: setItemName(index, text)
+    Connections {
+        target: theSessionData
+        function onMakeTimelineSelection(timeline_index, timeline_item_indeces) {
+            // this connection lets items remote from the Timeline UI (like the
+            // Notes panel) control the selection of items in the Timeline UI.
+            if (timeline_index == timeline_items.rootIndex.parent) {
+                focusSelection = true
+                timelineSelection.select(
+                    helpers.createItemSelection(timeline_item_indeces),
+                    ItemSelectionModel.ClearAndSelect
+                    )
+            }
+        }
     }
 
+    /*
     XsButtonDialog {
         id: new_item_dialog
         rejectIndex: 0
@@ -158,7 +274,17 @@ Rectangle {
         trackHeaderWidth = Math.max(val, 40)
     }
 
-    function addItem(type, insertion_parent, insertion_row) {
+    function addTrack(type) {
+        let m = timeline_items.srcModel
+        let stack_index = m.index(0, 0, timeline_items.rootIndex)
+        if(type == "Video Track")
+            return addItem(type, stack_index, 0, "Video Track")
+        else if(type == "Audio Track")
+            return addItem(type, stack_index, m.rowCount(stack_index), "Audio Track")
+        return undefined
+    }
+
+    function addItem(type, insertion_parent, insertion_row, name="New Item") {
 
         // insertion type
         let insertion_index_type = theSessionData.get(insertion_parent, "typeRole")
@@ -194,9 +320,13 @@ Rectangle {
             }
         }
 
+        console.log("insertion_parent", insertion_parent)
         if(insertion_parent != null) {
-            theSessionData.insertRowsSync(insertion_row, 1, type, "New Item", insertion_parent)
+            var a = theSessionData.insertRowsSync(insertion_row, 1, type, name, insertion_parent)
+            console.log("a", a)
+            return a
         }
+        return undefined
     }
 
     /*Connections {
@@ -211,28 +341,82 @@ Rectangle {
         }
     }*/
 
-    Loader {
-        id: menu_loader
-    }
 
     // This menu is built from a menu model that is maintained by xSTUDIO's
     // backend. We access the menu model by an id string 'menuModelName' that
     // will be set by the derived type
-    Component {
-        id: menuComponent
-        XsTimelineMenu {
-            // timelinePanel: timeline
-            // menuContextData: [mediaListModelData.name, "DFLDAS", 1.0, [1,2,3,4]]
+
+
+    XsTimelineMenu {
+        id: timelineMenu
+    }
+
+    XsMarkerMenu {
+        id: markerMenu
+    }
+
+    XsTimelineClipMenu {
+        id: clipMenu
+    }
+
+    XsTimelineTrackMenu {
+        id: trackMenu
+    }
+
+    XsPopupMenu {
+        id: flagMenu
+        visible: false
+        menu_model_name: "timeline_flag_menu_"+timeline
+        property var flagCallback: null
+        property var panelContext: helpers.contextPanel(flagMenu)
+
+        XsFlagMenuInserter {
+            text: ""
+            menuPath: ""
+            panelContext: flagMenu.panelContext
+            menuModelName: flagMenu.menu_model_name
+            onFlagSet: {
+                if(flagMenu.flagCallback)
+                    flagMenu.flagCallback(flag, flag_text)
+            }
         }
     }
 
-    function showMenu(mx, my) {
-        if (menu_loader.item == undefined) {
-            menu_loader.sourceComponent = menuComponent
-        }
-        menu_loader.item.x = mx
-        menu_loader.item.y = my
-        menu_loader.item.visible = true
+    function showFlagMenu(mx, my, source=this, callback=null) {
+        let sp = mapFromItem(source, mx, my)
+        flagMenu.x = sp.x
+        flagMenu.y = sp.y
+        flagMenu.flagCallback = callback
+        flagMenu.visible = true
+    }
+
+    function showTimelineMenu(mx, my, source=this) {
+        let sp = mapFromItem(source, mx, my)
+        timelineMenu.x = sp.x
+        timelineMenu.y = sp.y
+        timelineMenu.visible = true
+    }
+
+    function showMarkerMenu(mx, my, markerIndex, source=this) {
+        let sp = mapFromItem(source, mx, my)
+        markerMenu.x = sp.x
+        markerMenu.y = sp.y
+        markerMenu.markerIndex = markerIndex
+        markerMenu.visible = true
+    }
+
+    function showClipMenu(mx, my, source=this) {
+        let sp = mapFromItem(source, mx, my)
+        clipMenu.x = sp.x
+        clipMenu.y = sp.y
+        clipMenu.visible = true
+    }
+
+    function showTrackMenu(mx, my, source=this) {
+        let sp = mapFromItem(source, mx, my)
+        trackMenu.x = sp.x
+        trackMenu.y = sp.y
+        trackMenu.visible = true
     }
 
     function addGap(parent, row, name = "NewGap", frames=24, rate=24.0) {
@@ -247,6 +431,16 @@ Rectangle {
         theSessionData.removeTimelineItems(indexes);
     }
 
+    function flagItems(indexes, flag) {
+        for(let i=0; i< indexes.length; i++) {
+            indexes[i].model.set(indexes[i], flag, "flagColourRole")
+        }
+    }
+
+    function duplicateClips(indexes) {
+        return theSessionData.duplicateTimelineClips(indexes);
+    }
+
     function deleteItemFrames(index, start, duration) {
         theSessionData.removeTimelineItems(index, start, duration);
     }
@@ -259,8 +453,60 @@ Rectangle {
         theSessionData.redo(timeline_index)
     }
 
+    // we've got a bounding box for our zoom now...
+    // we want to fit the window to it.. this is going to be slightly complicated..
+    // as we have two virtual views insde a second one :()
+
+    // we only manipulate the x scale and x position though, so that'll help
+    // we let the user deal with Y scale / position..
+    function fitItems(indexes=[]) {
+        if(!indexes.length)
+            indexes = [timeline_items.rootIndex]
+        let r = theSessionData.timelineRect(indexes)
+        let tr = theSessionData.timelineRect([timeline_items.rootIndex])
+        // cap width to timeline
+        let bwidth = Math.min(r.width * 1.2, tr.width)
+        scaleX = (list_view.width - trackHeaderWidth)/ bwidth
+
+        // Push middle left if we run out of clip
+        let middle = r.left + (r.width/2)
+
+        // console.log(scaleX, r.left , middle, r == tr)
+        if(list_view.itemAtIndex(0))
+            list_view.itemAtIndex(0).jumpToFrame(r == tr ? r.left : middle, r == tr ? ListView.Beginning : ListView.Center)
+    }
+
     function moveItem(index, distance) {
         theSessionData.moveTimelineItem(index, distance)
+    }
+
+    // currently video track 2, one up from bottom
+    function getVideoTrackIndex(ind) {
+        let m = timeline_items.srcModel
+        let stack_index = m.index(0, 0, timeline_items.rootIndex)
+        let bottom_v = 0;
+
+        for(let i = 0;i<m.rowCount(stack_index);i++){
+            if(m.get(m.index(i, 0, stack_index), "typeRole") == "Video Track")
+                bottom_v = i
+        }
+
+        return helpers.makePersistent(m.index(bottom_v-ind, 0, stack_index))
+    }
+
+
+    function moveItems(indexes, distance) {
+        let sorted = []
+        for(let i=0; i<indexes.length; ++i)
+            sorted[i] = indexes[i]
+
+        if(distance >0)
+            sorted.sort((a,b) => b.row - a.row)
+        else
+            sorted.sort((a,b) => a.row - b.row)
+
+        for(let i=0; i<sorted.length;i++)
+            theSessionData.moveTimelineItem(sorted[i], distance)
     }
 
     function focusItems(items) {
@@ -283,6 +529,14 @@ Rectangle {
         for(let i=0;i<indexes.length; i++) {
             theSessionData.set(indexes[i], enabled, "enabledRole")
         }
+        // updateEnableFlag()
+    }
+
+    function lockItems(indexes, locked) {
+        for(let i=0;i<indexes.length; i++) {
+            theSessionData.set(indexes[i], locked, "lockedRole")
+        }
+        // updateLockFlag()
     }
 
     function setItemName(index, name) {
@@ -366,6 +620,73 @@ Rectangle {
         }
     }
 
+    XsTimer {
+        id: updateRegionTimer
+        property var region: null
+
+        interval: 100
+        running: false
+        repeat: false
+        onTriggered: updateRegionSelection(region.x, region.y, region.width, region.height, region.mode)
+    }
+
+
+    function updateRegionSelection(x, y, width, height, mode) {
+        // video clips.
+
+        let pv = mapToItem(list_view.itemAtIndex(0).list_view_video, x, y)
+
+        let vleft = pv.x - trackHeaderWidth + list_view.itemAtIndex(0).list_view_video.cX
+        let vtop = pv.y - list_view.itemAtIndex(0).list_view_video.footerHeight + list_view.itemAtIndex(0).list_view_video.cY
+        let vright = vleft + width - 1
+
+        // we need to be careful we're not selecting off screen items
+        let vmax =  list_view.itemAtIndex(0).list_view_video.height + list_view.itemAtIndex(0).list_view_video.cY - list_view.itemAtIndex(0).list_view_video.footerHeight
+        let vbottom = Math.min(vtop + height - 1, vmax)
+
+        timelineSelection.select(
+            helpers.createItemSelection(
+                theSessionData.getTimelineVideoClipIndexesFromRect(
+                    timeline_items.rootIndex,
+                    vleft,
+                    vtop,
+                    vright,
+                    vbottom,
+                    scaleX,
+                    (scaleY*itemHeight)+1,
+                    true
+               )
+            ),
+            mode & Qt.ShiftModifier ? ItemSelectionModel.Deselect : mode & Qt.ControlModifier ? ItemSelectionModel.Select : ItemSelectionModel.ClearAndSelect)
+
+        // audio clips.
+        let pa = mapToItem(list_view.itemAtIndex(0).list_view_audio, x, y)
+
+        let aleft = pa.x - trackHeaderWidth + list_view.itemAtIndex(0).list_view_audio.cX
+        let atop = pa.y + list_view.itemAtIndex(0).list_view_audio.cY + list_view.itemAtIndex(0).list_view_video.count * (scaleY*itemHeight)+1
+        let aright = aleft + width - 1
+        let abottom = atop + height - 1
+
+        let amin = list_view.itemAtIndex(0).list_view_audio.cY + list_view.itemAtIndex(0).list_view_video.count * (scaleY*itemHeight)+1
+        atop = Math.max(atop, amin)
+
+        timelineSelection.select(
+            helpers.createItemSelection(
+                theSessionData.getTimelineAudioClipIndexesFromRect(
+                    timeline_items.rootIndex,
+                    aleft,
+                    atop,
+                    aright,
+                    abottom,
+                    scaleX,
+                    (scaleY*itemHeight)+1,
+                    true
+               )
+            ),
+            mode & Qt.ShiftModifier ? ItemSelectionModel.Deselect : ItemSelectionModel.Select)
+
+    }
+
     function resolveItem(x, y) {
         let local_pos = mapToItem(list_view, x, y)
         let item = list_view.itemAt(local_pos.x, local_pos.y)
@@ -386,9 +707,13 @@ Rectangle {
                         if(local_y < item.timelineHeaderHeight)
                             return [item, item_type, local_x, local_y]
 
-                        let listview_pos = item.mapToItem(item.list_view_video, local_x, local_y)
-                        child_item = item.list_view_video.itemAt(listview_pos.x + item.list_view_video.contentX , listview_pos.y + item.list_view_video.contentY)
+                        // clamp to video window..
 
+                        let listview_pos = item.mapToItem(item.list_view_video, local_x, local_y)
+
+                        if(listview_pos.y < item.list_view_video.height) {
+                            child_item = item.list_view_video.itemAt(listview_pos.x + item.list_view_video.contentX , listview_pos.y + item.list_view_video.contentY)
+                        }
                         if(child_item == null) {
                             listview_pos = item.mapToItem(item.list_view_audio, local_x, local_y)
                             child_item = item.list_view_audio.itemAt(listview_pos.x + item.list_view_audio.contentX , listview_pos.y + item.list_view_audio.contentY)
@@ -507,149 +832,172 @@ Rectangle {
         z:10
     }
 
-    XsDragBoth {
-        id: dragAvailable
-        visible: false
-        x: 0
-        y: 0
-        width: 20
-        height: 40
-        thickness: 2
-        z:10
-    }
-
     /*XsMediaMoveCopyDialog {
         id: media_move_copy_dialog
     }*/
 
-    DropArea {
-        id: drop_area
-        keys: [
-            "text/uri-list",
-            "xstudio/media-ids",
-            "xstudio/timeline-ids",
-            "application/x-dneg-ivy-entities-v1"
-        ]
+    /*Keys.onPressed: {
+        if(event.key == Qt.Key_Z && event.modifiers == Qt.NoModifier) {
+            event.accepted = true
+            scalingModeActive = true
+        }
+        else if(event.key == Qt.Key_X && event.modifiers == Qt.NoModifier) {
+            event.accepted = true
+            scrollingModeActive = true
+        }
+        else if(event.key == Qt.Key_F && event.modifiers == Qt.NoModifier) {
+            event.accepted = true
+            fitItems(timeline.timelineSelection.selectedIndexes)
+        }
+    }*/
+
+    // Keys.forwardTo: [timeline, hotkey_area]
+
+    XsHotkeyArea {
+        id: hotkey_area
         anchors.fill: parent
-
-        property var modelIndex: null
-
-        onEntered: {
-            processPosition(drag.x, drag.y)
-        }
-
-        onExited: {
-            modelIndex = null
-            dragAvailable.visible = false
-            dragBothLeft.visible = false
-            dragBothRight.visible = false
-            dragLeft.visible = false
-            dragRight.visible = false
-            moveClip.visible = false
-        }
-
-        function processPosition(x,y) {
-            // console.log("processPosition", resolveItem(x, y))
-            let [item, item_type, local_x, local_y] = resolveItem(x, y)
-            let handle = 16
-            let show_dragAvailable = false
-            let show_dragBothLeft = false
-            let show_dragBothRight = false
-            let show_dragLeft = false
-            let show_dragRight = false
-            let show_moveClip = false
-
-            // update ovelay to indicate drop location.
-            if(item) {
-                if(["Clip","Gap"].includes(item_type)) {
-                    if(local_x >= 0 && local_x < handle) {
-                        let ppos = mapFromItem(item, 0, 0)
-                        let item_row = item.modelIndex().row
-                        if(item_row) {
-                            dragBothLeft.x = ppos.x -dragBothLeft.width / 2
-                            dragBothLeft.y = ppos.y
-                            show_dragBothLeft = true
-                        } else {
-                            dragLeft.x = ppos.x
-                            dragLeft.y = ppos.y
-                            show_dragLeft = true
-                        }
-                        modelIndex = item.modelIndex()
-                    }
-                    else if(local_x >= item.width - handle && local_x < item.width) {
-                        let ppos = mapFromItem(item, item.width, 0)
-                        let item_row = item.modelIndex().row
-                        if(item_row == item.modelIndex().model.rowCount(item.modelIndex().parent)-1) {
-                            dragRight.x = ppos.x - dragRight.width
-                            dragRight.y = ppos.y
-                            show_dragRight = true
-                            modelIndex = item.modelIndex().parent
-                        } else {
-                            dragBothRight.x = ppos.x -dragBothRight.width / 2
-                            dragBothRight.y = ppos.y
-                            show_dragBothRight = true
-                            modelIndex = item.modelIndex().model.index(item_row+1,0,item.modelIndex().parent)
-                        }
-                    }
-                } else if(["Audio Track","Video Track"].includes(item_type)) {
-                    let ppos = mapFromItem(item, trackHeaderWidth, 0)
-                    dragRight.x = ppos.x - dragRight.width
-                    dragRight.y = ppos.y
-                    show_dragRight = true
-                    modelIndex = item.modelIndex()
-                }
-            }
-
-            if(show_dragLeft != dragLeft.visible)
-                dragLeft.visible = show_dragLeft
-
-            if(show_dragRight != dragRight.visible)
-                dragRight.visible = show_dragRight
-
-            if(show_dragBothLeft != dragBothLeft.visible)
-                dragBothLeft.visible = show_dragBothLeft
-
-            if(show_dragBothRight != dragBothRight.visible)
-                dragBothRight.visible = show_dragBothRight
-
-            if(show_dragAvailable != dragAvailable.visible)
-                dragAvailable.visible = show_dragAvailable
-
-            if(show_moveClip != moveClip.visible)
-                moveClip.visible = show_moveClip
-        }
-
-        onPositionChanged: {
-            processPosition(drag.x, drag.y)
-        }
-
-        onDropped: {
-            processPosition(drop.x, drop.y)
-            if(modelIndex != null) {
-                handleDrop(modelIndex, drop)
-                modelIndex = null
-            }
-            dragAvailable.visible = false
-            dragBothLeft.visible = false
-            dragBothRight.visible = false
-            dragLeft.visible = false
-            moveClip.visible = false
-            dragRight.visible = false
-        }
+        context: "timeline"
+        focus: true
     }
 
-    Keys.onReleased: {
-        if(event.key == Qt.Key_U && event.modifiers == Qt.ControlModifier) {
-            // UNDO
-            undo(viewedMediaSetProperties.index);
-            event.accepted = true
-        } else if(event.key == Qt.Key_Z && event.modifiers == Qt.ControlModifier) {
-            // REDO
+    Keys.forwardTo: hotkey_area
+
+    XsHotkey {
+        context: "timeline"
+        sequence:  "Ctrl+Z"
+        name: "Timeline Redo"
+        description: "Re-does the last undone edit in the timeline"
+        onActivated: {
             redo(viewedMediaSetProperties.index);
-            event.accepted = true
         }
     }
 
+    XsHotkey {
+        context: "timeline"
+        sequence:  "Ctrl+U"
+        name: "Timeline Undo"
+        description: "Jumps to the end frame"
+        onActivated: {
+            undo(viewedMediaSetProperties.index);
+        }
+    }
+
+    XsHotkey {
+        context: "timeline"
+        sequence:  "Z"
+        name: "Timeline Zoom"
+        description: "Enables timeline zooming mode"
+        onActivated: {
+            scalingModeActive = true
+            scrollingModeActive = false
+        }
+        onReleased: {
+            scalingModeActive = false
+            scrollingModeActive = false
+        }
+
+    }
+
+    function updateClipSelection(l,r) {
+        timeline.timelineSelection.select(helpers.createItemSelection(
+                theSessionData.modifyClipSelection(timeline.timelineSelection.selectedIndexes, l, r)
+            ), ItemSelectionModel.ClearAndSelect)
+    }
+
+    XsHotkey {
+        id: select_next_hotkey
+        context: "timeline"
+        sequence:  "DOWN"
+        name: "Move Selection Right"
+        description: "Move Clip Selection Right"
+        onActivated: updateClipSelection(-1,1)
+    }
+
+    XsHotkey {
+        id: select_previous_hotkey
+        context: "timeline"
+        sequence:  "UP"
+        name: "Move Selection Left"
+        description: "Move Clip Selection Left"
+        onActivated: updateClipSelection(1,-1)
+    }
+
+    XsHotkey {
+        id: expand_next_hotkey
+        context: "timeline"
+        sequence:  "Ctrl+DOWN"
+        name: "Expand Selection Right"
+        description: "Expand Clip Selection Right"
+        onActivated: updateClipSelection(0,+1)
+    }
+
+    XsHotkey {
+        id: expand_previous_hotkey
+        context: "timeline"
+        sequence:  "Ctrl+UP"
+        name: "Expand Selection Left"
+        description: "Expand Clip Selection Left"
+        onActivated: updateClipSelection(+1, 0)
+    }
+
+    XsHotkey {
+        id: contract_next_hotkey
+        context: "timeline"
+        sequence:  "Shift+DOWN"
+        name: "Contract Selection Right"
+        description: "Contract Clip Selection Right"
+        onActivated: updateClipSelection(0, -1)
+    }
+
+    XsHotkey {
+        id: contract_previous_hotkey
+        context: "timeline"
+        sequence:  "Shift+UP"
+        name: "Contract Selection Left"
+        description: "Contract Clip Selection Left"
+        onActivated: updateClipSelection(-1, 0)
+    }
+
+    XsHotkey {
+        id: expand_both_hotkey
+        context: "timeline"
+        sequence:  "Alt+DOWN"
+        name: "Expand Selection"
+        description: "Expand Selection"
+        onActivated: updateClipSelection(1, 1)
+    }
+
+    XsHotkey {
+        id: contract_both_hotkey
+        context: "timeline"
+        sequence:  "Alt+UP"
+        name: "Contract Selection"
+        description: "Contract Clip Selection"
+        onActivated: updateClipSelection(-1, -1)
+    }
+
+    XsHotkey {
+        context: "timeline"
+        sequence:  "X"
+        name: "Timeline scroll with mouse"
+        description: "Enables timeline scrolling mode"
+        onActivated: {
+            scalingModeActive = false
+            scrollingModeActive = true
+        }
+        onReleased: {
+            scalingModeActive = false
+            scrollingModeActive = false
+        }
+    }
+
+    XsHotkey {
+        context: "timeline"
+        sequence:  "F"
+        name: "Timeline fit"
+        description: "Fits the timeline view to selected items"
+        onActivated: fitItems(timeline.timelineSelection.selectedIndexes)
+    }
 
     Item {
         id: dragContainer
@@ -763,48 +1111,64 @@ Rectangle {
             hoverEnabled: true
             acceptedButtons: Qt.LeftButton | Qt.RightButton
             propagateComposedEvents: true
+            // preventStealing: true
 
             property bool isResizing: false
-            property var resizeItem: null
-            property var resizePreceedingItem: null
-            property var resizeAnteceedingItem: null
-            property string resizeItemType: ""
-            property real resizeItemStartX: 0.0
+            property bool isScaling: false
+            property bool isScrolling: false
+            property bool isRolling: false
+            property bool isRegionSelection: false
 
-            function isValidSelection(ctype, ntype) {
-                let result = false
-                if(["Clip","Gap"].includes(ctype) && ["Clip","Gap"].includes(ntype))
-                    result = true
-                else
-                    result = ctype == ntype
+            property var initialPosition: Qt.point(0,0)
+            property var initialValue: 0
+            property real minScaleX: 0
 
-                return result
-            }
+            property var modifyItem: null
+            property var modifyPreceedingItem: null
+            property var modifyAnteceedingItem: null
+            property string modifyItemType: ""
+            property real modifyItemStartX: 0.0
 
-            function adjustSelection(mouse) {
-                if(hovered != null) {
-                    if (mouse.modifiers == Qt.ControlModifier) {
-                        // validate selection, we don't allow mixed items..
-                        let isValid = true
-                        if(timelineSelection.selectedIndexes) {
-                            let ctype = timelineSelection.selectedIndexes[0].model.get(timelineSelection.selectedIndexes[0], "typeRole")
-                            isValid = isValidSelection(ctype, hovered.itemTypeRole)
-                        }
-                        if(isValid)
-                            timelineSelection.select(hovered.modelIndex(), hovered.isSelected ? ItemSelectionModel.Deselect : ItemSelectionModel.Select)
-                    } else if(mouse.modifiers == Qt.NoModifier) {
-                        if(hovered.itemTypeRole == "Clip" && hovered.hasMedia) {
-                            // find media in media list and select ?
-                            let mind = hovered.mediaIndex
-                            if(mind.valid) {
-                                mediaSelectionModel.select(mind, ItemSelectionModel.ClearAndSelect)
-                            }
-                        }
-                        timelineSelection.select(hovered.modelIndex(), ItemSelectionModel.ClearAndSelect)
-                        // console.log(hovered.modelIndex())
+
+            Rectangle {
+                id: region
+                visible: ma.isRegionSelection
+                color: helpers.alphate(XsStyleSheet.accentColor,0.2)
+                border.color: XsStyleSheet.accentColor
+                border.width: 1
+                width: 0
+                height: 0
+                z: 10
+
+                property int clickX: 0
+                property int clickY: 0
+                property var mode: null
+
+                function setClick(mouse) {
+                    clickX = mouse.x
+                    clickY = mouse.y
+                    mode = mouse.modifiers
+                    update(mouse)
+                }
+                function update(mouse) {
+                    if(mouse.x < clickX) {
+                        x = mouse.x
+                        width = clickX - x
+                    } else {
+                        x = clickX
+                        width = mouse.x - x
+                    }
+
+                    if(mouse.y < clickY) {
+                        y = mouse.y
+                        height = clickY - y
+                    } else {
+                        y = clickY
+                        height = mouse.y - y
                     }
                 }
             }
+
 
             onContainsMouseChanged: {
                 if(containsMouse) {
@@ -812,439 +1176,215 @@ Rectangle {
                 }
             }
 
-            onReleased: {
-                if(isResizing) {
-                    if(resizeItem != null) {
-                        if(dragRight.visible) {
-                            let mindex = resizeItem.modelIndex()
-                            let src_model = mindex.model
+            onPressed: {
+                if(mouse.button == Qt.RightButton) {
+                    if(editMode != "Select")
+                        adjustSelection(mouse)
 
-                            src_model.set(mindex, resizeItem.durationFrame, "activeDurationRole")
-                            resizeItem.isAdjustingDuration = false
-
-                            if(resizeAnteceedingItem) {
-                                if(resizeAnteceedingItem.durationFrame == 0) {
-                                    theSessionData.removeTimelineItems([resizeAnteceedingItem.modelIndex()])
-                                    resizeAnteceedingItem = null
-                                } else {
-                                    src_model.set(resizeAnteceedingItem.modelIndex(), resizeAnteceedingItem.durationFrame, "activeDurationRole")
-                                    src_model.set(resizeAnteceedingItem.modelIndex(), resizeAnteceedingItem.durationFrame, "availableDurationRole")
-                                    resizeAnteceedingItem.isAdjustingDuration = false
-                                }
-                            } else {
-                                if(resizeItem.adjustAnteceedingGap > 0) {
-                                    theSessionData.insertTimelineGap(mindex.row+1, mindex.parent, resizeItem.adjustAnteceedingGap, resizeItem.fps, "New Gap")
-                                }
-                                resizeItem.adjustAnteceedingGap = 0
-                            }
-
-                        } else if(dragLeft.visible) {
-                            let mindex = resizeItem.modelIndex()
-                            let src_model = mindex.model
-                            src_model.set(mindex, resizeItem.startFrame, "activeStartRole")
-                            src_model.set(mindex, resizeItem.durationFrame, "activeDurationRole")
-                            resizeItem.isAdjustingStart = false
-                            resizeItem.isAdjustingDuration = false
-
-                            if(resizePreceedingItem) {
-                                if(resizePreceedingItem.durationFrame == 0) {
-                                    theSessionData.removeTimelineItems([resizePreceedingItem.modelIndex()])
-                                    resizePreceedingItem = null
-                                } else {
-                                    src_model.set(resizePreceedingItem.modelIndex(), resizePreceedingItem.durationFrame, "activeDurationRole")
-                                    src_model.set(resizePreceedingItem.modelIndex(), resizePreceedingItem.durationFrame, "availableDurationRole")
-                                    resizePreceedingItem.isAdjustingDuration = false
-                                }
-                            } else {
-                                if(resizeItem.adjustPreceedingGap > 0) {
-                                    theSessionData.insertTimelineGap(mindex.row, mindex.parent, resizeItem.adjustPreceedingGap, resizeItem.fps, "New Gap")
-                                }
-                                resizeItem.adjustPreceedingGap = 0
-                            }
-                        } else if(dragAvailable.visible) {
-                            let src_model = resizeItem.modelIndex().model
-                            src_model.set(resizeItem.modelIndex(), resizeItem.startFrame, "activeStartRole")
-                            resizeItem.isAdjustingStart = false
-                        } else if(dragBothLeft.visible) {
-                            let mindex = resizeItem.modelIndex()
-                            let src_model = mindex.model
-                            src_model.set(mindex, resizeItem.startFrame, "activeStartRole")
-                            src_model.set(mindex, resizeItem.durationFrame, "activeDurationRole")
-
-                            if(resizePreceedingItem) {
-                                let pindex = src_model.index(mindex.row-1, 0, mindex.parent)
-                                src_model.set(pindex, resizePreceedingItem.durationFrame, "activeDurationRole")
-                            }
-                            resizeItem.isAdjustingStart = false
-                            resizeItem.isAdjustingDuration = false
-                        } else if(dragBothRight.visible) {
-                            let mindex = resizeItem.modelIndex()
-                            let src_model = mindex.model
-                            src_model.set(mindex, resizeItem.durationFrame, "activeDurationRole")
-
-                            let pindex = src_model.index(mindex.row + 1, 0, mindex.parent)
-                            src_model.set(pindex, resizeAnteceedingItem.startFrame, "activeStartRole")
-                            src_model.set(pindex, resizeAnteceedingItem.durationFrame, "activeDurationRole")
-
-                            resizeItem.isAdjustingDuration = false
-                        } else if(moveClip.visible) {
-                            let mindex = resizeItem.modelIndex()
-                            let src_model = mindex.model
-
-                            if(resizePreceedingItem && resizePreceedingItem.durationFrame) {
-                                src_model.set(resizePreceedingItem.modelIndex(), resizePreceedingItem.durationFrame, "activeDurationRole")
-                                src_model.set(resizePreceedingItem.modelIndex(), resizePreceedingItem.durationFrame, "availableDurationRole")
-                            }
-
-                            if(resizeAnteceedingItem && resizeAnteceedingItem.durationFrame) {
-                                src_model.set(resizeAnteceedingItem.modelIndex(), resizeAnteceedingItem.durationFrame, "activeDurationRole")
-                                src_model.set(resizeAnteceedingItem.modelIndex(), resizeAnteceedingItem.durationFrame, "availableDurationRole")
-                            }
-
-                            let delete_preceeding = resizePreceedingItem && !resizePreceedingItem.durationFrame
-                            let delete_anteceeding = resizeAnteceedingItem && !resizeAnteceedingItem.durationFrame
-                            let insert_preceeding = resizeItem.isAdjustPreceeding && resizeItem.adjustPreceedingGap
-                            let insert_anteceeding = resizeItem.isAdjustAnteceeding && resizeItem.adjustAnteceedingGap
-
-                            // some operations are moves
-                            if(insert_preceeding && delete_anteceeding) {
-                                // move clip left
-                                moveItem(resizeItem.modelIndex(), 1)
-                            } else if (delete_preceeding && insert_anteceeding) {
-                                moveItem(resizeItem.modelIndex(), -1)
-                            } else {
-                                if(delete_preceeding) {
-                                    theSessionData.removeTimelineItems([resizePreceedingItem.modelIndex()])
-                                }
-
-                                if(delete_anteceeding) {
-                                    theSessionData.removeTimelineItems([resizeAnteceedingItem.modelIndex()])
-                                }
-
-                                if(insert_preceeding) {
-                                    theSessionData.insertTimelineGap(mindex.row, mindex.parent, resizeItem.adjustPreceedingGap, resizeItem.fps, "New Gap")
-                                }
-
-                                if(insert_anteceeding) {
-                                    theSessionData.insertTimelineGap(mindex.row + 1, mindex.parent, resizeItem.adjustAnteceedingGap, resizeItem.fps, "New Gap")
-                                }
-                            }
-
-                            resizeItem.adjustPreceedingGap = 0
-                            resizeItem.isAdjustPreceeding = false
-                            resizeItem.adjustAnteceedingGap = 0
-                            resizeItem.isAdjustAnteceeding = false
-
-                        }
-
-                        if(resizePreceedingItem) {
-                            resizePreceedingItem.isAdjustingStart = false
-                            resizePreceedingItem.isAdjustingDuration = false
-                        }
-
-                        if(resizeAnteceedingItem) {
-                            resizeAnteceedingItem.isAdjustingStart = false
-                            resizeAnteceedingItem.isAdjustingDuration = false
-                        }
-
-                        resizeItem = null
+                    if(!hovered.isSelected) {
+                        adjustSelection(mouse)
                     }
 
-                    resizeAnteceedingItem = null
-                    resizePreceedingItem = null
+                    if(!timelineSelection.selectedIndexes.length) {
+                        showTimelineMenu(mouse.x, mouse.y)
+                    } else {
+                        // check current hovered is part of selection..
+                        let ctype = timelineSelection.selectedIndexes[0].model.get(timelineSelection.selectedIndexes[0], "typeRole")
+                        if(ctype == "Clip")
+                            showClipMenu(mouse.x, mouse.y)//-timelineMenu.height)
+                        else if (["Audio Track", "Video Track"].includes(ctype))
+                            showTrackMenu(mouse.x, mouse.y)//-timelineMenu.height)
+                    }
+                } else if(mouse.button == Qt.LeftButton) {
+                    if(scalingModeActive) {
+                        isScaling = scalingModeActive
+                        minScaleX = (list_view.width - trackHeaderWidth) / theSessionData.timelineRect([timeline_items.rootIndex]).width
+                        initialValue = scaleX
+                        initialPosition = Qt.point(mouse.x, mouse.y)
+                    } else if(scrollingModeActive) {
+                        isScrolling = scrollingModeActive
+                        initialValue = list_view.itemAtIndex(0).currentPosition()
+                        initialPosition = Qt.point(mouse.x, mouse.y)
+                    } else if(editMode == "Select") {
+                        region.setClick(mouse)
+                        isRegionSelection = true
+                    } else if(editMode == "Roll") {
+                        // highlight hovered clip..
+                        let [item, item_type, local_x, local_y] = resolveItem(mouse.x, mouse.y)
+
+                        if(item_type == "Clip") {
+                            if(hovered != item) {
+                                hovered = item
+                            }
+                            selectItem()
+                            if(!item.isLocked) {
+                                item.isRolling = true
+                                isRolling = true
+                                modifyItem = item
+                                modifyItemType = item_type
+                                modifyItemStartX = mouse.x
+                                modifyItem.adjustStart = 0
+                                modifyItem.isAdjustingStart = true
+                            }
+                        } else {
+                            timelineSelection.clear()
+                        }
+                    }
+                    else {
+                        adjustSelection(mouse)
+                        if(dragLeft.visible || dragRight.visible || dragBothLeft.visible || dragBothRight.visible || moveClip.visible) {
+                            let [item, item_type, local_x, local_y] = resolveItem(mouse.x, mouse.y)
+                            modifyItem = item
+                            modifyItemStartX = mouse.x
+                            modifyItemType = item_type
+                            isResizing = true
+
+                            if(dragLeft.visible) {
+                                beginDragLeft()
+                            } else if(dragRight.visible) {
+                                beginDragRight()
+                            } else if(dragBothLeft.visible) {
+                                beginDragBothLeft()
+                            } else if(dragBothRight.visible) {
+                                beginDragBothRight()
+                            } else if(moveClip.visible) {
+                                beginMove()
+                            }
+                        }
+                    }
+                }
+            }
+
+            onDoubleClicked: {
+                // jump to playlist and show media.
+                if(hovered && hovered.mediaUuid) {
+                    inspectedMediaSetIndex = viewedMediaSetIndex
+                    if (viewedMediaSetIndex.valid) {
+                        theSessionData.setPlayheadTo(
+                            viewedMediaSetIndex,
+                            inspectedMediaSetProperties.values.typeRole == "Timeline")                    
+                    }
+                }
+            }
+
+            onReleased: {
+                isScaling = false
+                isScrolling = false
+
+                if(isRegionSelection) {
+                    isRegionSelection = false
+                    if(region.width < 1 && region.height < 1) {
+                        adjustSelection(mouse)
+                    }
+                }
+
+
+                if(isRolling) {
+                    isRolling = false
+                    let src_model = modifyItem.modelIndex().model
+                    src_model.set(modifyItem.modelIndex(), modifyItem.startFrame, "activeStartRole")
+                    modifyItem.isAdjustingStart = false
+                    modifyItem.isRolling = false
+                    modifyItem = null
+
+                } else if(isResizing) {
+                    if(modifyItem != null) {
+                        if(dragRight.visible) {
+                            endDragRight()
+                        } else if(dragLeft.visible) {
+                            endDragLeft()
+                        } else if(dragBothLeft.visible) {
+                            endDragBothLeft()
+                        } else if(dragBothRight.visible) {
+                            endDragBothRight()
+                        } else if(moveClip.visible) {
+                            endMove()
+                        }
+
+                        if(modifyPreceedingItem) {
+                            modifyPreceedingItem.isAdjustingStart = false
+                            modifyPreceedingItem.isAdjustingDuration = false
+                        }
+
+                        if(modifyAnteceedingItem) {
+                            modifyAnteceedingItem.isAdjustingStart = false
+                            modifyAnteceedingItem.isAdjustingDuration = false
+                        }
+
+                        modifyItem = null
+                    }
+
+                    modifyAnteceedingItem = null
+                    modifyPreceedingItem = null
                     isResizing = false
                     dragLeft.visible = false
                     dragRight.visible = false
                     dragBothLeft.visible = false
                     moveClip.visible = false
                     dragBothRight.visible = false
-                    dragAvailable.visible = false
                 } else {
                     moveDragHandler.enabled = false
                 }
             }
 
-            onPressed: {
-                if(mouse.button == Qt.RightButton) {
-                    adjustSelection(mouse)
-                    showMenu(mouse.x, mouse.y)//-timelineMenu.height)
-                } else if(mouse.button == Qt.LeftButton) {
-                    adjustSelection(mouse)
-                }
-
-                if(dragLeft.visible || dragRight.visible || dragBothLeft.visible || dragBothRight.visible || dragAvailable.visible || moveClip.visible) {
-                    let [item, item_type, local_x, local_y] = resolveItem(mouse.x, mouse.y)
-                    resizeItem = item
-                    resizeItemStartX = mouse.x
-                    resizeItemType = item_type
-                    isResizing = true
-                    if(dragLeft.visible) {
-                        resizeItem.adjustDuration = 0
-                        resizeItem.adjustStart = 0
-                        resizeItem.isAdjustingDuration = true
-                        resizeItem.isAdjustingStart = true
-                        // is there a gap to our left..
-                        let mi = resizeItem.modelIndex()
-                        let pre_index = preceedingIndex(mi)
-                        if(pre_index.valid) {
-                            let preceeding_type = pre_index.model.get(pre_index, "typeRole")
-
-                            if(preceeding_type == "Gap") {
-                                resizePreceedingItem = resizeItem.parentLV.itemAtIndex(mi.row - 1)
-                                resizePreceedingItem.adjustDuration = 0
-                                resizePreceedingItem.isAdjustingDuration = true
-                            }
-                        }
-                    } else if(dragRight.visible) {
-                        resizeItem.adjustDuration = 0
-                        resizeItem.isAdjustingDuration = true
-
-                        let mi = resizeItem.modelIndex()
-                        let ante_index = anteceedingIndex(mi)
-                        if(ante_index.valid) {
-                            let anteceeding_type = ante_index.model.get(ante_index, "typeRole")
-
-                            if(anteceeding_type == "Gap") {
-                                resizeAnteceedingItem = resizeItem.parentLV.itemAtIndex(mi.row + 1)
-                                resizeAnteceedingItem.adjustDuration = 0
-                                resizeAnteceedingItem.isAdjustingDuration = true
-                            }
-                        }
-                    } else if(dragAvailable.visible) {
-                        resizeItem.adjustStart = 0
-                        resizeItem.isAdjustingStart = true
-                    } else if(dragBothLeft.visible) {
-                        // both at front or end..?
-                        let mi = resizeItem.modelIndex()
-                        resizeItem.adjustDuration = 0
-                        resizeItem.adjustStart = 0
-                        resizeItem.isAdjustingStart = true
-                        resizeItem.isAdjustingDuration = true
-
-                        resizePreceedingItem = resizeItem.parentLV.itemAtIndex(mi.row - 1)
-                        resizePreceedingItem.adjustDuration = 0
-                        resizePreceedingItem.isAdjustingDuration = true
-                    } else if(dragBothRight.visible) {
-                        // both at front or end..?
-                        let mi = resizeItem.modelIndex()
-                        resizeItem.adjustDuration = 0
-                        resizeItem.isAdjustingDuration = true
-
-                        resizeAnteceedingItem = resizeItem.parentLV.itemAtIndex(mi.row + 1)
-                        resizeAnteceedingItem.adjustStart = 0
-                        resizeAnteceedingItem.adjustDuration = 0
-                        resizeAnteceedingItem.isAdjustingStart = true
-                        resizeAnteceedingItem.isAdjustingDuration = true
-                    } else if(moveClip.visible) {
-                        // we adjust material either side of us..
-                        let mi = resizeItem.modelIndex()
-                        let prec_index = preceedingIndex(mi)
-                        let ante_index = anteceedingIndex(mi)
-
-                        let preceeding_type = prec_index.valid ? prec_index.model.get(prec_index, "typeRole") : "Track"
-                        let anteceeding_type = ante_index.valid ? ante_index.model.get(ante_index, "typeRole") : "Track"
-
-                        if(preceeding_type == "Gap") {
-                            resizePreceedingItem = resizeItem.parentLV.itemAtIndex(mi.row - 1)
-                            resizePreceedingItem.adjustDuration = 0
-                            resizePreceedingItem.isAdjustingDuration = true
-                        } else {
-                            resizeItem.adjustPreceedingGap = 0
-                            resizeItem.isAdjustPreceeding = true
-                        }
-
-                        if(anteceeding_type == "Gap") {
-                            resizeAnteceedingItem = resizeItem.parentLV.itemAtIndex(mi.row + 1)
-                            resizeAnteceedingItem.adjustDuration = 0
-                            resizeAnteceedingItem.isAdjustingDuration = true
-                        } else if(anteceeding_type != "Track") {
-                            resizeItem.adjustAnteceedingGap = 0
-                            resizeItem.isAdjustAnteceeding = true
-                        }
-                    }
-                } else {
-                    let [item, item_type, local_x, local_y] = resolveItem(mouse.x, mouse.y)
-                    if(item_type != null && item_type != "Stack" && timelineSelection.isSelected(item.modelIndex())) {
-                        moveDragHandler.enabled = true
-                    }
-                }
-            }
-
             onPositionChanged: {
-                if(isResizing) {
-                    let frame_change = -((resizeItemStartX - mouse.x) / scaleX)
-
-                    if(dragRight.visible) {
-
-                        frame_change = resizeItem.checkAdjust(frame_change, true)
-                        if(resizeAnteceedingItem) {
-                            frame_change = -resizeAnteceedingItem.checkAdjust(-frame_change, false)
-                            resizeAnteceedingItem.adjust(-frame_change)
-                        } else {
-                            resizeItem.adjustAnteceedingGap = -frame_change
-                        }
-
-                        resizeItem.adjust(frame_change)
-
-                        let ppos = mapFromItem(resizeItem, resizeItem.width - (resizeItem.adjustAnteceedingGap * scaleX) - dragRight.width, 0)
-                        dragRight.x = ppos.x
-                    } else if(dragLeft.visible) {
-                        // must inject / resize gap.
-                        // make sure last frame doesn't change..
-                        frame_change = resizeItem.checkAdjust(frame_change, false, true)
-                        if(resizePreceedingItem) {
-                            frame_change = resizePreceedingItem.checkAdjust(frame_change, false)
-                            resizePreceedingItem.adjust(frame_change)
-                        } else {
-                            resizeItem.adjustPreceedingGap = frame_change
-                        }
-
-                        resizeItem.adjust(frame_change)
-
-                        let ppos = mapFromItem(resizeItem, resizeItem.adjustPreceedingGap * scaleX, 0)
-                        dragLeft.x = ppos.x
-                    } else if(dragBothLeft.visible) {
-                        frame_change = resizeItem.checkAdjust(frame_change, true)
-                        frame_change = resizePreceedingItem.checkAdjust(frame_change, true)
-
-                        resizeItem.adjust(frame_change)
-                        resizePreceedingItem.adjust(frame_change)
-
-                        let ppos = mapFromItem(resizeItem, -dragBothLeft.width / 2, 0)
-                        dragBothLeft.x = ppos.x
-                    } else if(dragBothRight.visible) {
-                        frame_change = resizeItem.checkAdjust(frame_change, true)
-                        frame_change = resizeAnteceedingItem.checkAdjust(frame_change, true)
-
-                        resizeItem.adjust(frame_change)
-                        resizeAnteceedingItem.adjust(frame_change)
-
-                        let ppos = mapFromItem(resizeItem, resizeItem.width - dragBothRight.width / 2, 0)
-                        dragBothRight.x = ppos.x
-                    } else if(dragAvailable.visible) {
-                        resizeItem.updateStart(resizeItemStartX, mouse.x)
-                    } else if(moveClip.visible) {
-                        if(resizePreceedingItem)
-                            frame_change = resizePreceedingItem.checkAdjust(frame_change, false)
-                        else
-                            frame_change = Math.max(0, frame_change)
-
-                        if(resizeAnteceedingItem)
-                            frame_change = -resizeAnteceedingItem.checkAdjust(-frame_change, false)
-                        // else
-                        //     frame_change = Math.max(0, frame_change)
-
-                        if(resizePreceedingItem)
-                            resizePreceedingItem.adjust(frame_change)
-                        else if(resizeItem.isAdjustPreceeding)
-                            resizeItem.adjustPreceedingGap = frame_change
-
-                        if(resizeAnteceedingItem)
-                            resizeAnteceedingItem.adjust(-frame_change)
-                        else if(resizeItem.isAdjustAnteceeding)
-                            resizeItem.adjustAnteceedingGap = -frame_change
-
-                        let ppos = mapFromItem(resizeItem, resizeItem.width / 2 - moveClip.width / 2, 0)
-                        moveClip.x = ppos.x
+                if(isScaling) {
+                    // cap min scale to fit timeline.
+                    scaleX = Math.max(minScaleX, initialValue - ((initialPosition.x - mouse.x)/40.0))
+                    // reset value so increasing works imediately.
+                    if(scaleX == minScaleX) {
+                        initialPosition = Qt.point(mouse.x, mouse.y)
+                        initialValue = scaleX
                     }
+                    list_view.itemAtIndex(0).jumpToFrame(timelinePlayhead.logicalFrame, ListView.Center)
+                } else if (isScrolling) {
+                    let np = (list_view.itemAtIndex(0).scrollbar.size / list_view.itemAtIndex(0).scrollbar.width) * (initialPosition.x - mouse.x)
+                    let rnp = list_view.itemAtIndex(0).jumpToPosition(initialValue + np)
+
+                    // reset if we hit bounds.
+                    if(rnp != (initialValue + np)) {
+                        initialValue = rnp
+                        initialPosition = Qt.point(mouse.x, mouse.y)
+                    }
+                } else if(isRolling) {
+                    let frame_change = -((modifyItemStartX - mouse.x) / scaleX)
+                    modifyItem.updateStart(modifyItemStartX, mouse.x)
+                } else if(isResizing) {
+                    let frame_change = -((modifyItemStartX - mouse.x) / scaleX)
+
+                    if(dragRight.visible)
+                        updateDragRight(frame_change)
+                    else if(dragLeft.visible)
+                        updateDragLeft(frame_change)
+                    else if(dragBothLeft.visible)
+                        updateDragBothLeft(frame_change)
+                    else if(dragBothRight.visible)
+                        updateDragBothRight(frame_change)
+                    else if(moveClip.visible)
+                        updateMove(frame_change)
                 } else {
-                    let [item, item_type, local_x, local_y] = resolveItem(mouse.x, mouse.y)
+                    if(editMode == "Select"){
+                        if(isRegionSelection) {
+                            region.update(mouse)
+                            updateRegionTimer.region = region
+                            if(!updateRegionTimer.running)
+                                updateRegionTimer.start()
+                        } else {
+                            let [item, item_type, local_x, local_y] = resolveItem(mouse.x, mouse.y)
 
-                    if(hovered != item) {
-                        // console.log(item,item.modelIndex(), item_type, local_x, local_y)
-                        hovered = item
-                    }
-
-                    let show_dragLeft = false
-                    let show_dragRight = false
-                    let show_dragBothLeft = false
-                    let show_moveClip = false
-                    let show_dragBothRight = false
-                    let show_dragAvailable = false
-                    let handle = 32
-
-                    if(hovered) {
-                        if("Clip" == item_type) {
-
-                            let preceeding_type = "Track"
-                            let anteceeding_type = "Track"
-
-                            let mi = item.modelIndex()
-
-                            let ante_index = anteceedingIndex(mi)
-                            let pre_index = preceedingIndex(mi)
-
-                            if(ante_index.valid)
-                                anteceeding_type = ante_index.model.get(ante_index, "typeRole")
-
-                            if(pre_index.valid)
-                                preceeding_type = pre_index.model.get(pre_index, "typeRole")
-
-                            // expand left
-                            let left = local_x <= (handle * 1.5) && local_x >= 0
-                            let left_edge = left && local_x < (handle / 2)
-                            let right = local_x >= hovered.width - (1.5 * handle) && local_x < hovered.width
-                            let right_edge = right && local_x > hovered.width - (handle / 2)
-                            let middle = local_x >= (hovered.width/2) - (handle / 2) && local_x <= (hovered.width/2) + (handle / 2)
-
-                            if(preceeding_type == "Clip" && left_edge)  {
-                                let ppos = mapFromItem(item, -dragBothLeft.width / 2, 0)
-                                dragBothLeft.x = ppos.x
-                                dragBothLeft.y = ppos.y
-                                show_dragBothLeft = true
-                                item.parentLV.itemAtIndex(mi.row - 1).isBothHovered = true
-                            } else if(left) {
-                                let ppos = mapFromItem(item, 0, 0)
-                                dragLeft.x = ppos.x
-                                dragLeft.y = ppos.y
-                                show_dragLeft = true
-                                if(preceeding_type == "Clip")
-                                    item.parentLV.itemAtIndex(mi.row - 1).isBothHovered = false
-                            } else if(anteceeding_type == "Clip" && right_edge) {
-                                let ppos = mapFromItem(item, hovered.width - dragBothRight.width/2, 0)
-                                dragBothRight.x = ppos.x
-                                dragBothRight.y = ppos.y
-                                show_dragBothRight = true
-                                item.parentLV.itemAtIndex(mi.row + 1).isBothHovered = true
-                            } else if(right) {
-                                let ppos = mapFromItem(item, hovered.width - dragRight.width, 0)
-                                dragRight.x = ppos.x
-                                dragRight.y = ppos.y
-                                show_dragRight = true
-                                if(anteceeding_type == "Clip")
-                                    item.parentLV.itemAtIndex(mi.row + 1).isBothHovered = false
-                            } else if(middle && (preceeding_type != "Clip" || anteceeding_type != "Clip") && !(preceeding_type == "Track" && anteceeding_type == "Clip")) {
-                                let ppos = mapFromItem(item, hovered.width / 2, hovered.height / 2)
-                                moveClip.x = ppos.x - moveClip.width / 2
-                                moveClip.y = ppos.y - moveClip.height / 2
-                                show_moveClip = true
-                            } else if("Clip" == item_type && local_y >= 0 && local_y <= 8) {
-                                // available range..
-                                let ppos = mapFromItem(item, hovered.width / 2, 0)
-                                dragAvailable.x = ppos.x -dragAvailable.width / 2
-                                dragAvailable.y = ppos.y - dragAvailable.height / 2
-                                show_dragAvailable = true
-                            }
+                            if(hovered != item)
+                                hovered = item
                         }
-                     }
+                    } else if(editMode == "Roll") {
+                        // highlight hovered clip..
+                        let [item, item_type, local_x, local_y] = resolveItem(mouse.x, mouse.y)
 
-                    if(show_dragLeft != dragLeft.visible)
-                        dragLeft.visible = show_dragLeft
-
-                    if(show_dragRight != dragRight.visible)
-                        dragRight.visible = show_dragRight
-
-                    if(show_dragBothLeft != dragBothLeft.visible)
-                        dragBothLeft.visible = show_dragBothLeft
-
-                    if(show_moveClip != moveClip.visible)
-                        moveClip.visible = show_moveClip
-
-                    if(show_dragBothRight != dragBothRight.visible)
-                        dragBothRight.visible = show_dragBothRight
-
-                    if(show_dragAvailable != dragAvailable.visible)
-                        dragAvailable.visible = show_dragAvailable
+                        if(hovered != item) {
+                            hovered = item
+                        }
+                    }
+                    else
+                        showHandles(mouse.x, mouse.y)
                 }
             }
 
@@ -1252,38 +1392,502 @@ Rectangle {
                 // maintain position as we zoom..
                 if(wheel.modifiers == Qt.ShiftModifier) {
                     if(wheel.angleDelta.y > 1) {
-                        scaleX += 0.2
                         scaleY += 0.2
                     } else {
-                        scaleX -= 0.2
                         scaleY -= 0.2
                     }
                     wheel.accepted = true
-                    // console.log(wheel.x, wheel.y)
                 } else if(wheel.modifiers == Qt.ControlModifier) {
+                    let tmp = scaleX
                     if(wheel.angleDelta.y > 1) {
-                        scaleX += 0.2
+                        tmp += 0.2
                     } else {
-                        scaleX -= 0.2
+                        tmp -= 0.2
                     }
+                    scaleX = Math.max((list_view.width - trackHeaderWidth) / theSessionData.timelineRect([timeline_items.rootIndex]).width, tmp)
+                    list_view.itemAtIndex(0).jumpToFrame(timelinePlayhead.logicalFrame, ListView.Center)
                     wheel.accepted = true
-                } else if(wheel.modifiers == (Qt.ControlModifier | Qt.ShiftModifier)) {
-                    if(wheel.angleDelta.y > 1) {
-                        scaleY += 0.2
-                    } else {
-                        scaleY -= 0.2
-                    }
+                } else if(hovered != null && ["Video Track", "Audio Track","Gap","Clip"].includes(hovered.itemTypeRole)) {
+                    if(["Video Track", "Audio Track"].includes(hovered.itemTypeRole))
+                        hovered.parentLV.flick(0, wheel.angleDelta.y > 1 ? 500 : -500)
+                    else if(["Gap", "Clip"].includes(hovered.itemTypeRole))
+                        hovered.parentLV.parentLV.flick(0, wheel.angleDelta.y > 1 ? 500 : -500)
                     wheel.accepted = true
                 } else {
                     wheel.accepted = false
                 }
+            }
 
 
-                if(wheel.accepted) {
-                    list_view.itemAtIndex(0).jumpToFrame(viewport.playhead.frame, ListView.Center)
-                    // let current_frame = list_view.itemAtIndex(0).currentFrame()
-                    // jumpToFrame(viewport.playhead.frame, false)
+            function showHandles(mousex, mousey) {
+                let [item, item_type, local_x, local_y] = resolveItem(mousex, mousey)
+
+                if(hovered != item) {
+                    // console.log(item,item.modelIndex(), item_type, local_x, local_y)
+                    hovered = item
                 }
+
+                let show_dragLeft = false
+                let show_dragRight = false
+                let show_dragBothLeft = false
+                let show_moveClip = false
+                let show_dragBothRight = false
+                let handle = 32
+
+                if(hovered) {
+                    if(["Select"].includes(editMode))
+                        return
+
+                    if("Clip" == item_type) {
+
+                        let preceeding_type = "Track"
+                        let anteceeding_type = "Track"
+
+                        let mi = item.modelIndex()
+
+                        let ante_index = anteceedingIndex(mi)
+                        let pre_index = preceedingIndex(mi)
+
+                        if(ante_index.valid)
+                            anteceeding_type = ante_index.model.get(ante_index, "typeRole")
+
+                        if(pre_index.valid)
+                            preceeding_type = pre_index.model.get(pre_index, "typeRole")
+
+                        // expand left
+                        let left = local_x <= (handle * 1.5) && local_x >= 0
+                        let left_edge = left && local_x < (handle / 2)
+                        let right = local_x >= hovered.width - (1.5 * handle) && local_x < hovered.width
+                        let right_edge = right && local_x > hovered.width - (handle / 2)
+                        let middle = local_x >= (hovered.width/2) - (handle / 2) && local_x <= (hovered.width/2) + (handle / 2)
+
+                        if(preceeding_type == "Clip" && left_edge)  {
+                            let ppos = mapFromItem(item, -dragBothLeft.width / 2, 0)
+                            dragBothLeft.x = ppos.x
+                            dragBothLeft.y = ppos.y
+                            show_dragBothLeft = true
+                            item.parentLV.itemAtIndex(mi.row - 1).isBothHovered = true
+                        } else if(left) {
+                            let ppos = mapFromItem(item, 0, 0)
+                            dragLeft.x = ppos.x
+                            dragLeft.y = ppos.y
+                            show_dragLeft = true
+                            if(preceeding_type == "Clip")
+                                item.parentLV.itemAtIndex(mi.row - 1).isBothHovered = false
+                        } else if(anteceeding_type == "Clip" && right_edge) {
+                            let ppos = mapFromItem(item, hovered.width - dragBothRight.width/2, 0)
+                            dragBothRight.x = ppos.x
+                            dragBothRight.y = ppos.y
+                            show_dragBothRight = true
+                            item.parentLV.itemAtIndex(mi.row + 1).isBothHovered = true
+                        } else if(right) {
+                            let ppos = mapFromItem(item, hovered.width - dragRight.width, 0)
+                            dragRight.x = ppos.x
+                            dragRight.y = ppos.y
+                            show_dragRight = true
+                            if(anteceeding_type == "Clip")
+                                item.parentLV.itemAtIndex(mi.row + 1).isBothHovered = false
+                        } else if(middle && (preceeding_type != "Clip" || anteceeding_type != "Clip") && !(preceeding_type == "Track" && anteceeding_type == "Clip")) {
+                            let ppos = mapFromItem(item, hovered.width / 2, hovered.height / 2)
+                            moveClip.x = ppos.x - moveClip.width / 2
+                            moveClip.y = ppos.y - moveClip.height / 2
+                            show_moveClip = true
+                        }
+                    }
+                 }
+
+                if(show_dragLeft != dragLeft.visible)
+                    dragLeft.visible = show_dragLeft
+
+                if(show_dragRight != dragRight.visible)
+                    dragRight.visible = show_dragRight
+
+                if(show_dragBothLeft != dragBothLeft.visible)
+                    dragBothLeft.visible = show_dragBothLeft
+
+                if(show_moveClip != moveClip.visible)
+                    moveClip.visible = show_moveClip
+
+                if(show_dragBothRight != dragBothRight.visible)
+                    dragBothRight.visible = show_dragBothRight
+
+            }
+
+            function beginMove() {
+                // we adjust material either side of us..
+                let mi = modifyItem.modelIndex()
+                let prec_index = preceedingIndex(mi)
+                let ante_index = anteceedingIndex(mi)
+
+                let preceeding_type = prec_index.valid ? prec_index.model.get(prec_index, "typeRole") : "Track"
+                let anteceeding_type = ante_index.valid ? ante_index.model.get(ante_index, "typeRole") : "Track"
+
+                if(preceeding_type == "Gap") {
+                    modifyPreceedingItem = modifyItem.parentLV.itemAtIndex(mi.row - 1)
+                    modifyPreceedingItem.adjustDuration = 0
+                    modifyPreceedingItem.isAdjustingDuration = true
+                } else {
+                    modifyItem.adjustPreceedingGap = 0
+                    modifyItem.isAdjustPreceeding = true
+                }
+
+                if(anteceeding_type == "Gap") {
+                    modifyAnteceedingItem = modifyItem.parentLV.itemAtIndex(mi.row + 1)
+                    modifyAnteceedingItem.adjustDuration = 0
+                    modifyAnteceedingItem.isAdjustingDuration = true
+                } else if(anteceeding_type != "Track") {
+                    modifyItem.adjustAnteceedingGap = 0
+                    modifyItem.isAdjustAnteceeding = true
+                }
+            }
+
+            function updateMove(frame_change) {
+                if(modifyPreceedingItem)
+                    frame_change = modifyPreceedingItem.checkAdjust(frame_change, false)
+                else
+                    frame_change = Math.max(0, frame_change)
+
+                if(modifyAnteceedingItem)
+                    frame_change = -modifyAnteceedingItem.checkAdjust(-frame_change, false)
+                // else
+                //     frame_change = Math.max(0, frame_change)
+
+                if(modifyPreceedingItem)
+                    modifyPreceedingItem.adjust(frame_change)
+                else if(modifyItem.isAdjustPreceeding)
+                    modifyItem.adjustPreceedingGap = frame_change
+
+                if(modifyAnteceedingItem)
+                    modifyAnteceedingItem.adjust(-frame_change)
+                else if(modifyItem.isAdjustAnteceeding)
+                    modifyItem.adjustAnteceedingGap = -frame_change
+
+                let ppos = mapFromItem(modifyItem, modifyItem.width / 2 - moveClip.width / 2, 0)
+                moveClip.x = ppos.x
+            }
+
+            function endMove() {
+                let mindex = modifyItem.modelIndex()
+                let src_model = mindex.model
+
+                if(modifyPreceedingItem && modifyPreceedingItem.durationFrame) {
+                    src_model.set(modifyPreceedingItem.modelIndex(), modifyPreceedingItem.durationFrame, "activeDurationRole")
+                    src_model.set(modifyPreceedingItem.modelIndex(), modifyPreceedingItem.durationFrame, "availableDurationRole")
+                }
+
+                if(modifyAnteceedingItem && modifyAnteceedingItem.durationFrame) {
+                    src_model.set(modifyAnteceedingItem.modelIndex(), modifyAnteceedingItem.durationFrame, "activeDurationRole")
+                    src_model.set(modifyAnteceedingItem.modelIndex(), modifyAnteceedingItem.durationFrame, "availableDurationRole")
+                }
+
+                let delete_preceeding = modifyPreceedingItem && !modifyPreceedingItem.durationFrame
+                let delete_anteceeding = modifyAnteceedingItem && !modifyAnteceedingItem.durationFrame
+                let insert_preceeding = modifyItem.isAdjustPreceeding && modifyItem.adjustPreceedingGap
+                let insert_anteceeding = modifyItem.isAdjustAnteceeding && modifyItem.adjustAnteceedingGap
+
+                // some operations are moves
+                if(insert_preceeding && delete_anteceeding) {
+                    // move clip left
+                    moveItem(modifyItem.modelIndex(), 1)
+                } else if (delete_preceeding && insert_anteceeding) {
+                    moveItem(modifyItem.modelIndex(), -1)
+                } else {
+                    if(delete_preceeding) {
+                        theSessionData.removeTimelineItems([modifyPreceedingItem.modelIndex()])
+                    }
+
+                    if(delete_anteceeding) {
+                        theSessionData.removeTimelineItems([modifyAnteceedingItem.modelIndex()])
+                    }
+
+                    if(insert_preceeding) {
+                        theSessionData.insertTimelineGap(mindex.row, mindex.parent, modifyItem.adjustPreceedingGap, modifyItem.fps, "New Gap")
+                    }
+
+                    if(insert_anteceeding) {
+                        theSessionData.insertTimelineGap(mindex.row + 1, mindex.parent, modifyItem.adjustAnteceedingGap, modifyItem.fps, "New Gap")
+                    }
+                }
+
+                modifyItem.adjustPreceedingGap = 0
+                modifyItem.isAdjustPreceeding = false
+                modifyItem.adjustAnteceedingGap = 0
+                modifyItem.isAdjustAnteceeding = false
+            }
+
+            function beginDragLeft() {
+                modifyItem.adjustDuration = 0
+                modifyItem.adjustStart = 0
+                modifyItem.isAdjustingDuration = true
+                modifyItem.isAdjustingStart = true
+                // is there a gap to our left..
+                let mi = modifyItem.modelIndex()
+                let pre_index = preceedingIndex(mi)
+                if(pre_index.valid) {
+                    let preceeding_type = pre_index.model.get(pre_index, "typeRole")
+
+                    if(preceeding_type == "Gap") {
+                        modifyPreceedingItem = modifyItem.parentLV.itemAtIndex(mi.row - 1)
+                        modifyPreceedingItem.adjustDuration = 0
+                        modifyPreceedingItem.isAdjustingDuration = true
+                    }
+                }
+            }
+
+            function updateDragLeft(frame_change) {
+                // must inject / resize gap.
+                // make sure last frame doesn't change..
+                frame_change = modifyItem.checkAdjust(frame_change, false, true)
+                if(modifyPreceedingItem) {
+                    frame_change = modifyPreceedingItem.checkAdjust(frame_change, false)
+                    modifyPreceedingItem.adjust(frame_change)
+                } else {
+                    modifyItem.adjustPreceedingGap = frame_change
+                }
+
+                modifyItem.adjust(frame_change)
+
+                let ppos = mapFromItem(modifyItem, modifyItem.adjustPreceedingGap * scaleX, 0)
+                dragLeft.x = ppos.x
+            }
+
+            function endDragLeft() {
+                let mindex = modifyItem.modelIndex()
+                let src_model = mindex.model
+                src_model.set(mindex, modifyItem.startFrame, "activeStartRole")
+                src_model.set(mindex, modifyItem.durationFrame, "activeDurationRole")
+                modifyItem.isAdjustingStart = false
+                modifyItem.isAdjustingDuration = false
+
+                if(modifyPreceedingItem) {
+                    if(modifyPreceedingItem.durationFrame == 0) {
+                        theSessionData.removeTimelineItems([modifyPreceedingItem.modelIndex()])
+                        modifyPreceedingItem = null
+                    } else {
+                        src_model.set(modifyPreceedingItem.modelIndex(), modifyPreceedingItem.durationFrame, "activeDurationRole")
+                        src_model.set(modifyPreceedingItem.modelIndex(), modifyPreceedingItem.durationFrame, "availableDurationRole")
+                        modifyPreceedingItem.isAdjustingDuration = false
+                    }
+                } else {
+                    if(modifyItem.adjustPreceedingGap > 0) {
+                        theSessionData.insertTimelineGap(mindex.row, mindex.parent, modifyItem.adjustPreceedingGap, modifyItem.fps, "New Gap")
+                    }
+                    modifyItem.adjustPreceedingGap = 0
+                }
+            }
+
+            function beginDragBothLeft() {
+                // both at front or end..?
+                let mi = modifyItem.modelIndex()
+                modifyItem.adjustDuration = 0
+                modifyItem.adjustStart = 0
+                modifyItem.isAdjustingStart = true
+                modifyItem.isAdjustingDuration = true
+
+                modifyPreceedingItem = modifyItem.parentLV.itemAtIndex(mi.row - 1)
+                modifyPreceedingItem.adjustDuration = 0
+                modifyPreceedingItem.isAdjustingDuration = true
+            }
+
+            function updateDragBothLeft(frame_change) {
+                frame_change = modifyItem.checkAdjust(frame_change, true)
+                frame_change = modifyPreceedingItem.checkAdjust(frame_change, true)
+
+                modifyItem.adjust(frame_change)
+                modifyPreceedingItem.adjust(frame_change)
+
+                let ppos = mapFromItem(modifyItem, -dragBothLeft.width / 2, 0)
+                dragBothLeft.x = ppos.x
+            }
+
+            function endDragBothLeft() {
+                let mindex = modifyItem.modelIndex()
+                let src_model = mindex.model
+                src_model.set(mindex, modifyItem.startFrame, "activeStartRole")
+                src_model.set(mindex, modifyItem.durationFrame, "activeDurationRole")
+
+                if(modifyPreceedingItem) {
+                    let pindex = src_model.index(mindex.row-1, 0, mindex.parent)
+                    src_model.set(pindex, modifyPreceedingItem.durationFrame, "activeDurationRole")
+                }
+                modifyItem.isAdjustingStart = false
+                modifyItem.isAdjustingDuration = false
+            }
+
+            function beginDragRight() {
+                modifyItem.adjustDuration = 0
+                modifyItem.isAdjustingDuration = true
+
+                let mi = modifyItem.modelIndex()
+                let ante_index = anteceedingIndex(mi)
+                if(ante_index.valid) {
+                    let anteceeding_type = ante_index.model.get(ante_index, "typeRole")
+
+                    if(anteceeding_type == "Gap") {
+                        modifyAnteceedingItem = modifyItem.parentLV.itemAtIndex(mi.row + 1)
+                        modifyAnteceedingItem.adjustDuration = 0
+                        modifyAnteceedingItem.isAdjustingDuration = true
+                    }
+                }
+            }
+
+            function updateDragRight(frame_change) {
+                frame_change = modifyItem.checkAdjust(frame_change, true)
+                if(modifyAnteceedingItem) {
+                    frame_change = -modifyAnteceedingItem.checkAdjust(-frame_change, false)
+                    modifyAnteceedingItem.adjust(-frame_change)
+                } else {
+                    modifyItem.adjustAnteceedingGap = -frame_change
+                }
+
+                modifyItem.adjust(frame_change)
+
+                let ppos = mapFromItem(modifyItem, modifyItem.width - (modifyItem.adjustAnteceedingGap * scaleX) - dragRight.width, 0)
+                dragRight.x = ppos.x
+            }
+
+            function endDragRight() {
+                let mindex = modifyItem.modelIndex()
+                let src_model = mindex.model
+
+                src_model.set(mindex, modifyItem.durationFrame, "activeDurationRole")
+                modifyItem.isAdjustingDuration = false
+
+                if(modifyAnteceedingItem) {
+                    if(modifyAnteceedingItem.durationFrame == 0) {
+                        theSessionData.removeTimelineItems([modifyAnteceedingItem.modelIndex()])
+                        modifyAnteceedingItem = null
+                    } else {
+                        src_model.set(modifyAnteceedingItem.modelIndex(), modifyAnteceedingItem.durationFrame, "activeDurationRole")
+                        src_model.set(modifyAnteceedingItem.modelIndex(), modifyAnteceedingItem.durationFrame, "availableDurationRole")
+                        modifyAnteceedingItem.isAdjustingDuration = false
+                    }
+                } else {
+                    if(modifyItem.adjustAnteceedingGap > 0) {
+                        theSessionData.insertTimelineGap(mindex.row+1, mindex.parent, modifyItem.adjustAnteceedingGap, modifyItem.fps, "New Gap")
+                    }
+                    modifyItem.adjustAnteceedingGap = 0
+                }
+            }
+
+            function beginDragBothRight() {
+                // both at front or end..?
+                let mi = modifyItem.modelIndex()
+                modifyItem.adjustDuration = 0
+                modifyItem.isAdjustingDuration = true
+
+                modifyAnteceedingItem = modifyItem.parentLV.itemAtIndex(mi.row + 1)
+                modifyAnteceedingItem.adjustStart = 0
+                modifyAnteceedingItem.adjustDuration = 0
+                modifyAnteceedingItem.isAdjustingStart = true
+                modifyAnteceedingItem.isAdjustingDuration = true
+            }
+
+            function updateDragBothRight(frame_change) {
+                frame_change = modifyItem.checkAdjust(frame_change, true)
+                frame_change = modifyAnteceedingItem.checkAdjust(frame_change, true)
+
+                modifyItem.adjust(frame_change)
+                modifyAnteceedingItem.adjust(frame_change)
+
+                let ppos = mapFromItem(modifyItem, modifyItem.width - dragBothRight.width / 2, 0)
+                dragBothRight.x = ppos.x
+            }
+
+            function endDragBothRight() {
+                let mindex = modifyItem.modelIndex()
+                let src_model = mindex.model
+                src_model.set(mindex, modifyItem.durationFrame, "activeDurationRole")
+
+                let pindex = src_model.index(mindex.row + 1, 0, mindex.parent)
+                src_model.set(pindex, modifyAnteceedingItem.startFrame, "activeStartRole")
+                src_model.set(pindex, modifyAnteceedingItem.durationFrame, "activeDurationRole")
+
+                modifyItem.isAdjustingDuration = false
+            }
+
+            function isValidSelection(ctype, ntype) {
+                // let result = false
+                // if(["Clip","Gap"].includes(ctype) && ["Clip","Gap"].includes(ntype))
+                //     result = true
+                // else
+                //     result = ctype == ntype
+
+                return ctype == ntype
+            }
+
+            function adjustSelection(mouse) {
+                if(hovered != null) {
+                    if(mouse.button == Qt.RightButton && hovered.isSelected) {
+                        // ignored
+                    } else if(mouse.button == Qt.RightButton && mouse.modifiers != Qt.ControlModifier) {
+                        selectItem()
+                    } else {
+                        if (mouse.modifiers == Qt.ShiftModifier) {
+                            // validate selection, we don't allow mixed items..
+                            let isValid = true
+                            if(timelineSelection.selectedIndexes.length) {
+                                let ctype = timelineSelection.selectedIndexes[0].model.get(timelineSelection.selectedIndexes[0], "typeRole")
+                                isValid = isValidSelection(ctype, hovered.itemTypeRole)
+                            }
+                            if(isValid) {
+                                let sel = timelineSelection.selectedIndexes
+                                if(sel.length) {
+                                    let index = hovered.modelIndex()
+                                    // find last selected entry ?
+                                    let m = sel[sel.length-1]
+                                    if(m != index) {
+                                        let s = Math.min(index.row, m.row)
+                                        let e = Math.max(index.row, m.row)
+                                        let items = []
+
+                                        // ignore gaps.. ?
+                                        for(let i=s; i<=e; i++) {
+                                            let nindex = timelineSelection.model.index(i, 0, index.parent)
+                                            if(["Clip","Audio Track", "Video Track"].includes(timelineSelection.model.get(nindex, "typeRole")))
+                                                items.push(nindex)
+                                        }
+                                        timelineSelection.select(helpers.createItemSelection(items), ItemSelectionModel.ClearAndSelect)
+                                    }
+                                } else {
+                                    selectItem()
+                                }
+                            }
+                        } else if (mouse.modifiers == Qt.ControlModifier) {
+                            // validate selection, we don't allow mixed items..
+                            let isValid = true
+                            if(timelineSelection.selectedIndexes.length) {
+                                let ctype = timelineSelection.selectedIndexes[0].model.get(timelineSelection.selectedIndexes[0], "typeRole")
+                                isValid = isValidSelection(ctype, hovered.itemTypeRole)
+                            }
+                            if(isValid && mouse.button != Qt.RightButton) {
+                                let new_state = hovered.isSelected  ? ItemSelectionModel.Deselect : ItemSelectionModel.Select
+                                if(["Clip","Audio Track", "Video Track"].includes(hovered.itemTypeRole))
+                                    timelineSelection.select(hovered.modelIndex(), new_state)
+                            }
+                        } else if(mouse.modifiers == Qt.NoModifier) {
+                            selectItem()
+                        }
+                    }
+                }
+            }
+
+            function selectItem(dragging=false) {
+                if(hovered.itemTypeRole == "Clip" && hovered.hasMedia) {
+                    // find media in media list and select ?
+                    let mind = hovered.mediaIndex
+                    if(mind.valid) {
+                        mediaSelectionModel.select(mind, ItemSelectionModel.ClearAndSelect)
+                    }
+                }
+
+                if(dragging) {
+                    if("Clip" == hovered.itemTypeRole)
+                        timelineSelection.select(hovered.modelIndex(), ItemSelectionModel.Select)
+                } else if(["Clip","Audio Track", "Video Track"].includes(hovered.itemTypeRole))
+                    timelineSelection.select(hovered.modelIndex(), ItemSelectionModel.ClearAndSelect)
+                else
+                    timelineSelection.clear()
             }
 
             Connections {
@@ -1311,11 +1915,159 @@ Rectangle {
                 property real trackHeaderWidth: timeline.trackHeaderWidth
                 property var setTrackHeaderWidth: timeline.setTrackHeaderWidth
                 property var timelineSelection: timeline.timelineSelection
-                property var timelineFocusSelection: timeline.timelineFocusSelection
-                property int playheadFrame: playheadLogicalFrame ? playheadLogicalFrame : 0
-                property string itemFlag: ""
+                property int playheadFrame: timelinePlayhead.logicalFrame ? timelinePlayhead.logicalFrame : 0
+                property string itemFlag: defaultClip
 
+                onPlayheadFrameChanged: {
+                    if (itemAtIndex(0))
+                        itemAtIndex(0).jumpToFrame(playheadFrame, ListView.Visible)
+                }
             }
         }
     }
+
+    XsDragDropHandler {
+
+        id: drag_drop_handler   
+        property bool dragTarget: false
+
+        onDragEntered: {
+            if (source == "MediaList") {
+                dragTarget = true                
+            }
+        }
+
+        onDragExited: {
+            dragTarget = false
+        }
+
+		onDropped: {
+            
+            if (!dragTarget) return
+            dragTarget = false
+			if (source == "MediaList" && typeof data == "object" && data.length) {
+
+				// root playlist:
+                var trackIdx = addTrack("Video Track")[0]
+                console.log("trackIdx", trackIdx)
+				for (var c = 0; c < data.length; ++c) {
+					var mediaName = theSessionData.get(data[c], "pathRole")
+					theSessionData.insertTimelineClip(c, trackIdx, data[c], mediaName)
+				}
+
+			}
+
+        }
+	}
+
+    DropArea {
+        id: drop_area
+        keys: [
+            "text/uri-list",
+            "xstudio/media-ids",
+            "xstudio/timeline-ids",
+            "application/x-dneg-ivy-entities-v1"
+        ]
+        anchors.fill: parent
+
+        property var modelIndex: null
+
+        onEntered: {
+            processPosition(drag.x, drag.y)
+        }
+
+        onExited: {
+            modelIndex = null
+            dragBothLeft.visible = false
+            dragBothRight.visible = false
+            dragLeft.visible = false
+            dragRight.visible = false
+            moveClip.visible = false
+        }
+
+        function processPosition(x,y) {
+            // console.log("processPosition", resolveItem(x, y))
+            let [item, item_type, local_x, local_y] = resolveItem(x, y)
+            let handle = 16
+            let show_dragBothLeft = false
+            let show_dragBothRight = false
+            let show_dragLeft = false
+            let show_dragRight = false
+            let show_moveClip = false
+
+            // update ovelay to indicate drop location.
+            if(item) {
+                if(["Clip","Gap"].includes(item_type)) {
+                    if(local_x >= 0 && local_x < handle) {
+                        let ppos = mapFromItem(item, 0, 0)
+                        let item_row = item.modelIndex().row
+                        if(item_row) {
+                            dragBothLeft.x = ppos.x -dragBothLeft.width / 2
+                            dragBothLeft.y = ppos.y
+                            show_dragBothLeft = true
+                        } else {
+                            dragLeft.x = ppos.x
+                            dragLeft.y = ppos.y
+                            show_dragLeft = true
+                        }
+                        modelIndex = item.modelIndex()
+                    }
+                    else if(local_x >= item.width - handle && local_x < item.width) {
+                        let ppos = mapFromItem(item, item.width, 0)
+                        let item_row = item.modelIndex().row
+                        if(item_row == item.modelIndex().model.rowCount(item.modelIndex().parent)-1) {
+                            dragRight.x = ppos.x - dragRight.width
+                            dragRight.y = ppos.y
+                            show_dragRight = true
+                            modelIndex = item.modelIndex().parent
+                        } else {
+                            dragBothRight.x = ppos.x -dragBothRight.width / 2
+                            dragBothRight.y = ppos.y
+                            show_dragBothRight = true
+                            modelIndex = item.modelIndex().model.index(item_row+1,0,item.modelIndex().parent)
+                        }
+                    }
+                } else if(["Audio Track","Video Track"].includes(item_type)) {
+                    let ppos = mapFromItem(item, trackHeaderWidth, 0)
+                    dragRight.x = ppos.x - dragRight.width
+                    dragRight.y = ppos.y
+                    show_dragRight = true
+                    modelIndex = item.modelIndex()
+                }
+            }
+
+            if(show_dragLeft != dragLeft.visible)
+                dragLeft.visible = show_dragLeft
+
+            if(show_dragRight != dragRight.visible)
+                dragRight.visible = show_dragRight
+
+            if(show_dragBothLeft != dragBothLeft.visible)
+                dragBothLeft.visible = show_dragBothLeft
+
+            if(show_dragBothRight != dragBothRight.visible)
+                dragBothRight.visible = show_dragBothRight
+
+            if(show_moveClip != moveClip.visible)
+                moveClip.visible = show_moveClip
+        }
+
+        onPositionChanged: {
+            processPosition(drag.x, drag.y)
+        }
+
+        onDropped: {
+            processPosition(drop.x, drop.y)
+            if(modelIndex != null) {
+                handleDrop(modelIndex, drop)
+                modelIndex = null
+            }
+            dragBothLeft.visible = false
+            dragBothRight.visible = false
+            dragLeft.visible = false
+            moveClip.visible = false
+            dragRight.visible = false
+        }
+    }
+
 }

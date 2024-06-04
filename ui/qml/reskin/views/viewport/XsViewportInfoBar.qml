@@ -47,19 +47,6 @@ Rectangle {
     //     }
     // }
 
-    /* This gives us a 'model' with one row - the row is the attribute data
-    for the "Auto Align" attribute of the current playhead. We use it below
-    to build the Auto Align button */
-    XsFilterModel {
-        id: auto_align_attr_data
-        sourceModel: viewportPlayheadDataModel
-        sortAscending: true
-        Component.onCompleted: {
-            setRoleFilter("Auto Align", "title")
-        }
-    }
-
-
     RowLayout{
         id: rowDiv
         spacing: 0
@@ -90,7 +77,7 @@ Rectangle {
         property var valueText         
 
         Repeater {
-            model: auto_align_attr_data
+            model: viewportPlayhead.autoAlignAttrData
             XsViewerMenuButton { 
                 Layout.preferredWidth: rowDiv.preferredBtnWidth
                 Layout.preferredHeight: parent.height
@@ -118,10 +105,10 @@ Rectangle {
             valueText: "" + value
 
             // another awkward two way binding!
-            property int value__: view.playhead.sourceOffsetFrames
+            property int value__: viewportPlayhead.sourceOffsetFrames ? viewportPlayhead.sourceOffsetFrames : 0
             onValueChanged: {
-                if (value != view.playhead.sourceOffsetFrames) {
-                    view.playhead.sourceOffsetFrames = value
+                if (value != viewportPlayhead.sourceOffsetFrames) {
+                    viewportPlayhead.sourceOffsetFrames = value
                 }
             }
 

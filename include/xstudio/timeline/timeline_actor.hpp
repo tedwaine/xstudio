@@ -65,14 +65,19 @@ namespace timeline {
             const int count,
             caf::typed_response_promise<utility::JsonStore> rp);
 
-        void sort_alphabetically();
+        void sort_by_media_display_info(
+            const int info_set_idx, const int info_item_idx, const bool ascending);
+
+        void
+        bake(caf::typed_response_promise<utility::UuidActor> rp, const utility::UuidSet &uuids);
 
         void on_exit() override;
 
         caf::actor
         deserialise(const utility::JsonStore &value, const bool replace_item = false);
 
-        void item_event_callback(const utility::JsonStore &event, Item &item);
+        void item_pre_event_callback(const utility::JsonStore &event, Item &item);
+        void item_post_event_callback(const utility::JsonStore &event, Item &item);
 
       private:
         caf::behavior behavior_;
@@ -85,6 +90,7 @@ namespace timeline {
         caf::actor_addr playlist_;
         bool content_changed_{false};
         utility::UuidActor playhead_;
+        std::map<int, utility::UuidActor> aux_playheads_;
         caf::actor history_;
         // bool update_edit_list_;
         // utility::EditList edit_list_;

@@ -41,6 +41,205 @@ void SessionModel::setTimelineFocus(
     }
 }
 
+QRect SessionModel::timelineRect(const QModelIndexList &indexes) const {
+    auto result     = QRect();
+    auto box_inited = false;
+
+    if (not indexes.empty()) {
+        // get timeline object.
+        auto timelineindex = getTimelineIndex(indexes[0]);
+        if (timelineindex.isValid()) {
+            // get actor and then item..
+            auto tactor = actorFromQString(system(), timelineindex.data(actorRole).toString());
+            if (timeline_lookup_.count(tactor)) {
+                auto &item = timeline_lookup_.at(tactor);
+
+                for (const auto &i : indexes) {
+                    auto box = item.box(UuidFromQUuid(i.data(idRole).toUuid()));
+                    if (box) {
+                        if (box_inited) {
+                            result.setCoords(
+                                std::min(result.x(), box->first.first),
+                                std::min(result.y(), box->first.second),
+                                std::max(result.x() + result.width(), box->second.first),
+                                std::max(result.y() + result.height(), box->second.second));
+                        } else {
+                            result.setCoords(
+                                box->first.first,
+                                box->first.second,
+                                box->second.first,
+                                box->second.second);
+                            box_inited = true;
+                        }
+                    }
+                }
+            }
+        }
+    }
+    return result;
+}
+
+QModelIndexList SessionModel::getTimelineClipIndexes(
+    const QModelIndex &timelineIndex, const QModelIndex &mediaIndex) {
+    auto result = QModelIndexList();
+
+    auto media_uuid = QVariant();
+    // get media uuid
+    if (mediaIndex.isValid() and mediaIndex.data(typeRole).toString() == QString("Media"))
+        media_uuid = mediaIndex.data(actorUuidRole);
+
+    if (not media_uuid.isNull())
+        result = searchRecursiveList(media_uuid, clipMediaUuidRole, timelineIndex, 0, -1);
+
+    return result;
+}
+
+QModelIndexList SessionModel::getTimelineVisibleClipIndexes(
+    const QModelIndex &timelineIndex,
+    const QModelIndex &mediaIndex,
+    const int logicalMediaFrame,
+    const bool skipDisabled) {
+    auto result = QModelIndexList();
+    auto tmp    = getTimelineClipIndexes(timelineIndex, mediaIndex);
+
+    for (const auto &i : tmp) {
+        auto start = i.data(trimmedStartRole).toInt();
+        auto end   = start + i.data(trimmedDurationRole).toInt() - 1;
+        if (logicalMediaFrame >= start and logicalMediaFrame <= end and
+            (not skipDisabled or
+             (i.data(enabledRole).toBool() and i.parent().data(enabledRole).toBool())))
+            result.push_back(i);
+    }
+
+    return result;
+}
+
+int SessionModel::getTimelineFrameFromClip(
+    const QModelIndex &clipIndex, const int logicalMediaFrame) {
+    auto result = -1;
+
+    if (clipIndex.isValid()) {
+        auto start  = clipIndex.data(trimmedStartRole).toInt();
+        auto pstart = clipIndex.data(parentStartRole).toInt();
+        result      = pstart + (logicalMediaFrame - start);
+    }
+
+    return result;
+}
+
+QModelIndex
+SessionModel::getTimelineClipIndex(const QModelIndex &timelineIndex, const int frame) {
+    auto result = QModelIndex();
+    auto tactor = actorFromQString(system(), timelineIndex.data(actorRole).toString());
+    if (timeline_lookup_.count(tactor)) {
+        auto &item = timeline_lookup_.at(tactor);
+
+        scoped_actor sys{system()};
+        try {
+            auto ri = request_receive<timeline::ResolvedItem>(
+                *sys,
+                tactor,
+                timeline::bake_atom_v,
+                FrameRate(item.front().rate().to_flicks() * frame));
+            auto cuuid = std::get<0>(ri).uuid();
+            result     = searchRecursive(
+                QVariant::fromValue(QUuidFromUuid(cuuid)), idRole, timelineIndex);
+        } catch (...) {
+        }
+    }
+    return result;
+}
+
+QModelIndexList SessionModel::getTimelineClipIndexesFromRect(
+    const QModelIndex &timelineIndex,
+    const int left,
+    const int top,
+    const int right,
+    const int bottom,
+    const double frameScale,
+    const double trackScale,
+    const timeline::ItemType type,
+    const bool skipLocked) {
+
+    auto result = QModelIndexList();
+
+    auto tactor = actorFromQString(system(), timelineIndex.data(actorRole).toString());
+
+    if (timeline_lookup_.count(tactor)) {
+        const auto dleft   = static_cast<double>(left);
+        const auto dtop    = static_cast<double>(top);
+        const auto dright  = static_cast<double>(right);
+        const auto dbottom = static_cast<double>(bottom);
+
+        auto &item = timeline_lookup_.at(tactor);
+
+        // use item to resolve rectangles for all clips ?
+        auto clips = item.find_all_items(timeline::IT_CLIP, type);
+
+        for (const auto &i : clips) {
+            const auto box = *(item.box(i.get().uuid()));
+
+            const auto cleft   = static_cast<double>(box.first.first) * frameScale;
+            const auto ctop    = static_cast<double>(box.first.second) * trackScale;
+            const auto cright  = static_cast<double>(box.second.first) * frameScale;
+            const auto cbottom = static_cast<double>(box.second.second) * trackScale;
+
+            if (skipLocked and i.get().locked())
+                continue;
+
+            if (cright < dleft or cbottom < dtop or cleft > dright or ctop > dbottom)
+                continue;
+
+            result.push_back(searchRecursive(
+                QVariant::fromValue(QUuidFromUuid(i.get().uuid())), idRole, timelineIndex));
+        }
+    }
+
+    return result;
+}
+
+QModelIndexList SessionModel::getTimelineVideoClipIndexesFromRect(
+    const QModelIndex &timelineIndex,
+    const int left,
+    const int top,
+    const int right,
+    const int bottom,
+    const double frameScale,
+    const double trackScale,
+    const bool skipLocked) {
+    return getTimelineClipIndexesFromRect(
+        timelineIndex,
+        left,
+        top,
+        right,
+        bottom,
+        frameScale,
+        trackScale,
+        timeline::IT_VIDEO_TRACK,
+        skipLocked);
+}
+
+QModelIndexList SessionModel::getTimelineAudioClipIndexesFromRect(
+    const QModelIndex &timelineIndex,
+    const int left,
+    const int top,
+    const int right,
+    const int bottom,
+    const double frameScale,
+    const double trackScale,
+    const bool skipLocked) {
+    return getTimelineClipIndexesFromRect(
+        timelineIndex,
+        left,
+        top,
+        right,
+        bottom,
+        frameScale,
+        trackScale,
+        timeline::IT_AUDIO_TRACK,
+        skipLocked);
+}
+
 
 QModelIndex SessionModel::getTimelineIndex(const QModelIndex &index) const {
     try {
@@ -57,6 +256,23 @@ QModelIndex SessionModel::getTimelineIndex(const QModelIndex &index) const {
 
     return QModelIndex();
 }
+
+QModelIndex SessionModel::getTimelineTrackIndex(const QModelIndex &index) const {
+    try {
+        if (index.isValid()) {
+            auto type = StdFromQString(index.data(typeRole).toString());
+            if (type == "Audio Track" or type == "Video Track")
+                return index;
+            else
+                return getTimelineTrackIndex(index.parent());
+        }
+    } catch (const std::exception &err) {
+        spdlog::warn("{} {}", __PRETTY_FUNCTION__, err.what());
+    }
+
+    return QModelIndex();
+}
+
 
 bool SessionModel::removeTimelineItems(
     const QModelIndex &track_index, const int frame, const int duration) {
@@ -80,6 +296,165 @@ bool SessionModel::removeTimelineItems(
     return result;
 }
 
+bool SessionModel::replaceTimelineTrack(const QModelIndex &src, const QModelIndex &dst) {
+    auto result = false;
+
+    if (src.isValid() and dst.isValid() and src != dst) {
+        auto src_type = StdFromQString(src.data(typeRole).toString());
+        auto dst_type = StdFromQString(dst.data(typeRole).toString());
+        if ((src_type == "Audio Track" or src_type == "Video Track") and
+            (dst_type == "Audio Track" or dst_type == "Video Track")) {
+            // args are valid..
+            // purge dst content.
+            auto dactor = actorFromQString(system(), dst.data(actorRole).toString());
+            if (dactor) {
+                anon_send(dactor, timeline::erase_item_atom_v, 0, rowCount(dst), false);
+                // JSONTreeModel::removeRows(0, rowCount(dst), dst);
+                // wait for update ?
+                while (rowCount(dst)) {
+                    QCoreApplication::processEvents(
+                        QEventLoop::WaitForMoreEvents | QEventLoop::ExcludeUserInputEvents, 50);
+                }
+                // clone src clips into dst.
+                auto items = QModelIndexList();
+                for (auto i = 0; i < rowCount(src); i++)
+                    items.push_back(index(i, 0, src));
+                copyRows(items, 0, dst);
+                result = true;
+            }
+        }
+    }
+    return result;
+}
+
+
+// clones clips in to new track above
+// should we try and support multple clips on multiple tracks ?
+// should this really be done here or in the timeline actor...?
+QModelIndexList SessionModel::duplicateTimelineClips(
+    const QModelIndexList &indexes, const QString &trackSuffix, const bool append) {
+    // we only handle clips
+    // order clips by row and sort under their tracks.
+    auto result      = QModelIndexList();
+    auto track_clips = std::map<QModelIndex, std::vector<QModelIndex>>();
+
+    auto expanded_indexed = QModelIndexList();
+
+    for (const auto &i : indexes) {
+        auto type = StdFromQString(i.data(typeRole).toString());
+        if (type == "Clip")
+            expanded_indexed.push_back(i);
+        else if (type == "Audio Track" or type == "Video Track") {
+            for (auto j = 0; j < rowCount(i); j++) {
+                auto ind = index(j, 0, i);
+                type     = StdFromQString(ind.data(typeRole).toString());
+                if (type == "Clip")
+                    expanded_indexed.push_back(ind);
+            }
+        }
+    }
+
+
+    for (const auto &i : expanded_indexed) {
+        auto track_index = getTimelineTrackIndex(i);
+        if (track_index.isValid()) {
+            if (not track_clips.count(track_index))
+                track_clips[track_index] = std::vector<QModelIndex>();
+            track_clips[track_index].push_back(i);
+        }
+    }
+
+    // We now need to sort tracks and clips so we don't mess the rows up
+    auto sorted_track_clips = std::vector<std::pair<QModelIndex, std::vector<QModelIndex>>>();
+    for (const auto &i : track_clips) {
+        sorted_track_clips.push_back(std::make_pair(i.first, i.second));
+        // sort clips..
+        std::sort(
+            sorted_track_clips.back().second.begin(),
+            sorted_track_clips.back().second.end(),
+            [](auto &a, auto &b) { return a.row() < b.row(); });
+    }
+
+    // sort by track row
+    // account for audio track behaviour ? Inserting below ?
+    std::sort(sorted_track_clips.begin(), sorted_track_clips.end(), [](auto &a, auto &b) {
+        return a.first.row() > b.first.row();
+    });
+
+    // tracks and clips should now be sorted correctly.
+    auto count = 0;
+    for (const auto &i : sorted_track_clips) {
+
+        auto track_type = StdFromQString(i.first.data(typeRole).toString());
+        auto track_name = StdFromQString(i.first.data(nameRole).toString());
+        QModelIndex new_track_index;
+
+        auto new_row = track_type == "Video Track"
+                           ? (append ? 0 : i.first.row())
+                           : (append ? rowCount(i.first.parent()) - count : i.first.row() + 1);
+
+        count++;
+
+        new_track_index = insertRowsSync(
+            new_row,
+            1,
+            QStringFromStd(track_type),
+            QStringFromStd(track_name + " " + StdFromQString(trackSuffix)),
+            i.first.parent())[0];
+
+        // new track created, now populate with gaps and duplicated clips.
+        // we need to workout the gap required to insert before the clip...
+        auto current_clip_index = 0;
+        auto target_row         = 0;
+
+        for (const auto &j : i.second) {
+            // sum duration of items before this clip in list.
+            auto leading_track_frames = 0;
+            for (; current_clip_index < j.row(); current_clip_index++) {
+                leading_track_frames +=
+                    index(current_clip_index, 0, j.parent()).data(trimmedDurationRole).toInt();
+            }
+
+            if (leading_track_frames) {
+                auto gap_index = insertRowsSync(
+                    target_row,
+                    1,
+                    QStringFromStd("Gap"),
+                    QStringFromStd("Gap"),
+                    new_track_index)[0];
+
+                // we need to wait until our new gap becomes valid..
+                // process events for a small time then check if we've got a populated gap..
+                while (gap_index.data(placeHolderRole).toBool() == true) {
+                    QCoreApplication::processEvents(
+                        QEventLoop::WaitForMoreEvents | QEventLoop::ExcludeUserInputEvents, 50);
+                }
+
+                setData(
+                    gap_index, QVariant::fromValue(leading_track_frames), activeDurationRole);
+                // increment target track row.
+                target_row++;
+            }
+
+            // clone clip and insert into new track..
+            auto new_clip = copyRows(QModelIndexList({j}), target_row, new_track_index)[0];
+
+            // wait for it to be valid
+            while (new_clip.data(placeHolderRole).toBool() == true) {
+                QCoreApplication::processEvents(
+                    QEventLoop::WaitForMoreEvents | QEventLoop::ExcludeUserInputEvents, 50);
+            }
+
+            // wait for it ? Not sure we need to..
+            target_row++;
+            result.push_back(new_clip);
+            current_clip_index = j.row() + 1;
+        }
+    }
+
+    return result;
+}
+
 
 bool SessionModel::removeTimelineItems(const QModelIndexList &indexes) {
     auto result = false;
@@ -89,11 +464,23 @@ bool SessionModel::removeTimelineItems(const QModelIndexList &indexes) {
         // be careful of invalidation, deletion order matters ?
 
         // simple operations.. deletion of tracks.
-        for (const auto &i : indexes) {
+        // we're deleting items using rows..
+        // The order matters, and we won't get model index updates to refresh the rows..
+        // Order by descending row.
+        auto sorted_indexes = std::vector<QModelIndex>(indexes.begin(), indexes.end());
+        std::sort(
+            sorted_indexes.begin(), sorted_indexes.end(), [](QModelIndex &a, QModelIndex &b) {
+                return a.row() > b.row();
+            });
+
+        for (const auto &i : sorted_indexes) {
             if (i.isValid()) {
+                auto name         = StdFromQString(i.data(nameRole).toString());
                 auto type         = StdFromQString(i.data(typeRole).toString());
                 auto actor        = actorFromQString(system(), i.data(actorRole).toString());
                 auto parent_index = i.parent();
+
+                // spdlog::warn("REMOVE {} {} {} {}", type, to_string(actor), i.row(), name);
 
                 if (parent_index.isValid()) {
 
@@ -120,12 +507,12 @@ bool SessionModel::removeTimelineItems(const QModelIndexList &indexes) {
                                 row,
                                 UuidActorVector({UuidActor(uuid, gap)}));
                             request_receive<JsonStore>(
-                                *sys, pactor, timeline::erase_item_atom_v, row + 1);
+                                *sys, pactor, timeline::erase_item_atom_v, row + 1, false);
                         }
                     } else {
                         if (pactor) {
                             request_receive<JsonStore>(
-                                *sys, pactor, timeline::erase_item_atom_v, row);
+                                *sys, pactor, timeline::erase_item_atom_v, row, false);
                         }
                     }
                 }
@@ -200,7 +587,7 @@ void SessionModel::item_event_callback(const utility::JsonStore &event, timeline
             -1);
 
         switch (static_cast<timeline::ItemAction>(event.at("action"))) {
-        case timeline::IT_INSERT:
+        case timeline::IA_INSERT:
 
             // check for place holder entry..
             // spdlog::warn("timeline::IT_INSERT {}", event.dump(2));
@@ -212,9 +599,9 @@ void SessionModel::item_event_callback(const utility::JsonStore &event, timeline
 
                     auto replaced = false;
                     // check children..
+                    auto place_row = 0;
                     for (auto &i : *tree) {
-                        auto place_row = 0;
-                        auto data      = i.data();
+                        auto data = i.data();
                         if (data.count("placeholder") and data.at("id") == new_node.at("id")) {
                             i.data() = new_node;
                             replaced = true;
@@ -246,9 +633,9 @@ void SessionModel::item_event_callback(const utility::JsonStore &event, timeline
             }
             break;
 
-        case timeline::IT_REMOVE:
+        case timeline::IA_REMOVE:
             if (index.isValid()) {
-                // spdlog::warn("timeline::IT_REMOVE {}", event.dump(2));
+                // spdlog::warn("timeline::IA_REMOVE {}", event.dump(2));
                 JSONTreeModel::removeRows(event.at("index").get<int>(), 1, index);
                 if (index.data(typeRole).toString() == QString("Stack")) {
                     // refresh teack indexes
@@ -260,7 +647,7 @@ void SessionModel::item_event_callback(const utility::JsonStore &event, timeline
             }
             break;
 
-        case timeline::IT_ENABLE:
+        case timeline::IA_ENABLE:
             if (index.isValid()) {
                 // spdlog::warn("timeline::IT_ENABLE {}", event.dump(2));
                 if (indexToData(index).at("enabled").is_null() or
@@ -271,7 +658,18 @@ void SessionModel::item_event_callback(const utility::JsonStore &event, timeline
             }
             break;
 
-        case timeline::IT_NAME:
+        case timeline::IA_LOCK:
+            if (index.isValid()) {
+                // spdlog::warn("timeline::IT_ENABLE {}", event.dump(2));
+                if (indexToData(index).at("locked").is_null() or
+                    indexToData(index).at("locked") != event.value("value", true)) {
+                    indexToData(index)["locked"] = event.value("value", true);
+                    emit dataChanged(index, index, QVector<int>({lockedRole}));
+                }
+            }
+            break;
+
+        case timeline::IA_NAME:
             if (index.isValid()) {
                 // spdlog::warn("timeline::IT_NAME {}", event.dump(2));
                 if (indexToData(index).at("name").is_null() or
@@ -282,7 +680,7 @@ void SessionModel::item_event_callback(const utility::JsonStore &event, timeline
             }
             break;
 
-        case timeline::IT_FLAG:
+        case timeline::IA_FLAG:
             if (index.isValid()) {
                 // spdlog::warn("timeline::IT_NAME {}", event.dump(2));
                 if (indexToData(index).at("flag").is_null() or
@@ -293,18 +691,30 @@ void SessionModel::item_event_callback(const utility::JsonStore &event, timeline
             }
             break;
 
-        case timeline::IT_PROP:
+        case timeline::IA_MARKER:
             if (index.isValid()) {
                 // spdlog::warn("timeline::IT_NAME {}", event.dump(2));
-                if (indexToData(index).at("prop").is_null() or
-                    indexToData(index).at("prop") != event.value("value", "")) {
-                    indexToData(index)["prop"] = event.value("value", "");
-                    emit dataChanged(index, index, QVector<int>({clipMediaUuidRole}));
+                if (indexToData(index).at("markers").is_null() or
+                    indexToData(index).at("markers") != event.value("value", R"([])"_json)) {
+                    indexToData(index)["markers"] = event.value("value", R"([])"_json);
+                    emit dataChanged(index, index, QVector<int>({markersRole}));
                 }
             }
             break;
 
-        case timeline::IT_ACTIVE:
+        case timeline::IA_PROP:
+            if (index.isValid()) {
+                // spdlog::warn("timeline::IT_NAME {}", event.dump(2));
+                if (indexToData(index).at("prop").is_null() or
+                    indexToData(index).at("prop") != event.at("value")) {
+                    indexToData(index)["prop"] = event.at("value");
+                    emit dataChanged(
+                        index, index, QVector<int>({propertyRole, clipMediaUuidRole}));
+                }
+            }
+            break;
+
+        case timeline::IA_ACTIVE:
             if (index.isValid()) {
                 // spdlog::warn("timeline::IT_ACTIVE {}", event.dump(2));
 
@@ -339,9 +749,9 @@ void SessionModel::item_event_callback(const utility::JsonStore &event, timeline
             }
             break;
 
-        case timeline::IT_AVAIL:
+        case timeline::IA_AVAIL:
             if (index.isValid()) {
-                // spdlog::warn("timeline::IT_AVAIL {}", event.dump(2));
+                // spdlog::warn("timeline::IA_AVAIL {}", event.dump(2));
 
                 if (event.at("value2") == true) {
                     if (indexToData(index).at("available_range").is_null() or
@@ -374,7 +784,7 @@ void SessionModel::item_event_callback(const utility::JsonStore &event, timeline
             }
             break;
 
-        case timeline::IT_SPLICE:
+        case timeline::IA_SPLICE:
             if (index.isValid()) {
                 // spdlog::warn("timeline::IT_SPLICE {}", event.dump(2));
 
@@ -400,7 +810,7 @@ void SessionModel::item_event_callback(const utility::JsonStore &event, timeline
             }
             break;
 
-        case timeline::IT_ADDR:
+        case timeline::IA_ADDR:
             if (index.isValid()) {
                 // spdlog::warn("timeline::IT_ADDR {}", event.dump(2));
                 // is the string actor valid here ?
@@ -450,6 +860,8 @@ QModelIndex SessionModel::insertTimelineGap(
                     "actor": null,
                     "enabled": true,
                     "id": null,
+                    "prop": null,
+                    "markers": null,
                     "name": null,
                     "placeholder": true,
                     "active_range": null,
@@ -847,7 +1259,8 @@ QFuture<QList<QUuid>> SessionModel::handleTimelineIdDropFuture(
                                     *sys,
                                     std::get<3>(i),
                                     timeline::erase_item_atom_v,
-                                    std::get<1>(i));
+                                    std::get<1>(i),
+                                    false);
 
                                 // we should be able to insert this..
                                 // make sure before is a container...
@@ -884,4 +1297,185 @@ QFuture<QList<QUuid>> SessionModel::handleTimelineIdDropFuture(
 
         return results;
     });
+}
+
+
+QModelIndex
+SessionModel::bakeTimelineItems(const QModelIndexList &indexes, const QString &trackName) {
+    auto result = QModelIndex();
+
+    // indexes should contain tracks/clips
+    if (not indexes.empty()) {
+        auto tindex  = getTimelineIndex(indexes.at(0));
+        auto sindex  = index(0, 0, index(2, 0, tindex));
+        auto trindex = getTimelineTrackIndex(indexes.at(0));
+        auto rcount  = rowCount(sindex);
+
+        if (tindex.isValid() and sindex.isValid()) {
+            auto timeline_actor = actorFromQString(system(), tindex.data(actorRole).toString());
+            auto stack_actor    = actorFromQString(system(), sindex.data(actorRole).toString());
+
+            if (timeline_actor and stack_actor) {
+                scoped_actor sys{system()};
+                // build list of uuids..
+
+                auto uuids = UuidVector();
+                for (const auto &i : indexes)
+                    uuids.emplace_back(UuidFromQUuid(i.data(idRole).toUuid()));
+
+                try {
+                    auto ntrack = request_receive<UuidActor>(
+                        *sys, timeline_actor, timeline::bake_atom_v, uuids);
+
+                    auto row = trindex.data(typeRole).toString() == "Video Track"
+                                   ? trindex.row()
+                                   : trindex.row() - 1;
+
+                    try {
+                        request_receive<JsonStore>(
+                            *sys,
+                            stack_actor,
+                            timeline::insert_item_atom_v,
+                            row,
+                            UuidActorVector({ntrack}));
+                    } catch (const std::exception &err) {
+                        spdlog::warn("{} insert {}", __PRETTY_FUNCTION__, err.what());
+                        throw;
+                    }
+                    // wait for track index.. to become valid ?
+                    while (rowCount(sindex) == rcount) {
+                        QCoreApplication::processEvents(
+                            QEventLoop::WaitForMoreEvents | QEventLoop::ExcludeUserInputEvents,
+                            50);
+                    }
+                    result = index(row, 0, sindex);
+
+                    try {
+                        request_receive<bool>(
+                            *sys, timeline_actor, timeline::link_media_atom_v, false);
+                    } catch (const std::exception &err) {
+                        spdlog::warn("{} link {}", __PRETTY_FUNCTION__, err.what());
+                        throw;
+                    }
+
+                } catch (const std::exception &err) {
+                    spdlog::warn("{} {}", __PRETTY_FUNCTION__, err.what());
+                }
+            }
+        }
+    }
+
+    return result;
+}
+
+
+QModelIndexList SessionModel::modifyClipSelection(
+    const QModelIndexList &clips, const int left, const int right) {
+    // spdlog::warn("{} {} {}", __PRETTY_FUNCTION__, left, right);
+
+    auto rows = std::map<int, QModelIndexList>();
+    auto dups = std::map<int, std::set<int>>();
+
+    for (const auto &i : clips) {
+        if (i.data(typeRole) != "Clip")
+            continue;
+
+        const auto parent_row = i.parent().row();
+
+        if (not dups.count(parent_row))
+            dups[parent_row] = std::set<int>();
+        if (dups[parent_row].count(i.row()))
+            continue;
+        dups[parent_row].insert(i.row());
+
+        if (not rows.count(parent_row))
+            rows.emplace(parent_row, QModelIndexList({i}));
+        else
+            rows[parent_row].push_back(i);
+    }
+
+    // sort clips
+    for (auto &i : rows)
+        std::sort(
+            i.second.begin(), i.second.end(), [=](const QModelIndex &a, const QModelIndex &b) {
+                return a.row() < b.row();
+            });
+
+    // for(const auto &i: rows) {
+    //     for(const auto &ii: i.second) {
+    //         spdlog::warn("{} {}", ii.row(), ii.parent().row());
+    //     }
+    // }
+
+    auto right_count = right;
+    // lets go..
+    while (right_count > 0) {
+        for (auto &i : rows) {
+            // get right most clip.
+            auto c            = i.second.last();
+            auto row          = c.row() + 1;
+            const auto parent = c.parent();
+            while (row < rowCount(parent)) {
+                auto ind = index(row, 0, parent);
+                if (ind.data(typeRole) == "Clip") {
+                    i.second.push_back(ind);
+                    break;
+                }
+                row++;
+            }
+        }
+        right_count--;
+    }
+
+    auto left_count = left;
+    // lets go..
+    while (left_count > 0) {
+        for (auto &i : rows) {
+            // get right most clip.
+            auto c            = i.second.first();
+            auto row          = c.row() - 1;
+            const auto parent = c.parent();
+            while (row >= 0) {
+                auto ind = index(row, 0, parent);
+                if (ind.data(typeRole) == "Clip") {
+                    i.second.push_front(ind);
+                    break;
+                }
+                row--;
+            }
+        }
+        left_count--;
+    }
+
+    left_count  = left;
+    right_count = right;
+
+    while (left_count < 0) {
+        for (auto &i : rows) {
+            // get right most clip.
+            if (i.second.size() > 1) {
+                i.second.pop_front();
+            }
+        }
+        left_count++;
+    }
+
+    while (right_count < 0) {
+        for (auto &i : rows) {
+            // get right most clip.
+            if (i.second.size() > 1) {
+                i.second.pop_back();
+            }
+        }
+        right_count++;
+    }
+
+
+    auto result = QModelIndexList();
+    // prune duplicates.
+    for (const auto &i : rows)
+        result += i.second;
+
+
+    return result;
 }

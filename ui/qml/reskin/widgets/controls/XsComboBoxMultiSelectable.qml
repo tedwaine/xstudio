@@ -52,6 +52,7 @@ Item{ id: widget
     property alias theSelection: sourceSelectionModel.selection
 
     property alias popup: valuesPopup
+    signal open()
     signal close()
     signal clear()
 
@@ -124,7 +125,8 @@ Item{ id: widget
         XsPrimaryButton{ id: arrowButton
             property bool isArrowBtnClicked: false
             text: ""
-            imgSrc: isActive?"qrc:/feather_icons/chevron-up.svg": "qrc:/feather_icons/chevron-down.svg"
+            imgSrc: "qrc:/icons/keyboard_arrow_up.svg"
+            imageDiv.rotation: isActive? 0: 180
             width: height
             height: widget.height - framePadding
             anchors.verticalCenter: parent.verticalCenter
@@ -149,7 +151,7 @@ Item{ id: widget
         }
         XsPrimaryButton{ id: clearButton
             text: ""
-            imgSrc: "qrc:/feather_icons/x.svg"
+            imgSrc: "qrc:/icons/close.svg"
             visible: searchTextField.length!=0
             width: height
             height: widget.height - framePadding
@@ -248,7 +250,8 @@ Item{ id: widget
 
             XsCheckBox{ id: checkBox
                 text: nameRole
-                width: parent.width
+                x: 5
+                width: parent.width - x
                 height: parent.height
                 anchors.verticalCenter: parent.verticalCenter
                 // checked: sourceSelectionModel.selectedIndexes.includes(valuesModel.mapToSource(valuesModel.index(index, 0)))
@@ -275,6 +278,15 @@ Item{ id: widget
             arrowButton.isArrowBtnClicked = true
             isFiltered=false
         }
+    }
+
+    onOpen: {
+        countDisplay.isCountBtnClicked = false
+        arrowButton.isArrowBtnClicked = true
+        isFiltered = false
+
+        searchTextField.focus = true
+        valuesPopup.visible = true
     }
 
     onClose: {

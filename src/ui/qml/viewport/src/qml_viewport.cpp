@@ -2,7 +2,6 @@
 #include "xstudio/ui/qml/qml_viewport_renderer.hpp"
 // leave space or clang format will cause problems
 
-#include "xstudio/ui/qml/playhead_ui.hpp"
 #include "xstudio/ui/qml/qml_viewport.hpp"
 #include "xstudio/ui/qt/viewport_widget.hpp"
 #include "xstudio/ui/viewport/viewport.hpp"
@@ -62,13 +61,11 @@ int qtModifierToOurs(const Qt::KeyboardModifiers qt_modifiers) {
 
 QMLViewport::QMLViewport(QQuickItem *parent) : QQuickItem(parent), cursor_(Qt::ArrowCursor) {
 
-    playhead_ = new PlayheadUI(this);
-    playhead_->init(CafSystemObject::get_actor_system());
-
     connect(this, &QQuickItem::windowChanged, this, &QMLViewport::handleWindowChanged);
     static int index = 0;
-    viewport_index_  = index++;
-    renderer_actor   = new QMLViewportRenderer(this, viewport_index_);
+
+    renderer_actor = new QMLViewportRenderer(this);
+
     connect(renderer_actor, SIGNAL(zoomChanged(float)), this, SIGNAL(zoomChanged(float)));
     connect(
         renderer_actor,
@@ -112,9 +109,9 @@ QMLViewport::QMLViewport(QQuickItem *parent) : QQuickItem(parent), cursor_(Qt::A
 
     connect(
         this,
-        SIGNAL(quickViewSource(QStringList, QString)),
+        SIGNAL(quickViewSource(QStringList, QString, int, int)),
         renderer_actor,
-        SLOT(quickViewSource(QStringList, QString)));
+        SLOT(quickViewSource(QStringList, QString, int, int)));
 
     connect(
         renderer_actor,
@@ -197,19 +194,6 @@ void QMLViewport::handleScreenChanged(QScreen *screen) {
         screen->refreshRate());
 }
 
-void QMLViewport::linkToViewport(QObject *other_viewport) {
-
-    auto other = dynamic_cast<QMLViewport *>(other_viewport);
-    if (other) {
-        QMLViewportRenderer *otherActor = other->viewportActor();
-        renderer_actor->linkToViewport(otherActor);
-    } else {
-        qDebug() << "QMLViewport::linkToViewport failed because " << other_viewport
-                 << " is not derived from QMLViewport.";
-    }
-}
-
-
 PointerEvent
 QMLViewport::makePointerEvent(Signature::EventType t, QMouseEvent *event, int force_modifiers) {
 
@@ -221,7 +205,7 @@ QMLViewport::makePointerEvent(Signature::EventType t, QMouseEvent *event, int fo
         width(),  // FIXME should be width, but this function appears to never be called.
         height(), // FIXME should be height
         qtModifierToOurs(event->modifiers()) + force_modifiers,
-        fmt::format("viewport{0}", viewport_index_));
+        renderer_actor->std_name());
     p.w_ = utility::clock::now();
     return p;
 }
@@ -237,7 +221,7 @@ PointerEvent QMLViewport::makePointerEvent(
         w,
         h,
         modifiers,
-        fmt::format("viewport{0}", viewport_index_));
+        renderer_actor->std_name());
 }
 
 static QOpenGLContext *__aa = nullptr;
@@ -266,7 +250,8 @@ void QMLViewport::sync() {
         mapToScene(boundingRect().topRight()),
         mapToScene(boundingRect().bottomRight()),
         mapToScene(boundingRect().bottomLeft()),
-        window()->size());
+        window()->size(),
+        window()->devicePixelRatio());
 
     /*static bool share = false;
     if (window() && !share) {
@@ -463,8 +448,6 @@ float QMLViewport::scale() { return renderer_actor->scale(); }
 
 QVector2D QMLViewport::translate() { return renderer_actor->translate(); }
 
-QObject *QMLViewport::playhead() { return static_cast<QObject *>(playhead_); }
-
 void QMLViewport::setOnScreenImageLogicalFrame(const int frame_num) {
     if (frame_num != on_screen_logical_frame_) {
         on_screen_logical_frame_ = frame_num;
@@ -487,24 +470,22 @@ void QMLViewport::wheelEvent(QWheelEvent *event) {
         width(),  // FIXME should be width, but this function appears to never be called.
         height(), // FIXME should be height
         qtModifierToOurs(event->modifiers()),
-        fmt::format("viewport{0}", viewport_index_),
+        renderer_actor->std_name(),
         std::make_pair(event->angleDelta().rx(), event->angleDelta().ry()),
         std::make_pair(event->pixelDelta().rx(), event->pixelDelta().ry()));
 
-    if (!renderer_actor->pointerEvent(ev) && playhead_) {
+    if (!renderer_actor->pointerEvent(ev) && renderer_actor->playhead()) {
         // If viewport hasn't acted on the mouse wheel event (because user pref
         // to zoom with mouse wheel is false), assume that we can instead use it
         // to step the playhead
-        playhead_->setPlaying(false);
-        playhead_->step(event->angleDelta().ry() > 0 ? 1 : -1);
+        anon_send(renderer_actor->playhead(), playhead::play_atom_v, false);
+        anon_send(
+            renderer_actor->playhead(),
+            playhead::step_atom_v,
+            event->angleDelta().ry() > 0 ? 1 : -1);
     }
 
     QQuickItem::wheelEvent(event);
-}
-
-void QMLViewport::setPlayhead(caf::actor playhead) {
-    spdlog::debug("QMLViewport::setPlayhead");
-    playhead_->set_backend(playhead);
 }
 
 void QMLViewport::hideCursor() {
@@ -655,5 +636,5 @@ void QMLViewport::reset() { renderer_actor->reset(); }
 
 QString QMLViewport::playheadActorAddress() {
 
-    return actorToQString(CafSystemObject::get_actor_system(), playhead_->backend());
+    return actorToQString(CafSystemObject::get_actor_system(), renderer_actor->playhead());
 }

@@ -9,7 +9,6 @@ import QuickFuture 1.0
 import QuickPromise 1.0
 
 import xStudioReskin 1.0
-import xstudio.qml.module 1.0
 import xstudio.qml.helpers 1.0
 
 DelegateChoice {
@@ -28,6 +27,8 @@ DelegateChoice {
     		property bool isAdjustPreceeding: false
     		property bool isAdjustAnteceeding: false
 
+    		property bool isRolling: false
+
     		property int adjustPreceedingGap: 0
     		property int adjustAnteceedingGap: 0
 
@@ -43,7 +44,6 @@ DelegateChoice {
 			property int currentStartRole: trimmedStartRole
 			property real fps: rateFPSRole
 
-			property var timelineFocusSelection: config.timelineFocusSelection
 			property var timelineSelection: config.timelineSelection
             property var timelineItem: config.timelineItem
             property var itemTypeRole: typeRole
@@ -53,7 +53,14 @@ DelegateChoice {
             property string itemFlag: flagColourRole != "" ? flagColourRole : config.itemFlag
 
             property bool hasMedia: mediaIndex.valid
-            property var mediaIndex: control.DelegateModel.model.srcModel.index(-1,-1, control.DelegateModel.model.rootIndex)
+            property var mediaIndex: getMediaIndex()
+
+            property alias isSelected: clip.isSelected
+            property var isLocked: lockedRole
+
+			property var mediaUuid: clipMediaUuidRole
+
+			onMediaUuidChanged: mediaIndex = getMediaIndex()
 
 			onHoveredItemChanged: isBothHovered = false
 
@@ -62,6 +69,29 @@ DelegateChoice {
 	    			index, 0, control.DelegateModel.model.rootIndex
 	    		)
 			}
+
+		    Timer {
+		        id: updateTimer
+		        interval: 500
+		        running: false
+		        repeat: false
+		        onTriggered: {
+		        	mediaIndex = getMediaIndex()
+		        }
+		    }
+
+		    function getMediaIndex(retry=true) {
+		    	let model = control.DelegateModel.model.srcModel
+		    	let tindex = model.getTimelineIndex(control.DelegateModel.model.rootIndex)
+		    	let mlist = model.index(0, 0, tindex)
+		    	let result = model.search(clipMediaUuidRole, "actorUuidRole", mlist)
+
+		    	if(retry && !result.valid && clipMediaUuidRole && clipMediaUuidRole != "{00000000-0000-0000-0000-000000000000}" && !updateTimer.running) {
+		    		updateTimer.start()
+		    	}
+
+		    	return result
+		    }
 
 			function adjust(offset) {
 				let doffset = offset
@@ -140,15 +170,17 @@ DelegateChoice {
 				isHovered: hoveredItem == control || isAdjustingStart || isAdjustingDuration || isBothHovered
 				start: startFrame
 				duration: durationFrame
+				isLocked: lockedRole
+				isRolling: control.isRolling
+				showRolling: (isHovered && editMode == "Roll" && !lockedRole)
 				isEnabled: enabledRole && hasMedia
-				fps: control.fps
-				name: nameRole
-				parentStart: parentStartRole
+				// fps: control.fps
+				name: !isRolling ? nameRole : adjustStart > 0 ? "+" + adjustStart : adjustStart
+				// parentStart: parentStartRole
 				availableStart: availableStartRole
 				availableDuration: availableDurationRole
 				primaryColor: itemFlag != "" ?  itemFlag : defaultClip
 	            mediaFlagColour: mediaFlag.value == undefined || mediaFlag.value == "" ? "transparent" : mediaFlag.value
-
 
 			    XsModelProperty {
 			        id: mediaFlag
@@ -157,14 +189,7 @@ DelegateChoice {
 			    }
 
 			    Component.onCompleted: {
-			    	checkMedia()
-			    }
-
-			    function checkMedia() {
-			    	let model = control.DelegateModel.model.srcModel
-			    	let tindex = model.getTimelineIndex(control.DelegateModel.model.rootIndex)
-			    	let mlist = model.index(0, 0, tindex)
-			    	mediaIndex = model.search(clipMediaUuidRole, "actorUuidRole", mlist)
+			    	mediaIndex = getMediaIndex()
 			    }
 
 			    Connections {
@@ -191,16 +216,6 @@ DelegateChoice {
 							clip.isSelected = false
 						else if(!clip.isSelected && helpers.itemSelectionContains(selected, modelIndex()))
 							clip.isSelected = true
-					}
-				}
-
-				Connections {
-					target: control.timelineFocusSelection
-					function onSelectionChanged(selected, deselected) {
-						if(clip.isFocused && helpers.itemSelectionContains(deselected, modelIndex()))
-							clip.isFocused = false
-						else if(!clip.isFocused && helpers.itemSelectionContains(selected, modelIndex()))
-							clip.isFocused = true
 					}
 				}
 	    	}

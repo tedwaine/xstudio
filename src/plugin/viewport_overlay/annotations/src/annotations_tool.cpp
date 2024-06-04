@@ -47,41 +47,13 @@ AnnotationsTool::AnnotationsTool(
     caf::actor_config &cfg, const utility::JsonStore &init_settings)
     : plugin::StandardPlugin(cfg, fmt::format("AnnotationsTool{}", __a_idx++), init_settings) {
 
-    module::QmlCodeAttribute *button = add_qml_code_attribute(
-        "MyCode",
-        R"(
-import AnnotationsTool 1.0
-AnnotationsButton {
-    anchors.fill: parent
-}
-)");
-
-    // TODO: remove the use of viewport index - this became obsolete when the
-    // design was changes so there's only one instance of the plugin.
-    int viewport_index = 0;
-
-    const std::string media_buttons_group =
-        viewport_index ? fmt::format("media_tools_buttons_{}", viewport_index)
-                       : "media_tools_buttons";
-    const std::string fonts_group = fmt::format("annotations_tool_fonts_{}", viewport_index);
-    const std::string tools_group = fmt::format("annotations_tool_settings_{}", viewport_index);
-    const std::string scribble_mode_group =
-        fmt::format("anno_scribble_mode_backend_{}", viewport_index);
-    const std::string tool_types_group =
-        fmt::format("annotations_tool_types_{}", viewport_index);
-    const std::string draw_mode_group =
-        fmt::format("annotations_tool_draw_mode_{}", viewport_index);
-
-    button->expose_in_ui_attrs_group(media_buttons_group);
-    button->set_role_data(module::Attribute::ToolbarPosition, 1000.0);
-
     const auto &fonts_ = Fonts::available_fonts();
     font_choice_       = add_string_choice_attribute(
         "font_choices",
         "font_choices",
         fonts_.size() ? fonts_.begin()->first : std::string(""),
         utility::map_key_to_vec(fonts_));
-    font_choice_->expose_in_ui_attrs_group(fonts_group);
+    font_choice_->expose_in_ui_attrs_group("annotations_tool_fonts");
 
     draw_pen_size_ = add_integer_attribute("Draw Pen Size", "Draw Pen Size", 10, 1, 300);
 
@@ -104,14 +76,14 @@ AnnotationsButton {
     text_bgr_opacity_ = add_integer_attribute(
         "Text Background Opacity", "Text Background Opacity", 100, 0, 100);
 
-    draw_pen_size_->expose_in_ui_attrs_group(tools_group);
-    shapes_pen_size_->expose_in_ui_attrs_group(tools_group);
-    erase_pen_size_->expose_in_ui_attrs_group(tools_group);
-    pen_colour_->expose_in_ui_attrs_group(tools_group);
-    pen_opacity_->expose_in_ui_attrs_group(tools_group);
-    text_size_->expose_in_ui_attrs_group(tools_group);
-    text_bgr_colour_->expose_in_ui_attrs_group(tools_group);
-    text_bgr_opacity_->expose_in_ui_attrs_group(tools_group);
+    draw_pen_size_->expose_in_ui_attrs_group("annotations_tool_settings");
+    shapes_pen_size_->expose_in_ui_attrs_group("annotations_tool_settings");
+    erase_pen_size_->expose_in_ui_attrs_group("annotations_tool_settings");
+    pen_colour_->expose_in_ui_attrs_group("annotations_tool_settings");
+    pen_opacity_->expose_in_ui_attrs_group("annotations_tool_settings");
+    text_size_->expose_in_ui_attrs_group("annotations_tool_settings");
+    text_bgr_colour_->expose_in_ui_attrs_group("annotations_tool_settings");
+    text_bgr_opacity_->expose_in_ui_attrs_group("annotations_tool_settings");
 
     draw_pen_size_->set_preference_path("/plugin/annotations/draw_pen_size");
     shapes_pen_size_->set_preference_path("/plugin/annotations/shapes_pen_size");
@@ -131,40 +103,22 @@ AnnotationsButton {
     active_tool_ = add_string_choice_attribute(
         "Active Tool", "Active Tool", "None", utility::map_value_to_vec(tool_names_));
 
-    active_tool_->expose_in_ui_attrs_group(tools_group);
-    active_tool_->expose_in_ui_attrs_group(tool_types_group);
+    active_tool_->expose_in_ui_attrs_group("annotations_tool_settings");
+    active_tool_->expose_in_ui_attrs_group("annotations_tool_types");
 
     shape_tool_ = add_integer_attribute("Shape Tool", "Shape Tool", 0, 0, 2);
-    shape_tool_->expose_in_ui_attrs_group(tools_group);
+    shape_tool_->expose_in_ui_attrs_group("annotations_tool_settings");
     shape_tool_->set_preference_path("/plugin/annotations/shape_tool");
 
-    draw_mode_ = add_string_choice_attribute(
-        "Draw Mode",
-        "Draw Mode",
-        utility::map_value_to_vec(draw_mode_names_).front(),
-        utility::map_value_to_vec(draw_mode_names_));
-    draw_mode_->expose_in_ui_attrs_group(scribble_mode_group);
-    draw_mode_->set_preference_path("/plugin/annotations/draw_mode");
-    draw_mode_->set_role_data(
-        module::Attribute::StringChoicesEnabled, std::vector<bool>({true, true, false}));
-
-    tool_is_active_ =
-        add_boolean_attribute("annotations_tool_active", "annotations_tool_active", false);
-
-    tool_is_active_->expose_in_ui_attrs_group(tools_group);
-    tool_is_active_->set_role_data(
-        module::Attribute::MenuPaths,
-        std::vector<std::string>({"panels_main_menu_items|Draw Tools"}));
-
     action_attribute_ = add_string_attribute("action_attribute", "action_attribute", "");
-    action_attribute_->expose_in_ui_attrs_group(tools_group);
+    action_attribute_->expose_in_ui_attrs_group("annotations_tool_settings");
 
     display_mode_attribute_ = add_string_choice_attribute(
         "Display Mode",
         "Disp. Mode",
         "With Drawing Tools",
         {"Only When Paused", "Always", "With Drawing Tools"});
-    display_mode_attribute_->expose_in_ui_attrs_group(draw_mode_group);
+    display_mode_attribute_->expose_in_ui_attrs_group("annotations_tool_draw_mode");
     display_mode_attribute_->set_preference_path("/plugin/annotations/display_mode");
 
     // this attr is used to implement the blinking cursor for caption edit mode
@@ -173,7 +127,7 @@ AnnotationsButton {
 
     moving_scaling_text_attr_ =
         add_integer_attribute("moving_scaling_text", "moving_scaling_text", 0);
-    moving_scaling_text_attr_->expose_in_ui_attrs_group(tools_group);
+    moving_scaling_text_attr_->expose_in_ui_attrs_group("annotations_tool_settings");
 
     // setting the active tool to -1 disables drawing via 'attribute_changed'
     attribute_changed(active_tool_->uuid(), module::Attribute::Value);
@@ -205,6 +159,23 @@ AnnotationsButton {
                 }
             }
         )");
+
+    dockable_widget_attr_ = register_viewport_dockable_widget(
+        "Annotations Toolbox",
+        "qrc:/icons/brush.svg",         // icon for the button to activate the tool
+        "Show/Hide Annotation Toolbox", // tooltip for the button,
+        3.0f,                           // button position in the buttons bar
+        true,
+        // qml code to create the left/right dockable widget
+        R"(
+            import AnnotationsTool 2.0
+            import QtQuick 2.15
+            XsDrawingToolsLR {
+            }
+            )",
+        // qml code to create the top/bottom dockable widget (left empty here as we don't have
+        // one)
+        "");
 }
 
 AnnotationsTool::~AnnotationsTool() {}
@@ -233,35 +204,21 @@ caf::message_handler AnnotationsTool::message_handler_extensions() {
         });
 }
 
-void AnnotationsTool::attribute_changed(
-    const utility::Uuid &attribute_uuid, const int /*role*/) {
+void AnnotationsTool::attribute_changed(const utility::Uuid &attribute_uuid, const int role) {
 
     const std::string active_tool = active_tool_->value();
 
-    if (attribute_uuid == tool_is_active_->uuid()) {
+    if (attribute_uuid == active_tool_->uuid()) {
 
-        if (tool_is_active_->value()) {
-            if (active_tool != "None")
-                grab_mouse_focus();
-        } else {
+        if (active_tool == "None") {
             release_mouse_focus();
             release_keyboard_focus();
             end_drawing();
             clear_caption_handle();
-        }
-
-    } else if (attribute_uuid == active_tool_->uuid()) {
-
-        if (tool_is_active_->value()) {
-
-            if (active_tool == "None") {
-                release_mouse_focus();
-            } else {
-                grab_mouse_focus();
-            }
-
-            if (active_tool == "Text") {
-            } else {
+        } else {
+            last_tool_ = active_tool;
+            grab_mouse_focus();
+            if (active_tool != "Text") {
                 end_drawing();
                 release_keyboard_focus();
                 clear_caption_handle();
@@ -270,6 +227,8 @@ void AnnotationsTool::attribute_changed(
 
     } else if (
         attribute_uuid == action_attribute_->uuid() && action_attribute_->value() != "") {
+
+        std::cerr << "action_attribute_ " << action_attribute_->value() << "\n";
 
         if (action_attribute_->value() == "Clear") {
             clear_onscreen_annotations();
@@ -347,9 +306,9 @@ void AnnotationsTool::attribute_changed(
         }
     }
 
-    if (attribute_uuid == active_tool_->uuid() || attribute_uuid == draw_mode_->uuid()) {
+    if (attribute_uuid == active_tool_->uuid()) {
 
-        if (active_tool_->value() == "Draw" && draw_mode_->value() == "Laser") {
+        if (active_tool_->value() == "Laser") {
 
             // switching INTO laser draw mode ... save any annotation to the
             // bookmark if required
@@ -398,14 +357,14 @@ void AnnotationsTool::hotkey_pressed(
     const utility::Uuid &hotkey_uuid, const std::string & /*context*/) {
     if (hotkey_uuid == toggle_active_hotkey_) {
 
-        tool_is_active_->set_value(!tool_is_active_->value());
+        // tool_is_active_->set_value(!tool_is_active_->value());
 
-    } else if (hotkey_uuid == undo_hotkey_ && tool_is_active_->value()) {
+    } else if (hotkey_uuid == undo_hotkey_ && active_tool_->value() != "None") {
 
         undo();
         redraw_viewport();
 
-    } else if (hotkey_uuid == redo_hotkey_ && tool_is_active_->value()) {
+    } else if (hotkey_uuid == redo_hotkey_ && active_tool_->value() != "None") {
 
         redo();
         redraw_viewport();
@@ -417,14 +376,15 @@ void AnnotationsTool::hotkey_released(
 
 bool AnnotationsTool::pointer_event(const ui::PointerEvent &e) {
 
-    if (!tool_is_active_->value())
+    if (active_tool_->value() == "None")
         return false;
 
     bool redraw = true;
 
     const Imath::V2f pointer_pos = e.position_in_viewport_coord_sys();
 
-    if (active_tool_->value() == "Draw" || active_tool_->value() == "Erase") {
+    if (active_tool_->value() == "Draw" || active_tool_->value() == "Erase" ||
+        is_laser_mode()) {
         if (e.type() == ui::Signature::EventType::ButtonDown &&
             e.buttons() == ui::Signature::Button::Left) {
             start_editing(e.context());
@@ -511,7 +471,7 @@ utility::BlindDataObjectPtr AnnotationsTool::onscreen_render_data(
     // exception of the Canvas class which has been made thread safe)
 
     if (!((display_mode_ == Always) ||
-          (display_mode_ == WithDrawTool && tool_is_active_->value()) ||
+          (display_mode_ == WithDrawTool && active_tool_->value() != "None") ||
           (display_mode_ == OnlyWhenPaused && !playhead_is_playing_))) {
         // don't draw annotations, return empty data
         return utility::BlindDataObjectPtr();
@@ -587,8 +547,7 @@ void AnnotationsTool::images_going_on_screen(
     }
 }
 
-plugin::ViewportOverlayRendererPtr
-AnnotationsTool::make_overlay_renderer(const int /*viewer_index*/) {
+plugin::ViewportOverlayRendererPtr AnnotationsTool::make_overlay_renderer() {
     return plugin::ViewportOverlayRendererPtr(new AnnotationsRenderer());
 }
 
@@ -597,8 +556,19 @@ AnnotationBasePtr AnnotationsTool::build_annotation(const utility::JsonStore &an
         static_cast<bookmark::AnnotationBase *>(new Annotation(anno_data)));
 }
 
-bool AnnotationsTool::is_laser_mode() const {
-    return active_tool_->value() == "Draw" && draw_mode_->value() == "Laser";
+bool AnnotationsTool::is_laser_mode() const { return active_tool_->value() == "Laser"; }
+
+void AnnotationsTool::viewport_dockable_widget_activated(std::string &widget_name) {
+
+    if (widget_name == "Annotations Toolbox") {
+        active_tool_->set_value(last_tool_);
+    }
+}
+
+void AnnotationsTool::viewport_dockable_widget_deactivated(std::string &widget_name) {
+    if (widget_name == "Annotations Toolbox") {
+        active_tool_->set_value("None");
+    }
 }
 
 void AnnotationsTool::start_editing(const std::string &viewport_name) {
@@ -654,15 +624,15 @@ void AnnotationsTool::start_editing(const std::string &viewport_name) {
 
 void AnnotationsTool::start_stroke(const Imath::V2f &point) {
 
-    if (active_tool_->value() == "Draw") {
+    if (active_tool_->value() == "Erase") {
+        interaction_canvas_.start_erase_stroke(
+            erase_pen_size_->value() / PEN_STROKE_THICKNESS_SCALE);
+    } else {
         interaction_canvas_.start_stroke(
             pen_colour_->value(),
             draw_pen_size_->value() / PEN_STROKE_THICKNESS_SCALE,
             0.0f,
             pen_opacity_->value() / 100.0);
-    } else if (active_tool_->value() == "Erase") {
-        interaction_canvas_.start_erase_stroke(
-            erase_pen_size_->value() / PEN_STROKE_THICKNESS_SCALE);
     }
 
     update_stroke(point);

@@ -39,8 +39,7 @@ namespace ui {
                 const media_reader::ImageBufPtr &,
                 const std::string &viewport_name) const override;
 
-            plugin::ViewportOverlayRendererPtr
-            make_overlay_renderer(const int viewer_index) override;
+            plugin::ViewportOverlayRendererPtr make_overlay_renderer() override;
 
             bookmark::AnnotationBasePtr
             build_annotation(const utility::JsonStore &anno_data) override;
@@ -49,6 +48,10 @@ namespace ui {
                 const std::vector<media_reader::ImageBufPtr> &images,
                 const std::string viewport_name,
                 const bool playhead_playing) override;
+
+            void viewport_dockable_widget_activated(std::string &widget_name) override;
+
+            void viewport_dockable_widget_deactivated(std::string &widget_name) override;
 
           private:
             bool is_laser_mode() const;
@@ -80,16 +83,16 @@ namespace ui {
             void update_bookmark_annotation_data();
 
           private:
-            enum Tool { Draw, Shapes, Text, Erase, None };
+            enum Tool { Draw, Shapes, Text, Erase, Laser, None };
             enum ShapeTool { Square, Circle, Arrow, Line };
             enum DisplayMode { OnlyWhenPaused, Always, WithDrawTool };
-            enum ScribbleTool { Sketch, Laser, Onion };
 
             const std::map<int, std::string> tool_names_ = {
-                {Draw, "Draw"}, {Shapes, "Shapes"}, {Text, "Text"}, {Erase, "Erase"}};
-
-            const std::map<int, std::string> draw_mode_names_ = {
-                {Sketch, "Sketch"}, {Laser, "Laser"}, {Onion, "Onion"}};
+                {Draw, "Draw"},
+                {Shapes, "Shapes"},
+                {Text, "Text"},
+                {Erase, "Erase"},
+                {Laser, "Laser"}};
 
             module::StringChoiceAttribute *active_tool_{nullptr};
 
@@ -103,14 +106,14 @@ namespace ui {
             module::IntegerAttribute *text_bgr_opacity_{nullptr};
 
             module::BooleanAttribute *text_cursor_blink_attr_{nullptr};
-            module::BooleanAttribute *tool_is_active_{nullptr};
             module::StringAttribute *action_attribute_{nullptr};
             module::IntegerAttribute *shape_tool_{nullptr};
-            module::StringChoiceAttribute *draw_mode_{nullptr};
             module::IntegerAttribute *moving_scaling_text_attr_{nullptr};
             module::StringChoiceAttribute *font_choice_{nullptr};
 
             module::StringChoiceAttribute *display_mode_attribute_{nullptr};
+
+            module::Attribute *dockable_widget_attr_{nullptr};
 
             DisplayMode display_mode_{OnlyWhenPaused};
             bool playhead_is_playing_{false};
@@ -140,6 +143,8 @@ namespace ui {
             Imath::V2f caption_drag_caption_start_pos_;
             Imath::V2f caption_drag_width_height_;
             Imath::V2f shape_anchor_;
+
+            std::string last_tool_ = {"Draw"};
 
             bool fade_looping_{false};
             std::map<std::string, std::vector<media_reader::ImageBufPtr>>

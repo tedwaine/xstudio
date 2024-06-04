@@ -28,39 +28,61 @@ caf::actor TrackActor::deserialise(const utility::JsonStore &value, const bool r
     auto actor = caf::actor();
     auto type  = value.at("base").at("container").at("type").get<std::string>();
 
+    auto item = Item();
+
     if (type == "Clip") {
-        auto item = Item();
-        actor     = spawn<ClipActor>(static_cast<utility::JsonStore>(value), item);
-        add_item(UuidActor(key, actor));
-        if (replace_item) {
-            auto itemit = find_uuid(base_.item().children(), key);
-            (*itemit)   = item;
-        }
+        actor = spawn<ClipActor>(static_cast<utility::JsonStore>(value), item);
     } else if (type == "Gap") {
-        auto item = Item();
-        actor     = spawn<GapActor>(static_cast<utility::JsonStore>(value), item);
-        add_item(UuidActor(key, actor));
-        if (replace_item) {
-            auto itemit = find_uuid(base_.item().children(), key);
-            (*itemit)   = item;
-        }
+        actor = spawn<GapActor>(static_cast<utility::JsonStore>(value), item);
     } else if (type == "Stack") {
-        auto item = Item();
-        actor     = spawn<StackActor>(static_cast<utility::JsonStore>(value), item);
+        actor = spawn<StackActor>(static_cast<utility::JsonStore>(value), item);
+    }
+
+    if (actor) {
         add_item(UuidActor(key, actor));
         if (replace_item) {
             auto itemit = find_uuid(base_.item().children(), key);
-            (*itemit)   = item;
+            if (itemit != base_.item().end()) {
+                (*itemit) = item;
+            } else {
+                spdlog::warn(
+                    "{} Invalid item to replace {} {}",
+                    __PRETTY_FUNCTION__,
+                    to_string(key),
+                    value.dump(2));
+            }
         }
     }
+
     return actor;
+}
+
+void TrackActor::deserialise() {
+    for (auto &i : base_.item().children()) {
+        switch (i.item_type()) {
+        case IT_CLIP: {
+            auto actor = spawn<ClipActor>(i, i);
+            add_item(UuidActor(i.uuid(), actor));
+        } break;
+        case IT_GAP: {
+            auto actor = spawn<GapActor>(i, i);
+            add_item(UuidActor(i.uuid(), actor));
+        } break;
+        case IT_STACK: {
+            auto actor = spawn<StackActor>(i, i);
+            add_item(UuidActor(i.uuid(), actor));
+        } break;
+        default:
+            break;
+        }
+    }
 }
 
 // trigger actor creation
 void TrackActor::item_event_callback(const utility::JsonStore &event, Item &item) {
 
     switch (static_cast<ItemAction>(event.at("action"))) {
-    case IT_INSERT: {
+    case IA_INSERT: {
         // spdlog::warn("TrackActor IT_INSERT {}", event.dump(2));
         auto cuuid = utility::Uuid(event.at("item").at("uuid"));
         // spdlog::warn("{} {} {} {}", find_uuid(base_.item().children(), cuuid) !=
@@ -97,7 +119,7 @@ void TrackActor::item_event_callback(const utility::JsonStore &event, Item &item
         }
     } break;
 
-    case IT_REMOVE: {
+    case IA_REMOVE: {
         // spdlog::warn("TrackActor IT_REMOVE {} {}", base_.item().name(), event.dump(2));
 
         auto cuuid = utility::Uuid(event.at("item_uuid"));
@@ -111,11 +133,12 @@ void TrackActor::item_event_callback(const utility::JsonStore &event, Item &item
         }
     } break;
 
-    case IT_ENABLE:
-    case IT_ACTIVE:
-    case IT_AVAIL:
-    case IT_SPLICE:
-    case IT_ADDR:
+    case IA_LOCK:
+    case IA_ENABLE:
+    case IA_ACTIVE:
+    case IA_AVAIL:
+    case IA_SPLICE:
+    case IA_ADDR:
     case IA_NONE:
     default:
         break;
@@ -135,7 +158,7 @@ TrackActor::TrackActor(caf::actor_config &cfg, const utility::JsonStore &jsn)
     }
 
     base_.item().set_system(&system());
-    base_.item().bind_item_event_func([this](const utility::JsonStore &event, Item &item) {
+    base_.item().bind_item_post_event_func([this](const utility::JsonStore &event, Item &item) {
         item_event_callback(event, item);
     });
 
@@ -156,7 +179,7 @@ TrackActor::TrackActor(caf::actor_config &cfg, const utility::JsonStore &jsn, It
     }
 
     base_.item().set_system(&system());
-    base_.item().bind_item_event_func([this](const utility::JsonStore &event, Item &item) {
+    base_.item().bind_item_post_event_func([this](const utility::JsonStore &event, Item &item) {
         item_event_callback(event, item);
     });
     pitem = base_.item();
@@ -172,12 +195,25 @@ TrackActor::TrackActor(
     : caf::event_based_actor(cfg), base_(name, media_type, uuid, this) {
     base_.item().set_system(&system());
     base_.item().set_name(name);
-    base_.item().bind_item_event_func([this](const utility::JsonStore &event, Item &item) {
+    base_.item().bind_item_post_event_func([this](const utility::JsonStore &event, Item &item) {
         item_event_callback(event, item);
     });
 
     init();
 }
+
+TrackActor::TrackActor(caf::actor_config &cfg, const Item &item)
+    : caf::event_based_actor(cfg), base_(item, this) {
+    base_.item().set_system(&system());
+    deserialise();
+    init();
+}
+
+TrackActor::TrackActor(caf::actor_config &cfg, const Item &item, Item &nitem)
+    : TrackActor(cfg, item) {
+    nitem = base_.item();
+}
+
 
 void TrackActor::on_exit() {
     for (const auto &i : actors_)
@@ -233,15 +269,26 @@ void TrackActor::init() {
         [=](broadcast::broadcast_down_atom, const caf::actor_addr &) {},
         [=](const group_down_msg & /*msg*/) {},
 
-        [=](link_media_atom, const UuidActorMap &media) -> result<bool> {
+        [=](link_media_atom, const UuidActorMap &media, const bool force) -> result<bool> {
             auto rp = make_response_promise<bool>();
 
-            // pool direct children for state.
-            fan_out_request<policy::select_all>(
-                map_value_to_vec(actors_), infinite, link_media_atom_v, media)
-                .await(
-                    [=](std::vector<bool> items) mutable { rp.deliver(true); },
-                    [=](error &err) mutable { rp.deliver(err); });
+            if (actors_.empty()) {
+                rp.deliver(true);
+            } else {
+                // pool direct children for state.
+                fan_out_request<policy::select_all>(
+                    map_value_to_vec(actors_), infinite, link_media_atom_v, media, force)
+                    .await(
+                        [=](std::vector<bool> items) mutable { rp.deliver(true); },
+                        [=](error &err) mutable {
+                            spdlog::warn(
+                                "{} {} {}",
+                                __PRETTY_FUNCTION__,
+                                to_string(err),
+                                base_.item().name());
+                            rp.deliver(false);
+                        });
+            }
 
             return rp;
         },
@@ -257,6 +304,13 @@ void TrackActor::init() {
 
         [=](item_flag_atom, const std::string &value) -> JsonStore {
             auto jsn = base_.item().set_flag(value);
+            if (not jsn.is_null())
+                send(event_group_, event_atom_v, item_atom_v, jsn, false);
+            return jsn;
+        },
+
+        [=](item_lock_atom, const bool value) -> JsonStore {
+            auto jsn = base_.item().set_locked(value);
             if (not jsn.is_null())
                 send(event_group_, event_atom_v, item_atom_v, jsn, false);
             return jsn;
@@ -288,6 +342,31 @@ void TrackActor::init() {
             std::advance(it, index);
             return *it;
         },
+
+        [=](item_prop_atom,
+            const utility::JsonStore &value,
+            const std::string &path) -> JsonStore {
+            auto prop = base_.item().prop();
+            try {
+                auto ptr = nlohmann::json::json_pointer(path);
+                prop.at(ptr).update(value);
+            } catch (const std::exception &err) {
+                spdlog::warn("{} {}", __PRETTY_FUNCTION__, err.what());
+            }
+            auto jsn = base_.item().set_prop(prop);
+            if (not jsn.is_null())
+                send(event_group_, event_atom_v, item_atom_v, jsn, false);
+            return jsn;
+        },
+
+        [=](item_prop_atom, const utility::JsonStore &value) -> JsonStore {
+            auto jsn = base_.item().set_prop(value);
+            if (not jsn.is_null())
+                send(event_group_, event_atom_v, item_atom_v, jsn, false);
+            return jsn;
+        },
+
+        [=](item_prop_atom) -> JsonStore { return base_.item().prop(); },
 
         [=](active_range_atom, const FrameRange &fr) -> JsonStore {
             auto jsn = base_.item().set_active_range(fr);
@@ -414,22 +493,23 @@ void TrackActor::init() {
         },
 
         [=](remove_item_atom,
-            const int index) -> result<std::pair<JsonStore, std::vector<Item>>> {
-            auto rp = make_response_promise<std::pair<JsonStore, std::vector<Item>>>();
-            remove_items(index, 1, rp);
-            return rp;
-        },
-
-        [=](remove_item_atom,
             const int index,
-            const int count) -> result<std::pair<JsonStore, std::vector<Item>>> {
+            const bool add_gap) -> result<std::pair<JsonStore, std::vector<Item>>> {
             auto rp = make_response_promise<std::pair<JsonStore, std::vector<Item>>>();
-            remove_items(index, count, rp);
+            remove_items(index, 1, add_gap, rp);
+            return rp;
+        },
+
+        [=](remove_item_atom, const int index, const int count, const bool add_gap)
+            -> result<std::pair<JsonStore, std::vector<Item>>> {
+            auto rp = make_response_promise<std::pair<JsonStore, std::vector<Item>>>();
+            remove_items(index, count, add_gap, rp);
             return rp;
         },
 
         [=](remove_item_atom,
-            const utility::Uuid &uuid) -> result<std::pair<JsonStore, std::vector<Item>>> {
+            const utility::Uuid &uuid,
+            const bool add_gap) -> result<std::pair<JsonStore, std::vector<Item>>> {
             auto rp = make_response_promise<std::pair<JsonStore, std::vector<Item>>>();
 
             auto it = find_uuid(base_.item().children(), uuid);
@@ -438,7 +518,7 @@ void TrackActor::init() {
                 rp.deliver(make_error(xstudio_error::error, "Invalid uuid"));
 
             if (rp.pending())
-                remove_items(std::distance(base_.item().begin(), it), 1, rp);
+                remove_items(std::distance(base_.item().begin(), it), 1, add_gap, rp);
 
             return rp;
         },
@@ -451,19 +531,22 @@ void TrackActor::init() {
             return rp;
         },
 
-        [=](erase_item_atom, const int index) -> result<JsonStore> {
+        [=](erase_item_atom, const int index, const bool add_gap) -> result<JsonStore> {
             auto rp = make_response_promise<JsonStore>();
-            erase_items(index, 1, rp);
+            erase_items(index, 1, add_gap, rp);
             return rp;
         },
 
-        [=](erase_item_atom, const int index, const int count) -> result<JsonStore> {
+        [=](erase_item_atom, const int index, const int count, const bool add_gap)
+            -> result<JsonStore> {
             auto rp = make_response_promise<JsonStore>();
-            erase_items(index, count, rp);
+            erase_items(index, count, add_gap, rp);
             return rp;
         },
 
-        [=](erase_item_atom, const utility::Uuid &uuid) -> result<JsonStore> {
+        [=](erase_item_atom,
+            const utility::Uuid &uuid,
+            const bool add_gap) -> result<JsonStore> {
             auto rp = make_response_promise<JsonStore>();
 
             auto it = find_uuid(base_.item().children(), uuid);
@@ -472,7 +555,7 @@ void TrackActor::init() {
                 rp.deliver(make_error(xstudio_error::error, "Invalid uuid"));
 
             if (rp.pending())
-                erase_items(std::distance(base_.item().begin(), it), 1, rp);
+                erase_items(std::distance(base_.item().begin(), it), 1, add_gap, rp);
 
             return rp;
         },
@@ -584,6 +667,32 @@ void TrackActor::init() {
                         *sys, actor, insert_item_atom_v, -1, UuidActorVector({ua}));
                 }
                 rp.deliver(UuidActor(dup.uuid(), actor));
+            }
+
+            return rp;
+        },
+
+        [=](playhead::source_atom,
+            const UuidUuidMap &swap,
+            const utility::UuidActorMap &media) -> result<bool> {
+            auto rp = make_response_promise<bool>();
+
+            if (actors_.empty()) {
+                rp.deliver(true);
+            } else {
+                fan_out_request<policy::select_all>(
+                    map_value_to_vec(actors_), infinite, playhead::source_atom_v, swap, media)
+                    .await(
+                        [=](std::vector<bool> items) mutable { rp.deliver(true); },
+                        [=](error &err) mutable {
+                            spdlog::warn(
+                                "{} {} {}",
+                                __PRETTY_FUNCTION__,
+                                to_string(err),
+                                base_.item().name());
+
+                            rp.deliver(err);
+                        });
             }
 
             return rp;
@@ -937,7 +1046,7 @@ void TrackActor::remove_items_at_frame(
                 // in and out split now remove items
                 auto first_index = std::distance(base_.item().cbegin(), in_point->first);
                 auto last_index  = std::distance(base_.item().cbegin(), out_point->first);
-                remove_items(first_index, last_index - first_index, rp);
+                remove_items(first_index, last_index - first_index, false, rp);
             }
         }
     }
@@ -946,6 +1055,7 @@ void TrackActor::remove_items_at_frame(
 void TrackActor::remove_items(
     const int index,
     const int count,
+    const bool add_gap,
     caf::typed_response_promise<std::pair<utility::JsonStore, std::vector<timeline::Item>>>
         rp) {
 
@@ -956,6 +1066,8 @@ void TrackActor::remove_items(
         rp.deliver(make_error(xstudio_error::error, "Invalid index / count"));
     else {
         scoped_actor sys{system()};
+        auto gap_size = FrameRateDuration();
+
         for (int i = index + count - 1; i >= index; i--) {
             auto it = std::next(base_.item().begin(), i);
             if (it != base_.item().end()) {
@@ -966,20 +1078,58 @@ void TrackActor::remove_items(
                 // need to serialise actor..
                 auto blind = request_receive<JsonStore>(*sys, item.actor(), serialise_atom_v);
                 auto tmp   = base_.item().erase(it, blind);
-
-                changes.insert(changes.begin(), tmp.begin(), tmp.end());
+                changes.insert(changes.end(), tmp.begin(), tmp.end());
                 items.push_back(item);
+
+                if (add_gap) {
+                    if (gap_size.frames()) {
+                        gap_size += item.trimmed_frame_duration();
+                    } else {
+                        gap_size = item.trimmed_frame_duration();
+                    }
+                }
             }
         }
 
         // reverse order as we deleted back to front.
         std::reverse(items.begin(), items.end());
 
-        auto more = base_.item().refresh();
-        if (not more.is_null())
-            changes.insert(changes.begin(), more.begin(), more.end());
+        {
+            auto more = base_.item().refresh();
+            if (not more.is_null())
+                changes.insert(changes.end(), more.begin(), more.end());
+        }
 
         send(event_group_, event_atom_v, item_atom_v, changes, false);
+
+        // spdlog::warn("{}", changes.dump(2));
+
+        if (add_gap and gap_size.frames()) {
+            try {
+                JsonStore gap_changes(R"([])"_json);
+
+                auto uuid = utility::Uuid::generate();
+                auto gap  = spawn<GapActor>("GAP", gap_size, uuid);
+                // take ownership
+                add_item(UuidActor(uuid, gap));
+                // where we're going to insert gap..
+                auto it    = std::next(base_.item().begin(), index);
+                auto item  = request_receive<Item>(*sys, gap, item_atom_v);
+                auto blind = request_receive<JsonStore>(*sys, gap, serialise_atom_v);
+
+                auto tmp = base_.item().insert(it, item, blind);
+                gap_changes.insert(gap_changes.end(), tmp.begin(), tmp.end());
+
+                auto more = base_.item().refresh();
+                if (not more.is_null())
+                    gap_changes.insert(gap_changes.end(), more.begin(), more.end());
+
+                send(event_group_, event_atom_v, item_atom_v, gap_changes, false);
+
+            } catch (const std::exception &err) {
+                spdlog::warn("{} {}", __PRETTY_FUNCTION__, err.what());
+            }
+        }
 
         rp.deliver(std::make_pair(changes, items));
     }
@@ -1004,9 +1154,13 @@ void TrackActor::erase_items_at_frame(
 }
 
 void TrackActor::erase_items(
-    const int index, const int count, caf::typed_response_promise<JsonStore> rp) {
+    const int index,
+    const int count,
+    const bool add_gap,
+    caf::typed_response_promise<JsonStore> rp) {
 
-    request(caf::actor_cast<caf::actor>(this), infinite, remove_item_atom_v, index, count)
+    request(
+        caf::actor_cast<caf::actor>(this), infinite, remove_item_atom_v, index, count, add_gap)
         .then(
             [=](const std::pair<JsonStore, std::vector<Item>> &hist_item) mutable {
                 for (const auto &i : hist_item.second)

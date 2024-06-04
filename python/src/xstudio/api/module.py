@@ -5,7 +5,7 @@ from xstudio.core import attribute_role_data_atom, change_attribute_event_atom
 from xstudio.core import attribute_value_atom, register_hotkey_atom
 from xstudio.core import get_global_playhead_events_atom, join_broadcast_atom
 from xstudio.core import viewport_playhead_atom, hotkey_event_atom
-from xstudio.core import attribute_uuids_atom, request_full_attributes_description_atom
+from xstudio.core import attribute_uuids_atom
 from xstudio.core import AttributeRole, get_event_group_atom
 from xstudio.core import event_atom, show_atom, module_add_menu_item_atom
 from xstudio.core import menu_node_activated_atom, set_node_data_atom
@@ -148,6 +148,7 @@ class ModuleBase(ActorConnection):
 
         self.attrs_by_name_ = {}
         self.menu_trigger_callbacks = {}
+        self.menu_item_ids = []
         self.hotkey_callbacks = {}
 
         for attr_uuid in attr_uuids:
@@ -250,23 +251,6 @@ class ModuleBase(ActorConnection):
             self.attrs_by_name_[attr_name].set_value(value)
         else:
             raise Exception("No attribute named {0}".format(attr_name))
-
-    def attributes_digest(self, verbose=False):
-        """Get a summary of the attributes that are part of this Module. Use
-        verbose=True to get a full description as a JsonStore object. Otherwise
-        a list of attribute names is returned.
-
-        Args:
-            verbose(bool): Set True to return a full JsonStore dictionary of 
-            attributes and their role data.
-
-        Returns:
-            attrs_description(list(str) or JsonStore)
-        """
-        if verbose:
-            return self.connection.request_receive(self.remote, request_full_attributes_description_atom())[0]
-        else:
-            return self.attrs_by_name_.keys()
 
     def set_attribute_changed_event_handler(self, handler):
         """Set the callback function that receives events from
@@ -384,6 +368,8 @@ class ModuleBase(ActorConnection):
             JsonStore(role_data),
         )[0]
 
+        self.menu_item_ids.append(menu_item_uuid)
+
         self.menu_trigger_callbacks[
             str(menu_item_uuid)] = menu_trigger_callback
 
@@ -412,6 +398,8 @@ class ModuleBase(ActorConnection):
             hotkey_uuid,
             user_data)[0]
 
+        self.menu_item_ids.append(menu_item_uuid)
+
         if menu_trigger_callback:
             self.menu_trigger_callbacks[
                 str(menu_item_uuid)] = menu_trigger_callback
@@ -433,6 +421,8 @@ class ModuleBase(ActorConnection):
             menu_path,
             menu_item_position,
             hotkey_uuid)[0]
+
+        self.menu_item_ids.append(menu_item_uuid)
 
         return menu_item_uuid
 
@@ -489,12 +479,12 @@ class ModuleBase(ActorConnection):
                     self.hotkey_callbacks[hotkey_uuid](activated, context)
 
             elif isinstance(atom, type(menu_node_activated_atom())):
-                print (type(message_content[1]))
                 menu_item_data = json.loads(str(message_content[1])) if len(
                     message_content) > 1 else None
                 user_data = str(message_content[2]) if len(
                     message_content) > 2 else ""
-                self.menu_item_activated(menu_item_data, user_data)
+                if "uuid" in menu_item_data and Uuid(menu_item_data["uuid"]) in self.menu_item_ids:
+                    self.menu_item_activated(menu_item_data, user_data)
                 
         except Exception as err:
             print (err)

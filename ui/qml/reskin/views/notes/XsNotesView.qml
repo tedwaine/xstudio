@@ -10,14 +10,11 @@ import Qt.labs.qmlmodels 1.0
 import QtQml.Models 2.14
 
 import xStudioReskin 1.0
-import xstudio.qml.module 1.0
 import xstudio.qml.viewport 1.0
 
 Item{
     id: panel
     anchors.fill: parent
-
-    property bool isTestMode: false
 
     property real btnWidth: XsStyleSheet.primaryButtonStdWidth
     property real btnHeight: XsStyleSheet.widgetStdHeight+4
@@ -28,6 +25,18 @@ Item{
         anchors.fill: parent
     }
     
+    XsPreference {
+        id: note_category
+        index: globalStoreModel.searchRecursive("/core/bookmark/note_category", "pathRole")
+    }    
+    property alias note_category: note_category.value
+
+    XsPreference {
+        id: note_colour
+        index: globalStoreModel.searchRecursive("/core/bookmark/note_colour", "pathRole")
+    }    
+    property alias note_colour: note_colour.value
+
     Item{
         
         id: titleBar
@@ -54,32 +63,55 @@ Item{
                     addNote()
                 }
             }
+            Item{
+                Layout.preferredWidth: 1
+                Layout.preferredHeight: parent.height
+            }
 
             XsPrimaryButton {
-
-                id: deleteBtn
+                id: previousBtn
                 Layout.preferredWidth: btnWidth
                 Layout.preferredHeight: parent.height
-                imgSrc: "qrc:/icons/delete.svg"
+                imgSrc: "qrc:/icons/chevron_right.svg"
+                imageDiv.rotation: 180
+                enabled: chooserModel.count > 1 && list.currentIndex >0
 
                 onClicked: {
+                    list.currentIndex = list.currentIndex==0 ? 0 : list.currentIndex--
+                }
+            }
+            XsPrimaryButton {
+                id: nextBtn
+                Layout.preferredWidth: btnWidth
+                Layout.preferredHeight: parent.height
+                imgSrc: "qrc:/icons/chevron_right.svg"
+                enabled: chooserModel.count > 1 && list.currentIndex < chooserModel.count-1
+
+                onClicked: {
+                    list.currentIndex = list.currentIndex==chooserModel.count-1 ? chooserModel.count-1 : list.currentIndex++
                 }
             }
             XsText{
+                id: theTitle
                 Layout.fillWidth: true
                 Layout.minimumWidth: 0
                 Layout.preferredHeight: parent.height
                 text: {
                     if (dropdownNoteScope.currentIndex == 0) {
-                        return currentOnScreenMediaData.values.nameRole
+                        return currentOnScreenMediaData.values.nameRole? currentOnScreenMediaData.values.nameRole: "TBD"
                     } else if (dropdownNoteScope.currentIndex == 1) { 
-                        return selectedMediaSetProperties.values.nameRole
+                        return viewedMediaSetProperties.values.nameRole? viewedMediaSetProperties.values.nameRole: "TBD"
                     } else {
                         return "All Session Notes"
                     }
                 }
                 font.bold: true
-                id: theTitle
+                elide: Text.ElideMiddle
+            }
+            Rectangle{
+                Layout.preferredWidth: 1
+                Layout.preferredHeight: parent.height
+                color: XsStyleSheet.menuBarColor
             }
             XsText{
                 Layout.minimumWidth: 0
@@ -141,7 +173,7 @@ Item{
 
     property var mediaOrder: updateMediaOrder()
 
-    property var playlistFollower: selectedMediaSetIndex
+    property var playlistFollower: viewedMediaSetIndex
     onPlaylistFollowerChanged: {
         theTitle
     }
@@ -155,12 +187,12 @@ Item{
         // with the media uuid as the index. This is used by XsBookmarkFilterModel
         // to order the notes according to the media order in the playlist
         let result = {}
-        if(selectedMediaSetIndex.valid) {
+        if(viewedMediaSetIndex.valid) {
 
-            let model = selectedMediaSetIndex.model
+            let model = viewedMediaSetIndex.model
 
             // from playlist, to get to the media list within we go to first row/column
-            let mediaind = selectedMediaSetIndex.model.index(0, 0, selectedMediaSetIndex)
+            let mediaind = viewedMediaSetIndex.model.index(0, 0, viewedMediaSetIndex)
 
             let count = model.rowCount(mediaind)
             for(let i=0;i<count;i++) {
@@ -176,12 +208,13 @@ Item{
             // set owner..
             let ind = bookmarkModel.index(bookmarkModel.rowCount()-1, 0)
             bookmarkModel.set(ind, currentOnScreenMediaData.values.actorUuidRole, "ownerRole")
-            bookmarkModel.set(ind, currentPlayheadData.attributeRoleData("Position Seconds"), "startRole")
+            bookmarkModel.set(ind, currentPlayhead.positionSeconds, "startRole")
             bookmarkModel.set(ind, currentOnScreenMediaData.values.nameRole, "subjectRole")
             bookmarkModel.set(ind, 0, "durationRole")
-            bookmarkModel.set(ind, preferences.note_category.value, "categoryRole")
-            bookmarkModel.set(ind, preferences.note_colour.value, "colourRole")
+            bookmarkModel.set(ind, note_category, "categoryRole")  //#TODO: preferences error
+            bookmarkModel.set(ind, note_colour, "colourRole")
 
+            list.currentIndex = chooserModel.count-1 //ind
         }
     }
 
@@ -195,10 +228,11 @@ Item{
     XsBookmarkFilterModel {
         id: bookmarkFilterModel
         sourceModel: bookmarkModel
-        currentMedia: onScreenMediaUuid // this property is made visible by XsSessionWindow
+        currentMedia: currentPlayhead.mediaUuid // this property is made visible by XsSessionWindow
         showHidden: true
         depth: dropdownNoteScope.currentIndex
         mediaOrder: panel.mediaOrder
+        excludedCategories: ["Grading"]
     }
 
 }

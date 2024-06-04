@@ -113,7 +113,7 @@ ThumbGenMiddleman::ThumbGenMiddleman(caf::actor_config &cfg) : caf::event_based_
                     media_reader::get_thumbnail_atom_v,
                     mptr,
                     thumb_size)
-                    .await(
+                    .then(
                         [=](const ThumbnailBufferPtr &buf) mutable { rp.deliver(buf); },
                         [=](const caf::error &err) mutable { rp.deliver(err); });
             }
@@ -408,8 +408,8 @@ ThumbnailDiskCacheActor::ThumbnailDiskCacheActor(caf::actor_config &cfg)
         caf::actor_pool::round_robin());
     link_to(pool_);
 
-    thumb_gen_middleman_ = spawn<ThumbGenMiddleman>();
-    link_to(thumb_gen_middleman_);
+    thumb_gen_middleman_ = system().registry().template get<caf::actor>(media_reader_registry);
+
 
     behavior_.assign(
         [=](xstudio::broadcast::broadcast_down_atom, const caf::actor_addr &) {},

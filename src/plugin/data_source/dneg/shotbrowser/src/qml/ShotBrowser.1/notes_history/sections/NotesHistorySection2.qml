@@ -45,9 +45,9 @@ Rectangle{
                 // Rectangle{anchors.fill: parent; color: "yellow"; opacity: 0.3; visible: parent.hovered}
                 focusPolicy: Qt.ClickFocus
                 enabled: false
-            
+
                 TextArea{ id: notesEdit // XsTextEdit{ id: notesEdit
-                    anchors.margins: itemSpacing*2
+                    // anchors.margins: itemSpacing*2
                     anchors.fill: parent
                     enabled: false
                     readOnly: true
@@ -58,13 +58,14 @@ Rectangle{
                     text: contentRole
                     padding: panelPadding
                     // textFormat: parent.lineCount>25 && toolTip.visible? TextEdit.PlainText : TextEdit.AutoText
+                    wrapMode: TextEdit.Wrap
 
                     XsToolTip{
                         id: toolTip
                         text: parent.lineCount>15 ? parent.getFormattedText(0, parent.text.length) : parent.text
                         font.pixelSize: XsStyleSheet.fontSize*0.8
                         visible: toolTipMArea.containsMouse && (scrollView.contentHeight > scrollView.height || scrollView.contentWidth > scrollView.width) //parent.lineCount>7
-                        width: metricsDiv.width == 0? 0 : parent.width>600? 620: parent.width+20
+                        width: metricsDiv.width == 0? 0 : parent.width<200? parent.width+40 : parent.width
                         x: 0
                         timeout: 0
                     }
@@ -76,10 +77,7 @@ Rectangle{
                 z: 20
                 anchors.fill: scrollView
                 hoverEnabled: true
-                propagateComposedEvents: true
-                onClicked: (mouse)=>{
-                    mouse.accepted = false
-                }
+                acceptedButtons: Qt.NoButton
             }
             XsImage{
                 width: XsStyleSheet.secondaryButtonStdWidth
@@ -88,7 +86,7 @@ Rectangle{
                 anchors.rightMargin: 2
                 anchors.bottom: parent.bottom
                 anchors.bottomMargin: 7
-                imgOverlayColor: scrollView.ScrollBar.vertical.active? palette.highlight : XsStyleSheet.secondaryTextColor
+                imgOverlayColor: toolTipMArea.containsMouse? palette.highlight : XsStyleSheet.secondaryTextColor //scrollView.ScrollBar.vertical.active?
                 source: "qrc:///shotbrowser_icons/arrow_right.svg"
                 visible: scrollView.contentWidth > scrollView.width
             }
@@ -99,9 +97,9 @@ Rectangle{
                 anchors.rightMargin: 7
                 anchors.bottom: parent.bottom
                 anchors.bottomMargin: 2
-                imgOverlayColor: scrollView.ScrollBar.horizontal.active? palette.highlight : XsStyleSheet.secondaryTextColor
+                imgOverlayColor: toolTipMArea.containsMouse? palette.highlight : XsStyleSheet.secondaryTextColor
                 source: "qrc:///shotbrowser_icons/arrow_right.svg"
-                visible: notesEdit.lineCount > 6
+                visible: scrollView.contentHeight > scrollView.height //notesEdit.lineCount > 8
                 rotation: 90
             }
 

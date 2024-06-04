@@ -2,7 +2,6 @@
 import QtQuick 2.12
 import QtQuick.Controls 2.5
 import QtQml 2.14
-import xstudio.qml.module 1.0
 
 import xStudio 1.0
 

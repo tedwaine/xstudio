@@ -199,7 +199,7 @@ XsLightPlayerWindow         1.0 ../player/XsLightPlayerWindow.qml
 XsPlayerWindow              1.0 ../player/XsPlayerWindow.qml
 XsPopoutViewerWidget        1.0 ../player/XsPopoutViewerWidget.qml
 XsSessionWidget             1.0 ../player/XsSessionWidget.qml
-XsViewport                  1.0 ../player/XsViewport.qml
+XsViewportPanel                  1.0 ../player/XsViewportPanel.qml
 
 XsLayoutTray                1.0 ../trays/XsLayoutTray.qml
 XsMediaToolsTray            1.0 ../trays/XsMediaToolsTray.qml

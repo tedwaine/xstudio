@@ -77,7 +77,7 @@ QFuture<QString> ShotBrowserEngine::getDataFuture(const QString &type, const int
     request["project_id"] = project_id;
 
     auto data = request_receive_wait<JsonStore>(
-        *sys, backend_, SHOTGUN_TIMEOUT, get_data_atom_v, request);
+        *sys, backend_, SHOTGRID_TIMEOUT, get_data_atom_v, request);
 
     anon_send(as_actor(), shotgun_info_atom_v, request, data);
 
@@ -124,7 +124,7 @@ ShotBrowserEngine::getVersionsFuture(const int project_id, const QVariant &qids)
     auto data = request_receive_wait<JsonStore>(
         *sys,
         backend_,
-        SHOTGUN_TIMEOUT,
+        SHOTGRID_TIMEOUT,
         shotgun_entity_search_atom_v,
         "Versions",
         JsonStore(filter),
@@ -162,7 +162,7 @@ QFuture<QString> ShotBrowserEngine::getPlaylistLinkMediaFuture(const QUuid &play
 
     return QStringFromStd(
         request_receive_wait<JsonStore>(
-            *sys, backend_, SHOTGUN_TIMEOUT, data_source::get_data_atom_v, req)
+            *sys, backend_, SHOTGRID_TIMEOUT, data_source::get_data_atom_v, req)
             .dump());
 
     REQUEST_END()
@@ -177,7 +177,7 @@ QFuture<QString> ShotBrowserEngine::getPlaylistValidMediaCountFuture(const QUuid
 
     return QStringFromStd(
         request_receive_wait<JsonStore>(
-            *sys, backend_, SHOTGUN_TIMEOUT, data_source::get_data_atom_v, req)
+            *sys, backend_, SHOTGRID_TIMEOUT, data_source::get_data_atom_v, req)
             .dump());
 
     REQUEST_END()
@@ -229,7 +229,7 @@ QFuture<QString> ShotBrowserEngine::getReferenceTagsFuture() {
     auto data = request_receive_wait<JsonStore>(
         *sys,
         backend_,
-        SHOTGUN_TIMEOUT,
+        SHOTGRID_TIMEOUT,
         shotgun_entity_search_atom_v,
         "Tags",
         JsonStore(filter),
@@ -318,7 +318,7 @@ QFuture<QString> ShotBrowserEngine::updateEntityFuture(
     auto js = request_receive_wait<JsonStore>(
         *sys,
         backend_,
-        SHOTGUN_TIMEOUT,
+        SHOTGRID_TIMEOUT,
         shotgun_update_entity_atom_v,
         StdFromQString(entity),
         record_id,
@@ -362,7 +362,7 @@ QFuture<QString> ShotBrowserEngine::preparePlaylistNotesFuture(
                 req["default_type"]           = StdFromQString(defaultType);
 
                 auto js = request_receive_wait<JsonStore>(
-                    *sys, backend_, SHOTGUN_TIMEOUT, data_source::get_data_atom_v, req);
+                    *sys, backend_, SHOTGRID_TIMEOUT, data_source::get_data_atom_v, req);
                 return QStringFromStd(js.dump());
             } catch (const XStudioError &err) {
                 spdlog::warn("{} {}", __PRETTY_FUNCTION__, err.what());
@@ -389,8 +389,10 @@ ShotBrowserEngine::pushPlaylistNotesFuture(const QString &notes, const QUuid &pl
     req["playlist_uuid"] = to_string(UuidFromQUuid(playlist));
     req["payload"]       = JsonStore(nlohmann::json::parse(StdFromQString(notes))["payload"]);
 
+    spdlog::warn("pushPlaylistNotesFuture {}", req.dump(2));
+
     auto js = request_receive_wait<JsonStore>(
-        *sys, backend_, SHOTGUN_TIMEOUT, data_source::post_data_atom_v, req);
+        *sys, backend_, SHOTGRID_TIMEOUT, data_source::post_data_atom_v, req);
 
     return QStringFromStd(js.dump());
 
@@ -416,7 +418,7 @@ QFuture<QString> ShotBrowserEngine::createPlaylistFuture(
     req["playlist_type"] = StdFromQString(playlist_type);
 
     auto js = request_receive_wait<JsonStore>(
-        *sys, backend_, SHOTGUN_TIMEOUT, data_source::post_data_atom_v, req);
+        *sys, backend_, SHOTGRID_TIMEOUT, data_source::post_data_atom_v, req);
     return QStringFromStd(js.dump());
 
     REQUEST_END()
@@ -429,7 +431,7 @@ QFuture<QString> ShotBrowserEngine::updatePlaylistVersionsFuture(const QUuid &pl
     auto req             = JsonStore(PutUpdatePlaylistVersions);
     req["playlist_uuid"] = to_string(UuidFromQUuid(playlist));
     auto js              = request_receive_wait<JsonStore>(
-        *sys, backend_, SHOTGUN_TIMEOUT, data_source::put_data_atom_v, req);
+        *sys, backend_, SHOTGRID_TIMEOUT, data_source::put_data_atom_v, req);
     return QStringFromStd(js.dump());
 
     REQUEST_END()
@@ -445,7 +447,7 @@ QFuture<QString> ShotBrowserEngine::refreshPlaylistVersionsFuture(const QUuid &p
     auto req             = JsonStore(UseRefreshPlaylist);
     req["playlist_uuid"] = to_string(UuidFromQUuid(playlist));
     auto js              = request_receive_wait<JsonStore>(
-        *sys, backend_, SHOTGUN_TIMEOUT, data_source::use_data_atom_v, req);
+        *sys, backend_, SHOTGRID_TIMEOUT, data_source::use_data_atom_v, req);
     return QStringFromStd(js.dump());
 
     REQUEST_END()
@@ -469,7 +471,7 @@ QFuture<QString> ShotBrowserEngine::getPlaylistNotesFuture(const int id) {
     auto order = request_receive_wait<JsonStore>(
         *sys,
         backend_,
-        SHOTGUN_TIMEOUT,
+        SHOTGRID_TIMEOUT,
         shotgun_entity_search_atom_v,
         "Notes",
         JsonStore(note_filter),
@@ -491,7 +493,7 @@ QFuture<QString> ShotBrowserEngine::getPlaylistVersionsFuture(const int id) {
     auto vers = request_receive_wait<JsonStore>(
         *sys,
         backend_,
-        SHOTGUN_TIMEOUT,
+        SHOTGRID_TIMEOUT,
         shotgun_entity_atom_v,
         "Playlists",
         id,
@@ -512,7 +514,7 @@ QFuture<QString> ShotBrowserEngine::getPlaylistVersionsFuture(const int id) {
     auto order = request_receive_wait<JsonStore>(
         *sys,
         backend_,
-        SHOTGUN_TIMEOUT,
+        SHOTGRID_TIMEOUT,
         shotgun_entity_search_atom_v,
         "PlaylistVersionConnection",
         JsonStore(order_filter),
@@ -545,7 +547,7 @@ QFuture<QString> ShotBrowserEngine::getPlaylistVersionsFuture(const int id) {
         auto js = request_receive_wait<JsonStore>(
             *sys,
             backend_,
-            SHOTGUN_TIMEOUT,
+            SHOTGRID_TIMEOUT,
             shotgun_entity_filter_atom_v,
             "Versions",
             JsonStore(query),
@@ -596,7 +598,7 @@ QFuture<QString> ShotBrowserEngine::tagEntityFuture(
     req["tag_id"]    = tag_id;
 
     auto js = request_receive_wait<JsonStore>(
-        *sys, backend_, SHOTGUN_TIMEOUT, data_source::post_data_atom_v, req);
+        *sys, backend_, SHOTGRID_TIMEOUT, data_source::post_data_atom_v, req);
 
     return QStringFromStd(js.dump());
 
@@ -620,7 +622,7 @@ QFuture<QString> ShotBrowserEngine::renameTagFuture(const int tag_id, const QStr
     }
 
     auto js = request_receive_wait<JsonStore>(
-        *sys, backend_, SHOTGUN_TIMEOUT, data_source::post_data_atom_v, req);
+        *sys, backend_, SHOTGRID_TIMEOUT, data_source::post_data_atom_v, req);
 
     // trigger update to get new tag.
     getReferenceTagsFuture();
@@ -636,7 +638,7 @@ QFuture<QString> ShotBrowserEngine::removeTagFuture(const int tag_id) {
     scoped_actor sys{system()};
 
     auto js = request_receive_wait<JsonStore>(
-        *sys, backend_, SHOTGUN_TIMEOUT, shotgun_delete_entity_atom_v, "Tag", tag_id);
+        *sys, backend_, SHOTGRID_TIMEOUT, shotgun_delete_entity_atom_v, "Tag", tag_id);
 
     // trigger update to get new tag.
     getReferenceTagsFuture();
@@ -659,7 +661,7 @@ QFuture<QString> ShotBrowserEngine::untagEntityFuture(
     req["tag_id"]    = tag_id;
 
     auto js = request_receive_wait<JsonStore>(
-        *sys, backend_, SHOTGUN_TIMEOUT, data_source::post_data_atom_v, req);
+        *sys, backend_, SHOTGRID_TIMEOUT, data_source::post_data_atom_v, req);
 
     return QStringFromStd(js.dump());
 
@@ -674,7 +676,7 @@ QFuture<QString> ShotBrowserEngine::createTagFuture(const QString &text) {
     req["value"] = StdFromQString(text);
 
     auto js = request_receive_wait<JsonStore>(
-        *sys, backend_, SHOTGUN_TIMEOUT, data_source::post_data_atom_v, req);
+        *sys, backend_, SHOTGRID_TIMEOUT, data_source::post_data_atom_v, req);
 
     // trigger update to get new tag.
     getReferenceTagsFuture();
@@ -697,7 +699,7 @@ QFuture<QString> ShotBrowserEngine::getEntityFuture(const QString &qentity, cons
 
     return QStringFromStd(
         request_receive_wait<JsonStore>(
-            *sys, backend_, SHOTGUN_TIMEOUT, shotgun_entity_atom_v, entity, id, fields)
+            *sys, backend_, SHOTGRID_TIMEOUT, shotgun_entity_atom_v, entity, id, fields)
             .dump());
 
     REQUEST_END()
@@ -712,7 +714,7 @@ QFuture<QString> ShotBrowserEngine::addDownloadToMediaFuture(const QUuid &media)
 
     return QStringFromStd(
         request_receive_wait<JsonStore>(
-            *sys, backend_, SHOTGUN_TIMEOUT, data_source::get_data_atom_v, req)
+            *sys, backend_, SHOTGRID_TIMEOUT, data_source::get_data_atom_v, req)
             .dump());
 
     REQUEST_END()

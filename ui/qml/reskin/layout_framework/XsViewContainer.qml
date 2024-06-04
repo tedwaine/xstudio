@@ -16,7 +16,6 @@ import Qt.labs.qmlmodels 1.0
 import QtQml.Models 2.14
 
 import xStudioReskin 1.0
-import xstudio.qml.models 1.0
 
 Item {
 
@@ -138,24 +137,9 @@ Item {
         }
     }
 
-    property var revealTabsArea: parent.revealTabsArea
-
-    Connections {
-        target: revealTabsArea
-        function onClicked() {
-            tabs_hidden = false
-            revealTabsArea.height = 0
-        }
-    }
-
-    property bool revealTabs: revealTabsArea.containsMouse
-    property bool tabsVisible: revealTabs || tabsVisibility == 2 || (tabsVisibility == 1 && tabs_repeater.count > 1)
+    property bool tabsVisible: tabsVisibility == 2 || (tabsVisibility == 1 && tabs_repeater.count > 1)
     property var tabsHeight: tabsVisible ? XsStyleSheet.widgetStdHeight : 0
     Behavior on tabsHeight {NumberAnimation{ duration: 150 }}
-
-    onTabsHeightChanged: {
-        revealTabsArea.height = tabs_hidden ? Math.max(4,tabsHeight ) : 0
-    }
 
     /************************************************************************/
 
@@ -214,7 +198,7 @@ Item {
             imgSrc: "qrc:/icons/menu.svg"
             isActive: panelMenu.visible
             onClicked: {
-                showPopupMenu(panelMenu, menuBtn, 0, 0)
+                repositionPopupMenu(panelMenu, menuBtn, 0, 0)
             }
         }
 
@@ -251,18 +235,14 @@ Item {
 
         id: tabThing
 
-        Rectangle { 
+        Item { 
             
-            id: tabDiv
-            color: selected? "#5C5C5C":"#474747" //#TODO: to check with UX
-            Layout.preferredWidth: metrics.width + typeSelectorBtn.width + panelPadding*6
+            id: tabDiv            
+            Layout.preferredWidth: tabItem.width + panelPadding/2
             Layout.preferredHeight: tabsHeight
 
             visible: tabsHeight != 0
             property bool selected: currentIndex == index
-
-            border.color: mouseArea.containsMouse ? palette.highlight : "transparent"
-            border.width: 1
     
             Behavior on implicitHeight {NumberAnimation{ duration: 150 }}
 
@@ -275,14 +255,18 @@ Item {
                 }
             }
             
-            Item
-            {
-                anchors.centerIn: parent
-                width: textDiv.width + typeSelectorBtn.width
+            Rectangle
+            {   id: tabItem
+                color: selected? XsStyleSheet.panelBgGradTopColor : XsStyleSheet.menuBarColor //#TODO: to check with UX
+                border.color: mouseArea.containsMouse ? palette.highlight : "transparent"
+                border.width: 1
+                width: metrics.width + typeSelectorBtn.width + panelPadding*6
+                height: parent.height
 
                 Text{ 
                     
                     id: textDiv
+                    x: panelPadding*2
                     text: model.tab_view != undefined ? model.tab_view : ""
                     anchors.verticalCenter: parent.verticalCenter
                     color: palette.text
@@ -300,8 +284,8 @@ Item {
                     id: typeSelectorBtn
                     width: buttonSize
                     height: width
-                    anchors.left: textDiv.right
-                    anchors.leftMargin: 1
+                    anchors.right: parent.right
+                    anchors.rightMargin: panelPadding
                     anchors.verticalCenter: parent.verticalCenter
                     imgSrc: "qrc:/icons/chevron_right.svg"
                     rotation: 90
@@ -315,7 +299,7 @@ Item {
                     onClicked: {
                         // store which tab has been clicked on
                         modified_tab_index = index
-                        showPopupMenu(tabTypeMenu, typeSelectorBtn, width/2, height/2)
+                        repositionPopupMenu(tabTypeMenu, typeSelectorBtn, width/2, height/2)
                         isActive = true
                     }
                 }

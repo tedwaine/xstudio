@@ -27,7 +27,6 @@ namespace ui {
     namespace qml {
 
         class QMLViewportRenderer;
-        class PlayheadUI;
 
         class QMLViewport : public QQuickItem {
             Q_OBJECT
@@ -39,7 +38,6 @@ namespace ui {
             Q_PROPERTY(float scale READ scale WRITE setScale NOTIFY scaleChanged)
             Q_PROPERTY(
                 QVector2D translate READ translate WRITE setTranslate NOTIFY translateChanged)
-            Q_PROPERTY(QObject *playhead READ playhead NOTIFY playheadChanged)
             Q_PROPERTY(int mouseButtons READ mouseButtons NOTIFY mouseButtonsChanged)
             Q_PROPERTY(QPoint mouse READ mouse NOTIFY mouseChanged)
             Q_PROPERTY(int onScreenImageLogicalFrame READ onScreenImageLogicalFrame NOTIFY
@@ -54,6 +52,7 @@ namespace ui {
             Q_PROPERTY(bool autoConnectToSelectedPlayhead READ autoConnectToSelectedPlayhead
                            WRITE setAutoConnectToSelectedPlayhead NOTIFY
                                autoConnectToSelectedPlayheadChanged)
+            Q_PROPERTY(QUuid playheadUuid READ playheadUuid NOTIFY playheadUuidChanged)
 
           public:
             QMLViewport(QQuickItem *parent = nullptr);
@@ -62,7 +61,7 @@ namespace ui {
             QString fpsExpression();
             float scale();
             QVector2D translate();
-            QObject *playhead();
+            [[nodiscard]] QUuid playheadUuid() const { return playhead_uuid_; }
             [[nodiscard]] QString name() const;
             [[nodiscard]] int mouseButtons() const { return mouse_buttons; }
             [[nodiscard]] QPoint mouse() const { return mouse_position; }
@@ -76,10 +75,16 @@ namespace ui {
                 return auto_connect_to_selected_playhead_;
             }
 
-            void setPlayhead(caf::actor playhead);
             QMLViewportRenderer *viewportActor() { return renderer_actor; }
             void deleteRendererActor();
             bool isQuickViewer() const { return is_quick_viewer_; }
+
+            void setPlayheadUuid(const QUuid &uuid) {
+                if (uuid != playhead_uuid_) {
+                    playhead_uuid_ = uuid;
+                    emit playheadUuidChanged();
+                }
+            }
 
           protected:
             void hoverEnterEvent(QHoverEvent *event) override;
@@ -101,7 +106,6 @@ namespace ui {
             void setZoom(const float z);
             void revertFitZoomToPrevious(const bool ignoreOtherViewport = false);
             void handleScreenChanged(QScreen *screen);
-            void linkToViewport(QObject *other_viewport);
 
             void hideCursor();
             void showCursor();
@@ -132,7 +136,6 @@ namespace ui {
             void zoomChanged(float);
             void fpsExpressionChanged(QString);
             void scaleChanged(float);
-            void playheadChanged(QObject *);
             void translateChanged(QVector2D);
             void mouseButtonsChanged();
             void mouseChanged();
@@ -144,7 +147,8 @@ namespace ui {
             void enableShortcutsChanged();
             void doSnapshot(QString, QString, int, int, bool);
             void nameChanged();
-            void quickViewSource(QStringList mediaActors, QString compareMode);
+            void quickViewSource(
+                QStringList mediaActors, QString compareMode, int in_pt, int out_pt);
             void quickViewBackendRequest(QStringList mediaActors, QString compareMode);
             void quickViewBackendRequestWithSize(
                 QStringList mediaActors, QString compareMode, QPoint position, QSize size);
@@ -153,6 +157,7 @@ namespace ui {
             void pointerExited();
             void isQuickViewerChanged();
             void autoConnectToSelectedPlayheadChanged();
+            void playheadUuidChanged();
 
           private:
             void releaseResources() override;
@@ -163,7 +168,6 @@ namespace ui {
 
             QQuickWindow *m_window = {nullptr};
             QMLViewportRenderer *renderer_actor{nullptr};
-            PlayheadUI *playhead_{nullptr};
 
             bool connected_{false};
             QCursor cursor_;
@@ -175,8 +179,8 @@ namespace ui {
             bool no_alpha_channel_                  = {false};
             bool enable_shortcuts_                  = {true};
             bool auto_connect_to_selected_playhead_ = {false};
-            int viewport_index_                     = {0};
             bool is_quick_viewer_                   = {false};
+            QUuid playhead_uuid_;
         };
 
     } // namespace qml

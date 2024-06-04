@@ -20,6 +20,11 @@ Stack::Stack(const JsonStore &jsn)
     : Container(static_cast<utility::JsonStore>(jsn.at("container"))),
       item_(static_cast<utility::JsonStore>(jsn.at("item"))) {}
 
+Stack::Stack(const Item &item, const caf::actor &actor)
+    : Container(item.name(), "Stack", item.uuid()), item_(item) {
+    item_.set_actor_addr(caf::actor_cast<caf::actor_addr>(actor));
+}
+
 JsonStore Stack::serialise() const {
     JsonStore jsn;
 

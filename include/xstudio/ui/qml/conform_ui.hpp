@@ -35,16 +35,36 @@ namespace ui {
             data(const QModelIndex &index, int role = Qt::DisplayRole) const override;
 
 
-            Q_INVOKABLE QFuture<QList<QUuid>> conformMediaFuture(
+            Q_INVOKABLE QFuture<QList<QUuid>> conformItemsFuture(
                 const QString &task,
-                const QModelIndex &playlist,
-                const QModelIndex &media,
-                const bool remove = false);
+                const QModelIndex &container,
+                const QModelIndex &item,
+                const bool fanOut       = false,
+                const bool removeSource = false);
 
+            Q_INVOKABLE QFuture<QList<QUuid>> conformToSequenceFuture(
+                const QModelIndex &playlistIndex,
+                const QModelIndexList &mediaIndexes,
+                const QModelIndex &sequenceIndex,
+                const QModelIndex &conformTrackIndex,
+                const bool replace,
+                const QString &newTrackName = "");
+
+            Q_INVOKABLE QFuture<bool>
+            conformPrepareSequenceFuture(const QModelIndex &sequenceIndex);
 
           signals:
 
           private:
+            QFuture<QList<QUuid>> conformItemsFuture(
+                const std::string &task,
+                const utility::UuidActorVector &items,
+                const utility::UuidActor &playlist,
+                const utility::UuidActor &container,
+                const std::string &item_type,
+                const utility::UuidVector &before,
+                const bool removeSource);
+
             utility::Uuid conform_uuid_;
             caf::actor conform_events_;
         };

@@ -155,6 +155,7 @@ GradingTool::GradingTool(caf::actor_config &cfg, const utility::JsonStore &init_
         utility::map_value_to_vec(drawing_tool_names_));
     drawing_tool_->expose_in_ui_attrs_group("mask_tool_settings");
     drawing_tool_->expose_in_ui_attrs_group("mask_tool_types");
+    drawing_tool_->set_preference_path("/plugin/grading/drawing_tool");
 
     draw_pen_size_ = add_integer_attribute("Draw Pen Size", "Draw Pen Size", 10, 1, 300);
     draw_pen_size_->expose_in_ui_attrs_group("mask_tool_settings");
@@ -173,9 +174,21 @@ GradingTool::GradingTool(caf::actor_config &cfg, const utility::JsonStore &init_
     pen_opacity_->expose_in_ui_attrs_group("mask_tool_settings");
     pen_opacity_->set_preference_path("/plugin/grading/pen_opacity");
 
-    pen_softness_ = add_integer_attribute("Pen Softness", "Pen Softness", 0, 0, 100);
+    pen_softness_ = add_integer_attribute("Pen Softness", "Pen Softness", 100, 0, 500);
     pen_softness_->expose_in_ui_attrs_group("mask_tool_settings");
     pen_softness_->set_preference_path("/plugin/grading/pen_softness");
+
+    shape_invert_ = add_boolean_attribute("shape_invert", "shape_invert", false);
+    shape_invert_->set_redraw_viewport_on_change(true);
+    shape_invert_->expose_in_ui_attrs_group("mask_tool_settings");
+
+    polygon_init_ = add_boolean_attribute("polygon_init", "polygon_init", false);
+    polygon_init_->set_redraw_viewport_on_change(true);
+    polygon_init_->expose_in_ui_attrs_group("mask_tool_settings");
+
+    mask_selected_shape_ =
+        add_integer_attribute("mask_selected_shape", "mask_selected_shape", -1);
+    mask_selected_shape_->expose_in_ui_attrs_group("mask_tool_settings");
 
     display_mode_attribute_ = add_string_choice_attribute(
         "display_mode",
@@ -212,6 +225,7 @@ GradingTool::GradingTool(caf::actor_config &cfg, const utility::JsonStore &init_
             import QtGraphicalEffects 1.15
             import QtQuick 2.15
             import Grading 1.0
+
             Item {
                 anchors.fill: parent 
 
@@ -222,6 +236,16 @@ GradingTool::GradingTool(caf::actor_config &cfg, const utility::JsonStore &init_
                 GradingDialog {
                     anchors.fill: parent 
                 }
+            }
+        )");
+
+    // here is where we declare the singleton overlay item that will draw
+    // our graphics and handle mouse interaction
+    qml_viewport_overlay_code(
+        R"(
+            import MaskTool 1.0
+            MaskOverlay {
+                anchors.fill: parent
             }
         )");
 }
@@ -338,6 +362,10 @@ void GradingTool::on_screen_media_changed(
 
 void GradingTool::attribute_changed(const utility::Uuid &attribute_uuid, const int role) {
 
+    // Only care about attribute value update.
+    if (role != module::Attribute::Value)
+        return;
+
     if (attribute_uuid == tool_is_active_->uuid()) {
 
         if (tool_is_active_->value()) {
@@ -408,6 +436,32 @@ void GradingTool::attribute_changed(const utility::Uuid &attribute_uuid, const i
             undo();
         } else if (drawing_action_->value() == "Redo") {
             redo();
+        } else if (drawing_action_->value() == "Add quad") {
+            start_quad(
+                {Imath::V2f(-0.5, -0.5),
+                 Imath::V2f(-0.5, 0.5),
+                 Imath::V2f(0.5, 0.5),
+                 Imath::V2f(0.5, -0.5)});
+        } else if (drawing_action_->value() == "Adding polygon") {
+            polygon_init_->set_value(true);
+        } else if (drawing_action_->value() == "Cancel polygon") {
+            polygon_init_->set_value(false);
+        } else if (utility::starts_with(drawing_action_->value(), "Add Polygon ")) {
+            polygon_init_->set_value(false);
+
+            const auto points = utility::split(drawing_action_->value().substr(12), ',');
+            if (points.size() % 2 == 0) {
+                std::vector<Imath::V2f> poly_points;
+                for (int i = 0; i < points.size(); i += 2) {
+                    poly_points.push_back(
+                        Imath::V2f(std::stof(points[i]), std::stof(points[i + 1])));
+                }
+                start_polygon(poly_points);
+            }
+        } else if (drawing_action_->value() == "Add ellipse") {
+            start_ellipse(Imath::V2f(0.0, 0.0), Imath::V2f(0.35, 0.25), 90.0);
+        } else if (drawing_action_->value() == "Remove shape") {
+            remove_shape(mask_selected_shape_->value());
         }
         drawing_action_->set_value("");
 
@@ -440,10 +494,6 @@ void GradingTool::attribute_changed(const utility::Uuid &attribute_uuid, const i
         if (bmd.media_reference_) {
 
             auto &media = bmd.media_reference_.value();
-
-            // spdlog::warn("Before Bookmark start: {}", bmd.start_.value().count() /
-            // media.rate().to_flicks().count()); spdlog::warn("Before Bookmark duration: {}",
-            // bmd.duration_.value().count() / media.rate().to_flicks().count());
 
             if (grade_in_->value() == -1) {
                 grade_in_->set_value(0, false);
@@ -503,6 +553,68 @@ void GradingTool::attribute_changed(const utility::Uuid &attribute_uuid, const i
         refresh_current_grade_from_ui();
         create_bookmark_if_empty();
         save_bookmark();
+
+    } else if (attribute_uuid == mask_selected_shape_->uuid()) {
+
+        // Refresh UI settings according to selected shape
+        const uint32_t id = mask_selected_shape_->value();
+        if (id >= 0 && id < mask_shapes_.size()) {
+            auto value = mask_shapes_[id]->role_data_as_json(module::Attribute::Value);
+
+            pen_opacity_->set_value(value["opacity"]);
+            pen_softness_->set_value(value["softness"]);
+            // TODO: Fix colour json <-> qvariant conversion
+            // pen_colour_->set_value(value["colour"]);
+            shape_invert_->set_value(value["invert"]);
+        }
+
+    } else {
+
+        for (auto &attr : mask_shapes_) {
+            if (attribute_uuid == attr->uuid()) {
+                auto value     = attr->role_data_as_json(module::Attribute::Value);
+                auto user_data = attr->role_data_as_json(module::Attribute::UserData);
+
+                if (value["type"] == "quad") {
+                    grading_data_.mask().update_quad(
+                        user_data,
+                        // TODO: Fix colour json <-> qvariant conversion
+                        // value["colour"],
+                        pen_colour_->value(),
+                        {value["bl"], value["tl"], value["tr"], value["br"]},
+                        value["softness"],
+                        value["opacity"],
+                        value["invert"]);
+                } else if (value["type"] == "polygon") {
+                    grading_data_.mask().update_polygon(
+                        user_data,
+                        // TODO: Fix colour json <-> qvariant conversion
+                        // value["colour"],
+                        pen_colour_->value(),
+                        value["points"],
+                        value["softness"],
+                        value["opacity"],
+                        value["invert"]);
+                } else if (value["type"] == "ellipse") {
+                    grading_data_.mask().update_ellipse(
+                        user_data,
+                        // TODO: Fix colour json <-> qvariant conversion
+                        // value["colour"],
+                        pen_colour_->value(),
+                        value["center"],
+                        value["radius"],
+                        value["angle"],
+                        value["softness"],
+                        value["opacity"],
+                        value["invert"]);
+                }
+
+                create_bookmark_if_empty();
+                save_bookmark();
+
+                break;
+            }
+        }
     }
 
     redraw_viewport();
@@ -612,6 +724,93 @@ void GradingTool::update_stroke(const Imath::V2f &point) {
     grading_data_.mask().update_stroke(point);
 }
 
+void GradingTool::start_quad(const std::vector<Imath::V2f> &corners) {
+
+    uint32_t id = grading_data_.mask().start_quad(pen_colour_->value(), corners);
+
+    utility::JsonStore shape_data;
+    shape_data["type"]     = "quad";
+    shape_data["bl"]       = corners[0];
+    shape_data["tl"]       = corners[1];
+    shape_data["tr"]       = corners[2];
+    shape_data["br"]       = corners[3];
+    shape_data["colour"]   = pen_colour_->value();
+    shape_data["softness"] = pen_softness_->value();
+    shape_data["opacity"]  = pen_opacity_->value();
+    shape_data["invert"]   = false;
+
+    utility::JsonStore additional_roles;
+    additional_roles["user_data"] = id;
+
+    const std::string name = fmt::format("Quad{}", id);
+    mask_shapes_.push_back(add_attribute(name, shape_data, additional_roles));
+    expose_attribute_in_model_data(mask_shapes_.back(), "grading_tool_overlay_shapes");
+
+    end_drawing();
+}
+
+void GradingTool::start_polygon(const std::vector<Imath::V2f> &points) {
+
+    uint32_t id = grading_data_.mask().start_polygon(pen_colour_->value(), points);
+
+    utility::JsonStore shape_data;
+    shape_data["type"]     = "polygon";
+    shape_data["points"]   = points;
+    shape_data["count"]    = points.size();
+    shape_data["colour"]   = pen_colour_->value();
+    shape_data["softness"] = pen_softness_->value();
+    shape_data["opacity"]  = pen_opacity_->value();
+    shape_data["invert"]   = false;
+
+    utility::JsonStore additional_roles;
+    additional_roles["user_data"] = id;
+
+    const std::string name = fmt::format("Polygon{}", id);
+    mask_shapes_.push_back(add_attribute(name, shape_data, additional_roles));
+    expose_attribute_in_model_data(mask_shapes_.back(), "grading_tool_overlay_shapes");
+
+    end_drawing();
+}
+
+void GradingTool::start_ellipse(
+    const Imath::V2f &center, const Imath::V2f &radius, float angle) {
+
+    uint32_t id =
+        grading_data_.mask().start_ellipse(pen_colour_->value(), center, radius, angle);
+
+    utility::JsonStore shape_data;
+    shape_data["type"]     = "ellipse";
+    shape_data["center"]   = center;
+    shape_data["radius"]   = radius;
+    shape_data["angle"]    = angle;
+    shape_data["colour"]   = pen_colour_->value();
+    shape_data["softness"] = pen_softness_->value();
+    shape_data["opacity"]  = pen_opacity_->value();
+    shape_data["invert"]   = false;
+
+    utility::JsonStore additional_roles;
+    additional_roles["user_data"] = id;
+
+    std::string name = fmt::format("Ellipse{}", id);
+    mask_shapes_.push_back(add_attribute(name, shape_data, additional_roles));
+    expose_attribute_in_model_data(mask_shapes_.back(), "grading_tool_overlay_shapes");
+
+    end_drawing();
+}
+
+void GradingTool::remove_shape(uint32_t id) {
+
+    if (id >= 0 && id < mask_shapes_.size()) {
+        auto canvas_id = mask_shapes_[id]->role_data_as_json(module::Attribute::UserData);
+        grading_data_.mask().remove_shape(canvas_id);
+
+        remove_attribute(mask_shapes_[id]->uuid());
+        mask_shapes_.erase(mask_shapes_.begin() + id);
+
+        save_bookmark();
+    }
+}
+
 void GradingTool::end_drawing() {
 
     grading_data_.mask().end_draw();
@@ -639,7 +838,19 @@ void GradingTool::redo() {
 void GradingTool::clear_mask() {
 
     grading_data_.mask().clear();
+
+    clear_shapes();
+
     save_bookmark();
+}
+
+void GradingTool::clear_shapes() {
+
+    for (int i = 0; i < mask_shapes_.size(); ++i) {
+        expose_attribute_in_model_data(mask_shapes_[i], "grading_tool_overlay_shapes", false);
+        remove_attribute(mask_shapes_[i]->uuid());
+    }
+    mask_shapes_.clear();
 }
 
 void GradingTool::clear_cdl() {
@@ -731,6 +942,85 @@ void GradingTool::refresh_ui_from_current_grade() {
     grade_is_active_->set_value(grading_data_.grade_active(), false);
     colour_space_->set_value(grading_data_.colour_space(), false);
     display_mode_attribute_->set_value(grading_data_.mask_editing() ? "Mask" : "Grade", false);
+
+    // Initialize shapes overlay
+    using Quad    = xstudio::ui::canvas::Quad;
+    using Polygon = xstudio::ui::canvas::Polygon;
+    using Ellipse = xstudio::ui::canvas::Ellipse;
+
+    clear_shapes();
+
+    // Please make sure that attribute_changed don't listen to
+    // Group change notification to avoid dealock acquiring the
+    // Canvas mutex when processing shapes event.
+    grading_data_.mask().read_lock();
+
+    for (const auto &item : grading_data_.mask()) {
+        if (std::holds_alternative<Quad>(item)) {
+
+            const Quad &quad = std::get<Quad>(item);
+
+            utility::JsonStore shape_data;
+            shape_data["type"]     = "quad";
+            shape_data["bl"]       = quad.bl;
+            shape_data["tl"]       = quad.tl;
+            shape_data["tr"]       = quad.tr;
+            shape_data["br"]       = quad.br;
+            shape_data["colour"]   = quad.colour;
+            shape_data["softness"] = quad.softness;
+            shape_data["opacity"]  = quad.opacity;
+            shape_data["invert"]   = quad.invert;
+
+            utility::JsonStore additional_roles;
+            additional_roles["user_data"] = quad._id;
+
+            const std::string name = fmt::format("Quad{}", quad._id);
+            mask_shapes_.push_back(add_attribute(name, shape_data, additional_roles));
+            expose_attribute_in_model_data(mask_shapes_.back(), "grading_tool_overlay_shapes");
+
+        } else if (std::holds_alternative<Polygon>(item)) {
+
+            const Polygon &polygon = std::get<Polygon>(item);
+
+            utility::JsonStore shape_data;
+            shape_data["type"]     = "polygon";
+            shape_data["points"]   = polygon.points;
+            shape_data["count"]    = polygon.points.size();
+            shape_data["colour"]   = polygon.colour;
+            shape_data["softness"] = polygon.softness;
+            shape_data["opacity"]  = polygon.opacity;
+            shape_data["invert"]   = polygon.invert;
+
+            utility::JsonStore additional_roles;
+            additional_roles["user_data"] = polygon._id;
+
+            const std::string name = fmt::format("Polygon{}", polygon._id);
+            mask_shapes_.push_back(add_attribute(name, shape_data, additional_roles));
+            expose_attribute_in_model_data(mask_shapes_.back(), "grading_tool_overlay_shapes");
+
+        } else if (std::holds_alternative<Ellipse>(item)) {
+
+            const Ellipse &ellipse = std::get<Ellipse>(item);
+
+            utility::JsonStore shape_data;
+            shape_data["type"]     = "ellipse";
+            shape_data["center"]   = ellipse.center;
+            shape_data["radius"]   = ellipse.radius;
+            shape_data["angle"]    = ellipse.angle;
+            shape_data["colour"]   = ellipse.colour;
+            shape_data["softness"] = ellipse.softness;
+            shape_data["opacity"]  = ellipse.opacity;
+            shape_data["invert"]   = ellipse.invert;
+
+            utility::JsonStore additional_roles;
+            additional_roles["user_data"] = ellipse._id;
+
+            std::string name = fmt::format("Ellipse{}", ellipse._id);
+            mask_shapes_.push_back(add_attribute(name, shape_data, additional_roles));
+            expose_attribute_in_model_data(mask_shapes_.back(), "grading_tool_overlay_shapes");
+        }
+    }
+    grading_data_.mask().read_unlock();
 }
 
 utility::Uuid GradingTool::current_bookmark() const {
@@ -749,8 +1039,9 @@ void GradingTool::create_bookmark() {
 
     bookmark::BookmarkDetail bmd;
     // Hides bookmark from timeline
-    bmd.colour_  = "transparent";
-    bmd.visible_ = false;
+    bmd.colour_   = "transparent";
+    bmd.visible_  = false;
+    bmd.category_ = "Grading";
 
     auto uuid = StandardPlugin::create_bookmark_on_current_media(
         "",             // viewport_name

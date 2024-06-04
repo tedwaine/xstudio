@@ -77,10 +77,6 @@ PySideQmlViewport::PySideQmlViewport(QWidget *parent) : QQuickWidget(parent) {
     qmlRegisterType<QMLUuid>("xstudio.qml.uuid", 1, 0, "QMLUuid");
     qmlRegisterType<ClipboardProxy>("xstudio.qml.clipboard", 1, 0, "Clipboard");
 
-    qmlRegisterType<ModuleAttrsModel>("xstudio.qml.module", 1, 0, "XsModuleAttributesModel");
-    qmlRegisterType<ModuleAttrsDirect>("xstudio.qml.module", 1, 0, "XsModuleAttributes");
-    qmlRegisterType<ModuleMenusModel>("xstudio.qml.module", 1, 0, "XsModuleMenu");
-
     qRegisterMetaType<MediaUI *>("MediaUI*");
     // qRegisterMetaType<BookmarkDetailUI*>("BookmarkDetailUI*");
     qRegisterMetaType<const BookmarkDetailUI *>("const BookmarkDetailUI*");

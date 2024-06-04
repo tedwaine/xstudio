@@ -70,15 +70,6 @@ Rectangle {
                 property var child
                 property var child_type
 
-                MouseArea {
-                    id: revealTabsArea
-                    z: 1000
-                    anchors.right: parent.right    
-                    anchors.left: parent.left    
-                    hoverEnabled: true
-                }
-                property alias revealTabsArea: revealTabsArea
-
                 property var sh: split_horizontal
                 onShChanged: {
                     buildSubPanels()

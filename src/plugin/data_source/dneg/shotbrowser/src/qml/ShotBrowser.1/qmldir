@@ -6,6 +6,7 @@ ShotBrowserMediaListMenu    1.0 ShotBrowserMediaListMenu.qml
 ShotBrowserMenuModel        1.0 ShotBrowserMenuModel.qml
 ShotBrowserPanel            1.0 ShotBrowserPanel.qml
 
+XsSBPublishNotesFeedback.qml 1.0 dialogs/XsSBPublishNotesFeedback.qml
 XsSBPublishNotesDialog      1.0 dialogs/XsSBPublishNotesDialog.qml
 XsSBPublishPlaylistToShotGridDialog 1.0 dialogs/XsSBPublishPlaylistToShotGridDialog.qml
 XsSBSyncPlaylistToShotGridDialog 1.0 dialogs/XsSBSyncPlaylistToShotGridDialog.qml

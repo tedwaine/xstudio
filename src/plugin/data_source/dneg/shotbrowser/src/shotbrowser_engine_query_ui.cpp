@@ -75,16 +75,8 @@ QFuture<QString> ShotBrowserEngine::executeQuery(
     // spdlog::warn("ShotBrowserEngine::executeQuery{}", live_link_metadata_.dump(2));
     // get project from metadata.
     try {
-        auto shotptr = nlohmann::json::json_pointer(
-            "/metadata/shotgun/shot/relationships/project/data/id");
-        auto versionptr = nlohmann::json::json_pointer(
-            "/metadata/shotgun/version/relationships/project/data/id");
-
-        auto project_id = 0;
-        if (live_link_metadata_.contains(shotptr))
-            project_id = live_link_metadata_.at(shotptr).get<int>();
-        else if (live_link_metadata_.contains(versionptr))
-            project_id = live_link_metadata_.at(versionptr).get<int>();
+        auto project_id =
+            query_engine_.get_project_id(live_link_metadata_, query_engine_.cache());
 
         if (not project_id)
             throw std::runtime_error("Project metadata not found.");
@@ -138,7 +130,7 @@ QFuture<QString> ShotBrowserEngine::executeProjectQuery(
             try {
 
                 auto data = request_receive_wait<JsonStore>(
-                    *sys, backend_, SHOTGUN_TIMEOUT, get_data_atom_v, request);
+                    *sys, backend_, SHOTGRID_TIMEOUT, get_data_atom_v, request);
 
                 // spdlog::warn("{} {}", __PRETTY_FUNCTION__, data.dump(2));
 

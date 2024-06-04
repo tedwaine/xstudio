@@ -94,7 +94,7 @@ Item{ id: presetView
                     treeSequenceModel: presetsFilterModel
                     treeSequenceSelectionModel: presetsSelectionModel
                     treeSequenceExpandedModel: presetsExpandedModel
-                    treeRootIndex: treeSequenceModel.index(-1,-1)
+                    treeRootIndex: treeSequenceModel ? treeSequenceModel.index(-1,-1) : null
                     onTreeSequenceModelChanged: {
                         if(treeSequenceModel) {
                             treeRootIndex = treeSequenceModel.index(-1,-1)
@@ -170,108 +170,123 @@ Item{ id: presetView
         visible: false
         menu_model_name: "moreMenu"+presetView
     }
+
     XsMenuModelItem {
-        text: "Copy Preset"
+        text: "Undo"
         menuPath: ""
         menuItemPosition: 1
         menuModelName: moreMenu.menu_model_name
-        onActivated: clipboard.text = JSON.stringify(ShotBrowserEngine.presetsModel.copy(presetsSelectionModel.selectedIndexes))
+        onActivated: ShotBrowserEngine.undo()
     }
+
     XsMenuModelItem {
-        text: "Paste Preset"
+        text: "Redo"
         menuPath: ""
         menuItemPosition: 2
         menuModelName: moreMenu.menu_model_name
-        onActivated: {
-            if(presetsSelectionModel.selectedIndexes.length) {
-                let i = presetsSelectionModel.selectedIndexes[0]
-                ShotBrowserEngine.presetsModel.paste(
-                    JSON.parse(clipboard.text),
-                    i.row+1,
-                    i.parent
-                )
-            }
-        }
+        onActivated: ShotBrowserEngine.redo()
     }
-    XsMenuModelItem {
-        text: "Duplicate Preset"
-        menuPath: ""
-        menuItemPosition: 2
-        menuModelName: moreMenu.menu_model_name
-        onActivated: {
-            let l = presetsSelectionModel.selectedIndexes
-            for(let i=0; i< l.length; i++) {
-                presetsSelectionModel.model.duplicate(l[i])
-            }
-        }
-    }
+
     XsMenuModelItem {
         menuItemType: "divider"
         menuPath: ""
         menuItemPosition: 3
         menuModelName: moreMenu.menu_model_name
     }
+
     XsMenuModelItem {
-        text: "Reset Preset"
+        text: "Reload All System Presets"
         menuPath: ""
         menuItemPosition: 4
         menuModelName: moreMenu.menu_model_name
-        onActivated: ShotBrowserEngine.presetsModel.resetPresets(presetsSelectionModel.selectedIndexes)
-    }
-    XsMenuModelItem {
-        menuItemType: "divider"
-        menuPath: ""
-        menuItemPosition: 5
-        menuModelName: moreMenu.menu_model_name
-    }
-    XsMenuModelItem {
-        text: showHiddenPref.value ? "Hide Hidden" : "Show Hidden"
-        menuPath: ""
-        menuItemPosition: 6
-        menuModelName: moreMenu.menu_model_name
-        onActivated: showHiddenPref.value = !showHiddenPref.value
-    }
-    XsMenuModelItem {
-        text: {
-            if(!presetsSelectionModel.selectedIndexes.length)
-                "Toggle Hidden"
-            else {
-                let hidden = presetsSelectionModel.model.get(presetsSelectionModel.selectedIndexes[0], "hiddenRole")
-                hidden ? "Make Visible" : "Make Hidden"
-            }
-        }
-        menuPath: ""
-        menuItemPosition: 7
-        menuModelName: moreMenu.menu_model_name
         onActivated: {
-            let l = presetsSelectionModel.selectedIndexes
-            if(l.length) {
-                let hidden = presetsSelectionModel.model.get(l[0], "hiddenRole")
-                for(let i=0; i< l.length; i++) {
-                    presetsSelectionModel.model.set(l[i], !hidden, "hiddenRole")
-                }
-            }
-        }
+            // set all indexs to visible.
+            let hidden = ShotBrowserEngine.presetsModel.searchRecursiveList(
+                true, "hiddenRole",
+                ShotBrowserEngine.presetsModel.index(-1,-1),
+                0,-1
+            )
+            for(let i=0; i<hidden.length; i++)
+                ShotBrowserEngine.presetsModel.set(hidden[i], false, "hiddenRole")
 
+            let changed = ShotBrowserEngine.presetsModel.searchRecursiveList(
+                true, "updateRole",
+                ShotBrowserEngine.presetsModel.index(-1,-1),
+                0,-1
+            )
+            ShotBrowserEngine.presetsModel.resetPresets(changed)
+        }
     }
-    XsMenuModelItem {
-        menuItemType: "divider"
-        menuPath: ""
-        menuItemPosition: 8
-        menuModelName: moreMenu.menu_model_name
-    }
-    XsMenuModelItem {
-        text: "Undo"
-        menuPath: ""
-        menuItemPosition: 9
-        menuModelName: moreMenu.menu_model_name
-        onActivated: ShotBrowserEngine.undo()
-    }
-    XsMenuModelItem {
-        text: "Redo"
-        menuPath: ""
-        menuItemPosition: 10
-        menuModelName: moreMenu.menu_model_name
-        onActivated: ShotBrowserEngine.redo()
-    }
+
+    // XsMenuModelItem {
+    //     text: "Copy Preset"
+    //     menuPath: ""
+    //     menuItemPosition: 1
+    //     menuModelName: moreMenu.menu_model_name
+    //     onActivated: clipboard.text = JSON.stringify(ShotBrowserEngine.presetsModel.copy(presetsSelectionModel.selectedIndexes))
+    // }
+    // XsMenuModelItem {
+    //     text: "Paste Preset"
+    //     menuPath: ""
+    //     menuItemPosition: 2
+    //     menuModelName: moreMenu.menu_model_name
+    //     onActivated: {
+    //         if(presetsSelectionModel.selectedIndexes.length) {
+    //             let i = presetsSelectionModel.selectedIndexes[0]
+    //             ShotBrowserEngine.presetsModel.paste(
+    //                 JSON.parse(clipboard.text),
+    //                 i.row+1,
+    //                 i.parent
+    //             )
+    //         }
+    //     }
+    // }
+    // XsMenuModelItem {
+    //     text: "Duplicate Preset"
+    //     menuPath: ""
+    //     menuItemPosition: 2
+    //     menuModelName: moreMenu.menu_model_name
+    //     onActivated: {
+    //         let l = presetsSelectionModel.selectedIndexes
+    //         for(let i=0; i< l.length; i++) {
+    //             presetsSelectionModel.model.duplicate(l[i])
+    //         }
+    //     }
+    // }
+    // XsMenuModelItem {
+    //     menuItemType: "divider"
+    //     menuPath: ""
+    //     menuItemPosition: 5
+    //     menuModelName: moreMenu.menu_model_name
+    // }
+    // XsMenuModelItem {
+    //     text: showHiddenPref.value ? "Hide Hidden" : "Show Hidden"
+    //     menuPath: ""
+    //     menuItemPosition: 6
+    //     menuModelName: moreMenu.menu_model_name
+    //     onActivated: showHiddenPref.value = !showHiddenPref.value
+    // }
+    // XsMenuModelItem {
+    //     text: {
+    //         if(!presetsSelectionModel.selectedIndexes.length)
+    //             "Toggle Hidden"
+    //         else {
+    //             let hidden = presetsSelectionModel.model.get(presetsSelectionModel.selectedIndexes[0], "hiddenRole")
+    //             hidden ? "Make Visible" : "Make Hidden"
+    //         }
+    //     }
+    //     menuPath: ""
+    //     menuItemPosition: 7
+    //     menuModelName: moreMenu.menu_model_name
+    //     onActivated: {
+    //         let l = presetsSelectionModel.selectedIndexes
+    //         if(l.length) {
+    //             let hidden = presetsSelectionModel.model.get(l[0], "hiddenRole")
+    //             for(let i=0; i< l.length; i++) {
+    //                 presetsSelectionModel.model.set(l[i], !hidden, "hiddenRole")
+    //             }
+    //         }
+    //     }
+
+    // }
 }

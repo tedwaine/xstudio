@@ -20,6 +20,9 @@ namespace timeline {
             const std::string &name           = "Track",
             const media::MediaType media_type = media::MediaType::MT_IMAGE,
             const utility::Uuid &uuid         = utility::Uuid::generate());
+        TrackActor(caf::actor_config &cfg, const Item &item);
+        TrackActor(caf::actor_config &cfg, const Item &item, Item &nitem);
+
         ~TrackActor() override = default;
 
         const char *name() const override { return NAME.c_str(); }
@@ -35,6 +38,7 @@ namespace timeline {
         void add_item(const utility::UuidActor &ua);
         caf::actor
         deserialise(const utility::JsonStore &value, const bool replace_item = false);
+        void deserialise();
         void item_event_callback(const utility::JsonStore &event, Item &item);
 
         void split_item(
@@ -61,6 +65,7 @@ namespace timeline {
         void remove_items(
             const int index,
             const int count,
+            const bool add_gap,
             caf::typed_response_promise<
                 std::pair<utility::JsonStore, std::vector<timeline::Item>>> rp);
 
@@ -72,6 +77,7 @@ namespace timeline {
         void erase_items(
             const int index,
             const int count,
+            const bool add_gap,
             caf::typed_response_promise<utility::JsonStore> rp);
 
         void move_items(

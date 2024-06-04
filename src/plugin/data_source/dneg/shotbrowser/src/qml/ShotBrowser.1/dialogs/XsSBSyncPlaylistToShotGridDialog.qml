@@ -11,7 +11,6 @@ import QuickFuture 1.0
 import xStudioReskin 1.0
 import ShotBrowser 1.0
 import xstudio.qml.helpers 1.0
-import xstudio.qml.module 1.0
 
 XsWindow {
     id: dialog

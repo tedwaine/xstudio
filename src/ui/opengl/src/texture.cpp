@@ -30,10 +30,7 @@ class DebugTimer {
 
 } // namespace
 
-void GLBlindTex::release() {
-    mutex_.unlock();
-    when_last_used_ = utility::clock::now();
-}
+void GLBlindTex::release() { when_last_used_ = utility::clock::now(); }
 
 GLBlindTex::~GLBlindTex() {}
 
@@ -127,13 +124,86 @@ void GLDoubleBufferedTexture::upload_next(
     for (auto &tx : available_textures) {
         if (!images_due_onscreen_soon.size())
             break;
-        tx->map_buffer_for_upload(images_due_onscreen_soon.front());
+        tx->upload_image_buffer(images_due_onscreen_soon.front());
         images_due_onscreen_soon.erase(images_due_onscreen_soon.begin());
-        tx->start_pixel_upload();
     }
 }
 
 void GLDoubleBufferedTexture::release() { current_->release(); }
+
+void GLBlindTex::do_pixel_upload(uint8_t *target, uint8_t *src, size_t n) {
+
+    // This commented chunk will do threaded memcpy. I've found on some systems
+    // this can improve playback performance where pixel upload for large frame
+    // sizes was a bottleneck. On other systems, however, the extra thread
+    // management was causing high CPU load without obvious performance
+    // benefit.
+
+    /*const int n_threads = 8; // TODO: proper thread count here
+        std::vector<std::thread> memcpy_threads;
+        size_t sz   = std::min(tex_size_bytes(), source_frame_->size());
+        size_t step = ((sz / n_threads) / 4096) * 4096;
+        auto *dst   = (uint8_t *)source_frame_->buffer();
+
+        uint8_t *ioPtrY = buffer_io_ptr_;
+
+        for (int i = 0; i < n_threads; ++i) {
+            memcpy_threads.emplace_back(memcpy, ioPtrY, dst, std::min(sz, step));
+            ioPtrY += step;
+            dst += step;
+            sz -= step;
+        }
+
+        // ensure any threads still running to copy data to this texture are done
+        for (auto &t : memcpy_threads) {
+            if (t.joinable())
+                t.join();
+        }*/
+
+    // just a memcpy!
+    memcpy(target, src, n);
+    {
+        std::lock_guard lk(mutex_);
+        uploading_pixels_ = false;
+    }
+    cv_.notify_all();
+}
+
+void GLBlindTex::upload_image_buffer(media_reader::ImageBufPtr &frame) {
+
+    if (!frame)
+        return;
+
+    // make sure we're not still uploading pixels from a previous request
+    wait_on_upload_pixels();
+
+    source_frame_ = frame;
+    media_key_    = frame->media_key();
+
+    if (source_frame_->size()) {
+
+        uint8_t *target = map_buffer_for_upload();
+        if (!target) {
+            spdlog::warn("Failed to map buffer for frame {} ", to_string(media_key_));
+            media_key_ = media::MediaKey();
+            source_frame_.reset();
+            return;
+        }
+        auto *dst = (uint8_t *)source_frame_->buffer();
+        size_t sz = std::min(tex_size_bytes(), source_frame_->size());
+
+        {
+            std::lock_guard lk(mutex_);
+            uploading_pixels_ = true;
+        }
+
+        if (upload_thread_.joinable())
+            upload_thread_.join();
+
+        // start the thread to do the actual copy
+        upload_thread_ = std::thread(&GLBlindTex::do_pixel_upload, this, target, dst, sz);
+    }
+}
 
 GLBlindRGBA8bitTex::~GLBlindRGBA8bitTex() {
     // ensure no copying is in flight
@@ -218,123 +288,61 @@ void GLBlindRGBA8bitTex::resize(const size_t required_size_bytes) {
     glBindBuffer(GL_PIXEL_UNPACK_BUFFER, 0);
 }
 
-void GLBlindRGBA8bitTex::start_pixel_upload() {
-
-    if (new_source_frame_) {
-        if (upload_thread_.joinable())
-            upload_thread_.join();
-        mutex_.lock();
-        upload_thread_ = std::thread(&GLBlindRGBA8bitTex::pixel_upload, this);
-    }
-}
-
-
-void GLBlindRGBA8bitTex::pixel_upload() {
-
-    if (!new_source_frame_->size()) {
-        mutex_.unlock();
-        return;
-    }
-
-    const int n_threads = 8; // TODO: proper thread count here
-    std::vector<std::thread> memcpy_threads;
-    size_t sz   = std::min(tex_size_bytes(), new_source_frame_->size());
-    size_t step = ((sz / n_threads) / 4096) * 4096;
-    auto *dst   = (uint8_t *)new_source_frame_->buffer();
-
-    uint8_t *ioPtrY = buffer_io_ptr_;
-
-    for (int i = 0; i < n_threads; ++i) {
-        memcpy_threads.emplace_back(memcpy, ioPtrY, dst, std::min(sz, step));
-        ioPtrY += step;
-        dst += step;
-        sz -= step;
-    }
-
-    // ensure any threads still running to copy data to this texture are done
-    for (auto &t : memcpy_threads) {
-        if (t.joinable())
-            t.join();
-    }
-    mutex_.unlock();
-}
-
-void GLBlindRGBA8bitTex::map_buffer_for_upload(media_reader::ImageBufPtr &frame) {
-
-    if (!frame)
-        return;
-    // acquire a write lock,
-    mutex_.lock();
-
-    new_source_frame_ = frame;
-    media_key_        = frame->media_key();
+uint8_t *GLBlindRGBA8bitTex::map_buffer_for_upload() {
 
     glEnable(GL_TEXTURE_RECTANGLE);
 
-    if (new_source_frame_->size()) {
-        resize(new_source_frame_->size());
+    resize(source_frame_->size());
 
-        glNamedBufferData(
-            pixel_buf_object_id_,
-            tex_width_ * tex_height_ * bytes_per_pixel_,
-            nullptr,
-            GL_DYNAMIC_DRAW);
+    glNamedBufferData(
+        pixel_buf_object_id_,
+        tex_width_ * tex_height_ * bytes_per_pixel_,
+        nullptr,
+        GL_DYNAMIC_DRAW);
 
-        buffer_io_ptr_ = (uint8_t *)glMapNamedBuffer(pixel_buf_object_id_, GL_WRITE_ONLY);
-    }
-
-    mutex_.unlock();
-
-    // N.B. threads are probably still running here!
+    return (uint8_t *)glMapNamedBuffer(pixel_buf_object_id_, GL_WRITE_ONLY);
 }
 
-void GLBlindRGBA8bitTex::bind(int tex_index, Imath::V2i &dims) {
-
-    mutex_.lock();
+void GLBlindRGBA8bitTex::__bind(int tex_index, Imath::V2i &dims) {
 
     dims.x = tex_width_;
     dims.y = tex_height_;
 
-    if (new_source_frame_) {
+    if (source_frame_ && source_frame_->size()) {
 
-        if (new_source_frame_->size()) {
-            if (upload_thread_.joinable()) {
-                upload_thread_.join();
-            }
+        // now the texture data is transferred (on the GPU).
+        // Assumption is that this is fast.
 
-            // now the texture data is transferred (on the GPU).
-            // Assumption is that this is fast.
+        glUnmapNamedBuffer(pixel_buf_object_id_);
 
-            glUnmapNamedBuffer(pixel_buf_object_id_);
+        glBindBuffer(GL_PIXEL_UNPACK_BUFFER, pixel_buf_object_id_);
+        glBindTexture(GL_TEXTURE_RECTANGLE, tex_id_);
+        glPixelStorei(GL_UNPACK_ROW_LENGTH, tex_width_);
+        glPixelStorei(GL_UNPACK_IMAGE_HEIGHT, source_frame_->size() / (tex_width_ * 4));
+        glPixelStorei(GL_UNPACK_SKIP_PIXELS, 0);
+        glPixelStorei(GL_UNPACK_SKIP_ROWS, 0);
+        glPixelStorei(GL_UNPACK_ALIGNMENT, 8);
 
-            glBindBuffer(GL_PIXEL_UNPACK_BUFFER, pixel_buf_object_id_);
-            glBindTexture(GL_TEXTURE_RECTANGLE, tex_id_);
-            glPixelStorei(GL_UNPACK_ROW_LENGTH, tex_width_);
-            glPixelStorei(GL_UNPACK_IMAGE_HEIGHT, new_source_frame_->size() / (tex_width_ * 4));
-            glPixelStorei(GL_UNPACK_SKIP_PIXELS, 0);
-            glPixelStorei(GL_UNPACK_SKIP_ROWS, 0);
-            glPixelStorei(GL_UNPACK_ALIGNMENT, 8);
+        glTexSubImage2D(
+            GL_TEXTURE_RECTANGLE,
+            0,
+            0,
+            0,
+            tex_width_,
+            source_frame_->size() / (tex_width_ * 4),
+            GL_RGBA_INTEGER,
+            GL_UNSIGNED_BYTE,
+            nullptr);
 
-            glTexSubImage2D(
-                GL_TEXTURE_RECTANGLE,
-                0,
-                0,
-                0,
-                tex_width_,
-                new_source_frame_->size() / (tex_width_ * 4),
-                GL_RGBA_INTEGER,
-                GL_UNSIGNED_BYTE,
-                nullptr);
+        glBindTexture(GL_TEXTURE_RECTANGLE, 0);
+        glBindBuffer(GL_PIXEL_UNPACK_BUFFER, 0);
 
-            glBindTexture(GL_TEXTURE_RECTANGLE, 0);
-            glBindBuffer(GL_PIXEL_UNPACK_BUFFER, 0);
-        }
-
-        current_source_frame_ = new_source_frame_;
-        new_source_frame_.reset();
+        // we can reset our source frame as we have transferred it to
+        // texture memory
+        source_frame_.reset();
     }
 
-    if (current_source_frame_->size()) {
+    if (tex_id_) {
         glActiveTexture(tex_index + GL_TEXTURE0);
         glBindTexture(GL_TEXTURE_RECTANGLE, tex_id_);
     }
@@ -572,61 +580,39 @@ void GLColourLutTexture::bind(int tex_index) {
     glBindTexture(target(), tex_id_);
 }
 
-GLSsboTex::GLSsboTex() { glGenBuffers(1, &ssbo_id_); }
-
 GLSsboTex::~GLSsboTex() {
-    if (upload_thread_.joinable())
-        upload_thread_.join();
+    wait_on_upload_pixels();
+    if (source_frame_ && source_frame_->size()) {
+        glUnmapNamedBuffer(ssbo_id_);
+    }
     glDeleteBuffers(1, &ssbo_id_);
 }
 
 
-void GLSsboTex::wait_on_upload() {
+void GLSsboTex::__bind(int /*tex_index*/, Imath::V2i & /*dims*/) {
 
-    mutex_.lock();
-    if (new_source_frame_) {
-
-        if (new_source_frame_->size()) {
-            if (upload_thread_.joinable()) {
-                upload_thread_.join();
-            }
-
-            glUnmapNamedBuffer(ssbo_id_);
-        }
-
-        current_source_frame_ = new_source_frame_;
-        new_source_frame_.reset();
+    if (source_frame_ && source_frame_->size()) {
+        glUnmapNamedBuffer(ssbo_id_);
+        source_frame_.reset();
     }
 
-    if (current_source_frame_->size()) {
+    if (ssbo_id_) {
         glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 0, ssbo_id_);
         glBindBuffer(GL_SHADER_STORAGE_BUFFER, 0);
     }
-
-    mutex_.unlock();
 }
 
-void GLSsboTex::map_buffer_for_upload(media_reader::ImageBufPtr &frame) {
+uint8_t *GLSsboTex::map_buffer_for_upload() {
 
-    auto t0 = utility::clock::now();
-
-    if (!frame)
-        return;
-
-    mutex_.lock();
-
-    new_source_frame_ = frame;
-    media_key_        = frame->media_key();
-
-    if (new_source_frame_->size()) {
-        compute_size(new_source_frame_->size());
-        glBindBuffer(GL_SHADER_STORAGE_BUFFER, ssbo_id_);
-        glNamedBufferData(ssbo_id_, tex_size_bytes(), nullptr, GL_DYNAMIC_DRAW);
-        buffer_io_ptr_ = (uint8_t *)glMapNamedBuffer(ssbo_id_, GL_WRITE_ONLY);
-        glBindBuffer(GL_SHADER_STORAGE_BUFFER, 0);
+    if (!ssbo_id_) {
+        glGenBuffers(1, &ssbo_id_);
     }
-
-    mutex_.unlock();
+    compute_size(source_frame_->size());
+    glBindBuffer(GL_SHADER_STORAGE_BUFFER, ssbo_id_);
+    glNamedBufferData(ssbo_id_, tex_size_bytes(), nullptr, GL_DYNAMIC_DRAW);
+    auto rt = (uint8_t *)glMapNamedBuffer(ssbo_id_, GL_WRITE_ONLY);
+    glBindBuffer(GL_SHADER_STORAGE_BUFFER, 0);
+    return rt;
 }
 
 
@@ -642,45 +628,4 @@ void GLSsboTex::compute_size(const size_t required_size_bytes) {
     }
 
     tex_data_size_ = pow(2, ceil(log((1 + (required_size_bytes / 4096)) * 4096) / log(2.0)));
-}
-
-void GLSsboTex::start_pixel_upload() {
-
-    if (new_source_frame_) {
-        if (upload_thread_.joinable())
-            upload_thread_.join();
-        mutex_.lock();
-        upload_thread_ = std::thread(&GLSsboTex::pixel_upload, this);
-    }
-}
-
-void GLSsboTex::pixel_upload() {
-
-    if (!new_source_frame_->size()) {
-        mutex_.unlock();
-        return;
-    }
-
-    const int n_threads = 8; // TODO: proper thread count here
-    std::vector<std::thread> memcpy_threads;
-    size_t sz   = std::min(tex_size_bytes(), new_source_frame_->size());
-    size_t step = ((sz / n_threads) / 4096) * 4096;
-    auto *dst   = (uint8_t *)new_source_frame_->buffer();
-
-    uint8_t *ioPtrY = buffer_io_ptr_;
-
-    for (int i = 0; i < n_threads; ++i) {
-        memcpy_threads.emplace_back(memcpy, ioPtrY, dst, std::min(sz, step));
-        ioPtrY += step;
-        dst += step;
-        sz -= step;
-    }
-
-    // ensure any threads still running to copy data to this texture are done
-    for (auto &t : memcpy_threads) {
-        if (t.joinable())
-            t.join();
-    }
-
-    mutex_.unlock();
 }

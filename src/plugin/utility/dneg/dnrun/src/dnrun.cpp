@@ -483,20 +483,18 @@ template <typename T> class DNRunPluginActor : public caf::event_based_actor {
                                                     new_media.uuid());
                                             }
 
-                                            // trigger the session to (perhaps -
-                                            // depending on quick view preference)
-                                            // launch a quick viewer for the new
-                                            // media
-                                            auto studio =
-                                                system().registry().template get<caf::actor>(
-                                                    studio_registry);
+                                            if (quickview) {
+                                                auto studio = system()
+                                                                  .registry()
+                                                                  .template get<caf::actor>(
+                                                                      studio_registry);
 
-                                            anon_send(
-                                                studio,
-                                                ui::open_quickview_window_atom_v,
-                                                utility::UuidActorVector({new_media}),
-                                                "Off",
-                                                quickview);
+                                                anon_send(
+                                                    studio,
+                                                    ui::open_quickview_window_atom_v,
+                                                    utility::UuidActorVector({new_media}),
+                                                    "Off");
+                                            }
                                         }
 
                                     } catch (const std::exception &e) {
@@ -574,14 +572,15 @@ void DNRunPluginActor<T>::send_uri_request_to_plugin(
                                 // depending on quick view preference)
                                 // launch a quick viewer for the new
                                 // media
-                                auto studio = system().registry().template get<caf::actor>(
-                                    studio_registry);
-                                anon_send(
-                                    studio,
-                                    ui::open_quickview_window_atom_v,
-                                    new_media,
-                                    ab_compare ? "Off" : "A/B",
-                                    quickview);
+                                if (quickview) {
+                                    auto studio = system().registry().template get<caf::actor>(
+                                        studio_registry);
+                                    anon_send(
+                                        studio,
+                                        ui::open_quickview_window_atom_v,
+                                        new_media,
+                                        ab_compare ? "Off" : "A/B");
+                                }
                             }
                         },
                         [=](error &err) mutable {

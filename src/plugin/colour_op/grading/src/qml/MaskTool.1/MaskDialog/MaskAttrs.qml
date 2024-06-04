@@ -14,6 +14,7 @@ Item {
         id: mask_tool_attrs_data
         modelDataName: "mask_tool_settings"
     }
+    property alias model: mask_tool_attrs_data
 
     // to DIRECTLY expose attribute role data we use XsAttributeValue and give it the
     // title (name) of the attribute. By default it will expose the 'value'
@@ -77,6 +78,32 @@ Item {
     }
     property alias display_mode: __display_mode.value
 
-    
+    XsAttributeValue {
+        id: __tool_panel
+        attributeTitle: "tool_panel"
+        model: mask_tool_attrs_data
+    }
+    property alias tool_panel: __tool_panel.value
+
+    XsAttributeValue {
+        id: __mask_selected_shape
+        attributeTitle: "mask_selected_shape"
+        model: mask_tool_attrs_data
+    }
+    property alias mask_selected_shape: __mask_selected_shape.value
+
+    XsAttributeValue {
+        id: __shape_invert
+        attributeTitle: "shape_invert"
+        model: mask_tool_attrs_data
+    }
+    property alias shape_invert: __shape_invert.value
+
+    XsAttributeValue {
+        id: __polygon_init
+        attributeTitle: "polygon_init"
+        model: mask_tool_attrs_data
+    }
+    property alias polygon_init: __polygon_init.value
 
 }

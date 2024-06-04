@@ -14,7 +14,7 @@ Rectangle{
     color: panelColor
 
     XsLabel {
-        text: presetsSelectionModel.hasSelection ? "No Results Found" : "Select a preset on left to view the results"
+        text: isPaused ? "Updates Paused" : (!queryRunning ? (presetsSelectionModel.hasSelection ? "No Results Found" : "Select a preset on left to view the results") : "")
         color: XsStyleSheet.hintColor
         visible: results.count == 0
 

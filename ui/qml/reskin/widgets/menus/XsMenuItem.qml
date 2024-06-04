@@ -59,22 +59,24 @@ Item {
     function hideSubMenus() {
         if (sub_menu) {
             sub_menu.visible = false            
+            sub_menu.x = sub_menu.x+20
         }
     }
 
     function showSubMenu() {
-        parent_menu.hideOtherSubMenus(widget)
+        if (parent_menu) parent_menu.hideOtherSubMenus(widget)
+        //else console.log("NO PARENT", name)
         make_submenus()
         if (!sub_menu) return;
 
         if (is_in_bar) {                
-            showPopupMenu(
+            repositionPopupMenu(
                 sub_menu,
                 widget,
                 0,
                 widget.height);
         } else {
-            showPopupMenu(
+            repositionPopupMenu(
                 sub_menu,
                 widget,
                 widget.width,
@@ -89,8 +91,7 @@ Item {
         id: menuMouseArea
         anchors.fill: parent
         hoverEnabled: true
-        propagateComposedEvents: true
-        
+        propagateComposedEvents: true        
         onClicked: {
             showSubMenu()
             if (!sub_menu) {
@@ -229,7 +230,8 @@ Item {
 
     function make_submenus() {
 
-        if (!menu_model_index.valid) return;
+        if (sub_menu) return;
+
         if (menu_model.rowCount(menu_model_index)) {
             let component = Qt.createComponent("./XsMenu.qml")
             if (component.status == Component.Ready) {

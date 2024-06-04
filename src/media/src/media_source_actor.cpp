@@ -783,10 +783,6 @@ void MediaSourceActor::init() {
             return rp;
         },
 
-        [=](media_reader::cancel_thumbnail_request_atom atom, const utility::Uuid job_uuid) {
-            anon_send(thumbnail_manager, atom, job_uuid);
-        },
-
         [=](media_reader::get_thumbnail_atom,
             float position) -> result<thumbnail::ThumbnailBufferPtr> {
             auto rp   = make_response_promise<thumbnail::ThumbnailBufferPtr>();
@@ -829,6 +825,15 @@ void MediaSourceActor::init() {
             if (uuid.is_null())
                 return std::pair<Uuid, MediaReference>(base_.uuid(), base_.media_reference());
             return std::pair<Uuid, MediaReference>(uuid, base_.media_reference());
+        },
+
+        [=](get_media_stream_atom,
+            const MediaType media_type,
+            bool current) -> result<caf::actor> {
+            if (media_streams_.count(base_.current(media_type))) {
+                return media_streams_[base_.current(media_type)];
+            }
+            return make_error(xstudio_error::error, "No MediaStreams");
         },
 
         [=](get_media_stream_atom, const MediaType media_type) -> std::vector<UuidActor> {
@@ -1539,6 +1544,7 @@ void MediaSourceActor::get_media_pointers_for_frames(
                                             std::shared_ptr<const media::AVFrameID>(
                                                 new media::AVFrameID(mptr)));
                                     } catch (const std::exception &e) {
+                                        // spdlog::warn("{}", e.what());
                                         result.emplace_back(
                                             media::make_blank_frame(media_type));
                                     }

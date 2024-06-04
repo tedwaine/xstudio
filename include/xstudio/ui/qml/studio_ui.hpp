@@ -71,7 +71,8 @@ namespace ui {
             void dataSourcesChanged();
             void sessionRequest(const QUrl path, const QByteArray jsn);
             void sessionActorAddrChanged();
-            void openQuickViewers(QStringList mediaActors, QString compareMode);
+            void
+            openQuickViewers(QStringList mediaActors, QString compareMode, int inpt, int outPt);
             void showMessageBox(
                 QString messageTile, QString messageBody, bool closeButton, int timeoutSeconds);
 

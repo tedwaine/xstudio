@@ -9,7 +9,6 @@ import QuickFuture 1.0
 import QuickPromise 1.0
 
 import xStudio 1.1
-import xstudio.qml.module 1.0
 import xstudio.qml.helpers 1.0
 
 DelegateChoice {

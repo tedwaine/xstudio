@@ -9,7 +9,6 @@ import QuickFuture 1.0
 import QuickPromise 1.0
 
 import xStudioReskin 1.0
-import xstudio.qml.module 1.0
 import xstudio.qml.helpers 1.0
 
 DelegateChoice {
@@ -35,12 +34,10 @@ DelegateChoice {
 			width: ListView.view.width
 			height: itemHeight * scaleY
 
-			opacity: enabledRole ? 1.0 : 0.2
-
 			property bool isHovered: hoveredItem == control
 			property bool isSelected: false
+			property bool isConformSource:  modelIndex() == conformSourceIndex
 			property var timelineSelection: ListView.view.timelineSelection
-			property var timelineFocusSelection: ListView.view.timelineFocusSelection
             property var hoveredItem: ListView.view.hoveredItem
             property var itemTypeRole: typeRole
             property alias list_view: list_view
@@ -82,10 +79,11 @@ DelegateChoice {
 	    	XsTrackHeader {
 	    		id: track_header
 	    		z: 2
-				width: trackHeaderWidth
-				height: Math.ceil(control.itemHeight * control.scaleY)
 				anchors.top: parent.top
 				anchors.left: parent.left
+
+				width: trackHeaderWidth
+				height: Math.ceil(control.itemHeight * control.scaleY)
 
 				isHovered: control.isHovered
 				itemFlag: control.itemFlag
@@ -94,34 +92,48 @@ DelegateChoice {
 				text: nameRole
 				title: "Audio Track"
 				isEnabled: enabledRole
+				isLocked: lockedRole
+				isSelected: control.isSelected
+				isConformSource: control.isConformSource
 				onEnabledClicked: enabledRole = !enabledRole
+				onLockedClicked: lockedRole = !lockedRole
+				onConformSourceClicked: conformSourceIndex = helpers.makePersistent(modelIndex())
+				onFlagSet: flagItems([modelIndex()], flag == "#00000000" ? "": flag)
 	    	}
 
 	    	Flickable {
+	    		property bool forceEval: false
 				anchors.top: parent.top
 				anchors.bottom: parent.bottom
 				anchors.left: track_header.right
 				anchors.right: parent.right
 
-				contentWidth: Math.ceil(trimmedDurationRole * control.scaleX)
-				contentHeight: Math.ceil(control.itemHeight * control.scaleY)
-				contentX: control.cX
-
 				interactive: false
+
+				contentWidth: contentItem.childrenRect.width
+				contentHeight: contentItem.childrenRect.height
+				contentX: (forceEval && !forceEval) || control.cX
+
+				onContentWidthChanged: {
+					if(contentX != control.cX) {
+						forceEval = !forceEval
+					}
+				}
 
 		    	Row {
 		    	    id:list_view
+					opacity: enabledRole ? (lockedRole ? 0.5 : 1.0) : 0.2
 
 			        property real scaleX: control.scaleX
 			        property real scaleY: control.scaleY
 			        property real itemHeight: control.itemHeight
 	    			property var timelineSelection: control.timelineSelection
-	    			property var timelineFocusSelection: control.timelineFocusSelection
 	                property var timelineItem: control.timelineItem
 	                property var hoveredItem: control.hoveredItem
 	                property real trackHeaderWidth: control.trackHeaderWidth
 					property string itemFlag: control.itemFlag
 					property var itemAtIndex: item_repeater.itemAt
+		            property var parentLV: control.parentLV
 
 			    	Repeater {
 			    		id: item_repeater

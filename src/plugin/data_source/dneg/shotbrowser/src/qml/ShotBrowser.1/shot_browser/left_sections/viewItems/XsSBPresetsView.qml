@@ -47,7 +47,58 @@ Column {
         menu_model_name: "presetMenu"+control
 
         XsMenuModelItem {
+            text: "Duplicate Preset"
+            menuItemPosition: 1
+            menuPath: ""
+            menuModelName: presetMenu.menu_model_name
+            onActivated: ShotBrowserEngine.presetsModel.duplicate(presetMenu.presetModelIndex)
+        }
+
+        XsMenuModelItem {
+            text: "Copy Selected Presets"
+            menuItemPosition: 2
+            menuPath: ""
+            menuModelName: presetMenu.menu_model_name
+            onActivated: clipboard.text = JSON.stringify(ShotBrowserEngine.presetsModel.copy(treeSequenceSelectionModel.selectedIndexes))
+        }
+
+        XsMenuModelItem {
+            text: "Paste Preset"
+            menuItemPosition: 3
+            menuPath: ""
+            menuModelName: presetMenu.menu_model_name
+            onActivated: ShotBrowserEngine.presetsModel.paste(
+                JSON.parse(clipboard.text),
+                presetMenu.presetModelIndex.row+1,
+                presetMenu.presetModelIndex.parent
+            )
+        }
+        XsMenuModelItem {
+            text: "Remove Preset"
+            menuItemPosition: 4
+            menuPath: ""
+            menuModelName: presetMenu.menu_model_name
+            onActivated: {
+                let m = presetMenu.presetModelIndex.model
+                let sys = m.get(presetMenu.presetModelIndex, "updateRole")
+                if(sys != undefined) {
+                    m.set(presetMenu.presetModelIndex, true, "hiddenRole")
+                } else {
+                    ShotBrowserEngine.presetsModel.removeRows(presetMenu.presetModelIndex.row, 1, presetMenu.presetModelIndex.parent)
+                }
+            }
+        }
+
+        XsMenuModelItem {
+            menuItemPosition: 5
+            menuItemType: "divider"
+            menuPath: ""
+            menuModelName: presetMenu.menu_model_name
+        }
+
+        XsMenuModelItem {
             text: "Move Up"
+            menuItemPosition: 6
             menuPath: ""
             menuModelName: presetMenu.menu_model_name
             enabled: presetMenu.filterModelIndex && presetMenu.filterModelIndex.row
@@ -68,6 +119,7 @@ Column {
 
         XsMenuModelItem {
             text: "Move Down"
+            menuItemPosition: 7
             menuPath: ""
             menuModelName: presetMenu.menu_model_name
             enabled: presetMenu.filterModelIndex && presetMenu.filterModelIndex ? presetMenu.filterModelIndex.row != presetMenu.filterModelIndex.model.rowCount(presetMenu.filterModelIndex.parent) - 1 : false
@@ -80,88 +132,19 @@ Column {
             }
         }
 
-        XsMenuModelItem {
-            menuItemType: "divider"
-            menuPath: ""
-            menuModelName: presetMenu.menu_model_name
-        }
-
-        XsMenuModelItem {
-            text: "Reset Preset"
-            menuPath: ""
-            menuModelName: presetMenu.menu_model_name
-            enabled: {
-            	if(presetMenu.presetModelIndex) {
-            		let v = presetMenu.presetModelIndex.model.get(presetMenu.presetModelIndex,"updateRole")
-            		return v != undefined ? v : false
-            	}
-            	return false
-            }
-            onActivated: ShotBrowserEngine.presetsModel.resetPresets([presetMenu.presetModelIndex])
-        }
-        XsMenuModelItem {
-            menuItemType: "divider"
-            menuPath: ""
-            menuModelName: presetMenu.menu_model_name
-        }
-        XsMenuModelItem {
-            text: "Duplicate Preset"
-            menuPath: ""
-            menuModelName: presetMenu.menu_model_name
-            onActivated: ShotBrowserEngine.presetsModel.duplicate(presetMenu.presetModelIndex)
-        }
-        XsMenuModelItem {
-            text: "Remove Preset"
-            menuPath: ""
-            menuModelName: presetMenu.menu_model_name
-            onActivated: {
-                let m = presetMenu.presetModelIndex.model
-                let sys = m.get(presetMenu.presetModelIndex, "updateRole")
-                if(sys != undefined) {
-                    m.set(presetMenu.presetModelIndex, true, "hiddenRole")
-                } else {
-                    ShotBrowserEngine.presetsModel.removeRows(presetMenu.presetModelIndex.row, 1, presetMenu.presetModelIndex.parent)
-                }
-            }
-        }
-        XsMenuModelItem {
-            menuItemType: "divider"
-            menuPath: ""
-            menuModelName: presetMenu.menu_model_name
-        }
-        XsMenuModelItem {
-            text: "Paste Preset"
-            menuPath: ""
-            menuModelName: presetMenu.menu_model_name
-            onActivated: ShotBrowserEngine.presetsModel.paste(
-                JSON.parse(clipboard.text),
-                presetMenu.presetModelIndex.row+1,
-                presetMenu.presetModelIndex.parent
-            )
-        }
-        XsMenuModelItem {
-            text: "Copy Preset"
-            menuPath: ""
-            // menuItemPosition: 1
-            menuModelName: presetMenu.menu_model_name
-            onActivated: clipboard.text = JSON.stringify(ShotBrowserEngine.presetsModel.copy([presetMenu.presetModelIndex]))
-        }
-        XsMenuModelItem {
-            menuItemType: "divider"
-            menuPath: ""
-            menuModelName: presetMenu.menu_model_name
-        }
-        XsMenuModelItem {
-            text: (presetMenu.filterModelIndex && presetMenu.presetModelIndex.model.get(presetMenu.presetModelIndex,"hiddenRole") ? "Show" : "Hide") + " Preset"
-            menuPath: ""
-            menuModelName: presetMenu.menu_model_name
-            onActivated: {
-            	let m = presetMenu.presetModelIndex.model
-            	let i = presetMenu.presetModelIndex
-            	m.set(i, !m.get(i,"hiddenRole"),"hiddenRole")
-            }
-        }
-
+        // XsMenuModelItem {
+        //     text: "Reset Preset"
+        //     menuPath: ""
+        //     menuModelName: presetMenu.menu_model_name
+        //     enabled: {
+        //     	if(presetMenu.presetModelIndex) {
+        //     		let v = presetMenu.presetModelIndex.model.get(presetMenu.presetModelIndex,"updateRole")
+        //     		return v != undefined ? v : false
+        //     	}
+        //     	return false
+        //     }
+        //     onActivated: ShotBrowserEngine.presetsModel.resetPresets([presetMenu.presetModelIndex])
+        // }
     }
 
     XsPopupMenu {
@@ -174,7 +157,77 @@ Column {
         menu_model_name: "groupMenu"+control
 
         XsMenuModelItem {
+            text: "Duplicate Group"
+            menuItemPosition: 1
+            menuPath: ""
+            menuModelName: groupMenu.menu_model_name
+            onActivated: groupMenu.presetModelIndex.model.duplicate(groupMenu.presetModelIndex)
+        }
+
+        XsMenuModelItem {
+            text: "Copy Group"
+            menuItemPosition: 2
+            menuPath: ""
+            menuModelName: groupMenu.menu_model_name
+            onActivated: clipboard.text = JSON.stringify(ShotBrowserEngine.presetsModel.copy([groupMenu.presetModelIndex]))
+        }
+        XsMenuModelItem {
+            text: "Paste Group"
+            menuItemPosition: 3
+            menuPath: ""
+            menuModelName: groupMenu.menu_model_name
+            onActivated: ShotBrowserEngine.presetsModel.paste(
+                JSON.parse(clipboard.text),
+                groupMenu.presetModelIndex.row+1,
+                groupMenu.presetModelIndex.parent
+            )
+        }
+        XsMenuModelItem {
+            text: "Remove Group"
+            menuItemPosition: 4
+            menuPath: ""
+            menuModelName: groupMenu.menu_model_name
+            onActivated: {
+                let m = groupMenu.presetModelIndex.model
+                let sys = m.get(groupMenu.presetModelIndex, "updateRole")
+                if(sys != undefined) {
+                    m.set(groupMenu.presetModelIndex, true, "hiddenRole")
+                } else {
+                    ShotBrowserEngine.presetsModel.removeRows(groupMenu.presetModelIndex.row, 1, groupMenu.presetModelIndex.parent)
+                }
+            }
+        }
+        XsMenuModelItem {
+            menuItemPosition: 5
+            menuItemType: "divider"
+            menuPath: ""
+            menuModelName: groupMenu.menu_model_name
+        }
+
+        XsMenuModelItem {
+            text: "Paste Preset"
+            menuItemPosition: 6
+            menuPath: ""
+            menuModelName: groupMenu.menu_model_name
+            onActivated: {
+                ShotBrowserEngine.presetsModel.paste(
+                    JSON.parse(clipboard.text),
+                    ShotBrowserEngine.presetsModel.rowCount(ShotBrowserEngine.presetsModel.index(1,0,groupMenu.presetModelIndex)),
+                    ShotBrowserEngine.presetsModel.index(1,0,groupMenu.presetModelIndex)
+                )
+            }
+        }
+
+        XsMenuModelItem {
+            menuItemPosition: 7
+            menuItemType: "divider"
+            menuPath: ""
+            menuModelName: groupMenu.menu_model_name
+        }
+
+        XsMenuModelItem {
             text: "Move Up"
+            menuItemPosition: 8
             menuPath: ""
             menuModelName: groupMenu.menu_model_name
             enabled: groupMenu.filterModelIndex && groupMenu.filterModelIndex.row
@@ -194,6 +247,7 @@ Column {
 
         XsMenuModelItem {
             text: "Move Down"
+            menuItemPosition: 9
             menuPath: ""
             menuModelName: groupMenu.menu_model_name
 
@@ -206,81 +260,15 @@ Column {
                 ShotBrowserEngine.presetsModel.moveRows(p, groupMenu.presetModelIndex.row, 1, p, rpi.row+1)
             }
         }
-
-        XsMenuModelItem {
-            menuItemType: "divider"
-            menuPath: ""
-            menuModelName: groupMenu.menu_model_name
-        }
-
-        XsMenuModelItem {
-            text: "Duplicate Group"
-            menuPath: ""
-            menuModelName: groupMenu.menu_model_name
-            onActivated: groupMenu.presetModelIndex.model.duplicate(groupMenu.presetModelIndex)
-
-        }
-        XsMenuModelItem {
-            text: "Remove Group"
-            menuPath: ""
-            menuModelName: groupMenu.menu_model_name
-            onActivated: {
-                let m = groupMenu.presetModelIndex.model
-                let sys = m.get(groupMenu.presetModelIndex, "updateRole")
-                if(sys != undefined) {
-                    m.set(groupMenu.presetModelIndex, true, "hiddenRole")
-                } else {
-                    ShotBrowserEngine.presetsModel.removeRows(groupMenu.presetModelIndex.row, 1, groupMenu.presetModelIndex.parent)
-                }
-            }
-        }
-        XsMenuModelItem {
-            menuItemType: "divider"
-            menuPath: ""
-            menuModelName: groupMenu.menu_model_name
-        }
-        XsMenuModelItem {
-            text: "Paste Group"
-            menuPath: ""
-            menuModelName: groupMenu.menu_model_name
-            onActivated: ShotBrowserEngine.presetsModel.paste(
-                JSON.parse(clipboard.text),
-                groupMenu.presetModelIndex.row+1,
-                groupMenu.presetModelIndex.parent
-            )
-        }
-        XsMenuModelItem {
-            text: "Paste Preset"
-            menuPath: ""
-            menuModelName: groupMenu.menu_model_name
-            onActivated: ShotBrowserEngine.presetsModel.paste(
-                JSON.parse(clipboard.text),
-                ShotBrowserEngine.presetsModel.rowCount(ShotBrowserEngine.presetsModel.index(1,0,groupMenu.presetModelIndex)),
-                ShotBrowserEngine.presetsModel.index(1,0,groupMenu.presetModelIndex)
-            )
-        }
-        XsMenuModelItem {
-            text: "Copy Group"
-            menuPath: ""
-            // menuItemPosition: 1
-            menuModelName: groupMenu.menu_model_name
-            onActivated: clipboard.text = JSON.stringify(ShotBrowserEngine.presetsModel.copy([groupMenu.presetModelIndex]))
-        }
-        XsMenuModelItem {
-            menuItemType: "divider"
-            menuPath: ""
-            menuModelName: groupMenu.menu_model_name
-        }
-
-        XsMenuModelItem {
-            text: (groupMenu.presetModelIndex && groupMenu.presetModelIndex.model.get(groupMenu.presetModelIndex,"hiddenRole") ? "Show" : "Hide") + " Group"
-            menuPath: ""
-            menuModelName: groupMenu.menu_model_name
-            onActivated: {
-            	let m = groupMenu.presetModelIndex.model
-            	let i = groupMenu.presetModelIndex
-            	m.set(i, !m.get(i,"hiddenRole"),"hiddenRole")
-            }
-        }
+        // XsMenuModelItem {
+        //     text: (groupMenu.presetModelIndex && groupMenu.presetModelIndex.model.get(groupMenu.presetModelIndex,"hiddenRole") ? "Show" : "Hide") + " Group"
+        //     menuPath: ""
+        //     menuModelName: groupMenu.menu_model_name
+        //     onActivated: {
+        //     	let m = groupMenu.presetModelIndex.model
+        //     	let i = groupMenu.presetModelIndex
+        //     	m.set(i, !m.get(i,"hiddenRole"),"hiddenRole")
+        //     }
+        // }
     }
 }

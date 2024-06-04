@@ -97,8 +97,8 @@ void ModelProperty::setIndex(const QModelIndex &index) {
     } else {
         index_ = QPersistentModelIndex(index);
         emit indexChanged();
-        if (updateValue())
-            emit valueChanged();
+        value_ = QVariant();
+        emit valueChanged();
     }
 }
 
@@ -230,13 +230,16 @@ void ModelPropertyMap::setIndex(const QModelIndex &index) {
 
             emit indexChanged();
 
-            if (model_change)
+            if (model_change) {
                 emit valuesChanged();
+                emit contentChanged();
+            }
         } else {
             index_ = QPersistentModelIndex(index);
             updateValues();
             emit indexChanged();
             emit valuesChanged();
+            emit contentChanged();
         }
     } else if (not index.isValid()) {
         // force update as will auto become invalid
@@ -244,6 +247,7 @@ void ModelPropertyMap::setIndex(const QModelIndex &index) {
         updateValues();
         emit indexChanged();
         emit valuesChanged();
+        emit contentChanged();
     }
 }
 
@@ -263,7 +267,8 @@ void ModelPropertyMap::dump() {
     }
 }
 
-void ModelPropertyMap::updateValues(const QVector<int> &roles) {
+bool ModelPropertyMap::updateValues(const QVector<int> &roles) {
+    auto changed = false;
     if (index_.isValid()) {
         auto hash = index_.model()->roleNames();
 
@@ -276,6 +281,7 @@ void ModelPropertyMap::updateValues(const QVector<int> &roles) {
 
                 if (model_value != (*values_)[propery_name]) {
                     values_->setProperty(StdFromQString(propery_name).c_str(), model_value);
+                    changed = true;
                 }
             }
             ++i;
@@ -285,13 +291,18 @@ void ModelPropertyMap::updateValues(const QVector<int> &roles) {
         for (const auto &i : values_->keys()) {
             values_->setProperty(StdFromQString(i).c_str(), QVariant());
         }
+        changed = true;
     }
+
+    return changed;
 }
 
 void ModelPropertyMap::dataChanged(
     const QModelIndex &topLeft, const QModelIndex &bottomRight, const QVector<int> &roles) {
-    if (index_.isValid() and QItemSelectionRange(topLeft, bottomRight).contains(index_))
-        updateValues(roles);
+    if (index_.isValid() and QItemSelectionRange(topLeft, bottomRight).contains(index_)) {
+        if (updateValues(roles))
+            emit contentChanged();
+    }
 }
 
 void ModelPropertyMap::valueChangedSlot(const QString &key, const QVariant &value) {
@@ -349,7 +360,7 @@ void ModelNestedPropertyMap::valueChanged(const QString &key, const QVariant &va
 }
 
 // change from frontend.
-void ModelNestedPropertyMap::updateValues(const QVector<int> &roles) {
+bool ModelNestedPropertyMap::updateValues(const QVector<int> &roles) {
     // populate QMLPropertyMap from value.
     if (index_.isValid()) {
         auto jvalue = mapFromValue(index_.data(getRoleId(data_role_)));
@@ -386,6 +397,7 @@ void ModelNestedPropertyMap::updateValues(const QVector<int> &roles) {
             }
         }
     }
+    return true;
 }
 
 
@@ -428,8 +440,13 @@ QVariant xstudio::ui::qml::mapFromValue(const nlohmann::json &value) {
         } else {
             result = QVariantListFromJson(utility::JsonStore(value));
         }
-    } else if (value.is_object())
-        result = QVariantMapFromJson(value);
+    } else if (value.is_object()) {
+        QVariantMap r;
+        for (auto p = value.begin(); p != value.end(); ++p) {
+            r[QStringFromStd(p.key())] = mapFromValue(p.value());
+        }
+        result = r;
+    }
 
     return result;
 }

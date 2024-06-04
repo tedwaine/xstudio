@@ -212,22 +212,6 @@ void PlayheadActor::init() {
     link_to(viewport_events_group_);
     link_to(playhead_media_events_group_);
 
-    try {
-
-        scoped_actor sys{system()};
-
-        // Here's we join the viewport refraw group of the global module events actor. Thus,
-        // a component like the colour pipeline can ensure the viewport is redrawn
-        auto attrs_events_actor =
-            system().registry().template get<caf::actor>(module_events_registry);
-        auto group = request_receive<caf::actor>(
-            *sys, attrs_events_actor, module::redraw_viewport_group_atom_v);
-        request_receive<bool>(*sys, group, broadcast::join_broadcast_atom_v, this);
-
-    } catch (const std::exception &e) {
-        spdlog::warn("{} {}", __PRETTY_FUNCTION__, e.what());
-    }
-
     // ensure we have a source and a child playhead, due to many messages
     // delagated to the child playhead
     empty_clip_ =
@@ -298,7 +282,8 @@ void PlayheadActor::init() {
                         velocity(),
                         playing(),
                         true,
-                        connected_to_ui());
+                        connected_to_ui(),
+                        user_is_frame_scrubbing_->value());
                 }
             }
         },
@@ -332,26 +317,7 @@ void PlayheadActor::init() {
             return rp;
         },
 
-        [=](scrub_frame_atom, const int frame) {
-            request(key_playhead_, infinite, logical_frame_to_flicks_atom_v, frame)
-                .then(
-
-                    [=](const timebase::flicks flicks) {
-                        set_position(flicks);
-                        update_child_playhead_positions(true, true);
-                    },
-                    [=](const error &err) {
-                        spdlog::warn("{} {}", __PRETTY_FUNCTION__, to_string(err));
-                    });
-        },
-
-        [=](scrub_frame_atom, const timebase::flicks flicks) {
-            set_position(flicks);
-            update_child_playhead_positions(true, true);
-        },
-
         [=](jump_atom, const timebase::flicks flicks) -> result<bool> {
-
             auto rp = make_response_promise<bool>();
             // by requesting duration from self we ensure that we have updated
             // internal data about source duration, incase this jump message
@@ -361,13 +327,13 @@ void PlayheadActor::init() {
                     [=](const timebase::flicks duration) mutable {
                         if (duration != timebase::k_flicks_zero_seconds) {
                             set_position(flicks);
-                            update_child_playhead_positions(true);                                           
+                            update_child_playhead_positions(true);
                         } else {
                             set_position(timebase::k_flicks_zero_seconds);
                         }
                         // we only deliver the result when we have waited for
                         // the key playhead to update its position. This means
-                        // that whever made the original request can be sure 
+                        // that whever made the original request can be sure
                         // that the playhead is ready to deliver the frame for
                         // the requested 'flicks' position
                         request(
@@ -379,11 +345,11 @@ void PlayheadActor::init() {
                             velocity(),
                             playing(),
                             true,
-                            connected_to_ui()).then(
-                                [=]() mutable {
-                                    rp.deliver(true);
-                                },
-                                [=](const caf::error &err) mutable { rp.deliver(err); });                 
+                            connected_to_ui(),
+                            user_is_frame_scrubbing_->value())
+                            .then(
+                                [=]() mutable { rp.deliver(true); },
+                                [=](const caf::error &err) mutable { rp.deliver(err); });
                     },
                     [=](const caf::error &err) mutable { rp.deliver(err); });
             return rp;
@@ -512,7 +478,7 @@ void PlayheadActor::init() {
 
         [=](play_atom, const float left_right_key_id) {
             // the messsage comes in with a delay when user hits forward step
-            // or backward step hotkey. If the user is continuing to hold 
+            // or backward step hotkey. If the user is continuing to hold
             // down the hotkey (wihtout lifting it since the delayed message
             // was scheduled) then we can start playback
             if (step_keypress_event_id_ == left_right_key_id) {
@@ -633,7 +599,8 @@ void PlayheadActor::init() {
                 playhead_logical_frame_->set_value(logical_frame, false);
                 playhead_position_seconds_->set_value(timebase::to_seconds(position()));
                 playhead_media_logical_frame_->set_value(media_logical_frame, false);
-                current_source_frame_timecode_->set_value(to_string(tc), false);
+                current_frame_timecode_->set_value(to_string(tc), false);
+                current_frame_timecode_as_frame_->set_value(tc.total_frames(), false);
                 playhead_media_frame_->set_value(media_frame, false);
 
                 send(
@@ -768,20 +735,7 @@ void PlayheadActor::init() {
         },
 
         [=](simple_loop_end_atom, const int loop_end_frame) {
-            request(key_playhead_, infinite, logical_frame_to_flicks_atom_v, loop_end_frame + 1)
-                .then(
-
-                    [=](const timebase::flicks loop_end_flicks) {
-                        if (set_loop_end(
-                                loop_end_flicks - PlayheadBase::playback_step_increment)) {
-                            // position or loop end were also changed
-                            notify_loop_start_changed();
-                        }
-                        notify_loop_end_changed();
-                    },
-                    [=](const error &err) {
-                        spdlog::warn("{} {}", __PRETTY_FUNCTION__, to_string(err));
-                    });
+            loop_end_frame_->set_value(loop_end_frame);
         },
 
         [=](simple_loop_end_atom, const timebase::flicks loop_end_flicks) {
@@ -798,20 +752,7 @@ void PlayheadActor::init() {
         },
 
         [=](simple_loop_start_atom, const int loop_start_frame) {
-            request(key_playhead_, infinite, logical_frame_to_flicks_atom_v, loop_start_frame)
-                .then(
-
-                    [=](const timebase::flicks loop_start_flicks) {
-                        if (set_loop_start(loop_start_flicks)) {
-                            // position or loop end were also changed
-                            notify_loop_end_changed();
-                            update_child_playhead_positions(false);
-                        }
-                        notify_loop_start_changed();
-                    },
-                    [=](const error &err) {
-                        spdlog::warn("{} {}", __PRETTY_FUNCTION__, to_string(err));
-                    });
+            loop_start_frame_->set_value(loop_start_frame);
         },
 
         [=](simple_loop_start_atom, const timebase::flicks loop_start_flicks) {
@@ -1076,6 +1017,8 @@ void PlayheadActor::init() {
 
         [=](utility::event_atom, media::media_status_atom, const media::MediaStatus ms) {},
 
+        [=](utility::event_atom, media::media_display_info_atom, const utility::JsonStore &) {},
+
         // controls creation and destruction of children
         [&](utility::event_atom, utility::change_atom) {
             if (current_sender() != this) {
@@ -1257,9 +1200,10 @@ void PlayheadActor::make_audio_child_playhead(const int source_index) {
     }
 
     // depending on compare mode, audio playhead needs different wrapper for
-    // sources
+    // sources. If there is only one source, we are not doing a retime or
+    // Ad-hoc edit list (for string mode) so no wrapper needed.
     audio_playhead_retimer_ =
-        compare_mode() == CM_OFF ? caf::actor()
+        (compare_mode() == CM_OFF || source_actors_.size() == 1) ? caf::actor()
         : compare_mode() == CM_STRING
             ? spawn<EditListActor>("EditListActor", source_actors_, media::MT_AUDIO)
             : spawn<RetimeActor>("RetimeActor", source_actors_[source_index], media::MT_AUDIO);
@@ -1513,8 +1457,7 @@ void PlayheadActor::switch_key_playhead(int idx) {
     previous_selected_sources_count_ = source_actors_.size();
 }
 
-void PlayheadActor::update_child_playhead_positions(
-    const bool force_broadcast, const bool playhead_scrubbing) {
+void PlayheadActor::update_child_playhead_positions(const bool force_broadcast) {
 
     if (audio_playhead_) {
         anon_send(
@@ -1524,8 +1467,9 @@ void PlayheadActor::update_child_playhead_positions(
             forward(),
             velocity(),
             playing(),
-            playhead_scrubbing ? false : force_broadcast,
-            connected_to_ui());
+            force_broadcast,
+            connected_to_ui(),
+            user_is_frame_scrubbing_->value());
     }
 
     if (compare_mode() == CM_OFF) {
@@ -1537,12 +1481,9 @@ void PlayheadActor::update_child_playhead_positions(
             forward(),
             velocity(),
             playing(),
-            playhead_scrubbing ? false : force_broadcast,
-            connected_to_ui());
-
-        if (playhead_scrubbing) {
-            anon_send(key_playhead_, full_precache_atom_v, false, false);
-        }
+            force_broadcast,
+            connected_to_ui(),
+            user_is_frame_scrubbing_->value());
 
     } else {
 
@@ -1555,12 +1496,15 @@ void PlayheadActor::update_child_playhead_positions(
                 velocity(),
                 playing(),
                 force_broadcast,
-                connected_to_ui());
-
-            if (playhead_scrubbing) {
-                anon_send(key_playhead_, full_precache_atom_v, false, false);
-            }
+                connected_to_ui(),
+                user_is_frame_scrubbing_->value());
         }
+    }
+
+    if (user_is_frame_scrubbing_->value()) {
+        // if the user is scrubbing make sure that we aren't trying
+        // to do lookahead reads for playback
+        anon_send(key_playhead_, full_precache_atom_v, false, false);
     }
 }
 
@@ -1579,7 +1523,7 @@ void PlayheadActor::notify_loop_end_changed() {
         .then(
 
             [=](const int loop_end) {
-                loop_end_frame_->set_value(loop_end);
+                loop_end_frame_->set_value(loop_end, false);
                 send(event_group_, utility::event_atom_v, simple_loop_end_atom_v, loop_end);
             },
             [=](const error &err) {
@@ -1602,7 +1546,7 @@ void PlayheadActor::notify_loop_start_changed() {
         .then(
 
             [=](const int loop_start) {
-                loop_start_frame_->set_value(loop_start);
+                loop_start_frame_->set_value(loop_start, false);
                 send(event_group_, utility::event_atom_v, simple_loop_start_atom_v, loop_start);
             },
             [=](const error &err) {
@@ -2025,6 +1969,11 @@ void PlayheadActor::move_playhead_to_last_viewed_frame_of_given_source(
 
 void PlayheadActor::attribute_changed(const utility::Uuid &attr_uuid, const int role) {
 
+    if (role != module::Attribute::Value) {
+        PlayheadBase::attribute_changed(attr_uuid, role);
+        return;
+    }
+
     if (attr_uuid == compare_mode_->uuid() || attr_uuid == auto_align_mode_->uuid()) {
         rebuild();
     } else if (attr_uuid == velocity_->uuid()) {
@@ -2043,14 +1992,12 @@ void PlayheadActor::attribute_changed(const utility::Uuid &attr_uuid, const int 
         switch_media_source(image_source_->value(), media::MT_IMAGE);
     } else if (attr_uuid == audio_source_->uuid() && !updating_source_list_) {
         switch_media_source(audio_source_->value(), media::MT_AUDIO);
-    } else if (
-        attr_uuid == image_stream_->uuid() && !updating_source_list_ && media_actor_ &&
-        role == module::Attribute::Value) {
+    } else if (attr_uuid == image_stream_->uuid() && !updating_source_list_ && media_actor_) {
         switch_media_stream(media_actor_, image_stream_->value(), media::MT_IMAGE, true);
     } else if (attr_uuid == playing_->uuid()) {
 
         if (playing()) {
-            revert_throttle();            
+            revert_throttle();
             last_step_ = clock::now();
 
             // This is where playback starts! The PlayLoopActor pings this PlayheadBase
@@ -2074,16 +2021,58 @@ void PlayheadActor::attribute_changed(const utility::Uuid &attr_uuid, const int 
         update_child_playhead_positions(true);
 
     } else if (attr_uuid == playhead_logical_frame_->uuid()) {
+
         anon_send(
-            caf::actor_cast<caf::actor>(this),
-            scrub_frame_atom_v,
-            playhead_logical_frame_->value());
-    } else if (attr_uuid == loop_mode_->value()) {
+            caf::actor_cast<caf::actor>(this), jump_atom_v, playhead_logical_frame_->value());
+
+    } else if (attr_uuid == loop_end_frame_->uuid()) {
+
+        try {
+
+            scoped_actor sys{system()};
+            const timebase::flicks loop_end_flicks = request_receive<timebase::flicks>(
+                *sys, key_playhead_, logical_frame_to_flicks_atom_v, loop_end_frame_->value());
+            if (set_loop_end(loop_end_flicks - PlayheadBase::playback_step_increment)) {
+                // position or loop end were also changed
+                notify_loop_start_changed();
+                update_child_playhead_positions(false);
+            }
+            notify_loop_end_changed();
+
+        } catch (std::exception &e) {
+            spdlog::warn("{} {}", __PRETTY_FUNCTION__, e.what());
+        }
+
+    } else if (attr_uuid == loop_start_frame_->uuid()) {
+
+        try {
+
+            scoped_actor sys{system()};
+
+            const timebase::flicks loop_start_flicks = request_receive<timebase::flicks>(
+                *sys,
+                key_playhead_,
+                logical_frame_to_flicks_atom_v,
+                loop_start_frame_->value());
+            if (set_loop_start(loop_start_flicks)) {
+                // position or loop end were also changed
+                notify_loop_end_changed();
+                update_child_playhead_positions(false);
+            }
+            notify_loop_start_changed();
+        } catch (std::exception &e) {
+            spdlog::warn("{} {}", __PRETTY_FUNCTION__, e.what());
+        }
+
+    } else if (attr_uuid == loop_mode_->uuid()) {
         notify_loop_end_changed();
         notify_loop_start_changed();
         send(event_group_, utility::event_atom_v, loop_atom_v, loop());
     } else if (attr_uuid == key_playhead_index_->uuid()) {
         switch_key_playhead(key_playhead_index_->value());
+    } else if (attr_uuid == loop_range_enabled_->uuid()) {
+        notify_loop_start_changed();
+        notify_loop_end_changed();
     } else {
         PlayheadBase::attribute_changed(attr_uuid, role);
     }
@@ -2402,7 +2391,7 @@ void PlayheadActor::restart_readahead_cacheing(
 void PlayheadActor::switch_media_source(
     const std::string new_source_name, const media::MediaType mt) {
 
-    if (!key_playhead_)
+    if (!key_playhead_ || new_source_name == "N/A" || new_source_name == "-")
         return;
 
     // going via the sub-playhead (which resolves which actual MediaActor is
@@ -2529,7 +2518,7 @@ void PlayheadActor::check_if_loop_range_makes_sense() {
 }
 
 bool PlayheadActor::has_selection_changed() {
-    if (source_actors_.size() == 1) {
+    if (source_actors_.size() == 1 && !previous_source_uuid_.is_null()) {
         return to_string(previous_source_uuid_) != current_media_source_uuid_->value();
     }
 

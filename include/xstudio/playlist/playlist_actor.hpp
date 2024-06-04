@@ -43,6 +43,7 @@ namespace playlist {
         void add_media(
             utility::UuidActor &ua,
             const utility::Uuid &uuid_before,
+            const bool delayed,
             caf::typed_response_promise<utility::UuidActor> rp);
 
         void create_container(
@@ -71,7 +72,8 @@ namespace playlist {
         void open_media_readers();
         void open_media_reader(caf::actor media_actor);
         void send_content_changed_event(const bool queue = true);
-        void sort_alphabetically();
+        void sort_by_media_display_info(
+            const int info_set_idx, const int info_item_idx, const bool ascending);
 
       private:
         caf::behavior behavior_;
@@ -87,6 +89,8 @@ namespace playlist {
         caf::actor playlist_broadcast_;
         caf::actor selection_actor_;
         bool auto_gather_sources_{false};
+
+        utility::UuidActorVector delayed_add_media_;
     };
 } // namespace playlist
 } // namespace xstudio

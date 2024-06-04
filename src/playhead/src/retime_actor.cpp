@@ -52,9 +52,14 @@ RetimeActor::RetimeActor(
             const utility::UuidActorVector &uav) {
             send(event_group_, utility::event_atom_v, media::add_media_source_atom_v, uav);
         },
+
+        [=](utility::event_atom, playlist::add_media_atom, const utility::UuidActorVector &) {},
+
         [=](utility::event_atom,
             media_reader::get_thumbnail_atom,
             const thumbnail::ThumbnailBufferPtr &buf) {},
+
+        [=](utility::event_atom, playlist::remove_media_atom, const utility::UuidVector &) {},
 
         [=](utility::event_atom,
             playlist::reflag_container_atom,
@@ -75,6 +80,9 @@ RetimeActor::RetimeActor(
             const utility::UuidList &) {},
 
         [=](utility::event_atom, media::media_status_atom, const media::MediaStatus ms) {},
+
+        [=](utility::event_atom, media::media_display_info_atom, const utility::JsonStore &) {},
+
         [=](utility::event_atom,
             media::current_media_source_atom,
             UuidActor &,

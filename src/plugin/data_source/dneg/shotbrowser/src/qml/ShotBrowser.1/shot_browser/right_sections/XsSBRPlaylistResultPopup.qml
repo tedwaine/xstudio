@@ -57,6 +57,7 @@ XsPopupMenu {
         menuPath: ""
         menuModelName: rightClickMenu.menu_model_name
     }
+
     XsMenuModelItem {
         text: "Reveal In ShotGrid"
         menuItemPosition: 5

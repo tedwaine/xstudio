@@ -10,9 +10,17 @@ import QtQuick.Dialogs 1.3
 import QtGraphicalEffects 1.15
 
 import xStudioReskin 1.0
-import xstudio.qml.module 1.0
+import xstudio.qml.models 1.0
 
 Item{
+
+    XsAttributeValue {
+        id: __action_attr
+        attributeTitle: "action_attribute"
+        model: annotations_model_data
+    }
+
+    property alias action_attribute: __action_attr.value
 
     ListView{ id: toolActionUndoRedo
 
@@ -42,7 +50,7 @@ Item{
             height: buttonHeight
 
             onClicked: {
-                anno_tool_backend_settings.action_attribute = text
+                action_attribute = text
             }
         }
     }
@@ -72,7 +80,7 @@ Item{
             enabled: text == "Clear"
             
             onClicked: {
-                anno_tool_backend_settings.action_attribute = text
+                action_attribute = text
             }
 
         }
@@ -101,42 +109,46 @@ Item{
 
     // Sigh - hooking up the draw mode backen attr to the combo box here
     // is horrible! Need something better than this!
-
-    XsModuleAttributes {
-        // this lets us get at the combo_box_options for the 'Display Mode' attr
-        id: annotations_tool_draw_mode_options
-        attributesGroupNames: "annotations_tool_draw_mode_0"
-        roleName: "combo_box_options"
+    XsModuleData {
+        id: annotations_tool_draw_mode_model
+        modelDataName: "annotations_tool_draw_mode"
     }
 
-    XsModuleAttributes {
-        // this lets us get at the value for the 'Display Mode' attr
-        id: annotations_tool_draw_mode
-        attributesGroupNames: "annotations_tool_draw_mode_0"
+    XsAttributeValue {
+        id: __display_mode
+        attributeTitle: "Display Mode"
+        model: annotations_tool_draw_mode_model
     }
+    property alias display_mode: __display_mode.value
+
+    XsAttributeValue {
+        id: __display_mode_options
+        attributeTitle: "Display Mode"
+        model: annotations_tool_draw_mode_model
+        role: "combo_box_options"
+    }
+    property alias display_mode_options: __display_mode_options.value
 
     XsComboBox {
 
         id: dropdownAnnotations
 
-        property var displayModeOptions: annotations_tool_draw_mode_options.display_mode ? annotations_tool_draw_mode_options.display_mode : []
-        property var displayModeValue: annotations_tool_draw_mode.display_mode ? annotations_tool_draw_mode.display_mode : ""
-
-        model: displayModeOptions
+        model: display_mode_options
         width: parent.width/1.3;
         height: buttonHeight
         anchors.top: displayAnnotations.bottom
         // anchors.topMargin: itemSpacing
         anchors.horizontalCenter: parent.horizontalCenter
         onCurrentTextChanged: {
-            if (currentText != displayModeValue && annotations_tool_draw_mode.display_mode != undefined) {
-                annotations_tool_draw_mode.display_mode = currentText
+            if (currentText != display_mode && display_mode != undefined) {
+                display_mode = currentText
             }
         }
+        property var displayModeValue: display_mode
         onDisplayModeValueChanged: {
 
-            if (displayModeOptions.indexOf(displayModeValue) != -1) {
-                currentIndex = displayModeOptions.indexOf(displayModeValue)
+            if (displayModeOptions.indexOf(display_mode) != -1) {
+                currentIndex = displayModeOptions.indexOf(display_mode)
             }
         }
 

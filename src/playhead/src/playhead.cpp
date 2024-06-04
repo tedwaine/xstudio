@@ -91,17 +91,6 @@ void PlayheadBase::add_attributes() {
     viewport_scrub_sensitivity_->set_role_data(
         module::Attribute::PreferencePath, "/ui/viewport/viewport_scrub_sensitivity");
 
-    compare_mode_->set_role_data(module::Attribute::Groups, nlohmann::json{"playhead"});
-    velocity_->set_role_data(module::Attribute::Groups, nlohmann::json{"playhead"});
-
-    image_source_->set_role_data(
-        module::Attribute::Groups, nlohmann::json{"image_source", "playhead"});
-    audio_source_->set_role_data(
-        module::Attribute::Groups, nlohmann::json{"audio_source", "playhead"});
-
-    playing_->set_role_data(module::Attribute::Groups, nlohmann::json{"playhead"});
-    forward_->set_role_data(module::Attribute::Groups, nlohmann::json{"playhead"});
-
     auto_align_mode_->set_role_data(
         module::Attribute::Groups, nlohmann::json{"playhead_align_mode"});
 
@@ -176,12 +165,18 @@ void PlayheadBase::add_attributes() {
     cached_frames_        = add_int_vec_attribute("Cached Frames");
     bookmarked_frames_    = add_int_vec_attribute("Bookmarked Frames");
 
-    current_source_frame_timecode_ =
-        add_string_attribute("Current Source Timecode", "Current Source Timecode", "");
+    current_frame_timecode_ = add_string_attribute("Timecode", "Timecode", "");
+
+    current_frame_timecode_as_frame_ =
+        add_integer_attribute("Timecode As Frame", "Timecode As Frame", 0);
+
     current_media_uuid_ = add_string_attribute("Current Media Uuid", "Current Media Uuid", "");
     current_media_source_uuid_ =
         add_string_attribute("Current Media Source Uuid", "Current Media Source Uuid", "");
     loop_range_enabled_ = add_boolean_attribute("Enable Loop Range", "Enable Loop Range", true);
+
+    user_is_frame_scrubbing_ =
+        add_boolean_attribute("User Is Frame Scrubbing", "User Is Frame Scrubbing", false);
 
     // this attr tracks the global 'Audio Delay Millisecs' preference
     audio_delay_millisecs_ =
@@ -603,6 +598,11 @@ void PlayheadBase::set_compare_mode(const CompareMode mode) {
     compare_mode_->set_value(compare_str);
 }
 
+void PlayheadBase::disconnect_from_ui() {
+    set_playing(false);
+    Module::disconnect_from_ui();
+}
+
 bool PlayheadBase::pointer_event(const ui::PointerEvent &e) {
 
     bool used = false;
@@ -614,6 +614,7 @@ bool PlayheadBase::pointer_event(const ui::PointerEvent &e) {
         used                            = true;
         was_playing_when_scrub_started_ = playing();
         set_playing(false);
+        user_is_frame_scrubbing_->set_value(true);
 
     } else if (
         e.type() == ui::Signature::EventType::Drag &&
@@ -634,7 +635,7 @@ bool PlayheadBase::pointer_event(const ui::PointerEvent &e) {
             max(timebase::k_flicks_zero_seconds,
                 min(new_position, duration_ - playhead_rate_.to_flicks()));
         if (self())
-            anon_send(self(), scrub_frame_atom_v, new_position);
+            anon_send(self(), jump_atom_v, new_position);
 
         used = true;
 
@@ -644,6 +645,7 @@ bool PlayheadBase::pointer_event(const ui::PointerEvent &e) {
             set_playing(true);
             was_playing_when_scrub_started_ = false;
         }
+        user_is_frame_scrubbing_->set_value(false);
     }
 
     return used;
@@ -698,7 +700,10 @@ void PlayheadBase::reset() {
 void PlayheadBase::set_duration(const timebase::flicks duration) { duration_ = duration; }
 
 void PlayheadBase::connect_to_viewport(
-    const std::string &viewport_name, const std::string &viewport_toolbar_name, bool connect) {
+    const std::string &viewport_name,
+    const std::string &viewport_toolbar_name,
+    bool connect,
+    caf::actor viewport) {
 
     // this playhead needs to be connected (exposed) in a given toolbar
     // attributes group, so that the compare, source and velocity attrs
@@ -755,7 +760,7 @@ void PlayheadBase::connect_to_viewport(
         remove_all_menu_items(viewport_context_menu_model_name);
     }
 
-    Module::connect_to_viewport(viewport_name, viewport_toolbar_name, connect);
+    Module::connect_to_viewport(viewport_name, viewport_toolbar_name, connect, viewport);
 
     if (connect) {
         active_viewports_.insert(viewport_name);

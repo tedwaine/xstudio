@@ -1,3 +1,4 @@
 module MaskTool
 
 MaskDialog 1.0 MaskDialog/MaskDialog.qml
+MaskOverlay 1.0 MaskDialog/MaskOverlay.qml

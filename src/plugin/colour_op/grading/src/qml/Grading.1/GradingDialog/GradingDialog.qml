@@ -25,7 +25,7 @@ Item {
     // make a read only binding to the "attrs.grading_tool_active" backend attribute
     property bool gradingToolActive: attrs.grading_tool_active
     onGradingToolActiveChanged: {
-        console.log("gradingToolActive", gradingToolActive)
+        // console.log("gradingToolActive", gradingToolActive)
     }
 
     /* This connects to the backend model data named grading_settings to which
@@ -56,22 +56,10 @@ Item {
     XsBookmarkFilterModel {
         id: bookmarkFilterModel
         sourceModel: bookmarkModel
-        currentMedia: onScreenMediaUuid // this property is made visible by XsSessionWindow
+        currentMedia: currentPlayhead.mediaUuid // this property is made visible by XsSessionWindow
         showHidden: true
+        includedCategories: ["Grading"]
     }
-
-    XsAttributeValue {
-        id: __playheadLogicalFrame
-        attributeTitle: "Logical Frame"
-        model: currentPlayheadData
-    }
-    XsAttributeValue {
-        id: __playheadPositionSeconds
-        attributeTitle: "Position Seconds"
-        model: currentPlayheadData
-    }
-    property alias playheadLogicalFrame: __playheadLogicalFrame.value
-    property alias playheadPositionSeconds: __playheadPositionSeconds.value
 
     onVisibleChanged: {
         if (visible) {
@@ -545,7 +533,7 @@ Item {
                         enabled: hasActiveGrade()
 
                         onClicked: {
-                            attrs.grade_out = playheadLogicalFrame
+                            attrs.grade_out = currentPlayhead.logicalFrame
                         }
                     }
 
@@ -557,7 +545,7 @@ Item {
                         enabled: hasActiveGrade()
 
                         onClicked: {
-                            attrs.grade_in = playheadLogicalFrame
+                            attrs.grade_in = currentPlayhead.logicalFrame
                         }
                     }
 
@@ -582,9 +570,9 @@ Item {
                         enabled: hasActiveGrade()
 
                         onClicked: {
-                            console.log("Set bookmark in/out to " + playheadLogicalFrame)
-                            attrs.grade_in = playheadLogicalFrame
-                            attrs.grade_out = playheadLogicalFrame
+                            // console.log("Set bookmark in/out to " + currentPlayhead.logicalFrame)
+                            attrs.grade_in = currentPlayhead.logicalFrame
+                            attrs.grade_out = currentPlayhead.logicalFrame
                         }
                     }
 

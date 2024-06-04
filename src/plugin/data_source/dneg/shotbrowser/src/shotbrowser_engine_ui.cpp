@@ -667,6 +667,8 @@ class ShotBrowserUIQml : public QQmlExtensionPlugin {
         qmlRegisterType<ShotBrowserFilterModel>(uri, 1, 0, "ShotBrowserFilterModel");
         qmlRegisterType<ShotBrowserResultFilterModel>(
             uri, 1, 0, "ShotBrowserResultFilterModel");
+        qmlRegisterType<ShotBrowserPresetFilterModel>(
+            uri, 1, 0, "ShotBrowserPresetFilterModel");
         qmlRegisterSingletonType<ShotBrowserEngine>(
             uri, 1, 0, "ShotBrowserEngine", &ShotBrowserEngine::qmlInstance);
     }

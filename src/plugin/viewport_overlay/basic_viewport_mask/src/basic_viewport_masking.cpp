@@ -280,7 +280,6 @@ BasicViewportMasking::BasicViewportMasking(
     mask_label_size_->set_preference_path("/plugin/basic_masking/mask_label_size");
     enabled_->set_preference_path("/plugin/basic_masking/maske_enabled");
     mask_render_method_->set_preference_path("/plugin/basic_masking/mask_render_method");
-
 }
 
 BasicViewportMasking::~BasicViewportMasking() = default;
@@ -361,7 +360,8 @@ plugin_manager::PluginFactoryCollection *plugin_factory_collection_ptr() {
             {std::make_shared<plugin_manager::PluginFactoryTemplate<BasicViewportMasking>>(
                 utility::Uuid("4006826a-6ff2-41ec-8ef2-d7a40bfd65e4"),
                 "BasicViewportMasking",
-                plugin_manager::PluginFlags::PF_HEAD_UP_DISPLAY | plugin_manager::PluginFlags::PF_VIEWPORT_OVERLAY,
+                plugin_manager::PluginFlags::PF_HEAD_UP_DISPLAY |
+                    plugin_manager::PluginFlags::PF_VIEWPORT_OVERLAY,
                 true,
                 "Ted Waine",
                 "Basic Viewport Masking Plugin")}));

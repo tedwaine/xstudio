@@ -5,6 +5,7 @@ import xstudio.qml.helpers 1.0
 import xstudio.qml.models 1.0
 import xstudio.qml.global_store_model 1.0
 import xstudio.qml.bookmarks 1.0
+import xstudio.qml.helpers 1.0
 
 import QtQml.Models 2.14
 import Qt.labs.qmlmodels 1.0
@@ -26,8 +27,9 @@ Item {
             // a new session has been created/loaded. Pick the first playlist
             // after 200ms to give the session data a chance to build itself
             callbackTimer.setTimeout(function() { return function() {
-                selectedMediaSetIndex = session.searchRecursive("Playlist", "typeRole")
-                viewedMediaSetIndex = selectedMediaSetIndex
+                mediaSelectionModel.select(
+                    helpers.createItemSelection([session.searchRecursive("Playlist", "typeRole")]),
+                    ItemSelectionModel.ClearAndSelect | ItemSelectionModel.setCurrentIndex)
                 }}(), 200);
         }
 
@@ -44,31 +46,53 @@ Item {
             playlistsRootIdx = index(0, 0, index(-1, -1))
         }
         onPlaylistsChanged: {
+            if (!inspectedMediaSetIndex.valid) {
+                if (currentPlaylistIndex().valid) {
+                    sessionSelectionModel.setCurrentIndex(currentPlaylistIndex(), ItemSelectionModel.ClearAndSelect)                    
+                }
+            }
             playlistsRootIdx = index(0, 0, index(-1, -1))
+        }
+
+        // watch for change in playhead - this signal provides aux_playhead(bool)
+        // and parent_index(QModelIndex) args
+        onPlayheadChanged: {
+            updatePlayheadIndex(parent_index, aux_playhead)         
+        }
+
+        function updatePlayheadIndex(parent_index, aux_playhead) {
+            var index
+            if (aux_playhead) {
+                index = session.searchRecursive("Aux Playhead", "typeRole", parent_index)
+            } else {
+                index = session.searchRecursive("Playhead", "typeRole", parent_index)
+            }
+            if (index.valid) {
+                currentPlayheadProperties.index = index
+            } else {
+                // model hasn't filled in Playhead data, try again 
+                sessionData.fetchMore(parent_index)
+                callbackTimer.setTimeout(updatePlayheadIndex(parent_index, aux_playhead), 200);
+            }
         }
 
         function createPlaylist(name, sync=true) {
 
+            // always add at end of playlists list
             var insert_row = rowCount(index(0,0));
-
-            // try insert after current selected playlist (or parent playlist
-            // of subset etc.)
-            var p = selectedMediaSetIndex
-            while (p.valid) {
-                if (p.model.get(p, "typeRole") == "Playlist") {
-                    insert_row = selectedMediaSetIndex.row+1
-                    break
-                }
-                p = p.parent
-            }
 
             var idx = insertRowsSync(
                 insert_row,
                 1,
-                "Playlist", name,
+                "Playlist",
+                name,
                 index(0,0)
             )[0]
-            selectedMediaSetIndex = idx
+
+            sessionSelectionModel.setCurrentIndex(
+                idx,
+                ItemSelectionModel.ClearAndSelect)
+
             return idx
         }
 
@@ -76,7 +100,7 @@ Item {
 
             // note row 2 of Playlist in tree is the list of subsets, contactsheets etc
             var newidx = sessionData.insertRowsSync(
-                insert_before == -1 ? sessionData.rowCount(sessionData.index(2, 0, playlistIndex)) : insert_before,
+                insert_before==undefined ? sessionData.rowCount(sessionData.index(2, 0, playlistIndex)) : insert_before,
                 1, type, name,
                 sessionData.index(2,0, playlistIndex)
             )
@@ -85,43 +109,55 @@ Item {
             callbackTimer.setTimeout(function(index) { return function() {
                 sessionData.fetchMore(index)
                 sessionData.fetchMore(index.parent)
+                sessionSelectionModel.setCurrentIndex(
+                    index,
+                    ItemSelectionModel.ClearAndSelect)
+
                 }}( newidx[0] ), 200);
             return newidx[0];
         }
 
         function createSubItem(name, type) {
-            if (selectedMediaSetIndex.valid) {
+            if (inspectedMediaSetIndex.valid) {
 
-                var selectedType = selectedMediaSetIndex.model.get(selectedMediaSetIndex, "typeRole")
+                var selectedType = sessionData.get(inspectedMediaSetIndex, "typeRole")
+                var result
                 if (selectedType== "Playlist") {
 
                     // A playlist is selected. Add as a child.
-                    return createPlaylistChild(name, type, selectedMediaSetIndex)
+                    result = createPlaylistChild(name, type, inspectedMediaSetIndex)
 
 
                 } else if (["Subset", "Timeline", "ContactSheet"].includes(type)) {
                     // Subset or similar is selected. Insert after
-                    return createPlaylistChild(
+                    result = createPlaylistChild(
                         name,
                         type,
-                        selectedMediaSetIndex.parent.parent,
-                        selectedMediaSetIndex.row
+                        inspectedMediaSetIndex.parent.parent,
+                        inspectedMediaSetIndex.row+1
                         )
 
-                    return
                 } else {
                     // Not sure what's selected. try to find playlist?
-                    var p = selectedMediaSetIndex
+                    var p = inspectedMediaSetIndex
                     while (p.valid) {
                         if (p.model.get(p, "typeRole") == "Playlist") {
-                            return createPlaylistChild(name, type, p)
+                            result = createPlaylistChild(name, type, p)
+                            break
                         }
                         p = p.parent
                     }
                 }
+
+                if (result && result.valid) {
+                    theSessionData.set(result.parent.parent, true, "expandedRole")
+                }
+                return result
+
             }
             // can't find a selected playlist to add to. Need a new playlist
             var p = createPlaylist("New Playlist")
+            theSessionData.set(p, true, "expandedRole")
             // need a delay to allow the playlist node in the model to be
             // filled out by the backend
             callbackTimer.setTimeout(function(name, type, p) { return function() {
@@ -130,11 +166,11 @@ Item {
         }
 
         function createDivider(name) {
-            if (selectedMediaSetIndex.valid) {
+            if (inspectedMediaSetIndex.valid) {
                 sessionData.insertRowsSync(
-                    selectedMediaSetIndex.row+1,
+                    inspectedMediaSetIndex.row+1,
                     1, "ContainerDivider", name,
-                    selectedMediaSetIndex.parent
+                    inspectedMediaSetIndex.parent
                     )
             } else {
                 sessionData.insertRowsSync(
@@ -149,10 +185,30 @@ Item {
         // so that it is viewed in the viewport - i.e. it becomes the onScreenMedia
         // item
         function putMediaOnScreen(media_uuid) {
-            var idx = session.searchRecursive(media_uuid, "actorUuidRole")
+
+            // search current viewed playlist first ...
+            var idx = session.index(-1, -1)
+            if (theSessionData.get(viewedMediaSetIndex, "typeRole") != "Timeline") {
+                idx = session.searchRecursive(media_uuid, "actorUuidRole", viewedMediaSetIndex)
+            }
+
+            if (!idx.valid) {
+                // search playlists only to find the media we want to put on 
+                // the screen, because we want to avoid searching timelines
+                var playlists = session.searchRecursiveList("Playlist", "typeRole", session.index(-1,-1), 0, -1)
+                for (var i = 0; i < playlists.length; ++i) {                    
+                    // 'depth' of 2 here means we will search media in the playlist but not media in
+                    // a timeline that is inside this playlist
+                    idx = session.searchRecursive(media_uuid, "actorUuidRole", playlists[i], 0, 2)
+                    if (idx.valid) break
+                }
+
+                if (!idx.valid) {
+                    // last shot, search the whole session   
+                    idx = session.searchRecursive(media_uuid, "actorUuidRole")
+                }
+            }
             if (idx.valid) {
-                viewedMediaSetIndex = idx.parent.parent
-                selectedMediaSetIndex = idx.parent.parent
                 mediaSelectionModel.select(
                     helpers.createItemSelection([idx]),
                     ItemSelectionModel.ClearAndSelect | ItemSelectionModel.setCurrentIndex
@@ -178,19 +234,9 @@ Item {
     }
     property alias globalStoreModel: globalStoreModel
 
-    /* selectedMediaSetIndex is the index into the model that points to the 'selected'
-    playlist, subset, timeline etc. - the selected media set is the playlist,
-    subset or timeline is the last one to be single-clicked on in the playlists
-    panel. The selected media set is what is shown in the media list for example
-    but can and often is different to the 'viewedMediaSet'  */
-    property var selectedMediaSetIndex: session.index(-1, -1)
-    onSelectedMediaSetIndexChanged: {
-
-        sessionSelectionModel.select(selectedMediaSetIndex, ItemSelectionModel.ClearAndSelect | ItemSelectionModel.setCurrentIndex)
-        sessionSelectionModel.setCurrentIndex(selectedMediaSetIndex, ItemSelectionModel.setCurrentIndex)
-
-    }
-
+    /* inspectedMediaSetIndex is the index into the model that points to the
+    playlist, subset, timeline etc. that is viewed in the MediaList */
+    property var inspectedMediaSetIndex: session.index(-1, -1)
 
     /* viewedMediaSetIndex is the index into the model that points to the 'active'
     playlist, subset, timeline etc. - the active media set is the playlist,
@@ -198,26 +244,26 @@ Item {
     timeline panel */
     property var viewedMediaSetIndex: session.index(-1, -1)
 
-    onViewedMediaSetIndexChanged: {
+    onInspectedMediaSetIndexChanged: {
 
-        session.setPlayheadTo(viewedMediaSetIndex)
+        if (!viewedMediaSetIndex.valid) {
+            viewedMediaSetIndex = inspectedMediaSetIndex
+        }
 
-        // get the index of the PlayheadSelection node for this playlist
-        let ind = session.searchRecursive("PlayheadSelection", "typeRole", viewedMediaSetIndex)
+        // get the index of the PlayheadSelection node for the inspected playlist
+        let ind = session.searchRecursive("PlayheadSelection", "typeRole", inspectedMediaSetIndex)
 
         if (ind.valid) {
             // make the 'mediaSelectionModel' track the PlayheadSelection
             playheadSelectionIndex = helpers.makePersistent(ind)
 
         }
+        
+    }
 
-        // get the index of the Playhead node for this playlist
-        let ind2 = session.searchRecursive("Playhead", "typeRole", viewedMediaSetIndex)
-        if (ind2.valid) {
-            // make the 'mediaSelectionModel' track the PlayheadSelection
-            currentPlayheadProperties.index = ind2
-        }
-
+    onViewedMediaSetIndexChanged: {
+        if (viewedMediaSetIndex.valid) session.setPlayheadTo(viewedMediaSetIndex)
+        session.setCurrentPlaylist(viewedMediaSetIndex)
     }
 
     // This ItemSelectionModel manages playlist, subset, timeline etc. selection
@@ -227,6 +273,9 @@ Item {
     ItemSelectionModel {
         id: sessionSelectionModel
         model: sessionData
+        onCurrentIndexChanged: {
+            inspectedMediaSetIndex = helpers.makePersistent(currentIndex)
+        }
     }
     property alias sessionSelectionModel: sessionSelectionModel
 
@@ -255,7 +304,6 @@ Item {
         id: currentPlayheadProperties
         property var playheadUuid: values.actorUuidRole
     }
-    property alias currentPlayheadUuid: currentPlayheadProperties.playheadUuid
 
     /* This XsModuleData talks to a backend data model that contains all the
     attribute data of the Playhead object and exposes it as data in QML as
@@ -270,39 +318,14 @@ Item {
     or all of the data from one or several backend objects.
 
     At some point we may rationalise this and build into the singe Session model*/
-    XsModuleData {
-
-        id: current_playhead_data
-
-        // this is how we link up with the backend data model that gives
-        // access to all the playhead attributes data
-        modelDataName: currentPlayheadProperties.playheadUuid ? currentPlayheadProperties.playheadUuid : ""
+    XsPlayhead {
+        id: current_playhead
+        uuid: currentPlayheadProperties.playheadUuid
+        onMediaUuidChanged: {
+            current_onscreen_media_data.index = session.searchRecursive(mediaUuid, "actorUuidRole", viewedMediaSetIndex)
+        }    
     }
-    property alias current_playhead_data: current_playhead_data
-
-    /* Access the 'key playhead index' ... when we are viewing multiple media
-    items the key playhead index dictates which of the multi-selected items is
-    on screen. So if you've selected 5 items and you want the 3rd to show on
-    screen this should be set to 2 (as zero is the first) */
-    XsAttributeValue {
-        id: __playheadKeySubplayheadIndex
-        attributeTitle: "Key Playhead Index"
-        model: current_playhead_data
-    }
-    property alias playheadKeySubplayheadIndex: __playheadKeySubplayheadIndex.value
-
-
-    /* Here we attach to a particular attr that is part of the current_playhead_data model data */
-    XsAttributeValue {
-        id: current_onscreen_media_uuid
-        attributeTitle: "Current Media Uuid"
-        model: current_playhead_data
-    }
-    property var onScreenMediaUuid: helpers.QVariantFromUuidString(current_onscreen_media_uuid.value)
-
-    onOnScreenMediaUuidChanged: {
-        current_onscreen_media_data.index = session.searchRecursive(onScreenMediaUuid, "actorUuidRole", viewedMediaSetIndex)
-    }
+    property alias current_playhead: current_playhead
 
     XsModelPropertyMap {
         id: current_onscreen_media_data
@@ -346,7 +369,9 @@ Item {
             let type = index.model.get(index,"typeRole")
             if(quuids.length && ["Playlist", "Subset", "Timeline", "ContactSheet"].includes(type)) {
                 // selects the playlist (or subset or timeline) corresponding to 'index'
-                selectedMediaSetIndex = index
+                mediaSelectionModel.select(
+                    helpers.createItemSelection([index]),
+                    ItemSelectionModel.ClearAndSelect | ItemSelectionModel.setCurrentIndex)
                 callbackTimer.setTimeout(function(plindex, new_items) {
                     return function() {
                         let indexes = []
@@ -368,7 +393,7 @@ Item {
                         }
 
                         if(playhead_index != -1)
-                            playheadKeySubplayheadIndex = playhead_index
+                            current_playhead.keySubplayheadIndex = playhead_index
                     }
                 } ( index, quuids ), 1000);
             }
@@ -385,7 +410,7 @@ Item {
             var selected_uuids = []
             for (var i in selectedIndexes) {
                 selected_uuids.push(
-                    selectedMediaSetIndex.model.get(
+                    sessionData.get(
                         selectedIndexes[i],
                         "actorUuidRole")
                         )
@@ -409,9 +434,9 @@ Item {
             updateBackend = false
             let new_selection = []
             for (var i in uuids) {
-                let idx = selectedMediaSetIndex.model.searchRecursive(
+                let idx = sessionData.searchRecursive(
                     uuids[i],
-                    "actorUuidRole", selectedMediaSetIndex
+                    "actorUuidRole", viewedMediaSetIndex
                     )
 
                 if (idx.valid) {
@@ -428,7 +453,18 @@ Item {
 
         }
 
+        function getSelectedMediaUrl(role="pathRole") {
+            let result = []
+            let sel = mediaSelectionModel.selectedIndexes
+            for(let i =0;i<sel.length;i++) {
+                let mi = sel[i]
+                let ms = mi.model.searchRecursive(mi.model.get(mi, "imageActorUuidRole"), "actorUuidRole", mi)
+                result.push(mi.model.get(ms, role))
+            }
+            return result;
+        }
     }
+
     property alias mediaSelectionModel: mediaSelectionModel
 
     /* This model gives us access to the playlists */
@@ -448,6 +484,13 @@ Item {
     }
     property alias playlistsModelData: playlistsModelData
 
+    /* This gives us direct access to the properties of the inspected
+    playlist - in other words the playlist that is showing in the media list */
+    XsModelPropertyMap {
+        id: inspectedMediaSetProperties
+        index: inspectedMediaSetIndex
+    }
+    property alias inspectedMediaSetProperties: inspectedMediaSetProperties
 
     /* This gives us direct access to the properties of the current (active)
     playlist - for example viewedMediaSetProperties.values.nameRole gives us
@@ -457,16 +500,6 @@ Item {
         index: viewedMediaSetIndex
     }
     property alias viewedMediaSetProperties: viewedMediaSetProperties
-
-    /* This gives us direct access to the properties of the SELECTED playlist,
-    subset or timeline (i.e. the last one to be clicked on in the playlist
-    view panel) - for example selectedMediaSetProperties.values.nameRole
-    gives us the playlist name */
-    XsModelPropertyMap {
-        id: selectedMediaSetProperties
-        index: selectedMediaSetIndex
-    }
-    property alias selectedMediaSetProperties: selectedMediaSetProperties
 
     Timer {
         id: callbackTimer

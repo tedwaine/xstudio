@@ -15,9 +15,6 @@ import xstudio.qml.helpers 1.0
 Rectangle{
     color: "transparent" //panelColor
 
-    property int actionButtonCount: 4
-    property real actionButtonWidth: ( width - buttonSpacing*(actionButtonCount-1) ) / actionButtonCount
-
     property real itemHeight: XsStyleSheet.widgetStdHeight
 
     RowLayout {
@@ -25,33 +22,29 @@ Rectangle{
         spacing: buttonSpacing
 
         XsPrimaryButton{
-            Layout.preferredWidth: actionButtonWidth
+            Layout.preferredWidth: parent.width / parent.children.length
             Layout.preferredHeight: itemHeight
-            imgSrc: ""
-            onClicked: ShotBrowserHelpers.addToCurrentPlaylist(resultsSelectionModel.selectedIndexes)
             text: "Add"
+            onClicked: {
+                if(resultsBaseModel.groupId != helpers.QVariantFromUuidString("087c4ff5-2da0-4e54-afcf-c7914a247fae"))
+                    ShotBrowserHelpers.addToCurrent(resultsSelectionModel.selectedIndexes, false)
+                else
+                    ShotBrowserHelpers.addSequencesToCurrentPlaylist(resultsSelectionModel.selectedIndexes, false)
+            }
         }
         XsPrimaryButton{
-            Layout.preferredWidth: actionButtonWidth
+            Layout.preferredWidth: parent.width / parent.children.length
             Layout.preferredHeight: itemHeight
-            imgSrc: ""
             text: "Replace"
             onClicked: ShotBrowserHelpers.replaceSelectedResults(resultsSelectionModel.selectedIndexes)
+            enabled: resultsBaseModel.groupId != helpers.QVariantFromUuidString("087c4ff5-2da0-4e54-afcf-c7914a247fae")
         }
         XsPrimaryButton{
-            Layout.preferredWidth: actionButtonWidth
+            Layout.preferredWidth: parent.width / parent.children.length
             Layout.preferredHeight: itemHeight
-            imgSrc: ""
             text: "Compare"
+            enabled: resultsBaseModel.groupId != helpers.QVariantFromUuidString("087c4ff5-2da0-4e54-afcf-c7914a247fae")
             onClicked: ShotBrowserHelpers.compareSelectedResults(resultsSelectionModel.selectedIndexes)
         }
-        XsPrimaryButton{
-            Layout.preferredWidth: actionButtonWidth
-            Layout.preferredHeight: itemHeight
-            imgSrc: ""
-            text: "Add to Sequence"
-        }
-
     }
-
 }

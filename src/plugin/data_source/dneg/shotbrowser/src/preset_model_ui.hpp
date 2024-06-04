@@ -92,6 +92,7 @@ namespace ui::qml {
         void entitiesChanged();
         void termListsChanged();
         void presetChanged(QModelIndex);
+        void presetHidden(QModelIndex, bool);
 
       private:
         void markedAsUpdated(const QModelIndex &parent);
@@ -115,6 +116,8 @@ namespace ui::qml {
         Q_OBJECT
 
         Q_PROPERTY(bool showHidden READ showHidden WRITE setShowHidden NOTIFY showHiddenChanged)
+        Q_PROPERTY(QVariant filterUserData READ filterUserData WRITE setFilterUserData NOTIFY
+                       filterUserDataChanged)
 
       public:
         ShotBrowserPresetFilterModel(QObject *parent = nullptr)
@@ -123,12 +126,15 @@ namespace ui::qml {
         }
 
         [[nodiscard]] bool showHidden() const { return show_hidden_; }
+        [[nodiscard]] QVariant filterUserData() const { return filter_user_data_; }
 
         Q_INVOKABLE void setFilter(const QString &filter);
+        Q_INVOKABLE void setFilterUserData(const QVariant &filter);
         Q_INVOKABLE void setShowHidden(const bool value);
 
       signals:
         void showHiddenChanged();
+        void filterUserDataChanged();
 
       protected:
         [[nodiscard]] bool
@@ -137,6 +143,7 @@ namespace ui::qml {
       private:
         QVariant filter_;
         bool show_hidden_{false};
+        QVariant filter_user_data_;
     };
 } // namespace ui::qml
 } // namespace xstudio

@@ -16,6 +16,7 @@ QueryEngine::QueryEngine() {
     set_lookup(cache_name("Completion Location"), utility::JsonStore(locationsJSON), lookup_);
     set_lookup(cache_name("Twig Type"), TwigTypeCodes, lookup_);
 
+    set_cache(cache_name("Twig Type"), TwigTypeCodes);
     set_cache(cache_name("Client Note"), BoolTermValues);
     set_cache(cache_name("Completion Location"), locationsJSON);
     set_cache(cache_name("Flag Media"), FlagTermValues);
@@ -587,6 +588,7 @@ utility::JsonStore QueryEngine::preprocess_terms(
 utility::JsonStore QueryEngine::build_query(
     const int project_id,
     const std::string &entity,
+    const utility::Uuid &group_id,
     const utility::JsonStore &group_terms,
     const utility::JsonStore &terms,
     const utility::JsonStore &custom_terms,
@@ -597,8 +599,9 @@ utility::JsonStore QueryEngine::build_query(
     auto query                    = utility::JsonStore(GetQueryResult);
     static const auto default_env = get_default_env();
 
-    query["context"] = context;
-    query["env"]     = default_env;
+    query["group_id"] = group_id;
+    query["context"]  = context;
+    query["env"]      = default_env;
     if (env.is_object())
         query["env"].update(env);
 
@@ -630,7 +633,7 @@ utility::JsonStore QueryEngine::build_query(
         throw;
     }
 
-    spdlog::warn("terms_to_query {}", query.dump(2));
+    // spdlog::warn("terms_to_query {}", query.dump(2));
 
     return query;
 }
@@ -956,6 +959,8 @@ void QueryEngine::add_version_term_to_filter(
             throw XStudioError("Invalid query term " + term + " " + value);
     } else if (term == "Filter") {
         qry->push_back(QueryEngine::add_text_value("code", value, negated));
+    } else if (term == "Client Filename") {
+        qry->push_back(QueryEngine::add_text_value("sg_client_filename", value, negated));
     } else if (term == "Tag") {
         qry->push_back(
             QueryEngine::add_text_value("entity.Shot.tags.Tag.name", value, negated));
@@ -1316,30 +1321,6 @@ std::optional<std::string> QueryEngine::get_sequence_name(
     return {};
 }
 
-std::string QueryEngine::get_shot_name(const utility::JsonStore &metadata) {
-    auto name = std::string();
-
-    try {
-        std::vector<std::string> locations(
-            {{"/metadata/shotgun/version/relationships/entity/data/name"},
-             {"/metadata/shotgun/shot/attributes/code"},
-             {"/metadata/image_source_metadata/metadata/external/DNeg/shot"},
-             {"/metadata/audio_source_metadata/metadata/external/DNeg/shot"},
-             {"/metadata/image_source_metadata/metadata/external/ivy/file/version/scope/name"},
-             {"/metadata/audio_source_metadata/metadata/external/ivy/file/version/scope/name"},
-             {"/metadata/image_source_metadata/colour_pipeline/ocio_context/SHOT"}});
-        for (const auto &i : locations) {
-            if (metadata.contains(json::json_pointer(i))) {
-                name = metadata.at(json::json_pointer(i)).get<std::string>();
-                break;
-            }
-        }
-    } catch (...) {
-    }
-
-    return name;
-}
-
 std::string QueryEngine::get_version_name(const utility::JsonStore &metadata) {
     auto name = std::string();
 
@@ -1368,13 +1349,36 @@ utility::JsonStore QueryEngine::get_livelink_value(
     auto result = JsonStore();
 
     try {
-
         if (term == "Preferred Audio") {
             result =
                 metadata.at("metadata").value("audio_source", nlohmann::json("movie_dneg"));
         } else if (term == "Preferred Visual") {
             result =
                 metadata.at("metadata").value("image_source", nlohmann::json("movie_dneg"));
+        } else if (term == "Entity") {
+            if (metadata.contains(json::json_pointer("/metadata/shotgun/version"))) {
+                auto type = metadata.at(json::json_pointer(
+                    "/metadata/shotgun/version/relationships/entity/data/type"));
+                auto id   = metadata.at(json::json_pointer(
+                    "/metadata/shotgun/version/relationships/entity/data/id"));
+                result    = nlohmann::json(
+                    type.get<std::string>() + "-" + std::to_string(id.get<int>()));
+            } else {
+                // try and derive from show/shot ?
+                const auto project = get_project_name(metadata);
+                const auto shot    = get_shot_name(metadata);
+                if (not project.empty() and not shot.empty()) {
+                    // Type is always Shot
+                    // but we need the shot id.
+                    auto project_id =
+                        resolve_query_value("Project", nlohmann::json(project), lookup)
+                            .get<int>();
+                    auto shot_id =
+                        resolve_query_value("Shot", nlohmann::json(shot), project_id, lookup)
+                            .get<int>();
+                    result = nlohmann::json("Shot-" + std::to_string(shot_id));
+                }
+            }
         } else if (metadata.contains(json::json_pointer("/metadata/shotgun/version"))) {
             if (term == "Version Name") {
                 result = nlohmann::json(get_version_name(metadata));
@@ -1400,13 +1404,6 @@ utility::JsonStore QueryEngine::get_livelink_value(
             } else if (term == "Pipeline Step") {
                 result = metadata.at(json::json_pointer(
                     "/metadata/shotgun/version/attributes/sg_pipeline_step"));
-            } else if (term == "Entity") {
-                auto type = metadata.at(json::json_pointer(
-                    "/metadata/shotgun/version/relationships/entity/data/type"));
-                auto id   = metadata.at(json::json_pointer(
-                    "/metadata/shotgun/version/relationships/entity/data/id"));
-                result    = nlohmann::json(
-                    type.get<std::string>() + "-" + std::to_string(id.get<int>()));
             } else if (term == "Twig Type") {
                 result = metadata.at(
                     json::json_pointer("/metadata/shotgun/version/attributes/sg_twig_type"));

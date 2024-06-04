@@ -139,6 +139,9 @@ nlohmann::json xstudio::ui::qml::qvariant_to_json(const QVariant &var) {
     case QMetaType::QString:
         return nlohmann::json(var.toString().toStdString());
         break;
+    case QMetaType::QUrl:
+        return nlohmann::json(StdFromQString(var.toUrl().toString()));
+        break;
     case QMetaType::QColor: {
         auto c = var.value<QColor>();
         return nlohmann::json(utility::ColourTriplet(
@@ -149,7 +152,7 @@ nlohmann::json xstudio::ui::qml::qvariant_to_json(const QVariant &var) {
         break;
     case QMetaType::QVariantMap: {
         const QVariantMap m = var.toMap();
-        nlohmann::json rt;
+        auto rt             = R"({})"_json;
         for (auto p = m.begin(); p != m.end(); ++p) {
             rt[p.key().toStdString()] = xstudio::ui::qml::qvariant_to_json(p.value());
         }
@@ -157,7 +160,7 @@ nlohmann::json xstudio::ui::qml::qvariant_to_json(const QVariant &var) {
     } break;
     case QMetaType::QVariantList: {
         const QVariantList m = var.toList();
-        nlohmann::json rt;
+        auto rt              = R"([])"_json;
         for (const auto &p : m) {
             rt.push_back(xstudio::ui::qml::qvariant_to_json(p));
         }
@@ -187,12 +190,6 @@ QVariant xstudio::ui::qml::json_to_qvariant(const nlohmann::json &json) {
         return QVariant(json.get<std::string>().c_str());
     } else if (json.is_boolean()) {
         return QVariant(json.get<bool>());
-    } else if (json.is_object()) {
-        QMap<QString, QVariant> m;
-        for (auto p = json.begin(); p != json.end(); ++p) {
-            m[p.key().c_str()] = json_to_qvariant(p.value());
-        }
-        return QVariant(m);
     } else if (json.is_array()) {
 
         if (json.size() == 5 && json[0].is_string() && json[0].get<std::string>() == "colour") {
@@ -222,6 +219,12 @@ QVariant xstudio::ui::qml::json_to_qvariant(const nlohmann::json &json) {
             rt.append(json_to_qvariant(p.value()));
         }
         return rt;
+    } else if (json.is_object()) {
+        QMap<QString, QVariant> m;
+        for (auto p = json.begin(); p != json.end(); ++p) {
+            m[p.key().c_str()] = json_to_qvariant(p.value());
+        }
+        return QVariant(m);
     } else if (json.is_null()) {
         return QVariant();
     }
@@ -408,6 +411,24 @@ QObject *Helpers::contextPanel(QObject *obj) const {
     return nullptr;
 }
 
+void Helpers::setMenuPathPosition(
+    const QString &menu_path, const QString &menu_name, const float position) const {
+
+    if (!menu_path.isEmpty() && !menu_name.isEmpty()) {
+
+        auto central_models_data_actor =
+            CafSystemObject::get_actor_system().registry().template get<caf::actor>(
+                global_ui_model_data_registry);
+
+        anon_send(
+            central_models_data_actor,
+            ui::model_data::insert_or_update_menu_node_atom_v,
+            StdFromQString(menu_name),
+            StdFromQString(menu_path),
+            position);
+    }
+}
+
 ImagePainter::ImagePainter(QQuickItem *parent) : QQuickPaintedItem(parent) {}
 
 void ImagePainter::paint(QPainter *painter) {
@@ -425,4 +446,113 @@ void ImagePainter::paint(QPainter *painter) {
         float left = float(width()) * 0.5f * (canvas_aspect - image_aspect) / canvas_aspect;
         painter->drawImage(QRectF(left, 0.0f, width() - (left * 2.0f), height()), image_);
     }
+}
+
+MarkerModel::MarkerModel(QObject *parent) : JSONTreeModel(parent) {
+    auto role_names = std::vector<std::string>(
+        {{"commentRole"},
+         {"durationRole"},
+         {"flagRole"},
+         {"nameRole"},
+         {"rateRole"},
+         {"startRole"}});
+
+    setRoleNames(role_names);
+
+    connect(this, &MarkerModel::rowsInserted, this, &MarkerModel::markerDataChanged);
+    connect(this, &MarkerModel::rowsRemoved, this, &MarkerModel::markerDataChanged);
+}
+
+bool MarkerModel::setMarkerData(const QVariant &qdata) {
+    auto result = true;
+    try {
+        auto data = mapFromValue(qdata);
+        if (modelData().is_null() or data != modelData().at("children")) {
+            setModelData(data);
+        }
+    } catch (const std::exception &err) {
+        spdlog::warn("{} {}", __PRETTY_FUNCTION__, err.what());
+        result = false;
+    }
+    return result;
+}
+
+QVariant MarkerModel::markerData() const {
+    // auto data = R"([])"_json;
+    // try {
+    //     data = modelData().at("children");
+    // } catch(...) {}
+
+    return QVariantFromJson(modelData());
+}
+
+QVariant MarkerModel::data(const QModelIndex &index, int role) const {
+    auto result = QVariant();
+    try {
+        const auto &j = indexToData(index);
+        switch (role) {
+        case JSONTreeModel::Roles::idRole:
+            result = QVariant::fromValue(QUuidFromUuid(j.value("uuid", utility::Uuid())));
+            break;
+        case Roles::flagRole:
+            result = QString::fromStdString(j.value("flag", std::string("")));
+            break;
+        case Roles::nameRole:
+            result = QString::fromStdString(j.value("name", std::string("")));
+            break;
+        case Roles::commentRole:
+            result = QVariantFromJson(j.value("prop", R"({})"_json));
+            break;
+        case Roles::startRole:
+            result = QVariant::fromValue(j.at("range").value("start", 0l));
+            break;
+        case Roles::durationRole:
+            result = QVariant::fromValue(j.at("range").value("duration", 0l));
+            break;
+        case Roles::rateRole:
+            result = QVariant::fromValue(j.at("range").value("rate", 0l));
+            break;
+        default:
+            result = JSONTreeModel::data(index, role);
+            break;
+        }
+    } catch (const std::exception &err) {
+        // spdlog::warn("{} {}", __PRETTY_FUNCTION__, err.what());
+    }
+
+    return result;
+}
+
+bool MarkerModel::setData(const QModelIndex &index, const QVariant &value, int role) {
+    QVector<int> roles({role});
+    auto result = false;
+
+    try {
+        auto &j = indexToData(index);
+        switch (role) {
+
+        case Roles::nameRole: {
+            auto data = mapFromValue(value);
+            if (j["name"] != data) {
+                j["name"] = data;
+                result    = true;
+                emit dataChanged(index, index, roles);
+                emit markerDataChanged();
+            }
+        } break;
+
+        default:
+            result = JSONTreeModel::setData(index, value, role);
+            break;
+        }
+    } catch (const std::exception &err) {
+        spdlog::warn(
+            "{} {} {} {}",
+            __PRETTY_FUNCTION__,
+            err.what(),
+            role,
+            StdFromQString(value.toString()));
+    }
+
+    return result;
 }

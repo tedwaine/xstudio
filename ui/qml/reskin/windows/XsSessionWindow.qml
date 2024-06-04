@@ -18,7 +18,7 @@ ApplicationWindow {
 
     id: appWindow
     visible: true
-    color: "#00000000"
+    color: "#000000"
     title: "xSTUDIO Re-Skin UI (Under Construction)"
 
     property var window_name: "main_window"
@@ -39,7 +39,7 @@ ApplicationWindow {
 
 
     property bool isFlatTheme: false
-    
+
     Timer { id: gradTimer //#TODO
         running: false
         repeat: true
@@ -77,7 +77,7 @@ ApplicationWindow {
     }
 
     property alias tabsVisibility: __tabsVisibility.value
-    property var layoutName: ui_layouts_model.get(layoutBar.current_layout_index, "layout_name")
+    property var layoutName: layoutBar.current_layout_index.valid ? ui_layouts_model.get(layoutBar.current_layout_index, "layout_name") : ""
     property var lastNonPresentLayout
     onLayoutNameChanged: {
         if (layoutName != "Present") {
@@ -113,7 +113,8 @@ ApplicationWindow {
     // if we are doing it relative to some button that is not the parent of
     // the pop-up. This convenience function makes that easy ... it also makes
     // sure menus don't get placed so they go outside the application window
-    function showPopupMenu(menu, refItem, refX, refY, altRightEdge) {
+    function repositionPopupMenu(menu, refItem, refX, refY, altRightEdge) {
+        
         var global_pos = refItem.mapToItem(
             appWindow.contentItem,
             refX,
@@ -145,7 +146,19 @@ ApplicationWindow {
 
         menu.x = parent_pos.x
         menu.y = parent_pos.y
-        menu.visible = true
+
+        // Some popups are shown with an explicit call to this function so it
+        // can be accurately positioned in some widget (like a button that is
+        // not the popup parent). Others are shown with just 'visible = true'.
+        // For the former case, we use the 'repositioned' property to prevent
+        // this function getting called a second time (see XsPopup.qml) when
+        // we set visible to true here
+        if (typeof menu.repositioned === "boolean") {
+            menu.repositioned = true
+            menu.visible = true
+        } else {
+            menu.visible = true
+        }
 
     }
 
@@ -265,6 +278,7 @@ ApplicationWindow {
     XsDialogHelpers {
         id: dialogHelpers
         z: -1000
+
         anchors.fill: parent
     }
     property alias dialogHelpers: dialogHelpers
@@ -296,13 +310,11 @@ ApplicationWindow {
     property alias globalStoreModel: sessionData.globalStoreModel
     property alias mediaSelectionModel: sessionData.mediaSelectionModel
     property alias playlistsModelData: sessionData.playlistsModelData
+    property alias inspectedMediaSetIndex: sessionData.inspectedMediaSetIndex
+    property alias inspectedMediaSetProperties: sessionData.inspectedMediaSetProperties
     property alias viewedMediaSetIndex: sessionData.viewedMediaSetIndex
-    property alias selectedMediaSetIndex: sessionData.selectedMediaSetIndex
     property alias viewedMediaSetProperties: sessionData.viewedMediaSetProperties
-    property alias selectedMediaSetProperties: sessionData.selectedMediaSetProperties
-    property alias currentPlayheadData: sessionData.current_playhead_data
-    property alias currentPlayheadUuid: sessionData.currentPlayheadUuid
-    property alias onScreenMediaUuid: sessionData.onScreenMediaUuid
+    property alias currentPlayhead: sessionData.current_playhead
     property alias callbackTimer: sessionData.callbackTimer
     property alias viewsModel: sessionData.viewsModel
     property alias sessionProperties: sessionData.sessionProperties
@@ -311,7 +323,6 @@ ApplicationWindow {
     property alias currentOnScreenMediaSourceData: sessionData.currentOnScreenMediaSourceData
     property alias uiLayoutsModel: ui_layouts_model
     property alias singletonsModel: sessionData.singletonsModel
-    property alias playheadKeySubplayheadIndex: sessionData.playheadKeySubplayheadIndex
 
     property var child_dividers: []
 
@@ -321,20 +332,32 @@ ApplicationWindow {
     ColumnLayout {
 
         anchors.fill: parent
-        spacing: 1
+        spacing: 0
 
-        RowLayout{
+        Item {
+
+            id: menuBarLayout
+
             Layout.fillWidth: true
-            spacing: 1
+            //height: XsStyleSheet.menuHeight*menuBarLayout.opacity
+            Layout.preferredHeight: XsStyleSheet.menuHeight*menuBarLayout.opacity
 
-            XsMainMenuBar { id: menuBar
-                Layout.preferredWidth: parent.width*1.85/3
+            visible: opacity != 0.0
+            Behavior on opacity {NumberAnimation{ duration: 150 }}
+
+            XsMainMenuBar {
+                id: menuBar
+                height: parent.height
+                width: parent.width*1.85/3
             }
+
             XsLayoutModeBar {
                 id: layoutBar
                 layouts_model: ui_layouts_model
                 layouts_model_root_index: ui_layouts_model.root_index
-                Layout.fillWidth: true
+                height: parent.height
+                anchors.left: menuBar.right
+                anchors.right: parent.right
             }
         }
 
@@ -350,7 +373,7 @@ ApplicationWindow {
         }
     }
 
-    // this DelegateModel is set-up to load the layouts. A layout is only 
+    // this DelegateModel is set-up to load the layouts. A layout is only
     // loaded when it becomes selected for the first time.
     DelegateModel {
 
@@ -368,10 +391,11 @@ ApplicationWindow {
                         panels_layout_model: ui_layouts_model
                         panels_layout_model_index: ui_layouts_model.index(index, 0, ui_layouts_model.root_index)
                         visible: panels_layout_model_index == layoutBar.current_layout_index
+
                     }
                 }
                 property var v: index == layoutBar.current_layout_index.row && !layoutBar.movingLayout
-                visible: index == layoutBar.current_layout_index.row 
+                visible: index == layoutBar.current_layout_index.row
                 onVChanged: {
                     if (v && layout_name != undefined && sourceComponent == undefined) {
                         // load the panel
@@ -382,16 +406,16 @@ ApplicationWindow {
             }
     }
 
-
     Component.onCompleted: {
 
         viewsModel.register_view("qrc:/views/playlists/XsPlaylists.qml", "Playlists")
         viewsModel.register_view("qrc:/views/media/XsMedialist.qml", "Media")
-        viewsModel.register_view("qrc:/views/viewport/XsViewport.qml", "Viewport")
+        viewsModel.register_view("qrc:/views/viewport/XsViewportPanel.qml", "Viewport")
         viewsModel.register_view("qrc:/views/timeline/XsTimelinePanel.qml", "Timeline")
         viewsModel.register_view("qrc:/views/notes/XsNotesView.qml", "Notes")
 
         singletonsModel.register_singleton_qml("qrc:/views/notes/XsNotesSingleton.qml")
+
     }
 
     // here we instance 'singleton' items that may or may not be provided
@@ -450,11 +474,21 @@ ApplicationWindow {
         }
     }
 
+    function set_menu_bar_visibility(menu_bar_visible) {
+        menuBarLayout.opacity = menu_bar_visible ? 1.0 : 0.0
+    }
+
     property bool popoutIsOpen: popout_loader.item ? popout_loader.item.visible : false
     property bool isPopoutViewer: false
 
     // to manage quickview windows
     XsQuickViewLauncher {}
+
+    // manage internal and external drag/drops
+    property alias global_drag_drop_handler: global_drag_drop_handler
+    XsGlobalDragDropHandler {
+        id: global_drag_drop_handler
+    }
 
 }
 

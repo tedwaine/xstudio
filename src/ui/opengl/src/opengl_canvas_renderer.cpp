@@ -13,6 +13,7 @@ OpenGLCanvasRenderer::OpenGLCanvasRenderer() {
 
     stroke_renderer_.reset(new OpenGLStrokeRenderer());
     caption_renderer_.reset(new OpenGLCaptionRenderer());
+    shape_renderer_.reset(new OpenGLShapeRenderer());
 }
 
 void OpenGLCanvasRenderer::render_canvas(
@@ -36,6 +37,14 @@ void OpenGLCanvasRenderer::render_canvas(
     caption_renderer_->render_captions(
         all_canvas_items<Caption>(canvas),
         handle_state,
+        transform_window_to_viewport_space,
+        transform_viewport_to_image_space,
+        viewport_du_dpixel);
+
+    shape_renderer_->render_shapes(
+        all_canvas_items<Quad>(canvas),
+        all_canvas_items<Polygon>(canvas),
+        all_canvas_items<Ellipse>(canvas),
         transform_window_to_viewport_space,
         transform_viewport_to_image_space,
         viewport_du_dpixel);

@@ -4,7 +4,6 @@ import QtQuick.Window 2.15
 
 import xStudio 1.0
 
-import xstudio.qml.module 1.0
 import xstudio.qml.viewport 1.0
 
 Item {

@@ -121,6 +121,34 @@ void SessionModel::init(caf::actor_system &_system) {
             },
 
             [=](utility::event_atom,
+                media::media_display_info_atom,
+                const utility::JsonStore &info) {
+                auto src     = caf::actor_cast<caf::actor>(self()->current_sender());
+                auto src_str = actorToString(system(), src);
+                // request update of children..
+                // find container owner..
+                auto index =
+                    searchRecursive(QVariant::fromValue(QStringFromStd(src_str)), actorRole);
+
+                if (index.isValid()) {
+                    // request update of containers.
+                    try {
+                        nlohmann::json &j = indexToData(index);
+                        if (j.at("type") == "Media") {
+                            if (j.count("media_display_info") and
+                                j.at("media_display_info") != info) {
+                                j["media_display_info"] = info;
+                                emit dataChanged(
+                                    index, index, QVector<int>({mediaDisplayInfoRole}));
+                            }
+                        }
+                    } catch (const std::exception &err) {
+                        spdlog::warn("{} {}", __PRETTY_FUNCTION__, err.what());
+                    }
+                }
+            },
+
+            [=](utility::event_atom,
                 media::add_media_source_atom,
                 const utility::UuidActorVector &uav) {
                 try {
@@ -187,16 +215,12 @@ void SessionModel::init(caf::actor_system &_system) {
                 }
             },
 
-            [=](utility::event_atom, playlist::add_media_atom, const UuidActor &ua) {
+            [=](utility::event_atom, playlist::add_media_atom, const UuidActorVector &) {
                 auto src = caf::actor_cast<caf::actor>(self()->current_sender());
 
                 if (src != session_actor_) {
 
                     auto src_str = actorToString(system(), src);
-                    // spdlog::info(
-                    //     "utility::event_atom, playlist::add_media_atom {} {}",
-                    //     to_string(ua.uuid()),
-                    //     src_str);
 
                     auto index = searchRecursive(
                         QVariant::fromValue(QStringFromStd(src_str)), actorRole);
@@ -213,12 +237,17 @@ void SessionModel::init(caf::actor_system &_system) {
                             if (index.isValid()) {
                                 const nlohmann::json &jj = indexToData(index);
 
-                                /*requestData(
+                                // spdlog::info(
+                                //     "utility::event_atom, playlist::add_media_atom {} {}",
+                                //     to_string(jj.at("id").get<Uuid>()),
+                                //     src_str);
+
+                                requestData(
                                     QVariant::fromValue(QUuidFromUuid(jj.at("id"))),
                                     idRole,
                                     index,
                                     jj,
-                                    JSONTreeModel::Roles::childrenRole);*/
+                                    JSONTreeModel::Roles::childrenRole);
                             }
                         } catch (const std::exception &err) {
                             spdlog::warn("{} {}", __PRETTY_FUNCTION__, err.what());
@@ -297,7 +326,6 @@ void SessionModel::init(caf::actor_system &_system) {
             },
 
             [=](utility::event_atom, playlist::loading_media_atom, const bool value) {
-                spdlog::info("utility::event_atom, playlist::loading_media_atom {}", value);
 
                 auto src     = caf::actor_cast<caf::actor>(self()->current_sender());
                 auto src_str = actorToString(system(), src);
@@ -323,9 +351,9 @@ void SessionModel::init(caf::actor_system &_system) {
             },
 
             [=](utility::event_atom, session::current_playlist_atom, caf::actor playlist) {
-                // spdlog::info(
-                //     "utility::event_atom, session::current_playlist_atom {}",
-                //     to_string(playlist));
+                /*spdlog::info(
+                    "utility::event_atom, session::current_playlist_atom {}",
+                    to_string(playlist));*/
             },
 
             [=](utility::event_atom,

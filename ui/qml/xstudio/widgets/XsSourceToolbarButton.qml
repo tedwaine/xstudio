@@ -4,7 +4,6 @@ import QtGraphicalEffects 1.12
 import QtQuick.Layouts 1.15
 
 import xStudio 1.0
-import xstudio.qml.module 1.0
 import xstudio.qml.models 1.0
 import xstudio.qml.helpers 1.0
 

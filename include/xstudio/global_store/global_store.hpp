@@ -240,8 +240,7 @@ namespace global_store {
             const utility::JsonStore &default_,
             const bool async           = true,
             const bool broacast_change = true,
-            const std::string &context="APPLICATION"
-        );
+            const std::string &context = "APPLICATION");
 
         void set(const GlobalStoreDef &gsd, const bool async = true);
         bool save(const std::string &context);

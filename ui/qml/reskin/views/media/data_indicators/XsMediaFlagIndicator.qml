@@ -3,7 +3,8 @@ import QtQuick 2.12
 import QtQml.Models 2.14
 import xStudioReskin 1.0
 
-Item{
+Item {
+    
     Rectangle{
         width: parent.width
         height: parent.height

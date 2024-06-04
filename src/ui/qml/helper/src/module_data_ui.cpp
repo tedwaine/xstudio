@@ -46,7 +46,6 @@ void ModulesModelData::setSingleAttributeName(const QString single_attr_name) {
 
 void ModulesModelData::setModelData(const nlohmann::json &data) {
 
-
     if (!single_attr_name_.isEmpty()) {
 
         // if we have single_attr_name_ set, then we
@@ -84,8 +83,7 @@ void ModulesModelData::setModelData(const nlohmann::json &data) {
     }
 }
 
-QVariant ModulesModelData::attributeRoleData(const QString attr_name, const QString role_name)
-{
+QVariant ModulesModelData::attributeRoleData(const QString attr_name, const QString role_name) {
     QModelIndex idx = searchRecursive(attr_name, "title");
     if (idx.isValid()) {
         return get(idx, role_name);

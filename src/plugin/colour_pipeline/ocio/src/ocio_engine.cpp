@@ -89,15 +89,15 @@ typedef std::shared_ptr<ShaderDescriptor> ShaderDescriptorPtr;
 
 } // anonymous namespace
 
-ColourOperationDataPtr
-OCIOEngine::linearise_op_data(const media::AVFrameID &media_ptr, const bool bypass) {
+ColourOperationDataPtr OCIOEngine::linearise_op_data(
+    const utility::JsonStore &src_colour_mgmt_metadata, const bool bypass) {
 
     using xstudio::utility::replace_once;
 
     auto result = std::make_shared<ColourOperationData>("OCIO Linearise OP");
 
     // Construct OCIO processor, shader and extract texture(s)
-    auto to_lin_proc   = make_to_lin_processor(media_ptr.params_, bypass);
+    auto to_lin_proc   = make_to_lin_processor(src_colour_mgmt_metadata, bypass);
     auto to_lin_shader = make_shader(to_lin_proc, "OCIOLinearise", "to_linear_");
     setup_textures(to_lin_shader, result);
 
@@ -120,7 +120,7 @@ OCIOEngine::linearise_op_data(const media::AVFrameID &media_ptr, const bool bypa
 }
 
 ColourOperationDataPtr OCIOEngine::linear_to_display_op_data(
-    const media::AVFrameID &media_ptr,
+    const utility::JsonStore &src_colour_mgmt_metadata,
     const std::string &display,
     const std::string &view,
     const bool bypass) {
@@ -132,23 +132,12 @@ ColourOperationDataPtr OCIOEngine::linear_to_display_op_data(
     // Construct OCIO processor, shader and extract texture(s)
     OCIO::GradingPrimary primary = OCIO::GradingPrimary(OCIO::GRADING_LIN);
     auto display_proc =
-        make_display_processor(media_ptr.params_, false, primary, display, view, bypass);
+        make_display_processor(src_colour_mgmt_metadata, false, primary, display, view, bypass);
     auto display_shader = make_shader(display_proc, "OCIODisplay", "to_display");
     setup_textures(display_shader, data);
 
     std::string display_shader_src = replace_once(
         ShaderTemplates::OCIO_display, "//OCIODisplay", display_shader->getShaderText());
-
-    // GradingPrimary implement the power function with mirrored behaviour for negatives
-    // (absolute value before pow then multiply by sign). We update the shader here to
-    // match ASC CDL clamping [0, 1] behaviour.
-    std::regex pattern(
-        R"((\w+)\.rgb = pow\( abs\(\w+\.rgb / (\w+_grading_primary_pivot)\), (\w+_grading_primary_contrast) \) \* sign\(\w+\.rgb\) \* \w+_grading_primary_pivot;)");
-
-    display_shader_src = std::regex_replace(
-        display_shader_src,
-        pattern,
-        "outColor.rgb = pow( clamp($1.rgb, 0.0, 1.0) / $2, $3 ) * $2;");
 
     data->shader_ = std::make_shared<ui::opengl::OpenGLShader>(
         utility::Uuid::generate(), display_shader_src);
@@ -173,7 +162,7 @@ ColourOperationDataPtr OCIOEngine::linear_to_display_op_data(
 
 
 thumbnail::ThumbnailBufferPtr OCIOEngine::process_thumbnail(
-    const media::AVFrameID &media_ptr,
+    const utility::JsonStore &src_colour_mgmt_metadata,
     const thumbnail::ThumbnailBufferPtr &buf,
     const std::string &display,
     const std::string &view) {
@@ -183,38 +172,34 @@ thumbnail::ThumbnailBufferPtr OCIOEngine::process_thumbnail(
             "OCIOEngine: Invalid thumbnail buffer type, expects TF_RGBF96");
     }
 
-    // TODO: just use a single pass processor rather than two step processors.
-    auto to_lin_proc             = make_to_lin_processor(media_ptr.params_, false);
-    OCIO::GradingPrimary primary = OCIO::GradingPrimary(OCIO::GRADING_LIN);
+    // Create to_lin and to_display processors and concatenate them
 
-    auto lin_to_display_proc =
-        make_display_processor(media_ptr.params_, true, primary, display, view);
+    const auto &ocio_config = get_ocio_config(src_colour_mgmt_metadata);
 
-    auto cpu_to_lin_proc = to_lin_proc->getOptimizedCPUProcessor(
-        OCIO::BIT_DEPTH_F32, OCIO::BIT_DEPTH_F32, OCIO::OPTIMIZATION_DEFAULT);
+    auto to_lin_group =
+        make_to_lin_processor(src_colour_mgmt_metadata, false)->createGroupTransform();
 
-    auto cpu_lin_to_display_proc = lin_to_display_proc->getOptimizedCPUProcessor(
-        OCIO::BIT_DEPTH_F32, OCIO::BIT_DEPTH_UINT8, OCIO::OPTIMIZATION_DEFAULT);
+    OCIO::GradingPrimary _primary = OCIO::GradingPrimary(OCIO::GRADING_LIN);
+    auto to_display_group =
+        make_display_processor(src_colour_mgmt_metadata, true, _primary, display, view)
+            ->createGroupTransform();
+
+    OCIO::GroupTransformRcPtr concat_group = OCIO::GroupTransform::Create();
+    concat_group->appendTransform(to_lin_group);
+    concat_group->appendTransform(to_display_group);
+
+    auto cpu_proc =
+        ocio_config->getProcessor(concat_group)
+            ->getOptimizedCPUProcessor(
+                OCIO::BIT_DEPTH_F32, OCIO::BIT_DEPTH_UINT8, OCIO::OPTIMIZATION_DEFAULT);
 
     auto thumb = std::make_shared<thumbnail::ThumbnailBuffer>(
         buf->width(), buf->height(), thumbnail::TF_RGB24);
     auto src = reinterpret_cast<float *>(buf->data().data());
     auto dst = reinterpret_cast<uint8_t *>(thumb->data().data());
 
-    std::vector<float> intermediate(buf->width() * buf->height() * buf->channels());
-
     OCIO::PackedImageDesc in_img(
         src,
-        buf->width(),
-        buf->height(),
-        buf->channels(),
-        OCIO::BIT_DEPTH_F32,
-        OCIO::AutoStride,
-        OCIO::AutoStride,
-        OCIO::AutoStride);
-
-    OCIO::PackedImageDesc intermediate_img(
-        intermediate.data(),
         buf->width(),
         buf->height(),
         buf->channels(),
@@ -233,8 +218,7 @@ thumbnail::ThumbnailBufferPtr OCIOEngine::process_thumbnail(
         OCIO::AutoStride,
         OCIO::AutoStride);
 
-    cpu_to_lin_proc->apply(in_img, intermediate_img);
-    cpu_lin_to_display_proc->apply(intermediate_img, out_img);
+    cpu_proc->apply(in_img, out_img);
 
     return thumb;
 }
@@ -289,10 +273,12 @@ void OCIOEngine::extend_pixel_info(
 
     // Source
 
-    /*if (!source_colour_space_->value().empty()) {
+    std::string source_cs = detect_source_colourspace(frame_id.params_);
+    if (!source_cs.empty()) {
+
         pixel_info.set_raw_colourspace_name(
-            std::string("Source (") + source_colour_space_->value() + std::string(")"));
-    }*/
+            std::string("Source (") + source_cs + std::string(")"));
+    }
 
     // Working space (scene_linear)
 
@@ -394,6 +380,74 @@ OCIOEngine::working_space(const utility::JsonStore &src_colour_mgmt_metadata) co
     } else {
         return OCIO::ROLE_DEFAULT;
     }
+}
+
+std::string OCIOEngine::input_space_for_view(
+    const utility::JsonStore &src_colour_mgmt_metadata, const std::string &view) const {
+
+    auto config = get_ocio_config(src_colour_mgmt_metadata);
+    std::string new_colourspace;
+    std::string empty;
+
+    auto colourspace_or = [config](const std::string &cs, const std::string &fallback) {
+        const bool has_cs = bool(config->getColorSpace(cs.c_str()));
+        return has_cs ? cs : fallback;
+    };
+
+    if (src_colour_mgmt_metadata.contains("input_category")) {
+
+        const auto is_untonemapped = view == "Un-tone-mapped";
+        const auto is_cms1 =
+            src_colour_mgmt_metadata.get_or("pipeline_version", std::string("1")) == "2";
+        const auto input_space = src_colour_mgmt_metadata.get_or("input_colorspace", empty);
+        const auto category    = src_colour_mgmt_metadata["input_category"];
+
+        if (category == "internal_movie") {
+            if (is_untonemapped) {
+                new_colourspace = "disp_Rec709-G24";
+            } else if (!input_space.empty()) {
+                new_colourspace = input_space;
+            } else if (is_cms1) {
+                new_colourspace = "DNEG_Rec709";
+            } else {
+                new_colourspace = "Film_Rec709";
+            }
+        } else if (category == "edit_ref" or category == "movie_media") {
+            if (is_untonemapped) {
+                new_colourspace = "disp_Rec709-G24";
+            } else if (is_cms1) {
+                new_colourspace = "Client_Rec709";
+            } else {
+                new_colourspace = "Film_Rec709";
+            }
+        } else if (category == "still_media") {
+            if (is_untonemapped) {
+                new_colourspace = "disp_sRGB";
+            } else if (is_cms1) {
+                new_colourspace = "DNEG_sRGB";
+            } else {
+                new_colourspace = "Film_sRGB";
+            }
+        }
+    }
+
+    // When the above don't detect a colour space (EXRs, Review proxy, etc),
+    // return the correct color space for the media.
+    std::string override_cs = src_colour_mgmt_metadata.get_or("override_input_cs", empty);
+    std::string input_cs    = src_colour_mgmt_metadata.get_or("input_colorspace", empty);
+
+    new_colourspace = colourspace_or(new_colourspace, override_cs);
+
+    for (const auto &cs : xstudio::utility::split(input_cs, ':')) {
+        new_colourspace = colourspace_or(new_colourspace, cs);
+    }
+
+    // Avoid role names, helps with the source colour space menu
+    if (!new_colourspace.empty()) {
+        new_colourspace = config->getCanonicalName(new_colourspace.c_str());
+    }
+
+    return new_colourspace;
 }
 
 const char *OCIOEngine::default_display(
@@ -619,6 +673,7 @@ OCIO::ConstProcessorRcPtr OCIOEngine::make_display_processor(
             // To support dynamic CDLs we currently have to edit the OCIO
             // config in place, hence the need to return the new config
             // here to later query the processor from it.
+
             ocio_config = display_transform(
                 src_colour_mgmt_metadata, context, group, primary, display, view);
         }
@@ -809,7 +864,6 @@ void OCIOEngine::setup_textures(
         op_data->luts_.push_back(xs_lut);
     }
 }
-
 
 std::string
 OCIOEngine::detect_source_colourspace(const utility::JsonStore &src_colour_mgmt_metadata) {
@@ -1026,42 +1080,41 @@ std::string OCIOEngine::compute_hash(const utility::JsonStore &src_colour_mgmt_m
 }
 
 OCIOEngineActor::OCIOEngineActor(caf::actor_config &cfg) : caf::event_based_actor(cfg) {
-    spdlog::debug("Created {}", NAME);
+
     behavior_.assign(
         [=](colour_pipe_display_data_atom,
-            const media::AVFrameID &media_ptr,
+            const utility::JsonStore &media_metadata,
             const std::string &display,
             const std::string &view,
             const bool bypass) -> result<ColourOperationDataPtr> {
             // This message is sent from main OCIOColourPipeline
             try {
-                return linear_to_display_op_data(media_ptr, display, view, bypass);
+                return m_engine_.linear_to_display_op_data(
+                    media_metadata, display, view, bypass);
             } catch (std::exception &e) {
                 return caf::make_error(xstudio_error::error, e.what());
             }
         },
         [=](colour_pipe_linearise_data_atom,
-            const media::AVFrameID &media_ptr,
+            const utility::JsonStore &media_metadata,
             const bool bypass) -> result<ColourOperationDataPtr> {
             // This message is sent from main OCIOColourPipeline
             try {
-                return linearise_op_data(media_ptr, bypass);
+                return m_engine_.linearise_op_data(media_metadata, bypass);
             } catch (std::exception &e) {
                 return caf::make_error(xstudio_error::error, e.what());
             }
         },
         [=](media_reader::process_thumbnail_atom,
-            const media::AVFrameID &media_ptr,
+            const utility::JsonStore &media_metadata,
             const thumbnail::ThumbnailBufferPtr &buf,
             const std::string &display,
             const std::string &view) -> result<thumbnail::ThumbnailBufferPtr> {
             // This message is sent from main OCIOColourPipeline
             try {
-                return process_thumbnail(media_ptr, buf, display, view);
+                return m_engine_.process_thumbnail(media_metadata, buf, display, view);
             } catch (std::exception &e) {
                 return caf::make_error(xstudio_error::error, e.what());
             }
         });
 }
-
-OCIOEngineActor::~OCIOEngineActor() { spdlog::debug("Destroying {}", NAME); }

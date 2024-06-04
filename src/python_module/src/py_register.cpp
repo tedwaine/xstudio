@@ -199,8 +199,10 @@ void register_mediareference_class(py::module &m, const std::string &name) {
         .def("set_rate", &utility::MediaReference::set_rate)
         .def(
             "uri",
-            py::overload_cast<>(&utility::MediaReference::uri, py::const_),
-            "URI of mediareference")
+            py::overload_cast<utility::MediaReference::FramePadFormat>(
+                &utility::MediaReference::uri, py::const_),
+            "URI of mediareference",
+            py::arg("fpf") = utility::MediaReference::FramePadFormat::FPF_XSTUDIO)
 
         .def("uri_from_frame", &utility::MediaReference::uri_from_frame)
         .def("timecode", &utility::MediaReference::timecode)
@@ -434,9 +436,10 @@ void register_item_class(py::module &m, const std::string &name) {
         .def(
             "resolve_time",
             &timeline::Item::resolve_time,
-            py::arg("time")       = utility::FrameRate(),
-            py::arg("media_type") = media::MediaType::MT_IMAGE,
-            py::arg("focus")      = utility::UuidSet())
+            py::arg("time")            = utility::FrameRate(),
+            py::arg("media_type")      = media::MediaType::MT_IMAGE,
+            py::arg("focus")           = utility::UuidSet(),
+            py::arg("must_have_focus") = false)
 
         .def("children", py::overload_cast<>(&timeline::Item::children), "Get children")
         .def("__len__", [](timeline::Item &v) { return v.size(); });

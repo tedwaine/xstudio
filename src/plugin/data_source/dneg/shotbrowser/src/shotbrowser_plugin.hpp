@@ -240,6 +240,12 @@ namespace shotbrowser {
         void do_add_media_sources_from_shotgun(std::shared_ptr<BuildPlaylistMediaJob>);
         void do_add_media_sources_from_ivy(std::shared_ptr<BuildPlaylistMediaJob>);
 
+        void publish_note_annotations(
+            caf::typed_response_promise<utility::JsonStore> rp,
+            const caf::actor &session,
+            const int note_id,
+            const utility::JsonStore &annotations);
+
         void execute_query(
             caf::typed_response_promise<utility::JsonStore> rp,
             const utility::JsonStore &action);

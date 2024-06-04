@@ -42,26 +42,47 @@ Item{ id: toolDiv
                 Layout.fillWidth: true
                 Layout.preferredHeight: parent.height
             }
-            XsSBCountDisplay{
+
+            MouseArea {
                 Layout.preferredWidth: btnWidth*2.5
                 Layout.preferredHeight: parent.height
-                filteredCount: resultsFilteredModel.count
-                totalCount: results.count == undefined ? "-" : results.truncated ? results.count + "+" : results.count
+
+                hoverEnabled: true
+
+                XsSBCountDisplay{
+                    anchors.fill: parent
+                    filteredCount: resultsFilteredModel.count
+                    totalCount: resultsBaseModel.count == undefined ? "-" : resultsBaseModel.truncated ? resultsBaseModel.count + "+" : resultsBaseModel.count
+                }
+
+                XsToolTip {
+                    timeout: 0
+                    visible: parent.containsMouse
+                    text: "Execution time " + resultsBaseModel.executionMilliseconds + " ms."
+                }
             }
+
             XsComboBoxEditable{ id: filterStep
                 Layout.minimumWidth: btnWidth*3.5
                 Layout.preferredWidth: btnWidth*4
                 Layout.preferredHeight: parent.height
-                model: ShotBrowserEngine.presetsModel.termModel("Pipeline Step")
-                currentIndex: -1
+                model: ShotBrowserEngine.ready ? ShotBrowserEngine.presetsModel.termModel("Pipeline Step") : []
                 textRole: "nameRole"
-                displayText: currentIndex==-1? "Pipeline Step" : currentText
+                currentIndex: -1
+                displayText: currentIndex ==-1 ? "Pipeline Step" : currentText
+
+                onModelChanged: currentIndex = -1
+
                 onCurrentIndexChanged: {
-                    if(currentIndex != -1)
-                        pipeStep = model.get(model.index(currentIndex,0), "nameRole")
-                    else
+                    if(currentIndex == -1)
                         pipeStep = ""
                 }
+                onAccepted: {
+                    pipeStep = model.get(model.index(currentIndex, 0), "nameRole")
+                    toolDiv.forceActiveFocus()
+                }
+
+                onActivated: pipeStep = model.get(model.index(currentIndex,0), "nameRole")
 
                 Connections {
                     target: panel
@@ -74,16 +95,25 @@ Item{ id: toolDiv
                 Layout.minimumWidth: btnWidth*3
                 Layout.preferredWidth: btnWidth*3.5
                 Layout.preferredHeight: parent.height
-                model: ShotBrowserEngine.presetsModel.termModel("Site")
+                model: ShotBrowserEngine.ready ? ShotBrowserEngine.presetsModel.termModel("Site") : []
                 currentIndex: -1
                 textRole: "nameRole"
                 displayText: currentIndex==-1? "On Disk" : currentText
+
+                onModelChanged: currentIndex = -1
+
                 onCurrentIndexChanged: {
-                    if(currentIndex != -1)
-                        onDisk = model.get(model.index(currentIndex,0), "nameRole")
-                    else
+                    if(currentIndex==-1)
                         onDisk = ""
                 }
+
+                onAccepted: {
+                    onDisk = model.get(model.index(currentIndex,0), "nameRole")
+                    toolDiv.forceActiveFocus()
+                }
+
+                onActivated: onDisk = model.get(model.index(currentIndex,0), "nameRole")
+
                 Connections {
                     target: panel
                     function onOnDiskChanged() {

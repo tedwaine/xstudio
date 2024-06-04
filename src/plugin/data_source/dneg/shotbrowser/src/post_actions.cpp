@@ -12,6 +12,99 @@ using namespace xstudio::shotbrowser;
 using namespace xstudio::utility;
 
 
+void ShotBrowser::publish_note_annotations(
+    caf::typed_response_promise<utility::JsonStore> rp,
+    const caf::actor &session,
+    const int note_id,
+    const utility::JsonStore &annotations) {
+
+    auto offscreen_renderer =
+        system().registry().template get<caf::actor>(offscreen_viewport_registry);
+    auto thumbnail_manager =
+        system().registry().template get<caf::actor>(thumbnail_manager_registry);
+
+    for (const auto &anno : annotations) {
+        request(
+            session, infinite, playlist::get_media_atom_v, utility::Uuid(anno.at("media_uuid")))
+            .then(
+                [=](const caf::actor &media_actor) mutable {
+                    // spdlog::warn("render annotation {}",
+                    // anno["media_frame"].get<int>());
+                    request(
+                        offscreen_renderer,
+                        infinite,
+                        ui::viewport::render_viewport_to_image_atom_v,
+                        media_actor,
+                        anno.at("media_frame").get<int>(),
+                        thumbnail::THUMBNAIL_FORMAT::TF_RGB24,
+                        0,
+                        true,
+                        true)
+                        .then(
+                            [=](const thumbnail::ThumbnailBufferPtr &tnail) {
+                                // got buffer. convert to jpg..
+                                request(
+                                    thumbnail_manager,
+                                    infinite,
+                                    media_reader::get_thumbnail_atom_v,
+                                    tnail)
+                                    .then(
+                                        [=](const std::vector<std::byte> &jpgbuf) mutable {
+                                            // final step...
+                                            auto title = std::string(fmt::format(
+                                                "{}_{}.jpg",
+                                                anno.at("media_name").get<std::string>(),
+                                                anno.at("timecode_frame").get<int>()));
+                                            request(
+                                                shotgun_,
+                                                infinite,
+                                                shotgun_upload_atom_v,
+                                                "note",
+                                                note_id,
+                                                "",
+                                                title,
+                                                jpgbuf,
+                                                "image/jpeg")
+                                                .then(
+                                                    [=](const bool) {},
+                                                    [=](const error &err) mutable {
+                                                        spdlog::warn(
+                                                            "{} "
+                                                            "Failed"
+                                                            " uploa"
+                                                            "d of "
+                                                            "annota"
+                                                            "tion "
+                                                            "{}",
+                                                            __PRETTY_FUNCTION__,
+                                                            to_string(err));
+                                                    }
+
+                                                );
+                                        },
+                                        [=](const error &err) mutable {
+                                            spdlog::warn(
+                                                "{} Failed jpeg "
+                                                "conversion {}",
+                                                __PRETTY_FUNCTION__,
+                                                to_string(err));
+                                        });
+                            },
+                            [=](const error &err) mutable {
+                                spdlog::warn(
+                                    "{} Failed render annotation "
+                                    "{}",
+                                    __PRETTY_FUNCTION__,
+                                    to_string(err));
+                            });
+                },
+                [=](const error &err) mutable {
+                    spdlog::warn("{} Failed get media {}", __PRETTY_FUNCTION__, to_string(err));
+                });
+    }
+}
+
+
 void ShotBrowser::create_playlist_notes(
     caf::typed_response_promise<utility::JsonStore> rp,
     const utility::JsonStore &notes,
@@ -44,16 +137,15 @@ void ShotBrowser::create_playlist_notes(
 
         auto tags = request_receive<caf::actor>(*sys, session, xstudio::tag::get_tag_atom_v);
 
-        auto count   = std::make_shared<int>(notes.size());
-        auto failed  = std::make_shared<int>(0);
-        auto succeed = std::make_shared<int>(0);
+        auto count   = notes.size();
+        auto failed  = std::make_shared<size_t>(0);
+        auto succeed = std::make_shared<size_t>(0);
+        auto results = std::make_shared<std::vector<JsonStore>>(count);
 
-        auto offscreen_renderer =
-            system().registry().template get<caf::actor>(offscreen_viewport_registry);
-        auto thumbnail_manager =
-            system().registry().template get<caf::actor>(thumbnail_manager_registry);
+        auto index = 0;
 
         for (const auto &j : notes) {
+
             // need to capture result to embed in playlist and add any media..
             // spdlog::warn("{}", j["payload"].dump(2));
             request(
@@ -61,157 +153,63 @@ void ShotBrowser::create_playlist_notes(
                 infinite,
                 shotgun_create_entity_atom_v,
                 "notes",
-                utility::JsonStore(j["payload"]))
+                utility::JsonStore(j.at("payload")))
                 .then(
                     [=](const JsonStore &result) mutable {
-                        (*count)--;
+                        (*results)[index] = result;
                         try {
-                            // "errors": [
-                            //   {
-                            //     "status": null
-                            //   }
-                            // ]
-                            if(result.count("errors"))
-                            // if (not result.at("errors")[0].at("status").is_null())
-                                throw std::runtime_error(result["errors"].dump(2));
+                            if (result.count("errors"))
+                                (*failed)++;
+                            else {
 
-                            // get new playlist id..
-                            auto note_id = result.at("data").at("id").template get<int>();
-                            // we have a note...
-                            if (not j["has_annotation"].empty()) {
-                                for (const auto &anno : j["has_annotation"]) {
-                                    request(
-                                        session,
-                                        infinite,
-                                        playlist::get_media_atom_v,
-                                        utility::Uuid(anno["media_uuid"]))
-                                        .then(
-                                            [=](const caf::actor &media_actor) mutable {
-                                                // spdlog::warn("render annotation {}",
-                                                // anno["media_frame"].get<int>());
-                                                request(
-                                                    offscreen_renderer,
-                                                    infinite,
-                                                    ui::viewport::
-                                                        render_viewport_to_image_atom_v,
-                                                    media_actor,
-                                                    anno["media_frame"].get<int>(),
-                                                    thumbnail::THUMBNAIL_FORMAT::TF_RGB24,
-                                                    0,
-                                                    true,
-                                                    true)
-                                                    .then(
-                                                        [=](const thumbnail::ThumbnailBufferPtr
-                                                                &tnail) {
-                                                            // got buffer. convert to jpg..
-                                                            request(
-                                                                thumbnail_manager,
-                                                                infinite,
-                                                                media_reader::
-                                                                    get_thumbnail_atom_v,
-                                                                tnail)
-                                                                .then(
-                                                                    [=](const std::vector<
-                                                                        std::byte>
-                                                                            &jpgbuf) mutable {
-                                                                        // final step...
-                                                                        auto title = std::
-                                                                            string(fmt::format(
-                                                                                "{}_{}.jpg",
-                                                                                anno["media_"
-                                                                                     "name"]
-                                                                                    .get<
-                                                                                        std::
-                                                                                            string>(),
-                                                                                anno["timecode_"
-                                                                                     "frame"]
-                                                                                    .get<
-                                                                                        int>()));
-                                                                        request(
-                                                                            shotgun_,
-                                                                            infinite,
-                                                                            shotgun_upload_atom_v,
-                                                                            "note",
-                                                                            note_id,
-                                                                            "",
-                                                                            title,
-                                                                            jpgbuf,
-                                                                            "image/jpeg")
-                                                                            .then(
-                                                                                [=](const bool) {
-                                                                                },
-                                                                                [=](const error &
-                                                                                        err) mutable {
-                                                                                    spdlog::warn(
-                                                                                        "{} "
-                                                                                        "Failed"
-                                                                                        " uploa"
-                                                                                        "d of "
-                                                                                        "annota"
-                                                                                        "tion "
-                                                                                        "{}",
-                                                                                        __PRETTY_FUNCTION__,
-                                                                                        to_string(
-                                                                                            err));
-                                                                                }
-
-                                                                            );
-                                                                    },
-                                                                    [=](const error
-                                                                            &err) mutable {
-                                                                        spdlog::warn(
-                                                                            "{} Failed jpeg "
-                                                                            "conversion {}",
-                                                                            __PRETTY_FUNCTION__,
-                                                                            to_string(err));
-                                                                    });
-                                                        },
-                                                        [=](const error &err) mutable {
-                                                            spdlog::warn(
-                                                                "{} Failed render annotation "
-                                                                "{}",
-                                                                __PRETTY_FUNCTION__,
-                                                                to_string(err));
-                                                        });
-                                            },
-                                            [=](const error &err) mutable {
-                                                spdlog::warn(
-                                                    "{} Failed get media {}",
-                                                    __PRETTY_FUNCTION__,
-                                                    to_string(err));
-                                            });
+                                // get new playlist id..
+                                auto note_id = result.at("data").at("id").template get<int>();
+                                // we have a note...
+                                if (not j.at("has_annotation").empty()) {
+                                    publish_note_annotations(
+                                        rp, session, note_id, j.at("has_annotation"));
                                 }
+
+                                // spdlog::warn("note {}", result.dump(2));
+                                // send json to note..
+                                anon_send(
+                                    bookmarks,
+                                    json_store::set_json_atom_v,
+                                    utility::Uuid(j.at("bookmark_uuid")),
+                                    utility::JsonStore(result.at("data")),
+                                    ShotgunMetadataPath + "/note");
+
+                                xstudio::tag::Tag t;
+                                t.set_type("Decorator");
+                                t.set_data(ui);
+                                t.set_link(utility::Uuid(j.at("bookmark_uuid")));
+                                t.set_unique(to_string(t.link()) + t.type() + t.data());
+
+                                anon_send(tags, xstudio::tag::add_tag_atom_v, t);
+
+                                (*succeed)++;
                             }
-
-                            // spdlog::warn("note {}", result.dump(2));
-                            // send json to note..
-                            anon_send(
-                                bookmarks,
-                                json_store::set_json_atom_v,
-                                utility::Uuid(j["bookmark_uuid"]),
-                                utility::JsonStore(result.at("data")),
-                                ShotgunMetadataPath + "/note");
-
-                            xstudio::tag::Tag t;
-                            t.set_type("Decorator");
-                            t.set_data(ui);
-                            t.set_link(utility::Uuid(j["bookmark_uuid"]));
-                            t.set_unique(to_string(t.link()) + t.type() + t.data());
-
-                            anon_send(tags, xstudio::tag::add_tag_atom_v, t);
-
-                            // update shotgun versions from our source playlist.
-                            // return the result..
-                            // update_playlist_versions(rp, playlist_uuid, playlist_id);
-                            (*succeed)++;
                         } catch (const std::exception &err) {
                             (*failed)++;
                             spdlog::warn(
                                 "{} {} {}", __PRETTY_FUNCTION__, err.what(), result.dump(2));
                         }
 
-                        if (not(*count)) {
-                            auto jsn = JsonStore(R"({"data": {"status": ""}})"_json);
+                        if (count == (*failed) + (*succeed)) {
+                            auto jsn = JsonStore(
+                                R"({"data": {"status": ""}, "failed": [], "succeed": [], "succeed_title": [], "failed_title": []})"_json);
+                            for (const auto &r : (*results)) {
+                                if (r.count("errors")) {
+                                    jsn["failed"].push_back(r);
+                                    jsn["failed_title"].push_back(
+                                        notes.at(index).at("payload").at("subject"));
+                                } else {
+                                    jsn["succeed"].push_back(r);
+                                    jsn["succeed_title"].push_back(
+                                        r.at("data").at("attributes").at("subject"));
+                                }
+                            }
+
                             jsn["data"]["status"] = std::string(fmt::format(
                                 "Successfully published {} / {} notes.",
                                 *succeed,
@@ -224,11 +222,25 @@ void ShotBrowser::create_playlist_notes(
                             "Failed create note entity {} {}",
                             __PRETTY_FUNCTION__,
                             to_string(err));
-                        (*count)--;
                         (*failed)++;
 
-                        if (not(*count)) {
-                            auto jsn = JsonStore(R"({"data": {"status": ""}})"_json);
+                        if (count == (*failed) + (*succeed)) {
+                            auto jsn = JsonStore(
+                                R"({"data": {"status": ""}, "failed": [], "succeed": [], "succeed_title": [],"failed_title": []})"_json);
+                            auto index = 0;
+                            for (const auto &r : (*results)) {
+                                if (r.count("errors")) {
+                                    jsn["failed"].push_back(r);
+                                    jsn["failed_title"].push_back(
+                                        notes.at(index).at("payload").at("subject"));
+                                } else {
+                                    jsn["succeed"].push_back(r);
+                                    jsn["succeed_title"].push_back(
+                                        r.at("data").at("attributes").at("subject"));
+                                }
+                                index++;
+                            }
+
                             jsn["data"]["status"] = std::string(fmt::format(
                                 "Successfully published {} / {} notes.",
                                 *succeed,
@@ -236,6 +248,7 @@ void ShotBrowser::create_playlist_notes(
                             rp.deliver(jsn);
                         }
                     });
+            index++;
         }
 
     } catch (const std::exception &err) {

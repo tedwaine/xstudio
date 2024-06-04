@@ -13,8 +13,6 @@ Item{
         anchors.fill: parent
     }
 
-    property real visibleWidth: 450
-
     ColumnLayout { id: leftView
         anchors.fill: parent
         anchors.margins: panelPadding
@@ -34,7 +32,5 @@ Item{
             Layout.preferredWidth: parent.width
             Layout.preferredHeight: (XsStyleSheet.widgetStdHeight*2 + buttonSpacing*3)
         }
-
     }
-
 }

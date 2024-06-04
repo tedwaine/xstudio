@@ -207,8 +207,7 @@ namespace colour_pipeline {
         virtual std::string fast_display_transform_hash(const media::AVFrameID &media_ptr) = 0;
 
       protected:
-        void make_pre_draw_gpu_hook(
-            caf::typed_response_promise<plugin::GPUPreDrawHookPtr> rp, const int viewer_index);
+        void make_pre_draw_gpu_hook(caf::typed_response_promise<plugin::GPUPreDrawHookPtr> rp);
 
         void attribute_changed(const utility::Uuid &attr_uuid, const int role) override;
 
@@ -259,8 +258,7 @@ namespace colour_pipeline {
         bool colour_ops_loaded_ = false;
 
         std::vector<caf::actor> colour_op_plugins_;
-        std::vector<std::pair<caf::typed_response_promise<plugin::GPUPreDrawHookPtr>, int>>
-            hook_requests_;
+        std::vector<caf::typed_response_promise<plugin::GPUPreDrawHookPtr>> hook_requests_;
     };
 
 } // namespace colour_pipeline

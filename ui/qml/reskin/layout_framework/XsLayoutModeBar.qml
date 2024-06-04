@@ -23,7 +23,9 @@ Item { id: modeBar
 
     property var selected_layout_index
 
-    XsSecondaryButton{ id: menuBtn
+    XsSecondaryButton{ 
+        
+        id: menuBtn
         width: XsStyleSheet.menuIndicatorSize
         height: XsStyleSheet.menuIndicatorSize
         anchors.right: parent.right
@@ -32,17 +34,17 @@ Item { id: modeBar
         imgSrc: "qrc:/icons/menu.svg"
         isActive: barMenu.visible
         onClicked: {
-            barMenu.x = menuBtn.x-barMenu.width
-            barMenu.y = menuBtn.y //+ menuBtn.height
-            barMenu.visible = !barMenu.visible
+            repositionPopupMenu(barMenu, menuBtn, width/2, height/2)
         }
+
     }
-    XsMenuNew {
+
+    XsPopupMenu {
         id: barMenu
         visible: false
-        menu_model: barMenuModel
-        menu_model_index: barMenuModel.index(-1, -1)
+        menu_model_name: "ModeBarMenu"+barId
     }
+
     XsMenusModel {
         id: barMenuModel
         modelDataName: "ModeBarMenu"+barId
@@ -61,14 +63,14 @@ Item { id: modeBar
             // TODO: pop-up string query dialog to get new name
             dialogHelpers.textInputDialog(
                 acceptResult,
-                "Enter Layout Name",
+                "New Layout",
                 "Enter a name for new layout.",
                 "New Layout",
-                ["Ok", "Cancel"])
+                ["Cancel", "Create"])
         }
         function acceptResult(new_name, button) {
             
-            if (button == "Ok") {
+            if (button == "Create") {
                 var row = layouts_model.add_layout(new_name, layouts_model_root_index, "Viewport")                
                 callbackTimer.setTimeout(function(layout_idx) { return function() {
                     selected_layout = layout_idx
@@ -88,13 +90,13 @@ Item { id: modeBar
             // TODO: pop-up string query dialog to get new name
             dialogHelpers.textInputDialog(
                 acceptResult,
-                "Enter Layout Name",
+                "Rename Layout",
                 "Enter a new name for layout \""+layoutProperties.values.layout_name+"\"",
                 layoutProperties.values.layout_name,
-                ["Ok", "Cancel"])
+                ["Cancel", "Rename"])
         }
         function acceptResult(new_name, button) {
-            if (button == "Ok") {
+            if (button == "Rename") {
                 layouts_model.set(current_layout_index, new_name, "layout_name")
             }
         }
@@ -109,13 +111,13 @@ Item { id: modeBar
             // TODO: pop-up string query dialog to get new name
             dialogHelpers.textInputDialog(
                 acceptResult,
-                "Enter Name for Dulplicate Layout",
+                "Dulplicate Layout",
                 "Enter a new name for duplicated layout \""+layoutProperties.values.layout_name+"\"",
                 layoutProperties.values.layout_name,
-                ["Ok", "Cancel"])
+                ["Cancel", "Duplicate"])
         }
         function acceptResult(new_name, button) {
-            if (button == "Ok") {
+            if (button == "Duplicate") {
                 var idx = layouts_model.duplicate_layout(current_layout_index)
                 layouts_model.set(idx, new_name, "layout_name")
                 selected_layout = idx.row
@@ -251,7 +253,9 @@ Item { id: modeBar
     property int selected_layout: -1
 
     onSelected_layoutChanged: {
-        layouts_model.set(layouts_model_root_index, selected_layout, "current_layout")
+        if (layouts_model_root_index.valid) {
+            layouts_model.set(layouts_model_root_index, selected_layout, "current_layout")
+        }
     }
 
     DelegateModel {

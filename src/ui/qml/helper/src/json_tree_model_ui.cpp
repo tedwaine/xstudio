@@ -232,6 +232,8 @@ QModelIndexList JSONTreeModel::searchRecursiveListBase(
     const int hits,
     const int max_depth) {
 
+    auto tp = utility::clock::now();
+
     START_SLOW_WATCHER()
 
     QModelIndexList result = QAbstractItemModel::match(
@@ -255,6 +257,11 @@ QModelIndexList JSONTreeModel::searchRecursiveListBase(
     }
 
     CHECK_SLOW_WATCHER()
+
+    if (std::chrono::duration_cast<std::chrono::milliseconds>(utility::clock::now() - tp)
+            .count() > 100) {
+        qDebug() << "SLOW SEARCH " << value << " " << roleName(role) << "\n";
+    }
 
     return result;
 }
@@ -462,6 +469,9 @@ QVariant JSONTreeModel::data(const QModelIndex &index, int role) const {
             result = mapFromValue(j.at(field));
 
     } catch (const std::exception &err) {
+
+        qDebug() << "index " << index << "\n";
+
         spdlog::warn(
             "{} {} role: {}",
             __PRETTY_FUNCTION__,

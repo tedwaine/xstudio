@@ -36,7 +36,7 @@ Rectangle{
 
             Grid{ id: siteGrid
                 width: parent.width - itemSpacing*(siteModel.count-1)
-                height: isTestMode? parent.height/1.5 : parent.height
+                height: parent.height
                 anchors.verticalCenter: parent.verticalCenter
                 rows: 1
                 columns: siteModel.count

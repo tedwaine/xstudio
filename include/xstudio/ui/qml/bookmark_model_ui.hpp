@@ -54,6 +54,11 @@ class BookmarkFilterModel : public QSortFilterProxyModel {
 
     Q_PROPERTY(int depth READ depth WRITE setDepth NOTIFY depthChanged)
     Q_PROPERTY(bool showHidden READ showHidden WRITE setShowHidden NOTIFY showHiddenChanged)
+    Q_PROPERTY(QStringList excludedCategories READ excludedCategories WRITE
+                   setExcludedCategories NOTIFY excludedCategoriesChanged)
+    Q_PROPERTY(QStringList includedCategories READ includedCategories WRITE
+                   setIncludedCategories NOTIFY includedCategoriesChanged)
+
 
   public:
     BookmarkFilterModel(QObject *parent = nullptr);
@@ -62,11 +67,15 @@ class BookmarkFilterModel : public QSortFilterProxyModel {
     [[nodiscard]] int depth() const { return depth_; }
     [[nodiscard]] QVariant currentMedia() const { return QVariant::fromValue(current_media_); }
     [[nodiscard]] bool showHidden() const { return showHidden_; }
+    [[nodiscard]] QStringList excludedCategories() const { return excluded_categories_; }
+    [[nodiscard]] QStringList includedCategories() const { return included_categories_; }
 
     void setMediaOrder(const QVariantMap &mo);
     void setDepth(const int value);
     void setCurrentMedia(const QVariant &value);
     void setShowHidden(const bool value);
+    void setExcludedCategories(const QStringList value);
+    void setIncludedCategories(const QStringList value);
 
     Q_INVOKABLE bool
     removeRows(int row, int count, const QModelIndex &parent = QModelIndex()) override {
@@ -89,12 +98,16 @@ class BookmarkFilterModel : public QSortFilterProxyModel {
     void depthChanged();
     void currentMediaChanged();
     void showHiddenChanged();
+    void excludedCategoriesChanged();
+    void includedCategoriesChanged();
 
   private:
     QVariantMap media_order_;
     QUuid current_media_;
     int depth_{0};
     bool showHidden_{false};
+    QStringList excluded_categories_;
+    QStringList included_categories_;
 };
 
 

@@ -61,7 +61,7 @@ Item{
                 }
             }
             onDropped: {
-                console.log(drop)
+                // console.log(drop)
             }
         }
 
@@ -211,6 +211,7 @@ Item{
                         currentIndex = 0
                     } else {
                         currentIndex = find(editText)
+                        setTermValue(textAt(currentIndex))
                     }
                     focus = false
                 }

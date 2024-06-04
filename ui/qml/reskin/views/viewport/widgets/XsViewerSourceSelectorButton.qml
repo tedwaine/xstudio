@@ -19,27 +19,10 @@ XsViewerAnyMenuButton  {
     // to show the sources of the current playhead, which are defined by the
     // Source and Audio Source attributes in the Playhead class.
     // see PlayheadActor::make_source_menu_model in the C++ source.
-    menuModelName: currentPlayheadUuid + "source_menu"
+    menuModelName: currentPlayhead.uuid + "source_menu"
 
     text: "Source"
     shortText: "Src"
-    valueText: currentImageSource ? currentImageSource : "None"
-
-    /*************************************************************************
-    Access Playhead data
-    **************************************************************************/
-    XsModelProperty {
-        id: __playheadImageSource
-        role: "value"
-        index: viewportPlayheadDataModel.searchRecursive("Source", "title")
-    }
-    Connections {
-        target: viewportPlayheadDataModel // this bubbles up from XsSessionWindow
-        function onJsonChanged() {
-            __playheadImageSource.index = viewportPlayheadDataModel.searchRecursive("Source", "title")
-        }
-    }
-    property alias currentImageSource: __playheadImageSource.value
-    /*************************************************************************/
+    valueText: viewportPlayhead.imageSourceName ? viewportPlayhead.imageSourceName : ""
 
 }
