@@ -95,10 +95,7 @@ class EXRDataWindowRenderer : public plugin::ViewportOverlayRenderer {
 
 EXRDataWindowHUD::EXRDataWindowHUD(
     caf::actor_config &cfg, const utility::JsonStore &init_settings)
-    : HUDPluginBase(cfg, "OpenEXR Data Window", init_settings) {
-
-    enabled_->set_preference_path("/plugin/exr_data_window/enabled");
-    enabled_->set_role_data(module::Attribute::ToolbarPosition, 1.0f);
+    : plugin::HUDPluginBase(cfg, "OpenEXR Data Window", init_settings, 1.0f) {
 
     colour_ =
         add_colour_attribute("Line Colour", "Colour", utility::ColourTriplet(0.0f, 1.0f, 0.0f));

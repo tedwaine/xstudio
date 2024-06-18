@@ -578,10 +578,11 @@ std::optional<ResolvedItem> Item::resolve_time(
 std::vector<ResolvedItem> Item::resolve_time_raw(
     const utility::FrameRate &time,
     const media::MediaType mt,
-    const utility::UuidSet &focus) const {
+    const utility::UuidSet &focus,
+    const bool ignore_disabled) const {
     auto result = std::vector<ResolvedItem>();
 
-    if (transparent())
+    if (ignore_disabled and transparent())
         return result;
 
     if (time >= trimmed_duration())
@@ -591,7 +592,8 @@ std::vector<ResolvedItem> Item::resolve_time_raw(
     case IT_TIMELINE:
         // pass to stack
         if (not empty()) {
-            result = front().resolve_time_raw(time + trimmed_start(), mt, focus);
+            result =
+                front().resolve_time_raw(time + trimmed_start(), mt, focus, ignore_disabled);
         }
         break;
 
@@ -602,10 +604,11 @@ std::vector<ResolvedItem> Item::resolve_time_raw(
 
             for (const auto &it : *this) {
                 // we skip audio track..
-                if (it.transparent() or it.item_type() == IT_AUDIO_TRACK)
+                if ((ignore_disabled and it.transparent()) or it.item_type() == IT_AUDIO_TRACK)
                     continue;
 
-                auto t = it.resolve_time_raw(time + trimmed_start(), mt, focus);
+                auto t =
+                    it.resolve_time_raw(time + trimmed_start(), mt, focus, ignore_disabled);
 
                 // track matches focus
                 if (not focus.empty() and focus.count(it.uuid()))
@@ -632,10 +635,11 @@ std::vector<ResolvedItem> Item::resolve_time_raw(
             // should this be reversed ?
             for (const auto &it : *this) {
                 // we skip audio track..
-                if (it.transparent() or it.item_type() == IT_VIDEO_TRACK)
+                if (ignore_disabled and it.transparent() or it.item_type() == IT_VIDEO_TRACK)
                     continue;
 
-                auto t = it.resolve_time_raw(time + trimmed_start(), mt, focus);
+                auto t =
+                    it.resolve_time_raw(time + trimmed_start(), mt, focus, ignore_disabled);
 
                 // track matches focus
                 if (not focus.empty() and focus.count(it.uuid()))
@@ -674,7 +678,7 @@ std::vector<ResolvedItem> Item::resolve_time_raw(
                 if (ttp + ts >= td) {
                     ttp -= td;
                 } else {
-                    result = it.resolve_time_raw(ttp + ts, mt, focus);
+                    result = it.resolve_time_raw(ttp + ts, mt, focus, ignore_disabled);
                     break;
                 }
             }
@@ -910,10 +914,10 @@ utility::JsonStore Item::set_available_range(const utility::FrameRange &value) {
 Items::iterator Item::insert_direct(Items::iterator position, const Item &val) {
     auto it = Items::insert(position, val);
     it->set_system(the_system_);
-    if (recursive_bind_ and item_post_event_callback_)
-        it->bind_item_post_event_func(item_post_event_callback_, recursive_bind_);
-    if (recursive_bind_ and item_pre_event_callback_)
-        it->bind_item_pre_event_func(item_pre_event_callback_, recursive_bind_);
+    if (recursive_bind_post_ and item_post_event_callback_)
+        it->bind_item_post_event_func(item_post_event_callback_, recursive_bind_post_);
+    if (recursive_bind_pre_ and item_pre_event_callback_)
+        it->bind_item_pre_event_func(item_pre_event_callback_, recursive_bind_pre_);
     return it;
 }
 
@@ -1161,26 +1165,26 @@ void Item::reset_actor(const bool recursive) {
 }
 
 void Item::bind_item_pre_event_func(ItemEventFunc fn, const bool recursive) {
-    recursive_bind_          = recursive;
+    recursive_bind_pre_      = recursive;
     item_pre_event_callback_ = [fn](auto &&PH1, auto &&PH2) {
         return fn(std::forward<decltype(PH1)>(PH1), std::forward<decltype(PH2)>(PH2));
     };
 
-    if (recursive_bind_) {
+    if (recursive_bind_pre_) {
         for (auto &i : *this)
-            i.bind_item_pre_event_func(fn, recursive_bind_);
+            i.bind_item_pre_event_func(fn, recursive_bind_pre_);
     }
 }
 
 void Item::bind_item_post_event_func(ItemEventFunc fn, const bool recursive) {
-    recursive_bind_           = recursive;
+    recursive_bind_post_      = recursive;
     item_post_event_callback_ = [fn](auto &&PH1, auto &&PH2) {
         return fn(std::forward<decltype(PH1)>(PH1), std::forward<decltype(PH2)>(PH2));
     };
 
-    if (recursive_bind_) {
+    if (recursive_bind_post_) {
         for (auto &i : *this)
-            i.bind_item_post_event_func(fn, recursive_bind_);
+            i.bind_item_post_event_func(fn, recursive_bind_post_);
     }
 }
 

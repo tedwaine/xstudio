@@ -11,7 +11,7 @@ import xStudioReskin 1.0
 
 Item {
     id: contentDiv
-    width: parent.width;
+
     implicitHeight: itemRowStdHeight
 
     property real itemPadding: XsStyleSheet.panelPadding/2
@@ -120,6 +120,14 @@ Item {
         onPressed: {
 
             if (mouse.buttons == Qt.RightButton) {
+                if (!isSelected) {
+                    // right click does an exclusive select, unless
+                    // already selected in which case selection doesn't change
+                    sessionSelectionModel.setCurrentIndex(
+                        modelIndex,
+                        ItemSelectionModel.ClearAndSelect
+                        )
+                }
                 showContextMenu(mouseX, mouseY, ma)
             }
 
@@ -321,7 +329,7 @@ Item {
             if (button == "Cancel") return
             theSessionData.moveRows(
                 data,
-                theSessionData.rowCount(modelIndex),
+                -1, // insertion row: make invalid so always inserts on the end
                 modelIndex,
                 button == "Copy"
                 )

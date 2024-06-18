@@ -2,6 +2,7 @@
 import QtQuick 2.12
 import QtQuick.Controls 2.14
 import QtGraphicalEffects 1.15
+import QtQuick.Layouts 1.15
 
 import xStudioReskin 1.0
 
@@ -14,12 +15,13 @@ Button {
     property bool isActiveViaIndicator: true
     property bool isActiveIndicatorAtLeft: false
     property bool isToolTipEnabled: true
+    property bool showBoth: false
 
     property alias textDiv: textDiv
     property alias imageDiv: imageDiv
     property alias bgDiv: bgDiv
     property alias activeIndicator: activeIndicator
-    property real rotaionAnimDuration: 150
+    property real rotationAnimDuration: 150
 
     property color imgOverlayColor: palette.text
     property color textColor: palette.text
@@ -39,43 +41,55 @@ Button {
     implicitWidth: textDiv.textWidth + 10
 
     contentItem:
-    Item{
+    Item {
         anchors.fill: parent
         opacity: enabled || isUnClickable? 1.0 : 0.33
-        clip: true
 
-        XsImage {
-            id: imageDiv
-            source: ""
-            sourceSize.height: 20
-            sourceSize.width: 20
+        Row {
             anchors.centerIn: parent
-            imgOverlayColor: palette.text
 
-            Behavior on rotation {NumberAnimation{duration: rotaionAnimDuration }}
-        }
-
-        XsText {
-            id: textDiv
-            visible: imgSrc==""
-            text: widget.text
-            font: widget.font
-            color: textColor
-            elide: Text.ElideRight
-            horizontalAlignment: Text.AlignHCenter
-            verticalAlignment: Text.AlignVCenter
-            anchors.horizontalCenter: parent.horizontalCenter
-            width: parent.width
+            width: Math.min(parent.width, (imageDiv.visible ? imageDiv.width:0) + (textDiv.visible ? textDiv.textWidth+10:0))
             height: parent.height
+
+            XsImage {
+                id: imageDiv
+                anchors.verticalCenter: parent.verticalCenter
+                // anchors.horizontalCenter: showBoth ? undefined : parent.horizontalCenter
+                // anchors.right: showBoth ? textDiv.left : undefined
+                // anchors.rightMargin: showBoth ? 10 : 0
+
+                width: 20
+                height: 20
+                visible: source && source != ""
+                imgOverlayColor: palette.text
+
+                // Behavior on rotation {NumberAnimation{duration: rotationAnimDuration }}
+            }
+
+            XsText {
+                id: textDiv
+                visible: (!imgSrc | imgSrc=="")  | showBoth
+                text: widget.text
+                font: widget.font
+                color: textColor
+                elide: Text.ElideRight
+                horizontalAlignment: Text.AlignHCenter
+                verticalAlignment: Text.AlignVCenter
+                anchors.verticalCenter: parent.verticalCenter
+                // anchors.horizontalCenter: showBoth ? undefined : parent.horizontalCenter
+                // anchors.centerIn: parent
+                width: Math.min(parent.width-(imageDiv.visible ? imageDiv.width:0), textDiv.textWidth+10)
+            }
         }
-        XsToolTip{
-            text: widget.text
-            visible: textDiv.visible? widget.hovered && textDiv.truncated : widget.hovered && widget.text!=""
-            width: metricsDiv.width == 0? 0 : textDiv.textWidth +15
-            // height: widget.height
-            x: widget.width //#TODO: flex/pointer
-            y: widget.height
-        }
+    }
+
+    XsToolTip{
+        text: widget.text
+        visible: textDiv.visible? widget.hovered && textDiv.truncated : widget.hovered && widget.text!=""
+        width: metricsDiv.width == 0? 0 : textDiv.textWidth +15
+        // height: widget.height
+        x: widget.width //#TODO: flex/pointer
+        y: widget.height
     }
 
     background:
@@ -91,7 +105,7 @@ Button {
         flatColor: topColor
         topColor: widget.down || (isActive && !isActiveViaIndicator)? bgColorPressed: forcedBgColorNormal==bgColorNormal?"#33FFFFFF":forcedBgColorNormal
         bottomColor: widget.down || (isActive && !isActiveViaIndicator)? bgColorPressed: forcedBgColorNormal
-    
+
 
         Rectangle {
             id: bgFocusDiv

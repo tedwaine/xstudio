@@ -473,11 +473,7 @@ Item {
                                 height: buttonHeight
                                 isActive: mask_tool_settings.polygon_init
                                 onClicked: {
-                                    if (mask_tool_settings.polygon_init) {
-                                        mask_tool_settings.drawing_action = "Cancel polygon"
-                                    } else {
-                                        mask_tool_settings.drawing_action = "Adding polygon"
-                                    }
+                                    mask_tool_settings.polygon_init = !mask_tool_settings.polygon_init
                                 }
                             }
                             XsPrimaryButton {

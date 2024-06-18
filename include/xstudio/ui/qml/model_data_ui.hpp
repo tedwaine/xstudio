@@ -302,6 +302,7 @@ class MenuModelItem : public caf::mixin::actor_object<QObject> {
     void menuNameChanged();
     void textChanged();
     void activated(QObject *menuContext);
+    void hotkeyActivated();
     void menuItemPositionChanged();
     void choicesChanged();
     void currentChoiceChanged();

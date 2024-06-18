@@ -139,7 +139,7 @@ function downloadMovies(indexes=[]) {
 	if(indexes.length) {
 		let m = indexes[0].model
 		for(let i = 0; i< indexes.length; i++) {
-			console.log(m.get(indexes[i], "actorUuidRole"))
+			// console.log(m.get(indexes[i], "actorUuidRole"))
 
 		    Future.promise(ShotBrowserEngine.addDownloadToMediaFuture(m.get(indexes[i], "actorUuidRole"))).then(
 		        function(result) {
@@ -225,6 +225,18 @@ function compareMediaCallback(playlist_uuid, uuids) {
     }
 }
 
+function conformToNewSequenceCallback(playlist_uuid, uuids) {
+   if(uuids.length) {
+        let plindex = theSessionData.searchRecursive(playlist_uuid,"actorUuidRole")
+		console.log(plindex)
+		let indexes = []
+		for(let i=0;i<uuids.length;i++) {
+			indexes.push(theSessionData.searchRecursive(uuids[i],"actorUuidRole", plindex))
+		}
+		appWindow.conformTool.conformToNewSequence(indexes, plindex)
+	}
+}
+
 
 // add results and compare them
 // add next to media selection ?
@@ -300,9 +312,17 @@ function _conformMediaCallback(playlist_uuid, uuids, conformTrackIndex) {
         	let mi = sindex.model.search(uuids[i], "actorUuidRole", sindex.model.index(0,0,sindex))
         	if(mi.valid)
 	            tmp.push(mi)
+	        else {
+	        	// retry after delay and UI hasn't updated yet...
+	        	delayCallback(1000, function() {_conformMediaCallback(playlist_uuid, uuids, conformTrackIndex)})
+	        	return
+	        }
         }
-        // assumes clips are not nested..
-		appWindow.conformTool.conformToSequence(tmp, sindex, "Added Media", conformTrackIndex)
+
+        if(tmp.length)
+			appWindow.conformTool.conformToSequence(tmp, sindex, "Added Media", conformTrackIndex)
+    	else
+	        console.log("appWindow.conformTool.conformToSequence", tmp, sindex, "Added Media", conformTrackIndex)
 	}
 }
 
@@ -329,7 +349,12 @@ function replaceConformMediaCallback(playlist_uuid, uuids) {
         	let mi = sindex.model.search(uuids[i], "actorUuidRole", sindex.model.index(0,0,sindex))
         	if(mi.valid)
 	            tmp.push(mi)
-        }
+	        else {
+	        	// retry after delay and UI hasn't updated yet...
+	        	delayCallback(1000, function() {replaceConformMediaCallback(playlist_uuid, uuids)})
+	        	return
+	        }
+	    }
 
         // we use the current active clip to select the conform track.
         let clipIndex = theSessionData.getTimelineClipIndex(sindex, currentPlayhead.logicalFrame)
@@ -359,7 +384,7 @@ function selectTimelineCallback(playlist_index, uuids, wait=4) {
 				tindex,
 				ItemSelectionModel.ClearAndSelect)
 			// prepare timeline...
-			appWindow.conformTool.conformPrepareSequence(tindex)
+			appWindow.conformTool.conformPrepareSequence(tindex, false)
 		} else if(wait) {
 			delayCallback(1000, function() {
 		     	selectTimelineCallback(playlist_index, uuids, wait-1)
@@ -373,25 +398,25 @@ function selectTimelineCallback(playlist_index, uuids, wait=4) {
 function addToSequence(indexes=[], viewed=true) {
 	let current_pl = viewed ? viewedMediaSetProperties.values.actorUuidRole : inspectedMediaSetProperties.values.actorUuidRole
 	if(viewed)
-		addToPlaylist(indexes, current_pl, null, conformMediaCallback)
+		addToPlaylist(indexes, current_pl, null, "Untitled Playlist", conformMediaCallback)
 	else
-		addToPlaylist(indexes, current_pl, null, conformMediaToConformTrackCallback)
+		addToPlaylist(indexes, current_pl, null, "Untitled Playlist", conformMediaToConformTrackCallback)
 }
 
 function replaceToSequence(indexes=[], callback=replaceConformMediaCallback) {
 	let current_pl = viewedMediaSetProperties.values.actorUuidRole
 
-	addToPlaylist(indexes, current_pl, null, callback)
+	addToPlaylist(indexes, current_pl, null, "Untitled Playlist", callback)
 }
 
 function addToCurrentPlaylist(indexes=[], media_uuid=null, viewed=true, callback=selectFirstMediaCallback) {
 	let current_pl = viewed ? viewedMediaSetProperties.values.actorUuidRole : inspectedMediaSetProperties.values.actorUuidRole
 
-	addToPlaylist(indexes, current_pl, media_uuid, callback)
+	addToPlaylist(indexes, current_pl, media_uuid, "Untitled Playlist", callback)
 }
 
 function addToNewPlaylist(indexes=[], media_uuid=null, callback=selectFirstMediaCallback) {
-	addToPlaylist(indexes, null, media_uuid, callback)
+	addToPlaylist(indexes, null, media_uuid, "Untitled Playlist", callback)
 }
 
 
@@ -473,7 +498,6 @@ function loadShotgridPlaylists(indexes=[]) {
 		let m = indexes[0].model
 		for(let i=0; i<indexes.length; i++) {
 			// console.log("loadShotgridPlaylists", m.get(indexes[i], "typeRole"))
-
 			if(m.get(indexes[i], "typeRole") == "Playlist") {
 				// create playlist
 				let name = m.get(indexes[i], "nameRole")
@@ -492,13 +516,22 @@ function addToCurrent(indexes=[], viewed=true) {
 	}
 }
 
+function addSequencesToNewPlaylist(indexes=[], callback=selectTimelineCallback) {
+	indexes = mapIndexesToResultModel(indexes)
+
+	for(let i=0; i<indexes.length;i++) {
+		let sequenceRole = indexes[i].model.get(indexes[i],"sequenceRole")
+		addSequencesToPlaylist([indexes[i]], null, sequenceRole ? sequenceRole : "ShotBrowser Sequence", callback)
+	}
+}
+
 function addSequencesToCurrentPlaylist(indexes=[], viewed=true, callback=selectTimelineCallback) {
 	let current_pl = viewed ? viewedMediaSetProperties.index : inspectedMediaSetProperties.index
 
-	addSequencesToPlaylist(indexes, current_pl, callback)
+	addSequencesToPlaylist(indexes, current_pl, "ShotBrowser Sequence", callback)
 }
 
-function addSequencesToPlaylist(indexes, playlist_index=null, callback=selectTimelineCallback) {
+function addSequencesToPlaylist(indexes, playlist_index=null, playlist_name ="ShotBrowser Sequence", callback=selectTimelineCallback) {
 	indexes = mapIndexesToResultModel(indexes)
 
 	if(indexes.length) {
@@ -510,7 +543,7 @@ function addSequencesToPlaylist(indexes, playlist_index=null, callback=selectTim
 			let path = m.get(indexes[i], "otioRole");
 			if(helpers.urlExists(path)) {
 				if(!playlist_index || !playlist_index.valid)
-					playlist_index = theSessionData.createPlaylist("Imported OTIO")
+					playlist_index = theSessionData.createPlaylist(playlist_name)
 
 		        Future.promise(theSessionData.handleDropFuture(Qt.CopyAction, {"text/uri-list": path}, playlist_index)).then(
 		            function(quuids){
@@ -526,7 +559,7 @@ function addSequencesToPlaylist(indexes, playlist_index=null, callback=selectTim
 	}
 }
 
-function addToPlaylist(indexes=[], playlist_uuid=null, before_uuid=null, callback=null) {
+function addToPlaylist(indexes=[], playlist_uuid=null, before_uuid=null, playlist_name = "Untitled Playlist", callback=null) {
 	indexes = mapIndexesToResultModel(indexes)
 
 	let shotgrid_playlists = []
@@ -565,7 +598,7 @@ function addToPlaylist(indexes=[], playlist_uuid=null, before_uuid=null, callbac
 
 			// we call this for playlists.. and need special handling..
 			if(playlist_uuid == null) {
-				let plindex = theSessionData.createPlaylist("Untitled Playlist")
+				let plindex = theSessionData.createPlaylist(playlist_name)
 		  	    playlist_uuid =  helpers.QVariantFromUuidString(plindex.model.get(plindex, "actorUuidRole"))
 			}
 

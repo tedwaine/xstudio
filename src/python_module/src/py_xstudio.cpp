@@ -135,6 +135,11 @@ PYBIND11_MODULE(__pybind_xstudio, m) {
         .value("HotkeyUuid", module::Attribute::Role::HotkeyUuid)
         .export_values();
 
+    // set XSTUDIO_LOCAL_PLUGIN_PATH so we can load python plugins that are
+    // provided as part of the xstudio install/distribution
+    m.add_object(
+        "XSTUDIO_LOCAL_PLUGIN_PATH", py::cast(utility::xstudio_root("/plugin-python")));
+
     py_remote_session_file(m);
     py_playhead(m);
     py_plugin(m);

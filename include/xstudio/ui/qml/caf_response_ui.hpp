@@ -22,6 +22,7 @@ class CafResponse : public QObject {
     void received(QVariant, int, QPersistentModelIndex, int, QString);
     //  Search value, search role,  set role
     void finished(QVariant, int, int);
+    void started(QVariant, int, int);
 
   public:
     CafResponse(
@@ -36,6 +37,7 @@ class CafResponse : public QObject {
     ~CafResponse();
 
   private:
+    void handleStarted();
     void handleFinished();
 
     QFutureWatcher<QMap<int, QString>> watcher_;

@@ -57,14 +57,34 @@ class ModuleAttribute:
                 JsonStore(attribute_role_data)
             )[0]
 
+    def role_data(self, role_name):
+
+        return json.loads(self.connection.request_receive(
+            self.parent_remote,
+            attribute_role_data_atom(),
+            self.uuid,
+            role_name)[0].dump())
+
     def expose_in_ui_attrs_group(self, group_name):
 
-        self.connection.send(
+        try:
+            group_list = self.role_data("groups")
+            if type(group_name) == str:
+                group_list.append(group_name)
+            elif type(group_name) == list:
+                group_list = group_list+group_name
+        except:            
+            if type(group_name) == str:
+                group_list = [group_name]
+            elif type(group_name) == list:
+                group_list = group_name
+
+        self.connection.request_receive(
             self.parent_remote,
             attribute_role_data_atom(),
             self.uuid,
             "groups",
-            JsonStore(group_name))
+            JsonStore(group_list))
 
     def set_tool_tip(self, tool_tip):
 
@@ -123,6 +143,15 @@ class ModuleAttribute:
             self.parent_remote,
             attribute_value_atom(),
             self.uuid)
+
+    def as_json(self):
+
+        return self.connection.request_receive(
+            self.parent_remote,
+            attribute_value_atom(),
+            self.uuid,
+            True
+            )[0].get()
 
 class ModuleBase(ActorConnection):
 
@@ -188,6 +217,22 @@ class ModuleBase(ActorConnection):
         self.connection.request_receive(
             self.remote,
             disconnect_from_ui_atom())
+
+    def get_attribute(
+        self,
+        attribute_name
+        ):
+        """Get an attribute with the given name. Throws and exception if the
+        attribute does not exist
+
+        Args:
+            attribute_name(str): Name of attribute
+        Returns:
+
+        """
+        if attribute_name in self.attrs_by_name_:
+            return self.attrs_by_name_[attribute_name]
+        raise Exception("No such attribute {}".format(attribute_name))
 
     def add_attribute(
         self,

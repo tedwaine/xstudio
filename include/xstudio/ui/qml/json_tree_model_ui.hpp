@@ -185,6 +185,16 @@ class JSONTreeModel : public QAbstractItemModel {
     void bindEventFunc(JSONTreeSendEventFunc fs);
     virtual bool receiveEvent(const utility::JsonStore &event);
 
+    /* For row reordering at a given parent index only. The full list of
+    re-ordered indeces must be provbided.
+    
+    e.g. if we have rows in the model A,B,C,D,E and we are re-ordering to
+    E,A,D,C,B then new_row_indeces should be [4,0,3,2,1] */
+    bool reorderRows(
+        const QModelIndex &parent,
+        const std::vector<int> & new_row_indeces);
+
+
   protected:
     void setModelDataBase(const nlohmann::json &data, const bool local = true);
 

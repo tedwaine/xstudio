@@ -19,7 +19,8 @@ namespace timeline {
             caf::actor_config &cfg,
             const std::string &name    = "Timeline",
             const utility::Uuid &uuid  = utility::Uuid::generate(),
-            const caf::actor &playlist = caf::actor());
+            const caf::actor &playlist = caf::actor(),
+            const bool with_tracks     = false);
         ~TimelineActor() override = default;
 
         const char *name() const override { return NAME.c_str(); }

@@ -46,8 +46,10 @@ Item {
     property bool loopSelection: false
     property bool focusSelection: false
     property alias timelineModel: timeline_items
+    property var timelinePlayhead: null
 
     property alias timelineMarkerMenu: markerMenu
+    property alias timelineProperty: timelineProperty
     property string editMode: ""
 
     property bool scalingModeActive: false
@@ -59,42 +61,52 @@ Item {
     signal jumpToFrame(int frame, bool center)
 
     XsModelProperty {
+        id: timelineProperty
         index: timeline_items.rootIndex
         role: "propertyRole"
 
         onValueChanged: updateConformSourceIndex()
+        onIndexChanged: {
+            if(index && !index.valid) {
+                timeline_items.srcModel = []
+            }
+        }
     }
 
     function updateConformSourceIndex() {
         // resolve to track index.
         let m = timeline_items.srcModel
-        let current = m.get(timeline_items.rootIndex, "propertyRole")
-        let tindex = getVideoTrackIndex(1)
+        if(m == theSessionData) {
+            let current = m.get(timeline_items.rootIndex, "propertyRole")
+            let tindex = getVideoTrackIndex(1)
 
-        if(current != undefined) {
-            let stack = m.index(0, 0, timeline_items.rootIndex)
-            let ncsi = m.search(helpers.QVariantFromUuidString(current.conform_track_uuid), "idRole", stack, 0)
-            if(ncsi.valid) {
-                tindex = helpers.makePersistent(ncsi)
+            if(current != undefined) {
+                let stack = m.index(0, 0, timeline_items.rootIndex)
+                let ncsi = m.search(helpers.QVariantFromUuidString(current.conform_track_uuid), "idRole", stack, 0)
+                if(ncsi.valid) {
+                    tindex = helpers.makePersistent(ncsi)
+                }
             }
-        }
 
-        conformSourceIndex = tindex
+            conformSourceIndex = tindex
+        }
     }
 
     onConformSourceIndexChanged: {
         if(conformSourceIndex && conformSourceIndex.valid) {
             let m = timeline_items.srcModel
-            let current = m.get(timeline_items.rootIndex, "propertyRole")
-            let tid = m.get(conformSourceIndex, "idRole")
+            if(m == theSessionData) {
+                let current = m.get(timeline_items.rootIndex, "propertyRole")
+                let tid = m.get(conformSourceIndex, "idRole")
 
-            if(current == undefined || current.conform_track_uuid != tid) {
-                if(current == undefined) {
-                    current = {"conform_track_uuid": tid}
-                } else {
-                    current.conform_track_uuid = tid
+                if(current == undefined || current.conform_track_uuid != tid) {
+                    if(current == undefined) {
+                        current = {"conform_track_uuid": tid}
+                    } else {
+                        current.conform_track_uuid = tid
+                    }
+                    m.set(timeline_items.rootIndex, current, "propertyRole")
                 }
-                m.set(timeline_items.rootIndex, current, "propertyRole")
             }
         }
     }
@@ -179,7 +191,7 @@ Item {
 
     ItemSelectionModel {
         id: timelineSelection
-        model: timeline_items.srcModel
+        model: theSessionData
         onSelectionChanged: {
             updateFocus()
             updateLoop()
@@ -200,13 +212,13 @@ Item {
                 theSessionData.fetchMore(timelineIndex)
                 callbackTimer.setTimeout(function(index) { return function() {
                     timeline_items.srcModel = theSessionData
-                    timeline_items.rootIndex = index
+                    timeline_items.rootIndex = helpers.makePersistent(index)
                     updateConformSourceIndex()
                     fitItems()
                     // conformSourceIndex = getVideoTrackIndex(1)
                     }}( timelineIndex ), 200);
             } else {
-                timeline_items.rootIndex = timelineIndex
+                timeline_items.rootIndex = helpers.makePersistent(timelineIndex)
                 updateConformSourceIndex()
                 fitItems()
                 // conformSourceIndex = getVideoTrackIndex(1)
@@ -219,7 +231,7 @@ Item {
             // timeline that we interacted with. This is so the user can hop
             // bewtween individual media and the playlist without the playlist
             // interface clearing
-            timeline_items.rootIndex = theSessionData.index(-1,-1)
+            timeline_items.rootIndex = helpers.makePersistent(theSessionData.index(-1,-1))
             updateConformSourceIndex()
         }
     }
@@ -320,10 +332,8 @@ Item {
             }
         }
 
-        console.log("insertion_parent", insertion_parent)
         if(insertion_parent != null) {
             var a = theSessionData.insertRowsSync(insertion_row, 1, type, name, insertion_parent)
-            console.log("a", a)
             return a
         }
         return undefined
@@ -474,6 +484,13 @@ Item {
         // console.log(scaleX, r.left , middle, r == tr)
         if(list_view.itemAtIndex(0))
             list_view.itemAtIndex(0).jumpToFrame(r == tr ? r.left : middle, r == tr ? ListView.Beginning : ListView.Center)
+    }
+
+    function markerModel() {
+        if(list_view.itemAtIndex(0)) {
+            return list_view.itemAtIndex(0).markerModel
+        }
+        return null
     }
 
     function moveItem(index, distance) {
@@ -1128,8 +1145,7 @@ Item {
             property var modifyAnteceedingItem: null
             property string modifyItemType: ""
             property real modifyItemStartX: 0.0
-
-
+            
             Rectangle {
                 id: region
                 visible: ma.isRegionSelection
@@ -1181,7 +1197,7 @@ Item {
                     if(editMode != "Select")
                         adjustSelection(mouse)
 
-                    if(!hovered.isSelected) {
+                    if(!hovered || !hovered.isSelected) {
                         adjustSelection(mouse)
                     }
 
@@ -1217,7 +1233,7 @@ Item {
                                 hovered = item
                             }
                             selectItem()
-                            if(!item.isLocked) {
+                            if(!item.isLocked && !item.isParentLocked) {
                                 item.isRolling = true
                                 isRolling = true
                                 modifyItem = item
@@ -1262,7 +1278,7 @@ Item {
                     if (viewedMediaSetIndex.valid) {
                         theSessionData.setPlayheadTo(
                             viewedMediaSetIndex,
-                            inspectedMediaSetProperties.values.typeRole == "Timeline")                    
+                            inspectedMediaSetProperties.values.typeRole == "Timeline")
                     }
                 }
             }
@@ -1273,7 +1289,7 @@ Item {
 
                 if(isRegionSelection) {
                     isRegionSelection = false
-                    if(region.width < 1 && region.height < 1) {
+                    if(region.width < 5 && region.height < 5) {
                         adjustSelection(mouse)
                     }
                 }
@@ -1928,12 +1944,12 @@ Item {
 
     XsDragDropHandler {
 
-        id: drag_drop_handler   
+        id: drag_drop_handler
         property bool dragTarget: false
 
         onDragEntered: {
             if (source == "MediaList") {
-                dragTarget = true                
+                dragTarget = true
             }
         }
 
@@ -1942,7 +1958,7 @@ Item {
         }
 
 		onDropped: {
-            
+
             if (!dragTarget) return
             dragTarget = false
 			if (source == "MediaList" && typeof data == "object" && data.length) {

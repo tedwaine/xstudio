@@ -581,6 +581,11 @@ void GLColourLutTexture::bind(int tex_index) {
 }
 
 GLSsboTex::~GLSsboTex() {
+
+    // ensure no copying is in flight
+    if (upload_thread_.joinable())
+        upload_thread_.join();
+
     wait_on_upload_pixels();
     if (source_frame_ && source_frame_->size()) {
         glUnmapNamedBuffer(ssbo_id_);

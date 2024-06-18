@@ -79,15 +79,23 @@ void ModelRowCount::setIndex(const QModelIndex &index) {
 
 void ModelProperty::setIndex(const QModelIndex &index) {
     if (index.isValid()) {
-        if (index_.isValid())
+        if (index_.isValid()) {
             disconnect(
                 index_.model(),
                 &QAbstractItemModel::dataChanged,
                 this,
                 &ModelProperty::dataChanged);
+            disconnect(
+                index_.model(),
+                &QAbstractItemModel::rowsRemoved,
+                this,
+                &ModelProperty::removed);
+        }
 
         connect(
             index.model(), &QAbstractItemModel::dataChanged, this, &ModelProperty::dataChanged);
+
+        connect(index.model(), &QAbstractItemModel::rowsRemoved, this, &ModelProperty::removed);
 
         index_ = QPersistentModelIndex(index);
         emit indexChanged();
@@ -99,6 +107,12 @@ void ModelProperty::setIndex(const QModelIndex &index) {
         emit indexChanged();
         value_ = QVariant();
         emit valueChanged();
+    }
+}
+
+void ModelProperty::removed(const QModelIndex &parent, int first, int last) {
+    if (not index_.isValid()) {
+        setIndex(parent.model()->index(-1, -1, parent));
     }
 }
 

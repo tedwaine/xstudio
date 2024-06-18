@@ -3,6 +3,7 @@ import QtQuick 2.15
 import xstudio.qml.session 1.0
 import xstudio.qml.helpers 1.0
 import xstudio.qml.models 1.0
+import xstudio.qml.helpers 1.0
 
 import QtQml.Models 2.14
 import Qt.labs.qmlmodels 1.0
@@ -35,7 +36,7 @@ DelegateModel {
             // wait for valid index..
             let mind = currentSelectedPlaylistIndex.model.index(0, 0, currentSelectedPlaylistIndex)
             if(mind.valid) {
-                mediaList.rootIndex = mind
+                mediaList.rootIndex = helpers.makePersistent(mind)
             } else {
                 // try again in 200 milliseconds
                 callbackTimer.setTimeout(function() { return function() {

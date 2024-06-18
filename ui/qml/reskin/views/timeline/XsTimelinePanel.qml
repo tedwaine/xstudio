@@ -48,6 +48,8 @@ Item{
         anchors.fill: parent
     }
 
+    enabled: theTimeline.timelineProperty.index.valid
+
     // XsHotkey {
     //     id: fit_selection
     //     sequence: "F"
@@ -65,9 +67,9 @@ Item{
         onIndexChanged: updateCurrentClipDetail()
     }
 
-    XsNewTrackMenu {
-        id: newTrackMenu
-    }
+    // XsNewTrackMenu {
+    //     id: newTrackMenu
+    // }
 
     function nTimer() {
          return Qt.createQmlObject("import QtQuick 2.0; Timer {}", root);
@@ -161,9 +163,9 @@ Item{
         if(si.length == 1) {
             let i = si[0]
             if(i != currentClipIndex && i.model.get(i, "typeRole") == "Clip")
-                currentClipIndex = i
+                currentClipIndex = helpers.makePersistent(i)
         } else {
-            currentClipIndex = theSessionData.getTimelineClipIndex(theTimeline.timelineModel.rootIndex, timelinePlayhead.logicalFrame)
+            currentClipIndex = helpers.makePersistent(theSessionData.getTimelineClipIndex(theTimeline.timelineModel.rootIndex, timelinePlayhead.logicalFrame))
         }
     }
 
@@ -194,31 +196,31 @@ Item{
             height: btnHeight
             anchors.verticalCenter: parent.verticalCenter
 
-            XsPrimaryButton{ id: addPlaylistBtn
-                Layout.preferredWidth: btnWidth
-                Layout.preferredHeight: parent.height
-                imgSrc: "qrc:/icons/add.svg"
-                text: "Add"
+            // XsPrimaryButton{ id: addPlaylistBtn
+            //     Layout.preferredWidth: btnWidth
+            //     Layout.preferredHeight: parent.height
+            //     imgSrc: "qrc:/icons/add.svg"
+            //     text: "Add"
 
-                onClicked: {
-                    // let m = theTimeline.timelineModel.srcModel
-                    // let stack_index = m.index(0, 0, theTimeline.timelineModel.rootIndex)
+            //     onClicked: {
+            //         // let m = theTimeline.timelineModel.srcModel
+            //         // let stack_index = m.index(0, 0, theTimeline.timelineModel.rootIndex)
 
-                    // if(theTimeline.timelineSelection.selectedIndexes.length) {
-                    //     let index = m.getTimelineTrackIndex(theTimeline.timelineSelection.selectedIndexes[0])
-                    //     let type = m.get(index,"typeRole")
-                    //     if(type == "Video Track")
-                    //         theTimeline.addTrack("Video Track")
-                    //     else if(type == "Audio Track")
-                    //         theTimeline.addTrack("Audio Track")
-                    // } else {
-                        var pos = mapToItem(panel, x+width/2, y+height/2)
-                        newTrackMenu.x = pos.x
-                        newTrackMenu.y = pos.y
-                        newTrackMenu.visible = true
-                    // }
-                }
-            }
+            //         // if(theTimeline.timelineSelection.selectedIndexes.length) {
+            //         //     let index = m.getTimelineTrackIndex(theTimeline.timelineSelection.selectedIndexes[0])
+            //         //     let type = m.get(index,"typeRole")
+            //         //     if(type == "Video Track")
+            //         //         theTimeline.addTrack("Video Track")
+            //         //     else if(type == "Audio Track")
+            //         //         theTimeline.addTrack("Audio Track")
+            //         // } else {
+            //             var pos = mapToItem(panel, x+width/2, y+height/2)
+            //             newTrackMenu.x = pos.x
+            //             newTrackMenu.y = pos.y
+            //             newTrackMenu.visible = true
+            //         // }
+            //     }
+            // }
             XsPrimaryButton{ id: deleteBtn
                 Layout.preferredWidth: btnWidth
                 Layout.preferredHeight: parent.height
@@ -264,7 +266,7 @@ Item{
                 imgSrc: "qrc:/icons/stacks.svg"
                 text: "Flatten Selected Tracks"
                 onClicked:  {
-                    theSessionData.bakeTimelineItems(theTimeline.timelineSelection.selectedIndexes, "Flatten Track")
+                    theSessionData.bakeTimelineItems(theTimeline.timelineSelection.selectedIndexes)
                     theTimeline.deleteItems(theTimeline.timelineSelection.selectedIndexes)
                 }
             }
@@ -452,6 +454,7 @@ Item{
         width: parent.width - 40
         height: parent.height - actionDiv.height
         x: 40
+        timelinePlayhead: panel.timelinePlayhead
 
     }
 

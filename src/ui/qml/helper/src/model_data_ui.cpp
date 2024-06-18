@@ -17,7 +17,9 @@ using namespace std::chrono_literals;
 
 
 UIModelData::UIModelData(
-    QObject *parent, const std::string &model_name, const std::string &data_preference_path,
+    QObject *parent,
+    const std::string &model_name,
+    const std::string &data_preference_path,
     const std::vector<std::string> &role_names)
     : super(parent), model_name_(model_name), data_preference_path_(data_preference_path) {
 
@@ -25,7 +27,7 @@ UIModelData::UIModelData(
 
     if (!role_names.empty()) {
         setRoleNames(role_names);
-    }    
+    }
 
     try {
 
@@ -142,7 +144,7 @@ void UIModelData::init(caf::actor_system &system) {
                     j                 = data;
                     emit dataChanged(idx, idx, QVector<int>());
                 } catch (std::exception &e) {
-                    spdlog::warn(
+                    spdlog::debug(
                         "{} {} : {} {} {}",
                         __PRETTY_FUNCTION__,
                         e.what(),
@@ -200,7 +202,7 @@ void UIModelData::init(caf::actor_system &system) {
                         // process app/user..
                         setModelData(data);
                     } else {
-                        spdlog::warn(
+                        spdlog::debug(
                             "{} {} {} {} {} {} {}",
                             __PRETTY_FUNCTION__,
                             e.what(),
@@ -278,10 +280,6 @@ bool UIModelData::setData(const QModelIndex &index, const QVariant &value, int r
 
     } catch (const std::exception &err) {
         auto id = role - Roles::LASTROLE;
-        if (id >= 0 and id < static_cast<int>(role_names_.size())) {
-            std::cerr << "ROLE " << role_names_.at(id) << "\n";
-        }
-        qDebug() << QStringFromStd(model_name_) << " " << value << " " << index << "\n";
         spdlog::warn("{} {}", __PRETTY_FUNCTION__, err.what());
     }
 
@@ -589,22 +587,21 @@ ReskinPanelsModel::ReskinPanelsModel(QObject *parent)
           std::string("reskin panels model"),
           std::string("/ui/qml/reskin_windows_and_panels_model"),
           std::vector<std::string>{
-        "window_name",
-        "width",
-        "height",
-        "current_layout",
-        "position_x",
-        "position_y",
-        "children",
-        "layout_name",
-        "enabled",
-        "split_horizontal",
-        "child_dividers",
-        "current_tab",
-        "tab_view",
-        "tabs_hidden",
-        "user_data"}) {
-}
+              "window_name",
+              "width",
+              "height",
+              "current_layout",
+              "position_x",
+              "position_y",
+              "children",
+              "layout_name",
+              "enabled",
+              "split_horizontal",
+              "child_dividers",
+              "current_tab",
+              "tab_view",
+              "tabs_hidden",
+              "user_data"}) {}
 
 
 void ReskinPanelsModel::close_panel(QModelIndex panel_index) {
@@ -862,10 +859,12 @@ void MenuModelItem::init(caf::actor_system &system) {
             [=](utility::event_atom,
                 xstudio::ui::model_data::menu_node_activated_atom,
                 const std::string path,
-                const utility::JsonStore & /*menu_item_data*/,
+                const utility::JsonStore & menu_item_data,
                 const std::string &user_data, // for hotkeys this is the 'context'
                 const bool fromHotkey) {
-                if (!fromHotkey) {
+                if (fromHotkey) {
+                    emit hotkeyActivated();
+                } else {
                     QObject *context =
                         UIModelData::context_object_lookup(QStringFromStd(user_data));
                     emit activated(context);

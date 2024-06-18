@@ -119,8 +119,8 @@ void SubPlayhead::init() {
         [this](caf::scheduled_actor *, caf::message &msg) -> caf::skippable_result {
             //  UNCOMMENT TO DEBUG UNEXPECT MESSAGES
 
-            spdlog::warn(
-                "Got unwanted messate from {} {}", to_string(current_sender()), to_string(msg));
+            /*spdlog::warn(
+                "Got unwanted messate from {} {}", to_string(current_sender()), to_string(msg));*/
 
             return message{};
         });
@@ -472,7 +472,6 @@ void SubPlayhead::init() {
                             .then(
 
                                 [=](bool) mutable {
-                                    std::cerr << "A\n";
                                     up_to_date_ = false;
                                     // now ensure we have rebuilt ourselves to reflect the new
                                     // source i.e. we have checked out the new frames_time_list_
@@ -1774,7 +1773,8 @@ void SubPlayhead::add_annotations_data_to_frame(ImageBufPtr &frame) {
 void SubPlayhead::bookmark_deleted(const utility::Uuid &bookmark_uuid) {
 
     // update bookmark only if the removed bookmark is in our list...
-    auto p = bookmarks_.begin();
+    const size_t b = bookmarks_.size();
+    auto p         = bookmarks_.begin();
     while (p != bookmarks_.end()) {
         if ((*p)->detail_.uuid_ == bookmark_uuid) {
             p = bookmarks_.erase(p);
@@ -1792,7 +1792,7 @@ void SubPlayhead::bookmark_deleted(const utility::Uuid &bookmark_uuid) {
         }
     }
 
-    if (n != bookmark_ranges_.size()) {
+    if (n != bookmark_ranges_.size() || b != bookmarks_.size()) {
         send(parent_, utility::event_atom_v, bookmark::get_bookmarks_atom_v, bookmark_ranges_);
     }
 }

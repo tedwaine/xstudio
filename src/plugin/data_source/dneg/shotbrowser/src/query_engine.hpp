@@ -38,6 +38,7 @@ const auto PresetTemplate = R"({
 	"type": "preset",
 	"name": "PRESET",
     "hidden": false,
+    "favourite": false,
     "update": null,
     "userdata": "",
     "children": []
@@ -134,6 +135,7 @@ const auto ValidTerms = R"({
         "Client Filename",
         "Completion Location",
         "Disable Global",
+        "dnTag",
         "Entity",
         "Exclude Shot Status",
         "Filter",
@@ -257,6 +259,7 @@ const auto TermProperties = R"({
     "Completion Location": { "negated": false, "livelink": null },
     "Department": { "negated": false, "livelink": null },
     "Disable Global": { "negated": null, "livelink": null },
+    "dnTag": { "negated": false, "livelink": null },
     "Entity": { "negated": null, "livelink": true },
     "Exclude Shot Status": { "negated": null, "livelink": null },
     "Filter": { "negated": false, "livelink": null },
@@ -317,6 +320,7 @@ const std::set<std::string> TermHasProjectKey = {
 
 const std::set<std::string> TermHasNoModel = {
     "Client Filename",
+    "dnTag",
     "Entity",
     "Filter",
     "Newer Version",
@@ -382,6 +386,8 @@ class QueryEngine {
 
         return _type;
     }
+
+    static utility::JsonStore validate_presets(const utility::JsonStore &data);
 
 
     static std::string cache_name_auto(const std::string &type, const int project_id);

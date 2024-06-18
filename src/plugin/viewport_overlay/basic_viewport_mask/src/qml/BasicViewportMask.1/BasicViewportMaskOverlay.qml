@@ -57,6 +57,13 @@ Rectangle {
     property var mask_name: maskAspectRatio.toFixed(2)
 
     XsAttributeValue {
+        id: _mask_enabled
+        attributeTitle: "Mask"
+        model: mask_settings
+    }
+    property alias maskEnabled: _mask_enabled.value
+
+    XsAttributeValue {
         id: mask_opacity
         attributeTitle: "Mask Opacity"
         model: mask_settings
@@ -107,7 +114,7 @@ Rectangle {
     property var r: imageBox.x + imageBox.width*(1.0 - safety)
     property var t: imageBox.y + (imageBox.height+(imageBox.width*(1.0-safety*maskAspectRatio)/maskAspectRatio))/2.0
 
-    visible: renderMethod == "QML"
+    visible: renderMethod == "QML" && maskEnabled
 
     Rectangle {
         id: bottom_masking_rect

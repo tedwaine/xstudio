@@ -19,4 +19,13 @@ ConformReply Conformer::conform_request(const ConformRequest &request) {
     return ConformReply(request);
 }
 
-bool Conformer::conform_prepare_timeline(const UuidActor &timeline) { return false; }
+std::vector<std::optional<std::pair<std::string, caf::uri>>> Conformer::conform_find_timeline(
+    const std::vector<std::pair<utility::UuidActor, utility::JsonStore>> &media) {
+    return std::vector<std::optional<std::pair<std::string, caf::uri>>>(media.size());
+}
+
+
+bool Conformer::conform_prepare_timeline(
+    const UuidActor &timeline, const bool only_create_conform_track) {
+    return false;
+}

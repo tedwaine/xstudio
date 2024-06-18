@@ -17,11 +17,11 @@ Item {
         id: loader
     }
 
-    
+
     function hideLastDialog() {
         loader.item.visible = false
     }
-    
+
     function showDialog(callback) {
         loader.item.x = root.width/2 - loader.item.width/2
         loader.item.y = root.height/2 - loader.item.height/2
@@ -46,7 +46,7 @@ Item {
 
         FileDialog {
             property var chaser
-            
+
             onAccepted: {
                 if (selectMultiple)
                     result(fileUrls, folder, chaser)
@@ -139,7 +139,7 @@ Item {
                         id: thumbnailImgDiv
                         width: 40
                         height: 40
-                        source: "qrc:/icons/error.svg"                
+                        source: "qrc:/icons/error.svg"
                     }
                     XsText {
                         Layout.fillWidth: true
@@ -281,9 +281,10 @@ Item {
             property string initialText: ""
             property var choices: []
             width: 400
-            height: 200
+            height: area ? 400 : 200
             signal response(variant text, variant button_press)
             property var chaser
+            property bool area: false
 
             ColumnLayout {
 
@@ -296,7 +297,8 @@ Item {
 
                 XsText {
                     Layout.fillWidth: true
-                    Layout.fillHeight: true
+                    Layout.preferredHeight: 30
+                    Layout.fillHeight: area ? false : true
                     text: body
                     verticalAlignment: Text.AlignVCenter
                     horizontalAlignment: Text.AlignHCenter
@@ -308,13 +310,14 @@ Item {
                 Rectangle {
                     Layout.fillWidth: true
                     Layout.preferredHeight: 30
+                    Layout.fillHeight: area ? true : false
                     color: "transparent"
                     border.color: "black"
 
                     Keys.onReturnPressed:{
                         popup.response(input.text, popup.choices[popup.choices.length-1])
                         popup.visible = false
-                    } 
+                    }
                     Keys.onEscapePressed: {
                         popup.response(input.text, popup.choices[0])
                         popup.visible = false
@@ -376,6 +379,23 @@ Item {
         loader.item.body = body
         loader.item.initialText = initialText
         loader.item.choices = choices
+        loader.item.area = false
+        showDialog(callback)
+    }
+
+    function textAreaInputDialog(
+        callback,
+        title,
+        body,
+        initialText,
+        choices)
+    {
+        loader.sourceComponent = textInput
+        loader.item.title = title
+        loader.item.body = body
+        loader.item.initialText = initialText
+        loader.item.choices = choices
+        loader.item.area = true
         showDialog(callback)
     }
 

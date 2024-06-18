@@ -21,6 +21,12 @@ Item {
 	property bool isConformSource: false
 	property bool dragTarget: false
 
+	property bool isSizerHovered: false
+	property bool isSizerDragging: false
+
+	signal sizerHovered(bool hovered)
+	signal sizerDragging(bool dragging)
+
 	signal enabledClicked()
 	signal lockedClicked()
 	signal conformSourceClicked()
@@ -83,6 +89,8 @@ Item {
 		    	horizontalAlignment: Text.AlignLeft
 		    	verticalAlignment: Text.AlignVCenter
 				text: control.text == "" ? control.title : control.text
+	        	font.pixelSize: XsStyleSheet.fontSize *1.1
+
 		    }
 
 		    GridLayout {
@@ -152,21 +160,28 @@ Item {
 		// 	z:4
 		// }
 
+
 	Rectangle {
 		width: 4
 		height: parent.height
 
 		anchors.right: parent.right
 		anchors.top: parent.top
-		color: timelineBackground
+		// color: timelineBackground
+
+        color: isSizerDragging ? palette.highlight : isSizerHovered  ? XsStyleSheet.secondaryTextColor : timelineBackground
 
 		MouseArea {
 			id: ma
 			anchors.fill: parent
             hoverEnabled: true
 			acceptedButtons: Qt.LeftButton
-
+	        preventStealing: true
 			cursorShape: Qt.SizeHorCursor
+
+			onContainsMouseChanged: sizerHovered(containsMouse)
+
+			onPressedChanged: sizerDragging(pressed)
 
 			onPositionChanged: {
 				if(pressed) {
@@ -179,10 +194,10 @@ Item {
 
 	XsDragDropHandler {
 
-        id: drag_drop_handler   
+        id: drag_drop_handler
         onDragEntered: {
             if (source == "MediaList") {
-                dragTarget = true                
+                dragTarget = true
             }
         }
 
@@ -191,7 +206,7 @@ Item {
         }
 
 		onDropped: {
-            
+
             if (!dragTarget) return
             dragTarget = false
 			if (source == "MediaList" && typeof data == "object" && data.length) {

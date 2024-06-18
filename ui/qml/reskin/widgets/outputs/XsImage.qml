@@ -10,21 +10,15 @@ Image {
 
     property bool isIcon: true //#TODO: to make XsIcon Widget
     property color imgOverlayColor: isIcon? palette.text : "transparent"
-    
-    source: ""
-    // width: parent.height-4
-    // height: parent.height-4
-    // topPadding: 2
-    // bottomPadding: 2
-    // leftPadding: 8
-    // rightPadding: 8
+
+    // source: ""
 
     sourceSize.height: height
     sourceSize.width: width
 
     horizontalAlignment: Image.AlignHCenter
     verticalAlignment: Image.AlignVCenter
-    
+
     smooth: true
     antialiasing: true
     asynchronous: true

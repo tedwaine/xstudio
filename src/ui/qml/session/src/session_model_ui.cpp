@@ -433,7 +433,108 @@ void SessionModel::processChildren(const nlohmann::json &rj, const QModelIndex &
             // handle reordering
             // all rows exist but in wrong order..
             try {
-                auto ordered = false;
+
+                // First, make a vector of the *original* index of each row 
+                // after any re-ordering has happened ....
+
+                bool reorder_done = false;
+                if (rjc.size() == ptree->size()) {
+
+                    // rjc is the new layout for the children of ptree.
+
+                    // a map of the ordering key vs. the child index in the
+                    // parent tree
+                    std::map<nlohmann::json, int> index_by_key;
+                    for (size_t j = 0; j < ptree->size(); j++) {
+                        auto cjson = ptree->child(j)->data();
+                        if (cjson.count(compare_key)) {
+                            index_by_key[cjson.at(compare_key)] = j;
+                        }
+                    }
+
+                    std::vector<int> reordered_src_indeces;
+                    reordered_src_indeces.reserve(rjc.size());
+
+                    // Now we iterate over elements of 'rjc' and get the compare
+                    // key ... find out the index of the corresponding child of
+                    // ptree (whose compare key matches the j'th entry of rjc).
+                    //
+                    // Thus we have a vector telling us how to re-order the 
+                    // children of ptree ... the j'th element of the vector gives
+                    // us the src index in ptree. So if reordered_src_indeces[5] = 1,
+                    // say, then the 2nd child of ptree needs to be moved to be 
+                    // the 6th child etc.
+                    for (int j = 0; j < rjc.size(); j++) {
+                        if (rjc.at(j).contains(compare_key)) {
+                            auto p = index_by_key.find(rjc.at(j).at(compare_key));
+                            reordered_src_indeces.push_back(p->second);
+                        }
+                    }
+                    if (reordered_src_indeces.size() == ptree->size()) {
+                        reorder_done = JSONTreeModel::reorderRows(
+                            parent_index,
+                            reordered_src_indeces
+                            );
+                    }
+                }
+
+                if (!reorder_done) {
+
+                    // the first attempt requires that we have compare key for
+                    // each and every child of rjc and ptree ... not sure if 
+                    // that is guaranteed
+
+                    // second attempt ... do one by one 'move rows' for re-ordering.
+                    // (Much less efficient than using JSONTreeModel::reorderRows)
+                    std::vector<int> reordered_state;
+                    std::map<nlohmann::json, int> elements_to_move;
+
+                    for (size_t j = 0; j < rjc.size(); j++) {
+                        reordered_state.push_back(j);
+                        if (rjc.at(j).count(compare_key)) {
+                            auto cjson = ptree->child(j)->data();
+                            if (cjson.count(compare_key)) {
+                                elements_to_move[cjson.at(compare_key)] = j;
+                            }
+                        }
+                    }
+
+                    for (int dest_idx = 0; dest_idx < rjc.size(); dest_idx++) {
+
+                        if (rjc.at(dest_idx).count(compare_key)) {
+
+                            const auto &kk = rjc.at(dest_idx).at(compare_key);
+                            auto p = elements_to_move.find(kk);
+                            if (p != elements_to_move.end()) {
+
+                                auto q = std::find(reordered_state.begin(), reordered_state.end(), p->second);
+                                int source_index = std::distance(reordered_state.begin(), q);
+
+                                if (source_index != dest_idx) {
+
+                                    JSONTreeModel::moveRows(
+                                            parent_index,
+                                            source_index,
+                                            1,
+                                            parent_index,
+                                            dest_idx);
+
+                                    reordered_state.erase(q);
+                                    q = reordered_state.begin();
+                                    std::advance(q, dest_idx);
+                                    reordered_state.insert(q, p->second);
+
+                                }
+                            }
+                        }
+                    }
+                }
+
+                // This was the old re-ordering code. Was pretty slow and failed
+                // in some cases (re-ordering long media lists, for example). 
+                // Keeping for reference.
+
+                /*auto ordered = false;
                 while (not ordered) {
                     ordered = true;
                     for (size_t i = 0; i < rjc.size(); i++) {
@@ -445,13 +546,13 @@ void SessionModel::processChildren(const nlohmann::json &rj, const QModelIndex &
                             cjson.at(compare_key) != rjc.at(i).at(compare_key)) {
                             ordered = false;
                             // find actual index of model row
-                            // spdlog::warn("{} -> {}", iju[rjc.at(i).at(compare_key)], i);
+                            spdlog::warn("{} -> {}", iju[rjc.at(i).at(compare_key)], i);
                             JSONTreeModel::moveRows(
                                 parent_index,
                                 iju[rjc.at(i).at(compare_key)],
                                 1,
                                 parent_index,
-                                i);
+                                i+1);
                             // for update of item, as listview seems to get confused..
 
                             try {
@@ -465,15 +566,16 @@ void SessionModel::processChildren(const nlohmann::json &rj, const QModelIndex &
 
                             // rebuild iju
                             iju.clear();
-                            for (size_t i = 0; i < ptree->size(); i++) {
+                            for (size_t j = 0; j < ptree->size(); j++) {
                                 auto cjson = ptree->child(i)->data();
                                 if (cjson.count(compare_key) and not cjson.count("placeholder"))
-                                    iju[cjson.at(compare_key).get<Uuid>()] = i;
+                                    iju[cjson.at(compare_key).get<Uuid>()] = j;
                             }
                             break;
                         }
                     }
-                }
+                }*/
+
             } catch (const std::exception &err) {
                 spdlog::warn("{} reorder {}", __PRETTY_FUNCTION__, err.what());
             }
@@ -503,6 +605,16 @@ void SessionModel::processChildren(const nlohmann::json &rj, const QModelIndex &
 }
 
 void SessionModel::finishedDataSlot(
+    const QVariant &search_value, const int search_role, const int role) {
+
+    // auto inflight = mapFromValue(search_value).dump() + std::to_string(search_role) + "-" +
+    //                 std::to_string(role);
+    // if (in_flight_requests_.count(inflight)) {
+    //     in_flight_requests_.erase(inflight);
+    // }
+}
+
+void SessionModel::startedDataSlot(
     const QVariant &search_value, const int search_role, const int role) {
 
     auto inflight = mapFromValue(search_value).dump() + std::to_string(search_role) + "-" +
@@ -798,9 +910,10 @@ void SessionModel::requestData(
 
         connect(tmp, &CafResponse::received, this, &SessionModel::receivedDataSlot);
         connect(tmp, &CafResponse::finished, this, &SessionModel::finishedDataSlot);
+        connect(tmp, &CafResponse::started, this, &SessionModel::startedDataSlot);
     } else {
         //  we might miss the event if it happens after the inflight request was sent.
-        // spdlog::warn("INFLIGHT {}", inflight);
+        // spdlog::warn("ALREADY INFLIGHT {}", inflight);
     }
 }
 

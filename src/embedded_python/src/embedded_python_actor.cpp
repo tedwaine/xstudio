@@ -549,6 +549,8 @@ void EmbeddedPythonActor::act() {
             return result<JsonStore>(jsn);
         },
 
+        [=](bool) {},
+
         [&](exit_msg &em) {
             if (em.reason) {
                 if (base_.enabled())
@@ -559,6 +561,14 @@ void EmbeddedPythonActor::act() {
         },
         others >> [=](message &msg) -> skippable_result {
             auto sender = caf::actor_cast<caf::actor>(current_sender());
+            /*        request(sender, infinite, utility::name_atom_v).receive(
+            [=](std::string nm) {
+                std::cerr << "Name " << nm << "\n";
+            },
+            [=](caf::error & err) {
+                std::cerr << "Err " << to_string(err) << "\n";
+            });*/
+
             base_.push_caf_message_to_py_callbacks(sender, msg);
             return message{};
 
@@ -580,6 +590,11 @@ void EmbeddedPythonActor::init() {
 void EmbeddedPythonActor::join_broadcast(caf::actor broadcast_group) {
 
     send(broadcast_group, broadcast::join_broadcast_atom_v, caf::actor_cast<caf::actor>(this));
+}
+
+void EmbeddedPythonActor::leave_broadcast(caf::actor broadcast_group) {
+
+    send(broadcast_group, broadcast::leave_broadcast_atom_v, caf::actor_cast<caf::actor>(this));
 }
 
 void EmbeddedPythonActor::join_broadcast(

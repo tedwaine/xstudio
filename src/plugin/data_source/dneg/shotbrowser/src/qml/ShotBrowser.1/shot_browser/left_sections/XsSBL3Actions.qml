@@ -31,7 +31,7 @@ Rectangle{
 
     function populateModels() {
         if(ShotBrowserEngine.ready && ShotBrowserEngine.presetsModel.rowCount()) {
-            quickModel.rootIndex = ShotBrowserEngine.presetsModel.searchRecursive("137aa66a-87e2-4c53-b304-44bd7ff9f755", "idRole")
+            quickModel.rootIndex = quickModel.notifyModel.mapFromSource(ShotBrowserEngine.presetsModel.searchRecursive("137aa66a-87e2-4c53-b304-44bd7ff9f755", "idRole"))
             quickCombo.currentIndex = 0
         }
     }
@@ -79,11 +79,25 @@ Rectangle{
                             result_count -= 1
                             if(!result_count) {
                                 quickResults.setResultData(result_json)
+                                let indexes = []
+                                for(let j=0;j<quickResults.rowCount();j++) {
+                                    indexes.push(quickResults.index(j,0))
+                                }
                                 if(action == "playlist") {
-                                    let indexes = []
-                                    for(let i=0;i<quickResults.rowCount();i++)
-                                        indexes.push(quickResults.index(i,0))
                                     ShotBrowserHelpers.addToCurrent(indexes, false)
+                                } else if(action == "sequence") {
+                                    let seq_map = {}
+
+                                    for(let j=0;j<indexes.length;j++) {
+                                        let seq = quickResults.get(indexes[j], "sequenceRole")
+                                        if(seq_map[seq] === undefined)
+                                            seq_map[seq] = [indexes[j]]
+                                        else
+                                            seq_map[seq].push(indexes[j])
+                                    }
+                                    for(let key in seq_map) {
+                                        ShotBrowserHelpers.addToPlaylist(seq_map[key], null, null, key, ShotBrowserHelpers.conformToNewSequenceCallback)
+                                    }
                                 }
                             }
                         },
@@ -92,11 +106,14 @@ Rectangle{
                             result_count -= 1
                             if(!result_count) {
                                 quickResults.setResultData(result_json)
+                                let indexes = []
+                                for(let j=0;j<quickResults.rowCount();j++)
+                                    indexes.push(quickResults.index(j,0))
+
                                 if(action == "playlist") {
-                                    let indexes = []
-                                    for(let i=0;i<quickResults.rowCount();i++)
-                                        indexes.push(quickResults.index(i,0))
                                     ShotBrowserHelpers.addToCurrent(indexes, false)
+                                } else if(action == "sequence") {
+
                                 }
                             }
                         })
@@ -108,10 +125,18 @@ Rectangle{
     ShotBrowserResultModel {
         id: quickResults
     }
+
+    ShotBrowserPresetFilterModel {
+        id: filterModel
+        showHidden: false
+        onlyShowFavourite: true
+        sourceModel: ShotBrowserEngine.presetsModel
+    }
+
     DelegateModel {
         id: quickModel
-        property var notifyModel: ShotBrowserEngine.presetsModel
-        rootIndex: ShotBrowserEngine.presetsModel.index(-1,-1)
+        property var notifyModel: filterModel
+        rootIndex: filterModel.index(-1,-1)
         model: notifyModel
         delegate:  quickCombo.delegate
     }
@@ -158,39 +183,42 @@ Rectangle{
                 }
 
 
-
                 Item{
                     Layout.fillWidth: true
                     Layout.preferredHeight: itemHeight
 
-                RowLayout {
-                    anchors.fill: parent
-                    spacing: buttonSpacing
+                    RowLayout {
+                        anchors.fill: parent
+                        spacing: buttonSpacing
 
-                    XsPrimaryButton{
-                        Layout.preferredWidth: parent.width/2
-                        Layout.preferredHeight: itemHeight
-                        imgSrc: ""
-                        text: "Add"
-                        onClicked: {
-                            if(quickCombo.currentIndex != -1)
-                                executeQuery(quickModel.modelIndex(quickCombo.currentIndex), "playlist")
+                        XsPrimaryButton{
+                            Layout.preferredWidth: parent.width/2
+                            Layout.preferredHeight: itemHeight
+                            text: "Add"
+                            onClicked: {
+                                if(quickCombo.currentIndex != -1)
+                                    executeQuery(
+                                        quickModel.notifyModel.mapToSource(quickModel.modelIndex(quickCombo.currentIndex)),
+                                         "playlist"
+                                    )
+                            }
+                        }
+
+                        XsPrimaryButton{
+                            Layout.preferredWidth: parent.width/2
+                            Layout.preferredHeight: itemHeight
+                            text: "Add To New Sequence"
+                            onClicked: {
+                                if(quickCombo.currentIndex != -1)
+                                    executeQuery(
+                                        quickModel.notifyModel.mapToSource(quickModel.modelIndex(quickCombo.currentIndex)),
+                                         "sequence"
+                                    )
+                            }
                         }
                     }
-
-                    XsPrimaryButton{
-                        Layout.preferredWidth: parent.width/2
-                        Layout.preferredHeight: itemHeight
-                        imgSrc: ""
-                        text: "View In Cut"
-                    }
                 }
-                }
-
             }
         }
-
-
     }
-
 }

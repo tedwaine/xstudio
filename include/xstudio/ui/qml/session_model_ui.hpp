@@ -141,11 +141,12 @@ class SessionModel : public caf::mixin::actor_object<JSONTreeModel> {
     Q_INVOKABLE bool
     removeTimelineItems(const QModelIndex &track_index, const int frame, const int duration);
 
-    Q_INVOKABLE QModelIndex bakeTimelineItems(
-        const QModelIndexList &indexes, const QString &trackName = "Flattened Tracks");
+    Q_INVOKABLE QModelIndex
+    bakeTimelineItems(const QModelIndexList &indexes, const QString &trackName = "");
 
     Q_INVOKABLE QModelIndexList duplicateTimelineClips(
         const QModelIndexList &indexes,
+        const QString &trackName   = "",
         const QString &trackSuffix = "Duplicate",
         const bool append          = true);
 
@@ -436,6 +437,7 @@ class SessionModel : public caf::mixin::actor_object<JSONTreeModel> {
         const QString &result);
 
     void finishedDataSlot(const QVariant &search_value, const int search_role, const int role);
+    void startedDataSlot(const QVariant &search_value, const int search_role, const int role);
 
     void receivedData(
         const nlohmann::json &search_value,

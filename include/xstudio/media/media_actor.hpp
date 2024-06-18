@@ -56,7 +56,8 @@ namespace media {
             const media::MediaType mt,
             const bool auto_select_source_if_failed = false);
 
-        void auto_set_current_source(const media::MediaType media_type, caf::typed_response_promise<bool> rp);
+        void auto_set_current_source(
+            const media::MediaType media_type, caf::typed_response_promise<bool> rp);
 
         void update_human_readable_details(caf::typed_response_promise<utility::JsonStore> rp);
 

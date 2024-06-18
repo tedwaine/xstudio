@@ -169,6 +169,7 @@ namespace playhead {
 
         float drag_start_x_;
         timebase::flicks drag_start_playhead_position_;
+        utility::time_point click_timepoint_;
 
         void add_attributes();
 
@@ -191,6 +192,7 @@ namespace playhead {
 
         module::IntegerAttribute *max_compare_sources_;
         module::BooleanAttribute *restore_play_state_after_scrub_;
+        module::BooleanAttribute *click_to_toggle_play_;
         module::IntegerAttribute *viewport_scrub_sensitivity_;
 
         module::StringChoiceAttribute *loop_mode_;

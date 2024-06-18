@@ -113,12 +113,20 @@ class OCIOColourPipeline : public ColourPipeline {
     void update_bypass(bool bypass);
 
     void reset() override;
+
     void update_media_metadata(
         const utility::Uuid &media_uuid, const std::string &key, const std::string &val);
 
     utility::JsonStore patch_media_metadata(const media::AVFrameID &media_ptr);
 
     void synchronize_attribute(const utility::Uuid &uuid, int role, bool ocio);
+
+    std::string detect_display(
+        const std::string &name,
+        const std::string &model,
+        const std::string &manufacturer,
+        const std::string &serialNumber,
+        const utility::JsonStore &meta);
 
   private:
     caf::actor global_controls_;
@@ -153,6 +161,9 @@ class OCIOColourPipeline : public ColourPipeline {
 
     // Holds data on display screen option
     std::string monitor_name_;
+    std::string monitor_model_;
+    std::string monitor_manufacturer_;
+    std::string monitor_serialNumber_;
     std::string viewport_name_;
 
     std::map<std::string, std::vector<std::string>> display_views_;

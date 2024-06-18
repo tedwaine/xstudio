@@ -77,7 +77,7 @@ XsScrollBar                 1.1 ../base/widgets/XsScrollBar.qml
 XsSimpleMenuItem            1.0 ../base/widgets/XsSimpleMenuItem.qml
 XsSplitView          		1.0 ../base/widgets/XsSplitView.qml
 XsStringChoiceAttrComboBox  1.0 ../base/widgets/XsStringChoiceAttrComboBox.qml
-XsTab                       1.0 ../base/widgets/XsTab.qml
+XsLayoutTab                       1.0 ../base/widgets/XsLayoutTab.qml
 XsTabBar                    1.0 ../base/widgets/XsTabBar.qml
 XsTabButton                 1.0 ../base/widgets/XsTabButton.qml
 XsTabView                   1.0 ../base/widgets/XsTabView.qml

@@ -21,6 +21,7 @@ namespace embedded_python {
         void join_broadcast(caf::actor act, const std::string &plugin_name);
 
         void join_broadcast(caf::actor act);
+        void leave_broadcast(caf::actor act);
 
       private:
         inline static const std::string NAME = "EmbeddedPythonActor";

@@ -55,6 +55,8 @@ void py_config::add_messages() {
         "group_down_msg", "caf::group_down_msg", &register_group_down_msg);
     add_message_type<caf::uri>("URI", "caf::uri", &register_URI_class);
     add_message_type<media::MediaType>("MediaType", "xstudio::media::MediaType", nullptr);
+    add_message_type<plugin::HUDElementPosition>(
+        "HUDElementPosition", "xstudio::plugin::HUDElementPosition", nullptr);
     add_message_type<media::StreamDetail>(
         "StreamDetail", "xstudio::media::StreamDetail", &register_streamdetail_class);
     add_message_type<plugin_manager::PluginDetail>(

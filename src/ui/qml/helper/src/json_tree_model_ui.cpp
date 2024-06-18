@@ -260,7 +260,15 @@ QModelIndexList JSONTreeModel::searchRecursiveListBase(
 
     if (std::chrono::duration_cast<std::chrono::milliseconds>(utility::clock::now() - tp)
             .count() > 100) {
-        qDebug() << "SLOW SEARCH " << value << " " << roleName(role) << "\n";
+        spdlog::warn(
+            "searchRecursiveListBase: Slow search parent {} value {} role {} start {} hits {} "
+            "max_depth {}\n",
+            mapFromValue(parent.data(Roles::JSONRole)).dump(2),
+            mapFromValue(value).dump(2),
+            StdFromQString(roleName(role)),
+            start,
+            hits,
+            max_depth);
     }
 
     return result;
@@ -862,6 +870,7 @@ bool JSONTreeModel::moveRows(
 
 bool JSONTreeModel::moveNodes(
     utility::JsonTree *src, int first_row, int last_row, utility::JsonTree *dst, int dst_row) {
+
     // clone data
     std::list<JsonTree> tmp;
 
@@ -880,6 +889,100 @@ bool JSONTreeModel::moveNodes(
     return true;
 }
 
+bool JSONTreeModel::reorderRows(
+    const QModelIndex &parent,
+    const std::vector<int> &new_row_indeces)
+{
+
+    // if we have rows in the model A,B,C,D,E and we are re-ordering to
+    // E,A,D,C,B then new_row_indeces should be [4,0,3,2,1]
+
+    if (!parent.isValid()) {
+        spdlog::error("{} invalid index.", __PRETTY_FUNCTION__);
+        return false;
+    }
+
+    auto tree = indexToTree(parent);
+
+    if (new_row_indeces.size() != rowCount(parent)) {
+        spdlog::error("{}. {} indexes in re-ordered layout, expecting {}.",
+            new_row_indeces.size(),
+            rowCount(parent)
+            );
+        return false;
+    }
+
+    // See Qt docs on layout changes QtAbstractItemModel
+    emit layoutAboutToBeChanged(
+        QList<QPersistentModelIndex>{parent}, 
+        QAbstractItemModel::VerticalSortHint
+        );
+
+    // We need to make a list of the indeces that are going to be changing
+    // due to our re-ordering.
+    QModelIndexList from;
+    for (int dest_row = 0; dest_row < new_row_indeces.size(); ++dest_row) {
+        int src_row = new_row_indeces[dest_row];
+        if (src_row == dest_row) continue;
+        from.append(QPersistentModelIndex(index(src_row, 0, parent)));
+    }
+
+    // we need a mutable copy of new_row_indeces
+    std::vector<int> indeces_mapping = new_row_indeces;
+
+    for (int dest_row = 0; dest_row < indeces_mapping.size(); ++dest_row) {
+
+        int src_row = indeces_mapping[dest_row];
+
+        if (src_row == dest_row) continue;
+
+
+        // move our internal data, one row at a time
+        moveNodes(tree, src_row, src_row, tree, dest_row);
+
+        // each row move is the equivalent of removing a row from somewhere
+        // and inserting it somewhere else (dest_row) ...
+
+        // because we have moved a row and inserted a row, we have changed 
+        // the position of all the other rows that lie between the src and 
+        // dest - this means we have to update the src rows in 'indeces_mapping'
+        // so it works for the current re-ordered state of the data
+        for (int j = dest_row+1; j < indeces_mapping.size(); ++j) {
+            // looping over the remaining destination indeces ...
+
+            if (indeces_mapping[j] >= dest_row) {
+                // the row we just moved has been inserted below the src
+                // row at destination j, so the src row needs to be incremented
+                indeces_mapping[j]++;
+            }
+            if (indeces_mapping[j] > src_row) {
+                // The row that we moved has been taken away from a position
+                // that is less than the src at row at j so decrement
+                indeces_mapping[j]--;
+            }
+        }
+    }
+
+    // now we make a list of the updated model indexes for those rows that
+    // got moved
+    QModelIndexList to;
+    for (int dest_row = 0; dest_row < new_row_indeces.size(); ++dest_row) {
+        int src_row = new_row_indeces[dest_row];
+        if (src_row == dest_row) continue;
+        to.append(QPersistentModelIndex(index(dest_row, 0, parent)));
+    }
+
+    // see Qt docs ...
+    changePersistentIndexList(from, to);
+
+    emit layoutChanged(
+        QList<QPersistentModelIndex>{parent}, 
+        QAbstractItemModel::VerticalSortHint
+        ); 
+
+    return true;   
+
+}
 
 bool JSONTreeModel::baseMoveRows(
     const QModelIndex &sourceParent,
@@ -897,6 +1000,7 @@ bool JSONTreeModel::baseMoveRows(
     JsonTree *dst_children = nullptr;
 
     try {
+
         // get src array
         if (sourceParent.isValid()) {
             src_children = indexToTree(sourceParent);
@@ -985,7 +1089,6 @@ bool JSONTreeModel::baseMoveRows(
                 moveLast,
                 dest);
         }
-
 
     } catch (const std::exception &err) {
         spdlog::warn("{} {}", __PRETTY_FUNCTION__, err.what());

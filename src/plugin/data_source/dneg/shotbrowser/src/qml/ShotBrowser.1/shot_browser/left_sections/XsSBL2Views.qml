@@ -14,9 +14,9 @@ Item{
         if(!ShotBrowserEngine.ready)
             return null
         else {
-            if(currentCategory == "Tree") return ShotBrowserEngine.presetModels.tree
-            else if(currentCategory == "Recent") return ShotBrowserEngine.presetModels.recent
-            else return ShotBrowserEngine.presetModels.menus
+            if(currentCategory == "Tree") return treeModel
+            else if(currentCategory == "Recent") return recentModel
+            else return menuModel
         }
     }
 
@@ -27,19 +27,20 @@ Item{
         thumbWidth: currentCategory == "Tree"? panelPadding/2 : 0
 
         XsSBL2V1Tree{ id: treeView
-            SplitView.preferredWidth: prefs.treeWidth
+            SplitView.preferredWidth: prefs.leftPanelWidth
             SplitView.fillHeight: true
 
             visible: currentCategory == "Tree"
             onWidthChanged: {
                 if(SplitView.view.resizing && currentCategory == "Tree")
-                    prefs.treeWidth = width
+                    prefs.leftPanelWidth = width
             }
         }
 
         XsSBL2V2Presets{ id: presetsView
             SplitView.fillWidth: true
             SplitView.fillHeight: true
+            visible: currentCategory != "Tree" || sequenceTreeShowPresets
         }
     }
 }

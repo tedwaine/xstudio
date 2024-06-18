@@ -3,6 +3,8 @@
 import QtQuick 2.15
 import QtQuick.Controls 2.15
 import QtQuick.Layouts 1.15
+import QtQml.Models 2.14
+import Qt.labs.qmlmodels 1.0
 
 import xStudioReskin 1.0
 import ShotBrowser 1.0
@@ -23,11 +25,63 @@ Item{ id: toolDiv
             Layout.fillWidth: true
             Layout.preferredHeight: btnHeight
 
-            XsSearchButton{ id: filterBtn
-                Layout.preferredWidth: isExpanded? btnWidth*5.3: btnWidth
-                Layout.maximumWidth: isExpanded? btnWidth*5.3 : btnWidth
+            XsPrimaryButton{
+                Layout.preferredWidth: btnWidth
                 Layout.preferredHeight: parent.height
-                isExpanded: false
+                imgSrc: "qrc:///shotbrowser_icons/heart_plus.svg"
+                enabled: currentCategory == "Tree"
+                text: "Shot Presets"
+                isActive: currentCategory != "Tree" || sequenceTreeShowPresets
+                onClicked: sequenceTreeShowPresets = !sequenceTreeShowPresets
+            }
+
+            Repeater {
+                Layout.fillWidth: true
+                Layout.preferredHeight: parent.height
+                model: DelegateModel {
+                    id: delegate_model
+                    property var notifyModel: currentCategory ==  "Tree" ? treeButtonModel : (currentCategory ==  "Recent" ?  recentButtonModel : menuButtonModel)
+                    model: notifyModel
+                    delegate: XsPrimaryButton {
+                        Layout.fillWidth: true
+                        Layout.fillHeight: true
+                        text: nameRole
+                        function getPresetIndex() {
+                            let tindex = delegate_model.notifyModel.mapToSource(delegate_model.modelIndex(index))
+                            if(tindex.valid)
+                                return tindex.model.mapToModel(tindex)
+                            return tindex
+                        }
+
+                        isActive: currentPresetIndex == getPresetIndex()
+                        onClicked: {
+                            activatePreset(getPresetIndex())
+                            presetsSelectionModel.select(getPresetIndex(), ItemSelectionModel.ClearAndSelect)
+                        }
+                    }
+                }
+            }
+        }
+
+        Rectangle{
+            Layout.fillWidth: true
+            Layout.preferredHeight: 2
+            color: panelColor
+        }
+
+        RowLayout{
+            spacing: buttonSpacing
+            Layout.fillWidth: true
+            Layout.preferredHeight: btnHeight
+
+            XsSearchButton{ id: filterBtn
+                Layout.preferredHeight: parent.height
+                Layout.preferredWidth: isExpanded ? parent.width : btnWidth
+
+                Layout.maximumWidth: isExpanded ? parent.width : btnWidth
+
+                Layout.fillWidth: true
+                isExpanded: true
                 hint: "Filter"
                 onTextChanged: nameFilter = text
 
@@ -38,9 +92,9 @@ Item{ id: toolDiv
                     }
                 }
             }
-            Item{
+
+            Item {
                 Layout.fillWidth: true
-                Layout.preferredHeight: parent.height
             }
 
             MouseArea {
@@ -122,21 +176,11 @@ Item{ id: toolDiv
                 }
 
             }
-        }
-        Rectangle{
-            Layout.fillWidth: true
-            Layout.preferredHeight: 2
-            color: panelColor
-        }
 
-        RowLayout{
-            spacing: buttonSpacing
-            Layout.fillWidth: true
-            Layout.preferredHeight: btnHeight
 
             XsButtonWithImageAndText{ id: groupBtn
                 Layout.fillWidth: true
-                Layout.minimumWidth: btnWidth
+                Layout.minimumWidth: btnWidth*2.2
                 Layout.preferredWidth: btnWidth*2.2
                 Layout.maximumWidth: btnWidth*2.2
                 Layout.preferredHeight: parent.height
@@ -146,20 +190,7 @@ Item{ id: toolDiv
                 visible: resultsBaseModel.canBeGrouped
                 onClicked: resultsBaseModel.isGrouped = !resultsBaseModel.isGrouped
             }
-            Item{
-                Layout.fillWidth: true
-                Layout.preferredHeight: parent.height
 
-                XsLabel {
-                    text: resultViewTitle
-                    // color: XsStyleSheet.hintColor
-                    visible: presetsSelectionModel.hasSelection
-
-                    anchors.centerIn: parent
-                    width: parent.width - panelPadding*2
-                    height: parent.height
-                }
-            }
             XsSortButton{ id: sortViaNaturalOrderBtn
                 Layout.preferredWidth: btnWidth
                 Layout.preferredHeight: parent.height
@@ -174,6 +205,7 @@ Item{ id: toolDiv
                     sortByNaturalOrder = true
                 }
             }
+
             XsSortButton{ id: sortViaDateBtn
                 Layout.preferredWidth: btnWidth
                 Layout.preferredHeight: parent.height
@@ -188,6 +220,7 @@ Item{ id: toolDiv
                     sortByCreationDate = true
                 }
             }
+
             XsSortButton{ id: sortViaShotBtn
                 Layout.preferredWidth: btnWidth
                 Layout.preferredHeight: parent.height
@@ -203,9 +236,5 @@ Item{ id: toolDiv
                 }
             }
         }
-
     }
-
-
-
 }

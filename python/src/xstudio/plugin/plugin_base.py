@@ -39,7 +39,8 @@ class PluginBase(ModuleBase):
             connection.api.plugin_manager.remote,
             spawn_plugin_base_atom(),
             name,
-            JsonStore())
+            JsonStore(),
+            base_class_name)
         self.uuid = a[1]
         remote = a[0]
 
@@ -76,6 +77,9 @@ class PluginBase(ModuleBase):
 
         """
 
+        # if qml code is being added as attribute data and we also have qml_folder
+        # set we add an import directive to the qml code with the path to the
+        # plugin location. This allows plugins with qml to be relocatable.
         if "qml_code" in attribute_role_data and self.qml_folder:
             attribute_role_data["qml_code"] =\
                 "import \"file://{0}/{1}\"\n{2}".format(

@@ -347,8 +347,6 @@
                     "datatype": "json",
                     "default_value": [
 
-
-
         {
             "children": [
                 {
@@ -435,10 +433,13 @@
                             "value": ""
                         }
                     ],
+                    "favourite": false,
+                    "hidden": false,
                     "id": "119bc765-02e8-4da8-a6d8-db335e0461ef",
                     "name": "Override",
                     "type": "preset",
-                    "update": false
+                    "update": false,
+                    "userdata": ""
                 },
                 {
                     "children": [
@@ -454,11 +455,13 @@
                                     "value": ""
                                 }
                             ],
+                            "favourite": true,
                             "hidden": false,
                             "id": "b8d1c72e-c885-41fd-9187-6f3f5afaa01b",
                             "name": "Stream",
                             "type": "preset",
-                            "update": false
+                            "update": false,
+                            "userdata": ""
                         },
                         {
                             "children": [
@@ -490,11 +493,13 @@
                                     "value": "True"
                                 }
                             ],
+                            "favourite": true,
                             "hidden": false,
                             "id": "8e140a38-08e5-49c2-b473-4c17ff318527",
                             "name": "Step",
                             "type": "preset",
-                            "update": false
+                            "update": false,
+                            "userdata": ""
                         },
                         {
                             "children": [
@@ -517,11 +522,13 @@
                                     "value": ""
                                 }
                             ],
+                            "favourite": true,
                             "hidden": false,
                             "id": "e33d0a5f-7040-49fb-93d9-97995f9ab3b1",
                             "name": "Shot",
                             "type": "preset",
-                            "update": false
+                            "update": false,
+                            "userdata": ""
                         },
                         {
                             "children": [
@@ -544,11 +551,13 @@
                                     "value": "True"
                                 }
                             ],
+                            "favourite": true,
                             "hidden": false,
                             "id": "b68e3a3b-7f3b-4add-a4cf-66113d0b6a0a",
                             "name": "Dailies",
                             "type": "preset",
-                            "update": false
+                            "update": false,
+                            "userdata": ""
                         },
                         {
                             "children": [
@@ -571,11 +580,13 @@
                                     "value": "True"
                                 }
                             ],
+                            "favourite": true,
                             "hidden": false,
                             "id": "71527cdc-2cc5-405f-9d59-be587037528f",
                             "name": "Client",
                             "type": "preset",
-                            "update": false
+                            "update": false,
+                            "userdata": ""
                         }
                     ],
                     "id": "c5ce1db6-dac0-4481-a42b-202e637ac819",
@@ -613,10 +624,13 @@
                             "value": "Orange"
                         }
                     ],
+                    "favourite": false,
+                    "hidden": false,
                     "id": "d0b15051-275b-4601-bf6b-8d44ecd0fb4f",
                     "name": "Override",
                     "type": "preset",
-                    "update": false
+                    "update": false,
+                    "userdata": ""
                 },
                 {
                     "children": [
@@ -632,6 +646,7 @@
                                     "value": ""
                                 }
                             ],
+                            "favourite": true,
                             "hidden": false,
                             "id": "5d3d87ad-ea87-4349-bb2e-f6baea908486",
                             "name": "Version",
@@ -651,6 +666,7 @@
                                     "value": ""
                                 }
                             ],
+                            "favourite": true,
                             "hidden": false,
                             "id": "12ca841f-b6e5-4ffa-8345-f8843588f84f",
                             "name": "Stream",
@@ -679,6 +695,7 @@
                                     "value": ""
                                 }
                             ],
+                            "favourite": true,
                             "hidden": false,
                             "id": "636667ac-d691-4934-be2a-78cf169bb377",
                             "name": "Step",
@@ -698,6 +715,7 @@
                                     "value": ""
                                 }
                             ],
+                            "favourite": true,
                             "hidden": false,
                             "id": "facaba43-3e3c-4f56-8c40-74d8f9c05987",
                             "name": "Shot",
@@ -735,6 +753,7 @@
                                     "value": "Wizard Dailies"
                                 }
                             ],
+                            "favourite": true,
                             "hidden": false,
                             "id": "0543a552-2cd5-41d6-87ee-0df879fdfb87",
                             "name": "Artist",
@@ -754,6 +773,7 @@
                                     "value": "DeptSupe"
                                 }
                             ],
+                            "favourite": true,
                             "hidden": false,
                             "id": "4e9a9127-9591-4056-af99-c160c854812f",
                             "name": "Dept",
@@ -827,6 +847,7 @@
                                     "value": "VFXSupe"
                                 }
                             ],
+                            "favourite": true,
                             "hidden": false,
                             "id": "1c9de6ef-f9b0-48b6-a26f-30d4a66950db",
                             "name": "Supes",
@@ -873,6 +894,7 @@
                                     "value": "Facility"
                                 }
                             ],
+                            "favourite": true,
                             "hidden": false,
                             "id": "31980c5d-1d88-4a9f-adbd-f6639b62faf1",
                             "name": "Facility",
@@ -910,6 +932,7 @@
                                     "value": "Director"
                                 }
                             ],
+                            "favourite": true,
                             "hidden": false,
                             "id": "5cc27243-80e7-4a9c-8166-cb0ebf970d29",
                             "name": "Client",
@@ -919,6 +942,7 @@
                         },
                         {
                             "children": [],
+                            "favourite": true,
                             "hidden": false,
                             "id": "2ce0a044-fdd2-495e-a093-5ae4872b9ae5",
                             "name": "All",
@@ -962,10 +986,13 @@
                             "value": "True"
                         }
                     ],
+                    "favourite": false,
+                    "hidden": false,
                     "id": "963185ba-25d7-4a22-8b56-cda119ce8105",
                     "name": "PRESET",
                     "type": "preset",
-                    "update": false
+                    "update": false,
+                    "userdata": ""
                 },
                 {
                     "children": [
@@ -981,6 +1008,7 @@
                                     "value": "7 Days"
                                 }
                             ],
+                            "favourite": false,
                             "hidden": false,
                             "id": "dc3b3e35-98ab-46be-a647-4688e035ee57",
                             "name": "Previous Week",
@@ -1000,6 +1028,7 @@
                                     "value": "30 Days"
                                 }
                             ],
+                            "favourite": false,
                             "hidden": false,
                             "id": "b64445a1-fe5d-4ed4-8fd9-623d9f25688a",
                             "name": "Previous Month",
@@ -1037,6 +1066,7 @@
                                     "value": "Client Send"
                                 }
                             ],
+                            "favourite": false,
                             "hidden": false,
                             "id": "cfc5103f-1ca4-4c09-b7cb-54074d1e6fe9",
                             "name": "Sent To Client",
@@ -1065,6 +1095,7 @@
                                     "value": "3 Days"
                                 }
                             ],
+                            "favourite": false,
                             "hidden": false,
                             "id": "1025cc97-f781-465c-9b99-3dbcff9510e6",
                             "name": "Dailies",
@@ -1111,6 +1142,7 @@
                                     "value": "master"
                                 }
                             ],
+                            "favourite": false,
                             "hidden": false,
                             "id": "6cc0d544-adbf-408b-9f45-e2fc6f02157a",
                             "name": "Master Playlists",
@@ -1130,6 +1162,7 @@
                                     "value": "True"
                                 }
                             ],
+                            "favourite": false,
                             "hidden": false,
                             "id": "17cd0d67-314a-4717-a692-3df8baeb224f",
                             "name": "All Playlists",
@@ -1218,11 +1251,13 @@
                             "value": "render/out"
                         }
                     ],
+                    "favourite": false,
                     "hidden": false,
                     "id": "3446efbd-3cc5-4af4-8c99-bde94b495102",
                     "name": "OVERRIDE",
                     "type": "preset",
-                    "update": false
+                    "update": false,
+                    "userdata": ""
                 },
                 {
                     "children": [
@@ -1256,11 +1291,13 @@
                                     "value": "fish"
                                 }
                             ],
+                            "favourite": false,
                             "hidden": false,
                             "id": "42a40bab-16d4-4490-8aab-22748f53f090",
                             "name": "Today's Dailies",
                             "type": "preset",
-                            "update": false
+                            "update": false,
+                            "userdata": ""
                         },
                         {
                             "children": [
@@ -1292,11 +1329,13 @@
                                     "value": "fish"
                                 }
                             ],
+                            "favourite": false,
                             "hidden": false,
                             "id": "6343df0c-eb3e-4f76-8712-ac60eee10ba6",
                             "name": "Previous Week",
                             "type": "preset",
-                            "update": false
+                            "update": false,
+                            "userdata": ""
                         },
                         {
                             "children": [
@@ -1319,11 +1358,13 @@
                                     "value": "Anim"
                                 }
                             ],
+                            "favourite": false,
                             "hidden": false,
                             "id": "cf5b51cc-00b9-43af-8480-a7af829723ab",
                             "name": "Latest Anim",
                             "type": "preset",
-                            "update": false
+                            "update": false,
+                            "userdata": ""
                         },
                         {
                             "children": [
@@ -1346,11 +1387,13 @@
                                     "value": "Comp"
                                 }
                             ],
+                            "favourite": false,
                             "hidden": false,
                             "id": "3d167e7c-950a-477e-a7ab-1efbd1044f2a",
                             "name": "Latest Comp",
                             "type": "preset",
-                            "update": false
+                            "update": false,
+                            "userdata": ""
                         },
                         {
                             "children": [
@@ -1382,11 +1425,13 @@
                                     "value": "ShoCo"
                                 }
                             ],
+                            "favourite": false,
                             "hidden": false,
                             "id": "14b4ed8d-92cd-4c4b-9ad7-6719e98dd511",
                             "name": "Latest ShoCos",
                             "type": "preset",
-                            "update": false
+                            "update": false,
+                            "userdata": ""
                         },
                         {
                             "children": [
@@ -1418,11 +1463,13 @@
                                     "value": "True"
                                 }
                             ],
+                            "favourite": false,
                             "hidden": false,
                             "id": "6d077c45-27ae-4da0-b31b-1d028e46c6e0",
                             "name": "Latest Client Sends",
                             "type": "preset",
-                            "update": false
+                            "update": false,
+                            "userdata": ""
                         },
                         {
                             "children": [
@@ -1454,11 +1501,13 @@
                                     "value": "True"
                                 }
                             ],
+                            "favourite": false,
                             "hidden": false,
                             "id": "f448307c-a14b-40ca-8cd1-01184ff14322",
                             "name": "Current Prop Finals",
                             "type": "preset",
-                            "update": false
+                            "update": false,
+                            "userdata": ""
                         },
                         {
                             "children": [
@@ -1553,11 +1602,13 @@
                                     "value": "Final TF"
                                 }
                             ],
+                            "favourite": false,
                             "hidden": false,
                             "id": "bf881458-a07e-4e33-b316-a40c96f72ea1",
                             "name": "All Finals",
                             "type": "preset",
-                            "update": false
+                            "update": false,
+                            "userdata": ""
                         },
                         {
                             "children": [
@@ -1580,6 +1631,7 @@
                                     "value": "Twig Type"
                                 }
                             ],
+                            "favourite": false,
                             "hidden": false,
                             "id": "be3d9365-1bb1-47ba-8231-570c09df838e",
                             "name": "Reference",
@@ -1614,11 +1666,13 @@
                             "value": "movie_dneg"
                         }
                     ],
+                    "favourite": false,
                     "hidden": false,
                     "id": "16ed5522-8a35-4849-bda2-ad98f1e7ccff",
                     "name": "OVERRIDE",
                     "type": "preset",
-                    "update": false
+                    "update": false,
+                    "userdata": ""
                 },
                 {
                     "children": [
@@ -1634,6 +1688,7 @@
                                     "value": "^ARTCON_"
                                 }
                             ],
+                            "favourite": false,
                             "hidden": false,
                             "id": "5da432ec-e017-4b8d-9bbe-cd199bdaacbf",
                             "name": "Concept Art",
@@ -1671,6 +1726,7 @@
                                     "value": ""
                                 }
                             ],
+                            "favourite": false,
                             "hidden": false,
                             "id": "d3813842-e11f-43e3-b6b6-e36ff62c6abf",
                             "name": "Video Reference",
@@ -1690,6 +1746,7 @@
                                     "value": "^HDR_"
                                 }
                             ],
+                            "favourite": false,
                             "hidden": false,
                             "id": "84683d75-0f02-46e1-a150-cb109f05ceeb",
                             "name": "HDRI",
@@ -1718,6 +1775,7 @@
                                     "value": "witcam"
                                 }
                             ],
+                            "favourite": false,
                             "hidden": false,
                             "id": "0ee25a3b-758b-4ef5-b2fd-9ef04273b414",
                             "name": "Witness Cams",
@@ -1737,6 +1795,7 @@
                                     "value": "^TEXREF_"
                                 }
                             ],
+                            "favourite": false,
                             "hidden": false,
                             "id": "10d4d0f1-4c5f-4a44-b74e-c2b847b7ab74",
                             "name": "Texture Reference",
@@ -1789,11 +1848,13 @@
                             "value": "Editorial"
                         }
                     ],
+                    "favourite": false,
                     "hidden": false,
                     "id": "d7eedba5-fad3-4447-a7f4-87052357197d",
                     "name": "OVERRIDE",
                     "type": "preset",
-                    "update": false
+                    "update": false,
+                    "userdata": ""
                 },
                 {
                     "children": [
@@ -1818,11 +1879,13 @@
                                     "value": "True"
                                 }
                             ],
+                            "favourite": false,
                             "hidden": false,
                             "id": "90b45e88-7539-40f8-949e-f96ed0d9ede5",
                             "name": "Latest Turnover QTs",
                             "type": "preset",
-                            "update": false
+                            "update": false,
+                            "userdata": ""
                         },
                         {
                             "children": [
@@ -1845,11 +1908,13 @@
                                     "value": "minicut"
                                 }
                             ],
+                            "favourite": false,
                             "hidden": false,
                             "id": "4cac8e60-d3a9-4d31-9d05-08cd4a025c80",
                             "name": "Latest Minicut Outputs",
                             "type": "preset",
-                            "update": false
+                            "update": false,
+                            "userdata": ""
                         },
                         {
                             "children": [
@@ -1872,11 +1937,13 @@
                                     "value": "bidding"
                                 }
                             ],
+                            "favourite": false,
                             "hidden": false,
                             "id": "53b1adb2-cb8f-42cc-b5bc-1f306d428d00",
                             "name": "Latest Bidding Qts",
                             "type": "preset",
-                            "update": false
+                            "update": false,
+                            "userdata": ""
                         },
                         {
                             "children": [
@@ -1899,11 +1966,13 @@
                                     "value": "seq"
                                 }
                             ],
+                            "favourite": false,
                             "hidden": false,
                             "id": "7a1722dd-1f56-4107-97b3-8687edd57a5a",
                             "name": "Latest Previs",
                             "type": "preset",
-                            "update": false
+                            "update": false,
+                            "userdata": ""
                         }
                     ],
                     "id": "c6dfc8d2-4618-40ce-a90f-057a9358e42c",
@@ -1950,10 +2019,13 @@
                             "value": "500"
                         }
                     ],
+                    "favourite": false,
+                    "hidden": false,
                     "id": "2cb25b6b-2b09-4a76-8246-4a1f5916908d",
                     "name": "PRESET",
                     "type": "preset",
-                    "update": false
+                    "update": false,
+                    "userdata": ""
                 },
                 {
                     "children": [
@@ -1969,6 +2041,7 @@
                                     "value": "20 Days"
                                 }
                             ],
+                            "favourite": false,
                             "hidden": false,
                             "id": "9a946b2a-0124-4360-8ea3-2df99a351781",
                             "name": "Latest Playlists",
@@ -2015,6 +2088,7 @@
                                     "value": "Client Send"
                                 }
                             ],
+                            "favourite": false,
                             "hidden": false,
                             "id": "596794d8-2fbf-40a9-aa65-3e5b83e4c184",
                             "name": "Client Playlists",
@@ -2034,6 +2108,7 @@
                                     "value": "Dailies"
                                 }
                             ],
+                            "favourite": false,
                             "hidden": false,
                             "id": "b972ed83-7da5-4fc5-9aeb-ba4f1e5e5995",
                             "name": "Dailies Reviews",
@@ -2053,6 +2128,7 @@
                                     "value": "Desk Review"
                                 }
                             ],
+                            "favourite": false,
                             "hidden": false,
                             "id": "5c24eb62-8012-4eb6-bf2b-5c50ed016a3f",
                             "name": "Desk Reviews",
@@ -2081,6 +2157,7 @@
                                     "value": "20 Days"
                                 }
                             ],
+                            "favourite": false,
                             "hidden": false,
                             "id": "2c484ad5-47d3-46f2-ba0d-1e71f3daeb8c",
                             "name": "Department Dailies",
@@ -2109,6 +2186,7 @@
                                     "value": "Reference Playlist"
                                 }
                             ],
+                            "favourite": false,
                             "hidden": false,
                             "id": "de224e49-4bee-4c0c-9171-4db80e36e8d1",
                             "name": "Production Playlists",
@@ -2146,6 +2224,7 @@
                                     "value": "False"
                                 }
                             ],
+                            "favourite": false,
                             "hidden": false,
                             "id": "47b37b1f-b246-4290-bc96-256b636dffaf",
                             "name": "Empty Playlists",
@@ -2174,6 +2253,7 @@
                                     "value": "4500"
                                 }
                             ],
+                            "favourite": false,
                             "hidden": false,
                             "id": "d478e8be-5948-4311-ae8c-52b183580453",
                             "name": "All Playlists",
@@ -2208,11 +2288,13 @@
                             "value": "movie_dneg"
                         }
                     ],
+                    "favourite": false,
                     "hidden": false,
                     "id": "b4e83342-71dd-45df-8ec2-3f5b74c6f03f",
                     "name": "Bob",
                     "type": "preset",
-                    "update": false
+                    "update": false,
+                    "userdata": ""
                 },
                 {
                     "children": [
@@ -2327,11 +2409,13 @@
                                     "value": "scan"
                                 }
                             ],
+                            "favourite": false,
                             "hidden": false,
                             "id": "d2423374-859b-4ecc-9edc-a1b6e6eb4eee",
                             "name": "All Viewable Outputs",
                             "type": "preset",
-                            "update": false
+                            "update": false,
+                            "userdata": ""
                         },
                         {
                             "children": [
@@ -2381,11 +2465,13 @@
                                     "value": "scan"
                                 }
                             ],
+                            "favourite": false,
                             "hidden": false,
                             "id": "f7149213-e490-464e-9f42-7ddf42c81130",
                             "name": "Latest Dailies",
                             "type": "preset",
-                            "update": false
+                            "update": false,
+                            "userdata": ""
                         },
                         {
                             "children": [
@@ -2408,11 +2494,13 @@
                                     "value": "SG Frames"
                                 }
                             ],
+                            "favourite": false,
                             "hidden": false,
                             "id": "fbaece6c-e91d-4aac-8a9a-56a99748d4bf",
                             "name": "CG Renders & ShoCo",
                             "type": "preset",
-                            "update": false
+                            "update": false,
+                            "userdata": ""
                         },
                         {
                             "children": [
@@ -2453,11 +2541,13 @@
                                     "value": "main_proxy0"
                                 }
                             ],
+                            "favourite": false,
                             "hidden": false,
                             "id": "e2be6fbd-98ec-41c5-8e6a-e77ebcc2e4e3",
                             "name": "2D Elements",
                             "type": "preset",
-                            "update": false
+                            "update": false,
+                            "userdata": ""
                         },
                         {
                             "children": [
@@ -2516,11 +2606,13 @@
                                     "value": "render/playblast/working"
                                 }
                             ],
+                            "favourite": false,
                             "hidden": false,
                             "id": "46df7ee1-8ce2-490d-9f63-5b74b5856330",
                             "name": "Camera / Body Tracks",
                             "type": "preset",
-                            "update": false
+                            "update": false,
+                            "userdata": ""
                         },
                         {
                             "children": [
@@ -2597,11 +2689,13 @@
                                     "value": "rerack"
                                 }
                             ],
+                            "favourite": false,
                             "hidden": false,
                             "id": "bba9beff-f7cf-45fc-a68e-f4a7e7f1d830",
                             "name": "Retimes / Repos",
                             "type": "preset",
-                            "update": false
+                            "update": false,
+                            "userdata": ""
                         },
                         {
                             "children": [
@@ -2678,11 +2772,13 @@
                                     "value": "True"
                                 }
                             ],
+                            "favourite": false,
                             "hidden": false,
                             "id": "ea16bd8c-ad5f-4322-8898-a05554418474",
                             "name": "Scans",
                             "type": "preset",
-                            "update": false
+                            "update": false,
+                            "userdata": ""
                         },
                         {
                             "children": [
@@ -2741,11 +2837,13 @@
                                     "value": "repo"
                                 }
                             ],
+                            "favourite": false,
                             "hidden": false,
                             "id": "5693511f-56a4-435a-8e8f-d7e2c632f218",
                             "name": "Sent To Dailies",
                             "type": "preset",
-                            "update": false
+                            "update": false,
+                            "userdata": ""
                         },
                         {
                             "children": [
@@ -2804,11 +2902,13 @@
                                     "value": "repo"
                                 }
                             ],
+                            "favourite": false,
                             "hidden": false,
                             "id": "4cc534f4-3626-44c5-a558-5c3e28c1cb49",
                             "name": "Sent To Client",
                             "type": "preset",
-                            "update": false
+                            "update": false,
+                            "userdata": ""
                         }
                     ],
                     "id": "a07eab89-7672-4b9d-8559-57b1b6b20577",
@@ -2837,10 +2937,13 @@
                             "value": ""
                         }
                     ],
+                    "favourite": false,
+                    "hidden": false,
                     "id": "9f349b78-e4de-43fb-b46d-31ea296cd751",
                     "name": "dsfasdfa",
                     "type": "preset",
-                    "update": false
+                    "update": false,
+                    "userdata": ""
                 },
                 {
                     "children": [
@@ -2856,6 +2959,7 @@
                                     "value": "Editorial"
                                 }
                             ],
+                            "favourite": false,
                             "hidden": false,
                             "id": "77abb8be-4147-476b-ac4b-b39f18b18b6e",
                             "name": "All Editorial Outputs",
@@ -2893,6 +2997,7 @@
                                     "value": "True"
                                 }
                             ],
+                            "favourite": false,
                             "hidden": false,
                             "id": "adaf07c1-d62e-43d0-8be3-645b5917005f",
                             "name": "Turnover & Edit Ref",
@@ -2912,6 +3017,7 @@
                                     "value": "minicut"
                                 }
                             ],
+                            "favourite": false,
                             "hidden": false,
                             "id": "7238c33d-f858-4228-a719-b6b3ace1d569",
                             "name": "Minicut Outputs",
@@ -2931,6 +3037,7 @@
                                     "value": "previs"
                                 }
                             ],
+                            "favourite": false,
                             "hidden": false,
                             "id": "e1f64b1f-16a4-4ba3-ba0d-937618c4d9cb",
                             "name": "Previs",
@@ -2959,6 +3066,7 @@
                                     "value": "sketchvis"
                                 }
                             ],
+                            "favourite": false,
                             "hidden": false,
                             "id": "c5ad64bb-51aa-4351-b04c-0445f03c789b",
                             "name": "Postvis",
@@ -2978,6 +3086,7 @@
                                     "value": "bidding"
                                 }
                             ],
+                            "favourite": false,
                             "hidden": false,
                             "id": "f633473a-6c46-4173-a264-955b2882b3b0",
                             "name": "Bidding QTs",
@@ -3012,10 +3121,13 @@
                             "value": "data/clip/cut"
                         }
                     ],
+                    "favourite": false,
+                    "hidden": false,
                     "id": "b7a77c2d-efe6-4ba3-a5be-a060ee4c3678",
                     "name": "PRESET",
                     "type": "preset",
-                    "update": false
+                    "update": false,
+                    "userdata": ""
                 },
                 {
                     "children": [
@@ -3049,6 +3161,7 @@
                                     "value": "True"
                                 }
                             ],
+                            "favourite": false,
                             "hidden": false,
                             "id": "d7b60fad-b655-46cf-b187-2b817fc4a8b8",
                             "name": "Approved Turnovers",
@@ -3077,6 +3190,7 @@
                                     "value": "Approved"
                                 }
                             ],
+                            "favourite": false,
                             "hidden": false,
                             "id": "cfc9304d-f102-4b16-adf5-cf1516c9ecb0",
                             "name": "All Turnovers",
@@ -3094,8 +3208,8 @@
             "id": "087c4ff5-2da0-4e54-afcf-c7914a247fae",
             "name": "Sequences",
             "type": "group",
-            "userdata": "tree",
-            "update": false
+            "update": false,
+            "userdata": "tree"
         },
         {
             "children": [
@@ -3111,15 +3225,19 @@
                             "value": "movie_dneg"
                         }
                     ],
+                    "favourite": false,
+                    "hidden": false,
                     "id": "4e62e3eb-e210-4d9d-9594-11ae45dc32df",
                     "name": "Notes",
                     "type": "preset",
-                    "update": false
+                    "update": false,
+                    "userdata": ""
                 },
                 {
                     "children": [
                         {
                             "children": [],
+                            "favourite": false,
                             "hidden": false,
                             "id": "170ab49e-d3ab-4e1a-a088-2dc581468adb",
                             "name": "All Notes",
@@ -3157,6 +3275,7 @@
                                     "value": "Editorial"
                                 }
                             ],
+                            "favourite": false,
                             "hidden": false,
                             "id": "2bda49f8-0db9-4a5d-a69a-486893fb3ecd",
                             "name": "Client Notes",
@@ -3203,6 +3322,7 @@
                                     "value": "Anim DIR"
                                 }
                             ],
+                            "favourite": false,
                             "hidden": false,
                             "id": "199124f0-faa9-4cba-b375-eacda8e303ca",
                             "name": "Internal Supes",
@@ -3222,6 +3342,7 @@
                                     "value": "DeptSupe"
                                 }
                             ],
+                            "favourite": false,
                             "hidden": false,
                             "id": "7064342a-c135-488c-9ded-13915eaeabc2",
                             "name": "Department Notes",
@@ -3250,6 +3371,7 @@
                                     "value": "Submission"
                                 }
                             ],
+                            "favourite": false,
                             "hidden": false,
                             "id": "4f60137e-e7e4-4298-8b0c-5107e5c84c09",
                             "name": "Facility Notes",
@@ -3269,6 +3391,7 @@
                                     "value": "Wizard Dailies"
                                 }
                             ],
+                            "favourite": false,
                             "hidden": false,
                             "id": "f0322215-8d82-4870-8974-b89c53897ffb",
                             "name": "Artist's Notes",
@@ -3288,6 +3411,7 @@
                                     "value": "${USERFULLNAME}"
                                 }
                             ],
+                            "favourite": false,
                             "hidden": false,
                             "id": "46540248-cc0b-41e7-9e02-9d6eba4bfef6",
                             "name": "To Me",
@@ -3297,6 +3421,7 @@
                         },
                         {
                             "children": [],
+                            "favourite": false,
                             "hidden": false,
                             "id": "3604e5cb-dac5-4233-b775-9653e537c785",
                             "name": "All Notes",
@@ -3334,6 +3459,7 @@
                                     "value": "Editorial"
                                 }
                             ],
+                            "favourite": false,
                             "hidden": false,
                             "id": "0304d825-0454-44d9-977e-e555d76a9557",
                             "name": "Client Notes",
@@ -3368,10 +3494,13 @@
                             "value": "1000"
                         }
                     ],
+                    "favourite": false,
+                    "hidden": false,
                     "id": "dfd7b1c1-3ed3-4af7-a480-3f901d7dfbcf",
                     "name": "PRESET",
                     "type": "preset",
-                    "update": false
+                    "update": false,
+                    "userdata": ""
                 },
                 {
                     "children": [
@@ -3423,6 +3552,7 @@
                                     "value": "20 Days"
                                 }
                             ],
+                            "favourite": false,
                             "hidden": false,
                             "id": "d4920a8f-9570-4e2c-bbf7-f94dde82854e",
                             "name": "Client Notes",
@@ -3469,6 +3599,7 @@
                                     "value": "Anim DIR"
                                 }
                             ],
+                            "favourite": false,
                             "hidden": false,
                             "id": "112aadfa-cc44-443e-b6b3-7761c587d794",
                             "name": "Supervisor Notes",
@@ -3515,6 +3646,7 @@
                                     "value": "200"
                                 }
                             ],
+                            "favourite": false,
                             "hidden": false,
                             "id": "ede1a2c4-af8b-4107-8019-8e4c9a76339b",
                             "name": "All Notes",
@@ -3561,6 +3693,7 @@
                                     "value": "200"
                                 }
                             ],
+                            "favourite": false,
                             "hidden": false,
                             "id": "f2932cf8-3b26-4dc5-bb6b-4a2693cfa7c4",
                             "name": "Internal Notes",
@@ -3604,10 +3737,13 @@
                             "value": "1000"
                         }
                     ],
+                    "favourite": false,
+                    "hidden": false,
                     "id": "55009e65-58ee-41e5-9503-bf6fdb012551",
                     "name": "dsfasdfa",
                     "type": "preset",
-                    "update": false
+                    "update": false,
+                    "userdata": ""
                 },
                 {
                     "children": [
@@ -3641,6 +3777,7 @@
                                     "value": "^ARTCON_"
                                 }
                             ],
+                            "favourite": false,
                             "hidden": false,
                             "id": "ebcc8123-4670-4535-8c87-37d380af0fda",
                             "name": "Concept Art",
@@ -3660,6 +3797,7 @@
                                     "value": "REF_"
                                 }
                             ],
+                            "favourite": false,
                             "hidden": false,
                             "id": "8472a7e8-45a9-44f3-8731-b88a5a18cf55",
                             "name": "Reference",
@@ -3733,6 +3871,7 @@
                                     "value": "Twig Type"
                                 }
                             ],
+                            "favourite": false,
                             "hidden": false,
                             "id": "24a25b0b-6099-4f9f-9fce-7ba7f3f5fdd0",
                             "name": "Witness Cams",
@@ -3779,6 +3918,7 @@
                                     "value": "video_ref_witness"
                                 }
                             ],
+                            "favourite": false,
                             "hidden": false,
                             "id": "c1411e93-b27c-461a-8fbe-e56039fdd700",
                             "name": "On Set Ref",
@@ -3834,6 +3974,7 @@
                                     "value": "tex"
                                 }
                             ],
+                            "favourite": false,
                             "hidden": false,
                             "id": "4efb3ec4-a722-4064-8699-ffd681cedda7",
                             "name": "Texture Ref",
@@ -3889,6 +4030,7 @@
                                     "value": "hdri"
                                 }
                             ],
+                            "favourite": false,
                             "hidden": false,
                             "id": "c6c5f383-fb47-4274-acac-be0aef3d1d1b",
                             "name": "HDRIs",
@@ -3986,10 +4128,13 @@
                             "value": ""
                         }
                     ],
+                    "favourite": false,
+                    "hidden": false,
                     "id": "52a9bf1a-814a-4cd7-a718-1f543adb67b4",
                     "name": "OVERRIDE",
                     "type": "preset",
-                    "update": false
+                    "update": false,
+                    "userdata": ""
                 },
                 {
                     "children": [
@@ -4068,11 +4213,13 @@
                                     "value": "lon"
                                 }
                             ],
+                            "favourite": true,
                             "hidden": false,
                             "id": "b4972154-cec3-43ce-b3a8-b5d3d20fcf07",
                             "name": "Latest Anim",
                             "type": "preset",
-                            "update": false
+                            "update": false,
+                            "userdata": ""
                         },
                         {
                             "children": [
@@ -4113,11 +4260,13 @@
                                     "value": "wireframe"
                                 }
                             ],
+                            "favourite": true,
                             "hidden": false,
                             "id": "984ef2d9-79e0-4802-a3e1-87027541334a",
                             "name": "Latest Body Track",
                             "type": "preset",
-                            "update": false
+                            "update": false,
+                            "userdata": ""
                         },
                         {
                             "children": [
@@ -4158,11 +4307,13 @@
                                     "value": "wireframe"
                                 }
                             ],
+                            "favourite": true,
                             "hidden": false,
                             "id": "68a09f23-dc3a-4a10-b651-140d8dc38a80",
                             "name": "Latest Camera Track",
                             "type": "preset",
-                            "update": false
+                            "update": false,
+                            "userdata": ""
                         },
                         {
                             "children": [
@@ -4239,11 +4390,13 @@
                                     "value": "8"
                                 }
                             ],
+                            "favourite": true,
                             "hidden": false,
                             "id": "a94fd9ee-5ec7-4ce5-9357-e0a6275ed3be",
                             "name": "Latest CFX",
                             "type": "preset",
-                            "update": false
+                            "update": false,
+                            "userdata": ""
                         },
                         {
                             "children": [
@@ -4266,11 +4419,13 @@
                                     "value": "1"
                                 }
                             ],
+                            "favourite": true,
                             "hidden": false,
                             "id": "d04ecb05-509a-4d33-8876-5af78fb06455",
                             "name": "Latest Client Version",
+                            "type": "preset",
                             "update": false,
-                            "type": "preset"
+                            "userdata": ""
                         },
                         {
                             "children": [
@@ -4302,11 +4457,13 @@
                                     "value": "comp$"
                                 }
                             ],
+                            "favourite": true,
                             "hidden": false,
                             "id": "96515feb-6104-42af-a50c-eb4a53c49b1f",
                             "name": "Latest Comp",
                             "type": "preset",
-                            "update": false
+                            "update": false,
+                            "userdata": ""
                         },
                         {
                             "children": [
@@ -4329,11 +4486,13 @@
                                     "value": "Crowd"
                                 }
                             ],
+                            "favourite": true,
                             "hidden": false,
                             "id": "4deefb47-e9c4-476e-bb42-ae576553a535",
                             "name": "Latest Crowd",
                             "type": "preset",
-                            "update": false
+                            "update": false,
+                            "userdata": ""
                         },
                         {
                             "children": [
@@ -4356,11 +4515,13 @@
                                     "value": "DMP"
                                 }
                             ],
+                            "favourite": true,
                             "hidden": false,
                             "id": "f844d34c-6b59-49bb-b715-5c6c73d40679",
                             "name": "Latest DMP",
                             "type": "preset",
-                            "update": false
+                            "update": false,
+                            "userdata": ""
                         },
                         {
                             "children": [
@@ -4383,11 +4544,13 @@
                                     "value": "Environ"
                                 }
                             ],
+                            "favourite": true,
                             "hidden": false,
                             "id": "6f3ce259-4d14-466a-b1a3-b20ed301081c",
                             "name": "Latest Env",
                             "type": "preset",
-                            "update": false
+                            "update": false,
+                            "userdata": ""
                         },
                         {
                             "children": [
@@ -4419,11 +4582,13 @@
                                     "value": "1"
                                 }
                             ],
+                            "favourite": true,
                             "hidden": false,
                             "id": "123fa736-1c32-42d0-b39e-00f2660c7937",
                             "name": "Latest FX",
                             "type": "preset",
-                            "update": false
+                            "update": false,
+                            "userdata": ""
                         },
                         {
                             "children": [
@@ -4446,11 +4611,13 @@
                                     "value": "Groom"
                                 }
                             ],
+                            "favourite": true,
                             "hidden": false,
                             "id": "f8499243-7187-45a2-95ff-8e8d62efc280",
                             "name": "Latest Groom",
                             "type": "preset",
-                            "update": false
+                            "update": false,
+                            "userdata": ""
                         },
                         {
                             "children": [
@@ -4491,11 +4658,13 @@
                                     "value": "1"
                                 }
                             ],
+                            "favourite": true,
                             "hidden": false,
                             "id": "7d8882f6-2b0b-4231-b603-ae38d26dd19e",
                             "name": "Latest Layout",
                             "type": "preset",
-                            "update": false
+                            "update": false,
+                            "userdata": ""
                         },
                         {
                             "children": [
@@ -4536,11 +4705,13 @@
                                     "value": "1"
                                 }
                             ],
+                            "favourite": true,
                             "hidden": false,
                             "id": "d6a73b10-c0e8-4d80-8f5c-b9ecf24d3175",
                             "name": "Latest Lighting",
                             "type": "preset",
-                            "update": false
+                            "update": false,
+                            "userdata": ""
                         },
                         {
                             "children": [
@@ -4581,11 +4752,13 @@
                                     "value": "1"
                                 }
                             ],
+                            "favourite": true,
                             "hidden": false,
                             "id": "091e5285-338f-47e3-a498-501d8194e0a1",
                             "name": "Latest Model",
                             "type": "preset",
-                            "update": false
+                            "update": false,
+                            "userdata": ""
                         },
                         {
                             "children": [
@@ -4626,11 +4799,13 @@
                                     "value": "1"
                                 }
                             ],
+                            "favourite": true,
                             "hidden": false,
                             "id": "671ff238-badb-4f2f-b8c6-9774f98fa421",
                             "name": "Latest Muscle",
                             "type": "preset",
-                            "update": false
+                            "update": false,
+                            "userdata": ""
                         },
                         {
                             "children": [
@@ -4698,11 +4873,13 @@
                                     "value": "render/2D"
                                 }
                             ],
+                            "favourite": true,
                             "hidden": false,
                             "id": "aba2f32c-4f81-4c3b-87e6-1dbdfba49053",
                             "name": "Latest Prep",
                             "type": "preset",
-                            "update": false
+                            "update": false,
+                            "userdata": ""
                         },
                         {
                             "children": [
@@ -4770,11 +4947,13 @@
                                     "value": "render/2D"
                                 }
                             ],
+                            "favourite": true,
                             "hidden": false,
                             "id": "2563aa5b-c54c-44a7-9af6-bb61ef521c0d",
                             "name": "Latest Rig",
                             "type": "preset",
-                            "update": false
+                            "update": false,
+                            "userdata": ""
                         },
                         {
                             "children": [
@@ -4842,11 +5021,13 @@
                                     "value": "render/2D"
                                 }
                             ],
+                            "favourite": true,
                             "hidden": false,
                             "id": "d297beea-b3da-44c1-aad2-e5e920891c3e",
                             "name": "Latest Roto",
                             "type": "preset",
-                            "update": false
+                            "update": false,
+                            "userdata": ""
                         },
                         {
                             "children": [
@@ -4941,11 +5122,13 @@
                                     "value": "1"
                                 }
                             ],
+                            "favourite": true,
                             "hidden": false,
                             "id": "cf7c3f5b-6ee4-4e98-b7e0-85f9a0fb0006",
                             "name": "Latest Retime",
                             "type": "preset",
-                            "update": false
+                            "update": false,
+                            "userdata": ""
                         },
                         {
                             "children": [
@@ -5031,11 +5214,13 @@
                                     "value": "1"
                                 }
                             ],
+                            "favourite": true,
                             "hidden": false,
                             "id": "e6a30282-067c-4f86-90e7-301fe33df1c8",
                             "name": "Latest Repo",
                             "type": "preset",
-                            "update": false
+                            "update": false,
+                            "userdata": ""
                         },
                         {
                             "children": [
@@ -5094,11 +5279,13 @@
                                     "value": "True"
                                 }
                             ],
+                            "favourite": true,
                             "hidden": false,
                             "id": "8c1e1123-d6b9-4595-83dd-6c94d569cfb8",
                             "name": "Latest Scan",
                             "type": "preset",
-                            "update": false
+                            "update": false,
+                            "userdata": ""
                         },
                         {
                             "children": [
@@ -5121,11 +5308,13 @@
                                     "value": "1"
                                 }
                             ],
+                            "favourite": true,
                             "hidden": false,
                             "id": "07e521ae-29a7-41ff-9a61-798352b6fad8",
                             "name": "Latest Output",
                             "type": "preset",
-                            "update": false
+                            "update": false,
+                            "userdata": ""
                         },
                         {
                             "children": [
@@ -5193,11 +5382,13 @@
                                     "value": "render/2D"
                                 }
                             ],
+                            "favourite": true,
                             "hidden": false,
                             "id": "7f45c0db-dffc-484a-a694-1a6ef84a83de",
                             "name": "Latest Retime Layout",
                             "type": "preset",
-                            "update": false
+                            "update": false,
+                            "userdata": ""
                         }
                     ],
                     "id": "137aa66a-87e2-4c53-b304-44bd7ff9f755",
@@ -5298,10 +5489,13 @@
                             "value": "scan"
                         }
                     ],
+                    "favourite": false,
+                    "hidden": false,
                     "id": "e1cdf832-127c-4405-b946-02b0c6ee9228",
                     "name": "Override",
                     "type": "preset",
-                    "update": false
+                    "update": false,
+                    "userdata": ""
                 },
                 {
                     "children": [
@@ -5389,11 +5583,13 @@
                                     "value": "slap"
                                 }
                             ],
+                            "favourite": true,
                             "hidden": false,
                             "id": "74546d37-5349-43f7-8b59-78d5b7d7f3ec",
                             "name": "Latest Anim",
                             "type": "preset",
-                            "update": false
+                            "update": false,
+                            "userdata": ""
                         },
                         {
                             "children": [
@@ -5479,11 +5675,13 @@
                                     "value": "slap"
                                 }
                             ],
+                            "favourite": true,
                             "hidden": false,
                             "id": "850d6034-0b89-4504-8687-f203e04fc289",
                             "name": "Latest Anim ShoCo",
                             "type": "preset",
-                            "update": false
+                            "update": false,
+                            "userdata": ""
                         },
                         {
                             "children": [
@@ -5524,11 +5722,13 @@
                                     "value": "wireframe"
                                 }
                             ],
+                            "favourite": true,
                             "hidden": false,
                             "id": "cd364165-7c13-4104-93a9-11ef92659910",
                             "name": "Latest Body Track",
                             "type": "preset",
-                            "update": false
+                            "update": false,
+                            "userdata": ""
                         },
                         {
                             "children": [
@@ -5569,11 +5769,13 @@
                                     "value": "wireframe"
                                 }
                             ],
+                            "favourite": true,
                             "hidden": false,
                             "id": "51fdb5d4-a984-45d6-9179-6f20df107017",
                             "name": "Latest Camera Track",
                             "type": "preset",
-                            "update": false
+                            "update": false,
+                            "userdata": ""
                         },
                         {
                             "children": [
@@ -5650,11 +5852,13 @@
                                     "value": "8"
                                 }
                             ],
+                            "favourite": true,
                             "hidden": false,
                             "id": "f7355147-b4ce-4d39-9c9f-96195cae23cc",
                             "name": "Latest CFX",
                             "type": "preset",
-                            "update": false
+                            "update": false,
+                            "userdata": ""
                         },
                         {
                             "children": [
@@ -5713,11 +5917,13 @@
                                     "value": "contactsheet"
                                 }
                             ],
+                            "favourite": true,
                             "hidden": false,
                             "id": "aa91a797-2a5a-49a0-9adc-b2edf8004f41",
                             "name": "Latest Comp",
                             "type": "preset",
-                            "update": false
+                            "update": false,
+                            "userdata": ""
                         },
                         {
                             "children": [
@@ -5740,11 +5946,13 @@
                                     "value": "Crowd"
                                 }
                             ],
+                            "favourite": true,
                             "hidden": false,
                             "id": "92ddf9c3-f597-42f7-9949-b2b99e64d120",
                             "name": "Latest Crowd",
                             "type": "preset",
-                            "update": false
+                            "update": false,
+                            "userdata": ""
                         },
                         {
                             "children": [
@@ -5767,11 +5975,13 @@
                                     "value": "1"
                                 }
                             ],
+                            "favourite": true,
                             "hidden": false,
                             "id": "14503e88-0b31-45df-8f97-80a5f5a280e3",
                             "name": "Latest Client Send",
                             "type": "preset",
-                            "update": false
+                            "update": false,
+                            "userdata": ""
                         },
                         {
                             "children": [
@@ -5794,11 +6004,13 @@
                                     "value": "DMP"
                                 }
                             ],
+                            "favourite": true,
                             "hidden": false,
                             "id": "3501afe6-b082-4454-8177-b7cc389e110f",
                             "name": "Latest DMP",
                             "type": "preset",
-                            "update": false
+                            "update": false,
+                            "userdata": ""
                         },
                         {
                             "children": [
@@ -5848,11 +6060,13 @@
                                     "value": "edit_ref$"
                                 }
                             ],
+                            "favourite": true,
                             "hidden": false,
                             "id": "38d0fc49-b278-45ae-bdbc-f666d971819b",
                             "name": "Latest Edt Ref",
                             "type": "preset",
-                            "update": false
+                            "update": false,
+                            "userdata": ""
                         },
                         {
                             "children": [
@@ -5875,11 +6089,13 @@
                                     "value": "Environ"
                                 }
                             ],
+                            "favourite": true,
                             "hidden": false,
                             "id": "e6f5e74e-0314-4557-9797-7b0c8e16c093",
                             "name": "Latest Env",
                             "type": "preset",
-                            "update": false
+                            "update": false,
+                            "userdata": ""
                         },
                         {
                             "children": [
@@ -5911,11 +6127,13 @@
                                     "value": "8"
                                 }
                             ],
+                            "favourite": true,
                             "hidden": false,
                             "id": "9c2e2cf0-3bc1-4048-bbf0-4c04665a6698",
                             "name": "Latest FX",
                             "type": "preset",
-                            "update": false
+                            "update": false,
+                            "userdata": ""
                         },
                         {
                             "children": [
@@ -5938,11 +6156,13 @@
                                     "value": "Groom"
                                 }
                             ],
+                            "favourite": true,
                             "hidden": false,
                             "id": "2b9f9e57-85a7-420c-8cdc-19d44d8b4134",
                             "name": "Latest Groom",
                             "type": "preset",
-                            "update": false
+                            "update": false,
+                            "userdata": ""
                         },
                         {
                             "children": [
@@ -5983,11 +6203,13 @@
                                     "value": "1"
                                 }
                             ],
+                            "favourite": true,
                             "hidden": false,
                             "id": "af3c0c45-f216-48eb-8d72-d4f3c05e87c3",
                             "name": "Latest Layout",
                             "type": "preset",
-                            "update": false
+                            "update": false,
+                            "userdata": ""
                         },
                         {
                             "children": [
@@ -6028,11 +6250,13 @@
                                     "value": "1"
                                 }
                             ],
+                            "favourite": true,
                             "hidden": false,
                             "id": "a1851804-5878-4bc1-a2bd-119541641678",
                             "name": "Latest Layout ShoCo",
                             "type": "preset",
-                            "update": false
+                            "update": false,
+                            "userdata": ""
                         },
                         {
                             "children": [
@@ -6073,11 +6297,13 @@
                                     "value": "1"
                                 }
                             ],
+                            "favourite": true,
                             "hidden": false,
                             "id": "4584980d-a6bb-416e-b328-d5b632f7de1a",
                             "name": "Latest Lighting",
                             "type": "preset",
-                            "update": false
+                            "update": false,
+                            "userdata": ""
                         },
                         {
                             "children": [
@@ -6127,11 +6353,13 @@
                                     "value": "slap"
                                 }
                             ],
+                            "favourite": true,
                             "hidden": false,
                             "id": "e01a73ff-c715-494c-b0ae-6ac989ad94da",
                             "name": "Latest Lighting Slap",
                             "type": "preset",
-                            "update": false
+                            "update": false,
+                            "userdata": ""
                         },
                         {
                             "children": [
@@ -6172,11 +6400,13 @@
                                     "value": "1"
                                 }
                             ],
+                            "favourite": true,
                             "hidden": false,
                             "id": "13f3e958-212f-46aa-bf7c-9cca729f2f28",
                             "name": "Latest Model",
                             "type": "preset",
-                            "update": false
+                            "update": false,
+                            "userdata": ""
                         },
                         {
                             "children": [
@@ -6217,11 +6447,13 @@
                                     "value": "1"
                                 }
                             ],
+                            "favourite": true,
                             "hidden": false,
                             "id": "5ed9c2a6-d121-49b6-9466-b93e2081930d",
                             "name": "Latest Muscle",
                             "type": "preset",
-                            "update": false
+                            "update": false,
+                            "userdata": ""
                         },
                         {
                             "children": [
@@ -6289,11 +6521,13 @@
                                     "value": "render/2D"
                                 }
                             ],
+                            "favourite": true,
                             "hidden": false,
                             "id": "350a9cbb-ec98-4826-8967-facf2253ede3",
                             "name": "Latest Prep",
                             "type": "preset",
-                            "update": false
+                            "update": false,
+                            "userdata": ""
                         },
                         {
                             "children": [
@@ -6361,11 +6595,13 @@
                                     "value": "render/2D"
                                 }
                             ],
+                            "favourite": true,
                             "hidden": false,
                             "id": "a07904d4-7e98-4463-8df8-134ae1ab1e6e",
                             "name": "Latest Retime Layout",
                             "type": "preset",
-                            "update": false
+                            "update": false,
+                            "userdata": ""
                         },
                         {
                             "children": [
@@ -6433,11 +6669,13 @@
                                     "value": "render/2D"
                                 }
                             ],
+                            "favourite": true,
                             "hidden": false,
                             "id": "80f8ebd7-5256-4e3e-ad2c-ac38aa50f54f",
                             "name": "Latest Rig",
                             "type": "preset",
-                            "update": false
+                            "update": false,
+                            "userdata": ""
                         },
                         {
                             "children": [
@@ -6505,11 +6743,13 @@
                                     "value": "render/2D"
                                 }
                             ],
+                            "favourite": true,
                             "hidden": false,
                             "id": "ee7a7431-5157-4499-a750-f3a696fceff7",
                             "name": "Latest Roto",
                             "type": "preset",
-                            "update": false
+                            "update": false,
+                            "userdata": ""
                         },
                         {
                             "children": [
@@ -6595,11 +6835,13 @@
                                     "value": "contactsheet"
                                 }
                             ],
+                            "favourite": true,
                             "hidden": false,
                             "id": "92a3a564-a026-4989-bb7f-391b04f14b97",
                             "name": "Retimes / Repos",
                             "type": "preset",
-                            "update": false
+                            "update": false,
+                            "userdata": ""
                         },
                         {
                             "children": [
@@ -6658,11 +6900,13 @@
                                     "value": "True"
                                 }
                             ],
+                            "favourite": true,
                             "hidden": false,
                             "id": "a1965621-bd1c-41a5-aed6-86226ccfffaa",
                             "name": "Latest Scan",
                             "type": "preset",
-                            "update": false
+                            "update": false,
+                            "userdata": ""
                         },
                         {
                             "children": [
@@ -6703,11 +6947,13 @@
                                     "value": "track"
                                 }
                             ],
+                            "favourite": true,
                             "hidden": false,
                             "id": "e59028b1-15e3-44cc-ba8e-93e56f71008f",
                             "name": "Latest  ShoCo",
                             "type": "preset",
-                            "update": false
+                            "update": false,
+                            "userdata": ""
                         },
                         {
                             "children": [
@@ -6757,11 +7003,13 @@
                                     "value": "Sweatbox"
                                 }
                             ],
+                            "favourite": true,
                             "hidden": false,
                             "id": "98975cb3-d177-4f5d-a117-ecce587b2abb",
                             "name": "Latest  Sweatbox",
                             "type": "preset",
-                            "update": false
+                            "update": false,
+                            "userdata": ""
                         },
                         {
                             "children": [
@@ -6784,11 +7032,13 @@
                                     "value": "1"
                                 }
                             ],
+                            "favourite": true,
                             "hidden": false,
                             "id": "bf60020b-fd01-48c3-a126-a563f1d02b29",
                             "name": "Latest Output",
                             "type": "preset",
-                            "update": false
+                            "update": false,
+                            "userdata": ""
                         },
                         {
                             "children": [
@@ -6820,11 +7070,13 @@
                                     "value": "Twig Type"
                                 }
                             ],
+                            "favourite": true,
                             "hidden": false,
                             "id": "ccf3bf5c-8735-4d5a-8e0e-d2a113ebbcb0",
                             "name": "Latest Witness Cam",
                             "type": "preset",
-                            "update": false
+                            "update": false,
+                            "userdata": ""
                         },
                         {
                             "children": [
@@ -6865,6 +7117,7 @@
                                     "value": ""
                                 }
                             ],
+                            "favourite": true,
                             "hidden": false,
                             "id": "f4346be1-c18b-4125-b7c4-a2fa17ec28f9",
                             "name": "Next Version",
@@ -6911,6 +7164,7 @@
                                     "value": ""
                                 }
                             ],
+                            "favourite": true,
                             "hidden": false,
                             "id": "96f4a528-1fde-46a6-a46c-bfbbb6055519",
                             "name": "Previous Version",
@@ -6957,6 +7211,7 @@
                                     "value": ""
                                 }
                             ],
+                            "favourite": true,
                             "hidden": false,
                             "id": "ad27723f-e0c9-4a17-a01a-914f8ad9fa17",
                             "name": "Latest Version",
@@ -6985,11 +7240,13 @@
                                     "value": "1"
                                 }
                             ],
+                            "favourite": true,
                             "hidden": false,
                             "id": "36af6440-a38b-47e2-a239-1397a898e01d",
                             "name": "Latest Client Send",
                             "type": "preset",
-                            "update": false
+                            "update": false,
+                            "userdata": ""
                         }
                     ],
                     "id": "f5834ddc-9d33-4412-88a4-53d7812789fa",
@@ -7003,7 +7260,89 @@
             "type": "group",
             "update": false,
             "userdata": "menus"
+        },
+                {
+            "children": [
+                {
+                    "children": [
+                        {
+                            "enabled": true,
+                            "id": "3509e6c0-3662-49bc-8054-e38d55eb3b1d",
+                            "livelink": false,
+                            "negated": false,
+                            "term": "Twig Type",
+                            "type": "term",
+                            "value": "data/clip/cut"
+                        },
+                        {
+                            "enabled": true,
+                            "id": "2bd3057e-0eed-4b6b-9d26-06da62b890f9",
+                            "livelink": true,
+                            "negated": false,
+                            "term": "Sequence",
+                            "type": "term",
+                            "value": ""
+                        },
+                        {
+                            "enabled": true,
+                            "id": "e95e9a5c-9294-45f6-b681-e7a421cf266a",
+                            "livelink": null,
+                            "negated": null,
+                            "term": "Result Limit",
+                            "type": "term",
+                            "value": "1"
+                        }
+                    ],
+                    "id": "9e7d7c56-12ea-4d99-bcec-defc24591ed5",
+                    "name": "PRESET",
+                    "type": "preset",
+                    "update": false
+                },
+                {
+                    "children": [
+                        {
+                            "children": [
+                                {
+                                    "enabled": true,
+                                    "id": "dd6c0019-1e98-48f8-9da6-c9f83c68278a",
+                                    "livelink": null,
+                                    "negated": false,
+                                    "term": "Filter",
+                                    "type": "term",
+                                    "value": "turnover"
+                                },
+                                {
+                                    "enabled": true,
+                                    "id": "4a5dea39-2047-4722-b228-93f8c8aee2c1",
+                                    "livelink": null,
+                                    "negated": false,
+                                    "term": "Pipeline Status",
+                                    "type": "term",
+                                    "value": "Approved"
+                                }
+                            ],
+                            "favourite": true,
+                            "hidden": false,
+                            "id": "cc520e16-e076-431c-9390-70f2c1bcae90",
+                            "name": "Latest Approved Turnover",
+                            "type": "preset",
+                            "update": false,
+                            "userdata": ""
+                        }
+                    ],
+                    "id": "ededda2e-3d88-4fc9-9b65-7f0b1621c155",
+                    "type": "presets"
+                }
+            ],
+            "entity": "Versions",
+            "hidden": false,
+            "id": "86439af3-16be-4a2f-89f3-ee1e5810ae47",
+            "name": "View In Cut",
+            "type": "group",
+            "update": false,
+            "userdata": "menus"
         }
+
 
 
 

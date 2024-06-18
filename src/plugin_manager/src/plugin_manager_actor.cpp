@@ -9,6 +9,7 @@
 #include "xstudio/utility/helpers.hpp"
 #include "xstudio/utility/logging.hpp"
 #include "xstudio/utility/string_helpers.hpp"
+#include "xstudio/plugin_manager/hud_plugin.hpp"
 
 using namespace xstudio;
 using namespace xstudio::utility;
@@ -311,11 +312,15 @@ PluginManagerActor::PluginManagerActor(caf::actor_config &cfg) : caf::event_base
 
         [=](spawn_plugin_base_atom,
             const std::string name,
-            const utility::JsonStore &json) -> result<caf::actor> {
+            const utility::JsonStore &json,
+            const std::string class_name) -> result<caf::actor> {
             /*if (base_plugins_.find(name) == base_plugins_.end()) {
                 base_plugins_[name] = spawn<plugin::StandardPlugin>(name, json);
                 link_to(base_plugins_[name]);
             }*/
+            if (class_name == "HUDPlugin") {
+                return spawn<plugin::HUDPluginBase>(name, json); // base_plugins_[name];
+            }
             return spawn<plugin::StandardPlugin>(name, json); // base_plugins_[name];
         },
 

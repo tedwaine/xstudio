@@ -3,7 +3,7 @@
 
 #include "xstudio/ui/opengl/shader_program_base.hpp"
 #include "xstudio/ui/opengl/opengl_text_rendering.hpp"
-#include "xstudio/ui/viewport/hud_plugin.hpp"
+#include "xstudio/plugin_manager/hud_plugin.hpp"
 
 namespace xstudio {
 namespace ui {
@@ -43,7 +43,7 @@ namespace ui {
             float ma_         = 0.0f;
         };
 
-        class BasicViewportMasking : public HUDPluginBase {
+        class BasicViewportMasking : public plugin::HUDPluginBase {
           public:
             BasicViewportMasking(
                 caf::actor_config &cfg, const utility::JsonStore &init_settings);

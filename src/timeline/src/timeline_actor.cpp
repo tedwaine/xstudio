@@ -129,6 +129,7 @@ void TimelineActor::item_pre_event_callback(const utility::JsonStore &event, Ite
         switch (static_cast<ItemAction>(event.at("action"))) {
         case IA_REMOVE: {
             auto cuuid = utility::Uuid(event.at("item_uuid"));
+            // spdlog::warn("{}", event.dump(2));
             // child destroyed
             if (actors_.count(cuuid)) {
             } else {
@@ -542,6 +543,7 @@ void timeline_importer(
     caf::response_promise rp,
     const caf::actor &playlist,
     const UuidActor &dst,
+    const caf::uri &path,
     const std::string &data) {
 
     otio::ErrorStatus error_status;
@@ -568,6 +570,19 @@ void timeline_importer(
                     FrameRateDuration(0, global_start_time->rate())))
             .receive([=](const JsonStore &) {}, [=](const error &err) {});
     }
+
+    auto timeline_metadata = JsonStore(R"({})"_json);
+    try {
+        otio::ErrorStatus err;
+        auto metadata = nlohmann::json::parse(timeline->to_json_string(&err, {}, 0));
+        if (metadata.count("metadata"))
+            timeline_metadata = metadata.at("metadata");
+    } catch (const std::exception &err) {
+        spdlog::warn("{} {}", __PRETTY_FUNCTION__, err.what());
+    }
+    timeline_metadata["path"] = to_string(path);
+
+    anon_send(dst.actor(), item_prop_atom_v, timeline_metadata);
 
     // timeline loaded, convert to native timeline.
     //  iterate over media, and add to playlist.
@@ -800,7 +815,8 @@ TimelineActor::TimelineActor(
     caf::actor_config &cfg,
     const std::string &name,
     const utility::Uuid &uuid,
-    const caf::actor &playlist)
+    const caf::actor &playlist,
+    const bool with_tracks)
     : caf::event_based_actor(cfg),
       base_(name, uuid, this),
       playlist_(playlist ? caf::actor_cast<caf::actor_addr>(playlist) : caf::actor_addr()) {
@@ -808,6 +824,17 @@ TimelineActor::TimelineActor(
     // create default stack
     auto suuid = Uuid::generate();
     auto stack = spawn<StackActor>("Stack", suuid);
+    if (with_tracks) {
+        auto vuuid  = Uuid::generate();
+        auto auuid  = Uuid::generate();
+        auto vactor = spawn<TrackActor>("Video Track", media::MediaType::MT_IMAGE, vuuid);
+        auto aactor = spawn<TrackActor>("Audio Track", media::MediaType::MT_AUDIO, auuid);
+        anon_send<message_priority::high>(
+            stack, insert_item_atom_v, 0, UuidActorVector({UuidActor(vuuid, vactor)}));
+        anon_send<message_priority::high>(
+            stack, insert_item_atom_v, 1, UuidActorVector({UuidActor(auuid, aactor)}));
+    }
+
     anon_send<message_priority::high>(
         this, insert_item_atom_v, 0, UuidActorVector({UuidActor(suuid, stack)}));
     base_.item().set_system(&system());
@@ -2543,7 +2570,9 @@ void TimelineActor::init() {
             return caf::actor_cast<caf::actor>(playlist_);
         },
 
-        [=](session::import_atom, const std::string &data) -> result<bool> {
+        [=](session::import_atom,
+            const caf::uri &path,
+            const std::string &data) -> result<bool> {
             auto rp = make_response_promise<bool>();
             // purge timeline.. ?
 
@@ -2552,6 +2581,7 @@ void TimelineActor::init() {
                 rp,
                 caf::actor_cast<caf::actor>(playlist_),
                 UuidActor(base_.uuid(), actor_cast<caf::actor>(this)),
+                path,
                 data);
 
             return rp;

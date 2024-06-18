@@ -5,6 +5,6 @@ XsPreferenceMap {
 	id: control
 	property string path: ""
 
-	onPathChanged: index = globalStoreModel.searchRecursive(path, "pathRole")
+	onPathChanged: index = helpers.makePersistent(globalStoreModel.searchRecursive(path, "pathRole"))
 }
 

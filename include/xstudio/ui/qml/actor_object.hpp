@@ -156,6 +156,8 @@ class QMLActor : public caf::mixin::actor_object<QObject> {
     virtual void init(caf::actor_system &system) { super::init(system); }
 
   public:
-    caf::actor_system &system() { return self()->home_system(); }
+    caf::actor_system &system() const {
+        return const_cast<caf::actor_companion *>(self())->home_system();
+    }
 };
 } // namespace xstudio::ui::qml

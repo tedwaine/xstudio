@@ -98,7 +98,7 @@ Item{ id: thisItem
                 if(m.groupId != helpers.QVariantFromUuidString("087c4ff5-2da0-4e54-afcf-c7914a247fae"))
                     ShotBrowserHelpers.addToCurrent([delegateModel.modelIndex(index)], panelType != "ShotBrowser")
                 else
-                    ShotBrowserHelpers.addSequencesToCurrentPlaylist([delegateModel.modelIndex(index)])
+                    ShotBrowserHelpers.addSequencesToNewPlaylist([delegateModel.modelIndex(index)])
             }
 
             onPressed: {

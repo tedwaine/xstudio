@@ -84,19 +84,13 @@ void PixelProbeHUDRenderer::set_mouse_pointer_position(const Imath::V2f p)
 }*/
 
 PixelProbeHUD::PixelProbeHUD(caf::actor_config &cfg, const utility::JsonStore &init_settings)
-    : HUDPluginBase(cfg, "Pixel Probe", init_settings) {
+    : plugin::HUDPluginBase(cfg, "Pixel Probe", init_settings, 3.0f) {
 
     pixel_info_text_ = add_string_attribute("Pixel Info", "Pixel Info", "");
     pixel_info_text_->expose_in_ui_attrs_group("pixel_info_attributes");
 
     pixel_info_title_ = add_string_attribute("Pixel Info Title", "Pixel Info Title", "");
     pixel_info_title_->expose_in_ui_attrs_group("pixel_info_attributes");
-
-    // expose the enabled toggle (from HUDPluginBase)
-    enabled_->set_value(false);
-    enabled_->expose_in_ui_attrs_group("pixel_info_attributes");
-    enabled_->set_preference_path("/plugin/pixel_probe/enabled");
-    enabled_->set_role_data(module::Attribute::ToolbarPosition, 3.0f);
 
     // Here we declare QML code that is reponsible for drawing the pixel info over the xSTUDIO
     // viewport. The main Viewport class will take care of instanciating the qml object from
@@ -107,7 +101,7 @@ PixelProbeHUD::PixelProbeHUD(caf::actor_config &cfg, const utility::JsonStore &i
             PixelProbeOverlay {
             }
         )",
-        HUDPluginBase::TopLeft);
+        plugin::TopLeft);
 
     auto font_size = add_float_attribute("Font Size", "Font Size", 10.0f, 5.0f, 50.0f, 1.0f);
     font_size->expose_in_ui_attrs_group("pixel_info_attributes");
@@ -183,8 +177,8 @@ bool PixelProbeHUD::pointer_event(const ui::PointerEvent &e) {
 
 void PixelProbeHUD::update_onscreen_info(const std::string &viewport_name) {
 
-    if (is_enabled_ != enabled_->value()) {
-        is_enabled_ = enabled_->value();
+    if (is_enabled_ != visible()) {
+        is_enabled_ = visible();
         if (is_enabled_) {
             connect_to_ui();
         } else {
@@ -203,7 +197,7 @@ void PixelProbeHUD::update_onscreen_info(const std::string &viewport_name) {
 
     static Imath::V2i image_dims(1920, 1080);
 
-    if (current_onscreen_image_ && enabled_->value()) {
+    if (current_onscreen_image_ && visible()) {
 
         // WIP!
         image_dims = current_onscreen_image_->image_size_in_pixels();
@@ -236,7 +230,7 @@ void PixelProbeHUD::update_onscreen_info(const std::string &viewport_name) {
                     });
         }
 
-    } else if (enabled_->value()) {
+    } else if (visible()) {
         const float image_aspect = image_dims.y / (image_dims.x);
         Imath::V2i image_coord(
             int(round((last_pointer_pos_.x + 1.0f) * 0.5f * image_dims.x)),
@@ -363,7 +357,7 @@ caf::actor PixelProbeHUD::get_colour_pipeline_actor(const std::string &viewport_
 
 void PixelProbeHUD::attribute_changed(const utility::Uuid &attribute_uuid, const int role) {
     update_onscreen_info();
-    HUDPluginBase::attribute_changed(attribute_uuid, role);
+    plugin::HUDPluginBase::attribute_changed(attribute_uuid, role);
 }
 
 void PixelProbeHUD::images_going_on_screen(

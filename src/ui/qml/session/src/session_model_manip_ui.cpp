@@ -266,6 +266,11 @@ QModelIndexList SessionModel::copyRows(
                             auto actor_uuid = request_receive<UuidActor>(
                                 *sys, actor, utility::duplicate_atom_v);
 
+                            // reset state..
+                            anon_send(actor_uuid.actor(), timeline::item_lock_atom_v, false);
+                            anon_send(actor_uuid.actor(), plugin_manager::enable_atom_v, true);
+                            anon_send(actor_uuid.actor(), timeline::item_flag_atom_v, "");
+
                             auto insertion_json =
                                 R"({"type": null, "id": null,  "placeholder": true, "actor": null})"_json;
                             insertion_json["type"] = item_type;

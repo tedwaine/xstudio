@@ -30,13 +30,46 @@ namespace conform {
         "insert_media": false,
         "new_track_name": "",
         "remove_failed_clip": false,
-        "replace_clip": false
+        "replace_clip": false,
+        "only_one_clip_match": false
     })"_json;
 
 
     // item, media, before
-    typedef std::tuple<utility::UuidActor, utility::UuidActor, utility::Uuid>
-        ConformRequestItem;
+    struct ConformRequestItem {
+        ConformRequestItem() {}
+
+        ConformRequestItem(
+            const utility::UuidActor item,
+            const utility::UuidActor media,
+            const utility::Uuid before = utility::Uuid())
+            : item_(std::move(item)), media_(std::move(media)), before_(std::move(before)) {}
+
+        ConformRequestItem(
+            const utility::UuidActor item,
+            const utility::UuidActor media,
+            const timeline::Item clip,
+            const utility::Uuid clip_track_uuid)
+            : item_(std::move(item)),
+              media_(std::move(media)),
+              clip_(std::move(clip)),
+              clip_track_uuid_(std::move(clip_track_uuid)) {}
+
+        template <class Inspector> friend bool inspect(Inspector &f, ConformRequestItem &x) {
+            return f.object(x).fields(
+                f.field("it", x.item_),
+                f.field("me", x.media_),
+                f.field("be", x.before_),
+                f.field("cl", x.clip_),
+                f.field("ctu", x.clip_track_uuid_));
+        }
+
+        utility::UuidActor item_;
+        utility::UuidActor media_;
+        utility::Uuid before_;
+        timeline::Item clip_;
+        utility::Uuid clip_track_uuid_;
+    };
 
     struct ConformRequest {
         ConformRequest(
@@ -52,11 +85,23 @@ namespace conform {
         ConformRequest(
             const utility::UuidActor playlist,
             const utility::UuidActor container,
-            const timeline::Item track,
+            const timeline::Item template_track,
             const std::vector<ConformRequestItem> items)
             : playlist_(std::move(playlist)),
               container_(std::move(container)),
-              track_(std::move(track)),
+              template_tracks_({std::move(template_track)}),
+              item_type_("Clip"),
+              items_(std::move(items)),
+              operations_(ConformOperationsJSON) {}
+
+        ConformRequest(
+            const utility::UuidActor playlist,
+            const utility::UuidActor container,
+            const std::vector<timeline::Item> template_tracks,
+            const std::vector<ConformRequestItem> items)
+            : playlist_(std::move(playlist)),
+              container_(std::move(container)),
+              template_tracks_(std::move(template_tracks)),
               item_type_("Clip"),
               items_(std::move(items)),
               operations_(ConformOperationsJSON) {}
@@ -74,7 +119,7 @@ namespace conform {
         utility::JsonStore operations_;
         utility::JsonStore detail_;
         std::map<utility::Uuid, utility::JsonStore> metadata_;
-        timeline::Item track_;
+        std::vector<timeline::Item> template_tracks_;
 
 
         template <class Inspector> friend bool inspect(Inspector &f, ConformRequest &x) {
@@ -85,7 +130,7 @@ namespace conform {
                 f.field("dt", x.detail_),
                 f.field("cm", x.metadata_),
                 f.field("it", x.item_type_),
-                f.field("t", x.track_),
+                f.field("t", x.template_tracks_),
                 f.field("items", x.items_));
         }
 
@@ -95,10 +140,12 @@ namespace conform {
             spdlog::warn("item type {}", item_type_);
             for (const auto &i : items_) {
                 spdlog::warn(
-                    "item {} media {} before {}",
-                    to_string(std::get<0>(i)),
-                    to_string(std::get<1>(i)),
-                    to_string(std::get<2>(i)));
+                    "item {} media {} before {} item {} track {}",
+                    to_string(i.item_),
+                    to_string(i.media_),
+                    to_string(i.before_),
+                    i.clip_.name(),
+                    to_string(i.clip_track_uuid_));
             }
             for (const auto &i : metadata_) {
                 spdlog::warn("metadata {} {}", to_string(i.first), i.second.dump(2));
@@ -138,7 +185,11 @@ namespace conform {
         conform_request(const std::string &conform_task, const ConformRequest &request);
 
         virtual ConformReply conform_request(const ConformRequest &request);
-        virtual bool conform_prepare_timeline(const utility::UuidActor &timeline);
+        virtual bool conform_prepare_timeline(
+            const utility::UuidActor &timeline, const bool only_create_conform_track);
+        virtual std::vector<std::optional<std::pair<std::string, caf::uri>>>
+        conform_find_timeline(
+            const std::vector<std::pair<utility::UuidActor, utility::JsonStore>> &media);
 
         virtual std::vector<std::string> conform_tasks();
     };
@@ -189,12 +240,21 @@ namespace conform {
                     return conform_.conform_request(conform_task, request);
                 },
 
+                [=](conform_atom,
+                    const std::vector<std::pair<utility::UuidActor, utility::JsonStore>> &media)
+                    -> std::vector<std::optional<std::pair<std::string, caf::uri>>> {
+                    return conform_.conform_find_timeline(media);
+                },
+
                 [=](conform_atom, const ConformRequest &request) -> ConformReply {
                     return conform_.conform_request(request);
                 },
 
-                [=](conform_atom, const utility::UuidActor &timeline) -> bool {
-                    return conform_.conform_prepare_timeline(timeline);
+                [=](conform_atom,
+                    const utility::UuidActor &timeline,
+                    const bool only_create_conform_track) -> bool {
+                    return conform_.conform_prepare_timeline(
+                        timeline, only_create_conform_track);
                 },
 
                 [=](conform_tasks_atom) -> std::vector<std::string> {

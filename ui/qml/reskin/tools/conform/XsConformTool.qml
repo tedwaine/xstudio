@@ -113,7 +113,7 @@ Item{
     }
 
     function conformSelectionTimeline(task, selection) {
-        let clips = theSessionData.duplicateTimelineClips(selection, task);
+        let clips = theSessionData.duplicateTimelineClips(selection, task, "");
         for(let i=0; i< clips.length; i++) {
             Future.promise(
                 engine.conformItemsFuture(task,
@@ -197,11 +197,55 @@ Item{
         }
     }
 
-    function conformPrepareSequence(sequenceIndex) {
+    function conformToNewSequence(selection, playlistIndex=helpers.qModelIndex()) {
+        if(selection.length) {
+            Future.promise(
+                engine.conformToNewSequenceFuture(
+                    selection, playlistIndex
+                )
+            ).then(
+                function(uuid_list) {
+                },
+                function() {
+                }
+            )
+        }
+    }
+
+    function conformTracksToSequence(trackIndexes, sequenceIndex) {
+        if(trackIndexes.length) {
+            Future.promise(
+                engine.conformTracksToSequenceFuture(
+                    trackIndexes, sequenceIndex
+                )
+            ).then(
+                function(uuid_list) {
+                },
+                function() {
+                }
+            )
+        }
+    }
+
+    function autoConformFromTrackName(conformSourceIndex, selectedIndexes) {
+        for(let i=0;i<selectedIndexes.length;i++) {
+            let type = selectedIndexes[i].model.get(selectedIndexes[i], "typeRole")
+            if(["Audio Track", "Video Track"].includes(type)) {
+                let task = selectedIndexes[i].model.get(selectedIndexes[i], "nameRole")
+                // make sure the task is valid..
+                let task_index = engine.search(task, "nameRole")
+                if(task_index.valid)
+                    autoConformSelectionTimeline(task, conformSourceIndex, selectedIndexes[i])
+            }
+        }
+    }
+
+
+    function conformPrepareSequence(sequenceIndex, onlyCreateConfrom=true) {
         if(sequenceIndex.valid && sequenceIndex.model.get(sequenceIndex, "typeRole") == "Timeline") {
             Future.promise(
                 engine.conformPrepareSequenceFuture(
-                    sequenceIndex,
+                    sequenceIndex, onlyCreateConfrom
                 )
             ).then(
                 function(result) {
@@ -247,6 +291,15 @@ Item{
         onActivated: conformToSequence(menuContext.mediaSelection, viewedMediaSetIndex)
     }
 
+    XsMenuModelItem {
+        text: "Add To New Sequence"
+        // menuItemType: "button"
+        menuPath: ""
+        menuItemPosition: 35.6
+        menuModelName: "media_list_menu_"
+        onActivated: conformToNewSequence(menuContext.mediaSelection)
+    }
+
 
     XsMenuModelItem {
         text: "Replace"
@@ -270,6 +323,18 @@ Item{
     }
 
     XsMenuModelItem {
+        text: "Auto-Conform From Track Name"
+        menuItemType: "button"
+        menuPath: ""
+        menuItemPosition: 13
+        menuModelName: "timeline_track_menu_"
+        onActivated: autoConformFromTrackName(
+            menuContext.theTimeline.conformSourceIndex, menuContext.theTimeline.timelineSelection.selectedIndexes
+        )
+    }
+
+
+    XsMenuModelItem {
         text: "Replace Clips"
         menuPath: ""
         menuItemPosition: 14
@@ -277,7 +342,16 @@ Item{
     }
 
     XsMenuModelItem {
-        text: "Prepare Sequence"
+        text: "Conform To Sequence"
+        menuPath: ""
+        menuItemPosition: 14.5
+        menuModelName: "timeline_track_menu_"
+        onActivated: conformTracksToSequence(menuContext.theTimeline.timelineSelection.selectedIndexes, inspectedMediaSetIndex)
+    }
+
+
+    XsMenuModelItem {
+        text: "Create Conform Track"
         // menuItemType: "button"
         menuPath: ""
         menuItemPosition: 2

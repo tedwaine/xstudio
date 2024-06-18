@@ -31,7 +31,6 @@ class CafRequest : public ControllableJob<QMap<int, QString>> {
           role_name_(std::move(role_name)) {}
 
     QMap<int, QString> run(JobControl &cjc) override {
-
         QMap<int, QString> result;
 
         try {
@@ -424,8 +423,7 @@ class CafRequest : public ControllableJob<QMap<int, QString>> {
                 }
                 break;
 
-            case JSONTreeModel::Roles::childrenRole:
-                // spdlog::error("JSONTreeModel::Roles::childrenRole {}", type);
+            case JSONTreeModel::Roles::childrenRole: {
                 if (type == "Session") {
                     auto session    = actorFromString(system_, json_.at("actor"));
                     auto containers = request_receive<utility::PlaylistTree>(
@@ -616,7 +614,7 @@ class CafRequest : public ControllableJob<QMap<int, QString>> {
                     // Playhead has no children
                 } else {
                     spdlog::warn("CafRequest unhandled ChildrenRole type {}", type);
-                }
+                }}
                 break;
             default: {
             } break;
@@ -658,6 +656,12 @@ CafResponse::CafResponse(
         this,
         &CafResponse::handleFinished);
 
+    connect(
+        &watcher_,
+        &QFutureWatcher<QMap<int, QString>>::started,
+        this,
+        &CafResponse::handleStarted);
+
     try {
         QFuture<QMap<int, QString>> future =
             JobExecutor::run(new CafRequest(data, role, role_name), pool);
@@ -685,3 +689,5 @@ void CafResponse::handleFinished() {
         deleteLater();
     }
 }
+
+void CafResponse::handleStarted() { emit started(search_value_, search_role_, role_); }

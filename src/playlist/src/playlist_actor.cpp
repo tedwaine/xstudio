@@ -93,14 +93,20 @@ void blocking_loader(
                               default_rate,
                               source_uuid);
 
-                auto media = self->spawn<media::MediaActor>(
-                    "New Media", uuid, UuidActorVector());
+                auto media =
+                    self->spawn<media::MediaActor>("New Media", uuid, UuidActorVector());
 
-                self->request(media, infinite, media::add_media_source_atom_v, UuidActorVector({UuidActor(source_uuid, source)})).receive(
-                     [=](bool){},
-                     [=](error &err) { spdlog::warn("{} {}", __PRETTY_FUNCTION__,
-                     to_string(err)); });
-                     
+                self->request(
+                        media,
+                        infinite,
+                        media::add_media_source_atom_v,
+                        UuidActorVector({UuidActor(source_uuid, source)}))
+                    .receive(
+                        [=](bool) {},
+                        [=](error &err) {
+                            spdlog::warn("{} {}", __PRETTY_FUNCTION__, to_string(err));
+                        });
+
                 if (auto_gather)
                     anon_send(
                         session, media_hook::gather_media_sources_atom_v, media, default_rate);
@@ -956,7 +962,10 @@ void PlaylistActor::init() {
             // try insert as requested, but add to end if it fails.
             auto rp    = make_response_promise<utility::UuidUuidActor>();
             auto actor = spawn<timeline::TimelineActor>(
-                name, utility::Uuid::generate(), actor_cast<caf::actor>(this));
+                name, utility::Uuid::generate(), actor_cast<caf::actor>(this), true);
+            // add video and audio tracks.
+
+
             // anon_send(actor, playhead::playhead_rate_atom_v, base_.playhead_rate());
             create_container(actor, rp, uuid_before, into);
             return rp;
@@ -1873,7 +1882,8 @@ void PlaylistActor::init() {
 
         [=](session::import_atom,
             const caf::uri &path,
-            const Uuid &uuid_before) -> result<UuidActor> {
+            const Uuid &uuid_before,
+            const bool wait) -> result<UuidActor> {
             auto rp = make_response_promise<UuidActor>();
 
             try {
@@ -1898,9 +1908,33 @@ void PlaylistActor::init() {
                                 .then(
                                     [=](const utility::UuidUuidActor &uua) mutable {
                                         // request loading of timeline
-                                        anon_send(
-                                            uua.second.actor(), session::import_atom_v, data);
-                                        rp.deliver(uua.second);
+                                        if (not wait) {
+                                            anon_send(
+                                                uua.second.actor(),
+                                                session::import_atom_v,
+                                                path,
+                                                data);
+                                            rp.deliver(uua.second);
+                                        } else {
+                                            request(
+                                                uua.second.actor(),
+                                                infinite,
+                                                session::import_atom_v,
+                                                path,
+                                                data)
+                                                .then(
+                                                    [=](const bool) mutable {
+                                                        rp.deliver(uua.second);
+                                                    },
+
+                                                    [=](error &err) mutable {
+                                                        spdlog::warn(
+                                                            "{} {}",
+                                                            __PRETTY_FUNCTION__,
+                                                            to_string(err));
+                                                        rp.deliver(std::move(err));
+                                                    });
+                                        }
                                     },
                                     [=](error &err) mutable {
                                         spdlog::warn(

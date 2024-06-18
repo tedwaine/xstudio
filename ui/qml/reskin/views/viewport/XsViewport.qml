@@ -7,18 +7,13 @@ import xstudio.qml.models 1.0
 import xstudio.qml.helpers 1.0
 
 import "./widgets"
+import "./hud"
 
 // This Item extends the pure 'Viewport' QQuickItem from the cpp side
 
 Viewport {
 
     id: view
-
-    XsHotkeyArea {
-        anchors.fill: parent
-        context: view.name
-        focus: true
-    }
 
     /**************************************************************
 
@@ -52,18 +47,7 @@ Viewport {
     // also general overlay graphics like Mask
     XsViewportHUD {}
 
-    // This is needed to connect a new viewportWidget to the current viewed 
-    // playhead when viewports are created via the panels features
-    Component.onCompleted: {
-        // get index to the playhead of the current viewed media set (playlist, subset or timeline)
-        let ind = theSessionData.searchRecursive("Playhead", "typeRole", viewedMediaSetIndex)
-
-        // get the actor address
-        let playheadAddr = theSessionData.get(ind, "actorRole")
-
-        // set out playhead
-        setPlayhead(playheadAddr)
-    }
+    XsViewportOverlays {}
 
     Loader {
         id: menu_loader
@@ -95,21 +79,28 @@ Viewport {
     // Cursor switching for pan/zoom modes
 
     XsModuleData {
-        id: zoom_pan_state_model
-        modelDataName: view.name + "_pan_zoom"
+        id: viewport_attrs
+        modelDataName: view.name + "_attrs"
     }
 
     XsAttributeValue {
         id: is_zooming
         attributeTitle: "Zoom"
-        model: zoom_pan_state_model
+        model: viewport_attrs
     }
 
     XsAttributeValue {
         id: is_panning
         attributeTitle: "Pan"
-        model: zoom_pan_state_model
+        model: viewport_attrs
     }
+
+    XsAttributeValue {
+        id: __frame_rate_expr
+        attributeTitle: "Frame Rate"
+        model: viewport_attrs
+    }
+    property alias frame_rate_expr: __frame_rate_expr.value
 
     property var is_normal_cursor: is_zooming.value ? false : is_panning.value ? false : true
     onIs_normal_cursorChanged: {

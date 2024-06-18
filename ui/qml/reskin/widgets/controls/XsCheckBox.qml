@@ -18,6 +18,8 @@ CheckBox { id: widget
     property bool forcedTextHover: false
     property bool forcedHover: false
 
+    property string tooltip_text
+
     font.pixelSize: XsStyleSheet.fontSize
     font.family: XsStyleSheet.fontFamily
 

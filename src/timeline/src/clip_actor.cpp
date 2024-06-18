@@ -520,6 +520,7 @@ void ClipActor::init() {
                 UuidActor(base_.media_uuid(), caf::actor_cast<caf::actor>(media_)));
         },
 
+        // how do we deal with lazy loading of metadata..
         [=](playlist::get_media_atom,
             json_store::get_json_atom,
             const utility::Uuid &uuid,

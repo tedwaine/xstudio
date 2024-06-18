@@ -17,6 +17,51 @@ class ConformWorkerActor : public caf::event_based_actor {
     const char *name() const override { return NAME.c_str(); }
 
   private:
+    void process_request(
+        caf::typed_response_promise<ConformReply> rp, const ConformRequest &request);
+
+    void process_task_request(
+        caf::typed_response_promise<ConformReply> rp,
+        const std::string &conform_task,
+        const ConformRequest &request);
+
+    void get_media_sequences(
+        caf::typed_response_promise<
+            std::vector<std::optional<std::pair<std::string, caf::uri>>>> rp,
+        const utility::UuidActorVector &media);
+
+    void prepare_sequence(
+        caf::typed_response_promise<bool> rp,
+        const utility::UuidActor &timeline,
+        const bool only_create_conform_track);
+
+    void conform_to_media(
+        caf::typed_response_promise<ConformReply> rp,
+        const std::string &conform_task,
+        const utility::JsonStore &conform_operations,
+        const utility::UuidActor &playlist,
+        const utility::UuidActor &container,
+        const std::string &item_type,
+        const utility::UuidActorVector &items,
+        const utility::UuidVector &insert_before);
+
+    void conform_tracks_to_sequence(
+        caf::typed_response_promise<ConformReply> rp,
+        const utility::UuidActor &source_playlist,
+        const utility::UuidActor &source_timeline,
+        const utility::UuidActorVector &tracks,
+        const utility::UuidActor &target_playlist,
+        const utility::UuidActor &target_timeline,
+        const utility::UuidActor &conform_track);
+
+    void conform_to_timeline(
+        caf::typed_response_promise<ConformReply> rp,
+        const utility::JsonStore &conform_operations,
+        const utility::UuidActor &playlist,
+        const utility::UuidActor &timeline,
+        const utility::UuidActor &conform_track,
+        const utility::UuidActorVector &media);
+
     void conform_step_get_playlist_json(
         caf::typed_response_promise<ConformReply> rp,
         const std::string &conform_task,
@@ -47,6 +92,7 @@ class ConformWorkerActor : public caf::event_based_actor {
 
     inline static const std::string NAME = "ConformWorkerActor";
     caf::behavior behavior_;
+    std::vector<caf::actor> conformers_;
 };
 
 class ConformManagerActor : public caf::event_based_actor, public module::Module {

@@ -310,7 +310,7 @@ class LoadUrisActor : public caf::event_based_actor {
     caf::behavior behavior_;
     caf::actor session_;
     std::vector<caf::uri> uris_;
-    bool load_uris(const bool single_playlist = false);
+    UuidActorVector load_uris(const bool single_playlist = false);
 };
 
 LoadUrisActor::LoadUrisActor(
@@ -319,12 +319,12 @@ LoadUrisActor::LoadUrisActor(
 
     behavior_.assign(
         [=](xstudio::broadcast::broadcast_down_atom, const caf::actor_addr &) {},
-        [=](load_uris_atom, const bool single_playlist) -> result<bool> {
+        [=](load_uris_atom, const bool single_playlist) -> result<UuidActorVector> {
             return load_uris(single_playlist);
         });
 }
 
-bool LoadUrisActor::load_uris(const bool single_playlist) {
+UuidActorVector LoadUrisActor::load_uris(const bool single_playlist) {
 
     bool has_files = false;
     caf::actor playlist;
@@ -395,7 +395,7 @@ bool LoadUrisActor::load_uris(const bool single_playlist) {
                     });
         }
     }
-    return true;
+    return UuidActorVector();
 }
 } // namespace
 
@@ -749,6 +749,8 @@ caf::message_handler SessionActor::message_handler() {
                     .then(
                         [=](const utility::JsonStore &js) mutable {
                             save_json_to(rp, js, path, update_path, hash);
+                            const std::string t = utility::to_string(utility::sysclock::now());
+                            spdlog::info("Session saved as {} at {}", uri_to_posix_path(path), t);
                         },
                         [=](error &err) mutable { rp.deliver(std::move(err)); });
             } else {
@@ -760,6 +762,8 @@ caf::message_handler SessionActor::message_handler() {
                     .then(
                         [=](const utility::JsonStore &js) mutable {
                             save_json_to(rp, js, path, false, hash);
+                            const std::string t = utility::to_string(utility::sysclock::now());
+                            spdlog::info("Session saved as {} at {}", uri_to_posix_path(path), t);
                         },
                         [=](error &err) mutable { rp.deliver(std::move(err)); });
             }
@@ -777,7 +781,7 @@ caf::message_handler SessionActor::message_handler() {
 
         [=](load_uris_atom, const std::vector<caf::uri> &uris, const bool single_playlist) {
             auto loader = system().spawn<LoadUrisActor>(actor_cast<caf::actor>(this), uris);
-            anon_send(loader, load_uris_atom_v, single_playlist);
+            delegate(loader, load_uris_atom_v, single_playlist);
         },
 
         [=](media_rate_atom) -> FrameRate { return base_.media_rate(); },

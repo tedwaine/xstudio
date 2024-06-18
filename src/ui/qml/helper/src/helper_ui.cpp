@@ -3,6 +3,7 @@
 #include "xstudio/utility/helpers.hpp"
 #include "xstudio/utility/caf_helpers.hpp"
 #include "xstudio/utility/helpers.hpp"
+#include "xstudio/utility/frame_range.hpp"
 #include "xstudio/colour_pipeline/colour_pipeline.hpp"
 #include "xstudio/media/media.hpp"
 
@@ -541,6 +542,26 @@ bool MarkerModel::setData(const QModelIndex &index, const QVariant &value, int r
             }
         } break;
 
+        case Roles::commentRole: {
+            auto data = mapFromValue(value);
+            if (j["prop"] != data) {
+                j["prop"] = data;
+                result    = true;
+                emit dataChanged(index, index, roles);
+                emit markerDataChanged();
+            }
+        } break;
+
+        case Roles::flagRole: {
+            auto data = mapFromValue(value);
+            if (j["flag"] != data) {
+                j["flag"] = data;
+                result    = true;
+                emit dataChanged(index, index, roles);
+                emit markerDataChanged();
+            }
+        } break;
+
         default:
             result = JSONTreeModel::setData(index, value, role);
             break;
@@ -552,6 +573,33 @@ bool MarkerModel::setData(const QModelIndex &index, const QVariant &value, int r
             err.what(),
             role,
             StdFromQString(value.toString()));
+    }
+
+    return result;
+}
+
+QModelIndex MarkerModel::addMarker(
+    const int frame,
+    const double rate,
+    const QString &name,
+    const QString &flag,
+    const QVariant &metadata) {
+    auto result = QModelIndex();
+    auto marker =
+        R"({"name": null, "prop": null,"range": null,"flag": null, "uuid":null})"_json;
+
+    marker["uuid"]  = utility::Uuid::generate();
+    marker["name"]  = StdFromQString(name);
+    marker["flag"]  = StdFromQString(flag);
+    marker["prop"]  = mapFromValue(metadata);
+    marker["range"] = utility::FrameRange(
+        utility::FrameRate(frame * timebase::to_flicks(1.0 / rate)),
+        utility::FrameRate(),
+        utility::FrameRate(1.0 / rate));
+
+    auto row = rowCount();
+    if (insertRows(row, 1, QModelIndex(), marker)) {
+        result = index(row, 0, QModelIndex());
     }
 
     return result;

@@ -207,16 +207,26 @@ XsWindow{
 
             RowLayout{
                 anchors.fill: parent
-                anchors.leftMargin: 10
-                anchors.rightMargin: 10
+                anchors.leftMargin: 20
+                anchors.rightMargin: 20
                 spacing: 10
 
                 Item{
-                    Layout.preferredWidth: parent.width/3
+                    Layout.preferredWidth: parent.width/2
                     Layout.fillHeight: true
+                }
+                XsPrimaryButton{
+                    Layout.fillWidth: true
+                    Layout.preferredWidth: parent.width/4
+                    Layout.fillHeight: true
+                    text: "Cancel"
+                    onClicked: {
+                        close()
+                    }
                 }
                 XsPrimaryButton{ id: authBtn
                     Layout.fillWidth: true
+                    Layout.preferredWidth: parent.width/4
                     Layout.fillHeight: true
                     text: "Authenticate"
                     onClicked: {
@@ -225,10 +235,6 @@ XsWindow{
                         forceActiveFocus()
                         if(message == "") close()
                     }
-                }
-                Item{
-                    Layout.preferredWidth: parent.width/3
-                    Layout.fillHeight: true
                 }
             }
         }

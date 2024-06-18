@@ -29,7 +29,7 @@ Rectangle{
                 if(resultsBaseModel.groupId != helpers.QVariantFromUuidString("087c4ff5-2da0-4e54-afcf-c7914a247fae"))
                     ShotBrowserHelpers.addToCurrent(resultsSelectionModel.selectedIndexes, false)
                 else
-                    ShotBrowserHelpers.addSequencesToCurrentPlaylist(resultsSelectionModel.selectedIndexes, false)
+                    ShotBrowserHelpers.addSequencesToNewPlaylist(resultsSelectionModel.selectedIndexes)
             }
         }
         XsPrimaryButton{

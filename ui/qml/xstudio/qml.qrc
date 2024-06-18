@@ -355,7 +355,7 @@
 		<file>base/widgets/XsSimpleMenuItem.qml</file>
 		<file>base/widgets/XsSplitView.qml</file>
 		<file>base/widgets/XsStringChoiceAttrComboBox.qml</file>
-		<file>base/widgets/XsTab.qml</file>
+		<file>base/widgets/XsLayoutTab.qml</file>
 		<file>base/widgets/XsTabBar.qml</file>
 		<file>base/widgets/XsTabButton.qml</file>
 		<file>base/widgets/XsTabView.qml</file>

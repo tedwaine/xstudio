@@ -26,28 +26,32 @@
 
 	    <file>layout_framework/XsDragDropHandler.qml</file>
 	    <file>layout_framework/XsLayoutModeBar.qml</file>
+	    <file>layout_framework/XsLayoutTab.qml</file>
 	    <file>layout_framework/XsPanelDivider.qml</file>
 	    <file>layout_framework/XsPanelSplitter.qml</file>
 	    <file>layout_framework/XsTestWindow.qml</file>
 	    <file>layout_framework/XsViewContainer.qml</file>
 	    <file>layout_framework/XsPanelsMenuButton.qml</file>
 
-	    <file>views/media/XsMedialist.qml</file>
-	    <file>views/media/XsMediaHeader.qml</file>
-	    <file>views/media/XsMediaItems.qml</file>
-		<file>views/media/delegates/XsMediaItemDelegate.qml</file>
-		<file>views/media/delegates/XsMediaHeaderColumn.qml</file>
-		<file>views/media/data_indicators/XsMediaFlagIndicator.qml</file>
-		<file>views/media/data_indicators/XsMediaNotesIndicator.qml</file>
-		<file>views/media/data_indicators/XsMediaTextItem.qml</file>
-		<file>views/media/data_indicators/XsMediaThumbnailImage.qml</file>
-		<file>views/media/data_indicators/XsMediaThumbnailHighlight.qml</file>
+	    <file>views/media/XsMediaPanel.qml</file>
 		<file>views/media/functions/XsMediaListFunctions.qml</file>
-	    <file>views/media/widgets/XsMediaListConfigureDialog.qml</file>
-		<file>views/media/widgets/XsMediaListContextMenu.qml</file>
-	    <file>views/media/widgets/XsMediaMetadataWindow.qml</file>
-	    <file>views/media/widgets/XsMediaListMouseArea.qml</file>
+	    <file>views/media/grid_view/XsMediaGridLayout.qml</file>
+	    <file>views/media/grid_view/delegates/XsMediaGridItemDelegate.qml</file>
+	    <file>views/media/list_view/XsMediaHeader.qml</file>
+	    <file>views/media/list_view/XsMediaList.qml</file>
+	    <file>views/media/list_view/XsMediaListLayout.qml</file>
+		<file>views/media/list_view/delegates/XsMediaItemDelegate.qml</file>
+		<file>views/media/list_view/delegates/XsMediaHeaderColumn.qml</file>
+		<file>views/media/list_view/data_indicators/XsMediaFlagIndicator.qml</file>
+		<file>views/media/list_view/data_indicators/XsMediaNotesIndicator.qml</file>
+		<file>views/media/list_view/data_indicators/XsMediaTextItem.qml</file>
+		<file>views/media/list_view/data_indicators/XsMediaThumbnailImage.qml</file>
+		<file>views/media/list_view/data_indicators/XsMediaThumbnailHighlight.qml</file>
+	    <file>views/media/list_view/widgets/XsMediaListConfigureDialog.qml</file>
+	    <file>views/media/list_view/widgets/XsMediaMetadataWindow.qml</file>
+	    <file>views/media/list_view/widgets/XsMediaListMouseArea.qml</file>
 	    <file>views/media/widgets/XsMediaListPlusMenu.qml</file>
+		<file>views/media/widgets/XsMediaListContextMenu.qml</file>
 
 	    <file>views/playlists/XsPlaylists.qml</file>
 	    <file>views/playlists/XsPlaylistItems.qml</file>
@@ -88,25 +92,26 @@
 
 	    <file>views/viewport/XsViewportPanel.qml</file>
 	    <file>views/viewport/XsViewport.qml</file>
-	    <file>views/viewport/XsViewportActionBar.qml</file>
-	    <file>views/viewport/XsViewportTransportBar.qml</file>
-	    <file>views/viewport/XsViewportToolBar.qml</file>
-	    <file>views/viewport/XsViewportInfoBar.qml</file>
-	    <file>views/viewport/XsViewportHUD.qml</file>
-	    <file>views/viewport/widgets/XsCurrentFrameIndicator.qml</file>
-	    <file>views/viewport/widgets/XsDurationFPSIndicator.qml</file>
-	    <file>views/viewport/widgets/XsViewerAnyMenuButton.qml</file>
+	    <file>views/viewport/hud/XsHudItem.qml</file>
+	    <file>views/viewport/hud/XsViewportHUD.qml</file>
+	    <file>views/viewport/hud/XsViewportOverlays.qml</file>
+	    <file>views/viewport/widgets/XsViewportActionBar.qml</file>
+	    <file>views/viewport/widgets/XsViewportTransportBar.qml</file>
+	    <file>views/viewport/widgets/XsViewportToolBar.qml</file>
+	    <file>views/viewport/widgets/XsViewportInfoBar.qml</file>
+	    <file>views/viewport/widgets/toolbar/XsViewerAnyMenuButton.qml</file>
+	    <file>views/viewport/widgets/toolbar/XsViewerToggleButton.qml</file>
+	    <file>views/viewport/widgets/toolbar/XsViewerSourceSelectorButton.qml</file>
+	    <file>views/viewport/widgets/toolbar/XsViewerHUDButton.qml</file>
+	    <file>views/viewport/widgets/toolbar/XsViewerToolbarButtonBase.qml</file>
+	    <file>views/viewport/widgets/toolbar/XsViewerToolbarValueScrubber.qml</file>
+	    <file>views/viewport/widgets/toolbar/XsViewerMenuButton.qml</file>
+	    <file>views/viewport/widgets/transport_bar/XsCurrentFrameIndicator.qml</file>
+	    <file>views/viewport/widgets/transport_bar/XsDurationFPSIndicator.qml</file>
+	    <file>views/viewport/widgets/transport_bar/XsViewerTextDisplay.qml</file>
+	    <file>views/viewport/widgets/transport_bar/XsViewerTimeline.qml</file>
+	    <file>views/viewport/widgets/transport_bar/XsViewerVolumeButton.qml</file>
 	    <file>views/viewport/widgets/XsViewerContextMenu.qml</file>
-	    <file>views/viewport/widgets/XsViewerMenuButton.qml</file>
-	    <file>views/viewport/widgets/XsViewerSeekEditButton.qml</file>
-	    <file>views/viewport/widgets/XsViewerTextDisplay.qml</file>
-	    <file>views/viewport/widgets/XsViewerToggleButton.qml</file>
-	    <file>views/viewport/widgets/XsViewerVolumeButton.qml</file>
-	    <file>views/viewport/widgets/XsViewerSourceSelectorButton.qml</file>
-	    <file>views/viewport/widgets/XsViewerHUDButton.qml</file>
-	    <file>views/viewport/widgets/XsViewerTimeline.qml</file>
-	    <file>views/viewport/widgets/XsViewerToolbarButtonBase.qml</file>
-	    <file>views/viewport/widgets/XsViewerToolbarValueScrubber.qml</file>
 	    <file>views/viewport/dockedTools/XsLeftRightDockedTools.qml</file>
 	    <file>views/viewport/dockedTools/XsTopBottomDockedTools.qml</file>
 	</qresource>
@@ -124,7 +129,6 @@
 	<qresource prefix="/">
 
 	    <file>widgets/bars_and_tabs/XsSearchBar.qml</file>
-	    <file>widgets/bars_and_tabs/XsTab.qml</file>
 	    <file>widgets/bars_and_tabs/XsGradientRectangle.qml</file>
 
 	    <file>widgets/buttons/XsNavButton.qml</file>
@@ -156,6 +160,15 @@
 	    <file>widgets/dialogs/XsSnapshotDialog.qml</file>
 	    <file>widgets/dialogs/XsStringRequestDialog.qml</file>
 	    <file>widgets/dialogs/XsWindow.qml</file>
+	    <file>widgets/dialogs/preferences/XsPreferencesDialog.qml</file>
+	    <file>widgets/dialogs/preferences/delegates/XsColourPreference.qml</file>
+	    <file>widgets/dialogs/preferences/delegates/XsPreferenceCategory.qml</file>
+	    <file>widgets/dialogs/preferences/delegates/XsFloatPreference.qml</file>
+	    <file>widgets/dialogs/preferences/delegates/XsIntegerPreference.qml</file>
+	    <file>widgets/dialogs/preferences/delegates/XsStringPreference.qml</file>
+	    <file>widgets/dialogs/preferences/delegates/XsStringMultichoicePreference.qml</file>		
+	    <file>widgets/dialogs/preferences/delegates/XsTogglePreference.qml</file>
+	    <file>widgets/dialogs/preferences/widgets/XsPreferenceInfoButton.qml</file>
 
 	    <file>widgets/indicators/XsBusyIndicator.qml</file>
 	    <file>widgets/indicators/XsProgressBar.qml</file>
@@ -262,6 +275,7 @@
 		<file alias="fit_select.svg">assets/icons/new/fit_select.svg</file>
 		<file alias="format_size.svg">assets/icons/new/format_size.svg</file>
 		<file alias="frame_inspect.svg">assets/icons/new/frame_inspect.svg</file>
+		<file alias="help.svg">assets/icons/new/help.svg</file>
 		<file alias="ink_pen.svg">assets/icons/new/ink_pen.svg</file>
 		<file alias="input.svg">assets/icons/new/input.svg</file>
 		<file alias="keyboard_arrow_up.svg">assets/icons/new/keyboard_arrow_up.svg</file>

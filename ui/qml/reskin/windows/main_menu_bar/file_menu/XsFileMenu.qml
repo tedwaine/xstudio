@@ -36,6 +36,9 @@ Item {
         sequence: "Ctrl+S"
         name: "Save Session"
         description: "Saves the current session to disk using the last loaded or saved file path."
+        onActivated: {
+
+        }
     }
 
     XsHotkey {
@@ -67,6 +70,10 @@ Item {
         onActivated: {
             file_functions.newSessionWithCheck()
         }
+        onHotkeyActivated: {
+            file_functions.newSessionWithCheck()
+        }
+
     }
 
     XsMenuModelItem {
@@ -78,6 +85,10 @@ Item {
         onActivated: {
             file_functions.loadSessionWithCheck()
         }
+        onHotkeyActivated: {
+            file_functions.loadSessionWithCheck()
+        }
+        
     }
 
     XsMenuModelItem {
@@ -89,6 +100,7 @@ Item {
         onActivated: {
             file_functions.importSession()
         }
+
     }
 
     XsMenuModelItem {
@@ -129,6 +141,9 @@ Item {
         onActivated: {
             file_functions.saveSessionCheck(undefined)
         }
+        onHotkeyActivated: {
+            file_functions.saveSessionCheck(undefined)
+        }
     }
 
     XsMenuModelItem {
@@ -138,6 +153,9 @@ Item {
         menuModelName: "main menu bar"
         hotkeyUuid: save_session_as_hotkey.uuid
         onActivated: {
+            file_functions.saveSessionNewPath()
+        }
+        onHotkeyActivated: {
             file_functions.saveSessionNewPath()
         }
     }
@@ -216,14 +234,46 @@ Item {
     }
 
     XsMenuModelItem {
-        text: "Quit"
+        text: "Preferences ..."
         menuPath: "File"
         menuItemPosition: 10
+        menuModelName: "main menu bar"
+        menuItemType: "button"
+        onActivated: {
+            prefs_loader.sourceComponent = prefs_dialog
+            prefs_loader.item.visible = true
+        }
+    }
+
+    Loader {
+        id: prefs_loader
+    }
+
+    Component {
+        id: prefs_dialog
+        XsPreferencesDialog {}
+    }    
+
+    XsMenuModelItem {
+        menuItemType: "divider"
+        menuPath: "File"
+        menuItemPosition: 11
+        menuModelName: "main menu bar"
+    }
+
+    XsMenuModelItem {
+        text: "Quit"
+        menuPath: "File"
+        menuItemPosition: 12
         hotkeyUuid: quit_session_hotkey.uuid
         menuModelName: "main menu bar"
         onActivated: {
             file_functions.quitWithCheck()
         }
+        onHotkeyActivated: {
+            file_functions.quitWithCheck()
+        }
+
     }
 
 }

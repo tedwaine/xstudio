@@ -107,6 +107,7 @@ namespace media {
 } // namespace media
 
 namespace conform {
+    struct ConformRequestItem;
     struct ConformRequest;
     struct ConformReply;
 } // namespace conform
@@ -229,6 +230,7 @@ CAF_BEGIN_TYPE_ID_BLOCK(xstudio_simple_types, FIRST_CUSTOM_ID)
     CAF_ADD_TYPE_ID(xstudio_simple_types, (xstudio::playhead::LoopMode))
     CAF_ADD_TYPE_ID(xstudio_simple_types, (xstudio::playhead::OverflowMode))
     CAF_ADD_TYPE_ID(xstudio_simple_types, (xstudio::plugin_manager::PluginDetail))
+    CAF_ADD_TYPE_ID(xstudio_simple_types, (xstudio::plugin::HUDElementPosition))
     CAF_ADD_TYPE_ID(xstudio_simple_types, (xstudio::session::ExportFormat))
     CAF_ADD_TYPE_ID(xstudio_simple_types, (xstudio::shotgun_client::AuthenticateShotgun))
     CAF_ADD_TYPE_ID(xstudio_simple_types, (xstudio::shotgun_client::AUTHENTICATION_METHOD))
@@ -349,6 +351,8 @@ CAF_BEGIN_TYPE_ID_BLOCK(xstudio_complex_types, FIRST_CUSTOM_ID + 200)
 
     CAF_ADD_TYPE_ID(xstudio_complex_types, (xstudio::conform::ConformRequest))
     CAF_ADD_TYPE_ID(xstudio_complex_types, (xstudio::conform::ConformReply))
+    CAF_ADD_TYPE_ID(xstudio_complex_types, (xstudio::conform::ConformRequestItem))
+
     CAF_ADD_TYPE_ID(xstudio_complex_types, (std::set<xstudio::utility::Uuid>))
     CAF_ADD_TYPE_ID(xstudio_complex_types, (std::shared_ptr<xstudio::plugin::GPUPreDrawHook>))
 
@@ -357,6 +361,7 @@ CAF_BEGIN_TYPE_ID_BLOCK(xstudio_complex_types, FIRST_CUSTOM_ID + 200)
 
     CAF_ADD_TYPE_ID(xstudio_complex_types, (std::pair<xstudio::timeline::Item, xstudio::utility::FrameRate>))
     CAF_ADD_TYPE_ID(xstudio_complex_types, (std::vector<xstudio::timeline::Marker>))
+    CAF_ADD_TYPE_ID(xstudio_complex_types, (std::vector<std::optional<std::pair<std::string,caf::uri>>>))
 
 CAF_END_TYPE_ID_BLOCK(xstudio_complex_types)
 
@@ -480,6 +485,7 @@ CAF_BEGIN_TYPE_ID_BLOCK(xstudio_plugin_atoms,  FIRST_CUSTOM_ID + (200 * 3))
     CAF_ADD_ATOM(xstudio_plugin_atoms, xstudio::media_hook, check_media_hook_plugin_versions_atom)
     CAF_ADD_ATOM(xstudio_plugin_atoms, xstudio::media_hook, gather_media_sources_atom)
     CAF_ADD_ATOM(xstudio_plugin_atoms, xstudio::media_hook, get_media_hook_atom)
+    CAF_ADD_ATOM(xstudio_plugin_atoms, xstudio::media_hook, detect_display_atom)
     CAF_ADD_ATOM(xstudio_plugin_atoms, xstudio::plugin_manager, add_path_atom)
     CAF_ADD_ATOM(xstudio_plugin_atoms, xstudio::plugin_manager, enable_atom)
     CAF_ADD_ATOM(xstudio_plugin_atoms, xstudio::plugin_manager, get_resident_atom)
@@ -773,7 +779,7 @@ CAF_BEGIN_TYPE_ID_BLOCK(xstudio_ui_atoms,  FIRST_CUSTOM_ID + (200 * 6))
     CAF_ADD_ATOM(xstudio_ui_atoms, xstudio::ui::model_data, remove_rows_atom)
     CAF_ADD_ATOM(xstudio_ui_atoms, xstudio::ui::model_data, set_node_data_atom)
     CAF_ADD_ATOM(xstudio_ui_atoms, xstudio::ui::qml, backend_atom)
-    CAF_ADD_ATOM(xstudio_ui_atoms, xstudio::ui::viewport, enable_hud_atom)
+    CAF_ADD_ATOM(xstudio_ui_atoms, xstudio::ui::viewport, hud_settings_atom)
     CAF_ADD_ATOM(xstudio_ui_atoms, xstudio::ui::viewport, fit_mode_atom)
     CAF_ADD_ATOM(xstudio_ui_atoms, xstudio::ui::viewport, other_viewport_atom)
     CAF_ADD_ATOM(xstudio_ui_atoms, xstudio::ui::viewport, overlay_render_function_atom)

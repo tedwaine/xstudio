@@ -33,7 +33,7 @@ Item{ id: toolDiv
         XsPrimaryButton{
             Layout.preferredWidth: btnWidth
             Layout.preferredHeight: parent.height
-            imgSrc: "qrc:///shotbrowser_icons/cloud.svg" //account_tree
+            imgSrc: "qrc:///shotbrowser_icons/globe.svg"
             text: "Presets"
             isActive: currentCategory == "Recent"
             onClicked: {
@@ -43,7 +43,7 @@ Item{ id: toolDiv
         XsPrimaryButton{
             Layout.preferredWidth: btnWidth
             Layout.preferredHeight: parent.height
-            imgSrc: "qrc:///shotbrowser_icons/segment.svg" //draft
+            imgSrc: "qrc:///shotbrowser_icons/bookmark_heart.svg"
             text: "Menus"
             isActive: currentCategory == text
             onClicked: {

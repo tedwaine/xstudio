@@ -226,6 +226,8 @@ GradingTool::GradingTool(caf::actor_config &cfg, const utility::JsonStore &init_
             import QtQuick 2.15
             import Grading 1.0
 
+            import xStudioReskin 1.0
+
             Item {
                 anchors.fill: parent 
 
@@ -352,7 +354,8 @@ void GradingTool::on_screen_media_changed(
     const std::string working_space =
         colour_params.get_or("working_space", std::string("scene_linear"));
     // Only medias that are fully inverted to scene_linear currently support custom colour space
-    // This exclude medias that are only inverted to display_linear, for exemple edit_ref.
+    // This exclude medias that are only inverted to display_linear.
+    // TODO: Detect when un-tone-mapped view is used
     const bool is_unmanaged =
         config_name == "" || config_name == "__raw__" || working_space != "scene_linear";
 
@@ -442,13 +445,7 @@ void GradingTool::attribute_changed(const utility::Uuid &attribute_uuid, const i
                  Imath::V2f(-0.5, 0.5),
                  Imath::V2f(0.5, 0.5),
                  Imath::V2f(0.5, -0.5)});
-        } else if (drawing_action_->value() == "Adding polygon") {
-            polygon_init_->set_value(true);
-        } else if (drawing_action_->value() == "Cancel polygon") {
-            polygon_init_->set_value(false);
         } else if (utility::starts_with(drawing_action_->value(), "Add Polygon ")) {
-            polygon_init_->set_value(false);
-
             const auto points = utility::split(drawing_action_->value().substr(12), ',');
             if (points.size() % 2 == 0) {
                 std::vector<Imath::V2f> poly_points;

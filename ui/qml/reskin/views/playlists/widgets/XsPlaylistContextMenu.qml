@@ -36,7 +36,7 @@ XsPopupMenu {
     property var panelContext: helpers.contextPanel(contextMenu)
 
     XsFlagMenuInserter {
-        text: "Flag Selected Items"
+        text: "Media Colour"
         panelContext: contextMenu.panelContext
         menuModelName: contextMenu.menu_model_name
         menuPath: ""

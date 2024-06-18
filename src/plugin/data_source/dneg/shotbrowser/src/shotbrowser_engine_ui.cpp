@@ -25,7 +25,6 @@ ShotBrowserEngine *ShotBrowserEngine::this_ = nullptr;
 
 ShotBrowserEngine::ShotBrowserEngine(QObject *parent) : QMLActor(parent) {
 
-    preset_models_ = new QQmlPropertyMap(this);
     presets_model_ = new ShotBrowserPresetModel(query_engine_, this);
     presets_model_->bindEventFunc(
         [this](auto &&PH1) { JSONTreeSendEventFunc(std::forward<decltype(PH1)>(PH1)); });
@@ -36,26 +35,6 @@ ShotBrowserEngine::ShotBrowserEngine(QObject *parent) : QMLActor(parent) {
     query_engine_.bindCacheChangedFunc([this](auto &&PH1) {
         updateQueryEngineTermModel(std::forward<decltype(PH1)>(PH1), true);
     });
-
-    preset_models_->insert(
-        "recent", QVariant::fromValue(new ShotBrowserPresetFilterModel(this)));
-    qvariant_cast<ShotBrowserPresetFilterModel *>(preset_models_->value("recent"))
-        ->setFilter("recent");
-    qvariant_cast<ShotBrowserPresetFilterModel *>(preset_models_->value("recent"))
-        ->setSourceModel(presets_model_);
-
-    preset_models_->insert(
-        "menus", QVariant::fromValue(new ShotBrowserPresetFilterModel(this)));
-    qvariant_cast<ShotBrowserPresetFilterModel *>(preset_models_->value("menus"))
-        ->setFilter("menus");
-    qvariant_cast<ShotBrowserPresetFilterModel *>(preset_models_->value("menus"))
-        ->setSourceModel(presets_model_);
-
-    preset_models_->insert("tree", QVariant::fromValue(new ShotBrowserPresetFilterModel(this)));
-    qvariant_cast<ShotBrowserPresetFilterModel *>(preset_models_->value("tree"))
-        ->setFilter("tree");
-    qvariant_cast<ShotBrowserPresetFilterModel *>(preset_models_->value("tree"))
-        ->setSourceModel(presets_model_);
 
     updateQueryValueCache("Completion Location", locationsJSON);
 

@@ -18,6 +18,7 @@ TextField { id: widget
 
     property color borderColor: palette.base
     property real borderWidth: 1
+    property color bgColor: "transparent" //palette.base
 
     property bool bgVisibility: true
     property bool forcedBg: false
@@ -53,9 +54,7 @@ TextField { id: widget
     background:
     Rectangle {
         visible: bgVisibility
-        implicitWidth: width
-        implicitHeight: height
-        color: "transparent" //enabled || forcedBg? widget.focus? Qt.darker(bgColorEditing, 2.75): bgColorNormal: Qt.darker(bgColorNormal, 1.75)
+        color: bgColor //enabled || forcedBg? widget.focus? Qt.darker(bgColorEditing, 2.75): bgColorNormal: Qt.darker(bgColorNormal, 1.75)
         border.color: widget.focus || widget.hovered || forcedHover? bgColorEditing: borderColor
     }
 

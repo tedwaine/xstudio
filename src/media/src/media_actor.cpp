@@ -302,7 +302,6 @@ void MediaActor::init() {
         },
 
         [=](add_media_source_atom, const UuidActor &source_media) -> result<Uuid> {
-
             auto rp = make_response_promise<Uuid>();
 
             if (source_media.uuid().is_null() or not source_media.actor()) {
@@ -319,25 +318,25 @@ void MediaActor::init() {
             link_to(source_media.actor());
             join_event_group(this, source_media.actor());
             base_.add_media_source(source_media.uuid());
-            request(caf::actor_cast<caf::actor>(this), infinite, playhead::media_source_atom_v).then(
-                [=](bool) mutable {
+            request(caf::actor_cast<caf::actor>(this), infinite, playhead::media_source_atom_v)
+                .then(
+                    [=](bool) mutable {
+                        base_.send_changed(event_group_, this);
+                        send(
+                            source_media.actor(),
+                            utility::parent_atom_v,
+                            UuidActor(base_.uuid(), this));
 
-                    base_.send_changed(event_group_, this);
-                    send(source_media.actor(), utility::parent_atom_v, UuidActor(base_.uuid(), this));
+                        send(
+                            event_group_,
+                            utility::event_atom_v,
+                            add_media_source_atom_v,
+                            UuidActorVector({source_media}));
 
-                    send(
-                        event_group_,
-                        utility::event_atom_v,
-                        add_media_source_atom_v,
-                        UuidActorVector({source_media}));
+                        rp.deliver(source_media.uuid());
+                    },
+                    [=](caf::error &err) mutable { rp.deliver(err); });
 
-                    rp.deliver(source_media.uuid());
-
-                },
-                [=](caf::error & err) mutable {
-                    rp.deliver(err);
-                });
-            
             return rp;
         },
 
@@ -354,7 +353,6 @@ void MediaActor::init() {
         },
 
         [=](add_media_source_atom, const UuidActorVector &sources) -> result<bool> {
-
             auto rp = make_response_promise<bool>();
 
             UuidActorVector good_sources;
@@ -388,16 +386,13 @@ void MediaActor::init() {
             send(event_group_, utility::event_atom_v, add_media_source_atom_v, good_sources);
 
             // select a current media source if necessary
-            request(caf::actor_cast<caf::actor>(this), infinite, playhead::media_source_atom_v).then(
-                [=](bool) mutable {
-
-                    base_.send_changed(event_group_, this);
-                    rp.deliver(true);
-
-                },
-                [=](caf::error & err) mutable {
-                    rp.deliver(err);
-                });
+            request(caf::actor_cast<caf::actor>(this), infinite, playhead::media_source_atom_v)
+                .then(
+                    [=](bool) mutable {
+                        base_.send_changed(event_group_, this);
+                        rp.deliver(true);
+                    },
+                    [=](caf::error &err) mutable { rp.deliver(err); });
 
             return rp;
         },
@@ -1214,21 +1209,22 @@ void MediaActor::init() {
         },
 
         [=](media::acquire_media_detail_atom atom,
-            const FrameRate &default_rate) -> caf::result<bool> {
-            if (base_.empty() or not media_sources_.count(base_.current()))
-                return make_error(xstudio_error::error, "No MediaSources");
-
-            // auto m_hook_actor = system().registry().template
-            // get<caf::actor>(media_hook_registry); if (m_hook_actor) {
-            //     anon_send(
-            //         m_hook_actor,
-            //         media_hook::gather_media_sources_atom_v,
-            //         caf::actor_cast<caf::actor>(this)
-            //         );
-            // }
-
+            const FrameRate default_rate) -> caf::result<bool> {
             auto rp = make_response_promise<bool>();
-            rp.delegate(media_sources_.at(base_.current()), atom, default_rate);
+
+            // first, make sure we have a media source
+            request(caf::actor_cast<caf::actor>(this), infinite, playhead::media_source_atom_v)
+                .then(
+                    [=](bool) mutable {
+                        // ensures media sources have had their details filled in and
+                        // we've set the media sources (image and audio) where possible
+                        if (base_.empty() or not media_sources_.count(base_.current()))
+                            rp.deliver(make_error(xstudio_error::error, "No MediaSources"));
+
+                        rp.delegate(media_sources_.at(base_.current()), atom, default_rate);
+                    },
+                    [=](caf::error &err) mutable { rp.deliver(err); });
+
             return rp;
         },
 
@@ -1325,29 +1321,31 @@ void MediaActor::init() {
         },
 
         [=](playhead::media_source_atom) -> result<bool> {
-            // ensures media sources have had their details filled in and 
+            // ensures media sources have had their details filled in and
             // we've set the media sources (image and audio) where possible
             auto rp = make_response_promise<bool>();
-            request(caf::actor_cast<caf::actor>(this), infinite, playhead::media_source_atom_v, media::MT_IMAGE).then(
-                [=](bool) mutable {
-                    request(caf::actor_cast<caf::actor>(this), infinite, playhead::media_source_atom_v, media::MT_AUDIO).then(
-                        [=](bool) mutable {
-                            rp.deliver(true);
-                        },
-                        [=](caf::error & err) mutable {
-                            rp.deliver(err);
-                        });
-                },
-                [=](caf::error & err) mutable {
-                    rp.deliver(err);
-                });
+            request(
+                caf::actor_cast<caf::actor>(this),
+                infinite,
+                playhead::media_source_atom_v,
+                media::MT_IMAGE)
+                .then(
+                    [=](bool) mutable {
+                        request(
+                            caf::actor_cast<caf::actor>(this),
+                            infinite,
+                            playhead::media_source_atom_v,
+                            media::MT_AUDIO)
+                            .then(
+                                [=](bool) mutable { rp.deliver(true); },
+                                [=](caf::error &err) mutable { rp.deliver(err); });
+                    },
+                    [=](caf::error &err) mutable { rp.deliver(err); });
             return rp;
-
         },
 
-        [=](playhead::media_source_atom,
-            const media::MediaType mt) -> result<bool> {
-            // ensures media sources have had their details filled in and 
+        [=](playhead::media_source_atom, const media::MediaType mt) -> result<bool> {
+            // ensures media sources have had their details filled in and
             // we've set the media sources (image OR audio) where possible
             auto rp = make_response_promise<bool>();
             if (base_.empty() or not media_sources_.count(base_.current(mt))) {
@@ -1737,7 +1735,8 @@ void MediaActor::switch_current_source_to_named_source(
 }
 
 
-void MediaActor::auto_set_current_source(const media::MediaType media_type, caf::typed_response_promise<bool> rp) {
+void MediaActor::auto_set_current_source(
+    const media::MediaType media_type, caf::typed_response_promise<bool> rp) {
 
     auto set_current = [=](const media::MediaType mt, const utility::Uuid &uuid) mutable {
         if (base_.set_current(uuid, mt)) {
@@ -1749,7 +1748,8 @@ void MediaActor::auto_set_current_source(const media::MediaType media_type, caf:
                 UuidActor(
                     base_.current(media_type), media_sources_.at(base_.current(media_type))),
                 media_type);
-            if (rp.pending()) rp.deliver(true);
+            if (rp.pending())
+                rp.deliver(true);
         } else if (rp.pending()) {
             rp.deliver(false);
         }

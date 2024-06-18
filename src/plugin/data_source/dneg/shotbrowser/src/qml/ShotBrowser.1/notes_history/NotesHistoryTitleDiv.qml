@@ -19,6 +19,7 @@ Item{id: titleDiv
     ShotBrowserPresetFilterModel {
         id: scopeFilterModel
         showHidden: false
+        onlyShowFavourite: true
         filterUserData: "scope"
 
         sourceModel: ShotBrowserEngine.presetsModel
@@ -27,6 +28,7 @@ Item{id: titleDiv
     ShotBrowserPresetFilterModel {
         id: typeFilterModel
         showHidden: false
+        onlyShowFavourite: true
         filterUserData: "type"
 
         sourceModel: ShotBrowserEngine.presetsModel

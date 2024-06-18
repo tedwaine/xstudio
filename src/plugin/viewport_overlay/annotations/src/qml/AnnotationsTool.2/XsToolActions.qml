@@ -45,7 +45,6 @@ Item{
 
         delegate: XsPrimaryButton{
             text: model.action
-            imgSrc: ""
             width: toolActionUndoRedo.width/modelUndoRedo.count - toolActionUndoRedo.spacing
             height: buttonHeight
 
@@ -71,14 +70,14 @@ Item{
             id: modelCopyPasteClear
             ListElement{ action: "Clear" }
         }
-        
+
         delegate:
         XsPrimaryButton{
             text: model.action
             width: toolActionCopyPasteClear.width/modelCopyPasteClear.count - toolActionCopyPasteClear.spacing
             height: buttonHeight
             enabled: text == "Clear"
-            
+
             onClicked: {
                 action_attribute = text
             }

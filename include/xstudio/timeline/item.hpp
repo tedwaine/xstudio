@@ -275,7 +275,8 @@ namespace timeline {
         [[nodiscard]] std::vector<ResolvedItem> resolve_time_raw(
             const utility::FrameRate &time,
             const media::MediaType mt     = media::MediaType::MT_IMAGE,
-            const utility::UuidSet &focus = utility::UuidSet()) const;
+            const utility::UuidSet &focus = utility::UuidSet(),
+            const bool ignore_disabled    = true) const;
 
         void undo(const utility::JsonStore &event);
         void redo(const utility::JsonStore &event);
@@ -332,7 +333,8 @@ namespace timeline {
         caf::actor_system *the_system_{nullptr};
         ItemEventFunc item_pre_event_callback_{nullptr};
         ItemEventFunc item_post_event_callback_{nullptr};
-        bool recursive_bind_{false};
+        bool recursive_bind_pre_{false};
+        bool recursive_bind_post_{false};
     };
 
     inline std::optional<Items::const_iterator>

@@ -140,9 +140,11 @@ XsWindow{
 
             RowLayout{
                 anchors.fill: parent
-                anchors.leftMargin: 15
-                anchors.rightMargin: 15
 
+                Item{
+                    Layout.preferredWidth: parent.width/3
+                    Layout.fillHeight: true
+                }
                 Item{
                     Layout.preferredWidth: parent.width/3
                     Layout.fillHeight: true
@@ -154,10 +156,6 @@ XsWindow{
                     onClicked: {
                         close()
                     }
-                }
-                Item{
-                    Layout.preferredWidth: parent.width/3
-                    Layout.fillHeight: true
                 }
             }
         }

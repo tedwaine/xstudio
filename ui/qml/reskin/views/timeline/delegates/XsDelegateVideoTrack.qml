@@ -31,6 +31,11 @@ DelegateChoice {
 		    readonly property bool extraDetail: height > 60
             property var setTrackHeaderWidth: ListView.view.setTrackHeaderWidth
 
+			property bool isSizerHovered: ListView.view.isSizerHovered
+			property bool isSizerDragging: ListView.view.isSizerDragging
+            property var setSizerHovered: ListView.view.setSizerHovered
+            property var setSizerDragging: ListView.view.setSizerDragging
+
 			width: ListView.view.width
 			height: itemHeight * scaleY
 
@@ -95,6 +100,12 @@ DelegateChoice {
 				isLocked: lockedRole
 				isSelected: control.isSelected
 				isConformSource: control.isConformSource
+				isSizerHovered: control.isSizerHovered
+				isSizerDragging: control.isSizerDragging
+
+				onSizerHovered: setSizerHovered(hovered)
+				onSizerDragging: setSizerDragging(dragging)
+
 				onEnabledClicked: enabledRole = !enabledRole
 				onLockedClicked: lockedRole = !lockedRole
 				onConformSourceClicked: conformSourceIndex = helpers.makePersistent(modelIndex())
@@ -123,7 +134,7 @@ DelegateChoice {
 
 		    	Row {
 		    	    id:list_view
-					opacity: enabledRole ? (lockedRole ? 0.5 : 1.0) : 0.2
+					// opacity: isHovered ? 1.0 : enabledRole ? (lockedRole ? 0.6 : 1.0) : 0.3
 
 			        property real scaleX: control.scaleX
 			        property real scaleY: control.scaleY
@@ -133,8 +144,12 @@ DelegateChoice {
 	                property var hoveredItem: control.hoveredItem
 	                property real trackHeaderWidth: control.trackHeaderWidth
 					property string itemFlag: control.itemFlag
+					// property bool isParentLocked: lockedRole
 					property var itemAtIndex: item_repeater.itemAt
 		            property var parentLV: control.parentLV
+
+					property bool isParentLocked: lockedRole
+			        property bool isParentEnabled: enabledRole
 
 			    	Repeater {
 			    		id: item_repeater

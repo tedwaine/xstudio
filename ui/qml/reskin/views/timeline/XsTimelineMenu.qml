@@ -28,11 +28,43 @@ XsPopupMenu {
     //     }
     // }
 
+    function addMarker(new_name, button) {
+        if (button == "Add") {
+            theTimeline.markerModel().addMarker(
+              theTimeline.timelinePlayhead.logicalFrame,
+              theTimeline.timelineModel.model.get(theTimeline.timelineModel.rootIndex, "rateFPSRole"),
+              new_name
+            );
+        }
+    }
+
+   XsMenuModelItem {
+        text: qsTr("Add Marker")
+        menuPath: ""
+        menuItemPosition: 1
+        menuModelName: timelineMenu.menu_model_name
+        onActivated: {
+            dialogHelpers.textInputDialog(
+                timelineMenu.addMarker,
+                "Add Marker",
+                "Enter a name.",
+                "Marker",
+                ["Cancel", "Add"])
+        }
+    }
+
+    XsMenuModelItem {
+        menuItemType: "divider"
+        menuPath: ""
+        menuItemPosition: 99
+        menuModelName: timelineMenu.menu_model_name
+    }
+
 
     XsMenuModelItem {
         text: qsTr("Dump JSON")
         menuPath: "Debug"
-        menuItemPosition: 0.5
+        menuItemPosition: 100
         menuModelName: timelineMenu.menu_model_name
         onActivated: {
             for(let i=0;i<timelineSelection.selectedIndexes.length;i++) {

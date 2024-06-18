@@ -19,6 +19,7 @@ Item{id: titleDiv
     ShotBrowserPresetFilterModel {
         id: filterModel
         showHidden: false
+        onlyShowFavourite: true
         sourceModel: ShotBrowserEngine.presetsModel
     }
 

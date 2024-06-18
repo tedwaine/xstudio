@@ -326,7 +326,6 @@ void SessionModel::init(caf::actor_system &_system) {
             },
 
             [=](utility::event_atom, playlist::loading_media_atom, const bool value) {
-
                 auto src     = caf::actor_cast<caf::actor>(self()->current_sender());
                 auto src_str = actorToString(system(), src);
                 // request update of children..
@@ -705,6 +704,7 @@ void SessionModel::init(caf::actor_system &_system) {
                         const nlohmann::json &j = indexToData(index);
 
                         index = SessionModel::index(0, 0, index);
+
 
                         if (index.isValid()) {
                             const nlohmann::json &jj = indexToData(index);

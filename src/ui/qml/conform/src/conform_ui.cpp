@@ -122,7 +122,8 @@ QVariant ConformEngineUI::data(const QModelIndex &index, int role) const {
     return result;
 }
 
-QFuture<bool> ConformEngineUI::conformPrepareSequenceFuture(const QModelIndex &sequenceIndex) {
+QFuture<bool> ConformEngineUI::conformPrepareSequenceFuture(
+    const QModelIndex &sequenceIndex, const bool onlyCreateConfrom) const {
     auto future = QFuture<bool>();
 
     try {
@@ -156,7 +157,8 @@ QFuture<bool> ConformEngineUI::conformPrepareSequenceFuture(const QModelIndex &s
                     *sys,
                     conform_manager,
                     conform::conform_atom_v,
-                    UuidActor(sequence_uuid, sequence_actor));
+                    UuidActor(sequence_uuid, sequence_actor),
+                    onlyCreateConfrom);
 
             } catch (const std::exception &err) {
                 spdlog::warn("{} {}", __PRETTY_FUNCTION__, err.what());
@@ -181,7 +183,7 @@ QFuture<QList<QUuid>> ConformEngineUI::conformItemsFuture(
     const QModelIndex &container,
     const QModelIndex &item,
     const bool fanOut,
-    const bool removeSource) {
+    const bool removeSource) const {
     const auto task = StdFromQString(qtask);
 
     // get container detail
@@ -190,9 +192,15 @@ QFuture<QList<QUuid>> ConformEngineUI::conformItemsFuture(
     // maybe media or clip, or track
     auto item_type = StdFromQString(item.data(SessionModel::Roles::typeRole).toString());
 
-    if (item_type == "Media" or item_type == "Clip") {
+    if (item_type == "Media") {
         items.push_back(item);
-    } else if (item_type == "Video Track" or item_type == "Audio Track") {
+    } else if (
+        item_type == "Clip" and not item.data(SessionModel::Roles::lockedRole).toBool() and
+        not item.parent().data(SessionModel::Roles::lockedRole).toBool()) {
+        items.push_back(item);
+    } else if (
+        (item_type == "Video Track" or item_type == "Audio Track") and
+        not item.data(SessionModel::Roles::lockedRole).toBool()) {
         item_type = "Clip";
         // iterate of track clips, adding those that are not locked.
         for (int i = 0; i < item.model()->rowCount(item); i++) {
@@ -200,7 +208,7 @@ QFuture<QList<QUuid>> ConformEngineUI::conformItemsFuture(
 
             if (ind.isValid() and
                 ind.data(SessionModel::Roles::typeRole).toString() == "Clip" and
-                ind.data(SessionModel::Roles::lockedRole).toBool() == false) {
+                not ind.data(SessionModel::Roles::lockedRole).toBool()) {
                 items.push_back(ind);
             }
         }
@@ -326,7 +334,7 @@ QFuture<QList<QUuid>> ConformEngineUI::conformToSequenceFuture(
     const QModelIndex &sequenceIndex,
     const QModelIndex &conformTrackIndex,
     const bool replace,
-    const QString &newTrackName) {
+    const QString &newTrackName) const {
 
     auto playlistIndex = _playlistIndex;
     auto mediaIndexes  = _mediaIndexes;
@@ -475,7 +483,7 @@ QFuture<QList<QUuid>> ConformEngineUI::conformItemsFuture(
     const utility::UuidActor &container,
     const std::string &item_type,
     const utility::UuidVector &before,
-    const bool removeSource) {
+    const bool removeSource) const {
 
     return QtConcurrent::run([=]() {
         auto result = QList<QUuid>();
@@ -522,6 +530,269 @@ QFuture<QList<QUuid>> ConformEngineUI::conformItemsFuture(
             spdlog::warn("{} {}", __PRETTY_FUNCTION__, err.what());
         }
 
+        return result;
+    });
+}
+
+QFuture<QList<QUuid>> ConformEngineUI::conformToNewSequenceFuture(
+    const QModelIndexList &mediaIndexes, const QModelIndex &playlistIndex) const {
+    auto media = UuidActorVector();
+
+    for (const auto &i : mediaIndexes) {
+        if (i.data(SessionModel::Roles::typeRole) != "Media")
+            continue;
+
+        auto media_actor = actorFromString(
+            system(), StdFromQString(i.data(SessionModel::Roles::actorRole).toString()));
+        auto media_uuid = UuidFromQUuid(i.data(SessionModel::Roles::actorUuidRole).toUuid());
+
+        if (media_actor) {
+            media.emplace_back(UuidActor(media_uuid, media_actor));
+        }
+    }
+
+    // auto smodel =
+    //     qobject_cast<SessionModel *>(const_cast<QAbstractItemModel
+    //     *>(mediaIndexes[0].model()));
+
+    auto target_playlist = UuidActor();
+    if (playlistIndex.isValid()) {
+        auto playlist_actor = actorFromString(
+            system(),
+            StdFromQString(playlistIndex.data(SessionModel::Roles::actorRole).toString()));
+        auto playlist_uuid =
+            UuidFromQUuid(playlistIndex.data(SessionModel::Roles::actorUuidRole).toUuid());
+
+        target_playlist = UuidActor(playlist_uuid, playlist_actor);
+    }
+
+    return QtConcurrent::run([=]() {
+        auto result = QList<QUuid>();
+
+        if (not media.empty()) {
+            auto conform_manager =
+                system().registry().template get<caf::actor>(conform_registry);
+            scoped_actor sys{system()};
+            try {
+
+                auto reply = request_receive<
+                    std::vector<std::optional<std::pair<std::string, caf::uri>>>>(
+                    *sys, conform_manager, conform::conform_atom_v, media);
+
+                auto seq_to_media = std::map<caf::uri, std::vector<UuidActor>>();
+                auto seq_to_name  = std::map<caf::uri, std::string>();
+
+                auto count = 0;
+
+                for (const auto &i : reply) {
+                    if (i) {
+                        if (not seq_to_media.count(i->second))
+                            seq_to_media[i->second] = std::vector<UuidActor>();
+
+                        seq_to_media[i->second].push_back(media[count]);
+                        seq_to_name[i->second] = i->first;
+                    }
+                    // else
+                    //     spdlog::warn("NO RESULT");
+                    count++;
+                }
+
+                if (not seq_to_media.empty()) {
+                    // find session actor
+                    auto session = request_receive<caf::actor>(
+                        *sys,
+                        system().registry().template get<caf::actor>(studio_registry),
+                        session::session_atom_v);
+
+
+                    for (const auto &i : seq_to_media) {
+                        auto playlist = target_playlist;
+
+                        // we've got a path for a timeline and a list of media actors.
+                        // spdlog::warn("{} {}", to_string(i.first), i.second.size());
+
+                        // create new playlist
+                        if (not playlist.actor())
+                            playlist = request_receive<std::pair<utility::Uuid, UuidActor>>(
+                                           *sys,
+                                           session,
+                                           session::add_playlist_atom_v,
+                                           seq_to_name.at(i.first),
+                                           Uuid(),
+                                           false)
+                                           .second;
+
+                        auto timeline = request_receive<UuidActor>(
+                            *sys,
+                            playlist.actor(),
+                            session::import_atom_v,
+                            i.first,
+                            Uuid(),
+                            true);
+
+                        // generate conform track.
+                        request_receive<bool>(
+                            *sys, conform_manager, conform::conform_atom_v, timeline, false);
+
+                        // conform media to timeline..
+
+                        auto operations            = JsonStore(conform::ConformOperationsJSON);
+                        operations["create_media"] = false;
+                        operations["remove_media"] = false;
+                        operations["insert_media"] = true;
+                        operations["replace_clip"] = false;
+                        operations["new_track_name"]     = "Conformed Media";
+                        operations["remove_failed_clip"] = true;
+
+                        auto reply = request_receive<conform::ConformReply>(
+                            *sys,
+                            conform_manager,
+                            conform::conform_atom_v,
+                            operations,
+                            playlist,
+                            timeline,
+                            UuidActor(),
+                            i.second);
+                    }
+                }
+            } catch (const std::exception &err) {
+                spdlog::warn("{} {}", __PRETTY_FUNCTION__, err.what());
+            }
+        }
+
+
+        // return uuid of each timeline containing copied media ?
+
+        return result;
+    });
+}
+
+QFuture<QList<QUuid>> ConformEngineUI::conformTracksToSequenceFuture(
+    const QModelIndexList &trackIndexes, const QModelIndex &sequenceIndex) const {
+
+    try {
+        if (not sequenceIndex.isValid())
+            throw std::runtime_error("Invalid destination timeline");
+
+        auto smodel = qobject_cast<SessionModel *>(
+            const_cast<QAbstractItemModel *>(sequenceIndex.model()));
+
+        auto stype =
+            StdFromQString(sequenceIndex.data(SessionModel::Roles::typeRole).toString());
+        if (stype != "Timeline")
+            throw std::runtime_error("Invalid destination timeline " + stype);
+
+        auto source_playlist = UuidActor();
+        auto source_timeline = UuidActor();
+        auto tracks          = UuidActorVector();
+
+        // need to sort these..
+        auto sortedTrackIndexes =
+            std::vector<QModelIndex>(trackIndexes.begin(), trackIndexes.end());
+        std::sort(
+            sortedTrackIndexes.begin(),
+            sortedTrackIndexes.end(),
+            [](QModelIndex &a, QModelIndex &b) { return a.row() > b.row(); });
+
+        for (const auto &i : sortedTrackIndexes) {
+            if (i.isValid()) {
+                auto type = StdFromQString(i.data(SessionModel::Roles::typeRole).toString());
+                if (type == "Video Track" or type == "Audio Track") {
+                    auto source_track = UuidActor(
+                        UuidFromQUuid(i.data(SessionModel::Roles::actorUuidRole).toUuid()),
+                        actorFromString(
+                            system(),
+                            StdFromQString(i.data(SessionModel::Roles::actorRole).toString())));
+
+                    if (not source_timeline.actor()) {
+                        auto source_timeline_index = smodel->getTimelineIndex(i);
+                        if (source_timeline_index.isValid()) {
+                            auto source_playlist_index =
+                                smodel->getPlaylistIndex(source_timeline_index);
+                            source_timeline = UuidActor(
+                                UuidFromQUuid(source_timeline_index
+                                                  .data(SessionModel::Roles::actorUuidRole)
+                                                  .toUuid()),
+                                actorFromString(
+                                    system(),
+                                    StdFromQString(source_timeline_index
+                                                       .data(SessionModel::Roles::actorRole)
+                                                       .toString())));
+
+                            source_playlist = UuidActor(
+                                UuidFromQUuid(source_playlist_index
+                                                  .data(SessionModel::Roles::actorUuidRole)
+                                                  .toUuid()),
+                                actorFromString(
+                                    system(),
+                                    StdFromQString(source_playlist_index
+                                                       .data(SessionModel::Roles::actorRole)
+                                                       .toString())));
+                        }
+                    }
+
+                    tracks.emplace_back(source_track);
+                } else {
+                    spdlog::warn("{} Invalid track type {}", __PRETTY_FUNCTION__, type);
+                }
+            }
+        }
+
+        auto playlistIndex   = smodel->getPlaylistIndex(sequenceIndex);
+        auto target_playlist = UuidActor(
+            UuidFromQUuid(playlistIndex.data(SessionModel::Roles::actorUuidRole).toUuid()),
+            actorFromString(
+                system(),
+                StdFromQString(playlistIndex.data(SessionModel::Roles::actorRole).toString())));
+
+        auto target_timeline = UuidActor(
+            UuidFromQUuid(sequenceIndex.data(SessionModel::Roles::actorUuidRole).toUuid()),
+            actorFromString(
+                system(),
+                StdFromQString(sequenceIndex.data(SessionModel::Roles::actorRole).toString())));
+
+        if (not target_timeline.actor())
+            throw std::runtime_error("Invalid destination actor");
+
+        if (not source_timeline.actor())
+            throw std::runtime_error("Invalid source actor");
+
+        if (not source_playlist.actor())
+            throw std::runtime_error("Invalid source playlist");
+
+        if (tracks.empty())
+            throw std::runtime_error("No source tracks");
+
+        return QtConcurrent::run([=]() {
+            auto result = QList<QUuid>();
+            auto conform_manager =
+                system().registry().template get<caf::actor>(conform_registry);
+            scoped_actor sys{system()};
+
+            try {
+                auto reply = request_receive<conform::ConformReply>(
+                    *sys,
+                    conform_manager,
+                    conform::conform_atom_v,
+                    source_playlist,
+                    source_timeline,
+                    tracks,
+                    target_playlist,
+                    target_timeline,
+                    UuidActor());
+            } catch (const std::exception &err) {
+                spdlog::warn("{} {}", __PRETTY_FUNCTION__, err.what());
+            }
+
+            return result;
+        });
+
+    } catch (const std::exception &err) {
+        spdlog::warn("{} {}", __PRETTY_FUNCTION__, err.what());
+    }
+
+    return QtConcurrent::run([=]() {
+        auto result = QList<QUuid>();
         return result;
     });
 }

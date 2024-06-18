@@ -133,6 +133,8 @@ AnnotationsTool::AnnotationsTool(
     attribute_changed(active_tool_->uuid(), module::Attribute::Value);
 
     make_behavior();
+    connect_to_ui();
+
     listen_to_playhead_events(true);
 
     // here's the code for the 'reskin' UI (xSTUDIO v2) where we declare the
@@ -175,7 +177,8 @@ AnnotationsTool::AnnotationsTool(
             )",
         // qml code to create the top/bottom dockable widget (left empty here as we don't have
         // one)
-        "");
+        "",
+        toggle_active_hotkey_);
 }
 
 AnnotationsTool::~AnnotationsTool() {}
@@ -227,8 +230,6 @@ void AnnotationsTool::attribute_changed(const utility::Uuid &attribute_uuid, con
 
     } else if (
         attribute_uuid == action_attribute_->uuid() && action_attribute_->value() != "") {
-
-        std::cerr << "action_attribute_ " << action_attribute_->value() << "\n";
 
         if (action_attribute_->value() == "Clear") {
             clear_onscreen_annotations();

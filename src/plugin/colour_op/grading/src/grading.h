@@ -139,7 +139,6 @@ class GradingTool : public plugin::StandardPlugin {
     module::IntegerAttribute      *pen_softness_      {nullptr};
     module::ColourAttribute       *pen_colour_        {nullptr};
     module::BooleanAttribute      *shape_invert_      {nullptr};
-
     module::BooleanAttribute      *polygon_init_      {nullptr};
 
     module::IntegerAttribute *mask_selected_shape_{nullptr};

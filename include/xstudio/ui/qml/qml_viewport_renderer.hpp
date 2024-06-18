@@ -58,18 +58,10 @@ namespace ui {
 
             void set_playhead(caf::actor playhead);
 
-            float zoom();
-            [[nodiscard]] QString fpsExpression() const { return fps_expression_; }
-            void rawKeyDown(const int key, const bool autorepeat);
-            void keyboardTextEntry(const QString text);
-            void rawKeyUp(const int key);
-            void allKeysUp();
             Imath::V2i imageResolutionCoords();
             Imath::V2f imageCoordsToViewport(const int x, const int y);
             [[nodiscard]] QRectF imageBoundsInViewportPixels() const;
             [[nodiscard]] caf::actor playhead() { return viewport_renderer_->playhead(); }
-            void setScale(const float s);
-            void setTranslate(const QVector2D &t);
             bool pointerEvent(const PointerEvent &e);
             void setScreenInfos(
                 QString name,
@@ -89,26 +81,16 @@ namespace ui {
 
             void init_renderer();
             void paint();
-            void setZoom(const float f);
-            void revertFitZoomToPrevious();
             void frameSwapped();
-            float scale();
-            QVector2D translate();
             void quickViewSource(
                 QStringList mediaActors, QString compareMode, int in_pt, int out_pt);
             void reset();
-            void autoConnectToSelectedPlayhead();
 
           signals:
 
-            void zoomChanged(float);
             void fpsChanged(QString);
-            void scaleChanged(float);
             void exposureChanged(float);
-            void translateChanged(QVector2D);
-            void onScreenFrameChanged(int);
-            void outOfRange(bool);
-            void noAlphaChannelChanged(bool);
+            void translationChanged();
             void doRedraw();
             void doSnapshot(QString, QString, int, int, bool);
             void quickViewBackendRequest(QStringList mediaActors, QString compareMode);
@@ -124,7 +106,6 @@ namespace ui {
             ui::viewport::Viewport *viewport_renderer_ = nullptr;
             bool init_done{false};
             QString fps_expression_;
-            bool frame_out_of_range_ = {false};
             QRectF imageBounds_;
             class QMLViewport *viewport_qml_item_;
 

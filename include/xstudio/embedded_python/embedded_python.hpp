@@ -56,7 +56,10 @@ namespace embedded_python {
 
         void add_message_callback(const py::tuple &xs);
 
+        void remove_message_callback(const py::tuple &xs);
+
         static void s_add_message_callback(const py::tuple &xs);
+        static void s_remove_message_callback(const py::tuple &xs);
 
         void finalize();
 

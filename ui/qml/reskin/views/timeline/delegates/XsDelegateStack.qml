@@ -50,11 +50,25 @@ DelegateChoice {
             property var timelineItem: ListView.view.timelineItem
             property var hoveredItem: ListView.view.hoveredItem
 
+            property alias markerModel: marker_model
+
             property var itemTypeRole: typeRole
             property alias list_view_video: list_view_video
             property alias list_view_audio: list_view_audio
 
             property alias scrollbar: hbar
+
+
+            property bool isSizerHovered: false
+            property bool isSizerDragging: false
+
+            function setSizerHovered(value) {
+            	isSizerHovered = value
+            }
+
+            function setSizerDragging(value) {
+            	isSizerDragging = value
+            }
 
 			function modelIndex() {
 				return control.DelegateModel.model.srcModel.index(
@@ -159,7 +173,7 @@ DelegateChoice {
  		    XsSortFilterModel {
 		        id: video_items
 		        srcModel: theSessionData
-		        rootIndex: helpers.makePersistent(control.DelegateModel.model.srcModel.index(
+		        rootIndex: helpers.makePersistent(theSessionData.index(
 		    		index, 0, control.DelegateModel.model.rootIndex
 		    	))
 		        delegate: chooser
@@ -177,7 +191,7 @@ DelegateChoice {
  		    XsSortFilterModel {
 		        id: audio_items
 		        srcModel: theSessionData
-		        rootIndex: helpers.makePersistent(control.DelegateModel.model.srcModel.index(
+		        rootIndex: helpers.makePersistent(theSessionData.index(
 		    		index, 0, control.DelegateModel.model.rootIndex
 		    	))
 		        delegate: chooser
@@ -386,11 +400,28 @@ DelegateChoice {
 			                property real trackHeaderWidth: control.trackHeaderWidth
 							property string itemFlag: control.itemFlag
 				            property var setTrackHeaderWidth: control.setTrackHeaderWidth
-				            property real footerHeight: Math.max(0,list_view_video.parent.height - ((((itemHeight*control.scaleY)+1) * list_view_video.count)))
+				            property real footerHeight: Math.max(itemHeight,list_view_video.parent.height - ((((itemHeight*control.scaleY)+1) * list_view_video.count)))
+
+						    property bool isSizerHovered: control.isSizerHovered
+						    property bool isSizerDragging: control.isSizerDragging
+						    property var setSizerHovered: control.setSizerHovered
+						    property var setSizerDragging: control.setSizerDragging
 
 
 		        			footerPositioning: ListView.InlineFooter
 					        footer: Rectangle {
+		        	            XsPrimaryButton{
+		        	            	imgSrc: "qrc:/icons/add.svg"
+		        	            	text: "Add Video Track"
+		        	            	width: trackHeaderWidth -4 - 80
+		        	            	height: itemHeight
+		        	            	anchors.left: parent.left
+		        	            	anchors.bottom: parent.bottom
+		        	            	showBoth: true
+		        	            	onClicked: theTimeline.addTrack("Video Track")
+		        	            	opacity: 0.8
+		        	            }
+
 								color: timelineBackground
 								width: parent.width
 								height: list_view_video.footerHeight
@@ -413,7 +444,9 @@ DelegateChoice {
 
 				Rectangle {
 					id: sizer
-					color: "transparent"
+
+			        color: ma.pressed ? palette.highlight : ma.containsMouse  ? XsStyleSheet.secondaryTextColor : "transparent"
+
 					border.color: trackEdge
 					Layout.minimumWidth: parent.width
 					Layout.preferredHeight: handleSize
@@ -426,6 +459,7 @@ DelegateChoice {
 						anchors.fill: parent
 			            hoverEnabled: true
             			acceptedButtons: Qt.LeftButton
+				        preventStealing: true
 
             			cursorShape: Qt.SizeVerCursor
 
@@ -472,6 +506,11 @@ DelegateChoice {
 				            property var setTrackHeaderWidth: control.setTrackHeaderWidth
 							property string itemFlag: control.itemFlag
 
+						    property bool isSizerHovered: control.isSizerHovered
+						    property bool isSizerDragging: control.isSizerDragging
+						    property var setSizerHovered: control.setSizerHovered
+						    property var setSizerDragging: control.setSizerDragging
+
 					        displaced: Transition {
 					            NumberAnimation {
 					                properties: "x,y"
@@ -481,9 +520,21 @@ DelegateChoice {
 
 		        			footerPositioning: ListView.InlineFooter
 					        footer: Rectangle {
+		        	            XsPrimaryButton{
+		        	            	imgSrc: "qrc:/icons/add.svg"
+		        	            	text: "Add Audio Track"
+		        	            	width: trackHeaderWidth-4 - 80
+		        	            	height: itemHeight
+		        	            	anchors.left: parent.left
+		        	            	anchors.top: parent.top
+		        	            	onClicked: theTimeline.addTrack("Audio Track")
+		        	            	showBoth: true
+		        	            	opacity: 0.8
+		        	            }
+
 								color: timelineBackground
 								width: parent.width
-								height: Math.max(0,bottomView.height - ((((itemHeight*control.scaleY)+1) * list_view_audio.count)))
+								height: Math.max(itemHeight,bottomView.height - ((((itemHeight*control.scaleY)+1) * list_view_audio.count)))
 					        }
 
   					        ScrollBar.vertical: ScrollBar {

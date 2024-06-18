@@ -19,7 +19,7 @@ ApplicationWindow {
     id: appWindow
     visible: true
     color: "#000000"
-    title: "xSTUDIO Re-Skin UI (Under Construction)"
+    title: (sessionPathNative ? (theSessionData.modified ? sessionPathNative + " - modified": sessionPathNative) : "xSTUDIO")
 
     property var window_name: "main_window"
 
@@ -35,21 +35,6 @@ ApplicationWindow {
     palette.brightText: "#bb7700"
 
     FontLoader {id: fontInter; source: "qrc:/fonts/Inter/Inter-Regular.ttf"}
-
-
-
-    property bool isFlatTheme: false
-
-    Timer { id: gradTimer //#TODO
-        running: false
-        repeat: true
-        interval: 3000
-
-        onTriggered: {
-            isFlatTheme = !isFlatTheme
-        }
-    }
-
 
     XsReskinPanelsLayoutModel {
 
@@ -229,6 +214,17 @@ ApplicationWindow {
     }
 
     XsHotkey {
+        sequence: "Ctrl+U"
+        name: "Full Screen"
+        description: "Makes the window go fullscreen"
+        context: "any"
+        onActivated: {
+            console.log("OOGLE", accent)
+            accentColour.value = "#ffffff"
+        }
+    }
+
+    XsHotkey {
         id: fullscreen_hotkey
         sequence: "Ctrl+F"
         name: "Full Screen"
@@ -324,6 +320,9 @@ ApplicationWindow {
     property alias uiLayoutsModel: ui_layouts_model
     property alias singletonsModel: sessionData.singletonsModel
 
+    property var sessionPath: sessionProperties.values.pathRole
+    property var sessionPathNative: sessionPath ? helpers.pathFromURL(sessionPath) : ""
+
     property var child_dividers: []
 
     property var layouts_model
@@ -409,7 +408,7 @@ ApplicationWindow {
     Component.onCompleted: {
 
         viewsModel.register_view("qrc:/views/playlists/XsPlaylists.qml", "Playlists")
-        viewsModel.register_view("qrc:/views/media/XsMedialist.qml", "Media")
+        viewsModel.register_view("qrc:/views/media/XsMediaPanel.qml", "Media")
         viewsModel.register_view("qrc:/views/viewport/XsViewportPanel.qml", "Viewport")
         viewsModel.register_view("qrc:/views/timeline/XsTimelinePanel.qml", "Timeline")
         viewsModel.register_view("qrc:/views/notes/XsNotesView.qml", "Notes")
@@ -489,6 +488,24 @@ ApplicationWindow {
     XsGlobalDragDropHandler {
         id: global_drag_drop_handler
     }
+
+
+    // Bind UI highligh colour to the backend preference
+    XsPreference {
+        id: __accentColour
+        path: "/ui/qml/accent_color"
+    }
+    property var accent: __accentColour.value
+    onAccentChanged: {
+        XsStyleSheet.accentColor = accent
+    }
+
+    property bool isFlatTheme: __flatTheme.value
+    XsPreference {
+        id: __flatTheme
+        path: "/ui/qml/use_flat_theme"
+    }
+
 
 }
 

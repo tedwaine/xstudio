@@ -29,7 +29,9 @@ namespace ui {
             ~ConformEngineUI() override = default;
 
             virtual void init(caf::actor_system &system);
-            caf::actor_system &system() { return self()->home_system(); }
+            caf::actor_system &system() const {
+                return const_cast<caf::actor_companion *>(self())->home_system();
+            }
 
             [[nodiscard]] QVariant
             data(const QModelIndex &index, int role = Qt::DisplayRole) const override;
@@ -40,7 +42,7 @@ namespace ui {
                 const QModelIndex &container,
                 const QModelIndex &item,
                 const bool fanOut       = false,
-                const bool removeSource = false);
+                const bool removeSource = false) const;
 
             Q_INVOKABLE QFuture<QList<QUuid>> conformToSequenceFuture(
                 const QModelIndex &playlistIndex,
@@ -48,10 +50,17 @@ namespace ui {
                 const QModelIndex &sequenceIndex,
                 const QModelIndex &conformTrackIndex,
                 const bool replace,
-                const QString &newTrackName = "");
+                const QString &newTrackName = "") const;
 
-            Q_INVOKABLE QFuture<bool>
-            conformPrepareSequenceFuture(const QModelIndex &sequenceIndex);
+            Q_INVOKABLE QFuture<QList<QUuid>> conformToNewSequenceFuture(
+                const QModelIndexList &mediaIndexes,
+                const QModelIndex &playlistIndex = QModelIndex()) const;
+
+            Q_INVOKABLE QFuture<bool> conformPrepareSequenceFuture(
+                const QModelIndex &sequenceIndex, const bool onlyCreateConfrom = true) const;
+
+            Q_INVOKABLE QFuture<QList<QUuid>> conformTracksToSequenceFuture(
+                const QModelIndexList &trackIndexes, const QModelIndex &sequenceIndex) const;
 
           signals:
 
@@ -63,7 +72,7 @@ namespace ui {
                 const utility::UuidActor &container,
                 const std::string &item_type,
                 const utility::UuidVector &before,
-                const bool removeSource);
+                const bool removeSource) const;
 
             utility::Uuid conform_uuid_;
             caf::actor conform_events_;

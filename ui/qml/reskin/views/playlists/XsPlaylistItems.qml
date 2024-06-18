@@ -49,14 +49,16 @@ XsListView { id: playlists
             roleValue: "ContainerDivider";
 
             XsPlaylistDividerDelegate{
-                modelIndex: playlistsModel.modelIndex(index)
+                modelIndex: helpers.makePersistent(playlistsModel.modelIndex(index))
+                width: playlists.width
             }
         }
         DelegateChoice {
             roleValue: "Playlist";
 
             XsPlaylistItemDelegate {
-                modelIndex: playlistsModel.modelIndex(index)
+                modelIndex: helpers.makePersistent(playlistsModel.modelIndex(index))
+                width: playlists.width
             }
         }
 

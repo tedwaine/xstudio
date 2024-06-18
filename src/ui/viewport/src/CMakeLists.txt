@@ -4,7 +4,6 @@ find_package(OpenEXR)
 find_package(Imath)
 
 set(SOURCES
-	hud_plugin.cpp
 	viewport.cpp
 	viewport_frame_queue_actor.cpp
 	fps_monitor.cpp

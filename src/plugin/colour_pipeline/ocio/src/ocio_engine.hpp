@@ -28,11 +28,8 @@ class OCIOEngine {
         const float gamma,
         const float saturation);
 
-    /* Pick the default OCIO display given a display/monitor name and the
-    colour management metadata of a media source*/
-    const char *default_display(
-        const utility::JsonStore &src_colour_mgmt_metadata,
-        const std::string &monitor_name) const;
+    /* Get the default OCIO display*/
+    const char *default_display(const utility::JsonStore &src_colour_mgmt_metadata) const;
 
     /* Get the name (filesystem path) of the OCIO config that applied to the
     given source colour management metadata*/

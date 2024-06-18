@@ -283,11 +283,7 @@ Viewport::Viewport(
     // as part of a data model.
     std::string toolbar_name = name() + "_toolbar";
 
-    zoom_mode_toggle_->set_role_data(
-        module::Attribute::Groups, nlohmann::json{name() + "_pan_zoom"});
-
-    pan_mode_toggle_->set_role_data(
-        module::Attribute::Groups, nlohmann::json{name() + "_pan_zoom"});
+    std::string other_attrs_model = name() + "_attrs";
 
     mirror_mode_->set_role_data(
         module::Attribute::ToolTip,
@@ -314,6 +310,8 @@ Viewport::Viewport(
     pan_mode_toggle_->set_role_data(module::Attribute::ToolbarPosition, 6.0f);
     fit_mode_->set_role_data(module::Attribute::ToolbarPosition, 7.0f);
     mirror_mode_->set_role_data(module::Attribute::ToolbarPosition, 8.0f);
+
+    frame_rate_expr_ = add_string_attribute("Frame Rate", "Frame Rate", "--/--");
 
     frame_error_message_ = add_string_attribute("frame_error", "frame_error", "");
     frame_error_message_->set_role_data(
@@ -381,6 +379,9 @@ Viewport::Viewport(
 
     expose_attribute_in_model_data(zoom_mode_toggle_, mini_toolbar_name);
     expose_attribute_in_model_data(pan_mode_toggle_, mini_toolbar_name);
+    expose_attribute_in_model_data(zoom_mode_toggle_, other_attrs_model);
+    expose_attribute_in_model_data(pan_mode_toggle_, other_attrs_model);
+    expose_attribute_in_model_data(frame_rate_expr_, other_attrs_model);
 
     // we call this base-class method to set-up our attributes so that they
     // show up in our toolbar
@@ -407,7 +408,6 @@ void Viewport::auto_connect_to_global_selected_playhead() {
 
     // this means we get events about the global selected playhead
     // changing
-    listen_to_playhead_events();
 
     // connect to the current playhead now
     auto a = caf::actor_cast<caf::scheduled_actor *>(parent_actor_);
@@ -714,6 +714,12 @@ void Viewport::update_fit_mode_matrix(
     fit_mode_matrix_.makeIdentity();
     fit_mode_matrix_.scale(Imath::V3f(state_.fit_mode_zoom_, state_.fit_mode_zoom_, 1.0f));
     fit_mode_matrix_.translate(Imath::V3f(tx, ty, 0.0f));
+
+    Imath::Box2f image_bounds = calc_image_bounds_in_viewport_pixels();
+    if (image_bounds != image_bounds_in_viewport_pixels_) {
+        image_bounds_in_viewport_pixels_ = image_bounds;
+        event_callback_(TranslationChanged);
+    }
 }
 
 float Viewport::pixel_zoom() const {
@@ -775,16 +781,12 @@ void Viewport::set_fit_mode(const FitMode md) {
         fit_mode_->set_value("Off");
 
     update_matrix();
-
-    event_callback_(FitModeChanged);
-    event_callback_(ZoomChanged);
     event_callback_(Redraw);
 }
 
 void Viewport::set_mirror_mode(const MirrorMode md) {
     state_.mirror_mode_ = md;
     update_matrix();
-    event_callback_(MirrorModeChanged);
     event_callback_(Redraw);
 }
 
@@ -830,8 +832,6 @@ void Viewport::revert_fit_zoom_to_previous(const bool synced) {
         fit_mode_->set_value("Off", false);
 
     update_matrix();
-    event_callback_(FitModeChanged);
-    event_callback_(ZoomChanged);
     event_callback_(Redraw);
 
     if (state_.fit_mode_ == FitMode::Free && !synced) {
@@ -899,9 +899,15 @@ void Viewport::update_matrix() {
     projection_matrix_.scale(Imath::V3f(1.0f, -1.0f, 1.0f));
 
     update_fit_mode_matrix();
+
+    Imath::Box2f image_bounds = calc_image_bounds_in_viewport_pixels();
+    if (image_bounds != image_bounds_in_viewport_pixels_) {
+        image_bounds_in_viewport_pixels_ = image_bounds;
+        event_callback_(TranslationChanged);
+    }
 }
 
-Imath::Box2f Viewport::image_bounds_in_viewport_pixels() const {
+Imath::Box2f Viewport::calc_image_bounds_in_viewport_pixels() const {
     const Imath::M44f m = fit_mode_matrix() * inv_projection_matrix();
 
     const float aspect = float(state_.image_size_.y) / float(state_.image_size_.x);
@@ -965,9 +971,6 @@ caf::message_handler Viewport::message_handler() {
                             bottomleft,
                             scene_size,
                             devicePixelRatio)) {
-                        if (zoom != pixel_zoom()) {
-                            event_callback_(ZoomChanged);
-                        }
                         event_callback_(Redraw);
                     }
                 },
@@ -1014,10 +1017,7 @@ caf::message_handler Viewport::message_handler() {
 
                 [=](utility::event_atom,
                     ui::fps_monitor::fps_meter_update_atom,
-                    const std::string &fps_expr) {
-                    frame_rate_expr_ = fps_expr;
-                    event_callback_(FrameRateChanged);
-                },
+                    const std::string &fps_expr) { frame_rate_expr_->set_value(fps_expr); },
 
                 [=](utility::serialise_atom) -> utility::JsonStore {
                     utility::JsonStore jsn;
@@ -1030,7 +1030,6 @@ caf::message_handler Viewport::message_handler() {
                 [=](viewport_pan_atom, const float xpan, const float ypan) {
                     // To use
                     set_pan(xpan, ypan);
-                    event_callback_(TranslationChanged);
                     event_callback_(Redraw);
                 },
 
@@ -1044,17 +1043,9 @@ caf::message_handler Viewport::message_handler() {
                     auto_connect_to_global_selected_playhead();
                 },
 
-                [=](viewport_playhead_atom, bool autoconnect) {
-                    auto_connect_to_global_selected_playhead();
-                },
-
                 [=](viewport_pixel_zoom_atom, const float zoom) {
                     const FitMode fm = fit_mode();
                     set_pixel_zoom(zoom);
-                    event_callback_(ZoomChanged);
-                    if (fm != fit_mode()) {
-                        event_callback_(FitModeChanged);
-                    }
                 },
 
                 [=](viewport_scale_atom) -> float { return pixel_zoom(); },
@@ -1062,8 +1053,6 @@ caf::message_handler Viewport::message_handler() {
                 [=](viewport_scale_atom, const float scale) {
                     // To use
                     set_scale(scale);
-                    event_callback_(ZoomChanged);
-                    event_callback_(ScaleChanged);
                     event_callback_(Redraw);
                 },
 
@@ -1280,8 +1269,39 @@ void Viewport::attribute_changed(const utility::Uuid &attr_uuid, const int role)
 
     } else if (attr_uuid == hud_toggle_->uuid()) {
 
+        // HUD toggle should be synced between viewports viewing the same
+        // playhead
+        try {
+
+            caf::scoped_actor sys(self()->home_system());
+            auto ph_events = self()->home_system().registry().template get<caf::actor>(
+                global_playhead_events_actor);
+
+            // get other viewports connected to our playhead
+            auto other_viewports = request_receive<std::vector<caf::actor>>(
+                *sys,
+                ph_events,
+                viewport_playhead_atom_v,
+                caf::actor_cast<caf::actor>(playhead_addr_),
+                true);
+
+            // sync HUD setting to all linked viewports
+            for (auto &o : other_viewports) {
+                anon_send(
+                    o,
+                    module::change_attribute_value_atom_v,
+                    "HUD",
+                    role,
+                    true,
+                    utility::JsonStore(hud_toggle_->role_data_as_json(role)),
+                    caf::actor_cast<caf::actor_addr>(self()));
+            }
+        } catch (std::exception &e) {
+            spdlog::warn("{} {}", __PRETTY_FUNCTION__, e.what());
+        }
+
         for (auto &p : hud_plugin_instances_) {
-            anon_send(p.second, enable_hud_atom_v, hud_toggle_->value());
+            anon_send(p.second, hud_settings_atom_v, hud_toggle_->value());
         }
 
     } else if (attr_uuid == mirror_mode_->uuid()) {
@@ -1383,8 +1403,6 @@ void Viewport::update_onscreen_frame_info(const media_reader::ImageBufPtr &frame
     if (!frame) {
         on_screen_frame_buffer_.reset();
         about_to_go_on_screen_frame_buffer_.reset();
-        on_screen_frame_ = 0;
-        event_callback_(OnScreenFrameChanged);
         return;
     }
 
@@ -1396,8 +1414,6 @@ void Viewport::update_onscreen_frame_info(const media_reader::ImageBufPtr &frame
     if (!frame) {
         on_screen_frame_buffer_.reset();
         about_to_go_on_screen_frame_buffer_.reset();
-        on_screen_frame_ = 0;
-        event_callback_(OnScreenFrameChanged);
         return;
     }
 
@@ -1406,28 +1422,6 @@ void Viewport::update_onscreen_frame_info(const media_reader::ImageBufPtr &frame
         frame_error_message_->set_value(frame->error_message());
     } else {
         frame_error_message_->set_value("");
-    }
-
-    // update the 'on_screen_frame_' attr, which is propagated to the QML
-    // layer
-    on_screen_frame_ = frame.frame_id().playhead_logical_frame_;
-    event_callback_(OnScreenFrameChanged);
-
-    //
-    if (frame->params().find("HELD_FRAME") != frame->params().end()) {
-        if (frame_out_of_range_ != frame->params()["HELD_FRAME"]) {
-            frame_out_of_range_ = frame->params()["HELD_FRAME"];
-            event_callback_(OutOfRangeChanged);
-        }
-    } else if (frame_out_of_range_) {
-        frame_out_of_range_ = false;
-        event_callback_(OutOfRangeChanged);
-    }
-
-    if (frame->has_alpha() == no_alpha_channel_) {
-
-        no_alpha_channel_ = !frame->has_alpha();
-        event_callback_(NoAlphaChannelChanged);
     }
 }
 
@@ -1680,7 +1674,7 @@ void Viewport::instance_overlay_plugins() {
 
                 overlay_plugin_instances_[pd.uuid_] = overlay_actor;
                 hud_plugin_instances_[pd.uuid_]     = overlay_actor;
-                anon_send(overlay_actor, enable_hud_atom_v, hud_toggle_->value());
+                anon_send(overlay_actor, hud_settings_atom_v, hud_toggle_->value());
             }
         }
 

@@ -421,6 +421,35 @@ caf::message_handler Module::message_handler() {
         {[=](xstudio::broadcast::broadcast_down_atom, const caf::actor_addr &) {},
 
          [=](attribute_role_data_atom,
+             const utility::Uuid &attr_uuid,
+             const std::string &role_name) -> result<utility::JsonStore> {
+             try {
+                 int role = Attribute::role_index(role_name);
+                 for (const auto &p : attributes_) {
+                     if (p->uuid() == attr_uuid) {
+                         if (p->has_role_data(role)) {
+                             return p->role_data_as_json(role);
+                         } else {
+                             std::stringstream ss;
+                             ss << "Request for attribute role data \""
+                                << Attribute::role_name(role) << "\" on attr \""
+                                << p->get_role_data<std::string>(Attribute::Title)
+                                << "\" on module \"" << name_
+                                << "\" : attribute does not have this role data.";
+                             return caf::make_error(xstudio_error::error, ss.str().c_str());
+                         }
+                     }
+                 }
+                 const std::string err = std::string("Request for attribute on module \"") +
+                                         name_ +
+                                         std::string("\" using unknown attribute uuid.");
+                 return caf::make_error(xstudio_error::error, err);
+             } catch (std::exception &e) {
+                 return caf::make_error(xstudio_error::error, e.what());
+             }
+         },
+
+         [=](attribute_role_data_atom,
              utility::Uuid attr_uuid,
              const std::string &role_name,
              const utility::JsonStore &value) -> result<bool> {
@@ -583,6 +612,18 @@ caf::message_handler Module::message_handler() {
              }
              return true;
          },
+
+         [=](attribute_value_atom, const utility::Uuid &attr_uuid, bool full)
+             -> result<utility::JsonStore> {
+             auto attr = get_attribute(attr_uuid);
+             if (attr) {
+                 return attr->as_json();
+             }
+             const std::string err = std::string("No such attribute \"") +
+                                     to_string(attr_uuid) + std::string(" on ") + name_;
+             return caf::make_error(xstudio_error::error, err);
+         },
+
 
          [=](attribute_value_atom,
              const std::string &attr_title) -> result<utility::JsonStore> {
@@ -793,9 +834,30 @@ caf::message_handler Module::message_handler() {
                  context);
 
              if (activated && connected_to_ui_ /*&&
-                 connected_viewport_names_.find(context) != connected_viewport_names_.end()*/)
+                 connected_viewport_names_.find(context) != connected_viewport_names_.end()*/) {
                  hotkey_pressed(uuid, context);
-             else if (!activated)
+
+                 for (auto attr_uuid: dock_widget_attributes_) {
+                    module::Attribute *attr = get_attribute(attr_uuid);
+                    if (attr->has_role_data(Attribute::HotkeyUuid)) {
+                        if (uuid == attr->get_role_data<utility::Uuid>(Attribute::HotkeyUuid)) {
+                            // user has hit a hotkey that toggles a docking toolbox on/off. To
+                            // get notification in the UI (QML) layer, we set the 'UserData'
+                            // role data on the attr that holds data about the dock widget.
+                            // There is a QML item in the UI layer that is watching for changes
+                            // to this data - it will get an update and can then toggle the
+                            // toolbar shown/hidden
+                            nlohmann::json event;
+                            event["context"] = context;
+                            // random num ensures the data changes every time 
+                            // so notification mechanism is triggered
+                            event["id"] = drand48();
+                            attr->set_role_data(Attribute::UserData, event);
+                        }
+                    }
+                 }
+
+              } else if (!activated)
                  hotkey_released(uuid, context);
          },
 
@@ -1509,7 +1571,7 @@ void Module::update_attr_from_preference(const std::string &path, const JsonStor
 
             try {
 
-                attr->set_role_data(Attribute::Value, change, false);
+                attr->set_role_data(Attribute::Value, change, true);
 
             } catch (std::exception &e) {
                 spdlog::warn("{} failed to set preference {}", __PRETTY_FUNCTION__, e.what());
@@ -1521,7 +1583,7 @@ void Module::update_attr_from_preference(const std::string &path, const JsonStor
 
             try {
 
-                attr->set_role_data(Attribute::Value, change, false);
+                attr->set_role_data(Attribute::Value, change, true);
                 // wipe the 'InitOnlyPreferencePath' data so we never update again
                 // when preferences are updated
                 attr->delete_role_data(Attribute::InitOnlyPreferencePath);
@@ -1541,11 +1603,11 @@ void Module::update_attrs_from_preferences(const utility::JsonStore &entire_pref
 
             try {
 
-                auto pref_path  = attr->get_role_data<std::string>(Attribute::PreferencePath);
+                auto pref_path = attr->get_role_data<std::string>(Attribute::PreferencePath);
 
                 try {
 
-                    if (entire_prefs_dict.get(pref_path+"/value").is_null()) {
+                    if (entire_prefs_dict.get(pref_path + "/value").is_null()) {
 
                         // if get "/default_value" throws an exception, we silence
                         // the warning as it means we have a preference that isn't
@@ -1554,7 +1616,7 @@ void Module::update_attrs_from_preferences(const utility::JsonStore &entire_pref
                         // preference path for saving their value without the
                         // pref being declared in the .json pref files that
                         // are part of the codebase
-                        std::ignore = entire_prefs_dict.get(pref_path+"/default_value");
+                        std::ignore = entire_prefs_dict.get(pref_path + "/default_value");
                     }
 
                 } catch (...) {
@@ -1570,8 +1632,7 @@ void Module::update_attrs_from_preferences(const utility::JsonStore &entire_pref
                     "{} failed to set preference {} : attr - {}",
                     __PRETTY_FUNCTION__,
                     e.what(),
-                    attr->role_data_as_json(Attribute::PreferencePath).dump()
-                    );
+                    attr->role_data_as_json(Attribute::PreferencePath).dump());
             }
         } else if (attr->has_role_data(Attribute::InitOnlyPreferencePath)) {
 
@@ -1579,8 +1640,8 @@ void Module::update_attrs_from_preferences(const utility::JsonStore &entire_pref
                 auto pref_path =
                     attr->get_role_data<std::string>(Attribute::InitOnlyPreferencePath);
 
-                if (!entire_prefs_dict.get(pref_path+"/value").is_null() ||
-                        !entire_prefs_dict.get(pref_path+"/default_value").is_null()) {
+                if (!entire_prefs_dict.get(pref_path + "/value").is_null() ||
+                    !entire_prefs_dict.get(pref_path + "/default_value").is_null()) {
 
                     auto pref_value = global_store::preference_value<nlohmann::json>(
                         entire_prefs_dict, pref_path);
@@ -1590,7 +1651,6 @@ void Module::update_attrs_from_preferences(const utility::JsonStore &entire_pref
                     // wipe the 'InitOnlyPreferencePath' data so we never update again
                     // when preferences are updated
                     attr->delete_role_data(Attribute::InitOnlyPreferencePath);
-                    
                 }
 
             } catch (std::exception &e) {
@@ -1598,8 +1658,7 @@ void Module::update_attrs_from_preferences(const utility::JsonStore &entire_pref
                     "{} failed to set preference {} : attr2 - {}",
                     __PRETTY_FUNCTION__,
                     e.what(),
-                    attr->role_data_as_json(Attribute::PreferencePath).dump()
-                    );
+                    attr->role_data_as_json(Attribute::PreferencePath).dump());
             }
         }
     }
@@ -2183,18 +2242,6 @@ void Module::register_ui_panel_qml(const std::string &panel_name, const std::str
             1,              // count
             data);
 
-        /*std::cerr << "OIOIO " << utility::request_receive<utility::JsonStore>(
-                            *sys,
-                            central_models_data_actor,
-                            ui::model_data::insert_rows_atom_v,
-                            "views model", // the model called 'views model' is what's used to
-           build the panels menu
-                            "/", // (path) add to root
-                            0, // row
-                            1, // count
-                           data).dump(2) << "\n";*/
-
-
     } catch (std::exception &e) {
         spdlog::warn("{} {}", __PRETTY_FUNCTION__, e.what());
     }
@@ -2207,7 +2254,8 @@ Attribute *Module::register_viewport_dockable_widget(
     const float button_position,
     const bool enabled,
     const std::string &left_right_dockable_widget_qml,
-    const std::string &top_bottom_dockable_widget_qml) {
+    const std::string &top_bottom_dockable_widget_qml,
+    const utility::Uuid toggle_widget_visible_hotkey) {
 
     auto attr = new QmlCodeAttribute(widget_name, left_right_dockable_widget_qml);
     attr->set_role_data(Attribute::IconPath, button_icon_qrc_path);
@@ -2215,6 +2263,11 @@ Attribute *Module::register_viewport_dockable_widget(
     attr->set_role_data(Attribute::ToolTip, button_tooltip);
     attr->set_role_data(Attribute::Activated, -1);
     attr->set_role_data(Attribute::Enabled, enabled);
+    if (!toggle_widget_visible_hotkey.is_null()) {
+        attr->set_role_data(
+            Attribute::HotkeyUuid,
+            toggle_widget_visible_hotkey);
+    }
     add_attribute(static_cast<Attribute *>(attr));
     expose_attribute_in_model_data(attr, "dockable viewport toolboxes", true);
     dock_widget_attributes_.insert(attr->uuid());

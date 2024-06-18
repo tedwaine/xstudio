@@ -219,7 +219,7 @@ Item {
         id: _tabs
         model: panels_layout_model
         rootIndex: panels_layout_model_index
-        delegate: XsTab {
+        delegate: XsLayoutTab {
             anchors.top: theTabBar.bottom
             anchors.bottom: container.bottom
             anchors.left: container.left

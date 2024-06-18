@@ -9,6 +9,7 @@ from xstudio.core import request_connection_atom, get_sync_atom, version_atom
 from xstudio.core import get_application_mode_atom, authorise_connection_atom, broadcast_down_atom
 from xstudio.core import join_broadcast_atom, exit_atom, api_exit_atom, leave_broadcast_atom, get_event_group_atom
 from xstudio.core import error, Link
+from xstudio.core import XSTUDIO_LOCAL_PLUGIN_PATH
 from xstudio.api import API
 from xstudio.sync_api import SyncAPI
 from xstudio.core import RemoteSessionManager, remote_session_path
@@ -582,6 +583,10 @@ class Connection(object):
             search_paths = os.environ["XSTUDIO_PYTHON_PLUGIN_PATH"].split(":")
             for search_path in search_paths:
                 self.load_plugins_in_path(search_path)
+        # XSTUDIO_LOCAL_PLUGIN_PATH points us at the folder where python plugins
+        # installed/deployed as part of xstudio live
+        self.load_plugins_in_path(XSTUDIO_LOCAL_PLUGIN_PATH)
+
 
     def load_plugins_in_path(self, path):
         """Load plugins found under the given directoy path

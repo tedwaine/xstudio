@@ -46,9 +46,6 @@ namespace ui {
             Q_PROPERTY(
                 QString backendId READ backendId WRITE setBackendId NOTIFY backendIdChanged)
 
-            Q_PROPERTY(
-                QQmlPropertyMap *presetModels READ presetModels NOTIFY presetModelsChanged)
-
             Q_PROPERTY(QString liveLinkMetadata READ liveLinkMetadata WRITE setLiveLinkMetadata
                            NOTIFY liveLinkMetadataChanged)
             Q_PROPERTY(QVariant liveLinkKey READ liveLinkKey WRITE setLiveLinkKey NOTIFY
@@ -68,8 +65,6 @@ namespace ui {
 
             void set_backend(caf::actor backend);
             void setBackendId(const QString &id);
-
-            QQmlPropertyMap *presetModels() const { return preset_models_; }
 
             Q_INVOKABLE QObject *presetsModel();
             Q_INVOKABLE QObject *sequenceTreeModel(const int project_id);
@@ -425,8 +420,6 @@ namespace ui {
 
             // map UI value to query value
             QueryEngine query_engine_;
-
-            QQmlPropertyMap *preset_models_{nullptr};
 
             ShotBrowserPresetModel *presets_model_{nullptr};
 

@@ -702,7 +702,7 @@ QFuture<QList<QUuid>> SessionModel::handleUriListDropFuture(
                 const auto &type = ij.at("type").get<std::string>();
                 auto sub_target  = caf::actor();
 
-                spdlog::warn("{}", type);
+                // spdlog::warn("{}", type);
 
                 if (type == "Playlist") {
                     target = actorFromString(system(), ij.at("actor"));
@@ -738,7 +738,7 @@ QFuture<QList<QUuid>> SessionModel::handleUriListDropFuture(
                             if (is_timeline_supported(*uri)) {
                                 // spdlog::warn("LOAD TIMELINE {}", to_string(*uri));
                                 new_media.push_back(request_receive<UuidActor>(
-                                    *sys, target, session::import_atom_v, *uri, before));
+                                    *sys, target, session::import_atom_v, *uri, before, true));
                             } else {
                                 auto new_media_tmp = request_receive<UuidActorVector>(
                                     *sys,

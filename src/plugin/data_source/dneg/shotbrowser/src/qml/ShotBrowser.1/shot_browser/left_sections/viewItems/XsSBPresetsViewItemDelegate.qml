@@ -16,7 +16,6 @@ XsPrimaryButton{ id: thisItem
 
     isActive: isSelected //#TODO
     isActiveIndicatorAtLeft: true
-    activeIndicator.width: (borderWidth*3) * 3
     bgDiv.height: btnHeight - childNodeSpacing
 
     property real childNodeSpacing: 1
@@ -27,7 +26,6 @@ XsPrimaryButton{ id: thisItem
 
     opacity: hiddenRole ? 0.5 : 1.0
 
-    property bool isHovered: hovered
     property bool isSelected: selectionModel.isSelected(presetModelIndex())
     property bool isModified: updateRole != undefined ? updateRole : false
     property bool isRunning: queryRunning && presetModelIndex() == currentPresetIndex
@@ -59,9 +57,6 @@ XsPrimaryButton{ id: thisItem
             }
         }
     }
-    // onDoubleClicked:{
-    //     openEditPopup()
-    // }
 
     function filterModelIndex() {
         return delegateModel.modelIndex(index)
@@ -88,37 +83,14 @@ XsPrimaryButton{ id: thisItem
     }
     Rectangle{ id: activeIndicatorDiv
         anchors.bottom: parent.bottom
-        width: (borderWidth*3) *3
+        width: borderWidth*9
         height: parent.height
         color: isActive? bgColorPressed : "transparent"
     }
     RowLayout{
-        spacing: 0
         anchors.fill: parent
+        spacing: presetItemSpacing
 
-        // Item{
-        //     Layout.preferredWidth: height
-        //     Layout.fillHeight: true
-
-        //     Rectangle{
-        //         width: 1
-        //         height: parent.height/2
-        //         color: XsStyleSheet.secondaryTextColor
-        //     }
-        //     Rectangle{
-        //         anchors.verticalCenter: parent.verticalCenter
-        //         width: parent.width/2
-        //         height: 1
-        //         color: XsStyleSheet.secondaryTextColor
-        //     }
-        //     Rectangle{
-        //        // visible: index < modelCount-1
-        //         y: height
-        //         width: 1
-        //         height: parent.height/2
-        //         color: XsStyleSheet.secondaryTextColor
-        //     }
-        // }
         XsText{ id: nameDiv
             Layout.fillWidth: true
             Layout.minimumWidth: 50
@@ -131,46 +103,57 @@ XsPrimaryButton{ id: thisItem
             leftPadding: busyIndicator.width //25
             elide: Text.ElideRight
         }
-        Item{
-            Layout.preferredWidth: visible? height - presetItemSpacing*2 : 0
+
+        XsSecondaryButton{ id: favBtn
+            Layout.topMargin: presetItemSpacing
+            Layout.bottomMargin: presetItemSpacing
+            Layout.preferredWidth: height
             Layout.fillHeight: true
-            visible: isHovered || editBtn.isActive
 
-            XsSecondaryButton{ id: editBtn
-                width: parent.width
-                height: parent.height - presetItemSpacing*2
-                anchors.verticalCenter: parent.verticalCenter
+            visible: thisItem.hovered || favouriteRole
 
-                imgSrc: "qrc:///shotbrowser_icons/edit.svg"
-                isActive: presetEditPopup.presetIndex == presetModelIndex() && presetEditPopup.visible
-                scale: 0.95
+            showHoverOnActive: favouriteRole && !thisItem.hovered
+            isColoured: favouriteRole && thisItem.hovered
+            imgSrc: "qrc:///shotbrowser_icons/favorite.svg"
+            // isActive: favouriteRole
+            scale: 0.95
+            onClicked: favouriteRole = !favouriteRole
+        }
 
-                onClicked: {
-                    openEditPopup()
-                }
+        XsSecondaryButton{ id: editBtn
+            Layout.topMargin: presetItemSpacing
+            Layout.bottomMargin: presetItemSpacing
+            Layout.preferredWidth: height
+            Layout.fillHeight: true
+
+            visible: thisItem.hovered || editBtn.isActive
+
+            imgSrc: "qrc:///shotbrowser_icons/edit.svg"
+            isActive: presetEditPopup.presetIndex == presetModelIndex() && presetEditPopup.visible
+            scale: 0.95
+
+            onClicked: {
+                openEditPopup()
             }
         }
 
-        Item{ id: moreBtnDiv
-            Layout.preferredWidth: visible ? height - presetItemSpacing*2 : 0
+        XsSecondaryButton{ id: moreBtn
+            Layout.topMargin: presetItemSpacing
+            Layout.bottomMargin: presetItemSpacing
+            Layout.preferredWidth: height
             Layout.fillHeight: true
-            visible: isHovered || moreBtn.isActive || editBtn.isActive
 
-            XsSecondaryButton{ id: moreBtn
-                width: parent.width
-                height: parent.height - presetItemSpacing*2
-                anchors.verticalCenter: parent.verticalCenter
+            visible: thisItem.hovered || moreBtn.isActive || editBtn.isActive
 
-                imgSrc: "qrc:/icons/more_vert.svg"
-                scale: 0.95
-                isActive: presetMenu.visible && presetMenu.presetModelIndex == presetModelIndex()
-                onClicked:{
-                    if(presetMenu.visible) {
-                        presetMenu.visible = false
-                    }
-                    else{
-                        showPresetMenu(0,0)
-                    }
+            imgSrc: "qrc:/icons/more_vert.svg"
+            scale: 0.95
+            isActive: presetMenu.visible && presetMenu.presetModelIndex == presetModelIndex()
+            onClicked:{
+                if(presetMenu.visible) {
+                    presetMenu.visible = false
+                }
+                else{
+                    showPresetMenu(0,0)
                 }
             }
         }

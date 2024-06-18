@@ -50,6 +50,10 @@ DelegateChoice {
             property var hoveredItem: config.hoveredItem
             property var scaleX: config.scaleX
             property var parentLV: config
+            property bool isParentLocked: config.isParentLocked
+            property bool isParentEnabled: config.isParentEnabled
+
+
             property string itemFlag: flagColourRole != "" ? flagColourRole : config.itemFlag
 
             property bool hasMedia: mediaIndex.valid
@@ -87,6 +91,7 @@ DelegateChoice {
 		    	let result = model.search(clipMediaUuidRole, "actorUuidRole", mlist)
 
 		    	if(retry && !result.valid && clipMediaUuidRole && clipMediaUuidRole != "{00000000-0000-0000-0000-000000000000}" && !updateTimer.running) {
+		    		// console.log("FAILED media", clipMediaUuidRole, nameRole)
 		    		updateTimer.start()
 		    	}
 
@@ -170,10 +175,10 @@ DelegateChoice {
 				isHovered: hoveredItem == control || isAdjustingStart || isAdjustingDuration || isBothHovered
 				start: startFrame
 				duration: durationFrame
-				isLocked: lockedRole
+				isLocked: isParentLocked || lockedRole
 				isRolling: control.isRolling
 				showRolling: (isHovered && editMode == "Roll" && !lockedRole)
-				isEnabled: enabledRole && hasMedia
+				isEnabled: isParentEnabled && enabledRole && hasMedia
 				// fps: control.fps
 				name: !isRolling ? nameRole : adjustStart > 0 ? "+" + adjustStart : adjustStart
 				// parentStart: parentStartRole

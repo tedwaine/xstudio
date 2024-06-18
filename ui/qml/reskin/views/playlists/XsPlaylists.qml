@@ -38,6 +38,18 @@ Item{
         anchors.fill: parent
     }
 
+    MouseArea {
+        id: ma
+        anchors.fill: parent
+        propagateComposedEvents: true
+        acceptedButtons: Qt.RightButton
+        onPressed: {
+            if (mouse.buttons == Qt.RightButton) {
+                showContextMenu(mouseX, mouseY, ma)
+            }
+        }
+    }
+
     ColumnLayout {
 
         id: titleDiv
@@ -135,15 +147,10 @@ Item{
 
     function removeSelected() {
 
-        let msg = "Remove the following items: "
-        for (var i = 0; i < sessionSelectionModel.selectedIndexes.length; ++i) {
-            msg = msg + theSessionData.get(sessionSelectionModel.selectedIndexes[i], "nameRole") + ", "
-        }
-
         dialogHelpers.multiChoiceDialog(
             doRemove,
             "Remove Selected Items",
-            msg,
+            "Remove selected items?",
             ["Cancel", "Remove Items"], 
             undefined)
 
@@ -159,8 +166,9 @@ Item{
             perst_indeces.push(helpers.makePersistent(index))
         }
 
+        sessionSelectionModel.clear()
+
         for (var i = 0; i < perst_indeces.length; ++i) {
-            console.log("Removing", theSessionData.get(perst_indeces[i], "nameRole"), perst_indeces[i])
             theSessionData.removeRows(
                 perst_indeces[i].row,
                 1,
@@ -168,6 +176,40 @@ Item{
                 perst_indeces[i].parent
                 )
         }
+        // select the first remaining playlist, if any
+        if (theSessionData.rowCount(theSessionData.index(0,0))) {
+            sessionSelectionModel.setCurrentIndex(
+                theSessionData.index(0,0,theSessionData.index(0,0)),
+                ItemSelectionModel.ClearAndSelect
+                )
+        }
+
+        // This is a little iffy, but we have problems if user deletes the parent
+        // playlist of a timeline that is being viewed because qml tries to
+        // get data from the timeline after it has been deleted .. adding a
+        // 200ms delay gets around this as the 'sessionSelectionModel.clear()'
+        // above should disconnect the UI from the timeline
+        /*callbackTimer.setTimeout(function(perst_indeces) { return function() {
+            for (var i = 0; i < perst_indeces.length; ++i) {
+                theSessionData.removeRows(
+                    perst_indeces[i].row,
+                    1,
+                    false,
+                    perst_indeces[i].parent
+                    )
+            }
+            // select the first remaining playlist, if any
+            if (theSessionData.rowCount(theSessionData.index(0,0))) {
+                sessionSelectionModel.setCurrentIndex(
+                    theSessionData.index(0,0,theSessionData.index(0,0)),
+                    ItemSelectionModel.ClearAndSelect
+                    )
+            }
+        }}(perst_indeces), 200);*/
+
+
+        /**/
+
     }
 
     function showContextMenu(mx, my, parentWidget) {
@@ -182,16 +224,5 @@ Item{
             my);
     }
 
-    MouseArea {
-        id: ma
-        anchors.fill: parent
-        propagateComposedEvents: true
-        acceptedButtons: Qt.RightButton
-        onPressed: {
-            if (mouse.buttons == Qt.RightButton) {
-                showContextMenu(mouseX, mouseY, ma)
-            }
-        }
-    }
 
 }

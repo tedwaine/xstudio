@@ -299,7 +299,8 @@ bool SessionModel::removeTimelineItems(
 bool SessionModel::replaceTimelineTrack(const QModelIndex &src, const QModelIndex &dst) {
     auto result = false;
 
-    if (src.isValid() and dst.isValid() and src != dst) {
+    if (src.isValid() and dst.isValid() and src != dst and
+        not dst.data(SessionModel::Roles::lockedRole).toBool()) {
         auto src_type = StdFromQString(src.data(typeRole).toString());
         auto dst_type = StdFromQString(dst.data(typeRole).toString());
         if ((src_type == "Audio Track" or src_type == "Video Track") and
@@ -332,11 +333,16 @@ bool SessionModel::replaceTimelineTrack(const QModelIndex &src, const QModelInde
 // should we try and support multple clips on multiple tracks ?
 // should this really be done here or in the timeline actor...?
 QModelIndexList SessionModel::duplicateTimelineClips(
-    const QModelIndexList &indexes, const QString &trackSuffix, const bool append) {
+    const QModelIndexList &indexes,
+    const QString &qTrackName,
+    const QString &qTrackSuffix,
+    const bool append) {
     // we only handle clips
     // order clips by row and sort under their tracks.
     auto result      = QModelIndexList();
     auto track_clips = std::map<QModelIndex, std::vector<QModelIndex>>();
+    auto trackName   = StdFromQString(qTrackName);
+    auto trackSuffix = StdFromQString(qTrackSuffix);
 
     auto expanded_indexed = QModelIndexList();
 
@@ -387,6 +393,13 @@ QModelIndexList SessionModel::duplicateTimelineClips(
 
         auto track_type = StdFromQString(i.first.data(typeRole).toString());
         auto track_name = StdFromQString(i.first.data(nameRole).toString());
+
+        if (not trackName.empty())
+            track_name = trackName;
+
+        if (not trackSuffix.empty())
+            track_name += " " + trackSuffix;
+
         QModelIndex new_track_index;
 
         auto new_row = track_type == "Video Track"
@@ -399,7 +412,7 @@ QModelIndexList SessionModel::duplicateTimelineClips(
             new_row,
             1,
             QStringFromStd(track_type),
-            QStringFromStd(track_name + " " + StdFromQString(trackSuffix)),
+            QStringFromStd(track_name),
             i.first.parent())[0];
 
         // new track created, now populate with gaps and duplicated clips.
@@ -475,6 +488,9 @@ bool SessionModel::removeTimelineItems(const QModelIndexList &indexes) {
 
         for (const auto &i : sorted_indexes) {
             if (i.isValid()) {
+                auto locked = i.data(lockedRole).toBool();
+                if (locked)
+                    continue;
                 auto name         = StdFromQString(i.data(nameRole).toString());
                 auto type         = StdFromQString(i.data(typeRole).toString());
                 auto actor        = actorFromQString(system(), i.data(actorRole).toString());
@@ -483,6 +499,9 @@ bool SessionModel::removeTimelineItems(const QModelIndexList &indexes) {
                 // spdlog::warn("REMOVE {} {} {} {}", type, to_string(actor), i.row(), name);
 
                 if (parent_index.isValid()) {
+                    locked = parent_index.data(lockedRole).toBool();
+                    if (locked)
+                        continue;
 
                     caf::scoped_actor sys(system());
                     auto pactor =
@@ -1301,19 +1320,31 @@ QFuture<QList<QUuid>> SessionModel::handleTimelineIdDropFuture(
 
 
 QModelIndex
-SessionModel::bakeTimelineItems(const QModelIndexList &indexes, const QString &trackName) {
+SessionModel::bakeTimelineItems(const QModelIndexList &indexes, const QString &qtrackName) {
     auto result = QModelIndex();
 
     // indexes should contain tracks/clips
     if (not indexes.empty()) {
-        auto tindex  = getTimelineIndex(indexes.at(0));
-        auto sindex  = index(0, 0, index(2, 0, tindex));
-        auto trindex = getTimelineTrackIndex(indexes.at(0));
-        auto rcount  = rowCount(sindex);
+        auto tindex    = getTimelineIndex(indexes.at(0));
+        auto sindex    = index(0, 0, index(2, 0, tindex));
+        auto trindex   = getTimelineTrackIndex(indexes.at(0));
+        auto rcount    = rowCount(sindex);
+        auto trackName = StdFromQString(qtrackName);
 
         if (tindex.isValid() and sindex.isValid()) {
             auto timeline_actor = actorFromQString(system(), tindex.data(actorRole).toString());
             auto stack_actor    = actorFromQString(system(), sindex.data(actorRole).toString());
+
+            if (trackName.empty()) {
+                auto row = 0;
+                for (const auto &i : indexes) {
+                    auto trackindex = getTimelineTrackIndex(i);
+                    if (trackindex.isValid() and trackindex.row() >= row) {
+                        row       = trackindex.row();
+                        trackName = StdFromQString(trackindex.data(nameRole).toString());
+                    }
+                }
+            }
 
             if (timeline_actor and stack_actor) {
                 scoped_actor sys{system()};
@@ -1326,6 +1357,8 @@ SessionModel::bakeTimelineItems(const QModelIndexList &indexes, const QString &t
                 try {
                     auto ntrack = request_receive<UuidActor>(
                         *sys, timeline_actor, timeline::bake_atom_v, uuids);
+                    if (not trackName.empty())
+                        anon_send(ntrack.actor(), timeline::item_name_atom_v, trackName);
 
                     auto row = trindex.data(typeRole).toString() == "Video Track"
                                    ? trindex.row()

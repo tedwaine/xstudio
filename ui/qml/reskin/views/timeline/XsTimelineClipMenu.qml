@@ -14,10 +14,10 @@ XsPopupMenu {
 
     property var debugSetMenuPathPosition: debug_menu.setMenuPathPosition
 
-    property var currentClipIndex: timelineSelection.selectedIndexes.length ? timelineSelection.selectedIndexes[0] : null
+    property var currentClipIndex: timelineSelection.selectedIndexes.length ? helpers.makePersistent(timelineSelection.selectedIndexes[0]) : null
 
     onCurrentClipIndexChanged: {
-        if(currentClipIndex) {
+        if(currentClipIndex && currentClipIndex.valid) {
             let m = currentClipIndex.model
             disabledClip.isChecked = !m.get(currentClipIndex, "enabledRole")
             lockedClip.isChecked= m.get(currentClipIndex, "lockedRole")
@@ -156,7 +156,7 @@ XsPopupMenu {
         menuPath: ""
         menuItemPosition: 5
         menuModelName: timelineMenu.menu_model_name
-        onActivated: theSessionData.bakeTimelineItems(timelineSelection.selectedIndexes, "Flatten Track")
+        onActivated: theSessionData.bakeTimelineItems(timelineSelection.selectedIndexes)
         panelContext: timelineMenu.panelContext
     }
 

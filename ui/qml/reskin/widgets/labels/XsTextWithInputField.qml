@@ -33,6 +33,7 @@ Item{ id: widget
             Layout.fillWidth: true
             Layout.fillHeight: true
             text: ""
+            bgColor: palette.base
             
             onEditingFinished: editingCompleted()
         }

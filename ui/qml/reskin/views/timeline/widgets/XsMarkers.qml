@@ -32,20 +32,23 @@ Rectangle {
 
             XsToolTip {
                 text: nameRole + "\n\n" + JSON.stringify(commentRole, null, 2)
-                visible: hover.hovered
+                visible: hover.hovered && !theTimeline.timelineMarkerMenu.visible
                 width: 200
                 height: 200
+                delay: 750
+                x: -width/2
+                y: parent.height
+
             }
 
             HoverHandler {
                 id: hover
                 cursorShape: Qt.PointingHandCursor
-                // enabled: theTimeline.timelineMarkerMenu.visible
             }
 
             TapHandler {
                 acceptedButtons: Qt.RightButton
-                onTapped: theTimeline.showMarkerMenu(x, y, delegateModel.modelIndex(index))
+                onTapped: theTimeline.showMarkerMenu(0, 0, delegateModel.modelIndex(index), shape)
             }
 
             ShapePath {

@@ -189,7 +189,7 @@ namespace plugin {
         caf::actor_addr playhead_media_events_group_;
         caf::actor bookmark_manager_;
 
-        module::QmlCodeAttribute *viewport_overlay_qml_code_ = nullptr;
+        module::BooleanAttribute *viewport_overlay_qml_code_ = nullptr;
     };
 
 

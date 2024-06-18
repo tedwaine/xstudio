@@ -357,7 +357,8 @@ namespace module {
             const float button_position,
             const bool enabled,
             const std::string &left_right_dockable_widget_qml,
-            const std::string &top_bottom_dockable_widget_qml);
+            const std::string &top_bottom_dockable_widget_qml,
+            const utility::Uuid toggle_widget_visible_hotkey=utility::Uuid());
 
         std::set<utility::Uuid> dock_widget_attributes_;
 

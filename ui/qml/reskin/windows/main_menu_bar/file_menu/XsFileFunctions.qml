@@ -22,7 +22,6 @@ Item {
     }
 
     function modSaveWarning(incoming) {
-        console.log("sessionPath", sessionPath)
         if (sessionPath != undefined) {
             return incoming.replace("This Session has been modified", "This Session (" + sessionPath + ") has been modified")
         }
@@ -56,6 +55,11 @@ Item {
     function saveSelectionAs(path, folder, chaserFunc) {
 
         if (path == false) return; // save was cancelled
+        
+        var spath = "" + path
+        if (!spath.endsWith(".xst") || !spath.endsWith(".xsz")) {
+            path = path + ".xst"
+        }
 
         Future.promise(theSessionData.saveFuture(path, sessionSelectionModel.selectedIndexes)).then(function(result){
             if (result == false) {
@@ -73,6 +77,11 @@ Item {
     function saveSessionAs(path, folder, chaserFunc) {
 
         if (path == false) return; // save was cancelled
+
+        var spath = "" + path
+        if (!spath.endsWith(".xst") || !spath.endsWith(".xsz")) {
+            path = path + ".xst"
+        }
 
         Future.promise(theSessionData.saveFuture(path)).then(function(result) {
             if (result == false) {
@@ -435,7 +444,6 @@ Item {
     }
     property alias sessionCompression: session_compression.value
 
-    property var sessionPath: sessionProperties.values.pathRole
     property var sessionMTime: sessionProperties.values.mtimeRole
     property var sessionPathNative: sessionPath ? helpers.pathFromURL(sessionPath) : ""
 

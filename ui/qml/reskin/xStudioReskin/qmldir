@@ -21,16 +21,7 @@ XsPanelContainer          1.0 ../layout_framework/XsTestWindow.qml
 XsViewContainer           1.0 ../layout_framework/XsViewContainer.qml
 XsPanelsMenuButton        1.0 ../layout_framework/XsPanelsMenuButton.qml
 
-XsMedialist               1.0 ../views/media/XsMedialist.qml
-XsMediaHeader             1.0 ../views/media/XsMediaHeader.qml
-XsMediaItems              1.0 ../views/media/XsMediaItems.qml
-XsMediaItemDelegate       1.0 ../views/media/delegates/XsMediaItemDelegate.qml
-XsMediaHeaderColumn       1.0 ../views/media/delegates/XsMediaHeaderColumn.qml
-
-XsMediaFlagIndicator      1.0 ../views/media/data_indicators/XsMediaFlagIndicator.qml
-XsMediaNotesIndicator     1.0 ../views/media/data_indicators/XsMediaNotesIndicator.qml
-XsMediaTextItem           1.0 ../views/media/data_indicators/XsMediaTextItem.qml
-XsMediaThumbnailImage     1.0 ../views/media/data_indicators/XsMediaThumbnailImage.qml
+XsMedialist               1.0 ../views/media/XsMediaPanel.qml
 
 XsPlaylistsView           1.0 ../views/playlists/XsPlaylists.qml
 XsPlaylistItems           1.0 ../views/playlists/XsPlaylistItems.qml
@@ -68,19 +59,9 @@ XsElideLabel              1.0 ../views/timeline/widgets/XsElideLabel.qml
 
 XsViewport                1.0 ../views/viewport/XsViewport.qml
 XsViewportPanel           1.0 ../views/viewport/XsViewportPanel.qml
-XsViewportActionBar       1.0 ../views/viewport/XsViewportActionBar.qml
-XsViewportTransportBar    1.0 ../views/viewport/XsViewportTransportBar.qml
-XsViewportToolBar         1.0 ../views/viewport/XsViewportToolBar.qml
-XsViewportInfoBar         1.0 ../views/viewport/XsViewportInfoBar.qml
-XsViewportHUD             1.0 ../views/viewport/XsViewportHUD.qml
-XsViewerAnyMenuButton     1.0 ../views/viewport/widgets/XsViewerAnyMenuButton.qml
-XsViewerMenuButton        1.0 ../views/viewport/widgets/XsViewerMenuButton.qml
-XsViewerSeekEditButton    1.0 ../views/viewport/widgets/XsViewerSeekEditButton.qml
-XsViewerToggleButton      1.0 ../views/viewport/widgets/XsViewerToggleButton.qml
-XsViewerSourceSelectorButton 1.0 ../views/viewport/widgets/XsViewerSourceSelectorButton.qml
-XsViewerHUDButton         1.0 ../views/viewport/widgets/XsViewerHUDButton.qml
-XsViewerToolbarButtonBase 1.0 ../views/viewport/widgets/XsViewerToolbarButtonBase.qml
-XsViewerToolbarValueScrubber 1.0 ../views/viewport/widgets/XsViewerToolbarValueScrubber.qml
+XsViewerMenuButton        1.0 ../views/viewport/widgets/toolbar/XsViewerMenuButton.qml
+XsViewerSourceSelectorButton 1.0 ../views/viewport/widgets/toolbar/XsViewerSourceSelectorButton.qml
+XsViewerHUDButton         1.0 ../views/viewport/widgets/toolbar/XsViewerHUDButton.qml
 XsLeftRightDockedTools    1.0 ../views/viewport/dockedTools/XsLeftRightDockedTools.qml
 XsTopBottomDockedTools 1.0 ../views/viewport/dockedTools/XsTopBottomDockedTools.qml
 
@@ -93,7 +74,6 @@ XsNoteSection2            1.0 ../views/notes/sections/XsNoteSection2.qml
 XsNoteSection3            1.0 ../views/notes/sections/XsNoteSection3.qml
 
 XsSearchBar               1.0 ../widgets/bars_and_tabs/XsSearchBar.qml
-XsTab                     1.0 ../widgets/bars_and_tabs/XsTab.qml
 XsGradientRectangle       1.0 ../widgets/bars_and_tabs/XsGradientRectangle.qml
 
 XsNavButton               1.0 ../widgets/buttons/XsNavButton.qml
@@ -125,6 +105,7 @@ XsOpenSessionDialog       1.0 ../widgets/dialogs/XsOpenSessionDialog.qml
 XsSnapshotDialog          1.0 ../widgets/dialogs/XsSnapshotDialog.qml
 XsStringRequestDialog     1.0 ../widgets/dialogs/XsStringRequestDialog.qml
 XsWindow                  1.0 ../widgets/dialogs/XsWindow.qml
+XsPreferencesDialog       1.0 ../widgets/dialogs/preferences/XsPreferencesDialog.qml
 
 XsBusyIndicator           1.0 ../widgets/indicators/XsBusyIndicator.qml
 XsProgressBar             1.0 ../widgets/indicators/XsProgressBar.qml

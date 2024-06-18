@@ -30,7 +30,7 @@ XsGradientRectangle {
     property color mediaFlagColour: "transparent"
     // readonly property bool extraDetail: isHovered && height > 60
 
-    opacity: isEnabled ? (isLocked ? 0.7 : 1.0) : 0.3
+    opacity: isHovered ? 1.0 : isEnabled ? (isLocked ? 0.6 : 1.0) : 0.3
 
 	border.width: 1
     border.color: isHovered ? palette.highlight : Qt.darker(realColor, 0.8)

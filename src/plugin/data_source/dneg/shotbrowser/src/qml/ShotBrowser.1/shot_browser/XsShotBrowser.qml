@@ -42,6 +42,7 @@ Item{
     property var currentPresetIndex: ShotBrowserEngine.presetsModel.index(-1,-1)
 
     property bool sequenceTreeLiveLink: false
+    property bool sequenceTreeShowPresets: true
 
     property alias sortByNaturalOrder: resultsFilteredModel.sortByNaturalOrder
     property alias sortByCreationDate: resultsFilteredModel.sortByCreationDate
@@ -181,23 +182,23 @@ Item{
         index: panels_layout_model_index
         role: "user_data"
 
-        property int treeWidth: 200
-        property int presetWidth: 200
+        property int leftPanelWidth: 200
+        property int rightPanelWidth: 200
         property string category: "Tree"
         property string project: "NSFL"
 
-        onTreeWidthChanged: {
+        onLeftPanelWidthChanged: {
             let i = createDefaults()
-            if(i["tree_width"] != treeWidth) {
-                i["tree_width"] = treeWidth
+            if(i["left_panel_width"] != leftPanelWidth) {
+                i["left_panel_width"] = leftPanelWidth
                 value = i
             }
         }
 
-        onPresetWidthChanged: {
+        onRightPanelWidthChanged: {
             let i = createDefaults()
-            if(i["preset_width"] != presetWidth) {
-                i["preset_width"] = presetWidth
+            if(i["right_panel_width"] != rightPanelWidth) {
+                i["right_panel_width"] = rightPanelWidth
                 value = i
             }
         }
@@ -228,8 +229,8 @@ Item{
 
         function createDefaults() {
             let i = {}
-            i["tree_width"] = value != undefined && value.hasOwnProperty("tree_width") ? value["tree_width"] : 200
-            i["preset_width"] = value != undefined && value.hasOwnProperty("preset_width") ? value["preset_width"] : 200
+            i["left_panel_width"] = value != undefined && value.hasOwnProperty("left_panel_width") ? value["left_panel_width"] : 200
+            i["right_panel_width"] = value != undefined && value.hasOwnProperty("right_panel_width") ? value["right_panel_width"] : 200
             i["category"] = value != undefined && value.hasOwnProperty("category") ? value["category"] : "Tree"
             i["project"] = value != undefined && value.hasOwnProperty("project") ? value["project"] : "NSFL"
             return i
@@ -239,10 +240,10 @@ Item{
 
         function updateFromValue() {
             if(value) {
-                if(value["preset_width"] && presetWidth != value["preset_width"])
-                    presetWidth = value["preset_width"]
-                if(value["tree_width"] && treeWidth != value["tree_width"])
-                    treeWidth = value["tree_width"]
+                if(value["left_panel_width"] && leftPanelWidth != value["left_panel_width"])
+                    leftPanelWidth = value["left_panel_width"]
+                if(value["right_panel_width"] && rightPanelWidth != value["right_panel_width"])
+                    rightPanelWidth = value["right_panel_width"]
                 if(value["category"] && category != value["category"])
                     category = value["category"]
                 if(value["project"] && project != value["project"])
@@ -320,6 +321,73 @@ Item{
         popupSelectionModel: resultsSelectionModel
     }
 
+    ShotBrowserPresetFilterModel {
+        id: treeModel
+        showHidden: false
+        // onlyShowFavourite: true
+        filterGroupUserData: "tree"
+        sourceModel: ShotBrowserEngine.presetsModel
+    }
+
+    ShotBrowserPresetFilterModel {
+        id: treeButtonModel
+        showHidden: false
+        onlyShowFavourite: true
+        onlyShowPresets: true
+        ignoreSpecialGroups: true
+        filterGroupUserData: "tree"
+        sourceModel: buttonModelBase
+    }
+
+    ShotBrowserPresetFilterModel {
+        id: recentButtonModel
+        showHidden: false
+        onlyShowFavourite: true
+        onlyShowPresets: true
+        ignoreSpecialGroups: true
+        filterGroupUserData: "recent"
+        sourceModel: buttonModelBase
+    }
+
+    ShotBrowserPresetFilterModel {
+        id: menuButtonModel
+        showHidden: false
+        onlyShowFavourite: true
+        onlyShowPresets: true
+        ignoreSpecialGroups: true
+        filterGroupUserData: "menu"
+        sourceModel: buttonModelBase
+    }
+
+    QTreeModelToTableModel {
+        id: buttonModelBase
+        model: ShotBrowserEngine.presetsModel
+        onCountChanged: if(count) {
+            for(let i=0;i<count;i++) {
+                if(!isExpanded(i) && depthAtRow(i) < 2) {
+
+                    expandRow(i)
+                }
+            }
+        }
+    }
+
+    ShotBrowserPresetFilterModel {
+        id: menuModel
+        showHidden: false
+        // onlyShowFavourite: true
+        filterGroupUserData: "menus"
+        sourceModel: ShotBrowserEngine.presetsModel
+    }
+
+    ShotBrowserPresetFilterModel {
+        id: recentModel
+        showHidden: false
+        // onlyShowFavourite: true
+        filterGroupUserData: "recent"
+        sourceModel: ShotBrowserEngine.presetsModel
+    }
+
     onProjectIndexChanged: {
         if(projectIndex && projectIndex.valid) {
             let m = ShotBrowserEngine.presetsModel.termModel("Project")
@@ -336,21 +404,21 @@ Item{
         }
     }
 
-    onCurrentCategoryChanged: leftSection.SplitView.preferredWidth = currentCategory == "Tree" ? prefs.treeWidth + prefs.presetWidth : prefs.presetWidth
+    // onCurrentCategoryChanged: leftSection.SplitView.preferredWidth = currentCategory == "Tree" && sequenceTreeShowPresets ? prefs.leftPanelWidth + prefs.rightPanelWidth : prefs.leftPanelWidth
 
     XsSplitView {
         id: main_split
         anchors.fill: parent
 
         XsSBLeftSection{ id: leftSection
-            SplitView.preferredWidth: currentCategory == "Tree" ? prefs.treeWidth + prefs.presetWidth : prefs.presetWidth
+            SplitView.preferredWidth: currentCategory == "Tree" && sequenceTreeShowPresets ? prefs.leftPanelWidth + prefs.rightPanelWidth : prefs.leftPanelWidth
             SplitView.fillHeight: true
             onWidthChanged: {
                 if(SplitView.view.resizing) {
-                    if(currentCategory == "Tree")
-                        prefs.presetWidth = width - prefs.treeWidth
+                    if(currentCategory == "Tree" && sequenceTreeShowPresets)
+                        prefs.rightPanelWidth = width - prefs.leftPanelWidth
                     else
-                        prefs.presetWidth = width
+                        prefs.leftPanelWidth = width
                 }
             }
         }

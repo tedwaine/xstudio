@@ -174,12 +174,7 @@ namespace ui {
             [[nodiscard]] const Imath::M44f &fit_mode_matrix() const {
                 return fit_mode_matrix_;
             }
-            [[nodiscard]] const std::string &frame_rate_expression() const {
-                return frame_rate_expr_;
-            }
-            [[nodiscard]] bool frame_out_of_range() const { return frame_out_of_range_; }
-            [[nodiscard]] bool no_alpha_channel() const { return no_alpha_channel_; }
-            [[nodiscard]] int on_screen_frame() const { return on_screen_frame_; }
+
             [[nodiscard]] bool playing() const { return playing_; }
             [[nodiscard]] const std::string &pixel_info_string() const {
                 return pixel_info_string_;
@@ -234,7 +229,9 @@ namespace ui {
              *  @brief Get the bounding box, in the viewport area, of the current image
              *
              */
-            Imath::Box2f image_bounds_in_viewport_pixels() const;
+            Imath::Box2f image_bounds_in_viewport_pixels() const {
+                return image_bounds_in_viewport_pixels_;
+            }
 
             /**
              *  @brief Get the resolution of the current image
@@ -250,20 +247,7 @@ namespace ui {
 
             caf::message_handler message_handler() override;
 
-            enum ChangeCallbackId {
-                Redraw,
-                ZoomChanged,
-                ScaleChanged,
-                FitModeChanged,
-                MirrorModeChanged,
-                FrameRateChanged,
-                OutOfRangeChanged,
-                NoAlphaChannelChanged,
-                OnScreenFrameChanged,
-                ExposureChanged,
-                TranslationChanged,
-                PlayheadChanged
-            };
+            enum ChangeCallbackId { Redraw, TranslationChanged, PlayheadChanged };
 
             typedef std::function<void(ChangeCallbackId)> ChangeCallback;
 
@@ -361,15 +345,13 @@ namespace ui {
                 const int in_pt  = -1,
                 const int out_pt = -1);
 
+            Imath::Box2f calc_image_bounds_in_viewport_pixels() const;
+
             utility::JsonStore settings_;
 
             typedef std::function<bool(const PointerEvent &pointer_event)> PointerInteractFunc;
             std::map<Signature, PointerInteractFunc> pointer_event_handlers_;
 
-            bool frame_out_of_range_ = {false};
-            bool no_alpha_channel_   = {false};
-            int on_screen_frame_;
-            std::string frame_rate_expr_   = {"--/--"};
             std::string pixel_info_string_ = {"--"};
             media_reader::ImageBufPtr on_screen_frame_buffer_;
             media_reader::ImageBufPtr about_to_go_on_screen_frame_buffer_;
@@ -400,6 +382,7 @@ namespace ui {
             bool done_init_ = {false};
             bool playing_   = {false};
             std::set<int> held_keys_;
+            Imath::Box2f image_bounds_in_viewport_pixels_;
 
             std::map<utility::Uuid, caf::actor> overlay_plugin_instances_;
             std::map<utility::Uuid, caf::actor> hud_plugin_instances_;
@@ -414,6 +397,7 @@ namespace ui {
             module::StringChoiceAttribute *mouse_wheel_behaviour_;
             module::BooleanAttribute *hud_toggle_;
             module::StringChoiceAttribute *hud_elements_;
+            module::StringAttribute *frame_rate_expr_;
 
             utility::Uuid zoom_hotkey_;
             utility::Uuid pan_hotkey_;

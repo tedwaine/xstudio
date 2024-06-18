@@ -68,8 +68,6 @@ ApplicationWindow {
     // the pop-up. This convenience function makes that easy ... it also makes
     // sure menus don't get placed so they go outside the application window
     function repositionPopupMenu(menu, refItem, refX, refY, altRightEdge) {
-
-        if (menu.visible) return
         
         var global_pos = refItem.mapToItem(
             appWindow.contentItem,

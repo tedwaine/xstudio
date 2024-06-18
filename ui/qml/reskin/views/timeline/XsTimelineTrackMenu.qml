@@ -74,7 +74,7 @@ XsPopupMenu {
         menuItemPosition: 6
         menuModelName: timelineMenu.menu_model_name
         onActivated: {
-            theSessionData.bakeTimelineItems(timelineSelection.selectedIndexes, "Flatten Track")
+            theSessionData.bakeTimelineItems(timelineSelection.selectedIndexes)
             theTimeline.deleteItems(timelineSelection.selectedIndexes)
         }
         panelContext: timelineMenu.panelContext

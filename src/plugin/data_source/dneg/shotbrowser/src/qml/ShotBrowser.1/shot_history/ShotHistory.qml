@@ -95,11 +95,10 @@ Item{
             }
         }
     }
-
     function getScopeIndex(scope_name) {
         let m = ShotBrowserEngine.presetsModel
         let p = m.searchRecursive("c5ce1db6-dac0-4481-a42b-202e637ac819", "idRole", ShotBrowserEngine.presetsModel.index(-1, -1), 0, 1)
-        return m.searchRecursive(scope_name, "nameRole", p, 0, 1)
+        return m.searchRecursive(scope_name, "nameRole", p, 0, 0)
     }
 
     XsPreference {

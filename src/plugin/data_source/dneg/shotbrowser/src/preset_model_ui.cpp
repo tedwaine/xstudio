@@ -24,6 +24,9 @@ ShotBrowserPresetModel::ShotBrowserPresetModel(QueryEngine &query_engine, QObjec
     setRoleNames(std::vector<std::string>(
         {"enabledRole",
          "entityRole",
+         "favouriteRole",
+         "groupIdRole",
+         "groupUserDataRole",
          "hiddenRole",
          "livelinkRole",
          "nameRole",
@@ -31,7 +34,7 @@ ShotBrowserPresetModel::ShotBrowserPresetModel(QueryEngine &query_engine, QObjec
          "termRole",
          "typeRole",
          "updateRole",
-         "userdataRole",
+         "userDataRole",
          "valueRole"}));
 
     term_lists_ = new QQmlPropertyMap(this);
@@ -187,8 +190,28 @@ QModelIndex ShotBrowserPresetModel::duplicate(const QModelIndex &index) {
     return result;
 }
 
+QModelIndex ShotBrowserPresetModel::getPresetGroup(const QModelIndex &index) const {
+    const auto group = QVariant::fromValue(QString("group"));
+    auto result      = QModelIndex();
+    auto i           = index;
+
+    while (i.isValid()) {
+        if (i.data(typeRole) == group) {
+            result = i;
+            break;
+        }
+        i = i.parent();
+    }
+
+    return result;
+}
+
+
 QVariant ShotBrowserPresetModel::data(const QModelIndex &index, int role) const {
     auto result = QVariant();
+
+    if (not index.isValid())
+        return result;
 
     try {
         const auto &j = indexToData(index);
@@ -212,6 +235,11 @@ QVariant ShotBrowserPresetModel::data(const QModelIndex &index, int role) const 
                 result = j.at("enabled").get<bool>();
                 break;
 
+            case Roles::favouriteRole:
+                if (j.count("favourite"))
+                    result = j.at("favourite").get<bool>();
+                break;
+
             case Roles::hiddenRole:
                 if (j.count("hidden") and not j.at("hidden").is_null())
                     result = j.at("hidden").get<bool>();
@@ -224,8 +252,22 @@ QVariant ShotBrowserPresetModel::data(const QModelIndex &index, int role) const 
                     result = j.at("update").get<bool>();
                 break;
 
-            case Roles::userdataRole:
+            case Roles::userDataRole:
                 result = QString::fromStdString(j.value("userdata", ""));
+                break;
+
+            case Roles::groupIdRole:
+                if (j.at("type") == "group")
+                    result = JSONTreeModel::data(index, JSONTreeModel::Roles::idRole);
+                else
+                    result = getPresetGroup(index).data(JSONTreeModel::Roles::idRole);
+                break;
+
+            case Roles::groupUserDataRole:
+                if (j.at("type") == "group")
+                    result = QString::fromStdString(j.value("userdata", ""));
+                else
+                    result = getPresetGroup(index).data(role);
                 break;
 
             case Roles::termRole:
@@ -320,12 +362,17 @@ bool ShotBrowserPresetModel::setData(
     try {
         // nlohmann::json &j = indexToData(index);
         switch (role) {
+
         case Roles::enabledRole:
             result         = baseSetData(index, value, "enabled", QVector<int>({role}), true);
             preset_changed = true;
             // if changed mark update field.
             if (result)
                 markedAsUpdated(index.parent());
+            break;
+
+        case Roles::favouriteRole:
+            result = baseSetData(index, value, "favourite", QVector<int>({role}), true);
             break;
 
         case Roles::hiddenRole:
@@ -372,7 +419,7 @@ bool ShotBrowserPresetModel::setData(
                 markedAsUpdated(index.parent());
             break;
 
-        case Roles::userdataRole:
+        case Roles::userDataRole:
             result = baseSetData(index, value, "userdata", QVector<int>({role}), true);
             break;
 
@@ -659,47 +706,91 @@ void ShotBrowserPresetFilterModel::setShowHidden(const bool value) {
     if (value != show_hidden_) {
         show_hidden_ = value;
         emit showHiddenChanged();
-        invalidate();
+        invalidateFilter();
     }
 }
 
-void ShotBrowserPresetFilterModel::setFilter(const QString &filter) {
-    filter_ = QVariant::fromValue(filter);
+void ShotBrowserPresetFilterModel::setOnlyShowFavourite(const bool value) {
+    if (value != only_show_favourite_) {
+        only_show_favourite_ = value;
+        emit onlyShowFavouriteChanged();
+        invalidateFilter();
+    }
+}
+
+void ShotBrowserPresetFilterModel::setOnlyShowPresets(const bool value) {
+    if (value != only_show_presets_) {
+        only_show_presets_ = value;
+        emit onlyShowPresetsChanged();
+        invalidateFilter();
+    }
+}
+
+void ShotBrowserPresetFilterModel::setIgnoreSpecialGroups(const bool value) {
+    if (value != ignore_special_groups_) {
+        ignore_special_groups_ = value;
+        emit ignoreSpecialGroupsChanged();
+        invalidateFilter();
+    }
+}
+
+void ShotBrowserPresetFilterModel::setFilterGroupUserData(const QVariant &filter) {
+    if (filter_group_user_data_ != filter) {
+        filter_group_user_data_ = filter;
+        emit filterGroupUserDataChanged();
+        invalidateFilter();
+    }
 }
 
 void ShotBrowserPresetFilterModel::setFilterUserData(const QVariant &filter) {
     if (filter != filter_user_data_) {
         filter_user_data_ = filter;
         emit filterUserDataChanged();
-        invalidate();
+        invalidateFilter();
     }
 }
 
 bool ShotBrowserPresetFilterModel::filterAcceptsRow(
     int source_row, const QModelIndex &source_parent) const {
-    const static auto grp    = QVariant::fromValue(QString("group"));
-    const static auto preset = QVariant::fromValue(QString("preset"));
-    const static auto hidden = QVariant::fromValue(true);
+    const static auto grp           = QVariant::fromValue(QString("group"));
+    const static auto preset        = QVariant::fromValue(QString("preset"));
+    const static auto presets       = QVariant::fromValue(QString("presets"));
+    const static auto hidden        = QVariant::fromValue(true);
+    const static auto not_favourite = QVariant::fromValue(false);
 
     auto accept = true;
 
     auto source_index = sourceModel()->index(source_row, 0, source_parent);
 
     if (source_index.isValid()) {
-        auto type = source_index.data(ShotBrowserPresetModel::Roles::typeRole);
-        // spdlog::warn("{}", mapFromValue(type).dump(2));
+        auto type     = source_index.data(ShotBrowserPresetModel::Roles::typeRole);
+        auto favoured = QVariant();
+        if (only_show_favourite_)
+            favoured = source_index.data(ShotBrowserPresetModel::Roles::favouriteRole);
 
-        if (type == grp and
-            source_index.data(ShotBrowserPresetModel::Roles::userdataRole) != filter_)
+        if (only_show_presets_ and type != preset)
             accept = false;
-
-        if (not show_hidden_ and
+        else if (
+            not filter_group_user_data_.isNull() and
+            not source_index.data(ShotBrowserPresetModel::Roles::groupUserDataRole).isNull() and
+            source_index.data(ShotBrowserPresetModel::Roles::groupUserDataRole) !=
+                filter_group_user_data_)
+            accept = false;
+        else if (
+            not show_hidden_ and
             source_index.data(ShotBrowserPresetModel::Roles::hiddenRole) == hidden)
             accept = false;
-
-        if (not filter_user_data_.isNull() and type == preset and
-            source_index.data(ShotBrowserPresetModel::Roles::userdataRole).toString() !=
+        else if (only_show_favourite_ and not favoured.isNull() and favoured == not_favourite)
+            accept = false;
+        else if (
+            not filter_user_data_.isNull() and type == preset and
+            source_index.data(ShotBrowserPresetModel::Roles::userDataRole).toString() !=
                 filter_user_data_.toString())
+            accept = false;
+        else if (
+            ignore_special_groups_ and
+            special_groups_.count(UuidFromQUuid(
+                source_index.data(ShotBrowserPresetModel::Roles::groupIdRole).toUuid())))
             accept = false;
     }
 

@@ -180,10 +180,17 @@ void PlayheadBase::add_attributes() {
 
     // this attr tracks the global 'Audio Delay Millisecs' preference
     audio_delay_millisecs_ =
-        add_integer_attribute("Audio Delay Millisecs", "Audio Delay Millisecs", 0, -1000, 1000);
+        add_integer_attribute("Audio Delay Millisecs", "Aud. Delay", 0, -1000, 1000);
     audio_delay_millisecs_->set_role_data(
         module::Attribute::PreferencePath, "/core/audio/audio_latency_millisecs");
+    audio_delay_millisecs_->set_role_data(module::Attribute::ToolbarPosition, 20.0f);
+    audio_delay_millisecs_->set_role_data(module::Attribute::DefaultValue, 0);
     key_playhead_index_ = add_integer_attribute("Key Playhead Index", "Key Playhead Index", 0);
+
+    click_to_toggle_play_ =
+        add_boolean_attribute("Click to Toggle Play", "Play on Click", false);
+    click_to_toggle_play_->set_role_data(
+        module::Attribute::PreferencePath, "/ui/qml/click_to_toggle_play");
 }
 
 
@@ -609,6 +616,7 @@ bool PlayheadBase::pointer_event(const ui::PointerEvent &e) {
     if (e.type() == ui::Signature::EventType::ButtonDown &&
         e.buttons() == ui::Signature::Button::Left) {
 
+        click_timepoint_                = utility::clock::now();
         drag_start_x_                   = e.x();
         drag_start_playhead_position_   = position_;
         used                            = true;
@@ -641,10 +649,21 @@ bool PlayheadBase::pointer_event(const ui::PointerEvent &e) {
 
     } else if (e.type() == ui::Signature::EventType::ButtonRelease) {
 
-        if (was_playing_when_scrub_started_ && restore_play_state_after_scrub_->value()) {
+        const auto milliseconds_since_press =
+            std::chrono::duration_cast<std::chrono::milliseconds>(
+                utility::clock::now() - click_timepoint_)
+                .count();
+
+        if (milliseconds_since_press < 200 && click_to_toggle_play_->value()) {
+            // it was a quick click, and 'click_to_toggle_play_' is on ...
+            set_playing(!was_playing_when_scrub_started_);
+
+        } else if (
+            was_playing_when_scrub_started_ && restore_play_state_after_scrub_->value()) {
             set_playing(true);
             was_playing_when_scrub_started_ = false;
         }
+
         user_is_frame_scrubbing_->set_value(false);
     }
 

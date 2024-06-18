@@ -91,10 +91,7 @@ class ImageBoundaryRenderer : public plugin::ViewportOverlayRenderer {
 
 ImageBoundaryHUD::ImageBoundaryHUD(
     caf::actor_config &cfg, const utility::JsonStore &init_settings)
-    : HUDPluginBase(cfg, "Image Boundary", init_settings) {
-
-    enabled_->set_preference_path("/plugin/image_boundary/enabled");
-    enabled_->set_role_data(module::Attribute::ToolbarPosition, 2.0f);
+    : plugin::HUDPluginBase(cfg, "Image Boundary", init_settings) {
 
     colour_ =
         add_colour_attribute("Line Colour", "Colour", utility::ColourTriplet(1.0f, 0.0f, 0.0f));

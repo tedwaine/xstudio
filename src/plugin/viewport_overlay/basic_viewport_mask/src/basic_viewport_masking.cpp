@@ -202,10 +202,7 @@ void BasicMaskRenderer::init_overlay_opengl() {
 
 BasicViewportMasking::BasicViewportMasking(
     caf::actor_config &cfg, const utility::JsonStore &init_settings)
-    : HUDPluginBase(cfg, "Mask", init_settings) {
-
-    // make this one appear at the top of the HUD items in the HUD toolbar menu
-    enabled_->set_role_data(module::Attribute::ToolbarPosition, 0.0f);
+    : plugin::HUDPluginBase(cfg, "Mask", init_settings, 0.0f) {
 
     mask_aspect_ratio_ =
         add_float_attribute("Mask Aspect Ratio", "Aspect Ratio", 1.78f, 1.33f, 2.40f, 0.01f);
@@ -260,7 +257,7 @@ BasicViewportMasking::BasicViewportMasking(
 
     // Here we declare QML code to instantiate the actual item that draws
     // the overlay on the viewport.
-    qml_viewport_overlay_code(
+    hud_element_qml(
         R"(
             import BasicViewportMask 1.0
             BasicViewportMaskOverlay {
@@ -278,7 +275,6 @@ BasicViewportMasking::BasicViewportMasking(
     show_mask_label_->set_preference_path("/plugin/basic_masking/show_mask_label");
     safety_percent_->set_preference_path("/plugin/basic_masking/safety_percent");
     mask_label_size_->set_preference_path("/plugin/basic_masking/mask_label_size");
-    enabled_->set_preference_path("/plugin/basic_masking/maske_enabled");
     mask_render_method_->set_preference_path("/plugin/basic_masking/mask_render_method");
 }
 
@@ -349,7 +345,7 @@ void BasicViewportMasking::attribute_changed(
 void BasicViewportMasking::hotkey_pressed(
     const utility::Uuid &hotkey_uuid, const std::string &) {
     if (hotkey_uuid == mask_hotkey_) {
-        enabled_->set_value(!enabled_->value());
+        hud_data_->set_value(!hud_data_->value());
     }
 }
 

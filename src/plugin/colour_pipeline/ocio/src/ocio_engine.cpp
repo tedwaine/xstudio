@@ -5,7 +5,6 @@
 #include "xstudio/ui/opengl/shader_program_base.hpp"
 #include "xstudio/thumbnail/thumbnail.hpp"
 
-#include "dneg.hpp"
 #include "shaders.hpp"
 
 using namespace xstudio::colour_pipeline;
@@ -386,61 +385,27 @@ std::string OCIOEngine::input_space_for_view(
     const utility::JsonStore &src_colour_mgmt_metadata, const std::string &view) const {
 
     auto config = get_ocio_config(src_colour_mgmt_metadata);
+    const std::string empty;
     std::string new_colourspace;
-    std::string empty;
 
     auto colourspace_or = [config](const std::string &cs, const std::string &fallback) {
         const bool has_cs = bool(config->getColorSpace(cs.c_str()));
         return has_cs ? cs : fallback;
     };
 
-    if (src_colour_mgmt_metadata.contains("input_category")) {
+    const auto is_untonemapped = view == "Un-tone-mapped";
+    const auto input_space     = src_colour_mgmt_metadata.get_or("input_colorspace", empty);
+    const auto untonemapped_space =
+        src_colour_mgmt_metadata.get_or("untonemapped_colorspace", empty);
 
-        const auto is_untonemapped = view == "Un-tone-mapped";
-        const auto is_cms1 =
-            src_colour_mgmt_metadata.get_or("pipeline_version", std::string("1")) == "2";
-        const auto input_space = src_colour_mgmt_metadata.get_or("input_colorspace", empty);
-        const auto category    = src_colour_mgmt_metadata["input_category"];
+    new_colourspace = is_untonemapped ? untonemapped_space : input_space;
 
-        if (category == "internal_movie") {
-            if (is_untonemapped) {
-                new_colourspace = "disp_Rec709-G24";
-            } else if (!input_space.empty()) {
-                new_colourspace = input_space;
-            } else if (is_cms1) {
-                new_colourspace = "DNEG_Rec709";
-            } else {
-                new_colourspace = "Film_Rec709";
-            }
-        } else if (category == "edit_ref" or category == "movie_media") {
-            if (is_untonemapped) {
-                new_colourspace = "disp_Rec709-G24";
-            } else if (is_cms1) {
-                new_colourspace = "Client_Rec709";
-            } else {
-                new_colourspace = "Film_Rec709";
-            }
-        } else if (category == "still_media") {
-            if (is_untonemapped) {
-                new_colourspace = "disp_sRGB";
-            } else if (is_cms1) {
-                new_colourspace = "DNEG_sRGB";
-            } else {
-                new_colourspace = "Film_sRGB";
-            }
-        }
-    }
-
-    // When the above don't detect a colour space (EXRs, Review proxy, etc),
-    // return the correct color space for the media.
-    std::string override_cs = src_colour_mgmt_metadata.get_or("override_input_cs", empty);
-    std::string input_cs    = src_colour_mgmt_metadata.get_or("input_colorspace", empty);
-
-    new_colourspace = colourspace_or(new_colourspace, override_cs);
-
-    for (const auto &cs : xstudio::utility::split(input_cs, ':')) {
+    for (const auto &cs : xstudio::utility::split(new_colourspace, ':')) {
         new_colourspace = colourspace_or(new_colourspace, cs);
     }
+
+    // Double check the new colourspace actually exists
+    new_colourspace = colourspace_or(new_colourspace, "");
 
     // Avoid role names, helps with the source colour space menu
     if (!new_colourspace.empty()) {
@@ -450,14 +415,11 @@ std::string OCIOEngine::input_space_for_view(
     return new_colourspace;
 }
 
-const char *OCIOEngine::default_display(
-    const utility::JsonStore &src_colour_mgmt_metadata, const std::string &monitor_name) const {
+const char *
+OCIOEngine::default_display(const utility::JsonStore &src_colour_mgmt_metadata) const {
+
     auto config = get_ocio_config(src_colour_mgmt_metadata);
-    if (src_colour_mgmt_metadata.get_or("viewing_rules", false)) {
-        return dneg_ocio_default_display(config, monitor_name).c_str();
-    } else {
-        return config->getDefaultDisplay();
-    }
+    return config->getDefaultDisplay();
 }
 
 // Return the transform to bring incoming data to scene_linear space.

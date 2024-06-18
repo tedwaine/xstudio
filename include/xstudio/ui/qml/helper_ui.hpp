@@ -225,6 +225,8 @@ namespace ui {
                 const QModelIndex &topLeft,
                 const QModelIndex &bottomRight,
                 const QVector<int> &roles = QVector<int>());
+            void removed(const QModelIndex &parent, int first, int last);
+
 
           private:
             bool updateValue();
@@ -468,6 +470,9 @@ namespace ui {
             Q_INVOKABLE [[nodiscard]] bool openURL(const QUrl &url) const {
                 return QDesktopServices::openUrl(url);
             }
+
+            Q_INVOKABLE [[nodiscard]] QModelIndex qModelIndex() const { return QModelIndex(); }
+
             Q_INVOKABLE [[nodiscard]] QString ShowURIS(const QList<QUrl> &urls) const {
                 std::vector<caf::uri> uris;
                 for (const auto &i : urls)
@@ -922,10 +927,8 @@ namespace ui {
         class MarkerModel : public JSONTreeModel {
             Q_OBJECT
 
-
             Q_PROPERTY(QVariant markerData READ markerData WRITE setMarkerData NOTIFY
                            markerDataChanged)
-
 
           public:
             enum Roles {
@@ -939,6 +942,13 @@ namespace ui {
             explicit MarkerModel(QObject *parent = nullptr);
 
             Q_INVOKABLE bool setMarkerData(const QVariant &data);
+
+            Q_INVOKABLE QModelIndex addMarker(
+                const int frame,
+                const double rate,
+                const QString &name      = "Marker",
+                const QString &flag      = "#FFFF0000",
+                const QVariant &metadata = mapFromValue(R"({})"_json));
 
             [[nodiscard]] QVariant markerData() const;
 

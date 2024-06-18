@@ -371,6 +371,8 @@ void py_config::add_atoms() {
     ADD_ATOM(xstudio::ui::viewport, viewport_playhead_atom);
     ADD_ATOM(xstudio::ui::viewport, quickview_media_atom);
     ADD_ATOM(xstudio::ui::viewport, viewport_atom);
+    ADD_ATOM(xstudio::ui::viewport, hud_settings_atom);
+
     ADD_ATOM(xstudio::ui, show_message_box_atom);
 
     ADD_ATOM(xstudio::ui::keypress_monitor, register_hotkey_atom);

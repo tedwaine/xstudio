@@ -452,9 +452,8 @@ void OCIOColourPipeline::screen_changed(
     const std::string &manufacturer,
     const std::string &serialNumber) {
 
-    const std::string monitor_name = manufacturer + " " + model;
-    const std::string display =
-        m_engine_.default_display(current_source_colour_mgmt_metadata_, monitor_name);
+    const std::string detected_display = detect_display(
+        name, model, manufacturer, serialNumber, current_source_colour_mgmt_metadata_);
 
     auto menu_populated = [](module::StringChoiceAttribute *attr) {
         return attr->get_role_data<std::vector<std::string>>(module::Attribute::StringChoices)
@@ -462,9 +461,13 @@ void OCIOColourPipeline::screen_changed(
     };
 
     if (menu_populated(display_)) {
-        display_->set_value(display);
+        display_->set_value(detected_display);
     }
-    monitor_name_ = monitor_name;
+
+    monitor_name_         = name;
+    monitor_model_        = model;
+    monitor_manufacturer_ = manufacturer;
+    monitor_serialNumber_ = serialNumber;
 }
 
 void OCIOColourPipeline::connect_to_viewport(
@@ -607,7 +610,12 @@ void OCIOColourPipeline::populate_ui(const utility::JsonStore &src_colour_mgmt_m
         std::string display = display_->value();
         std::string view    = view_->value();
         if (std::find(displays.begin(), displays.end(), display) == displays.end()) {
-            display = m_engine_.default_display(src_colour_mgmt_metadata, monitor_name_);
+            display = detect_display(
+                monitor_name_,
+                monitor_model_,
+                monitor_manufacturer_,
+                monitor_serialNumber_,
+                src_colour_mgmt_metadata);
         }
         if (std::find(display_views_[display].begin(), display_views_[display].end(), view) ==
             display_views_[display].end()) {
@@ -755,6 +763,45 @@ void OCIOColourPipeline::reset() {
     exposure_->set_value(exposure_->get_role_data<float>(module::Attribute::DefaultValue));
     gamma_->set_value(gamma_->get_role_data<float>(module::Attribute::DefaultValue));
     saturation_->set_value(saturation_->get_role_data<float>(module::Attribute::DefaultValue));
+}
+
+std::string OCIOColourPipeline::detect_display(
+    const std::string &name,
+    const std::string &model,
+    const std::string &manufacturer,
+    const std::string &serialNumber,
+    const utility::JsonStore &meta) {
+
+    std::string detected_display = m_engine_.default_display(meta);
+
+    if (meta.get_or("viewing_rules", false)) {
+
+        try {
+
+            auto hook = system().registry().template get<caf::actor>(media_hook_registry);
+
+            if (hook) {
+                caf::scoped_actor sys(system());
+                const std::string display = utility::request_receive<std::string>(
+                    *sys,
+                    hook,
+                    media_hook::detect_display_atom_v,
+                    name,
+                    model,
+                    manufacturer,
+                    serialNumber,
+                    meta);
+                if (!display.empty()) {
+                    detected_display = display;
+                }
+            }
+
+        } catch (std::exception &e) {
+            spdlog::warn("{} {}", __PRETTY_FUNCTION__, e.what());
+        }
+    }
+
+    return detected_display;
 }
 
 

@@ -73,18 +73,18 @@ Item{ id: toolActionsDiv
         model:
         ListModel{
             id: modelCopyPasteClear
-            ListElement{ 
+            ListElement{
                 action: "Clear"
                 icon: "qrc:///anno_icons/delete.svg"
             }
         }
-        
+
         delegate:
         XsPrimaryButton{
             text: "" //model.action
             imgSrc: model.icon //""
             width: toolActionCopyPasteClear.width/modelCopyPasteClear.count - toolActionCopyPasteClear.spacing
-            height: toolActionCopyPasteClear.height            
+            height: toolActionCopyPasteClear.height
             onClicked: {
                 action_attribute = model.action
             }
@@ -136,15 +136,14 @@ Item{ id: toolActionsDiv
         anchors.top: displayAnnotations.bottom
         anchors.topMargin: itemSpacing/2
 
-        XsPrimaryButton{ 
-            
+        XsPrimaryButton{
+
             id: annotationBtn
             Layout.preferredWidth: parent.width/2
             Layout.fillHeight: true
             Layout.alignment: Qt.AlignHCenter
             text: "A"
             textDiv.font.pixelSize: XsStyleSheet.fontSize*1.2
-            imgSrc: ""
             onClicked:{
                 if(annotationMenu.visible) annotationMenu.visible = false
                 else{
@@ -161,7 +160,7 @@ Item{ id: toolActionsDiv
         visible: false
         menu_model_name: "annotationMenu"+toolActionsDiv
     }
-    
+
     XsMenuModelItem {
         text: "Always"
         enabled: annotationBtn.text !== "A"

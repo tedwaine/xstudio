@@ -152,48 +152,47 @@ MouseArea {
                 }
             }
             RowLayout{ id: row
-                spacing: 0
+                spacing: presetItemSpacing
                 anchors.fill: parent
 
-                Item{
+                XsPrimaryButton{ id: expandButton
                     Layout.preferredWidth: height
                     Layout.fillHeight: true
 
-                    XsPrimaryButton{ id: expandButton
-                        anchors.fill: parent
+                    imgSrc: "qrc:/icons/chevron_right.svg"
+                    isActive: isExpanded
+                    enabled: isParent
+                    opacity: enabled? 1 : 0.5
+                    imageDiv.rotation: isExpanded? 90 : 0
 
-                        text: ""
-                        imgSrc: "qrc:/icons/chevron_right.svg"
-                        isActive: isExpanded
-                        enabled: isParent
-                        opacity: enabled? 1 : 0.5
-                        imageDiv.rotation: isExpanded? 90 : 0
-
-                        onClicked: {
-                            expandedModel.select(presetModelIndex(), ItemSelectionModel.Toggle)
-                        }
+                    onClicked: {
+                        expandedModel.select(presetModelIndex(), ItemSelectionModel.Toggle)
                     }
                 }
-                Item{
+
+
+                XsText{ id: groupNameDiv
                     Layout.fillWidth: true
                     Layout.minimumWidth: 50
                     Layout.preferredWidth: 100
                     Layout.fillHeight: true
 
-                    XsText{ id: groupNameDiv
-                        text: nameRole+"..."
-                        color: Qt.lighter(XsStyleSheet.hintColor, 1.2)
-                        horizontalAlignment: Text.AlignLeft
-                        font.pixelSize: XsStyleSheet.fontSize*1.2
-                        font.weight: isSelected? Font.Bold : Font.Normal
-                        leftPadding: 5
-                        anchors.verticalCenter: parent.verticalCenter
-                        anchors.left: parent.left
-                        width: parent.width
-                        elide: Text.ElideRight
-                    }
+                    text: nameRole+"..."
+                    color: Qt.lighter(XsStyleSheet.hintColor, 1.2)
+                    horizontalAlignment: Text.AlignLeft
+                    verticalAlignment: Text.AlignVCenter
+                    font.pixelSize: XsStyleSheet.fontSize*1.2
+                    font.weight: isSelected? Font.Bold : Font.Normal
+                    leftPadding: 5
+
+                    // anchors.verticalCenter: parent.verticalCenter
+                    // anchors.left: parent.left
+                    // width: parent.width
+
+                    elide: Text.ElideRight
                 }
-                Item{
+
+                XsText{
                     Layout.fillWidth: true
                     Layout.minimumWidth: 15
                     Layout.preferredWidth: 50
@@ -201,15 +200,12 @@ MouseArea {
                     Layout.fillHeight: true
                     visible: !isMouseHovered && !(addBtn.isActive || editBtn.isActive || moreBtn.isActive)
 
-                    XsText{
-                        text: entityRole
-                        horizontalAlignment: Text.AlignRight
-                        color: Qt.lighter(XsStyleSheet.panelBgColor, 2.2)
-                        anchors.verticalCenter: parent.verticalCenter
-                        anchors.right: parent.right
-                        width: parent.width
-                        elide: Text.ElideRight
-                    }
+                    text: entityRole
+                    horizontalAlignment: Text.AlignRight
+                    verticalAlignment: Text.AlignVCenter
+                    color: Qt.lighter(XsStyleSheet.panelBgColor, 2.2)
+                    elide: Text.ElideRight
+
                 }
 
                 Item{
@@ -217,75 +213,59 @@ MouseArea {
                     Layout.fillHeight: true
                 }
 
-                Item{
-                    Layout.preferredWidth: visible? height : 0
+                XsSecondaryButton{ id: addBtn
+                    Layout.topMargin: presetItemSpacing
+                    Layout.bottomMargin: presetItemSpacing
+                    Layout.preferredWidth: height
                     Layout.fillHeight: true
                     visible: isMouseHovered || addBtn.isActive
 
-                    XsSecondaryButton{ id: addBtn
-                        width: parent.width
-                        height: parent.height - presetItemSpacing*2
-                        anchors.verticalCenter: parent.verticalCenter
+                    imgSrc: "qrc:/icons/add.svg"
+                    scale: 0.95
 
-                        imgSrc: "qrc:/icons/add.svg"
-                        scale: 0.95
-
-                        onClicked: {
-                            let i = ShotBrowserEngine.presetsModel.index(1, 0, presetModelIndex())
-                            ShotBrowserEngine.presetsModel.insertPreset(ShotBrowserEngine.presetsModel.rowCount(i), i)
-                            expandedModel.select(presetModelIndex(), ItemSelectionModel.Select)
-                        }
+                    onClicked: {
+                        let i = ShotBrowserEngine.presetsModel.index(1, 0, presetModelIndex())
+                        ShotBrowserEngine.presetsModel.insertPreset(ShotBrowserEngine.presetsModel.rowCount(i), i)
+                        expandedModel.select(presetModelIndex(), ItemSelectionModel.Select)
                     }
                 }
 
-                Item{
-                    Layout.preferredWidth: visible? height : 0
+                XsSecondaryButton{ id: editBtn
+                    Layout.topMargin: presetItemSpacing
+                    Layout.bottomMargin: presetItemSpacing
+                    Layout.preferredWidth: height
                     Layout.fillHeight: true
                     visible: isMouseHovered || editBtn.isActive
 
-                    XsSecondaryButton{ id: editBtn
-                        width: parent.width
-                        height: parent.height - presetItemSpacing*2
-                        anchors.verticalCenter: parent.verticalCenter
+                    imgSrc: "qrc:///shotbrowser_icons/edit.svg"
+                    scale: 0.95
+                    isActive: presetEditPopup.presetIndex == ShotBrowserEngine.presetsModel.index(0, 0, presetModelIndex()) && presetEditPopup.visible
 
-                        imgSrc: "qrc:///shotbrowser_icons/edit.svg"
-                        scale: 0.95
-                        isActive: presetEditPopup.presetIndex == ShotBrowserEngine.presetsModel.index(0, 0, presetModelIndex()) && presetEditPopup.visible
-
-                        onClicked: {
-                            openEditPopup()
-                        }
+                    onClicked: {
+                        openEditPopup()
                     }
-
                 }
 
-                Item{ id: moreBtnDiv
-                    Layout.preferredWidth: visible? height : 2
+                XsSecondaryButton{ id: moreBtn
+                    Layout.topMargin: presetItemSpacing
+                    Layout.bottomMargin: presetItemSpacing
+                    Layout.preferredWidth: height
                     Layout.fillHeight: true
                     visible: isMouseHovered || moreBtn.isActive || editBtn.isActive
 
-                    XsSecondaryButton{ id: moreBtn
-                        width: parent.width
-                        height: parent.height - presetItemSpacing*2
-                        anchors.verticalCenter: parent.verticalCenter
-
-                        imgSrc: "qrc:/icons/more_vert.svg"
-                        scale: 0.95
-                        isActive: groupMenu.visible && groupMenu.presetModelIndex == presetModelIndex()
-                        onClicked:{
-                            if(groupMenu.visible) {
-                                groupMenu.visible = false
-                            }
-                            else{
-                                showGroupMenu(0, 0)
-                            }
+                    imgSrc: "qrc:/icons/more_vert.svg"
+                    scale: 0.95
+                    isActive: groupMenu.visible && groupMenu.presetModelIndex == presetModelIndex()
+                    onClicked:{
+                        if(groupMenu.visible) {
+                            groupMenu.visible = false
+                        }
+                        else{
+                            showGroupMenu(0, 0)
                         }
                     }
                 }
-
-
             }
-
         }
 
         Column {
@@ -346,7 +326,7 @@ MouseArea {
         groupMenu.x = xpos==0? p.x : xpos
         groupMenu.y = xpos==0 && ypos==0 ? p.y : ypos==0? (p.y + btnHeight/2) : ypos
         groupMenu.visible = true
-        
+
     }
-    
+
 }

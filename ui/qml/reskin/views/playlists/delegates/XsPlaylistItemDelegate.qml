@@ -12,9 +12,11 @@ XsPlaylistItemBase {
     id: contentDiv
     isExpandable: subItemsCount != 0
 
-    implicitHeight: itemRowStdHeight + (expandedRole ? subItemsCount*itemRowStdHeight : 0)
+    height: implicitHeight
+    implicitHeight: itemRowStdHeight + subItems.height
+    clip: true
 
-    Behavior on implicitHeight {NumberAnimation{duration: 50 }}
+    Behavior on implicitHeight {NumberAnimation{duration: 100 }}
 
     // when a playlist is freshly created the corresponding node in the model
     // is not fully populated with the playlist structure (and the placeholderRole
@@ -56,7 +58,7 @@ XsPlaylistItemBase {
 
             roleValue: "Subset"
             XsSubsetItemDelegate{
-                modelIndex: subItemsModel.modelIndex(index)
+                modelIndex: helpers.makePersistent(subItemsModel.modelIndex(index))
                 Layout.fillWidth: true
             }
         }
@@ -65,7 +67,7 @@ XsPlaylistItemBase {
 
             roleValue: "Timeline"
             XsTimelineItemDelegate{
-                modelIndex: subItemsModel.modelIndex(index)
+                modelIndex: helpers.makePersistent(subItemsModel.modelIndex(index))
                 Layout.fillWidth: true
             }
         }
@@ -74,7 +76,7 @@ XsPlaylistItemBase {
 
             roleValue: "ContainerDivider"
             XsPlaylistDividerDelegate {
-                modelIndex: subItemsModel.modelIndex(index)
+                modelIndex: helpers.makePersistent(subItemsModel.modelIndex(index))
                 indent: true
                 Layout.fillWidth: true
             }
@@ -89,13 +91,12 @@ XsPlaylistItemBase {
         id: subItems
         anchors.left: parent.left
         anchors.right: parent.right
-        anchors.top: mainLayout.bottom
-        visible: expandedRole ? expandedRole : false
+        anchors.bottom: parent.bottom
         spacing: 0
 
         Repeater {
 
-            model: subItemsModel
+            model: expandedRole ? subItemsModel : []
 
         }
     }

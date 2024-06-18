@@ -40,6 +40,8 @@ void PlayheadGlobalEventsActor::init() {
             if (msg.source == p->second) {
                 demonitor(p->second);
                 p = viewport_playheads_.erase(p);
+            } else {
+                p++;
             }
         }
     });
@@ -57,6 +59,18 @@ void PlayheadGlobalEventsActor::init() {
         },
         [=](ui::viewport::viewport_playhead_atom) -> caf::actor {
             return global_active_playhead_;
+        },
+        [=](ui::viewport::viewport_playhead_atom,
+            caf::actor playhead,
+            bool request) -> std::vector<caf::actor> {
+            std::vector<caf::actor> r;
+            // return viewports that are connected to the given playhead
+            for (auto &p : viewport_playheads_) {
+                if (p.second == playhead && viewports_.find(p.first) != viewports_.end()) {
+                    r.push_back(caf::actor_cast<caf::actor>(viewports_[p.first]));
+                }
+            }
+            return r;
         },
         [=](ui::viewport::viewport_playhead_atom, caf::actor playhead) {
             // something can send us this message in order to set the 'global'

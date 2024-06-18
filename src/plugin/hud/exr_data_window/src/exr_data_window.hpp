@@ -3,13 +3,13 @@
 
 #include "xstudio/plugin_manager/plugin_base.hpp"
 #include "xstudio/ui/opengl/shader_program_base.hpp"
-#include "xstudio/ui/viewport/hud_plugin.hpp"
+#include "xstudio/plugin_manager/hud_plugin.hpp"
 
 namespace xstudio {
 namespace ui {
     namespace viewport {
 
-        class EXRDataWindowHUD : public HUDPluginBase {
+        class EXRDataWindowHUD : public plugin::HUDPluginBase {
           public:
             EXRDataWindowHUD(caf::actor_config &cfg, const utility::JsonStore &init_settings);
 

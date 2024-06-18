@@ -98,6 +98,40 @@ void QueryEngine::initialise_presets() {
     system_presets_  = JsonStoreSync(system_tmp);
 }
 
+utility::JsonStore QueryEngine::validate_presets(const utility::JsonStore &data) {
+    auto result = R"({})"_json;
+
+    auto type = data.value("type", std::string());
+    if (type == "root") {
+        result = RootTemplate;
+        result.update(data);
+
+        for (size_t i = 0; i < result["children"].size(); i++)
+            result["children"][i] = validate_presets(result["children"][i]);
+    } else if (type == "group") {
+        result = GroupTemplate;
+        result.update(data);
+        for (size_t i = 0; i < result["children"].size(); i++)
+            result["children"][i] = validate_presets(result["children"][i]);
+    } else if (type == "presets") {
+        result = data;
+        for (size_t i = 0; i < result["children"].size(); i++)
+            result["children"][i] = validate_presets(result["children"][i]);
+    } else if (type == "term") {
+        result = TermTemplate;
+        result.update(data);
+        for (size_t i = 0; i < result["children"].size(); i++)
+            result["children"][i] = validate_presets(result["children"][i]);
+    } else if (type == "preset") {
+        result = PresetTemplate;
+        result.update(data);
+    } else {
+        result = data;
+    }
+
+    return result;
+}
+
 void QueryEngine::set_presets(
     const utility::JsonStore &user, const utility::JsonStore &system) {
     // purge children
@@ -106,7 +140,15 @@ void QueryEngine::set_presets(
 
     nlohmann::json system_tmp = system_presets_.as_json();
     system_tmp["children"]    = system;
+
+    // fix presets..
+    // recursively validate entries.
+    system_tmp = validate_presets(system_tmp);
+
     system_presets_.reset_data(system_tmp);
+
+    // fix presets..
+    user_tmp = validate_presets(user_tmp);
 
     // we need to merge system presets into user
     merge_presets(user_tmp["children"], system_tmp["children"]);
@@ -964,6 +1006,9 @@ void QueryEngine::add_version_term_to_filter(
     } else if (term == "Tag") {
         qry->push_back(
             QueryEngine::add_text_value("entity.Shot.tags.Tag.name", value, negated));
+    } else if (term == "dnTag") {
+        qry->push_back(QueryEngine::add_text_value(
+            "entity.Shot.sg_dnbreakdown_tags.Tag.name", value, negated));
     } else if (term == "Reference Tag" or term == "Reference Tags") {
 
         if (value.find(',') != std::string::npos) {
@@ -1350,11 +1395,17 @@ utility::JsonStore QueryEngine::get_livelink_value(
 
     try {
         if (term == "Preferred Audio") {
-            result =
-                metadata.at("metadata").value("audio_source", nlohmann::json("movie_dneg"));
+            if (metadata.count("metadata"))
+                result =
+                    metadata.at("metadata").value("audio_source", nlohmann::json("movie_dneg"));
+            else
+                result = nlohmann::json("movie_dneg");
         } else if (term == "Preferred Visual") {
-            result =
-                metadata.at("metadata").value("image_source", nlohmann::json("movie_dneg"));
+            if (metadata.count("metadata"))
+                result =
+                    metadata.at("metadata").value("image_source", nlohmann::json("movie_dneg"));
+            else
+                result = nlohmann::json("movie_dneg");
         } else if (term == "Entity") {
             if (metadata.contains(json::json_pointer("/metadata/shotgun/version"))) {
                 auto type = metadata.at(json::json_pointer(

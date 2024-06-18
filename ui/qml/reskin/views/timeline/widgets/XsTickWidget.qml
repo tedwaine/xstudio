@@ -43,7 +43,7 @@ Rectangle {
         onPressed: {
 
             if (viewedMediaSetIndex != timelineModel.rootIndex.parent) {
-                viewedMediaSetIndex = timelineModel.rootIndex.parent
+                viewedMediaSetIndex = helpers.makePersistent(timelineModel.rootIndex.parent)
             }
 
             // here we make sure the viewport is attached to the correct

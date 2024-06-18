@@ -235,6 +235,58 @@ void EmbeddedPython::add_message_callback(const py::tuple &cb_particulars) {
 
     try {
 
+        if (cb_particulars.size() == 2 || cb_particulars.size() == 3) {
+
+            auto i            = cb_particulars.begin();
+            auto remote_actor = (*i).cast<caf::actor>();
+            i++;
+            auto callback_func = (*i).cast<py::function>();
+            auto addr          = caf::actor_cast<caf::actor_addr>(remote_actor);
+
+            if (cb_particulars.size() == 3) {
+                // Let's say we want to receive event messages from a MediaActor.
+                // We need to call 'join_broadcast' with the event_group actor
+                // belonging to the MediaActor. However, in
+                // push_caf_message_to_py_callbacks we need to resolve who sent
+                // the message in order to call the correct python callback.
+                // The 'sender' when a message comes via an event_group actor is
+                // the owner (in this case the MediaActor). So here, the 3rd
+                // argument is the owner of the event group and we use this to
+                // set the actor address that we register the callback against.
+                i++;
+                auto parent_actor = (*i).cast<caf::actor>();
+                addr              = caf::actor_cast<caf::actor_addr>(parent_actor);
+            }
+
+            const auto p = message_handler_callbacks_.find(addr);
+            if (p != message_handler_callbacks_.end()) {
+                auto q = p->second.begin();
+                while (q != p->second.end()) {
+                    if (*q == callback_func) {
+                        return;
+                    }
+                    q++;
+                }
+            }
+
+            message_handler_callbacks_[addr].push_back(callback_func);
+            parent_->join_broadcast(remote_actor);
+
+        } else {
+            throw std::runtime_error(
+                "Set message callback expecting tuple of size 2 or 3 "
+                "(remote_event_group_actor, callack_func, (optional: parent_actor)).");
+        }
+
+    } catch (std::exception &e) {
+        PyErr_SetString(PyExc_RuntimeError, e.what());
+    }
+}
+
+void EmbeddedPython::remove_message_callback(const py::tuple &cb_particulars) {
+
+    try {
+
         if (cb_particulars.size() == 2) {
 
             auto i            = cb_particulars.begin();
@@ -243,25 +295,22 @@ void EmbeddedPython::add_message_callback(const py::tuple &cb_particulars) {
             auto callback_func = (*i).cast<py::function>();
             auto addr          = caf::actor_cast<caf::actor_addr>(remote_actor);
 
-            message_handler_callbacks_[addr].push_back(callback_func);
-            parent_->join_broadcast(remote_actor);
+            const auto p = message_handler_callbacks_.find(addr);
+            if (p != message_handler_callbacks_.end()) {
+                auto q = p->second.begin();
+                while (q != p->second.end()) {
+                    if (*q == callback_func) {
+                        q = p->second.erase(q);
+                    } else {
+                        q++;
+                    }
+                }
+            }
+            parent_->leave_broadcast(remote_actor);
 
         } else {
-
-            if (cb_particulars.size() != 3) {
-                throw std::runtime_error("Set message callback expecting tuple of size 3 "
-                                         "(remote_actor, callack_func, py_plugin_name).");
-            }
-            auto i            = cb_particulars.begin();
-            auto remote_actor = (*i).cast<caf::actor>();
-            i++;
-            auto callback_func = (*i).cast<py::function>();
-            i++;
-            auto plugin_name = (*i).cast<std::string>();
-            auto addr        = caf::actor_cast<caf::actor_addr>(remote_actor);
-
-            message_handler_callbacks_[addr].push_back(callback_func);
-            parent_->join_broadcast(remote_actor, plugin_name);
+            throw std::runtime_error("Remove message callback expecting tuple of size 2 "
+                                     "(remote_actor, callack_func).");
         }
 
     } catch (std::exception &e) {
@@ -274,10 +323,17 @@ void EmbeddedPython::s_add_message_callback(const py::tuple &cb_particulars) {
         s_instance_->add_message_callback(cb_particulars);
     }
 }
+void EmbeddedPython::s_remove_message_callback(const py::tuple &cb_particulars) {
+    if (s_instance_) {
+        s_instance_->remove_message_callback(cb_particulars);
+    }
+}
+
 
 PYBIND11_EMBEDDED_MODULE(XStudioExtensions, m) {
     // `m` is a `py::module_` which is used to bind functions and classes
     m.def("add_message_callback", &EmbeddedPython::s_add_message_callback);
+    m.def("remove_message_callback", &EmbeddedPython::s_remove_message_callback);
     py::class_<caf::message>(m, "CafMessage", py::module_local());
 }
 
@@ -291,8 +347,9 @@ void EmbeddedPython::push_caf_message_to_py_callbacks(caf::actor sender, caf::me
 
         auto addr = caf::actor_cast<caf::actor_addr>(sender);
 
-        for (auto &p : message_handler_callbacks_) {
-            for (auto &func : p.second) {
+        const auto p = message_handler_callbacks_.find(addr);
+        if (p != message_handler_callbacks_.end()) {
+            for (auto &func : p->second) {
                 func(result);
             }
         }

@@ -357,15 +357,6 @@ struct Launcher {
             // DIRTY HACK.. We need a way of controling this from the backend..
             // if(actions.value("player",false))
 
-
-            // If the presentation mode is enabled on startup, set it
-            if (prefs.get("/ui/qml/enable_presentation_mode/value")) {
-                prefs.set(
-                    "presentation_layout", "/ui/qml/main_window_settings/value/layout_name");
-            }
-
-            prefs.set(0, "/ui/qml/second_window_settings/value/visibility");
-
             actions["new_instance"] = true;
 
             global_actor = self->spawn<GlobalActor>(static_cast<JsonStore>(prefs));
@@ -394,7 +385,7 @@ struct Launcher {
 
                 JsonStore js =
                     utility::open_session(actions["open_session_path"].get<std::string>());
-                    
+
                 spdlog::info(
                     "File {} loaded in {:.3} seconds.",
                     actions["open_session_path"].get<std::string>(),
@@ -1000,6 +991,8 @@ int main(int argc, char **argv) {
 
                 qmlRegisterType<GlobalStoreModel>(
                     "xstudio.qml.global_store_model", 1, 0, "XsGlobalStoreModel");
+                qmlRegisterType<PublicPreferencesModel>(
+                    "xstudio.qml.global_store_model", 1, 0, "XsPreferencesModel");
                 qmlRegisterType<ModelProperty>("xstudio.qml.helpers", 1, 0, "XsModelProperty");
                 qmlRegisterType<JSONTreeFilterModel>(
                     "xstudio.qml.helpers", 1, 0, "XsFilterModel");

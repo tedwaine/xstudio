@@ -39,6 +39,9 @@ namespace ui::qml {
         enum Roles {
             enabledRole = JSONTreeModel::Roles::LASTROLE,
             entityRole,
+            favouriteRole,
+            groupIdRole,
+            groupUserDataRole,
             hiddenRole,
             livelinkRole,
             nameRole,
@@ -46,7 +49,7 @@ namespace ui::qml {
             termRole,
             typeRole,
             updateRole,
-            userdataRole,
+            userDataRole,
             valueRole
         };
 
@@ -86,6 +89,8 @@ namespace ui::qml {
         Q_INVOKABLE QVariant copy(const QModelIndexList &indexes) const;
         Q_INVOKABLE bool paste(const QVariant &data, const int row, const QModelIndex &parent);
 
+        Q_INVOKABLE QModelIndex getPresetGroup(const QModelIndex &index) const;
+
         void updateTermModel(const std::string &key, const bool cache);
 
       signals:
@@ -101,9 +106,11 @@ namespace ui::qml {
             {"update", Roles::updateRole},
             {"hidden", Roles::hiddenRole},
             {"enabled", Roles::enabledRole},
+            {"favourite", Roles::favouriteRole},
             {"term", Roles::termRole},
             {"value", Roles::valueRole},
-            {"userdata", Roles::userdataRole},
+            {"userdata", Roles::userDataRole},
+            {"userdata", Roles::groupUserDataRole},
             {"name", Roles::nameRole},
             {"negated", Roles::negatedRole}};
         QQmlPropertyMap *term_lists_{nullptr};
@@ -116,8 +123,21 @@ namespace ui::qml {
         Q_OBJECT
 
         Q_PROPERTY(bool showHidden READ showHidden WRITE setShowHidden NOTIFY showHiddenChanged)
+        Q_PROPERTY(bool onlyShowFavourite READ onlyShowFavourite WRITE setOnlyShowFavourite
+                       NOTIFY onlyShowFavouriteChanged)
+
+        Q_PROPERTY(bool onlyShowPresets READ onlyShowPresets WRITE setOnlyShowPresets NOTIFY
+                       onlyShowPresetsChanged)
+
+        Q_PROPERTY(bool ignoreSpecialGroups READ ignoreSpecialGroups WRITE
+                       setIgnoreSpecialGroups NOTIFY ignoreSpecialGroupsChanged)
+
         Q_PROPERTY(QVariant filterUserData READ filterUserData WRITE setFilterUserData NOTIFY
                        filterUserDataChanged)
+
+        Q_PROPERTY(QVariant filterGroupUserData READ filterGroupUserData WRITE
+                       setFilterGroupUserData NOTIFY filterGroupUserDataChanged)
+
 
       public:
         ShotBrowserPresetFilterModel(QObject *parent = nullptr)
@@ -126,24 +146,45 @@ namespace ui::qml {
         }
 
         [[nodiscard]] bool showHidden() const { return show_hidden_; }
+        [[nodiscard]] bool onlyShowFavourite() const { return only_show_favourite_; }
+        [[nodiscard]] bool onlyShowPresets() const { return only_show_presets_; }
+        [[nodiscard]] bool ignoreSpecialGroups() const { return ignore_special_groups_; }
         [[nodiscard]] QVariant filterUserData() const { return filter_user_data_; }
+        [[nodiscard]] QVariant filterGroupUserData() const { return filter_group_user_data_; }
 
-        Q_INVOKABLE void setFilter(const QString &filter);
+        Q_INVOKABLE void setFilterGroupUserData(const QVariant &filter);
         Q_INVOKABLE void setFilterUserData(const QVariant &filter);
         Q_INVOKABLE void setShowHidden(const bool value);
+        Q_INVOKABLE void setOnlyShowFavourite(const bool value);
+        Q_INVOKABLE void setOnlyShowPresets(const bool value);
+        Q_INVOKABLE void setIgnoreSpecialGroups(const bool value);
 
       signals:
+        void ignoreSpecialGroupsChanged();
         void showHiddenChanged();
+        void onlyShowPresetsChanged();
+        void onlyShowFavouriteChanged();
         void filterUserDataChanged();
+        void filterGroupUserDataChanged();
 
       protected:
         [[nodiscard]] bool
         filterAcceptsRow(int source_row, const QModelIndex &source_parent) const override;
 
       private:
-        QVariant filter_;
+        QVariant filter_group_user_data_;
         bool show_hidden_{false};
+        bool only_show_favourite_{false};
+        bool only_show_presets_{false};
+        bool ignore_special_groups_{false};
         QVariant filter_user_data_;
+        std::set<utility::Uuid> special_groups_{
+            utility::Uuid("ef787e88-1b8f-4d89-bbc7-3ecf85987792"), // quick menu
+            utility::Uuid("28612cf7-a814-4714-a4eb-443126cf0cd4"), // note history
+            utility::Uuid("4c512dae-e1e3-43b7-a02a-4fb7d93fde62"), // shot history
+            utility::Uuid("b6e0ca0e-2d23-4b1d-a33a-761596183d5f"), // replace/conform
+            utility::Uuid("86439af3-16be-4a2f-89f3-ee1e5810ae47")  // view in cut
+        };
     };
 } // namespace ui::qml
 } // namespace xstudio
