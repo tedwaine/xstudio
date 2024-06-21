@@ -13,6 +13,7 @@ import xstudio.qml.helpers 1.0
 import xstudio.qml.viewport 1.0
 
 import "./quickview/"
+import "./runtime/"
 
 ApplicationWindow {
 
@@ -506,6 +507,9 @@ ApplicationWindow {
         path: "/ui/qml/use_flat_theme"
     }
 
+    // For dynamic loading of QML by plugins
+    XsRuntimeQMLItems {
+    }
 
 }
 

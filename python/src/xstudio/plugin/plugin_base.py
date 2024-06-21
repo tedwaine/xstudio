@@ -1,7 +1,7 @@
 # SPDX-License-Identifier: Apache-2.0
 from xstudio.api.module import ModuleBase
 from xstudio.api.session.playhead import Playhead
-from xstudio.core import JsonStore, Uuid
+from xstudio.core import JsonStore, Uuid, AttributeRole
 from xstudio.api.auxiliary.helpers import get_event_group
 from xstudio.core import spawn_plugin_base_atom, viewport_playhead_atom
 from xstudio.core import get_global_playhead_events_atom, show_message_box_atom
@@ -53,6 +53,15 @@ class PluginBase(ModuleBase):
                 sys.modules[self.__module__].__file__
             )
         )
+        self.qml_item_attrs = {}
+
+        super().set_attribute_changed_event_handler(self._PluginBase__attribute_changed)
+        self.user_attr_handler_ = None
+
+    def set_attribute_changed_event_handler(self, handler):
+        # here we override the method on Module class to ensure that
+        # when someone using this base class doesn't
+        self.user_attr_handler_ = handler
 
     def add_attribute(
         self,
@@ -133,3 +142,42 @@ class PluginBase(ModuleBase):
             close_button,
             int(autohide_timeout_secs)
             )
+
+    def create_qml_item(
+        self,
+        qml_item,
+        callback_fn
+        ):
+        """Create and show a qml item (typically a pop-up window, dialog etc.).
+        Args:
+            qml_item(str): The class name for the item to be created
+            callback_fn(method): Callback function that receives data from the
+            qml item (e.g. text entered by the user). On the qml side the 
+            item can trigger the callback by calling xstudio_callback(JSON)
+            function somewhere in the qml signal handlers etc.
+        """
+        attr = self.add_attribute(
+            "Create ".format(qml_item),
+            attribute_value = False,
+            attribute_role_data={
+                "qml_code": qml_item,
+                "groups": ["dynamic qml items"],
+                "enabled": False
+            })
+        self.qml_item_attrs[attr.uuid] = (attr, callback_fn)
+        attr.set_role_data("attr_enabled", True) # causes the qml item to be shown
+
+    def _PluginBase__attribute_changed(
+        self,
+        attribute,
+        role
+        ):
+
+        print ("_PluginBase__attribute_changed", attribute.name)
+        # check if 'CallbackData' has been set - if the attribute is one of our 
+        # qml_item_attrs then we execute the associated callback
+        if role == AttributeRole.CallbackData and attribute.uuid in self.qml_item_attrs:
+            self.qml_item_attrs[attribute.uuid][1](attribute.role_data("callback_data"))
+
+        if self.user_attr_handler_:
+            self.user_attr_handler_(attribute)

@@ -23,6 +23,7 @@
 	    <file>windows/main_menu_bar/file_menu/XsFileFunctions.qml</file>
 	    <file>windows/quickview/XsQuickViewLauncher.qml</file>
 	    <file>windows/quickview/XsQuickViewWindow.qml</file>
+	    <file>windows/runtime/XsRuntimeQMLItems.qml</file>
 
 	    <file>layout_framework/XsDragDropHandler.qml</file>
 	    <file>layout_framework/XsLayoutModeBar.qml</file>

@@ -114,7 +114,7 @@ Item {
             width: 3
         }
 
-        Text { 
+        XsText { 
             id: labelDiv
             text: label ? label : "Unknown" //+ (sub_menu && !is_in_bar ? "   >>" : "")
             font.pixelSize: XsStyleSheet.fontSize
@@ -136,7 +136,7 @@ Item {
             Layout.fillWidth: true
         }
 
-        Text {
+        XsText {
             id: hotKeyDiv
             Layout.alignment: Qt.AlignRight | Qt.AlignVCenter
             text: hotkey_sequence ? hotkey_sequence : ""

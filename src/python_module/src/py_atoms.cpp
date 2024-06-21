@@ -191,6 +191,7 @@ void py_config::add_atoms() {
     ADD_ATOM(xstudio::module, grab_all_mouse_input_atom);
     ADD_ATOM(xstudio::module, attribute_uuids_atom);
     ADD_ATOM(xstudio::module, module_add_menu_item_atom);
+    ADD_ATOM(xstudio::module, module_remove_menu_item_atom);    
     ADD_ATOM(xstudio::module, remove_attribute_atom);
     ADD_ATOM(xstudio::module, set_node_data_atom);
 

@@ -30,7 +30,7 @@ Rectangle {
         bottomColor: mouseArea.pressed ? palette.highlight: XsStyleSheet.widgetBgNormalColor
     }
 
-    Text {
+    XsText {
         id: textDiv
         text: widget.text
         font.pixelSize: XsStyleSheet.fontSize *1.1
