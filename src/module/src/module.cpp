@@ -1075,6 +1075,27 @@ caf::message_handler Module::message_handler() {
                  return caf::make_error(xstudio_error::error, e.what());
              }
          },
+         [=](module_remove_menu_item_atom, const utility::Uuid &menu_id) {
+
+            for (const auto &p: menu_items_) {
+
+                for (const auto uuid: p.second) {
+                    if (uuid == menu_id) {
+                        auto central_models_data_actor =
+                            self()->home_system().registry().template get<caf::actor>(
+                                global_ui_model_data_registry);
+                        anon_send(
+                            central_models_data_actor,
+                            ui::model_data::remove_node_atom_v,
+                            p.first,
+                            menu_id);
+                        return;
+                    }
+                }
+
+            }
+
+         },
          [=](xstudio::ui::model_data::set_node_data_atom,
              const std::string &menu_model_name,
              const std::string &submenu,

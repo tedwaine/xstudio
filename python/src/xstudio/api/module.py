@@ -8,6 +8,7 @@ from xstudio.core import viewport_playhead_atom, hotkey_event_atom
 from xstudio.core import attribute_uuids_atom
 from xstudio.core import AttributeRole, get_event_group_atom
 from xstudio.core import event_atom, show_atom, module_add_menu_item_atom
+from xstudio.core import module_remove_menu_item_atom
 from xstudio.core import menu_node_activated_atom, set_node_data_atom
 from xstudio.api.auxiliary import ActorConnection
 from xstudio.core import JsonStore, Uuid
@@ -176,6 +177,7 @@ class ModuleBase(ActorConnection):
             attribute_uuids_atom())[0]
 
         self.attrs_by_name_ = {}
+        self.attrs_by_uuid_ = {}
         self.menu_trigger_callbacks = {}
         self.menu_item_ids = []
         self.hotkey_callbacks = {}
@@ -186,6 +188,7 @@ class ModuleBase(ActorConnection):
                 remote,
                 uuid=attr_uuid)
             self.attrs_by_name_[attr_wrapper.name] = attr_wrapper
+            self.attrs_by_uuid_[attr_uuid] = attr_wrapper
 
         # this call gets the event group for Module attribute change events
         remote_event_group = connection.request_receive(remote, get_event_group_atom(), True)[0]
@@ -264,6 +267,7 @@ class ModuleBase(ActorConnection):
             attribute_role_data)
 
         self.attrs_by_name_[attribute_name] = new_attr
+        self.attrs_by_uuid_[new_attr.uuid] = new_attr
 
         if preference_path:
             new_attr.set_role_data("preference_path", preference_path)
@@ -304,6 +308,7 @@ class ModuleBase(ActorConnection):
         Args:
             handler(Callable): Call back function
         """
+        print ("OIOI", handler)
         self.__attribute_changed = handler
 
     def subscribe_to_playhead_events(self, playhead_event_callback=None):
@@ -416,7 +421,7 @@ class ModuleBase(ActorConnection):
         self.menu_item_ids.append(menu_item_uuid)
 
         self.menu_trigger_callbacks[
-            str(menu_item_uuid)] = menu_trigger_callback
+            menu_item_uuid] = menu_trigger_callback
 
     def insert_menu_item(
         self,
@@ -427,7 +432,7 @@ class ModuleBase(ActorConnection):
         attr_id=Uuid(),
         divider=False,
         hotkey_uuid=Uuid(),
-        menu_trigger_callback=None,
+        callback=None,
         user_data=""
     ):
 
@@ -445,9 +450,9 @@ class ModuleBase(ActorConnection):
 
         self.menu_item_ids.append(menu_item_uuid)
 
-        if menu_trigger_callback:
+        if callback:
             self.menu_trigger_callbacks[
-                str(menu_item_uuid)] = menu_trigger_callback
+                menu_item_uuid] = callback
 
         return menu_item_uuid
 
@@ -469,7 +474,7 @@ class ModuleBase(ActorConnection):
 
         self.menu_item_ids.append(menu_item_uuid)
 
-        return menu_item_uuid
+        return menu_item_uuid        
 
     def set_submenu_position(
         self,
@@ -497,21 +502,29 @@ class ModuleBase(ActorConnection):
             submenu_path,
             menu_item_position)
 
+    def remove_menu_item(
+        self,
+        menu_uuid
+    ):
+        self.connection.request_receive(
+            self.remote,
+            module_remove_menu_item_atom(),
+            menu_uuid)
+
     def message_handler(self, sender, req_id, message_content):
 
         try:
             atom = message_content[0] if len(message_content) else None
+            
+            # message handler for attribute change
             if isinstance(atom, type(change_attribute_event_atom())):
                 role = message_content[3]
-                if role == AttributeRole.Value:
-                    attr_uuid = str(message_content[2]) if len(
-                        message_content) > 2 else ""
-                    if self.__attribute_changed:                        
-                        for attr in self.attrs_by_name_.values():
-                            if attr.uuid == Uuid(attr_uuid):
-                                self.__attribute_changed(attr)
-                    if attr_uuid in self.menu_trigger_callbacks:
-                        self.menu_trigger_callbacks[attr_uuid]()
+                attr_uuid = message_content[2] if len(
+                    message_content) > 2 else Uuid()
+                if self.__attribute_changed and attr_uuid in self.attrs_by_uuid_:                        
+                    self.__attribute_changed(self.attrs_by_uuid_[attr_uuid], role)
+                if attr_uuid in self.menu_trigger_callbacks:
+                    self.menu_trigger_callbacks[attr_uuid]()
 
             elif isinstance(atom, type(hotkey_event_atom())):
                 hotkey_uuid = str(message_content[1]) if len(
@@ -528,12 +541,32 @@ class ModuleBase(ActorConnection):
                     message_content) > 1 else None
                 user_data = str(message_content[2]) if len(
                     message_content) > 2 else ""
-                if "uuid" in menu_item_data and Uuid(menu_item_data["uuid"]) in self.menu_item_ids:
-                    self.menu_item_activated(menu_item_data, user_data)
+                if "uuid" in menu_item_data:
+                    uuid = Uuid(menu_item_data["uuid"])
+                    if uuid in self.menu_item_ids:
+                        self.menu_item_activated(menu_item_data, user_data)
+                    if uuid in self.menu_trigger_callbacks:
+                        self.menu_trigger_callbacks[uuid]()
                 
         except Exception as err:
             print (err)
             print (traceback.format_exc())
+
+    def run_callback_with_delay(
+        self,
+        delay_microseconds,
+        callback_fn
+        ):
+        """Run a callback after specified delay in microseconds
+        Args:
+            delay_microseconds(int): The delay in microseconds
+            callback_fn(method): Callback function to be executed
+        """
+        if XStudioExtensions:
+            XStudioExtensions.run_callback_with_delay(
+                (callback_fn, delay_microseconds)
+            )
+
 
     def incoming_msg(self, *args):
 

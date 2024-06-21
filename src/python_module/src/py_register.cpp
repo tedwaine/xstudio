@@ -72,6 +72,7 @@ void register_uuid_class(py::module &m, const std::string &name) {
         .def(py::init<const std::string &>())
         .def("generate", &utility::Uuid::generate)
         .def("generate_in_place", &utility::Uuid::generate_in_place)
+        .def("generate_from_name", &utility::Uuid::generate_in_place_from_name)        
         .def("is_null", &utility::Uuid::is_null)
         .def(py::self == py::self)
         .def(py::self != py::self)

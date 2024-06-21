@@ -623,6 +623,10 @@ void EmbeddedPythonActor::act() {
         },
         [=](bool) {},
 
+        [=](const utility::Uuid &cb_id) {
+            base_.run_callback(cb_id);
+        },
+
         [&](exit_msg &em) {
             if (em.reason) {
                 if (base_.enabled())
@@ -757,4 +761,7 @@ nlohmann::json EmbeddedPythonActor::refresh_snippet(
     }
 
     return result;
+}
+void EmbeddedPythonActor::delayed_callback(utility::Uuid & cb_id, const int microseconds_delay) {
+    delayed_anon_send(caf::actor_cast<caf::actor>(this), std::chrono::microseconds(microseconds_delay), cb_id);
 }

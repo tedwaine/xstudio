@@ -13,6 +13,7 @@ import xstudio.qml.helpers 1.0
 import xstudio.qml.viewport 1.0
 
 import "./quickview/"
+import "./runtime/"
 
 ApplicationWindow {
 
@@ -531,6 +532,8 @@ ApplicationWindow {
             }
         }
     }
+    // For dynamic loading of QML by plugins
+    XsRuntimeQMLItems {
+    }
 
 }
-

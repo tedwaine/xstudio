@@ -151,7 +151,7 @@ Item {
             Layout.preferredWidth: iconDiv.width ? 3 : indent
         }
     
-        Text { 
+        XsText { 
             
             id: labelDiv
             text: name ? name : "Unknown" //+ (sub_menu && !is_in_bar ? "   >>" : "")
@@ -179,7 +179,7 @@ Item {
             Layout.fillWidth: true
         }
 
-        Text { 
+        XsText { 
 
             Layout.alignment: Qt.AlignVCenter
             id: hotKeyDiv
