@@ -378,13 +378,23 @@ function delayCallback(delayTime, cb) {
 function selectTimelineCallback(playlist_index, uuids, wait=4) {
 	playlist_index = theSessionData.getPlaylistIndex(playlist_index)
     if(uuids.length) {
+		// make the playlist expand itself in the playlist panels
+		// theSessionData.set(playlist_index, true, "expandedRole")
     	let tindex = theSessionData.searchRecursive(helpers.QVariantFromUuidString(uuids[0]), "actorUuidRole", playlist_index)
     	if(tindex.valid) {
-			sessionSelectionModel.setCurrentIndex(
-				tindex,
-				ItemSelectionModel.ClearAndSelect)
+
 			// prepare timeline...
 			appWindow.conformTool.conformPrepareSequence(tindex, false)
+
+			// this puts the timeline into timeline panels
+			// give timeline time to prepare or it gets upset.
+			delayCallback(3000, function() {
+				sessionSelectionModel.setCurrentIndex(
+					helpers.makePersistent(tindex),
+					ItemSelectionModel.ClearAndSelect)
+				viewedMediaSetIndex = helpers.makePersistent(tindex)
+			});
+
 		} else if(wait) {
 			delayCallback(1000, function() {
 		     	selectTimelineCallback(playlist_index, uuids, wait-1)
@@ -712,23 +722,23 @@ function transfer(destination, indexes) {
 
 	    for(let i=0; i < indexes.length; i++) {
 
-	        let dnuuid = model.get(indexes[i].row,"stalkUuidRole")
+	        let dnuuid = model.get(indexes[i],"stalkUuidRole")
 	        if(project == null) {
-	            project = model.get(indexes[i].row,"projectRole")
+	            project = model.get(indexes[i],"projectRole")
 	        }
 	        // where is it...
 	        if(source == null) {
-	            if(model.get(indexes[i].row,"onSiteLon") && destination != "lon")
+	            if(model.get(indexes[i],"onSiteLon") && destination != "lon")
 	                source = "lon"
-	            else if(model.get(indexes[i].row,"onSiteMum") && destination != "mum")
+	            else if(model.get(indexes[i],"onSiteMum") && destination != "mum")
 	                source = "mum"
-	            else if(model.get(indexes[i].row,"onSiteVan") && destination != "van")
+	            else if(model.get(indexes[i],"onSiteVan") && destination != "van")
 	                source = "van"
-	            else if(model.get(indexes[i].row,"onSiteChn") && destination != "chn")
+	            else if(model.get(indexes[i],"onSiteChn") && destination != "chn")
 	                source = "chn"
-	            else if(model.get(indexes[i].row,"onSiteMtl") && destination != "mtl")
+	            else if(model.get(indexes[i],"onSiteMtl") && destination != "mtl")
 	                source = "mtl"
-	            else if(model.get(indexes[i].row,"onSiteSyd") && destination != "syd")
+	            else if(model.get(indexes[i],"onSiteSyd") && destination != "syd")
 	                source = "syd"
 	        }
 	        uuids.push(dnuuid)

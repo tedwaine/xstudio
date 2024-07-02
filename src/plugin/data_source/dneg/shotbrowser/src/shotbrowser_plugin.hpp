@@ -236,6 +236,12 @@ namespace shotbrowser {
             const std::string &job);
         void find_shot(caf::typed_response_promise<utility::JsonStore> rp, const int shot_id);
 
+        void get_fields(
+            caf::typed_response_promise<utility::JsonStore> rp,
+            const int id,
+            const std::string &entity,
+            const std::vector<std::string> &fields);
+
         std::shared_ptr<BuildPlaylistMediaJob> get_next_build_task(bool &is_ivy_build_task);
         void do_add_media_sources_from_shotgun(std::shared_ptr<BuildPlaylistMediaJob>);
         void do_add_media_sources_from_ivy(std::shared_ptr<BuildPlaylistMediaJob>);
@@ -294,6 +300,8 @@ namespace shotbrowser {
         module::StringAttribute *session_token_;
         module::BooleanAttribute *authenticated_;
         module::FloatAttribute *timeout_;
+
+        bool disable_integration_{false};
 
         // module::ActionAttribute *playlist_notes_action_;
         // module::ActionAttribute *selected_notes_action_;

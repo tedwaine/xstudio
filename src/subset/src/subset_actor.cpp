@@ -425,6 +425,26 @@ void SubsetActor::init() {
         },
 
 
+        [=](media::current_media_source_atom)
+            -> caf::result<std::vector<std::pair<UuidActor, std::pair<UuidActor, UuidActor>>>> {
+            auto rp = make_response_promise<
+                std::vector<std::pair<UuidActor, std::pair<UuidActor, UuidActor>>>>();
+            if (not actors_.empty()) {
+                fan_out_request<policy::select_all>(
+                    map_value_to_vec(actors_), infinite, media::current_media_source_atom_v)
+                    .then(
+                        [=](const std::vector<
+                            std::pair<UuidActor, std::pair<UuidActor, UuidActor>>>
+                                details) mutable { rp.deliver(details); },
+                        [=](error &err) mutable { rp.deliver(std::move(err)); });
+            } else {
+                rp.deliver(
+                    std::vector<std::pair<UuidActor, std::pair<UuidActor, UuidActor>>>());
+            }
+            return rp;
+        },
+
+
         [=](playlist::add_media_atom,
             const std::vector<UuidActor> &media_actors,
             const utility::Uuid &uuid_before) -> result<bool> {

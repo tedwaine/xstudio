@@ -318,77 +318,20 @@ void EmbeddedPython::remove_message_callback(const py::tuple &cb_particulars) {
     }
 }
 
-void EmbeddedPython::run_callback_with_delay(const py::tuple &args) {
-
-    try {
-
-        if (args.size() == 2) {
-
-            auto i            = args.begin();
-            auto callback_func = (*i).cast<py::function>();
-            i++;
-            auto microseconds_delay = (*i).cast<int>();
-
-            utility::Uuid id;
-            for (auto &cb: delayed_callbacks_) {
-                if (cb.second == callback_func) {
-                    id = cb.first;
-                    break;
-                }
-            }
-            if (id.is_null()) {
-                id = utility::Uuid::generate();
-                delayed_callbacks_[id] = callback_func;
-            }                    
-            parent_->delayed_callback(id, microseconds_delay);
-
-        } else {
-            throw std::runtime_error(
-                "Set message callback expecting tuple of size 2 or 3 "
-                "(remote_event_group_actor, callack_func, (optional: parent_actor)).");
-        }
-
-    } catch (std::exception &e) {
-        std::cerr << "E " << e.what() << "\n";
-        PyErr_SetString(PyExc_RuntimeError, e.what());
-    }
-
-}
-
-void EmbeddedPython::run_callback(const utility::Uuid &id) {
-
-    if (delayed_callbacks_.find(id) == delayed_callbacks_.end()) {
-        spdlog::warn("{} : callback function not found.", __PRETTY_FUNCTION__);
-        return;
-    }
-
-    // run the python callback!
-    delayed_callbacks_[id]();
-
-}
-
 void EmbeddedPython::s_add_message_callback(const py::tuple &cb_particulars) {
     if (s_instance_) {
         s_instance_->add_message_callback(cb_particulars);
     }
 }
-
 void EmbeddedPython::s_remove_message_callback(const py::tuple &cb_particulars) {
     if (s_instance_) {
         s_instance_->remove_message_callback(cb_particulars);
     }
 }
 
-void EmbeddedPython::s_run_callback_with_delay(const py::tuple &delayed_cb_args) {
-    if (s_instance_) {
-        s_instance_->run_callback_with_delay(delayed_cb_args);
-    }
-}
-
 
 PYBIND11_EMBEDDED_MODULE(XStudioExtensions, m) {
     // `m` is a `py::module_` which is used to bind functions and classes
-    m.def("run_callback_with_delay", &EmbeddedPython::s_run_callback_with_delay);
     m.def("add_message_callback", &EmbeddedPython::s_add_message_callback);
     m.def("remove_message_callback", &EmbeddedPython::s_remove_message_callback);
     py::class_<caf::message>(m, "CafMessage", py::module_local());

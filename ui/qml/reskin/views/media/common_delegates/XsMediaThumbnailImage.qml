@@ -13,6 +13,9 @@ Rectangle{
     height: width / (16/9) //to keep 16:9 ratio  
     color: "transparent"
     property bool showBorder: false
+    property bool forcedHover: hovered
+    property int highlightBorderThickness: 5
+    clip: true
 
     XsText{
         text: "No\nImage" //#TODO
@@ -38,10 +41,11 @@ Rectangle{
         width: height
         source: "qrc:/icons/play_circle.svg"
         opacity: localHovered ? 1.0 : 0.75
-        visible: hovered
+        visible: forcedHover
+        fillMode: Image.Stretch
         property var mx: mouseX-thumbnailDiv.parent.parent.x-x
         property var my: mouseY-thumbnailDiv.y-y
-        property var localHovered: hovered ? (mx > 0 && mx < width && my > 0 && my < height) : false
+        property var localHovered: forcedHover ? (mx > 0 && mx < width && my > 0 && my < height) : false
         onLocalHoveredChanged: playOnClick = localHovered    
     }
 
@@ -50,6 +54,7 @@ Rectangle{
         XsMediaThumbnailHighlight {
             anchors.fill: parent
             z: 100
+            borderThickness: highlightBorderThickness
         }    
     }
 

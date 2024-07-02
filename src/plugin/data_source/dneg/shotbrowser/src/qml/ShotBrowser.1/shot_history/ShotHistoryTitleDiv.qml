@@ -65,28 +65,32 @@ Item{id: titleDiv
         }
     }
 
-    ColumnLayout{ id: col
+    XsPrimaryButton{ id: updateScopeBtn
         x: panelPadding
-        width: parent.width - (panelPadding*2)
+        width: 40
+        height: parent.height - (panelPadding*2)
+        anchors.verticalCenter: parent.verticalCenter
+        imgSrc: isPanelEnabled && !isPaused ? "qrc:///shotbrowser_icons/lock_open.svg" : "qrc:///shotbrowser_icons/lock.svg"
+        // text: isPanelEnabled? "ON" : "OFF"
+        isActive: !isPanelEnabled || isPaused
+        onClicked: {
+            isPanelEnabled = !isPanelEnabled
+        }
+    }
+
+    ColumnLayout{ id: col
+        width: (parent.width - updateScopeBtn.width) - (panelPadding*2)
         height: parent.height - (panelPadding*2)
         spacing: titleButtonSpacing
         anchors.verticalCenter: parent.verticalCenter
+        anchors.left: updateScopeBtn.right
+        anchors.leftMargin: titleButtonSpacing
 
         RowLayout{
             width: parent.width
             height: titleButtonHeight
             spacing: 0
 
-            XsPrimaryButton{ id: updateScopeBtn
-                Layout.preferredWidth: 40
-                Layout.preferredHeight: titleButtonHeight
-                imgSrc: isPanelEnabled? "qrc:///shotbrowser_icons/lock_open.svg" : "qrc:///shotbrowser_icons/lock.svg"
-                // text: isPanelEnabled? "ON" : "OFF"
-                isActive: !isPanelEnabled
-                onClicked: {
-                    isPanelEnabled = !isPanelEnabled
-                }
-            }
 
             XsText{ id: scopeTxt
                 Layout.preferredWidth: (textWidth + panelPadding*3)
@@ -98,7 +102,64 @@ Item{id: titleDiv
                 Layout.fillWidth: true
                 Layout.preferredHeight: titleButtonHeight
                 orientation: ListView.Horizontal
-                enabled: isPanelEnabled
+                enabled: isPanelEnabled && !isPaused
+            }
+        }
+        RowLayout{
+            width: parent.width
+            height: titleButtonHeight
+            spacing: 0
+
+            XsSearchButton{ id: filterBtn
+                Layout.fillWidth: true
+                Layout.fillHeight: true
+                isExpanded: true
+                hint: "Filter"
+                buttonWidth: scopeTxt.width
+                enabled: isPanelEnabled && !isPaused
+
+                onTextChanged: nameFilter = text
+
+                Connections {
+                    target: panel
+                    function onNameFilterChanged() {
+                        filterBtn.text = nameFilter
+                    }
+                }
+            }
+
+            XsComboBoxEditable{ id: filterSentTo
+                Layout.fillHeight: true
+                Layout.minimumWidth: titleButtonHeight * 3
+                Layout.preferredWidth: titleButtonHeight * 3
+
+                enabled: isPanelEnabled && !isPaused
+
+                model: ShotBrowserEngine.ready ? ShotBrowserEngine.presetsModel.termModel("Sent To") : []
+                currentIndex: -1
+                textRole: "nameRole"
+                displayText: currentIndex==-1? "Sent To" : currentText
+
+                onModelChanged: currentIndex = -1
+
+                onCurrentIndexChanged: {
+                    if(currentIndex==-1)
+                        sentTo = ""
+                }
+
+                onAccepted: {
+                    sentTo = model.get(model.index(currentIndex,0), "nameRole")
+                    toolDiv.forceActiveFocus()
+                }
+
+                onActivated: sentTo = model.get(model.index(currentIndex,0), "nameRole")
+
+                Connections {
+                    target: panel
+                    function onSentToChanged() {
+                        filterSentTo.currentIndex = filterSentTo.find(sentTo)
+                    }
+                }
             }
         }
     }

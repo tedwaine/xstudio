@@ -36,7 +36,7 @@ XsPopupMenu {
     property var panelContext: helpers.contextPanel(contextMenu)
 
     XsFlagMenuInserter {
-        text: "Media Colour"
+        text: "Colour"
         panelContext: contextMenu.panelContext
         menuModelName: contextMenu.menu_model_name
         menuPath: ""
@@ -47,7 +47,7 @@ XsPopupMenu {
                 theSessionData.set(index, flag, "flagColourRole")
                 if (flag_text)
                     theSessionData.set(index, flag_text, "flagTextRole")
-            }            
+            }
         }
     }
 

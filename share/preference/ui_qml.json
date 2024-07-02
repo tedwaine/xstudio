@@ -21,6 +21,26 @@
 				"category": "Interface",
 				"display_name": "Use Flat Theme"
 			},
+			"ui_brightness": {
+				"path": "/ui/qml/ui_brightness",
+				"default_value": 100.0,
+				"description": "Decrease this value to make the xSTUDIO interface darker.",
+				"value": 100.0,
+				"datatype": "double",
+				"context": ["QML_UI"],
+				"category": "Interface",
+				"display_name": "UI Brightness"
+			},
+			"ui_text_brightness": {
+				"path": "/ui/qml/ui_text_brightness",
+				"default_value": 100.0,
+				"description": "Decrease this value to make the xSTUDIO text elements darker.",
+				"value": 100.0,
+				"datatype": "double",
+				"context": ["QML_UI"],
+				"category": "Interface",
+				"display_name": "UI Text Brightness"
+			},
 			"custom_help_menu": {
 				"path": "/ui/qml/custom_help_menu",
 				"default_value": {"title": "", "url": ""},

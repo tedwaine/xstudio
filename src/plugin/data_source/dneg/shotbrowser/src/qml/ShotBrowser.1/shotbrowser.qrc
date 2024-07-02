@@ -2,6 +2,9 @@
     <qresource prefix="/shotbrowser_icons">
         <file alias="shotgun.png">icons/shotgun.png</file>
 
+	    <file alias="left_panel_open.svg">icons/left_panel_open.svg</file>
+	    <file alias="right_panel_open.svg">icons/right_panel_open.svg</file>
+
 	    <file alias="heart_plus.svg">icons/heart_plus.svg</file>
 	    <file alias="bookmark_heart.svg">icons/bookmark_heart.svg</file>
 	    <file alias="up_arrow.svg">icons/up_arrow.svg</file>
@@ -21,6 +24,7 @@
 		<file alias="keyboard_return.svg">icons/keyboard_return.svg</file>
 	    <file alias="cloud.svg">icons/cloud.svg</file>
 	    <file alias="nature.svg">icons/nature.svg</file>
+	    <file alias="tree_plus.svg">icons/tree_plus.svg</file>
 	    <file alias="segment.svg">icons/segment.svg</file>
 	    <file alias="unfold_more.svg">icons/unfold_more.svg</file>
 	    <file alias="arrow_right.svg">icons/arrow_right.svg</file>

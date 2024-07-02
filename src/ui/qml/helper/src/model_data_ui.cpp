@@ -7,6 +7,8 @@
 #include "xstudio/utility/string_helpers.hpp"
 #include "xstudio/utility/logging.hpp"
 #include "xstudio/ui/qml/helper_ui.hpp"
+#include "xstudio/ui/qml/session_model_ui.hpp"
+#include "xstudio/ui/qml/QTreeModelToTableModel.hpp"
 #include "xstudio/global_store/global_store.hpp"
 
 
@@ -829,6 +831,80 @@ QUuid MediaListColumnsModel::new_media_list() {
     return QUuid();
 }
 
+MediaListFilterModel::MediaListFilterModel(QObject *parent) : super(parent) {
+    setDynamicSortFilter(true);
+}
+
+bool MediaListFilterModel::filterAcceptsRow(
+    int source_row, const QModelIndex &source_parent) const {
+
+    // filter in Media items only
+    QVariant t = sourceModel()->data(
+        sourceModel()->index(source_row, 0, source_parent), SessionModel::Roles::typeRole);
+
+    if (t.toString() != "Media")
+        return false;
+
+    // return false;
+    // surely we never run this if sourceModel is nullptr but check just in case.
+    if (search_string_.isEmpty())
+        return true;
+
+    // here we get the mediaDisplayInfoRole data ... this is QList<QList<QVariant>>
+    // The outer list is because we have multiple media list panels with independently
+    // configured columns of information - one inner list per media list panel
+    // The inner list is the data for each column that is shown in the media list
+    // panel against each media item
+    QVariant v = sourceModel()->data(
+        sourceModel()->index(source_row, 0, source_parent),
+        SessionModel::Roles::mediaDisplayInfoRole);
+
+
+    QList<QVariant> cols = v.toList();
+    if (cols.size() > columns_model_index_) {
+        // get to the correct inner list
+        QList<QVariant> c2 = cols[columns_model_index_].toList();
+        if (c2.size()) {
+            bool match = false;
+            // do a string match against any bit of data that can be converted
+            // to a string
+            for (const auto &col : c2) {
+                if (col.toString().contains(search_string_, Qt::CaseInsensitive)) {
+                    match = true;
+                    break;
+                }
+            }
+            return match;
+        }
+    }
+    return true;
+}
+
+QModelIndex MediaListFilterModel::rowToSourceIndex(const int row) const {
+
+    QModelIndex srcIdx          = mapToSource(index(row, 0));
+    QTreeModelToTableModel *mdl = dynamic_cast<QTreeModelToTableModel *>(sourceModel());
+    if (mdl) {
+        srcIdx = mdl->mapToModel(srcIdx);
+    }
+    return srcIdx;
+}
+
+int MediaListFilterModel::sourceIndexToRow(const QModelIndex &idx) const {
+
+    // idx comes from SessionModelUI, which is the sourceModel of OUR sourceModel
+    QModelIndex remapped        = idx;
+    QTreeModelToTableModel *mdl = dynamic_cast<QTreeModelToTableModel *>(sourceModel());
+    if (mdl) {
+        // map from SessionModelUI to OUR sourceModel
+        remapped = mdl->mapFromModel(remapped);
+    }
+    // now map from OUR sourceModel to our own index
+    remapped = mapFromSource(remapped);
+    return remapped.row();
+}
+
+
 MenuModelItem::MenuModelItem(QObject *parent) : super(parent) {
     init(CafSystemObject::get_actor_system());
 }
@@ -859,7 +935,7 @@ void MenuModelItem::init(caf::actor_system &system) {
             [=](utility::event_atom,
                 xstudio::ui::model_data::menu_node_activated_atom,
                 const std::string path,
-                const utility::JsonStore & menu_item_data,
+                const utility::JsonStore &menu_item_data,
                 const std::string &user_data, // for hotkeys this is the 'context'
                 const bool fromHotkey) {
                 if (fromHotkey) {

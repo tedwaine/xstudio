@@ -521,6 +521,7 @@ metadata with media that isn't from your pipeline.`
                 Layout.preferredHeight: XsStyleSheet.widgetStdHeight
                 visible: !is_backup
                 onClicked: {
+                    console.log("model_index", model_index)
                     var r = model_index.row
                     if (r) {
                         var p = model_index.parent

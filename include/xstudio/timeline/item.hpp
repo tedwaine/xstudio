@@ -22,15 +22,16 @@ namespace timeline {
         IA_ADDR   = 0x2L,
         IA_ACTIVE = 0x3L,
         IA_AVAIL  = 0x4L,
-        IA_INSERT = 0x5L,
-        IA_REMOVE = 0x6L,
-        IA_SPLICE = 0x7L,
-        IA_NAME   = 0x8L,
-        IA_FLAG   = 0x9L,
-        IA_PROP   = 0x10L,
-        IA_LOCK   = 0x11L,
-        IA_MARKER = 0x12L,
-        IA_DIRTY  = 0x13L,
+        IA_RANGE  = 0x5L,
+        IA_INSERT = 0x6L,
+        IA_REMOVE = 0x7L,
+        IA_SPLICE = 0x8L,
+        IA_NAME   = 0x9L,
+        IA_FLAG   = 0x10L,
+        IA_PROP   = 0x11L,
+        IA_LOCK   = 0x12L,
+        IA_MARKER = 0x13L,
+        IA_DIRTY  = 0x14L,
 
     } ItemAction;
 
@@ -227,6 +228,8 @@ namespace timeline {
 
         utility::JsonStore set_active_range(const utility::FrameRange &value);
         utility::JsonStore set_available_range(const utility::FrameRange &value);
+        utility::JsonStore
+        set_range(const utility::FrameRange &avail, const utility::FrameRange &active);
         utility::JsonStore insert(
             Items::iterator position,
             const Item &val,
@@ -302,6 +305,8 @@ namespace timeline {
         Items::iterator erase_direct(Items::iterator position);
         void set_active_range_direct(const utility::FrameRange &value);
         void set_available_range_direct(const utility::FrameRange &value);
+        void
+        set_range_direct(const utility::FrameRange &avail, const utility::FrameRange &active);
         void set_actor_addr_direct(const caf::actor_addr &value);
         void set_enabled_direct(const bool value);
         void set_locked_direct(const bool value);

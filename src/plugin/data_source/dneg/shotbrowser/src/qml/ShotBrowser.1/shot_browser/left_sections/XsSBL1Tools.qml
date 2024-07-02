@@ -25,9 +25,21 @@ Item{ id: toolDiv
             Layout.preferredHeight: parent.height
             imgSrc: "qrc:///shotbrowser_icons/nature.svg"
             text: "Tree"
-            isActive: currentCategory == text
+            isActive: currentCategory == text && !sequenceTreeShowPresets
             onClicked: {
                 currentCategory = text
+                sequenceTreeShowPresets = false
+            }
+        }
+        XsPrimaryButton{
+            Layout.preferredWidth: btnWidth
+            Layout.preferredHeight: parent.height
+            imgSrc: "qrc:///shotbrowser_icons/tree_plus.svg"
+            text: "Tree Plus Presets"
+            isActive: currentCategory == "Tree" && sequenceTreeShowPresets
+            onClicked: {
+                currentCategory = "Tree"
+                sequenceTreeShowPresets = true
             }
         }
         XsPrimaryButton{
@@ -43,7 +55,7 @@ Item{ id: toolDiv
         XsPrimaryButton{
             Layout.preferredWidth: btnWidth
             Layout.preferredHeight: parent.height
-            imgSrc: "qrc:///shotbrowser_icons/bookmark_heart.svg"
+            imgSrc: "qrc:///shotbrowser_icons/settings.svg"
             text: "Menus"
             isActive: currentCategory == text
             onClicked: {

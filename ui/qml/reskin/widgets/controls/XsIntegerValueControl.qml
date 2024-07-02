@@ -25,6 +25,8 @@ Control
     property int prevValue: defaultValue/2
     property var stepSize: 0.25
 
+    property alias valueText: valueDiv.text
+
     property bool isShortened: false
     property real shortThresholdWidth: 75
     property bool isShortTextOnly: false
@@ -74,7 +76,7 @@ Control
                 visible: isBgGradientVisible
                 anchors.fill: parent        
                 flatColor: topColor
-                topColor: isPressed || (isActive && !subtleActive)? bgColorPressed: "#33FFFFFF"
+                topColor: isPressed || (isActive && !subtleActive)? bgColorPressed: XsStyleSheet.controlColour
                 bottomColor: isPressed || (isActive && !subtleActive)? bgColorPressed: forcedBgColorNormal
             }
 

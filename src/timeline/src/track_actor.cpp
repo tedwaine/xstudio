@@ -136,6 +136,7 @@ void TrackActor::item_event_callback(const utility::JsonStore &event, Item &item
     case IA_LOCK:
     case IA_ENABLE:
     case IA_ACTIVE:
+    case IA_RANGE:
     case IA_AVAIL:
     case IA_SPLICE:
     case IA_ADDR:

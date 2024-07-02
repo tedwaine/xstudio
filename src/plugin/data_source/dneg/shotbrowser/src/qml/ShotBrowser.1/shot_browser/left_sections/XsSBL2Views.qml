@@ -27,13 +27,13 @@ Item{
         thumbWidth: currentCategory == "Tree"? panelPadding/2 : 0
 
         XsSBL2V1Tree{ id: treeView
-            SplitView.preferredWidth: prefs.leftPanelWidth
+            SplitView.preferredWidth: prefs.leftPanelWidth-8
             SplitView.fillHeight: true
 
             visible: currentCategory == "Tree"
             onWidthChanged: {
                 if(SplitView.view.resizing && currentCategory == "Tree")
-                    prefs.leftPanelWidth = width
+                    prefs.leftPanelWidth = width+8
             }
         }
 

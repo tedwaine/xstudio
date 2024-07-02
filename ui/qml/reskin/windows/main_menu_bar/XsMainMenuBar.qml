@@ -17,6 +17,6 @@ XsMenuBar {
     menu_model_name: "main menu bar"
 
     XsFileMenu {}
-
+    XsSnippetMenu {}
 
 }

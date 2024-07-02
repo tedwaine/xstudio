@@ -17,12 +17,15 @@ Item {
     property alias text: searchBar.text
     property alias searchBar: searchBar
 
-    width: isExpanded? expandedWidth : XsStyleSheet.primaryButtonStdWidth
+    property int buttonWidth: XsStyleSheet.primaryButtonStdWidth
+
+    implicitWidth: isExpanded? expandedWidth : buttonWidth
+
     height: XsStyleSheet.widgetStdHeight + 4
 
     XsPrimaryButton{ id: searchBtn
         x: isExpandedToLeft? searchBar.width : 0
-        width: XsStyleSheet.primaryButtonStdWidth
+        width: buttonWidth
         height: parent.height
         imgSrc: "qrc:/icons/search.svg"
         text: "Search"

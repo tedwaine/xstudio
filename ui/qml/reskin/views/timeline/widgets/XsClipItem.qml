@@ -15,6 +15,7 @@ XsGradientRectangle {
 	property bool isSelected: false
 	property bool isRolling: false
 	property bool showRolling: false
+	property bool isBroken: false
 
 	// property int parentStart: 0
 	property int start: 0
@@ -33,7 +34,7 @@ XsGradientRectangle {
     opacity: isHovered ? 1.0 : isEnabled ? (isLocked ? 0.6 : 1.0) : 0.3
 
 	border.width: 1
-    border.color: isHovered ? palette.highlight : Qt.darker(realColor, 0.8)
+    border.color: isHovered ? palette.highlight : (isBroken && isEnabled ? "Red" : Qt.darker(realColor, 0.8))
 
 	flatColor: topColor
 

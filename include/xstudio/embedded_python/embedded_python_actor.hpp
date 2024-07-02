@@ -2,10 +2,11 @@
 #pragma once
 
 #include <caf/all.hpp>
+#include <filesystem>
 
 #include "xstudio/embedded_python/embedded_python.hpp"
 #include "xstudio/utility/exports.hpp"
-#include "xstudio/utility/json_store.hpp"
+#include "xstudio/utility/json_store_sync.hpp"
 #include "xstudio/utility/uuid.hpp"
 
 namespace xstudio {
@@ -22,7 +23,6 @@ namespace embedded_python {
 
         void join_broadcast(caf::actor act);
         void leave_broadcast(caf::actor act);
-        void delayed_callback(utility::Uuid & cb_id, const int microseconds_delay);
 
       private:
         inline static const std::string NAME = "EmbeddedPythonActor";
@@ -30,9 +30,19 @@ namespace embedded_python {
         void act() override;
         void init();
 
+        void refresh_snippets(const std::vector<caf::uri> &paths);
+        nlohmann::json
+        refresh_snippet(const std::filesystem::path &path, const std::string &menu_path = "");
+        void update_preferences(const utility::JsonStore &);
+
       private:
         EmbeddedPython base_;
         caf::actor event_group_;
+
+        // stores information on conforming actions.
+        utility::JsonStoreSync data_;
+        utility::Uuid data_uuid_{utility::Uuid::generate()};
+        std::vector<caf::uri> snippet_paths_;
     };
 } // namespace embedded_python
 } // namespace xstudio

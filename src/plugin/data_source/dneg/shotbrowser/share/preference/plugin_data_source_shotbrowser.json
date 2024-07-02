@@ -330,6 +330,17 @@
                         "value": 120
                     }
                 },
+                "disable_integration": {
+                    "context": [
+                        "APPLICATION"
+                    ],
+                    "datatype": "bool",
+                    "default_value": false,
+                    "description": "Disable Shotbrowser integration.",
+                    "path": "/plugin/data_source/shotbrowser/disable_integration",
+                    "value": false,
+                    "category": "Pipeline"
+                },
                 "project_presets": {
                     "context": [
                         "APPLICATION"

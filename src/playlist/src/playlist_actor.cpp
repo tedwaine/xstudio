@@ -1187,6 +1187,25 @@ void PlaylistActor::init() {
             return actors;
         },
 
+        [=](media::current_media_source_atom)
+            -> caf::result<std::vector<std::pair<UuidActor, std::pair<UuidActor, UuidActor>>>> {
+            auto rp = make_response_promise<
+                std::vector<std::pair<UuidActor, std::pair<UuidActor, UuidActor>>>>();
+            if (not media_.empty()) {
+                fan_out_request<policy::select_all>(
+                    map_value_to_vec(media_), infinite, media::current_media_source_atom_v)
+                    .then(
+                        [=](const std::vector<
+                            std::pair<UuidActor, std::pair<UuidActor, UuidActor>>>
+                                details) mutable { rp.deliver(details); },
+                        [=](error &err) mutable { rp.deliver(std::move(err)); });
+            } else {
+                rp.deliver(
+                    std::vector<std::pair<UuidActor, std::pair<UuidActor, UuidActor>>>());
+            }
+            return rp;
+        },
+
         [=](get_media_atom,
             const utility::UuidList &selection) -> result<std::vector<UuidActor>> {
             std::vector<UuidActor> actors;
@@ -1205,11 +1224,8 @@ void PlaylistActor::init() {
             if (not media_.empty()) {
                 auto rp = make_response_promise<std::vector<ContainerDetail>>();
                 // collect media data..
-                std::vector<caf::actor> actors;
-                for (const auto &i : media_)
-                    actors.push_back(i.second);
-
-                fan_out_request<policy::select_all>(actors, infinite, utility::detail_atom_v)
+                fan_out_request<policy::select_all>(
+                    map_value_to_vec(media_), infinite, utility::detail_atom_v)
                     .then(
                         [=](const std::vector<ContainerDetail> details) mutable {
                             std::vector<ContainerDetail> reordered_details;

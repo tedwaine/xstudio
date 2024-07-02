@@ -26,6 +26,7 @@ Item{
     property color borderColorNormal: "transparent"
     property real borderWidth: 1
     property bool isSubDivider: false
+    property string mediaListSearchString
 
     property real textSize: XsStyleSheet.fontSize
     property var textFont: XsStyleSheet.fontFamily
@@ -37,6 +38,7 @@ Item{
     property real panelPadding: XsStyleSheet.panelPadding
 
     property real rowHeight: XsStyleSheet.widgetStdHeight
+    property real gridCellSize: 200
 
     //#TODO: just for testing
     property bool highlightTextOnActive: false
@@ -78,24 +80,114 @@ Item{
                     mediaList.deleteSelected()
                 }
             }
-            XsSearchButton{ id: searchBtn
+            XsSearchButton{ 
+                id: searchBtn
                 Layout.preferredWidth: isExpanded? btnWidth*6 : btnWidth
                 Layout.preferredHeight: btnHeight
                 isExpanded: false
                 hint: "Search media..."
+                onTextChanged: {
+                    mediaListSearchString = text
+                }
             }
-            XsText{
+
+            Item{
                 Layout.fillWidth: true
-                Layout.minimumWidth: 0//btnWidth
                 Layout.preferredHeight: btnHeight
-                text: searchBtn.isExpanded? "" : inspectedMediaSetProperties.values.nameRole ? inspectedMediaSetProperties.values.nameRole : ""
-                font.bold: true
-                elide: Text.ElideRight
+            }
+            XsComboBox{ id: sortValueDiv
+                Layout.minimumWidth: btnWidth
+                Layout.preferredWidth: btnWidth*3
+                Layout.maximumWidth: btnWidth*3
+                Layout.fillWidth: true
+                Layout.preferredHeight: btnHeight
+                visible: !is_list_view
+    
+                onCurrentIndexChanged: {
+                }
+            }
+            XsPrimaryButton{ id: sortOrderBtn
+                Layout.preferredWidth: btnWidth/2
+                Layout.preferredHeight: btnHeight
+                imgSrc: "qrc:/icons/trending.svg"
+                imageDiv.rotation: isAsc? 90:270
+                visible: !is_list_view
 
-                opacity: searchBtn.isExpanded? 0:1
-                Behavior on opacity { NumberAnimation { duration: 150; easing.type: Easing.OutQuart }  }
+                property bool isAsc: true
+
+                onClicked: { 
+                    sortOrderBtn.isAsc = !sortOrderBtn.isAsc
+                }
+            }
+            
+            
+            Item{
+                Layout.fillWidth: true
+                Layout.preferredHeight: btnHeight
+            }
+            // XsText{
+            //     Layout.fillWidth: true
+            //     Layout.minimumWidth: 0//btnWidth
+            //     Layout.preferredHeight: btnHeight
+            //     text: searchBtn.isExpanded? "" : inspectedMediaSetProperties.values.nameRole ? inspectedMediaSetProperties.values.nameRole : ""
+            //     font.bold: true
+            //     elide: Text.ElideRight
+            //     opacity: searchBtn.isExpanded? 0:1
+            //     Behavior on opacity { NumberAnimation { duration: 150; easing.type: Easing.OutQuart }  }
+            // }
+            
+            // XsSlider{
+            //     visible: !is_list_view
+            //     Layout.minimumWidth: btnWidth
+            //     Layout.preferredWidth: btnWidth*2
+            //     Layout.preferredHeight: btnHeight
+            //     snapMode: Slider.NoSnap 
+            //     stepSize: .1
+            //     orientation: Qt.Horizontal
+            //     // fillColor: muted? Qt.darker(palette.highlight,2) : palette.highlight
+            //     // handleColor: muted? Qt.darker(palette.text,1.2) : palette.text
+            //     value: gridCellSize
+            //     from: 100
+            //     to: 300
+            //     onValueChanged: {
+            //         console.log("gridCellSize: ", gridCellSize)
+            //         gridCellSize = value
+            //     }
+            //     onReleased:{
+            //     }
+            // }
+
+            XsIntegerValueControl {
+                visible: !is_list_view
+
+                Layout.minimumWidth: btnWidth
+                Layout.preferredWidth: btnWidth*2
+                Layout.maximumWidth: btnWidth*2
+                Layout.preferredHeight: btnHeight
+                Layout.maximumHeight: btnHeight
+
+                text: "Scale"
+                fromValue: 33 //100
+                toValue: 100 //300
+                defaultValue: 100 //50 //gridCellSize //200
+                stepSize: 1
+                valueText: parseFloat(value/100).toFixed(2)
+                
+                property real value: defaultValue
+                onValueChanged:{
+                    gridCellSize = value*3
+                }
             }
 
+            XsPrimaryButton{ id: gridViewBtn
+                Layout.preferredWidth: btnWidth
+                Layout.preferredHeight: btnHeight
+                imgSrc: "qrc:/icons/view_grid.svg"
+                isActive: !is_list_view
+                onPressed: {
+                    is_list_view = false
+                }
+            }
             XsPrimaryButton{ 
                 id: listViewBtn
                 Layout.preferredWidth: btnWidth
@@ -104,15 +196,6 @@ Item{
                 isActive: is_list_view
                 onPressed: {
                     is_list_view = true
-                }
-            }
-            XsPrimaryButton{ id: gridViewBtn
-                Layout.preferredWidth: btnWidth
-                Layout.preferredHeight: btnHeight
-                imgSrc: "qrc:/icons/view_grid.svg"
-                isActive: !is_list_view
-                onPressed: {
-                    is_list_view = false
                 }
             }
             XsPrimaryButton{ id: moreBtn
@@ -129,6 +212,9 @@ Item{
             sourceComponent: is_list_view ? list_view : grid_view
             Layout.fillWidth: true
             Layout.fillHeight: true
+
+            // onSourceComponentChanged: {
+            // }
         }
 
         Component {
@@ -147,6 +233,12 @@ Item{
 
                 Layout.fillWidth: true
                 Layout.fillHeight: true
+
+                cellSize: gridCellSize
+
+                Component.onCompleted: {
+                    gridCellSize = cellSize
+                }
 
             }
         }

@@ -177,9 +177,10 @@ TDCHelperActor::encode_save_thumb(const std::string &path, const ThumbnailBuffer
     return buf.size();
 }
 
-std::vector<std::byte> TDCHelperActor::encode_thumb(const ThumbnailBufferPtr &buffer) {
+std::vector<std::byte>
+TDCHelperActor::encode_thumb(const ThumbnailBufferPtr &buffer, const int quality) {
     auto result = std::vector<std::byte>();
-    int quality = 75;
+
     // Creating a custom deleter for the compressInfo pointer
     // to ensure ::jpeg_destroy_compress() gets called even if
     // we throw out of this function.
@@ -322,6 +323,16 @@ TDCHelperActor::TDCHelperActor(caf::actor_config &cfg) : caf::event_based_actor(
         },
 
         [=](media_reader::get_thumbnail_atom,
+            const ThumbnailBufferPtr &buffer,
+            const int quality) -> result<std::vector<std::byte>> {
+            try {
+                return encode_thumb(buffer, quality);
+            } catch (const std::exception &err) {
+                return make_error(xstudio_error::error, err.what());
+            }
+        },
+
+        [=](media_reader::get_thumbnail_atom,
             const ThumbnailBufferPtr &buffer) -> result<std::vector<std::byte>> {
             try {
                 return encode_thumb(buffer);
@@ -416,6 +427,13 @@ ThumbnailDiskCacheActor::ThumbnailDiskCacheActor(caf::actor_config &cfg)
         [=](utility::clear_atom) -> bool {
             evict_thumbnails(cache_.evict(0, 0));
             return true;
+        },
+
+        // convert to jpg
+        [=](media_reader::get_thumbnail_atom,
+            const ThumbnailBufferPtr &buffer,
+            const int quality) {
+            delegate(pool_, media_reader::get_thumbnail_atom_v, buffer, quality);
         },
 
         // convert to jpg

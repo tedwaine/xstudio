@@ -57,6 +57,9 @@ class JSONTreeModel : public QAbstractItemModel {
 
     [[nodiscard]] bool canFetchMore(const QModelIndex &parent) const override;
 
+    Q_INVOKABLE void fetchMoreWait(const QModelIndex &parent);
+
+
     [[nodiscard]] int rowCount(const QModelIndex &parent = QModelIndex()) const override;
     [[nodiscard]] int columnCount(const QModelIndex &parent = QModelIndex()) const override {
         return 1;
@@ -187,12 +190,10 @@ class JSONTreeModel : public QAbstractItemModel {
 
     /* For row reordering at a given parent index only. The full list of
     re-ordered indeces must be provbided.
-    
+
     e.g. if we have rows in the model A,B,C,D,E and we are re-ordering to
     E,A,D,C,B then new_row_indeces should be [4,0,3,2,1] */
-    bool reorderRows(
-        const QModelIndex &parent,
-        const std::vector<int> & new_row_indeces);
+    bool reorderRows(const QModelIndex &parent, const std::vector<int> &new_row_indeces);
 
 
   protected:

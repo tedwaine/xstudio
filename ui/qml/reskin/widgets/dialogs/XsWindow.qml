@@ -22,6 +22,21 @@ ApplicationWindow {
     palette.highlightedText: Qt.darker("#414141", 2.0)
     palette.brightText: "#bb7700"
 
+    property bool firstTimeShown: true
+
+    onVisibleChanged: {
+        if (firstTimeShown) {
+            // try and position in the middle of the main session window
+            if (typeof appWindow == "object") {
+                x = appWindow.x + appWindow.width/2 - width/2
+                y = appWindow.y + appWindow.height/2 - height/2
+            }
+            firstTimeShown = false
+        }
+    }
+    Component.onCompleted: {
+        appWindow
+    }
 
     background: XsGradientRectangle{ 
         id: backgroundDiv

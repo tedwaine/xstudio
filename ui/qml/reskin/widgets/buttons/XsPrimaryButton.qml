@@ -103,7 +103,7 @@ Button {
         opacity: enabled? 1.0 : 0.33
 
         flatColor: topColor
-        topColor: widget.down || (isActive && !isActiveViaIndicator)? bgColorPressed: forcedBgColorNormal==bgColorNormal?"#33FFFFFF":forcedBgColorNormal
+        topColor: widget.down || (isActive && !isActiveViaIndicator)? bgColorPressed: forcedBgColorNormal==bgColorNormal?XsStyleSheet.controlColour:forcedBgColorNormal
         bottomColor: widget.down || (isActive && !isActiveViaIndicator)? bgColorPressed: forcedBgColorNormal
 
 

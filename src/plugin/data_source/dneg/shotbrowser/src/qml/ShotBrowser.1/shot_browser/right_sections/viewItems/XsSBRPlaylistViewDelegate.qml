@@ -143,7 +143,7 @@ Item{ id: thisItem
                 Layout.preferredWidth: 20
                 Layout.fillHeight: true
                 Layout.rowSpan: 2
-                property bool hasNotes: noteCountRole == 0 ? false : true
+                property bool hasNotes: noteCountRole <= 0 ? false : true
 
                 text: "N"
                 font.weight: hasNotes? Font.Bold:Font.Normal
@@ -163,7 +163,7 @@ Item{ id: thisItem
                 Layout.preferredWidth: parent.height //* 1.5
                 Layout.fillHeight: true
                 Layout.rowSpan: 2
-                text: versionCountRole
+                text: versionCountRole == -1 ? "-" : versionCountRole
                 wrapMode: Text.WordWrap
                 elide: Text.ElideRight
                 // font.weight: text=="0"? Font.Normal : Font.Black

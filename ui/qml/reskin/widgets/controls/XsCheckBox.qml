@@ -42,7 +42,7 @@ CheckBox { id: widget
             anchors.fill: parent
     
             flatColor: topColor
-            topColor: widget.pressed? palette.highlight: forcedBgColorNormal==bgColorNormal?"#33FFFFFF":forcedBgColorNormal  
+            topColor: widget.pressed? palette.highlight: forcedBgColorNormal==bgColorNormal?XsStyleSheet.controlColour:forcedBgColorNormal  
             bottomColor: widget.pressed? palette.highlight: forcedBgColorNormal
         }
 
@@ -67,7 +67,7 @@ CheckBox { id: widget
     }
 
     contentItem:
-    XsText { id: textItem
+    Text { id: textItem
         text: widget.text
         font: widget.font
         opacity: enabled ? 1.0: 0.3

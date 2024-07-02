@@ -32,7 +32,6 @@ Rectangle{
     function populateModels() {
         if(ShotBrowserEngine.ready && ShotBrowserEngine.presetsModel.rowCount()) {
             quickModel.rootIndex = quickModel.notifyModel.mapFromSource(ShotBrowserEngine.presetsModel.searchRecursive("137aa66a-87e2-4c53-b304-44bd7ff9f755", "idRole"))
-            quickCombo.currentIndex = 0
         }
     }
 
@@ -179,6 +178,8 @@ Rectangle{
                         width: parent.width
                         height: itemHeight
                         anchors.verticalCenter: parent.verticalCenter
+                        onActivated: prefs.quickLoad = currentText
+                        onCountChanged: currentIndex = find(prefs.quickLoad)
                     }
                 }
 
@@ -207,7 +208,7 @@ Rectangle{
                         XsPrimaryButton{
                             Layout.preferredWidth: parent.width/2
                             Layout.preferredHeight: itemHeight
-                            text: "Add To New Sequence"
+                            text: "Conform To New Sequence"
                             onClicked: {
                                 if(quickCombo.currentIndex != -1)
                                     executeQuery(

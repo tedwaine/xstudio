@@ -36,6 +36,7 @@ class SessionModel : public caf::mixin::actor_object<JSONTreeModel> {
   public:
     enum Roles {
         activeDurationRole = JSONTreeModel::Roles::LASTROLE,
+        activeRangeValidRole,
         activeStartRole,
         actorRole,
         actorUuidRole,
@@ -164,8 +165,10 @@ class SessionModel : public caf::mixin::actor_object<JSONTreeModel> {
     Q_INVOKABLE QModelIndexList
     getTimelineClipIndexes(const QModelIndex &timelineIndex, const QModelIndex &mediaIndex);
 
+    Q_INVOKABLE QModelIndexList modifyItemSelectionHorizontal(
+        const QModelIndexList &clips, const int left, const int right);
     Q_INVOKABLE QModelIndexList
-    modifyClipSelection(const QModelIndexList &clips, const int left, const int right);
+    modifyItemSelectionVertical(const QModelIndexList &clips, const int up, const int down);
 
     Q_INVOKABLE QModelIndexList getTimelineVisibleClipIndexes(
         const QModelIndex &timelineIndex,
@@ -360,6 +363,8 @@ class SessionModel : public caf::mixin::actor_object<JSONTreeModel> {
 
   public slots:
     void updateMedia();
+    void setCurrentContainer(const QModelIndex &index, const bool viewed);
+    void setSelectedMedia(const QModelIndexList &indexes);
 
   signals:
 
@@ -370,6 +375,7 @@ class SessionModel : public caf::mixin::actor_object<JSONTreeModel> {
     void tagsChanged();
     void modifiedChanged();
     void playlistsChanged();
+    void currentPlaylistChanged();
     void
     mediaSourceChanged(const QModelIndex &media, const QModelIndex &source, const int mode);
     void makeTimelineSelection(QModelIndex timeline, QModelIndexList items);

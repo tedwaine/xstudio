@@ -42,7 +42,7 @@ Item{
     property var currentPresetIndex: ShotBrowserEngine.presetsModel.index(-1,-1)
 
     property bool sequenceTreeLiveLink: false
-    property bool sequenceTreeShowPresets: true
+    property bool sequenceTreeShowPresets: false
 
     property alias sortByNaturalOrder: resultsFilteredModel.sortByNaturalOrder
     property alias sortByCreationDate: resultsFilteredModel.sortByCreationDate
@@ -67,10 +67,10 @@ Item{
             updateTimer.restart()
         if(!isPaused && (currentCategory == "Menus" && currentPresetIndex.valid) || (currentCategory == "Tree" && sequenceTreeLiveLink)) {
             isPaused = true
-            resultsSelectionModel.clear()
-            resultsBaseModel.setResultData([])
-            ShotBrowserEngine.liveLinkKey = ""
-            ShotBrowserEngine.liveLinkMetadata = "null"
+            // resultsSelectionModel.clear()
+            // resultsBaseModel.setResultData([])
+            // ShotBrowserEngine.liveLinkKey = ""
+            // ShotBrowserEngine.liveLinkMetadata = "null"
         }
     }
 
@@ -186,6 +186,7 @@ Item{
         property int rightPanelWidth: 200
         property string category: "Tree"
         property string project: "NSFL"
+        property string quickLoad: ""
 
         onLeftPanelWidthChanged: {
             let i = createDefaults()
@@ -207,6 +208,14 @@ Item{
             let i = createDefaults()
             if(i["category"] != category) {
                 i["category"] = category
+                value = i
+            }
+        }
+
+        onQuickLoadChanged: {
+            let i = createDefaults()
+            if(i["quick_load"] != quickLoad) {
+                i["quick_load"] = quickLoad
                 value = i
             }
         }
@@ -233,6 +242,7 @@ Item{
             i["right_panel_width"] = value != undefined && value.hasOwnProperty("right_panel_width") ? value["right_panel_width"] : 200
             i["category"] = value != undefined && value.hasOwnProperty("category") ? value["category"] : "Tree"
             i["project"] = value != undefined && value.hasOwnProperty("project") ? value["project"] : "NSFL"
+            i["quick_load"] = value != undefined && value.hasOwnProperty("quick_load") ? value["quick_load"] : ""
             return i
         }
 
@@ -248,6 +258,8 @@ Item{
                     category = value["category"]
                 if(value["project"] && project != value["project"])
                     project = value["project"]
+                if(value["quick_load"] && quickLoad != value["quick_load"])
+                    quickLoad = value["quick_load"]
             }
         }
     }
@@ -337,6 +349,16 @@ Item{
         ignoreSpecialGroups: true
         filterGroupUserData: "tree"
         sourceModel: buttonModelBase
+
+        onRowsInserted: {
+            if(!currentPresetIndex.valid) {
+                let i = treeButtonModel.index(0,0)
+                if(i.valid) {
+                    i = treeButtonModel.mapToSource(i)
+                    currentPresetIndex = i.model.mapToModel(i)
+                }
+            }
+        }
     }
 
     ShotBrowserPresetFilterModel {

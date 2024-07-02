@@ -120,7 +120,8 @@ void SubPlayhead::init() {
             //  UNCOMMENT TO DEBUG UNEXPECT MESSAGES
 
             /*spdlog::warn(
-                "Got unwanted messate from {} {}", to_string(current_sender()), to_string(msg));*/
+                "Got unwanted messate from {} {}", to_string(current_sender()),
+               to_string(msg));*/
 
             return message{};
         });

@@ -19,7 +19,6 @@ list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/cmake/modules")
 
 set(STUDIO_PLUGINS "" CACHE STRING "Enable compilation of SITE plugins")
 
-
 if (("${CMAKE_GENERATOR}" MATCHES "Makefiles" OR ("${CMAKE_GENERATOR}" MATCHES "Ninja" AND NOT WIN32)) AND NOT __CHECKED_CXX_FLAGS)
     set(__CHECKED_CXX_FLAGS TRUE CACHE INTERNAL "Whether we checked the CXX flags already")
 	set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} ${COMMON_GCC}" CACHE STRING "" FORCE)
@@ -136,7 +135,6 @@ if(ENABLE_CLANG_FORMAT)
   clangformat_setup(${FORMAT_ITEMS})
 endif()
 
-
 if(INSTALL_PYTHON_MODULE)
   add_subdirectory(python)
 endif()
@@ -144,7 +142,6 @@ endif()
 add_subdirectory(src)
 
 if(INSTALL_XSTUDIO)
-
   install(DIRECTORY include/xstudio
           DESTINATION include)
 

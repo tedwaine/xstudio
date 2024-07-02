@@ -57,7 +57,7 @@ Item {
         if (path == false) return; // save was cancelled
         
         var spath = "" + path
-        if (!spath.endsWith(".xst") || !spath.endsWith(".xsz")) {
+        if (!(spath.endsWith(".xst") || spath.endsWith(".xsz"))) {
             path = path + ".xst"
         }
 
@@ -79,7 +79,7 @@ Item {
         if (path == false) return; // save was cancelled
 
         var spath = "" + path
-        if (!spath.endsWith(".xst") || !spath.endsWith(".xsz")) {
+        if (!(spath.endsWith(".xst") || spath.endsWith(".xsz"))) {
             path = path + ".xst"
         }
 

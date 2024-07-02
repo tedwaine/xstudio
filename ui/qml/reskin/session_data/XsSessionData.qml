@@ -6,6 +6,7 @@ import xstudio.qml.models 1.0
 import xstudio.qml.global_store_model 1.0
 import xstudio.qml.bookmarks 1.0
 import xstudio.qml.helpers 1.0
+import xstudio.qml.embedded_python 1.0
 
 import QtQml.Models 2.14
 import Qt.labs.qmlmodels 1.0
@@ -48,16 +49,21 @@ Item {
         onPlaylistsChanged: {
             if (!inspectedMediaSetIndex.valid) {
                 if (currentPlaylistIndex().valid) {
-                    sessionSelectionModel.setCurrentIndex(currentPlaylistIndex(), ItemSelectionModel.ClearAndSelect)                    
+                    sessionSelectionModel.setCurrentIndex(currentPlaylistIndex(), ItemSelectionModel.ClearAndSelect)
                 }
             }
             playlistsRootIdx = index(0, 0, index(-1, -1))
+        }
+        onCurrentPlaylistChanged: {
+            if (inspectedMediaSetIndex != currentPlaylistIndex()) {
+                sessionSelectionModel.setCurrentIndex(currentPlaylistIndex(), ItemSelectionModel.ClearAndSelect)
+            }
         }
 
         // watch for change in playhead - this signal provides aux_playhead(bool)
         // and parent_index(QModelIndex) args
         onPlayheadChanged: {
-            updatePlayheadIndex(parent_index, aux_playhead)         
+            updatePlayheadIndex(parent_index, aux_playhead)
         }
 
         function updatePlayheadIndex(parent_index, aux_playhead) {
@@ -70,7 +76,7 @@ Item {
             if (index.valid) {
                 currentPlayheadProperties.index = index
             } else {
-                // model hasn't filled in Playhead data, try again 
+                // model hasn't filled in Playhead data, try again
                 sessionData.fetchMore(parent_index)
                 callbackTimer.setTimeout(updatePlayheadIndex(parent_index, aux_playhead), 200);
             }
@@ -193,10 +199,10 @@ Item {
             }
 
             if (!idx.valid) {
-                // search playlists only to find the media we want to put on 
+                // search playlists only to find the media we want to put on
                 // the screen, because we want to avoid searching timelines
                 var playlists = session.searchRecursiveList("Playlist", "typeRole", session.index(-1,-1), 0, -1)
-                for (var i = 0; i < playlists.length; ++i) {                    
+                for (var i = 0; i < playlists.length; ++i) {
                     // 'depth' of 2 here means we will search media in the playlist but not media in
                     // a timeline that is inside this playlist
                     idx = session.searchRecursive(media_uuid, "actorUuidRole", playlists[i], 0, 2)
@@ -204,7 +210,7 @@ Item {
                 }
 
                 if (!idx.valid) {
-                    // last shot, search the whole session   
+                    // last shot, search the whole session
                     idx = session.searchRecursive(media_uuid, "actorUuidRole")
                 }
             }
@@ -215,8 +221,21 @@ Item {
                     )
             }
         }
-
     }
+
+    EmbeddedPython {
+        id: embeddedPython
+        property string text: ""
+        Component.onCompleted: {
+            embeddedPython.createSession()
+        }
+
+        onStdoutEvent: text += str
+        onStderrEvent: text += str
+    }
+
+    property alias embeddedPython: embeddedPython
+
     property alias session: sessionData
 
     /* This gives us access to a few properties like the filesystem path of
@@ -258,12 +277,20 @@ Item {
             playheadSelectionIndex = helpers.makePersistent(ind)
 
         }
-        
+
+        session.setCurrentContainer(inspectedMediaSetIndex, false);
+        let pl = session.getPlaylistIndex(inspectedMediaSetIndex)
+        session.set(pl, true, "expandedRole")
+
     }
 
     onViewedMediaSetIndexChanged: {
         if (viewedMediaSetIndex.valid) session.setPlayheadTo(viewedMediaSetIndex)
         session.setCurrentPlaylist(viewedMediaSetIndex)
+        session.setCurrentContainer(viewedMediaSetIndex, true);
+
+        let pl = session.getPlaylistIndex(inspectedMediaSetIndex)
+        session.set(pl, true, "expandedRole")
     }
 
     // This ItemSelectionModel manages playlist, subset, timeline etc. selection
@@ -323,7 +350,7 @@ Item {
         uuid: currentPlayheadProperties.playheadUuid
         onMediaUuidChanged: {
             current_onscreen_media_data.index = session.searchRecursive(mediaUuid, "actorUuidRole", viewedMediaSetIndex)
-        }    
+        }
     }
     property alias current_playhead: current_playhead
 
@@ -352,6 +379,13 @@ Item {
         property bool updateBackend: true
 
         onSelectionChanged: {
+            session.setSelectedMedia(selectedIndexes)
+            // auto populate media sources.
+            selectedIndexes.forEach(function (item, index) {
+                 if(session.canFetchMore(item))
+                    session.fetchMore(item)
+            })
+
             if (updateBackend) {
                 session.updateSelection(playheadSelectionIndex, selectedIndexes)
             }
@@ -459,7 +493,12 @@ Item {
             for(let i =0;i<sel.length;i++) {
                 let mi = sel[i]
                 let ms = mi.model.searchRecursive(mi.model.get(mi, "imageActorUuidRole"), "actorUuidRole", mi)
-                result.push(mi.model.get(ms, role))
+
+                if(ms.valid) {
+                    let v = mi.model.get(ms, role)
+                    if(v != undefined)
+                        result.push(v)
+                }
             }
             return result;
         }

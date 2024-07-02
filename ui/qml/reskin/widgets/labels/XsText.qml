@@ -54,6 +54,7 @@ Text {
     //Type1
     ToolTip.text: text
     ToolTip.visible: toolTipEnabled && truncated && isHovered
+    ToolTip.delay: 1000
 
     //Type2
     XsToolTip {

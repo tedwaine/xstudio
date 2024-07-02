@@ -50,10 +50,10 @@ Item{
             updateTimer.restart()
             if(isPanelEnabled && !isPaused) {
                 isPaused = true
-                resultsSelectionModel.clear()
-                results.setResultData([])
-                ShotBrowserEngine.liveLinkKey = ""
-                ShotBrowserEngine.liveLinkMetadata = "null"
+                // resultsSelectionModel.clear()
+                // results.setResultData([])
+                // ShotBrowserEngine.liveLinkKey = ""
+                // ShotBrowserEngine.liveLinkMetadata = "null"
             }
         }
     }

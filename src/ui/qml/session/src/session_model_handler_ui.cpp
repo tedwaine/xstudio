@@ -350,9 +350,7 @@ void SessionModel::init(caf::actor_system &_system) {
             },
 
             [=](utility::event_atom, session::current_playlist_atom, caf::actor playlist) {
-                /*spdlog::info(
-                    "utility::event_atom, session::current_playlist_atom {}",
-                    to_string(playlist));*/
+                emit currentPlaylistChanged();
             },
 
             [=](utility::event_atom,
@@ -728,25 +726,65 @@ void SessionModel::init(caf::actor_system &_system) {
                 // update media selection model.
                 // PlayheadSelectionActor
                 try {
-                    auto src     = caf::actor_cast<caf::actor>(self()->current_sender());
-                    auto src_str = actorToString(system(), src);
+                    auto src          = caf::actor_cast<caf::actor>(self()->current_sender());
+                    auto src_str      = actorToString(system(), src);
+                    auto search_value = QVariant::fromValue(QStringFromStd(src_str));
 
-                    auto index = searchRecursive(
-                        QVariant::fromValue(QStringFromStd(src_str)), actorRole);
+                    auto playlists = searchList(
+                        QVariant::fromValue(QString("Playlist")),
+                        typeRole,
+                        index(0, 0, QModelIndex()),
+                        0,
+                        -1);
+
+                    auto psindex = QModelIndex();
+                    for (const auto &i : playlists) {
+                        // spdlog::warn("search playlist {} {}",
+                        // StdFromQString(i.data(typeRole).toString()),
+                        // StdFromQString(i.data(nameRole).toString()));
+                        psindex = search(search_value, actorRole, i, 0);
+                        if (psindex.isValid()) {
+                            break;
+                        }
+
+                        // search directly under playlist containers.
+                        psindex =
+                            searchRecursive(search_value, actorRole, index(2, 0, i), 0, 1);
+                        if (psindex.isValid()) {
+                            // spdlog::warn("FOUND in container {} {} {}", psindex.row(),
+                            // StdFromQString(psindex.data(typeRole).toString()),
+                            // StdFromQString(psindex.parent().data(typeRole).toString()));
+                            break;
+                        }
+                    }
+
+                    if (not psindex.isValid()) {
+                        psindex = searchRecursive(
+                            QVariant::fromValue(QStringFromStd(src_str)), actorRole);
+
+                        if (psindex.isValid()) {
+                            spdlog::warn(
+                                "FOUND somewhere unexpected {} {} {}",
+                                psindex.row(),
+                                StdFromQString(psindex.data(typeRole).toString()),
+                                StdFromQString(psindex.parent().data(typeRole).toString()));
+                        }
+                    }
 
                     // request update of children.
                     // trigger update of model..
-                    if (index.isValid()) {
-                        const nlohmann::json &j = indexToData(index);
+                    if (psindex.isValid()) {
+                        const nlohmann::json &j = indexToData(psindex);
                         if (j.at("type") == "PlayheadSelection") {
                             requestData(
                                 QVariant::fromValue(QUuidFromUuid(j.at("id"))),
                                 idRole,
-                                index,
-                                index,
+                                psindex,
+                                psindex,
                                 selectionRole);
                         }
                     }
+
                 } catch (const std::exception &err) {
                     spdlog::warn("{} {}", __PRETTY_FUNCTION__, err.what());
                 }

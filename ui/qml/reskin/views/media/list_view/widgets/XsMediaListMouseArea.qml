@@ -80,7 +80,7 @@ MouseArea {
     onReleased: {
 
         interactive = true
-        if (singleSelect && !drag_drop_handler.dragging) {
+        if (underMouseItem && singleSelect && !drag_drop_handler.dragging) {
             underMouseItem.exclusiveSelect()
         }
         drag_drop_handler.endDrag(mouse.x, mouse.y)

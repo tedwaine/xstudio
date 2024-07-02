@@ -22,7 +22,7 @@ Menu {
     background: Rectangle {
         id: bgrect
         gradient: Gradient {
-            GradientStop { position: 0.0; color: "#33FFFFFF" }
+            GradientStop { position: 0.0; color: XsStyleSheet.controlColour }
             GradientStop { position: 1.0; color: forcedBgColorNormal }
         }
     }

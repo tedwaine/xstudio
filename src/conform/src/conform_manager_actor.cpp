@@ -538,6 +538,8 @@ void ConformWorkerActor::process_request(
                                                 i.get().set_flag("");
                                                 i.get().set_enabled(true);
                                                 i.get().set_locked(false);
+                                                // if(i.get().active_range())
+                                                //     i.get().set_available_range(*(i.get().active_range()));
                                             }
                                             tracks.push_back(tmp);
                                             trackit = tracks.begin();

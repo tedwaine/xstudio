@@ -5,88 +5,128 @@ import QtQuick.Layouts 1.3
 
 import xStudioReskin 1.0
 
-XsWindow{
-    id: popup
+XsWindow {
+	id: control
+	modality: Qt.WindowModal
 
-    title: ""
-    property string body: ""
-    property string initialText: ""
-    property var choices: []
-    width: 400
-    height: area ? 400 : 200
-    signal response(variant text, variant button_press)
-    property var chaser
-    property bool area: false
+    Connections {
+        target: control
+        // function onVisibleChanged() {
+        // 	app_window.dimmer = control.visible
+        // }
+    }
+
+    minimumHeight: 85
+    minimumWidth: 300
+
+    keepCentered: true
+    centerOnOpen: true
+
+    property alias okay_text: okay.text
+    property alias secondary_okay_text: secondary_okay.text
+    property alias cancel_text: cancel.text
+    property alias text: text_control.text
+    property alias echoMode: text_control.echoMode
+    property alias input: text_control
+
+    signal cancelled()
+    signal okayed()
+    signal secondary_okayed()
+
+
+    function okaying() {
+    	okayed()
+    	accept()
+    }
+    function secondary_okaying() {
+    	secondary_okayed()
+    	accept()
+    }
+    function cancelling() {
+    	cancelled()
+    	reject()
+    }
+
+    Connections {
+        target: control
+        function onVisibleChanged() {
+            if(visible){
+    			text_control.selectAll()
+    	        text_control.forceActiveFocus()
+            }
+        }
+    }
 
     ColumnLayout {
+        anchors.fill: parent
+        anchors.margins: 10
 
-        anchors.left: parent.left
-        anchors.right: parent.right
-        anchors.bottom: parent.bottom
-        anchors.top: parent.top
-        anchors.margins: 20
-        spacing: 20
+        XsTextField {
+            id: text_control
+            text: ""
 
-        XsText {
             Layout.fillWidth: true
-            Layout.preferredHeight: 30
-            Layout.fillHeight: area ? false : true
-            text: body
-            verticalAlignment: Text.AlignVCenter
-            horizontalAlignment: Text.AlignHCenter
-            wrapMode: Text.Wrap
-            font.weight: Font.Bold
-            font.pixelSize: XsStyleSheet.fontSize*1.2
-        }
+            Layout.fillHeight: true
 
-        Rectangle {
-            Layout.fillWidth: true
-            Layout.preferredHeight: 30
-            Layout.fillHeight: area ? true : false
-            color: "transparent"
-            border.color: "black"
+            selectByMouse: true
+            font.hintingPreference: Font.PreferNoHinting
+            onAccepted: okaying()
 
-            Keys.onReturnPressed:{
-                popup.response(input.text, popup.choices[popup.choices.length-1])
-                popup.visible = false
-            }
-            Keys.onEscapePressed: {
-                popup.response(input.text, popup.choices[0])
-                popup.visible = false
-            }
-
-            XsTextField{ id: input
+            background: Rectangle {
                 anchors.fill: parent
-                text: initialText
-                wrapMode: Text.Wrap
-                clip: true
-                focus: true
-                onActiveFocusChanged:{
-                    if(activeFocus) selectAll()
-                }
-
-                background: Rectangle{
-                    color: input.activeFocus? Qt.darker(palette.highlight, 1.5): input.hovered? Qt.lighter(palette.base, 2):Qt.lighter(palette.base, 1.5)
-                    border.width: input.hovered || input.active? 1:0
-                    border.color: palette.highlight
-                    opacity: enabled? 0.7 : 0.3
-                }
+                color: XsStyleSheet.basseColor
+                radius: 5
             }
         }
 
         RowLayout {
-            Layout.alignment: Qt.AlignRight
-            Repeater {
-                model: popup.choices
+            Layout.fillWidth: true
+            Layout.fillHeight: false
+            Layout.topMargin: 10
+            Layout.minimumHeight: 20
 
-                XsSimpleButton {
-                    text: popup.choices[index]
-                    //width: XsStyleSheet.primaryButtonStdWidth*2
-                    Layout.alignment: Qt.AlignRight
-                    onClicked: {
-                        popup.response(input.text, popup.choices[index])
-                        popup.visible = false
-                    }
+            //focus: true
+            Keys.onReturnPressed: okayed()
+            Keys.onEscapePressed: cancelled()
+
+            XsSimpleButton {
+            	id: cancel
+                text: qsTr("Cancel")
+
+                Layout.fillWidth: true
+                Layout.fillHeight: true
+                Layout.minimumWidth: control.width / 5
+
+                onClicked: {
+                    cancelling()
+                }
+            }
+            // XsHSpacer{}
+            XsSimpleButton {
+            	id: secondary_okay
+                text: ""
+
+                visible: text != ""
+                Layout.fillWidth: true
+                Layout.minimumWidth: control.width / 5
+                Layout.fillHeight: true
+
+                onClicked:{
+                    secondary_okaying()
+                }
+            }
+            // XsHSpacer{}
+            XsSimpleButton {
+            	id: okay
+                text: "Okay"
+                highlighted: true
+
+                Layout.minimumWidth: control.width / 5
+                Layout.fillWidth: true
+                Layout.fillHeight: true
+
+                onClicked: {
+                    okaying()
                 }
             }
         }

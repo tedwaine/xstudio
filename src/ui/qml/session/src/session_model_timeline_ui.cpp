@@ -733,6 +733,49 @@ void SessionModel::item_event_callback(const utility::JsonStore &event, timeline
             }
             break;
 
+        case timeline::IA_RANGE:
+            if (index.isValid()) {
+                bool changed = false;
+                if (event.at("value2") == true) {
+                    if (indexToData(index).at("available_range").is_null() or
+                        indexToData(index).at("available_range") != event.at("value")) {
+                        indexToData(index)["available_range"] = event.at("value");
+                        changed                               = true;
+                    }
+                } else {
+                    if (not indexToData(index).at("available_range").is_null()) {
+                        indexToData(index)["available_range"] = nullptr;
+                        changed                               = true;
+                    }
+                }
+
+                if (event.at("value4") == true) {
+                    if (indexToData(index).at("active_range").is_null() or
+                        indexToData(index).at("active_range") != event.at("value3")) {
+                        indexToData(index)["active_range"] = event.at("value3");
+                        changed                            = true;
+                    }
+                } else {
+                    if (not indexToData(index).at("active_range").is_null()) {
+                        indexToData(index)["active_range"] = nullptr;
+                        changed                            = true;
+                    }
+                }
+
+                if (changed)
+                    emit dataChanged(
+                        index,
+                        index,
+                        QVector<int>(
+                            {trimmedDurationRole,
+                             rateFPSRole,
+                             activeDurationRole,
+                             activeRangeValidRole,
+                             trimmedStartRole,
+                             activeStartRole}));
+            }
+            break;
+
         case timeline::IA_ACTIVE:
             if (index.isValid()) {
                 // spdlog::warn("timeline::IT_ACTIVE {}", event.dump(2));
@@ -749,6 +792,7 @@ void SessionModel::item_event_callback(const utility::JsonStore &event, timeline
                                  rateFPSRole,
                                  activeDurationRole,
                                  trimmedStartRole,
+                                 activeRangeValidRole,
                                  activeStartRole}));
                     }
                 } else {
@@ -761,6 +805,7 @@ void SessionModel::item_event_callback(const utility::JsonStore &event, timeline
                                 {trimmedDurationRole,
                                  rateFPSRole,
                                  activeDurationRole,
+                                 activeRangeValidRole,
                                  trimmedStartRole,
                                  activeStartRole}));
                     }
@@ -782,6 +827,7 @@ void SessionModel::item_event_callback(const utility::JsonStore &event, timeline
                             QVector<int>(
                                 {trimmedDurationRole,
                                  rateFPSRole,
+                                 activeRangeValidRole,
                                  availableDurationRole,
                                  trimmedStartRole,
                                  availableStartRole}));
@@ -795,6 +841,7 @@ void SessionModel::item_event_callback(const utility::JsonStore &event, timeline
                             QVector<int>(
                                 {trimmedDurationRole,
                                  rateFPSRole,
+                                 activeRangeValidRole,
                                  availableDurationRole,
                                  trimmedStartRole,
                                  availableStartRole}));
@@ -1401,15 +1448,118 @@ SessionModel::bakeTimelineItems(const QModelIndexList &indexes, const QString &q
     return result;
 }
 
+QModelIndexList SessionModel::modifyItemSelectionVertical(
+    const QModelIndexList &items, const int up, const int down) {
+    auto result = QModelIndexList();
 
-QModelIndexList SessionModel::modifyClipSelection(
-    const QModelIndexList &clips, const int left, const int right) {
+    spdlog::warn("up {} down {}", up, down);
+
+    if (not items.empty()) {
+        auto first_type = items[0].data(typeRole);
+        if (first_type == "Audio Track" or first_type == "Video Track") {
+            auto parent = items[0].parent();
+            // simple...
+            // find min , max
+
+            auto min_a = 0;
+            auto min_v = min_a;
+            auto max_a = rowCount(parent) - 1;
+            auto max_v = max_a;
+
+            //  find bounds..
+            for (auto i = 0; i < rowCount(parent) - 1; i++) {
+                auto i_type = index(i, 0, parent).data(typeRole);
+                if (i_type == "Video Track") {
+                    max_v = i;
+                    min_a = i + 1;
+                } else {
+                    break;
+                }
+            }
+
+            // add current selection
+            std::map<int, QModelIndex> selected_video;
+            std::map<int, QModelIndex> selected_audio;
+            for (const auto &i : items) {
+                if (i.data(typeRole) == "Video Track")
+                    selected_video[i.row()] = i;
+                else
+                    selected_audio[i.row()] = i;
+            }
+
+            auto up_count = up;
+            while (up_count > 0) {
+                for (const auto &i : items) {
+                    auto new_row = i.row() - up_count;
+                    if (i.data(typeRole) == "Video Track" and new_row >= min_v) {
+                        selected_video[new_row] = index(new_row, 0, parent);
+                    } else if (i.data(typeRole) == "Audio Track" and new_row >= min_a) {
+                        selected_audio[new_row] = index(new_row, 0, parent);
+                    }
+                }
+                up_count--;
+            }
+
+            auto down_count = down;
+            while (down_count > 0) {
+                for (const auto &i : items) {
+                    auto new_row = i.row() + down_count;
+                    if (i.data(typeRole) == "Video Track" and new_row <= max_v) {
+                        selected_video[new_row] = index(new_row, 0, parent);
+                    } else if (i.data(typeRole) == "Audio Track" and new_row <= max_a) {
+                        selected_audio[new_row] = index(new_row, 0, parent);
+                    }
+                }
+                down_count--;
+            }
+
+            // while(up_count < 0) {
+            //     for(const auto &i: items) {
+            //         auto new_row = i.row() + up_count;
+            //         if(i.data(typeRole) == "Video Track" and new_row <= max_v) {
+            //             selected_video[new_row] = index(new_row, 0, parent);
+            //         }
+            //         else if(i.data(typeRole) == "Audio Track" and new_row <= max_a) {
+            //             selected_audio[new_row] = index(new_row, 0, parent);
+            //         }
+            //     }
+            //     down_count --;
+            // }
+
+            // while(down_count < 0) {
+            //     for(const auto &i: items) {
+            //         auto new_row = i.row() + down_count;
+            //         if(i.data(typeRole) == "Video Track" and new_row <= max_v) {
+            //             selected_video[new_row] = index(new_row, 0, parent);
+            //         }
+            //         else if(i.data(typeRole) == "Audio Track" and new_row <= max_a) {
+            //             selected_audio[new_row] = index(new_row, 0, parent);
+            //         }
+            //     }
+            //     down_count --;
+            // }
+
+
+            for (const auto &i : selected_video)
+                result.push_back(i.second);
+            for (const auto &i : selected_audio)
+                result.push_back(i.second);
+
+        } else if (first_type == "Clip") {
+        }
+    }
+
+    return result;
+}
+
+QModelIndexList SessionModel::modifyItemSelectionHorizontal(
+    const QModelIndexList &items, const int left, const int right) {
     // spdlog::warn("{} {} {}", __PRETTY_FUNCTION__, left, right);
 
     auto rows = std::map<int, QModelIndexList>();
     auto dups = std::map<int, std::set<int>>();
 
-    for (const auto &i : clips) {
+    for (const auto &i : items) {
         if (i.data(typeRole) != "Clip")
             continue;
 

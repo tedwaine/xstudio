@@ -31,6 +31,7 @@ QueryEngine::QueryEngine() {
     set_cache(cache_name("Preferred Visual"), SourceTermValues);
     set_cache(cache_name("Result Limit"), ResultLimitTermValues);
     set_cache(cache_name("Sent To Client"), BoolTermValues);
+    set_cache(cache_name("Sent To"), SubmittedTermValues);
     set_cache(cache_name("Sent To Dailies"), BoolTermValues);
     set_cache(cache_name("Operator"), OperatorTermValues);
 
@@ -224,28 +225,34 @@ void QueryEngine::merge_group(nlohmann::json &destination, const nlohmann::json 
     }
 }
 
-bool QueryEngine::precache_needed(const int project_id, const utility::JsonStore &lookup) {
+std::set<std::string>
+QueryEngine::precache_needed(const int project_id, const utility::JsonStore &lookup) {
     // check expected keys exist..
-    auto result = false;
+    auto result = std::set<std::string>();
 
-    if (not lookup.count(cache_name("Department")))
-        result = true;
-    else if (not lookup.count(cache_name("User", project_id)))
-        result = true;
-    else if (not lookup.count(cache_name("Pipeline Status")))
-        result = true;
-    else if (not lookup.count(cache_name("Production Status")))
-        result = true;
-    else if (not lookup.count(cache_name("Shot Status")))
-        result = true;
-    else if (not lookup.count(cache_name("Unit", project_id)))
-        result = true;
-    else if (not lookup.count(cache_name("Playlist", project_id)))
-        result = true;
-    else if (not lookup.count(cache_name("Shot", project_id)))
-        result = true;
-    else if (not lookup.count(cache_name("Sequence", project_id)))
-        result = true;
+    static const auto lookup_names = std::vector<std::string>({
+        "Project",
+        "Department",
+        "Pipeline Status",
+        "Production Status",
+        "Sequence Status",
+        "Shot Status",
+    });
+
+    static const auto lookup_project_names =
+        std::vector<std::string>({"User", "Unit", "Playlist", "Shot", "Sequence"});
+
+    for (const auto &i : lookup_names) {
+        if (not lookup.count(cache_name(i)))
+            result.insert(i);
+    }
+
+    if (project_id > 0) {
+        for (const auto &i : lookup_project_names) {
+            if (not lookup.count(cache_name(i, project_id)))
+                result.insert(i);
+        }
+    }
 
     return result;
 }
@@ -953,18 +960,46 @@ void QueryEngine::add_version_term_to_filter(
             qry->push_back(RelationType("entity").is(JsonStore(rel)));
         }
     } else if (term == "Shot") {
-        auto rel  = R"({"type": "Shot", "id":0})"_json;
-        rel["id"] = resolve_query_value(term, JsonStore(value), project_id, lookup).get<int>();
+        auto rel = R"({"type": "Shot", "id":0})"_json;
+        // if no match force failing query. or we'll get EVERYTHING
+        try {
+            rel["id"] =
+                resolve_query_value(term, JsonStore(value), project_id, lookup).get<int>();
+        } catch (...) {
+        }
         qry->push_back(RelationType("entity").is(JsonStore(rel)));
     } else if (term == "Sequence") {
         try {
             auto seq = R"({"type": "Sequence", "id":0})"_json;
-            seq["id"] =
-                resolve_query_value(term, JsonStore(value), project_id, lookup).get<int>();
+            // if no match force failing query. or we'll get EVERYTHING
+            try {
+                seq["id"] =
+                    resolve_query_value(term, JsonStore(value), project_id, lookup).get<int>();
+            } catch (...) {
+            }
             qry->push_back(RelationType("entity").in(std::vector<JsonStore>({JsonStore(seq)})));
         } catch (const std::exception &err) {
             spdlog::warn("{} {}", __PRETTY_FUNCTION__, err.what());
             throw XStudioError("Invalid query term " + term + " " + value);
+        }
+    } else if (term == "Sent To") {
+        if (value == "Client")
+            qry->push_back(DateTime("sg_date_submitted_to_client").is_not_null());
+        else if (value == "Dailies") {
+            qry->push_back(FilterBy().Or(
+                DateTime("sg_submit_dailies").is_not_null(),
+                DateTime("sg_submit_dailies_chn").is_not_null(),
+                DateTime("sg_submit_dailies_mtl").is_not_null(),
+                DateTime("sg_submit_dailies_van").is_not_null(),
+                DateTime("sg_submit_dailies_mum").is_not_null()));
+        } else if (value == "Any") {
+            qry->push_back(FilterBy().Or(
+                DateTime("sg_date_submitted_to_client").is_not_null(),
+                DateTime("sg_submit_dailies").is_not_null(),
+                DateTime("sg_submit_dailies_chn").is_not_null(),
+                DateTime("sg_submit_dailies_mtl").is_not_null(),
+                DateTime("sg_submit_dailies_van").is_not_null(),
+                DateTime("sg_submit_dailies_mum").is_not_null()));
         }
     } else if (term == "Sent To Client") {
         if (value == "False")
@@ -1100,14 +1135,24 @@ void QueryEngine::add_note_term_to_filter(
         tmp["id"] = resolve_query_value(term, JsonStore(value), project_id, lookup).get<int>();
         qry->push_back(RelationType("addressings_to").in({JsonStore(tmp)}));
     } else if (term == "Shot") {
-        auto tmp  = R"({"type": "Shot", "id":0})"_json;
-        tmp["id"] = resolve_query_value(term, JsonStore(value), project_id, lookup).get<int>();
+        auto tmp = R"({"type": "Shot", "id":0})"_json;
+        // if no match force failing query. or we'll get EVERYTHING
+        try {
+            tmp["id"] =
+                resolve_query_value(term, JsonStore(value), project_id, lookup).get<int>();
+        } catch (...) {
+        }
+
         qry->push_back(RelationType("note_links").in({JsonStore(tmp)}));
     } else if (term == "Sequence") {
         try {
             auto seq = R"({"type": "Sequence", "id":0})"_json;
-            seq["id"] =
-                resolve_query_value(term, JsonStore(value), project_id, lookup).get<int>();
+            // if no match force failing query. or we'll get EVERYTHING
+            try {
+                seq["id"] =
+                    resolve_query_value(term, JsonStore(value), project_id, lookup).get<int>();
+            } catch (...) {
+            }
             qry->push_back(
                 RelationType("note_links").in(std::vector<JsonStore>({JsonStore(seq)})));
         } catch (const std::exception &err) {
@@ -1421,12 +1466,18 @@ utility::JsonStore QueryEngine::get_livelink_value(
                 if (not project.empty() and not shot.empty()) {
                     // Type is always Shot
                     // but we need the shot id.
+                    auto shot_id = 0;
                     auto project_id =
                         resolve_query_value("Project", nlohmann::json(project), lookup)
                             .get<int>();
-                    auto shot_id =
-                        resolve_query_value("Shot", nlohmann::json(shot), project_id, lookup)
-                            .get<int>();
+
+                    // force fail if shot not found
+                    try {
+                        shot_id = resolve_query_value(
+                                      "Shot", nlohmann::json(shot), project_id, lookup)
+                                      .get<int>();
+                    } catch (...) {
+                    }
                     result = nlohmann::json("Shot-" + std::to_string(shot_id));
                 }
             }

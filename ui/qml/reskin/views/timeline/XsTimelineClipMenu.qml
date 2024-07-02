@@ -24,9 +24,15 @@ XsPopupMenu {
         }
     }
 
-    function updateClipSelection(l,r) {
+    function updateItemSelectionHorizontal(l,r) {
         timelineSelection.select(helpers.createItemSelection(
-                theSessionData.modifyClipSelection(timelineSelection.selectedIndexes, l, r)
+                theSessionData.modifyItemSelectionHorizontal(timelineSelection.selectedIndexes, l, r)
+            ), ItemSelectionModel.ClearAndSelect)
+    }
+
+    function updateItemSelectionVertical(u,d) {
+        timelineSelection.select(helpers.createItemSelection(
+                theSessionData.modifyItemSelectionVertical(timelineSelection.selectedIndexes, u, d)
             ), ItemSelectionModel.ClearAndSelect)
     }
 
@@ -37,7 +43,7 @@ XsPopupMenu {
         menuModelName: timelineMenu.menu_model_name
         hotkeyUuid: theTimeline.select_next_hotkey.uuid
         panelContext: timelineMenu.panelContext
-        onActivated: updateClipSelection(-1, 1)
+        onActivated: updateItemSelectionHorizontal(-1, 1)
     }
 
     XsMenuModelItem {
@@ -47,7 +53,7 @@ XsPopupMenu {
         menuModelName: timelineMenu.menu_model_name
         hotkeyUuid: theTimeline.select_previous_hotkey.uuid
         panelContext: timelineMenu.panelContext
-        onActivated: updateClipSelection(1, -1)
+        onActivated: updateItemSelectionHorizontal(1, -1)
     }
 
     XsMenuModelItem {
@@ -57,7 +63,7 @@ XsPopupMenu {
         menuModelName: timelineMenu.menu_model_name
         hotkeyUuid: theTimeline.expand_next_hotkey.uuid
         panelContext: timelineMenu.panelContext
-        onActivated: updateClipSelection(0,+1)
+        onActivated: updateItemSelectionHorizontal(0,+1)
     }
 
     XsMenuModelItem {
@@ -67,7 +73,7 @@ XsPopupMenu {
         menuModelName: timelineMenu.menu_model_name
         hotkeyUuid: theTimeline.expand_previous_hotkey.uuid
         panelContext: timelineMenu.panelContext
-        onActivated: updateClipSelection(1, 0)
+        onActivated: updateItemSelectionHorizontal(1, 0)
     }
 
     XsMenuModelItem {
@@ -77,7 +83,7 @@ XsPopupMenu {
         menuModelName: timelineMenu.menu_model_name
         hotkeyUuid: theTimeline.contract_next_hotkey.uuid
         panelContext: timelineMenu.panelContext
-        onActivated: updateClipSelection(0, -1)
+        onActivated: updateItemSelectionHorizontal(0, -1)
     }
 
     XsMenuModelItem {
@@ -87,7 +93,7 @@ XsPopupMenu {
         menuModelName: timelineMenu.menu_model_name
         hotkeyUuid: theTimeline.contract_previous_hotkey.uuid
         panelContext: timelineMenu.panelContext
-        onActivated: updateClipSelection(-1, 0)
+        onActivated: updateItemSelectionHorizontal(-1, 0)
     }
 
     XsMenuModelItem {
@@ -97,7 +103,7 @@ XsPopupMenu {
         menuModelName: timelineMenu.menu_model_name
         hotkeyUuid: theTimeline.expand_both_hotkey.uuid
         panelContext: timelineMenu.panelContext
-        onActivated: updateClipSelection(1, 1)
+        onActivated: updateItemSelectionHorizontal(1, 1)
     }
 
     XsMenuModelItem {
@@ -107,7 +113,27 @@ XsPopupMenu {
         menuModelName: timelineMenu.menu_model_name
         hotkeyUuid: theTimeline.contract_both_hotkey.uuid
         panelContext: timelineMenu.panelContext
-        onActivated: updateClipSelection(-1, -1)
+        onActivated: updateItemSelectionHorizontal(-1, -1)
+    }
+
+    XsMenuModelItem {
+        text: "Selection Up"
+        menuPath: "Select"
+        menuItemPosition: 10
+        menuModelName: timelineMenu.menu_model_name
+        hotkeyUuid: theTimeline.select_up_hotkey.uuid
+        panelContext: timelineMenu.panelContext
+        onActivated: updateItemSelectionVertical(1, -1)
+    }
+
+    XsMenuModelItem {
+        text: "Selection Down"
+        menuPath: "Select"
+        menuItemPosition: 11
+        menuModelName: timelineMenu.menu_model_name
+        hotkeyUuid: theTimeline.select_down_hotkey.uuid
+        panelContext: timelineMenu.panelContext
+        onActivated: updateItemSelectionVertical(-1, 1)
     }
 
     XsFlagMenuInserter {

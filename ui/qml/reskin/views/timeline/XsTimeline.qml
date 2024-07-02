@@ -32,6 +32,9 @@ Item {
 
     property alias timelineSelection: timelineSelection
 
+    property alias select_up_hotkey: select_up_hotkey
+    property alias select_down_hotkey: select_down_hotkey
+
     property alias select_next_hotkey: select_next_hotkey
     property alias select_previous_hotkey: select_previous_hotkey
     property alias expand_next_hotkey: expand_next_hotkey
@@ -46,7 +49,6 @@ Item {
     property bool loopSelection: false
     property bool focusSelection: false
     property alias timelineModel: timeline_items
-    property var timelinePlayhead: null
 
     property alias timelineMarkerMenu: markerMenu
     property alias timelineProperty: timelineProperty
@@ -55,20 +57,26 @@ Item {
     property bool scalingModeActive: false
     property bool scrollingModeActive: false
     property var conformSourceIndex: null
+    property bool have_timeline: true
 
     signal jumpToStart()
     signal jumpToEnd()
     signal jumpToFrame(int frame, bool center)
 
     XsModelProperty {
+        // XsModelProperty is able to 'watch' an index and emits onIndexChanged
+        // when the index goes invalid. We use this to watch whether the active
+        // timeline is deleted - if so we run viewedMediaSetChanged which will
+        // clear our model and index because otherwise Qt crashes as it seems
+        // to hang on to items that have been deleted from the model.
         id: timelineProperty
         index: timeline_items.rootIndex
         role: "propertyRole"
-
         onValueChanged: updateConformSourceIndex()
         onIndexChanged: {
-            if(index && !index.valid) {
-                timeline_items.srcModel = []
+            if(!index || !index.valid) {
+                // perhaps the timeline we were viewing has been deleted?
+                viewedMediaSetChanged()
             }
         }
     }
@@ -140,7 +148,6 @@ Item {
         id: timeline_items
         property var srcModel: theSessionData
         model: srcModel
-        rootIndex: null
         delegate: chooser
     }
 
@@ -199,9 +206,12 @@ Item {
     }
 
     function viewedMediaSetChanged() {
+
         if(viewedMediaSetProperties.values.typeRole == "Timeline") {
             forceActiveFocus()
             let timelineIndex = theSessionData.index(2, 0, viewedMediaSetProperties.index)
+            if (timelineIndex == timeline_items.rootIndex) return
+
             if (theSessionData.rowCount(timelineIndex) == 0) {
                 // the timeline item data hasn't been 'fetched' from the backend.
                 // We can force this to happen, but it will be asynchronous so
@@ -213,15 +223,19 @@ Item {
                 callbackTimer.setTimeout(function(index) { return function() {
                     timeline_items.srcModel = theSessionData
                     timeline_items.rootIndex = helpers.makePersistent(index)
+                    have_timeline = true
                     updateConformSourceIndex()
                     fitItems()
                     // conformSourceIndex = getVideoTrackIndex(1)
                     }}( timelineIndex ), 200);
             } else {
+                timeline_items.srcModel = theSessionData
                 timeline_items.rootIndex = helpers.makePersistent(timelineIndex)
+                have_timeline = true
                 updateConformSourceIndex()
-                fitItems()
-                // conformSourceIndex = getVideoTrackIndex(1)
+                callbackTimer.setTimeout(function() { return function() {
+                    fitItems()
+                    }}(), 200);
             }
 
         } else if (!timeline_items.rootIndex.valid) {
@@ -231,15 +245,16 @@ Item {
             // timeline that we interacted with. This is so the user can hop
             // bewtween individual media and the playlist without the playlist
             // interface clearing
-            timeline_items.rootIndex = helpers.makePersistent(theSessionData.index(-1,-1))
+            timeline_items.srcModel = []
             updateConformSourceIndex()
+            have_timeline = false
         }
     }
 
     Component.onCompleted: {
         viewedMediaSetChanged()
-        clipMenu.debugSetMenuPathPosition("Debug", 20.0)
-        trackMenu.debugSetMenuPathPosition("Debug", 20.0)
+        //clipMenu.debugSetMenuPathPosition("Debug", 20.0)
+        //trackMenu.debugSetMenuPathPosition("Debug", 20.0)
     }
 
     Connections {
@@ -891,6 +906,42 @@ Item {
 
     XsHotkey {
         context: "timeline"
+        sequence:  "SHIFT+C"
+        name: "Change Clip Colour"
+        description: "Change Active Clip Colour"
+        onActivated: {
+            let clipIndex = theSessionData.getTimelineClipIndex(timeline_items.rootIndex, timelinePlayhead.logicalFrame);
+            if(clipIndex.valid) {
+                let colours = [
+                    "#FFFF0000",
+                    "#FF00FF00",
+                    "#FF0000FF",
+                    "#FFFFFF00",
+                    "#FFFFA500",
+                    "#FF800080",
+                    "#FF000000",
+                    "#FFFFFFFF",
+                    "",
+                ]
+                let current = theSessionData.get(clipIndex, "flagColourRole")
+                let colour = colours[0]
+                if(current) {
+                    for(let i = 0;i<colours.length; i++) {
+                        if(colours[i] == current)  {
+                            colour = colours[i+1]
+                            break
+                        }
+                    }
+                }
+
+                theSessionData.set(clipIndex, colour, "flagColourRole")
+            }
+        }
+    }
+
+
+    XsHotkey {
+        context: "timeline"
         sequence:  "Ctrl+U"
         name: "Timeline Undo"
         description: "Jumps to the end frame"
@@ -915,10 +966,34 @@ Item {
 
     }
 
-    function updateClipSelection(l,r) {
+    function updateItemSelectionHorizontal(l,r) {
         timeline.timelineSelection.select(helpers.createItemSelection(
-                theSessionData.modifyClipSelection(timeline.timelineSelection.selectedIndexes, l, r)
+                theSessionData.modifyItemSelectionHorizontal(timeline.timelineSelection.selectedIndexes, l, r)
             ), ItemSelectionModel.ClearAndSelect)
+    }
+
+    function updateItemSelectionVertical(u,d) {
+        timeline.timelineSelection.select(helpers.createItemSelection(
+                theSessionData.modifyItemSelectionVertical(timeline.timelineSelection.selectedIndexes, u, d)
+            ), ItemSelectionModel.ClearAndSelect)
+    }
+
+    XsHotkey {
+        id: select_up_hotkey
+        context: "timeline"
+        sequence:  "PgUp"
+        name: "Move Selection Up"
+        description: "Move Clip Selection Up"
+        onActivated: updateItemSelectionVertical(1,-1)
+    }
+
+    XsHotkey {
+        id: select_down_hotkey
+        context: "timeline"
+        sequence:  "PgDown"
+        name: "Move Selection Down"
+        description: "Move Clip Selection Down"
+        onActivated: updateItemSelectionVertical(-1,1)
     }
 
     XsHotkey {
@@ -927,7 +1002,7 @@ Item {
         sequence:  "DOWN"
         name: "Move Selection Right"
         description: "Move Clip Selection Right"
-        onActivated: updateClipSelection(-1,1)
+        onActivated: updateItemSelectionHorizontal(-1,1)
     }
 
     XsHotkey {
@@ -936,7 +1011,7 @@ Item {
         sequence:  "UP"
         name: "Move Selection Left"
         description: "Move Clip Selection Left"
-        onActivated: updateClipSelection(1,-1)
+        onActivated: updateItemSelectionHorizontal(1,-1)
     }
 
     XsHotkey {
@@ -945,7 +1020,7 @@ Item {
         sequence:  "Ctrl+DOWN"
         name: "Expand Selection Right"
         description: "Expand Clip Selection Right"
-        onActivated: updateClipSelection(0,+1)
+        onActivated: updateItemSelectionHorizontal(0,+1)
     }
 
     XsHotkey {
@@ -954,7 +1029,7 @@ Item {
         sequence:  "Ctrl+UP"
         name: "Expand Selection Left"
         description: "Expand Clip Selection Left"
-        onActivated: updateClipSelection(+1, 0)
+        onActivated: updateItemSelectionHorizontal(+1, 0)
     }
 
     XsHotkey {
@@ -963,7 +1038,7 @@ Item {
         sequence:  "Shift+DOWN"
         name: "Contract Selection Right"
         description: "Contract Clip Selection Right"
-        onActivated: updateClipSelection(0, -1)
+        onActivated: updateItemSelectionHorizontal(0, -1)
     }
 
     XsHotkey {
@@ -972,7 +1047,7 @@ Item {
         sequence:  "Shift+UP"
         name: "Contract Selection Left"
         description: "Contract Clip Selection Left"
-        onActivated: updateClipSelection(-1, 0)
+        onActivated: updateItemSelectionHorizontal(-1, 0)
     }
 
     XsHotkey {
@@ -981,7 +1056,7 @@ Item {
         sequence:  "Alt+DOWN"
         name: "Expand Selection"
         description: "Expand Selection"
-        onActivated: updateClipSelection(1, 1)
+        onActivated: updateItemSelectionHorizontal(1, 1)
     }
 
     XsHotkey {
@@ -990,7 +1065,7 @@ Item {
         sequence:  "Alt+UP"
         name: "Contract Selection"
         description: "Contract Clip Selection"
-        onActivated: updateClipSelection(-1, -1)
+        onActivated: updateItemSelectionHorizontal(-1, -1)
     }
 
     XsHotkey {
@@ -1145,7 +1220,7 @@ Item {
             property var modifyAnteceedingItem: null
             property string modifyItemType: ""
             property real modifyItemStartX: 0.0
-            
+
             Rectangle {
                 id: region
                 visible: ma.isRegionSelection

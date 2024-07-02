@@ -1,4 +1,16 @@
 
+macro(add_preference name path target)
+    add_custom_command(TARGET ${target}
+                   COMMAND ${CMAKE_COMMAND} -E copy ${path}/${name}
+                                                    ${CMAKE_BINARY_DIR}/bin/preference/${name}
+                   DEPENDS ${path}/${name})
+    if(INSTALL_XSTUDIO)
+	    install(FILES
+	    	${path}/${name}
+	    	DESTINATION share/xstudio/preference)
+    endif ()
+endmacro()
+
 macro(default_compile_options name)
 	target_compile_options(${name}
 		# PRIVATE -fvisibility=hidden
@@ -226,7 +238,7 @@ macro(add_python_plugin NAME)
 	add_custom_command(TARGET COPY_PY_PLUGIN_${NAME} POST_BUILD
                      COMMAND ${CMAKE_COMMAND} -E
                          copy_directory ${CMAKE_CURRENT_SOURCE_DIR}/${NAME} ${CMAKE_BINARY_DIR}/bin/plugin-python/${NAME})
-					
+
 endmacro()
 
 macro(create_plugin NAME VERSION DEPS)
@@ -390,6 +402,16 @@ macro(build_studio_plugins STUDIO)
 			    if(IS_DIRECTORY ${DIR})
 			    	get_filename_component(PLUGINNAME ${DIR} NAME)
 					add_src_and_test(${STUDIO}/${PLUGINNAME})
+					if(IS_DIRECTORY ${DIR}/share/preference)
+						file(GLOB PREFFILES ${DIR}/share/preference/*.json)
+
+						add_custom_target(${STUDIO}_${PLUGINNAME}_PREFERENCES ALL)
+						foreach(PREFFile ${PREFFILES})
+							get_filename_component(PREFNAME ${PREFFile} NAME)
+							add_preference(${PREFNAME} ${DIR}/share/preference ${STUDIO}_${PLUGINNAME}_PREFERENCES)
+						endforeach()
+
+					endif ()
 				endif()
 			endforeach()
 

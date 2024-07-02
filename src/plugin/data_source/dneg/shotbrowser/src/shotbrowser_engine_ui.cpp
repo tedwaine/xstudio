@@ -82,9 +82,6 @@ void ShotBrowserEngine::checkReady() {
     if (not query_engine_.get_lookup(QueryEngine::cache_name("Pipeline Status")))
         ready = false;
 
-    if (not query_engine_.get_lookup(QueryEngine::cache_name("Pipeline Status")))
-        ready = false;
-
     if (not presets_model_->rowCount())
         ready = false;
 
@@ -193,7 +190,7 @@ void ShotBrowserEngine::createPlaylistCache(const int project_id) {
 
 void ShotBrowserEngine::cacheProject(const int project_id) {
     // spdlog::warn("{} {}", __PRETTY_FUNCTION__, project_id);
-    if (QueryEngine::precache_needed(project_id, query_engine_.lookup())) {
+    if (not QueryEngine::precache_needed(project_id, query_engine_.lookup()).empty()) {
         createGroupModel(project_id);
         createUserCache(project_id);
         createSequenceModels(project_id);

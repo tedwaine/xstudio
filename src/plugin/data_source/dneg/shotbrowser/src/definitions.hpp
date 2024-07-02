@@ -19,6 +19,9 @@ const auto GetLinkMedia = R"({"operation": "LinkMedia", "playlist_uuid": null})"
 
 const auto GetVersionArtist = R"({"operation": "VersionArtist", "version_id": null})"_json;
 
+const auto GetFields =
+    R"({"operation": "GetFields", "id": null, "entity": null, "fields": []})"_json;
+
 const auto GetExecutePreset = R"({
     "operation": "ExecutePreset",
     "project_id": 0,
@@ -204,17 +207,18 @@ const auto NoteFields = std::vector<std::string>(
      "addressings_cc",
      "attachments"});
 
-const auto PlaylistFields = std::vector<std::string>(
-    {"code",
-     "versions",
-     "sg_location",
-     "updated_at",
-     "created_at",
-     "sg_date_and_time",
-     "sg_type",
-     "created_by",
-     "sg_department_unit",
-     "notes"});
+const auto PlaylistFields = std::vector<std::string>({
+    "code",
+    // "versions",
+    "sg_location",
+    "updated_at",
+    "created_at",
+    "sg_date_and_time",
+    "sg_type",
+    "created_by",
+    "sg_department_unit"
+    // "notes"
+});
 
 const auto ShotFields =
     std::vector<std::string>({"id", "code", "sg_comp_range", "sg_cut_range", "project"});

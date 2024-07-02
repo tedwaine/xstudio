@@ -104,6 +104,15 @@ void py_config::add_messages() {
     add_message_type<std::vector<std::pair<int, int>>>(
         "std::vector<std::pair<int, int>>", "std::vector<std::pair<int, int>>", nullptr);
 
+    add_message_type<std::pair<
+        xstudio::utility::UuidActor,
+        std::pair<std::string, xstudio::utility::UuidActor>>>(
+        "std::pair<xstudio::utility::UuidActor, std::pair<std::string, "
+        "xstudio::utility::UuidActor>>",
+        "std::pair<xstudio::utility::UuidActor, std::pair<std::string, "
+        "xstudio::utility::UuidActor>>",
+        nullptr);
+
     add_message_type<timebase::flicks>("timebase::flicks", "timebase::flicks", nullptr);
 
     add_message_type<std::vector<std::tuple<xstudio::utility::Uuid, std::string, int, int>>>(

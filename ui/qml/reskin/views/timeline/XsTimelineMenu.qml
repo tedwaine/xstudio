@@ -31,7 +31,7 @@ XsPopupMenu {
     function addMarker(new_name, button) {
         if (button == "Add") {
             theTimeline.markerModel().addMarker(
-              theTimeline.timelinePlayhead.logicalFrame,
+              panelContext.timelinePlayhead.logicalFrame,
               theTimeline.timelineModel.model.get(theTimeline.timelineModel.rootIndex, "rateFPSRole"),
               new_name
             );

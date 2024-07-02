@@ -18,6 +18,40 @@ XsPopupMenu {
 
     onVisibleChanged: visible && updateFlags()
 
+
+    function updateItemSelectionHorizontal(l,r) {
+        timelineSelection.select(helpers.createItemSelection(
+                theSessionData.modifyItemSelectionHorizontal(timelineSelection.selectedIndexes, l, r)
+            ), ItemSelectionModel.ClearAndSelect)
+    }
+
+    function updateItemSelectionVertical(u,d) {
+        timelineSelection.select(helpers.createItemSelection(
+                theSessionData.modifyItemSelectionVertical(timelineSelection.selectedIndexes, u, d)
+            ), ItemSelectionModel.ClearAndSelect)
+    }
+
+    XsMenuModelItem {
+        text: "Selection Up"
+        menuPath: "Select"
+        menuItemPosition: 1
+        menuModelName: timelineMenu.menu_model_name
+        hotkeyUuid: theTimeline.select_up_hotkey.uuid
+        panelContext: timelineMenu.panelContext
+        onActivated: updateItemSelectionVertical(1, -1)
+    }
+
+    XsMenuModelItem {
+        text: "Selection Down"
+        menuPath: "Select"
+        menuItemPosition: 2
+        menuModelName: timelineMenu.menu_model_name
+        hotkeyUuid: theTimeline.select_down_hotkey.uuid
+        panelContext: timelineMenu.panelContext
+        onActivated: updateItemSelectionVertical(-1, 1)
+    }
+
+
     function updateFlags() {
         if(currentTrackIndex) {
             let m = currentTrackIndex.model

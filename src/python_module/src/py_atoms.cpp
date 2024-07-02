@@ -148,7 +148,6 @@ void py_config::add_atoms() {
     ADD_ATOM(xstudio::session, path_atom);
     ADD_ATOM(xstudio::session, remove_serialise_target_atom);
     ADD_ATOM(xstudio::session, export_atom);
-    ADD_ATOM(xstudio::session, import_atom);
     ADD_ATOM(xstudio::media_reader, clear_precache_queue_atom);
     ADD_ATOM(xstudio::media_reader, get_image_atom);
     ADD_ATOM(xstudio::media_reader, get_thumbnail_atom);
@@ -192,7 +191,6 @@ void py_config::add_atoms() {
     ADD_ATOM(xstudio::module, grab_all_mouse_input_atom);
     ADD_ATOM(xstudio::module, attribute_uuids_atom);
     ADD_ATOM(xstudio::module, module_add_menu_item_atom);
-    ADD_ATOM(xstudio::module, module_remove_menu_item_atom);    
     ADD_ATOM(xstudio::module, remove_attribute_atom);
     ADD_ATOM(xstudio::module, set_node_data_atom);
 
@@ -218,6 +216,7 @@ void py_config::add_atoms() {
     ADD_ATOM(xstudio::media, acquire_media_detail_atom);
     ADD_ATOM(xstudio::media, add_media_source_atom);
     ADD_ATOM(xstudio::media, add_media_stream_atom);
+    ADD_ATOM(xstudio::media, current_media_atom);
     ADD_ATOM(xstudio::media, current_media_source_atom);
     ADD_ATOM(xstudio::media, current_media_stream_atom);
     ADD_ATOM(xstudio::media, get_edit_list_atom);

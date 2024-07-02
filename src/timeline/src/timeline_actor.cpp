@@ -112,6 +112,7 @@ void TimelineActor::item_post_event_callback(const utility::JsonStore &event, It
     case IA_NONE:
     case IA_ENABLE:
     case IA_ADDR:
+    case IA_RANGE:
     case IA_ACTIVE:
     case IA_AVAIL:
     case IA_SPLICE:
@@ -591,11 +592,11 @@ void timeline_importer(
 
     std::map<std::string, UuidActor> target_url_map;
 
-    spdlog::warn("processing {} clips", clips.size());
+    // spdlog::warn("processing {} clips", clips.size());
 
     for (const auto &cl : clips) {
         const auto &name = cl->name();
-         spdlog::warn("{} {}", name, cl->active_media_reference_key());
+        // spdlog::warn("{} {}", name, cl->active_media_reference_key());
 
         const auto active_key = cl->active_media_reference_key();
         auto active_path      = std::string();
@@ -605,12 +606,12 @@ void timeline_importer(
             active_path = active->target_url();
         }
 
-        spdlog::warn("BLAGH {} {}", active_key, active_path);
+        // spdlog::warn("{} {}", active_key, active_path);
 
         // WARNING this may inadvertantly skip auxiliary sources we want..
         if (active_path.empty() or target_url_map.count(active_path)) {
             // spdlog::warn("SKIP");
-           continue;
+            continue;
         }
 
 
@@ -630,16 +631,13 @@ void timeline_importer(
 
         // create media sources.
         for (const auto &mr : cl->media_references()) {
-             spdlog::warn("BLOB {} {}", mr.first, mr.second->name());
+            // spdlog::warn("{} {}", mr.first, mr.second->name());
             // try and dynamic cast to
             if (auto ext = otio::SerializableObject::Retainer<otio::ExternalReference>(
                     dynamic_cast<otio::ExternalReference *>(mr.second))) {
 
+                // spdlog::warn("{}", ext->target_url());
                 auto uri = caf::make_uri(ext->target_url());
-                if (!uri) {
-                    uri = posix_path_to_uri(ext->target_url());
-                }
-                 spdlog::warn("FLOB {} {} {}", ext->target_url(), to_string(uri), bool(uri));
                 if (uri) {
                     auto extname     = ext->name();
                     auto source_uuid = utility::Uuid::generate();
@@ -678,8 +676,6 @@ void timeline_importer(
             }
         }
 
-        std::cerr << "NUM SOURCES " << sources.size() << " .... " << name << "\n";
-
         // //  add media.
         if (not sources.empty()) {
             // create media
@@ -701,13 +697,11 @@ void timeline_importer(
                 sources.front().uuid());
         }
 
-        otio::RationalTime dur = cl->duration();
-        std::cout << "Name: " << cl->name() << " [";
-        std::cout << dur.value() << "/" << dur.rate() << "]" << std::endl;
+        // otio::RationalTime dur = cl->duration();
+        // std::cout << "Name: " << cl->name() << " [";
+        // std::cout << dur.value() << "/" << dur.rate() << "]" << std::endl;
         // trigger population of additional sources ? May conflict with timeline ?
     }
-
-    std::cerr << "target_url_map " << target_url_map.size() << "\n";
 
     // populate source
     if (not target_url_map.empty()) {
@@ -1963,6 +1957,27 @@ void TimelineActor::init() {
 
         [=](playlist::remove_media_atom atom, const Uuid &uuid) {
             delegate(actor_cast<caf::actor>(this), atom, utility::UuidVector({uuid}));
+        },
+
+        [=](media::current_media_source_atom)
+            -> caf::result<std::vector<std::pair<UuidActor, std::pair<UuidActor, UuidActor>>>> {
+            auto rp = make_response_promise<
+                std::vector<std::pair<UuidActor, std::pair<UuidActor, UuidActor>>>>();
+            if (not media_actors_.empty()) {
+                fan_out_request<policy::select_all>(
+                    map_value_to_vec(media_actors_),
+                    infinite,
+                    media::current_media_source_atom_v)
+                    .then(
+                        [=](const std::vector<
+                            std::pair<UuidActor, std::pair<UuidActor, UuidActor>>>
+                                details) mutable { rp.deliver(details); },
+                        [=](error &err) mutable { rp.deliver(std::move(err)); });
+            } else {
+                rp.deliver(
+                    std::vector<std::pair<UuidActor, std::pair<UuidActor, UuidActor>>>());
+            }
+            return rp;
         },
 
         [=](playlist::remove_media_atom, const utility::UuidVector &uuids) -> bool {

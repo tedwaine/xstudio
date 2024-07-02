@@ -261,6 +261,12 @@ void MediaSourceActor::acquire_detail(
                                 to_string(base_.media_reference().timecode()));
                         }
 
+                        if (md.streams_.empty()) {
+                            if (base_.media_status() == MS_ONLINE) {
+                                anon_send(this, media_status_atom_v, MS_MISSING);
+                            }
+                        }
+
                         request(
                             actor_cast<caf::actor>(this),
                             infinite,
@@ -770,16 +776,21 @@ void MediaSourceActor::init() {
         [=](get_media_pointers_atom,
             const MediaType media_type,
             const LogicalFrameRanges &ranges) -> caf::result<media::AVFrameIDs> {
-            if (base_.empty()) {
-                if (base_.error_detail().empty()) {
-                    return make_error(xstudio_error::error, "No MediaStreams");
-                } else {
-                    return make_error(xstudio_error::error, base_.error_detail());
-                }
-            }
-
+            // before we can deliver frame pointers to allow playback, ensure
+            // that we have completed the aquisition of the media detail to
+            // inspect the source, get duration, assign default Image/Audio
+            // streams etc.
             auto rp = make_response_promise<media::AVFrameIDs>();
-            get_media_pointers_for_frames(media_type, ranges, rp);
+            request(caf::actor_cast<caf::actor>(this), infinite, acquire_media_detail_atom_v)
+                .then(
+                    [=](bool) mutable {
+                        get_media_pointers_for_frames(media_type, ranges, rp);
+                    },
+                    [=](const error &err) mutable {
+                        get_media_pointers_for_frames(media_type, ranges, rp);
+                    });
+
+
             return rp;
         },
 
@@ -899,9 +910,9 @@ void MediaSourceActor::init() {
             }
 
             // mark as bad source..
-            if (base_.media_status() == MS_ONLINE) {
-                anon_send(this, media_status_atom_v, MS_MISSING);
-            }
+            // if (base_.media_status() == MS_ONLINE) {
+            //     anon_send(this, media_status_atom_v, MS_MISSING);
+            // }
 
             return result<StreamDetail>(make_error(xstudio_error::error, "No streams"));
         },
@@ -1463,23 +1474,36 @@ void MediaSourceActor::get_media_pointers_for_frames(
     const MediaType media_type,
     const LogicalFrameRanges &ranges,
     caf::typed_response_promise<media::AVFrameIDs> rp) {
+
+    // make a blank frame id that nevertheless includes media source actor uuid
+    // and address - we use this if we are trying to resolve a frame ID
+    // that is outside the frame range of the media reference. If media is not
+    // on disk, this is guaranteed to happen. We still want the frameIDs to
+    // include the media uuid, media source uuid & source actor address so
+    // we know stuff about the media source that is *supposed* to be onscreen.
+    media::AVFrameID blank = *(media::make_blank_frame(media_type));
+    blank.media_uuid_      = parent_uuid_;
+    blank.source_uuid_     = base_.uuid();
+    blank.actor_addr_      = caf::actor_cast<caf::actor_addr>(this);
+
     if (base_.current(media_type).is_null()) {
+
+
         // in the case where there is no source, return list of empty frames.
         // This is useful for sources that have no audio or no video, to keep
         // them compatible with the video based frame request/deliver playback
         // system
+        auto blank_ptr = std::make_shared<const media::AVFrameID>(blank);
         media::AVFrameIDs result;
         for (const auto &i : ranges) {
             for (auto ii = i.first; ii <= i.second; ii++)
-                result.emplace_back(media::make_blank_frame(media_type)
-                                    // std::shared_ptr<const media::AVFrameID>(
-                                    //     new media::AVFrameID()
-                                    //     )
-                );
+                result.emplace_back(blank_ptr);
         }
         rp.deliver(result);
         return;
     }
+
+    auto blank_ptr = std::make_shared<const media::AVFrameID>(blank);
 
     // get colours params ... only need this for media_type == MT_IMAGE though
     request(json_store_, infinite, json_store::get_json_atom_v, "/colour_pipeline")
@@ -1545,8 +1569,7 @@ void MediaSourceActor::get_media_pointers_for_frames(
                                                 new media::AVFrameID(mptr)));
                                     } catch (const std::exception &e) {
                                         // spdlog::warn("{}", e.what());
-                                        result.emplace_back(
-                                            media::make_blank_frame(media_type));
+                                        result.emplace_back(blank_ptr);
                                     }
                                 }
                             }

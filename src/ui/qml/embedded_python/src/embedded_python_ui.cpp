@@ -16,81 +16,90 @@ using namespace xstudio::utility;
 using namespace xstudio::ui::qml;
 
 
-SnippetUI::SnippetUI(const utility::JsonStore &json, QObject *parent) : QObject(parent) {
-    auto js      = json;
-    name_        = QStringFromStd(js.value("name", "Untitled"));
-    menu_name_   = QStringFromStd(js.value("menu", "Untitled"));
-    script_      = QStringFromStd(js.value("script", "print(\"hello\")"));
-    description_ = QStringFromStd(js.value("name", "No description."));
-}
-
-EmbeddedPythonUI::EmbeddedPythonUI(QObject *parent)
-    : QMLActor(parent), backend_(), backend_events_(), event_uuid_(utility::Uuid::generate()) {
+EmbeddedPythonUI::EmbeddedPythonUI(QObject *parent) : super(parent) {
     init(CafSystemObject::get_actor_system());
+
+    setRoleNames(std::vector<std::string>({
+        "nameRole",
+        "menuPathRole",
+        "scriptPathRole",
+        "typeRole",
+    }));
 }
 
 void EmbeddedPythonUI::set_backend(caf::actor backend) {
     spdlog::debug("EmbeddedPythonUI set_backend");
     scoped_actor sys{system()};
 
-    if (backend_events_) {
-        try {
-            request_receive<bool>(
-                *sys, backend_events_, broadcast::leave_broadcast_atom_v, as_actor());
-        } catch (const std::exception &e) {
-            // spdlog::warn("{} {}", __PRETTY_FUNCTION__, e.what());
-        }
-        backend_events_ = caf::actor();
-    }
-
-    backend_ = backend;
-
     try {
-        backend_events_ = request_receive<caf::actor>(*sys, backend_, get_event_group_atom_v);
-        request_receive<bool>(
-            *sys, backend_events_, broadcast::join_broadcast_atom_v, as_actor());
-    } catch (const std::exception &e) {
-        spdlog::warn("{} {}", __PRETTY_FUNCTION__, e.what());
-    }
-
-    // capture snippets..
-    try {
-        // we're doing this a bit oddly...
-        // as prefs isn't the place for this..
-        // should have a dir for it ?
-
-        auto prefs = global_store::GlobalStoreHelper(system());
-        JsonStore j;
-        prefs.get_group(j);
-
-        auto paths = global_store::preference_value<JsonStore>(
-            j, "/ui/qml/reskin_windows_and_panels_model");
-        // process app/user..
-
-        JsonStore snippets;
-
-        if (check_create_path(xstudio_root("/snippets"))) {
-            snippets.merge(merge_json_from_path(xstudio_root("/snippets")));
-        }
-
-        for (const auto &i : paths) {
+        backend_ = backend;
+        // join events.
+        if (backend_events_) {
             try {
-                snippets.merge(merge_json_from_path(i));
-            } catch (...) {
+                request_receive<bool>(
+                    *sys, backend_events_, broadcast::leave_broadcast_atom_v, as_actor());
+            } catch (const std::exception &) {
             }
+            backend_events_ = caf::actor();
+        }
+        try {
+            backend_events_ =
+                request_receive<caf::actor>(*sys, backend_, get_event_group_atom_v);
+            request_receive<bool>(
+                *sys, backend_events_, broadcast::join_broadcast_atom_v, as_actor());
+        } catch (const std::exception &err) {
+            spdlog::warn("{} {}", __PRETTY_FUNCTION__, err.what());
         }
 
-        if (check_create_path(snippets_path())) {
-            snippets.merge(merge_json_from_path(snippets_path()));
-        }
+        auto uuids    = request_receive<UuidVector>(*sys, backend_, json_store::sync_atom_v);
+        snippet_uuid_ = uuids[0];
 
-        // for each path scan for snippet files, build into snippet dict.
-        for (const auto &i : snippets.items()) {
-            addSnippet(new SnippetUI(i.value(), this));
-        }
-    } catch (const std::exception &e) {
-        spdlog::warn("{} {}", __PRETTY_FUNCTION__, e.what());
+        // get system presets
+        auto data =
+            request_receive<JsonStore>(*sys, backend_, json_store::sync_atom_v, snippet_uuid_);
+        setModelData(data);
+    } catch (const std::exception &err) {
+        spdlog::warn("{} {}", __PRETTY_FUNCTION__, err.what());
     }
+
+    // // capture snippets..
+    // try {
+    //     // we're doing this a bit oddly...
+    //     // as prefs isn't the place for this..
+    //     // should have a dir for it ?
+
+    //     auto prefs = global_store::GlobalStoreHelper(system());
+    //     JsonStore j;
+    //     prefs.get_group(j);
+
+    //     auto paths = global_store::preference_value<JsonStore>(
+    //         j, "/ui/qml/reskin_windows_and_panels_model");
+    //     // process app/user..
+
+    //     JsonStore snippets;
+
+    //     if (check_create_path(xstudio_root("/snippets"))) {
+    //         snippets.merge(merge_json_from_path(xstudio_root("/snippets")));
+    //     }
+
+    //     for (const auto &i : paths) {
+    //         try {
+    //             snippets.merge(merge_json_from_path(i));
+    //         } catch (...) {
+    //         }
+    //     }
+
+    //     if (check_create_path(snippets_path())) {
+    //         snippets.merge(merge_json_from_path(snippets_path()));
+    //     }
+
+    //     // for each path scan for snippet files, build into snippet dict.
+    //     for (const auto &i : snippets.items()) {
+    //         addSnippet(new SnippetUI(i.value(), this));
+    //     }
+    // } catch (const std::exception &e) {
+    //     spdlog::warn("{} {}", __PRETTY_FUNCTION__, e.what());
+    // }
 
     emit backendChanged();
 }
@@ -103,6 +112,7 @@ QUuid EmbeddedPythonUI::createSession() {
             auto uuid = request_receive<Uuid>(
                 *sys, backend_, embedded_python::python_create_session_atom_v, true);
             event_uuid_ = uuid;
+            emit sessionIdChanged();
             return QUuidFromUuid(uuid);
         } catch (const std::exception &e) {
             spdlog::warn("{} {}", __PRETTY_FUNCTION__, e.what());
@@ -149,7 +159,7 @@ bool EmbeddedPythonUI::sendInterrupt() {
     return false;
 }
 
-void EmbeddedPythonUI::pyExec(const QString &str) {
+void EmbeddedPythonUI::pyExec(const QString &str) const {
     if (backend_) {
         scoped_actor sys{system()};
         // spdlog::warn("pyExec {0}", str.toStdString());
@@ -158,6 +168,38 @@ void EmbeddedPythonUI::pyExec(const QString &str) {
     } else {
         spdlog::warn("No python backend");
     }
+}
+
+void EmbeddedPythonUI::reloadSnippets() const {
+    if (backend_) {
+        scoped_actor sys{system()};
+        // spdlog::warn("pyExec {0}", str.toStdString());
+        sys->anon_send(backend_, media::rescan_atom_v);
+    } else {
+        spdlog::warn("No python backend");
+    }
+}
+
+bool EmbeddedPythonUI::saveSnippet(const QUrl &path, const QString &content) const {
+    auto result = false;
+    if (backend_) {
+        scoped_actor sys{system()};
+        // spdlog::warn("pyExec {0}", str.toStdString());
+        try {
+            result = request_receive<bool>(
+                *sys,
+                backend_,
+                global_store::save_atom_v,
+                UriFromQUrl(path),
+                StdFromQString(content));
+        } catch (const std::exception &e) {
+            spdlog::warn("{} {}", __PRETTY_FUNCTION__, e.what());
+        }
+    } else {
+        spdlog::warn("No python backend");
+    }
+
+    return result;
 }
 
 void EmbeddedPythonUI::pyEvalFile(const QUrl &path) {
@@ -189,7 +231,7 @@ QVariant EmbeddedPythonUI::pyEval(const QString &str) {
 
 
 void EmbeddedPythonUI::init(actor_system &system_) {
-    QMLActor::init(system_);
+    super::init(system_);
 
     spdlog::debug("EmbeddedPythonUI init");
 
@@ -214,6 +256,19 @@ void EmbeddedPythonUI::init(actor_system &system_) {
             [=](const group_down_msg & /*msg*/) {
                 // 		if(msg.source == store_events)
                 // unsubscribe();
+            },
+            [=](utility::event_atom,
+                json_store::sync_atom,
+                const Uuid &uuid,
+                const JsonStore &event) {
+                try {
+                    if (uuid == snippet_uuid_)
+                        receiveEvent(event);
+
+                    // spdlog::warn("{}", modelData().dump(2));
+                } catch (const std::exception &err) {
+                    spdlog::warn("{} {}", __PRETTY_FUNCTION__, err.what());
+                }
             },
 
             [=](utility::event_atom,
@@ -240,24 +295,48 @@ void EmbeddedPythonUI::init(actor_system &system_) {
     });
 }
 
+QVariant EmbeddedPythonUI::data(const QModelIndex &index, int role) const {
+    auto result = QVariant();
 
-void EmbeddedPythonUI::addSnippet(SnippetUI *snippet) {
-    //  check for existing menu.
-    auto menu_name      = snippet->menuModelName();
-    SnippetMenuUI *menu = nullptr;
+    try {
+        const auto &j = indexToData(index);
 
-    for (auto &i : snippet_menus_) {
-        if (dynamic_cast<SnippetMenuUI *>(i)->name() == menu_name) {
-            menu = dynamic_cast<SnippetMenuUI *>(i);
+        switch (role) {
+        case Roles::nameRole:
+        case Qt::DisplayRole:
+            if (j.count("name"))
+                result = QString::fromStdString(j.at("name"));
+            break;
+
+        case Roles::typeRole:
+            if (j.count("type"))
+                result = QString::fromStdString(j.at("type"));
+            break;
+
+
+        case Roles::menuPathRole:
+            if (j.count("menu_path"))
+                result = QString::fromStdString(j.at("menu_path"));
+            break;
+
+        case Roles::scriptPathRole:
+            try {
+                if (j.count("script_path")) {
+                    auto uri = caf::make_uri(j.at("script_path"));
+                    if (uri)
+                        result = QVariant::fromValue(QUrlFromUri(*uri));
+                }
+            } catch (...) {
+            }
+            break;
+
+        default:
+            result = JSONTreeModel::data(index, role);
             break;
         }
+    } catch (const std::exception &err) {
+        spdlog::warn("{} {} {} {}", __PRETTY_FUNCTION__, err.what(), role, index.row());
     }
 
-    if (menu == nullptr) {
-        // add menu..
-        menu = new SnippetMenuUI(menu_name, this);
-        snippet_menus_.push_back(menu);
-        emit snippetMenusChanged();
-    }
-    menu->addSnippet(snippet);
+    return result;
 }

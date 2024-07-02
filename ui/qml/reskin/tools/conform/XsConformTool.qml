@@ -283,7 +283,7 @@ Item{
     }
 
     XsMenuModelItem {
-        text: "Add To Sequence"
+        text: "Conform To Sequence"
         // menuItemType: "button"
         menuPath: ""
         menuItemPosition: 35.5
@@ -292,7 +292,7 @@ Item{
     }
 
     XsMenuModelItem {
-        text: "Add To New Sequence"
+        text: "Conform To New Sequence"
         // menuItemType: "button"
         menuPath: ""
         menuItemPosition: 35.6

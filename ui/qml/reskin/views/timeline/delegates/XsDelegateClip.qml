@@ -56,7 +56,7 @@ DelegateChoice {
 
             property string itemFlag: flagColourRole != "" ? flagColourRole : config.itemFlag
 
-            property bool hasMedia: mediaIndex.valid
+            property bool hasMedia: !trimmedDurationRole || clipMediaUuidRole == "{00000000-0000-0000-0000-000000000000}" || mediaIndex.valid
             property var mediaIndex: getMediaIndex()
 
             property alias isSelected: clip.isSelected
@@ -67,6 +67,12 @@ DelegateChoice {
 			onMediaUuidChanged: mediaIndex = getMediaIndex()
 
 			onHoveredItemChanged: isBothHovered = false
+
+			XsModelProperty {
+				id: mediaStatus
+				index: mediaIndex
+        		role: "mediaStatusRole"
+			}
 
 			function modelIndex() {
 				return control.DelegateModel.model.srcModel.index(
@@ -91,7 +97,6 @@ DelegateChoice {
 		    	let result = model.search(clipMediaUuidRole, "actorUuidRole", mlist)
 
 		    	if(retry && !result.valid && clipMediaUuidRole && clipMediaUuidRole != "{00000000-0000-0000-0000-000000000000}" && !updateTimer.running) {
-		    		// console.log("FAILED media", clipMediaUuidRole, nameRole)
 		    		updateTimer.start()
 		    	}
 
@@ -178,7 +183,17 @@ DelegateChoice {
 				isLocked: isParentLocked || lockedRole
 				isRolling: control.isRolling
 				showRolling: (isHovered && editMode == "Roll" && !lockedRole)
-				isEnabled: isParentEnabled && enabledRole && hasMedia
+				isEnabled: isParentEnabled && enabledRole
+				isBroken: !hasMedia || (mediaStatus.value != undefined && mediaStatus.value != "Online") || !activeRangeValidRole
+
+				// onIsBrokenChanged: {
+				// 	if(isBroken) {
+				// 		console.log(nameRole, hasMedia, mediaStatus.value, activeRangeValidRole)
+				// 		console.log("avail", availableStartRole, availableDurationRole, availableStartRole + availableDurationRole-1)
+				// 		console.log("active", activeStartRole, activeDurationRole, activeStartRole + activeDurationRole-1)
+				// 		console.log("trimmed", trimmedStartRole, trimmedDurationRole, trimmedStartRole + trimmedDurationRole-1)
+				// 	}
+				// }
 				// fps: control.fps
 				name: !isRolling ? nameRole : adjustStart > 0 ? "+" + adjustStart : adjustStart
 				// parentStart: parentStartRole

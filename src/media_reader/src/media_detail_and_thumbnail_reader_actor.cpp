@@ -246,18 +246,22 @@ void MediaDetailAndThumbnailReaderActor::process_get_media_detail_queue() {
                                 },
                                 [=](const caf::error &err) mutable {
                                     rp.deliver(err);
+                                    // spdlog::warn("HERE {} {}", to_string(_uri),
+                                    // to_string(err));
                                     send_error_to_source(key, err);
                                     continue_processing_queue();
                                 });
                     }
                 },
                 [=](const caf::error &err) mutable {
+                    // spdlog::warn("HERE 2 {} {}", to_string(_uri), to_string(err));
                     rp.deliver(err);
                     send_error_to_source(key, err);
                     continue_processing_queue();
                 });
     } catch (std::exception &e) {
         auto err = make_error(xstudio_error::error, e.what());
+        // spdlog::warn("HERE 3 {} {}", to_string(_uri), to_string(err));
         send_error_to_source(key, err);
         continue_processing_queue();
         rp.deliver(err);

@@ -1395,6 +1395,7 @@ void GlobalUIModelData::reset_model(
                 continue;
             anon_send(client, utility::event_atom_v, model_data_atom_v, model_name, model_data);
         }
+        push_to_prefs(model_name, false);
 
     } catch (std::exception &e) {
         spdlog::warn("{} {} for model {}", __PRETTY_FUNCTION__, e.what(), model_name);

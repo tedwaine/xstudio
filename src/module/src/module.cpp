@@ -837,27 +837,28 @@ caf::message_handler Module::message_handler() {
                  connected_viewport_names_.find(context) != connected_viewport_names_.end()*/) {
                  hotkey_pressed(uuid, context);
 
-                 for (auto attr_uuid: dock_widget_attributes_) {
-                    module::Attribute *attr = get_attribute(attr_uuid);
-                    if (attr->has_role_data(Attribute::HotkeyUuid)) {
-                        if (uuid == attr->get_role_data<utility::Uuid>(Attribute::HotkeyUuid)) {
-                            // user has hit a hotkey that toggles a docking toolbox on/off. To
-                            // get notification in the UI (QML) layer, we set the 'UserData'
-                            // role data on the attr that holds data about the dock widget.
-                            // There is a QML item in the UI layer that is watching for changes
-                            // to this data - it will get an update and can then toggle the
-                            // toolbar shown/hidden
-                            nlohmann::json event;
-                            event["context"] = context;
-                            // random num ensures the data changes every time 
-                            // so notification mechanism is triggered
-                            event["id"] = drand48();
-                            attr->set_role_data(Attribute::UserData, event);
-                        }
-                    }
+                 for (auto attr_uuid : dock_widget_attributes_) {
+                     module::Attribute *attr = get_attribute(attr_uuid);
+                     if (attr->has_role_data(Attribute::HotkeyUuid)) {
+                         if (uuid ==
+                             attr->get_role_data<utility::Uuid>(Attribute::HotkeyUuid)) {
+                             // user has hit a hotkey that toggles a docking toolbox on/off. To
+                             // get notification in the UI (QML) layer, we set the 'UserData'
+                             // role data on the attr that holds data about the dock widget.
+                             // There is a QML item in the UI layer that is watching for changes
+                             // to this data - it will get an update and can then toggle the
+                             // toolbar shown/hidden
+                             nlohmann::json event;
+                             event["context"] = context;
+                             // random num ensures the data changes every time
+                             // so notification mechanism is triggered
+                             event["id"] = drand48();
+                             attr->set_role_data(Attribute::UserData, event);
+                         }
+                     }
                  }
 
-              } else if (!activated)
+             } else if (!activated)
                  hotkey_released(uuid, context);
          },
 
@@ -1073,27 +1074,6 @@ caf::message_handler Module::message_handler() {
              } catch (std::exception &e) {
                  return caf::make_error(xstudio_error::error, e.what());
              }
-         },
-         [=](module_remove_menu_item_atom, const utility::Uuid &menu_id) {
-
-            for (const auto &p: menu_items_) {
-
-                for (const auto uuid: p.second) {
-                    if (uuid == menu_id) {
-                        auto central_models_data_actor =
-                            self()->home_system().registry().template get<caf::actor>(
-                                global_ui_model_data_registry);
-                        anon_send(
-                            central_models_data_actor,
-                            ui::model_data::remove_node_atom_v,
-                            p.first,
-                            menu_id);
-                        return;
-                    }
-                }
-
-            }
-
          },
          [=](xstudio::ui::model_data::set_node_data_atom,
              const std::string &menu_model_name,
@@ -2285,9 +2265,7 @@ Attribute *Module::register_viewport_dockable_widget(
     attr->set_role_data(Attribute::Activated, -1);
     attr->set_role_data(Attribute::Enabled, enabled);
     if (!toggle_widget_visible_hotkey.is_null()) {
-        attr->set_role_data(
-            Attribute::HotkeyUuid,
-            toggle_widget_visible_hotkey);
+        attr->set_role_data(Attribute::HotkeyUuid, toggle_widget_visible_hotkey);
     }
     add_attribute(static_cast<Attribute *>(attr));
     expose_attribute_in_model_data(attr, "dockable viewport toolboxes", true);

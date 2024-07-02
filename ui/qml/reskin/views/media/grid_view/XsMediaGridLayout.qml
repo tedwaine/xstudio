@@ -15,40 +15,46 @@ import xstudio.qml.viewport 1.0
 
 import "./delegates"
 
-GridView {
+Item {
 
     Layout.fillWidth: true
     Layout.fillHeight: true
 
-    cacheBuffer: 80
-    boundsBehavior: Flickable.StopAtBounds
+    property real cellSize: 200
 
-    cellWidth: 200
-    cellHeight: cellWidth*9/16
+    Rectangle{ id: resultsBg
+        anchors.fill: parent
+        color: XsStyleSheet.panelBgColor
+        z: -1
+    }
 
     XsMediaListModelData {
         id: mediaListModelData
-        delegate: chooser
     }
+    
+    XsGridView {
 
-    property alias mediaListModelData: mediaListModelData
+        width: parent.width - x*2
+        height: parent.height - y*2
+        x: 10
+        y: 10
 
-    model: mediaListModelData
+        cellWidth: cellSize
+        cellHeight: cellWidth*9/16
+        clip: true
+        cacheBuffer: 80
+        boundsBehavior: Flickable.StopAtBounds
 
-    DelegateChooser {
+        // displaced: Transition{
+        //     NumberAnimation{ properties: "x,y"; duration: 500 }
+        // }
+        
 
-        id: chooser
-        role: "typeRole"
+        model: mediaListModelData.model
 
-        DelegateChoice {
-
-            roleValue: "Media";
-
-            XsMediaGridItemDelegate {
-                Layout.preferredWidth: 40
-                property var media_item_model_index: helpers.makePersistent(theSessionData.index(index, 0, mediaListModelData.rootIndex))
-            }
-
+        delegate: XsMediaGridItemDelegate {
+            Layout.preferredWidth: 40
+            property var media_item_model_index: helpers.makePersistent(theSessionData.index(index, 0, mediaListModelData.rootIndex))
         }
     }
 

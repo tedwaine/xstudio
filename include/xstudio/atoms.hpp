@@ -362,6 +362,9 @@ CAF_BEGIN_TYPE_ID_BLOCK(xstudio_complex_types, FIRST_CUSTOM_ID + 200)
     CAF_ADD_TYPE_ID(xstudio_complex_types, (std::pair<xstudio::timeline::Item, xstudio::utility::FrameRate>))
     CAF_ADD_TYPE_ID(xstudio_complex_types, (std::vector<xstudio::timeline::Marker>))
     CAF_ADD_TYPE_ID(xstudio_complex_types, (std::vector<std::optional<std::pair<std::string,caf::uri>>>))
+    CAF_ADD_TYPE_ID(xstudio_complex_types, (std::pair<xstudio::utility::UuidActor, std::pair<xstudio::utility::UuidActor,xstudio::utility::UuidActor>>))
+    CAF_ADD_TYPE_ID(xstudio_complex_types, (std::vector<std::pair<xstudio::utility::UuidActor, std::pair<xstudio::utility::UuidActor,xstudio::utility::UuidActor>>>))
+    CAF_ADD_TYPE_ID(xstudio_complex_types, (std::pair<xstudio::utility::UuidActor, std::pair<std::string, xstudio::utility::UuidActor>>))
 
 CAF_END_TYPE_ID_BLOCK(xstudio_complex_types)
 
@@ -646,6 +649,8 @@ CAF_BEGIN_TYPE_ID_BLOCK(xstudio_session_atoms, FIRST_CUSTOM_ID + (200 * 4))
     CAF_ADD_ATOM(xstudio_session_atoms, xstudio::timeline, item_prop_atom)
     CAF_ADD_ATOM(xstudio_session_atoms, xstudio::timeline, item_marker_atom)
     CAF_ADD_ATOM(xstudio_session_atoms, xstudio::playlist, expanded_atom)
+
+    CAF_ADD_ATOM(xstudio_session_atoms, xstudio::media, current_media_atom)
 
 CAF_END_TYPE_ID_BLOCK(xstudio_session_atoms)
 

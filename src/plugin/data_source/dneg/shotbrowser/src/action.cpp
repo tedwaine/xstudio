@@ -225,6 +225,12 @@ void ShotBrowser::get_action(
                 action.at("job").get<std::string>());
         } else if (operation == "GetShotFromId") {
             find_shot(rp, action.at("shot_id").get<int>());
+        } else if (operation == "GetFields") {
+            get_fields(
+                rp,
+                action.at("id").get<int>(),
+                action.at("entity").get<std::string>(),
+                action.at("fields"));
         } else if (operation == "VersionArtist") {
             get_version_artist(rp, action.at("version_id").get<int>());
         } else if (operation == "ExecutePreset") {

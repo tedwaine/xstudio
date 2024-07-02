@@ -28,7 +28,7 @@ namespace ui {
             ConformEngineUI(QObject *parent = nullptr);
             ~ConformEngineUI() override = default;
 
-            virtual void init(caf::actor_system &system);
+            void init(caf::actor_system &system);
             caf::actor_system &system() const {
                 return const_cast<caf::actor_companion *>(self())->home_system();
             }

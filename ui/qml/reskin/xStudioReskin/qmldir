@@ -10,6 +10,7 @@ XsPlayhead                1.0 ../session_data/XsPlayhead.qml
 XsSessionWindow           1.0 ../windows/XsSessionWindow.qml
 XsGlobalDragDropHandler   1.0 ../windows/drag_drop/XsGlobalDragDropHandler.qml
 XsMainMenuBar             1.0 ../windows/main_menu_bar/XsMainMenuBar.qml
+XsSnippetMenu             1.0 ../windows/main_menu_bar/XsSnippetMenu.qml
 XsFileFunctions           1.0 ../windows/main_menu_bar/file_menu/XsFileFunctions.qml
 XsSnapshotMenu            1.0 ../windows/main_menu_bar/snapshots_menu/XsSnapshotMenu.qml
 
@@ -27,6 +28,9 @@ XsPlaylistsView           1.0 ../views/playlists/XsPlaylists.qml
 XsPlaylistItems           1.0 ../views/playlists/XsPlaylistItems.qml
 XsPlaylistPlusMenu        1.0 ../views/playlists/menus/XsPlaylistPlusMenu.qml
 XsPlaylistContextMenu     1.0 ../views/playlists/menus/XsPlaylistContextMenu.qml
+
+XsPythonPanel     		  1.0 ../views/python/XsPythonPanel.qml
+XsLogPanel     		      1.0 ../views/log/XsLogPanel.qml
 
 XsMarkerMenu        	  1.0 ../views/timeline/XsMarkerMenu.qml
 XsNewTrackMenu 			  1.0 ../views/timeline/XsNewTrackMenu.qml

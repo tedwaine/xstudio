@@ -182,15 +182,6 @@ QFuture<bool> ShotBrowserResultModel::setResultDataFuture(const QStringList &dat
                     spdlog::warn(
                         "{} {} {}", __PRETTY_FUNCTION__, err.what(), StdFromQString(data[0]));
                 }
-                // inject children where appropriate.
-                for (size_t i = 0; i < results.size(); i++) {
-                    if (results.at(i).value("type", "") == "Playlist") {
-                        if (results.at(i).at("relationships").at("versions").at("data").empty())
-                            results[i]["children"] = R"([])"_json;
-                        else
-                            results[i]["children"] = nullptr;
-                    }
-                }
 
                 // inject helper order index..
                 for (size_t i = 0; i < results.size(); i++) {
@@ -391,7 +382,13 @@ QVariant ShotBrowserResultModel::data(const QModelIndex &index, int role) const 
             try {
                 result = static_cast<int>(j.at("relationships").at("notes").at("data").size());
             } catch (...) {
-                result = static_cast<int>(0);
+                auto req      = JsonStore(GetFields);
+                req["id"]     = j.at("id");
+                req["entity"] = j.at("type");
+                req["fields"].push_back("notes");
+                // send request.
+                ShotBrowserEngine::instance()->requestData(index, role, req);
+                result = static_cast<int>(-1);
             }
             break;
 
@@ -400,6 +397,12 @@ QVariant ShotBrowserResultModel::data(const QModelIndex &index, int role) const 
                 result =
                     static_cast<int>(j.at("relationships").at("versions").at("data").size());
             } catch (...) {
+                auto req      = JsonStore(GetFields);
+                req["id"]     = j.at("id");
+                req["entity"] = j.at("type");
+                req["fields"].push_back("versions");
+                // send request.
+                ShotBrowserEngine::instance()->requestData(index, role, req);
                 result = static_cast<int>(-1);
             }
             break;
@@ -527,7 +530,11 @@ QVariant ShotBrowserResultModel::data(const QModelIndex &index, int role) const 
                 result = QString::fromStdString(j.at("name"));
             else
                 result = QString::fromStdString(
-                    j.at("attributes").value("name", j.at("attributes").value("code", "")));
+                    j.at("attributes")
+                        .value(
+                            "name",
+                            j.at("attributes")
+                                .value("code", j.at("attributes").value("subject", ""))));
             break;
 
         case JSONTreeModel::Roles::idRole:
@@ -638,7 +645,7 @@ void ShotBrowserResultModel::fetchMore(const QModelIndex &parent) {
                 auto tmp        = R"({"children":null})"_json;
                 tmp["children"] = jsn.at("data").at("relationships").at("versions").at("data");
                 setData(parent, mapFromValue(tmp), JSONTreeModel::Roles::childrenRole);
-                spdlog::warn("{}", tmp["children"].dump(2));
+                // spdlog::warn("{}", tmp["children"].dump(2));
             }
         }
     } catch (const std::exception &err) {
@@ -661,6 +668,42 @@ bool ShotBrowserResultModel::setData(
                 data.at("relationships").at("user").at("data").at("name")) {
                 j["attributes"]["sg_artist"] =
                     data.at("relationships").at("user").at("data").at("name");
+                result = true;
+                emit dataChanged(index, index, roles);
+            }
+        } break;
+
+        case Roles::noteCountRole: {
+            auto data = mapFromValue(value);
+            auto jp   = nlohmann::json::json_pointer("/relationships/notes/data");
+            auto dp   = nlohmann::json::json_pointer("/data/relationships/notes/data");
+
+            if (not j.contains(jp))
+                j["relationships"]["notes"] = R"({"data":null})"_json;
+
+            if (j.at(jp) != data.at(dp)) {
+                j["relationships"]["notes"]["data"] = data.at(dp);
+                result                              = true;
+                emit dataChanged(index, index, roles);
+            }
+        } break;
+
+        case Roles::versionCountRole: {
+            auto data = mapFromValue(value);
+            auto jp   = nlohmann::json::json_pointer("/relationships/versions/data");
+            auto dp   = nlohmann::json::json_pointer("/data/relationships/versions/data");
+
+            if (not j.contains(jp))
+                j["relationships"]["versions"] = R"({"data":null})"_json;
+
+            if (j.at(jp) != data.at(dp)) {
+                j["relationships"]["versions"]["data"] = data.at(dp);
+
+                if (j["relationships"]["versions"]["data"].empty())
+                    j["children"] = R"([])"_json;
+                else
+                    j["children"] = nullptr;
+
                 result = true;
                 emit dataChanged(index, index, roles);
             }

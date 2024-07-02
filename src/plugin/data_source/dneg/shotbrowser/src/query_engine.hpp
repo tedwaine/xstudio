@@ -38,7 +38,7 @@ const auto PresetTemplate = R"({
 	"type": "preset",
 	"name": "PRESET",
     "hidden": false,
-    "favourite": false,
+    "favourite": true,
     "update": null,
     "userdata": "",
     "children": []
@@ -157,6 +157,7 @@ const auto ValidTerms = R"({
         "Reference Tag",
         "Reference Tags",
         "Result Limit",
+        "Sent To",
         "Sent To Client",
         "Sent To Dailies",
         "Sequence",
@@ -219,7 +220,9 @@ const auto OrderByTermValues = R"([
         {"name": "Version DESC"}
     ])"_json;
 
-const auto BoolTermValues     = R"([{"name": "True"},{"name": "False"}])"_json;
+const auto BoolTermValues = R"([{"name": "True"},{"name": "False"}])"_json;
+const auto SubmittedTermValues =
+    R"([{"name": "Any"}, {"name": "Client"}, {"name": "Dailies"}, {"name": "Ignore"}])"_json;
 const auto OperatorTermValues = R"([{"name": "And"},{"name": "Or"}])"_json;
 
 const auto FlagTermValues = R"([
@@ -287,6 +290,7 @@ const auto TermProperties = R"({
     "Reference Tags": { "negated": false, "livelink": null },
     "Result Limit": { "negated": null, "livelink": null },
     "Review Location": { "negated": null, "livelink": null },
+    "Sent To": { "negated": null, "livelink": null },
     "Sent To Client": { "negated": null, "livelink": null },
     "Sent To Dailies": { "negated": null, "livelink": null },
     "Sequence": { "negated": false, "livelink": false },
@@ -538,7 +542,8 @@ class QueryEngine {
     template <typename T>
     static T to_value(const nlohmann::json &jsn, const std::string &key, const T &fallback);
 
-    static bool precache_needed(const int project_id, const utility::JsonStore &lookup);
+    static std::set<std::string>
+    precache_needed(const int project_id, const utility::JsonStore &lookup);
 
     static utility::JsonStore apply_livelinks(
         const utility::JsonStore &terms,

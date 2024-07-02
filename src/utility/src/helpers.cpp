@@ -562,6 +562,8 @@ std::string xstudio::utility::expand_envvars(
                     env = additional.at(match_str);
                 } else if (match_str == "USERFULLNAME") {
                     env = utility::get_user_name();
+                } else if (match_str == "XSTUDIO_ROOT") {
+                    env = xstudio_root();
                 } else {
                     spdlog::warn("Undefined envvar ${{{}}}", match_str);
                     env = "";

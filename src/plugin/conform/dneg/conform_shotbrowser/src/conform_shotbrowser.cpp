@@ -20,6 +20,17 @@ class ShotbrowserConform : public Conformer {
         : Conformer(prefs) {}
     ~ShotbrowserConform() = default;
 
+
+    void update_preferences(const utility::JsonStore &prefs) override {
+        try {
+            purge_sequence_on_import_ = global_store::preference_value<bool>(
+                prefs, "/plugin/conformer/shotbrowser/purge_sequence_on_import");
+        } catch (const std::exception &err) {
+            spdlog::warn("{} {}", __PRETTY_FUNCTION__, err.what());
+        }
+    }
+
+
     std::vector<std::string> conform_tasks() override { return tasks_; }
 
     bool update_tasks(const utility::JsonStoreSync &presets) {
@@ -89,9 +100,12 @@ class ShotbrowserConform : public Conformer {
         return {};
     }
 
+    [[nodiscard]] bool purge_sequence_on_import() const { return purge_sequence_on_import_; }
+
   private:
     std::vector<std::string> tasks_;
     std::map<std::string, utility::Uuid> task_uuids_;
+    bool purge_sequence_on_import_{true};
 };
 
 template <typename T> class ShotbrowserConformActor : public caf::event_based_actor {
@@ -670,8 +684,21 @@ template <typename T> class ShotbrowserConformActor : public caf::event_based_ac
                             }
                         }
                         if (i.name() == "UNKNOWN") {
-                            if (not only_create_conform_track)
+                            // i.set_prop(m);
+                            if (not only_create_conform_track) {
+                                auto m = i.prop();
+                                auto u =
+                                    R"({"metadata": {"external": {"DNeg": {"shot": null, "show":null}}}})"_json;
+
+                                u[json::json_pointer("/metadata/external/DNeg/shot")] =
+                                    "UNKNOWN";
+                                u[json::json_pointer("/metadata/external/DNeg/show")] =
+                                    found_project;
+
+                                m.update(u);
                                 anon_send(i.actor(), timeline::item_flag_atom_v, "#FFFF0000");
+                                anon_send(i.actor(), timeline::item_prop_atom_v, m);
+                            }
 
                             i.set_flag("#FFFF0000");
                             i.set_enabled(false);
@@ -708,7 +735,8 @@ template <typename T> class ShotbrowserConformActor : public caf::event_based_ac
                         *sys, timeline_item.actor(), timeline::item_prop_atom_v, tprop);
 
                     // purge other video tracks
-                    if (not only_create_conform_track and vcount > 1) {
+                    if (not only_create_conform_track and
+                        conform_.purge_sequence_on_import() and vcount > 1) {
 
                         request_receive<JsonStore>(
                             *sys,
@@ -952,8 +980,12 @@ template <typename T> class ShotbrowserConformActor : public caf::event_based_ac
                     trimmed_range.set_start(FrameRate(
                         trimmed_range.rate() * item_meta.at(cut_start_ptr).get<int>()));
 
+                    anon_send(
+                        i.item_.actor(),
+                        timeline::trimmed_range_atom_v,
+                        trimmed_range,
+                        trimmed_range);
                     anon_send(i.item_.actor(), timeline::item_prop_atom_v, prop);
-                    anon_send(i.item_.actor(), timeline::active_range_atom_v, trimmed_range);
                 }
 
                 // spdlog::warn("{}", creply.request_.metadata_.at(i.item_.uuid()).dump(2));

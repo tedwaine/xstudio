@@ -10,9 +10,9 @@ import xstudio.qml.models 1.0
 import xstudio.qml.viewport 1.0
 import xstudio.qml.helpers 1.0
 import xstudio.qml.clipboard 1.0
+import QuickFuture 1.0
 
 XsPopupMenu {
-
     id: btnMenu
     visible: false
     menu_model_name: "media_list_menu_"
@@ -29,7 +29,12 @@ XsPopupMenu {
       id: clipboard
     }
 
+    XsFileFunctions {
+        id: file_functions
+   }
+
     XsFlagMenuInserter {
+        text: qsTr("Media Colour")
         panelContext: btnMenu.panelContext
         menuModelName: btnMenu.menu_model_name
         menuPath: ""
@@ -62,19 +67,19 @@ XsPopupMenu {
         panelContext: btnMenu.panelContext
     }
 
-    XsMenuModelItem {
-        text: "TEST"
-        menuPath: ""
-        menuItemPosition: 2.5
-        menuModelName: btnMenu.menu_model_name
-        onActivated: {
-            let mlf = 14
-            let c = theSessionData.getTimelineVisibleClipIndexes(viewedMediaSetIndex, mediaSelectionModel.selectedIndexes[0], mlf)
-            if(c.length)
-                console.log(theSessionData.getTimelineFrameFromClip(c[0], mlf))
-        }
-        panelContext: btnMenu.panelContext
-    }
+    // XsMenuModelItem {
+    //     text: "TEST"
+    //     menuPath: ""
+    //     menuItemPosition: 2.5
+    //     menuModelName: btnMenu.menu_model_name
+    //     onActivated: {
+    //         let mlf = 14
+    //         let c = theSessionData.getTimelineVisibleClipIndexes(viewedMediaSetIndex, mediaSelectionModel.selectedIndexes[0], mlf)
+    //         if(c.length)
+    //             console.log(theSessionData.getTimelineFrameFromClip(c[0], mlf))
+    //     }
+    //     panelContext: btnMenu.panelContext
+    // }
 
     XsMenuModelItem {
         text: "De-Select All"
@@ -96,7 +101,88 @@ XsPopupMenu {
     }
 
 
-   XsMenuModelItem {
+    XsMenuModelItem {
+        text: "Playlist..."
+        menuPath: "Add To New"
+        menuItemPosition: 1
+        menuModelName: btnMenu.menu_model_name
+        onActivated: {
+            dialogHelpers.textInputDialog(
+                function(name, button) {
+                    if(button == "Move Media") {
+                        let pl = theSessionData.createPlaylist(name)
+                        theSessionData.moveRows(mediaSelectionModel.selectedIndexes, 0, pl)
+                    } else if(button == "Copy Media") {
+                        let pl = theSessionData.createPlaylist(name)
+                        theSessionData.copyRows(mediaSelectionModel.selectedIndexes, 0, pl)
+                    }
+                },
+                "Add To New Playlist",
+                "Enter New Playlist Name",
+                "Untitled Playlist",
+                ["Cancel", "Move Media", "Copy Media"])
+        }
+
+        panelContext: btnMenu.panelContext
+    }
+
+
+    XsMenuModelItem {
+        text: "Subset..."
+        menuPath: "Add To New"
+        menuItemPosition: 1
+        menuModelName: btnMenu.menu_model_name
+        onActivated: {
+            dialogHelpers.textInputDialog(
+                function(name, button) {
+                    if(button == "Add Media") {
+                        let sub = theSessionData.createPlaylistChild(name, "Subset", theSessionData.getPlaylistIndex(mediaSelectionModel.selectedIndexes[0]))
+                        theSessionData.copyRows(mediaSelectionModel.selectedIndexes, 0, sub)
+                    }
+                },
+                "Add To New Subset",
+                "Enter New Subset Name",
+                "Untitled Subset",
+                ["Cancel", "Add Media"])
+        }
+        panelContext: btnMenu.panelContext
+    }
+
+    XsMenuModelItem {
+        text: "Sequence..."
+        menuPath: "Add To New"
+        menuItemPosition: 1
+        menuModelName: btnMenu.menu_model_name
+        onActivated: {
+            dialogHelpers.textInputDialog(
+                function(name, button) {
+                    if(button == "Add Media") {
+                        let sub = theSessionData.createPlaylistChild(name, "Timeline", theSessionData.getPlaylistIndex(mediaSelectionModel.selectedIndexes[0]))
+                        theSessionData.copyRows(mediaSelectionModel.selectedIndexes, 0, sub)
+
+                        let tindex = theSessionData.index(2, 0, sub)
+                        theSessionData.fetchMoreWait(tindex)
+                        let sindex = theSessionData.index(0, 0, tindex)
+                        let vindex = theSessionData.index(0, 0, sindex)
+                        let aindex = theSessionData.index(1, 0, sindex)
+
+                        for(let i = 0; i< mediaSelectionModel.selectedIndexes.length; i++) {
+                            let mindex = mediaSelectionModel.selectedIndexes[i]
+                            theSessionData.insertTimelineClip(i, vindex, mindex, "")
+                            theSessionData.insertTimelineClip(i, aindex, mindex, "")
+                        }
+                    }
+                },
+                "Add To New Sequence",
+                "Enter New Sequence Name",
+                "Untitled Sequence",
+                ["Cancel", "Add Media"])
+        }
+        panelContext: btnMenu.panelContext
+    }
+
+
+    XsMenuModelItem {
         menuPath: "Copy"
         text: "Selected File Names"
         menuItemPosition: 1
@@ -112,7 +198,7 @@ XsPopupMenu {
         panelContext: btnMenu.panelContext
     }
 
-   XsMenuModelItem {
+    XsMenuModelItem {
         menuPath: "Copy"
         text: "Selected File Paths"
         menuItemPosition: 2
@@ -129,7 +215,7 @@ XsPopupMenu {
         panelContext: btnMenu.panelContext
     }
 
-   XsMenuModelItem {
+    XsMenuModelItem {
         menuPath: "Copy"
         text: "Copy Selected To Email Link"
         menuItemPosition: 3
@@ -151,7 +237,7 @@ XsPopupMenu {
         panelContext: btnMenu.panelContext
     }
 
-   XsMenuModelItem {
+    XsMenuModelItem {
         menuPath: "Copy"
         text: "Copy Selected To Shell Command"
         menuItemPosition: 4
@@ -180,6 +266,26 @@ XsPopupMenu {
     }
 
     XsMenuModelItem {
+        text: "Duplicate Media"
+        menuPath: ""
+        menuItemPosition: 3
+        menuModelName: btnMenu.menu_model_name
+        onActivated: {
+            let items = []
+
+            for(let i=0;i<mediaSelectionModel.selectedIndexes.length;++i)
+                items.push(helpers.makePersistent(mediaSelectionModel.selectedIndexes[i]))
+
+            items.forEach(
+                (item) => {
+                    item.model.duplicateRows(item.row, 1, item.parent)
+                }
+            )
+        }
+        panelContext: btnMenu.panelContext
+    }
+
+    XsMenuModelItem {
         text: "Dump Metadata"
         menuPath: ""
         menuItemPosition: 3
@@ -187,6 +293,15 @@ XsPopupMenu {
         onActivated: {
             console.log(theSessionData.getJSON(mediaList.selection[0],""))
         }
+        panelContext: btnMenu.panelContext
+    }
+
+    XsMenuModelItem {
+        text: "On Disk..."
+        menuPath: "Reveal Source"
+        menuItemPosition: 1
+        menuModelName: btnMenu.menu_model_name
+        onActivated: helpers.ShowURIS(mediaSelectionModel.getSelectedMediaUrl())
         panelContext: btnMenu.panelContext
     }
 
@@ -204,7 +319,7 @@ XsPopupMenu {
     XsMenuModelItem {
         text: "Delete Selected"
         menuPath: ""
-        menuItemPosition: 3.5
+        menuItemPosition: 100
         menuModelName: btnMenu.menu_model_name
         hotkeyUuid: delete_selected.uuid
         onActivated: {
@@ -213,4 +328,94 @@ XsPopupMenu {
         panelContext: btnMenu.panelContext
     }
 
+    XsMenuModelItem {
+        text: "Clear Cache"
+        menuPath: "Advanced"
+        menuItemPosition: 1
+        menuModelName: btnMenu.menu_model_name
+        onActivated: studio.clearImageCache()
+        panelContext: btnMenu.panelContext
+
+    }
+
+    XsMenuModelItem {
+        text: "Clear Selected Media From Cache"
+        menuPath: "Advanced"
+        menuItemPosition: 2
+        menuModelName: btnMenu.menu_model_name
+        onActivated: Future.promise(theSessionData.clearCacheFuture(mediaSelectionModel.selectedIndexes)).then(function(result){})
+        panelContext: btnMenu.panelContext
+    }
+
+    XsMenuModelItem {
+        text: "Set Selected Media Rate"
+        menuPath: "Advanced"
+        menuItemPosition: 3
+        menuModelName: btnMenu.menu_model_name
+        onActivated: {
+            let mi = mediaSelectionModel.selectedIndexes[0]
+            let ms = theSessionData.searchRecursive(theSessionData.get(mi, "imageActorUuidRole"), "actorUuidRole", mi)
+
+            dialogHelpers.numberInputDialog(
+                function(new_rate, button) {
+                    if(button == "Set Rate") {
+                        mediaSelectionModel.selectedIndexes.forEach(
+                            (element) => {
+                                let mi = theSessionData.searchRecursive(theSessionData.get(element, "imageActorUuidRole"), "actorUuidRole", element)
+                                mi.model.set(mi, new_rate, "rateFPSRole")
+                            }
+                        )
+                    }
+                },
+                "Set Media Rate",
+                "Enter New Media Rate",
+                 mi.model.get(ms, "rateFPSRole"),
+                ["Cancel", "Set Rate"])
+
+        }
+        panelContext: btnMenu.panelContext
+    }
+
+    XsMenuModelItem {
+        text: "Load Additional Sources For Selected Media"
+        menuPath: "Advanced"
+        menuItemPosition: 4
+        menuModelName: btnMenu.menu_model_name
+        onActivated: theSessionData.gatherMediaFor(theSessionData.getPlaylistIndex(mediaSelectionModel.selectedIndexes[0]), mediaSelectionModel.selectedIndexes)
+        panelContext: btnMenu.panelContext
+    }
+
+    XsMenuModelItem {
+        text: "Relink Selected Media"
+        menuPath: "Advanced"
+        menuItemPosition: 5
+        menuModelName: btnMenu.menu_model_name
+        onActivated: {
+           dialogHelpers.showFileDialogFolderMode(
+                function(path, folder, chaserFunc) {
+                    theSessionData.relinkMedia(mediaSelectionModel.selectedIndexes, path)
+                },
+                file_functions.defaultSessionFolder(),
+                "Relink media files")
+        }
+        panelContext: btnMenu.panelContext
+    }
+
+    XsMenuModelItem {
+        text: "Decompose Selected Media"
+        menuPath: "Advanced"
+        menuItemPosition: 6
+        menuModelName: btnMenu.menu_model_name
+        onActivated: theSessionData.decomposeMedia(mediaSelectionModel.selectedIndexes)
+        panelContext: btnMenu.panelContext
+    }
+
+    XsMenuModelItem {
+        text: "Reload Selected Media"
+        menuPath: "Advanced"
+        menuItemPosition: 7
+        menuModelName: btnMenu.menu_model_name
+        onActivated: theSessionData.rescanMedia(mediaSelectionModel.selectedIndexes)
+        panelContext: btnMenu.panelContext
+    }
 }

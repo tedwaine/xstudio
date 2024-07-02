@@ -57,7 +57,6 @@ ShotBrowser::ShotBrowser(caf::actor_config &cfg, const utility::JsonStore &init_
     // we are the source of the secret..
     anon_send(shotgun_, shotgun_authentication_source_atom_v, actor_cast<caf::actor>(this));
 
-    system().registry().put(shotbrowser_datasource_registry, caf::actor_cast<caf::actor>(this));
 
     try {
         auto prefs = GlobalStoreHelper(system());
@@ -67,6 +66,10 @@ ShotBrowser::ShotBrowser(caf::actor_config &cfg, const utility::JsonStore &init_
     } catch (const std::exception &err) {
         spdlog::warn("{} {}", __PRETTY_FUNCTION__, err.what());
     }
+
+    if (not disable_integration_)
+        system().registry().put(
+            shotbrowser_datasource_registry, caf::actor_cast<caf::actor>(this));
 
     pool_ = caf::actor_pool::make(
         system().dummy_execution_unit(),
@@ -893,6 +896,9 @@ void ShotBrowser::update_preferences(const JsonStore &js) {
 
         auto refresh_token = preference_value<std::string>(
             js, "/plugin/data_source/shotbrowser/authentication/refresh_token");
+
+        disable_integration_ =
+            preference_value<bool>(js, "/plugin/data_source/shotbrowser/disable_integration");
 
         auto host =
             preference_value<std::string>(js, "/plugin/data_source/shotbrowser/server/host");

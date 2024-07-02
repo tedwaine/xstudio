@@ -855,6 +855,41 @@ utility::JsonStore Item::set_markers(const Markers &value) {
     return utility::JsonStore();
 }
 
+void Item::set_range_direct(
+    const utility::FrameRange &avail, const utility::FrameRange &active) {
+    set_available_range_direct(avail);
+    set_active_range_direct(active);
+}
+
+utility::JsonStore
+Item::set_range(const utility::FrameRange &avail, const utility::FrameRange &active) {
+    if (active != active_range_ || avail != available_range_) {
+        utility::JsonStore jsn(R"([{"undo":{}, "redo":{}}])"_json);
+        jsn[0]["undo"]["action"] = jsn[0]["redo"]["action"] = ItemAction::IA_RANGE;
+        jsn[0]["undo"]["uuid"] = jsn[0]["redo"]["uuid"] = uuid_addr_.first;
+
+        jsn[0]["undo"]["value"]  = available_range_;
+        jsn[0]["undo"]["value2"] = has_available_range_;
+        jsn[0]["undo"]["value3"] = active_range_;
+        jsn[0]["undo"]["value4"] = has_active_range_;
+
+        jsn[0]["redo"]["value"]  = avail;
+        jsn[0]["redo"]["value2"] = true;
+        jsn[0]["redo"]["value3"] = active;
+        jsn[0]["redo"]["value4"] = true;
+
+        jsn.push_back(R"({"undo":{}, "redo":{}})"_json);
+        jsn[1]["undo"]["action"] = jsn[1]["redo"]["action"] = ItemAction::IA_DIRTY;
+        jsn[1]["undo"]["uuid"] = jsn[1]["redo"]["uuid"] = uuid_addr_.first;
+
+        set_range_direct(avail, active);
+        return jsn;
+    }
+
+    return utility::JsonStore();
+}
+
+
 void Item::set_active_range_direct(const utility::FrameRange &value) {
     has_active_range_ = true;
     active_range_     = value;
@@ -1081,6 +1116,12 @@ bool Item::process_event(const utility::JsonStore &event) {
         case IA_AVAIL:
             set_available_range_direct(event.at("value"));
             has_available_range_ = event.at("value2");
+            break;
+        case IA_RANGE:
+            set_available_range_direct(event.at("value"));
+            has_available_range_ = event.at("value2");
+            set_active_range_direct(event.at("value3"));
+            has_active_range_ = event.at("value4");
             break;
         case IA_INSERT: {
             // spdlog::warn("IT_INSERT {}", event.dump(2));
@@ -1429,6 +1470,10 @@ void Item::clean(const bool purge_clips) {
         // purge empty tracks from head and tail?
         case IT_STACK:
             it->clean(purge_clips);
+            previous = it;
+            it++;
+            break;
+
         default:
             previous = it;
             it++;

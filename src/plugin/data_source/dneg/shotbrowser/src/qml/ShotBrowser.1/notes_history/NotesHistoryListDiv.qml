@@ -31,7 +31,8 @@ Item{ id: contentDiv
         }
 
         XsLabel {
-            text: isPaused ? "Updates Paused" : !queryRunning ? "No Results Found" : ""
+            text: !queryRunning ? "No Results Found" : ""
+            // text: isPaused ? "Updates Paused" : !queryRunning ? "No Results Found" : ""
             color: XsStyleSheet.hintColor
             visible: dataModel && activeScopeIndex.valid && activeTypeIndex.valid && !dataModel.count //#TODO
 

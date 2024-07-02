@@ -48,7 +48,7 @@ Item{
         anchors.fill: parent
     }
 
-    enabled: theTimeline.timelineProperty.index.valid
+    enabled: theTimeline.have_timeline
 
     // XsHotkey {
     //     id: fit_selection
@@ -119,15 +119,11 @@ Item{
 
     XsPlayhead {
         id: timelinePlayhead
-    }
+        Component.onCompleted: {
+            connectToModel()
+        }
+        function connectToModel() {
 
-    property alias timelinePlayhead: timelinePlayhead
-
-    Connections {
-
-        target: theTimeline.timelineModel
-
-        function onRootIndexChanged() {
             // connect to the timeline playhead ...
             let playhead_idx = theSessionData.searchRecursive(
                 "Playhead",
@@ -148,6 +144,19 @@ Item{
                     timelinePlayhead.uuid = playhead_uuid
                 }
             }
+    
+        }
+    }
+
+    property alias timelinePlayhead: timelinePlayhead
+
+    Connections {
+
+        target: theTimeline.timelineModel
+
+        function onRootIndexChanged() {
+
+            timelinePlayhead.connectToModel()
         }
     }
 
@@ -454,7 +463,6 @@ Item{
         width: parent.width - 40
         height: parent.height - actionDiv.height
         x: 40
-        timelinePlayhead: panel.timelinePlayhead
 
     }
 

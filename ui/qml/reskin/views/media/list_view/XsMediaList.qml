@@ -23,9 +23,10 @@ import "../widgets"
 XsListView {
 
     id: mediaList
-    model: mediaListModelData
     Layout.fillWidth: true
     Layout.fillHeight: true
+
+    model: filteredMediaListData
 
     property var columns_model_index: titleBar.columns_model_index
     property var dragTargetIndex
@@ -36,12 +37,16 @@ XsListView {
     cacheBuffer: 80
     boundsBehavior: Flickable.StopAtBounds
 
+    // this is the delegate model that drives this view
     XsMediaListModelData {
-        id: mediaListModelData
-        delegate: chooser
+        id: filteredMediaListData
     }
 
-    property alias mediaListModelData: mediaListModelData
+    delegate: XsMediaItemDelegate {
+        width: itemRowWidth
+    }
+
+    property alias mediaListModelData: filteredMediaListData.model
 
     PropertyAnimation{
         id: autoScrollAnimator
@@ -87,7 +92,7 @@ XsListView {
 
             XsMediaItemDelegate {
                 width: itemRowWidth
-                property var media_item_model_index: helpers.makePersistent(theSessionData.index(index, 0, mediaListModelData.rootIndex))
+
             }
 
         }
@@ -205,6 +210,13 @@ XsListView {
         dragSourceName: "MediaList"
         dragData: mediaSelectionModel.selectedIndexes
 
+        onIsDragTargetChanged: {
+            if (!isDragTarget) {
+                scrollUp.cancel()
+                scrollDown.cancel()    
+            }
+        }
+
         onDragged: {
             computeTargetDropIndex(mousePosition.y)
             autoScroll(mousePosition.y)
@@ -238,7 +250,7 @@ XsListView {
                 // a list of model indeces
 
                 // are these indeces from the same list as our list here?
-                if (data.length && data[0].parent == mediaListModelData.rootIndex) {
+                if (data.length && data[0].parent == filteredMediaListData.rootIndex) {
                     // do a move rows
                     theSessionData.moveRows(
                         data,
@@ -255,13 +267,18 @@ XsListView {
     property alias drag_drop_handler: drag_drop_handler
 
     function isInSelection(idx) {
-        return mediaList.itemAtIndex(idx).isSelected
+        return mediaSelectionModel.selectedIndexes.includes(mediaListModelData.rowToSourceIndex(idx))
     }
 
     function computeTargetDropIndex(dropCoordY) {
 
+        var oldDragTarget = dragTargetIndex
+
         if (dropCoordY < 0 || dropCoordY > height) {
             dragTargetIndex = undefined
+            if (oldDragTarget) {
+                mediaList.itemAtIndex(oldDragTarget.row).isDragTarget = false
+            }
             return
         }
 
@@ -294,9 +311,19 @@ XsListView {
                 }
 
             }
-            dragTargetIndex = mediaList.itemAtIndex(idx).media_item_model_index
+            if (mediaList.itemAtIndex(idx)) {
+                mediaList.itemAtIndex(idx).isDragTarget = true
+                dragTargetIndex = mediaList.itemAtIndex(idx).modelIndex()
+            }
+
         } else {
             dragTargetIndex = undefined
+        }
+
+        if (oldDragTarget && oldDragTarget != dragTargetIndex) {
+            if (mediaList.itemAtIndex(oldDragTarget.row)) {
+                mediaList.itemAtIndex(oldDragTarget.row).isDragTarget = false
+            }
         }
 
     }

@@ -363,6 +363,17 @@ DelegateChoice {
 
 								model: marker_model
 							}
+
+				    		Rectangle {
+				    			color: XsStyleSheet.accentColor
+				    			opacity: 0.3
+				    			visible: loopSelection && timelinePlayhead.enableLoopRange
+				    			anchors.fill: parent
+				    			property int start: (timelinePlayhead.loopStartFrame - (frameTrack.offset  / control.scaleX)) * control.scaleX
+				    			property int end: (timelinePlayhead.loopEndFrame - (frameTrack.offset  / control.scaleX)) * control.scaleX
+								anchors.leftMargin: Math.max(0, start)
+								anchors.rightMargin: parent.width - (end-start) - start
+				    		}
 						}
 					}
 

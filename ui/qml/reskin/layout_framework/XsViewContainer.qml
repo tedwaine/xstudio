@@ -263,7 +263,7 @@ Item {
                 width: metrics.width + typeSelectorBtn.width + panelPadding*6
                 height: parent.height
 
-                XsText { 
+                Text{ 
                     
                     id: textDiv
                     x: panelPadding*2

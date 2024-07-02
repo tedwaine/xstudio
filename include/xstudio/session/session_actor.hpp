@@ -131,6 +131,15 @@ namespace session {
         caf::actor_addr current_playlist_;
         std::map<caf::actor_addr, std::string> serialise_targets_;
         // std::map<utility::Uuid, caf::actor> players_;
+
+        // store gui conext information
+        utility::UuidActorAddr viewedPlaylist_;
+        std::pair<std::string, utility::UuidActorAddr> viewedContainer_;
+
+        utility::UuidActorAddr inspectedPlaylist_;
+        std::pair<std::string, utility::UuidActorAddr> inspectedContainer_;
+
+        std::vector<utility::UuidActorAddr> selectedMedia_;
     };
 } // namespace session
 } // namespace xstudio

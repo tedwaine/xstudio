@@ -38,6 +38,41 @@ QVariant SessionModel::playlists() const {
     return mapFromValue(data);
 }
 
+void SessionModel::setCurrentContainer(const QModelIndex &index, const bool viewed) {
+    if (index.isValid()) {
+        auto pindex = getPlaylistIndex(index);
+        if (pindex.isValid()) {
+            auto puuid  = UuidFromQUuid(pindex.data(actorUuidRole).toUuid());
+            auto pactor = actorFromQString(system(), pindex.data(actorRole).toString());
+
+            auto ctype  = StdFromQString(index.data(typeRole).toString());
+            auto cuuid  = UuidFromQUuid(index.data(actorUuidRole).toUuid());
+            auto cactor = actorFromQString(system(), index.data(actorRole).toString());
+
+            anon_send(
+                session_actor_,
+                session::current_playlist_atom_v,
+                viewed,
+                UuidActor(puuid, pactor),
+                ctype,
+                UuidActor(cuuid, cactor));
+        }
+    }
+}
+
+void SessionModel::setSelectedMedia(const QModelIndexList &indexes) {
+    auto media = UuidActorVector();
+
+    for (const auto &i : indexes) {
+        auto muuid  = UuidFromQUuid(i.data(actorUuidRole).toUuid());
+        auto mactor = actorFromQString(system(), i.data(actorRole).toString());
+        media.emplace_back(UuidActor(muuid, mactor));
+    }
+
+    anon_send(session_actor_, media::current_media_atom_v, media);
+}
+
+
 QModelIndex SessionModel::getPlaylistIndex(const QModelIndex &index) const {
     QModelIndex result = index;
     auto matched       = QVariant::fromValue(QString("Playlist"));
@@ -1280,6 +1315,7 @@ void SessionModel::setCurrentPlaylist(const QModelIndex &index) {
 
 void SessionModel::setPlayheadTo(const QModelIndex &index, const bool aux_playhead) {
     try {
+
         if (index.isValid()) {
 
             nlohmann::json &j = indexToData(index);

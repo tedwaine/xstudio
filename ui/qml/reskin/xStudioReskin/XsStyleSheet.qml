@@ -45,6 +45,9 @@ QtObject {
     property real primaryButtonStdHeight: widgetStdHeight + 4
     property real secondaryButtonStdWidth: 16
 
+    // control colour = button colour etc?
+    property color controlColour: Qt.darker("#33FFFFFF", darkerFactor)
+
     property real menuStdWidth: 140
     property real menuHeight: widgetStdHeight
     property color menuBarColor: Qt.darker("#474747", darkerFactor)

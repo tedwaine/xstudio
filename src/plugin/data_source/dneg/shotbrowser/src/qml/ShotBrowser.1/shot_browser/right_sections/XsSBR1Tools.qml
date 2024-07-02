@@ -25,16 +25,6 @@ Item{ id: toolDiv
             Layout.fillWidth: true
             Layout.preferredHeight: btnHeight
 
-            XsPrimaryButton{
-                Layout.preferredWidth: btnWidth
-                Layout.preferredHeight: parent.height
-                imgSrc: "qrc:///shotbrowser_icons/heart_plus.svg"
-                enabled: currentCategory == "Tree"
-                text: "Shot Presets"
-                isActive: currentCategory != "Tree" || sequenceTreeShowPresets
-                onClicked: sequenceTreeShowPresets = !sequenceTreeShowPresets
-            }
-
             Repeater {
                 Layout.fillWidth: true
                 Layout.preferredHeight: parent.height

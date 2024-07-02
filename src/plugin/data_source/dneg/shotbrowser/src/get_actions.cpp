@@ -48,6 +48,27 @@ void ShotBrowser::find_ivy_version(
             });
 }
 
+void ShotBrowser::get_fields(
+    caf::typed_response_promise<utility::JsonStore> rp,
+    const int id,
+    const std::string &entity,
+    const std::vector<std::string> &fields) {
+    request(
+        shotgun_,
+        std::chrono::seconds(static_cast<int>(timeout_->value())),
+        shotgun_entity_atom_v,
+        entity,
+        id,
+        fields)
+        .then(
+            [=](const JsonStore &jsn) mutable { rp.deliver(jsn); },
+            [=](error &err) mutable {
+                spdlog::error("{} {}", __PRETTY_FUNCTION__, to_string(err));
+                rp.deliver(JsonStore(R"({"data":{}})"_json));
+            });
+}
+
+
 void ShotBrowser::find_shot(
     caf::typed_response_promise<utility::JsonStore> rp, const int shot_id) {
     // find version from supplied details.
@@ -1611,13 +1632,13 @@ void ShotBrowser::execute_preset(
         if (not project_id)
             project_id = engine().get_project_id(metadata, engine().cache());
 
-        // spdlog::warn("{}", entity);
+        // spdlog::warn("project_id {}", project_id);
         // spdlog::warn("{}", preset_group.dump(2));
         // spdlog::warn("{}", presets.dump(2));
 
         // we possibly need to precache lookups..
-        if (engine().precache_needed(project_id, engine().lookup())) {
-            // spdlog::warn("NEEDS PREECACHE");
+        if (not engine().precache_needed(project_id, engine().lookup()).empty()) {
+            // spdlog::warn("NEEDS PREECACHE {}", project_id);
             // we need to trigger loading of lookups..
             auto req          = JsonStore(GetPrecache);
             req["project_id"] = project_id;
@@ -1626,24 +1647,8 @@ void ShotBrowser::execute_preset(
                 .then(
                     [=](const JsonStore &) mutable {
                         // spdlog::warn("PRECACHED COMPLETE");
-                        try {
-                            auto request = QueryEngine::build_query(
-                                project_id,
-                                entity,
-                                group_id,
-                                preset_group,
-                                presets,
-                                custom_terms,
-                                context,
-                                metadata,
-                                env,
-                                engine().lookup());
-
-                            execute_query(rp, request);
-                        } catch (const std::exception &err) {
-                            spdlog::warn("{} {}", __PRETTY_FUNCTION__, err.what());
-                            rp.deliver(make_error(xstudio_error::error, err.what()));
-                        }
+                        execute_preset(
+                            rp, preset_paths, project_id, context, metadata, env, custom_terms);
                     },
                     [=](error &err) mutable { rp.deliver(err); });
 
@@ -1676,38 +1681,30 @@ void ShotBrowser::get_precache(
 
     // trigger precaching of lookup.
     // we call into ourselves sigh..
-    auto count         = std::make_shared<int>(0);
-    const auto &lookup = engine().lookup();
-
-    std::set<std::string> need;
-
-    if (lookup.count(QueryEngine::cache_name("Department")))
-        need.insert("Department");
-    if (lookup.count(QueryEngine::cache_name("User", project_id)))
-        need.insert("User");
-    if (lookup.count(QueryEngine::cache_name("Pipeline Status")))
-        need.insert("Pipeline Status");
-    if (lookup.count(QueryEngine::cache_name("Shot Pipeline Status")))
-        need.insert("Shot Pipeline Status");
-    if (lookup.count(QueryEngine::cache_name("Sequence Pipeline Status")))
-        need.insert("Sequence Pipeline Status");
-    if (lookup.count(QueryEngine::cache_name("Production Status")))
-        need.insert("Production Status");
-    if (lookup.count(QueryEngine::cache_name("Shot Status")))
-        need.insert("Shot Status");
-    if (lookup.count(QueryEngine::cache_name("Unit", project_id)))
-        need.insert("Unit");
-    if (lookup.count(QueryEngine::cache_name("Playlist", project_id)))
-        need.insert("Playlist");
-    if (lookup.count(QueryEngine::cache_name("Shot", project_id)))
-        need.insert("Shot");
-    if (lookup.count(QueryEngine::cache_name("Sequence", project_id)))
-        need.insert("Sequence");
+    const auto &lookup         = engine().lookup();
+    std::set<std::string> need = engine().precache_needed(project_id, lookup);
 
     if (need.empty()) {
         rp.deliver(utility::JsonStore());
     } else {
-        (*count) = need.size();
+        auto count = std::make_shared<int>(need.size());
+
+        if (need.count("Project")) {
+            auto req    = JsonStore(GetData);
+            req["type"] = "project";
+            request(caf::actor_cast<caf::actor>(this), infinite, get_data_atom_v, req)
+                .then(
+                    [=](const JsonStore &) mutable {
+                        (*count) = (*count) - 1;
+                        if (not(*count))
+                            rp.deliver(utility::JsonStore());
+                    },
+                    [=](error &err) mutable {
+                        (*count) = (*count) - 1;
+                        if (not(*count))
+                            rp.deliver(err);
+                    });
+        }
 
         if (need.count("Department")) {
             auto req    = JsonStore(GetData);
@@ -1761,22 +1758,22 @@ void ShotBrowser::get_precache(
                     });
         }
 
-        if (need.count("Shot Pipeline Status")) {
-            auto req    = JsonStore(GetData);
-            req["type"] = "shot_pipeline_status";
-            request(caf::actor_cast<caf::actor>(this), infinite, get_data_atom_v, req)
-                .then(
-                    [=](const JsonStore &) mutable {
-                        (*count) = (*count) - 1;
-                        if (not(*count))
-                            rp.deliver(utility::JsonStore());
-                    },
-                    [=](error &err) mutable {
-                        (*count) = (*count) - 1;
-                        if (not(*count))
-                            rp.deliver(err);
-                    });
-        }
+        // if (need.count("Shot Pipeline Status")) {
+        //     auto req    = JsonStore(GetData);
+        //     req["type"] = "shot_pipeline_status";
+        //     request(caf::actor_cast<caf::actor>(this), infinite, get_data_atom_v, req)
+        //         .then(
+        //             [=](const JsonStore &) mutable {
+        //                 (*count) = (*count) - 1;
+        //                 if (not(*count))
+        //                     rp.deliver(utility::JsonStore());
+        //             },
+        //             [=](error &err) mutable {
+        //                 (*count) = (*count) - 1;
+        //                 if (not(*count))
+        //                     rp.deliver(err);
+        //             });
+        // }
 
         if (need.count("Sequence Status")) {
             auto req    = JsonStore(GetData);

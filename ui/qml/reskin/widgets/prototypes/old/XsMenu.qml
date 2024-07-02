@@ -36,7 +36,7 @@ Menu {
         }
 
         gradient: Gradient {
-            GradientStop { position: 0.0; color: myMenu.down || myMenu.hovered? bgColorPressed: "#33FFFFFF" }
+            GradientStop { position: 0.0; color: myMenu.down || myMenu.hovered? bgColorPressed: XsStyleSheet.controlColour }
             GradientStop { position: 1.0; color: myMenu.down || myMenu.hovered? bgColorPressed: forcedBgColorNormal }
         }
         // color: XsStyle.mainBackground

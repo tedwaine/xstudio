@@ -71,7 +71,7 @@ Item {
             width: 3
         }
 
-        XsText { 
+        Text { 
             id: labelDiv
             text: label ? label : "Unknown" //+ (sub_menu && !is_in_bar ? "   >>" : "")
             font.pixelSize: XsStyleSheet.fontSize

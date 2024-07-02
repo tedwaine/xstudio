@@ -27,15 +27,15 @@ Item {
     }
 
     XsMenuModelItem {
-        text: "Reveal In ShotGrid..."
-        menuPath: ""
+        text: "In ShotGrid..."
+        menuPath: "Reveal Source"
         menuItemPosition: 10
         menuModelName: "media_list_menu_"
         onActivated: ShotBrowserHelpers.revealMediaInShotgrid(menuContext.mediaSelection)
     }
     XsMenuModelItem {
-        text: "Reveal In Ivy..."
-        menuPath: ""
+        text: "In Ivy..."
+        menuPath: "Reveal Source"
         menuItemPosition: 11
         menuModelName: "media_list_menu_"
         onActivated: ShotBrowserHelpers.revealMediaInIvy(menuContext.mediaSelection)

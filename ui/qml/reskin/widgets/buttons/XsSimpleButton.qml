@@ -26,11 +26,11 @@ Rectangle {
         anchors.fill: parent
 
         flatColor: topColor
-        topColor: mouseArea.pressed ? palette.highlight: "#33FFFFFF" 
+        topColor: mouseArea.pressed ? palette.highlight: XsStyleSheet.controlColour 
         bottomColor: mouseArea.pressed ? palette.highlight: XsStyleSheet.widgetBgNormalColor
     }
 
-    XsText {
+    Text {
         id: textDiv
         text: widget.text
         font.pixelSize: XsStyleSheet.fontSize *1.1

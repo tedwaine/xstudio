@@ -454,8 +454,15 @@ void QTreeModelToTableModel::expandRow(int n) {
         return;
 
     TreeItem &item = m_items[n];
-    if ((item.index.flags() & Qt::ItemNeverHasChildren) || !m_model->hasChildren(item.index))
-        return;
+
+    // Ted - commenting the below test out, because hasChildren can return false
+    // since the session model might not yet be filled out for the given index -
+    // assumption is if we explicitly called 'expandRow' we want it expanded
+    // regarless of whether it has children yet or now.
+
+    /*if ((item.index.flags() & Qt::ItemNeverHasChildren) || !m_model->hasChildren(item.index))
+        return;*/
+
     item.expanded = true;
     m_expandedItems.insert(item.index);
     QVector<int> changedRole(1, ExpandedRole);
@@ -673,6 +680,18 @@ void QTreeModelToTableModel::modelLayoutAboutToBeChanged(
         m_modelLayoutChanged = true;
         m_items.clear();
         return;
+    }
+
+    for (const QPersistentModelIndex &pmi : parents) {
+        for (const auto &i : m_items) {
+            if (i.index == pmi) {
+                // Update entire model
+                emit layoutAboutToBeChanged();
+                m_modelLayoutChanged = true;
+                m_items.clear();
+                return;
+            }
+        }
     }
 
     for (const QPersistentModelIndex &pmi : parents) {

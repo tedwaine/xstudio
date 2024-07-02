@@ -155,6 +155,15 @@ IvyDataSource::IvyDataSource() : DataSource("Ivy"), module::Module("IvyDataSourc
         site_ = "gps";
 }
 
+template <typename T> void IvyDataSourceActor<T>::update_preferences(const JsonStore &js) {
+    try {
+        enable_audio_autoload_ =
+            preference_value<bool>(js, "/plugin/data_source/ivy/enable_audio_autoload");
+    } catch (const std::exception &err) {
+        spdlog::warn("{} {}", __PRETTY_FUNCTION__, err.what());
+    }
+}
+
 template <typename T>
 IvyDataSourceActor<T>::IvyDataSourceActor(caf::actor_config &cfg, const utility::JsonStore &)
     : caf::event_based_actor(cfg) {
@@ -166,6 +175,14 @@ IvyDataSourceActor<T>::IvyDataSourceActor(caf::actor_config &cfg, const utility:
     http_ = spawn<http_client::HTTPClientActor>(CPPHTTPLIB_CONNECTION_TIMEOUT_SECOND, 20, 20);
     link_to(http_);
 
+    try {
+        auto prefs = GlobalStoreHelper(system());
+        JsonStore j;
+        join_broadcast(this, prefs.get_group(j));
+        update_preferences(j);
+    } catch (const std::exception &err) {
+        spdlog::warn("{} {}", __PRETTY_FUNCTION__, err.what());
+    }
 
     size_t worker_count = 5;
 
@@ -189,7 +206,20 @@ IvyDataSourceActor<T>::IvyDataSourceActor(caf::actor_config &cfg, const utility:
             get_show_stalk_uuid(rp, media);
             return rp;
         },
+        [=](json_store::update_atom,
+            const JsonStore & /*change*/,
+            const std::string & /*path*/,
+            const JsonStore &full) {
+            delegate(actor_cast<caf::actor>(this), json_store::update_atom_v, full);
+        },
 
+        [=](json_store::update_atom, const JsonStore &js) {
+            try {
+                update_preferences(js);
+            } catch (const std::exception &err) {
+                spdlog::warn("{} {}", __PRETTY_FUNCTION__, err.what());
+            }
+        },
         [=](data_source::use_data_atom,
             const std::string &show,
             const std::vector<caf::uri> &paths) -> result<JsonStore> {
@@ -851,18 +881,21 @@ void IvyDataSourceActor<T>::ivy_load_version_sources(
                                         if (not ua.uuid().is_null())
                                             results->push_back(ua);
                                         if (not(*count)) {
-
-                                            // rp.deliver(*results);
-                                            ivy_load_audio_sources(
-                                                rp, show, scope_uuid, media_rate, *results);
+                                            if (enable_audio_autoload_)
+                                                ivy_load_audio_sources(
+                                                    rp, show, scope_uuid, media_rate, *results);
+                                            else
+                                                rp.deliver(*results);
                                         }
                                     },
                                     [=](error &err) mutable {
                                         (*count)--;
                                         if (not(*count)) {
-                                            ivy_load_audio_sources(
-                                                rp, show, scope_uuid, media_rate, *results);
-                                            // rp.deliver(*results);
+                                            if (enable_audio_autoload_)
+                                                ivy_load_audio_sources(
+                                                    rp, show, scope_uuid, media_rate, *results);
+                                            else
+                                                rp.deliver(*results);
                                         }
                                         spdlog::warn(
                                             "{} {}", __PRETTY_FUNCTION__, to_string(err));

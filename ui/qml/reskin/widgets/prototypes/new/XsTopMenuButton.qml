@@ -77,7 +77,7 @@ Item{
             border.width: borderWidth
     
             gradient: Gradient {
-                GradientStop { position: 0.0; color: buttonWidget.down || (isActive && !subtleActive)? bgColorPressed: "#33FFFFFF" }
+                GradientStop { position: 0.0; color: buttonWidget.down || (isActive && !subtleActive)? bgColorPressed: XsStyleSheet.controlColour }
                 GradientStop { position: 1.0; color: buttonWidget.down || (isActive && !subtleActive)? bgColorPressed: forcedBgColorNormal }
             }
     

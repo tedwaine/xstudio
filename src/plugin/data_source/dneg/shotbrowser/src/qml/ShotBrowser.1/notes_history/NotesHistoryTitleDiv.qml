@@ -111,9 +111,9 @@ Item{id: titleDiv
         width: 40
         height: parent.height - (panelPadding*2)
         anchors.verticalCenter: parent.verticalCenter
-        imgSrc: isPanelEnabled? "qrc:///shotbrowser_icons/lock_open.svg" : "qrc:///shotbrowser_icons/lock.svg"
+        imgSrc: isPanelEnabled && !isPaused ? "qrc:///shotbrowser_icons/lock_open.svg" : "qrc:///shotbrowser_icons/lock.svg"
         // text: isPanelEnabled? "ON" : "OFF"
-        isActive: !isPanelEnabled
+        isActive: !isPanelEnabled || isPaused
         onClicked: {
             isPanelEnabled = !isPanelEnabled
         }
@@ -143,7 +143,7 @@ Item{id: titleDiv
                 Layout.preferredHeight: titleButtonHeight
 
                 orientation: ListView.Horizontal
-                enabled: isPanelEnabled
+                enabled: isPanelEnabled && !isPaused
                 model: []
             }
         }
@@ -164,7 +164,7 @@ Item{id: titleDiv
                 Layout.preferredHeight: titleButtonHeight
 
                 orientation: ListView.Horizontal
-                enabled: isPanelEnabled
+                enabled: isPanelEnabled && !isPaused
                 model: []
             }
         }

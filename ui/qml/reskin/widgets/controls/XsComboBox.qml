@@ -63,7 +63,7 @@ T.ComboBox { id: widget
             anchors.fill: parent
     
             flatColor: topColor
-            topColor: widget.down || isActive? bgColorPressed: "#33FFFFFF" 
+            topColor: widget.down || isActive? bgColorPressed: XsStyleSheet.controlColour 
             bottomColor: widget.down || isActive? bgColorPressed: forcedBgColorNormal
         }
 
@@ -194,7 +194,7 @@ T.ComboBox { id: widget
         padding: 0
 
         contentItem:
-        XsText {
+        Text{
             text: widget.textRole ? (Array.isArray(widget.model) ? modelData[widget.textRole]: model[widget.textRole]): modelData
             font.pixelSize: fontSize
             font.family: fontFamily

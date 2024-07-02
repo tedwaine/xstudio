@@ -471,11 +471,14 @@ utility::BlindDataObjectPtr AnnotationsTool::onscreen_render_data(
     // and don't pass in pointers to member data of AnnotationsTool - with the
     // exception of the Canvas class which has been made thread safe)
 
-    if (!((display_mode_ == Always) ||
-          (display_mode_ == WithDrawTool && active_tool_->value() != "None") ||
-          (display_mode_ == OnlyWhenPaused && !playhead_is_playing_))) {
-        // don't draw annotations, return empty data
-        return utility::BlindDataObjectPtr();
+    if (viewport_name != "snapshot_viewport") {
+        // snapshot viewport must always draw annotations
+        if (!((display_mode_ == Always) ||
+              (display_mode_ == WithDrawTool && active_tool_->value() != "None") ||
+              (display_mode_ == OnlyWhenPaused && !playhead_is_playing_))) {
+            // don't draw annotations, return empty data
+            return utility::BlindDataObjectPtr();
+        }
     }
 
     std::string onscreen_interaction_frame;

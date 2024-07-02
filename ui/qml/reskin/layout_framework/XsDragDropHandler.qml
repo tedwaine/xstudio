@@ -78,6 +78,7 @@ Item {
     Connections {
 
         target: global_drag_drop_handler
+        enabled: visible
 
         function onTargetHasChanged(target, oldTarget, dragCursorPosition, dragDropSource, dragDropData) {
 

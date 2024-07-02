@@ -28,7 +28,7 @@ Item {
         border.width: 1
 
         flatColor: topColor
-        topColor: isActive ? palette.highlight : "#33FFFFFF"
+        topColor: isActive ? palette.highlight : XsStyleSheet.controlColour
         bottomColor: isActive ? palette.highlight : "#1AFFFFFF"
     }
         

@@ -26,6 +26,7 @@ target_link_libraries(${PROJECT_NAME}
 		Imath::Imath
 		xstudio::utility
 		xstudio::broadcast
+		xstudio::global_store
 		pybind11::embed
 		OTIO::opentime
 		OTIO::opentimelineio

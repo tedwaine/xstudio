@@ -11,6 +11,7 @@ import xstudio.qml.models 1.0
 import xstudio.qml.helpers 1.0
 
 import "../data_indicators"
+import "../../common_delegates"
 
 Rectangle {
 
@@ -28,33 +29,46 @@ Rectangle {
     property color hintColor: XsStyleSheet.hintColor
     property color errorColor: XsStyleSheet.errorColor
 
-    property bool isSelected: mediaSelectionModel.selectedIndexes.includes(media_item_model_index)
-    property bool isDragTarget: media_item_model_index == dragTargetIndex
+    property bool isSelected: false
+    property bool isDragTarget: false
 
     property bool isOnScreen: actorUuidRole == currentPlayhead.mediaUuid
 
-    property var selectionIndex: mediaSelectionModel.multiSelected ? mediaSelectionModel.selectedIndexes.indexOf(media_item_model_index)+1 : media_item_model_index.row+1
+    property var actorUuidRole__: actorUuidRole
+    onActorUuidRole__Changed: setSelectionIndex()
 
-    // get the index into the session model for the MediaSource (image)
-    property var imageSourceUuid: media_item_model_index.valid ? media_item_model_index.model.get(media_item_model_index, "imageActorUuidRole") : ""
-    property var imageSourceIndex: helpers.makePersistent(media_item_model_index.valid && imageSourceUuid ? media_item_model_index.model.searchRecursive(
-                                        imageSourceUuid,
-                                        "actorUuidRole",
-                                        media_item_model_index) : media_item_model_index)
-
+    // these are referenced by XsMediaThumbnailImage and XsMediaListMouseArea
     property real mouseX
     property real mouseY
-    property bool playOnClick: false
 
-    onImageSourceIndexChanged: {
-        // horrible shenanegans!
-        if (imageSourceIndex.valid) {
-            theSessionData.fetchMore(imageSourceIndex)
-            callbackTimer.setTimeout(function(plindex, obj) { return function() {
-                obj.imageStreamIndex = plindex.model.index(0,0,plindex.model.index(0,0,plindex))
-            }}( imageSourceIndex, contentDiv ), 200);
+    Connections {
+        target: mediaSelectionModel
+        function onSelectedIndexesChanged() {
+            setSelectionIndex()
         }
     }
+
+    function modelIndex() {
+        return helpers.makePersistent(mediaListModelData.rowToSourceIndex(index))
+    }
+
+    function setSelectionIndex() {
+        var my_idx = modelIndex()
+        isSelected = mediaSelectionModel.selectedIndexes.includes(my_idx)
+        if (mediaSelectionModel.multiSelected) {
+            if (isSelected) {
+                selectionIndex = mediaSelectionModel.selectedIndexes.indexOf(my_idx)+1
+            } else {
+                selectionIndex = 0
+            }
+        } else {
+            selectionIndex = my_idx.row+1
+        }
+    }
+
+    property int selectionIndex: 0
+
+    property bool playOnClick: false
 
     Rectangle {
         id: drag_target_indicator
@@ -73,23 +87,9 @@ Rectangle {
         z: 100
     }
 
-    // To index to the image stream we need to go two levels deeper into the model as
-    // it looks like this:
-    // Media {
-    //    MediaSource {
-    //        Image Stream {
-    //            MediaStream {}
-    //        }
-    //        Audio Stream {
-    //            MediaStream {}
-    //        }
-    //    }
-    //    MediaSource { ... }
-    //    MediaSource { ... }
-    //}
-    property var imageStreamIndex: imageSourceIndex.valid? imageSourceIndex.model.index(0,0,imageSourceIndex.model.index(0,0,imageSourceIndex)) : undefined
-
     property var mediaSourceMetadataFields: mediaDisplayInfoRole != undefined ? mediaDisplayInfoRole[columns_model_index.row] : []
+
+    property bool fieldsReady: typeof mediaSourceMetadataFields == "object"
 
     property bool isMissing: false
     property bool isActive: isOnScreen
@@ -98,14 +98,8 @@ Rectangle {
 
     property real headerThumbWidth: 1
 
-    // property real rowHeight:  XsStyleSheet.widgetStdHeight
-    property real itemHeight: (rowHeight-8) //16
-
     signal activated() //#TODO: for testing only
 
-    //font.pixelSize: textSize
-    //font.family: textFont
-    //hoverEnabled: true
     opacity: enabled ? 1.0 : 0.33
 
     // Note: DelegateChooser has a flaw .. if the 'role' value that drives
@@ -144,7 +138,7 @@ Rectangle {
             Component {
                 id: metadata_value
                 XsMediaTextItem {
-                    text: index < mediaSourceMetadataFields.length ? mediaSourceMetadataFields[index] : ""
+                    text: fieldsReady ? index < mediaSourceMetadataFields.length ? mediaSourceMetadataFields[index] : "" : ""
                     width: size
                     height: itemRowHeight
                 }
@@ -220,10 +214,11 @@ Rectangle {
 
     function toggleSelection() {
 
+        var myIdx = modelIndex()
         if (!(mediaSelectionModel.selection.count == 1 &&
-            mediaSelectionModel.selection[0] == media_item_model_index)) {
+            mediaSelectionModel.selection[0] == myIdx)) {
             mediaSelectionModel.select(
-                media_item_model_index,
+                myIdx,
                 ItemSelectionModel.Toggle
                 )
             }
@@ -233,7 +228,7 @@ Rectangle {
     function exclusiveSelect() {
 
         mediaSelectionModel.select(
-            media_item_model_index,
+            modelIndex(),
             ItemSelectionModel.ClearAndSelect
             | ItemSelectionModel.setCurrentIndex
             )
@@ -244,58 +239,42 @@ Rectangle {
 
         // For Shift key and select find the nearest selected row,
         // select items between that row and the row of THIS item
-        var row = media_item_model_index.row
+        var row = index // row of this item
         var d = 10000
         var nearest_row = -1
-        var selection = mediaSelectionModel.selectedIndexes
 
+        // looping over current selection
+        var selection = mediaSelectionModel.selectedIndexes
         for (var i = 0; i < selection.length; ++i) {
-            var delta = Math.abs(selection[i].row-row)
-            if (delta < d) {
-                d = delta
-                nearest_row = selection[i].row
+
+            // convert the index of selected item (which is an index into
+            // theSessionData) into the row in our filtered media list model
+            var r = mediaListModelData.sourceIndexToRow(selection[i])
+            if (r > -1) {
+                var delta = Math.abs(r-row)
+                if (delta < d) {
+                    d = delta
+                    nearest_row = r
+                }
             }
         }
 
         if (nearest_row!=-1) {
 
-            var model = media_item_model_index.model
             var first = Math.min(row, nearest_row)
             var last = Math.max(row, nearest_row)
             var selection = []
 
             for (var i = first; i <= last; ++i) {
 
-                selection.push(model.index(
-                    i,
-                    media_item_model_index.column,
-                    media_item_model_index.parent
-                    ))
+                selection.push(mediaList.itemAtIndex(i).modelIndex())
             }
 
             mediaSelectionModel.select(
                 helpers.createItemSelection(selection),
-                ItemSelectionModel.ClearAndSelect
+                ItemSelectionModel.Select
             )
         }
     }
-
-
-    // onClicked: {
-    //     isSelected = true
-    // }
-    /*onDoubleClicked: {
-        isSelected = true
-        activated() //#TODO
-    }
-    onPressed: {
-        mediaSelectionModel.select(media_item_model_index, ItemSelectionModel.ClearAndSelect | ItemSelectionModel.setCurrentIndex)
-    }
-    onReleased: {
-        focus = false
-    }
-    onPressAndHold: {
-        isMissing = !isMissing
-    }*/
 
 }

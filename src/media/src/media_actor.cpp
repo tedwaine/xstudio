@@ -537,11 +537,33 @@ void MediaActor::init() {
             return rp;
         },
 
-        [=](current_media_source_atom) -> caf::result<UuidActor> {
-            if (base_.empty() or not media_sources_.count(base_.current()))
-                return make_error(xstudio_error::error, "No MediaSources");
+        // dead..
+        // [=](current_media_source_atom) -> caf::result<UuidActor> {
+        //     if (base_.empty() or not media_sources_.count(base_.current()))
+        //         return make_error(xstudio_error::error, "No MediaSources");
 
-            return UuidActor(base_.current(), media_sources_.at(base_.current()));
+        //     return UuidActor(base_.current(), media_sources_.at(base_.current()));
+        // },
+
+
+        [=](current_media_source_atom)
+            -> caf::result<std::pair<UuidActor, std::pair<UuidActor, UuidActor>>> {
+            auto iua = UuidActor();
+            auto aua = UuidActor();
+            if (media_sources_.count(base_.current(MT_IMAGE)))
+                iua = UuidActor(
+                    base_.current(MT_IMAGE), media_sources_.at(base_.current(MT_IMAGE)));
+
+            if (media_sources_.count(base_.current(MT_AUDIO)))
+                aua = UuidActor(
+                    base_.current(MT_AUDIO), media_sources_.at(base_.current(MT_AUDIO)));
+
+            if (iua.uuid().is_null())
+                iua = aua;
+            else if (aua.uuid().is_null())
+                aua = iua;
+
+            return std::make_pair(UuidActor(base_.uuid(), this), std::make_pair(iua, aua));
         },
 
         [=](current_media_source_atom, const MediaType media_type) -> caf::result<UuidActor> {

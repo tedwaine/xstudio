@@ -104,6 +104,20 @@ XsPopupMenu {
     }
 
     XsMenuModelItem {
+        text: "Add Dated Divider"
+        menuItemType: "button"
+        menuPath: path
+        menuItemPosition: 3.6
+        menuModelName: plusMenu.menu_model_name
+        onActivated: theSessionData.createDivider(yyyymmdd("-"))
+        panelContext: plusMenu.panelContext
+
+        function yyyymmdd(separator="", date=new Date()) {
+            return String(date.getFullYear()) + separator + String(date.getMonth()+1).padStart(2, '0') + separator + String(date.getUTCDate()).padStart(2, '0')
+        }
+    }
+
+    XsMenuModelItem {
         menuItemType: "divider"
         menuPath: path
         menuItemPosition: 4

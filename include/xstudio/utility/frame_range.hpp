@@ -41,6 +41,30 @@ namespace utility {
         [[nodiscard]] FrameRate start() const { return start_; }
         [[nodiscard]] FrameRate duration() const { return duration_; }
 
+        // ignoring rate...
+        [[nodiscard]] FrameRange intersect(const FrameRange &fr) const {
+            auto result = fr;
+
+            // adjust start
+            if (result.start_ < start_) {
+                result.duration_ -=
+                    std::max((start_ - result.start_), timebase::k_flicks_zero_seconds);
+                result.start_ = start_;
+            }
+
+            if (result.start_ >= start_ + duration_) {
+                result.duration_ = timebase::k_flicks_zero_seconds;
+                result.start_    = start_ + duration_;
+            }
+
+            // adjust end
+            if (result.start_ + result.duration_ > start_ + duration_) {
+                result.duration_ -= (result.start_ + result.duration_) - (start_ + duration_);
+            }
+
+            return result;
+        }
+
         void set_rate(const FrameRate &rate) { rate_ = rate; }
         void set_start(const FrameRate &start) { start_ = start; }
         void set_duration(const FrameRate &duration) { duration_ = duration; }

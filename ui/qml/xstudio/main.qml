@@ -1508,9 +1508,10 @@ ApplicationWindow {
             let sel = mediaSelectionModel.selectedIndexes
             // path is stored on the current image source.
 
-            for(let i =0;i<sel.length;i++) {
+            for(let i=0; i<sel.length; i++) {
                 let mi = sel[i]
                 let ms = mi.model.searchRecursive(mi.model.get(mi, "imageActorUuidRole"), "actorUuidRole", mi)
+                console.log(ms)
                 result.push(mi.model.get(ms, "pathRole"))
             }
 

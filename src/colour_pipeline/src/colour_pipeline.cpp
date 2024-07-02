@@ -198,6 +198,11 @@ caf::message_handler ColourPipeline::message_handler_extensions() {
             const media_reader::ImageBufPtr &image) -> result<utility::JsonStore> {
             auto rp = make_response_promise<utility::JsonStore>();
 
+            if (!image.colour_pipe_data_) {
+                rp.deliver(utility::JsonStore());
+                return rp;
+            }
+
             auto result = std::make_shared<utility::JsonStore>();
             for (const auto &op : image.colour_pipe_data_->operations()) {
                 result->merge(update_shader_uniforms(image, op->user_data_));
@@ -466,8 +471,10 @@ void ColourPipeline::add_colour_op_plugin_data(
         request(colour_op_plugin, infinite, get_colour_pipe_data_atom_v, media_ptr)
             .then(
                 [=](ColourOperationDataPtr colour_op_data) mutable {
-                    result->add_operation(colour_op_data);
-                    result->cache_id_ += colour_op_data->cache_id_;
+                    if (colour_op_data) {
+                        result->add_operation(colour_op_data);
+                        result->cache_id_ += colour_op_data->cache_id_;
+                    }
                     (*rcount)--;
                     if (!(*rcount)) {
 

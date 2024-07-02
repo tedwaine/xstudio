@@ -3,13 +3,17 @@ from xstudio.core import get_playlists_atom, get_playlist_atom, add_playlist_ato
 from xstudio.core import get_container_atom, create_group_atom, remove_container_atom, path_atom, get_media_atom
 from xstudio.core import rename_container_atom, create_divider_atom, media_rate_atom, playhead_rate_atom
 from xstudio.core import reflag_container_atom, merge_playlist_atom, copy_container_to_atom
-from xstudio.core import get_bookmark_atom, save_atom, current_playlist_atom
+from xstudio.core import get_bookmark_atom, save_atom, current_playlist_atom, current_media_atom
 from xstudio.core import URI, Uuid, UuidVec
 
 from xstudio.api.session.container import Container, PlaylistTree, PlaylistItem
 from xstudio.api.session.playlist import Playlist
 from xstudio.api.session.media.media import Media
 from xstudio.api.session.bookmark import Bookmarks
+from xstudio.api.session.playlist.subset import Subset
+from xstudio.api.session.playlist.contact_sheet import ContactSheet
+from xstudio.api.session.playlist.timeline import Timeline
+
 
 class Session(Container):
     """Session object."""
@@ -27,6 +31,83 @@ class Session(Container):
             uuid(Uuid): Uuid of remote actor.
         """
         Container.__init__(self, connection, remote, uuid)
+
+    @property
+    def selected_media(self):
+        """Get currently selected media.
+
+        Returns:
+            Media(): Media.
+        """
+
+        result = self.connection.request_receive(self.remote, current_media_atom())[0]
+        media = []
+        for i in result:
+            media.append(Media(self.connection, i.actor, i.uuid))
+
+        return media
+
+    @property
+    def viewed_playlist(self):
+        """Get currently viewed playlist.
+
+        Returns:
+            Playlist(): Playlist.
+        """
+
+        result = self.connection.request_receive(self.remote, current_playlist_atom(), True)[0]
+
+        return Playlist(self.connection, result[0].actor, result[0].uuid)
+
+    @property
+    def viewed_container(self):
+        """Get currently viewed container.
+
+        Returns:
+            container(Playlist,Subset,Timelime,ContactSheet): Container.
+        """
+
+        result = self.connection.request_receive(self.remote, current_playlist_atom(), True)[0]
+
+        if result[1][0] == "Timeline":
+            return Timeline(self.connection, result[1][1].actor, result[1][1].uuid)
+        elif result[1][0] == "Subset":
+            return Subset(self.connection, result[1][1].actor, result[1][1].uuid)
+        elif result[1][0] == "ContactSheet":
+            return ContactSheet(self.connection, result[1][1].actor, result[1][1].uuid)
+
+        return Playlist(self.connection, result[1][1].actor, result[1][1].uuid)
+
+    @property
+    def inspected_playlist(self):
+        """Get currently inspected playlist.
+
+        Returns:
+            Playlist(Playlist): Playlist.
+        """
+
+        result = self.connection.request_receive(self.remote, current_playlist_atom(), False)[0]
+
+        return Playlist(self.connection, result[0].actor, result[0].uuid)
+
+    @property
+    def inspected_container(self):
+        """Get currently inspected container.
+
+        Returns:
+            container(Playlist,Subset,Timelime,ContactSheet): Container.
+        """
+
+        result = self.connection.request_receive(self.remote, current_playlist_atom(), False)[0]
+
+        if result[1][0] == "Timeline":
+            return Timeline(self.connection, result[1][1].actor, result[1][1].uuid)
+        elif result[1][0] == "Subset":
+            return Subset(self.connection, result[1][1].actor, result[1][1].uuid)
+        elif result[1][0] == "ContactSheet":
+            return ContactSheet(self.connection, result[1][1].actor, result[1][1].uuid)
+
+        return Playlist(self.connection, result[1][1].actor, result[1][1].uuid)
 
     @property
     def path(self):

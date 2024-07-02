@@ -37,8 +37,8 @@ void ShotBrowser::publish_note_annotations(
                         media_actor,
                         anno.at("media_frame").get<int>(),
                         thumbnail::THUMBNAIL_FORMAT::TF_RGB24,
-                        0,
-                        true,
+                        2560, // forcing QHD resolution for details
+                        false,
                         true)
                         .then(
                             [=](const thumbnail::ThumbnailBufferPtr &tnail) {
@@ -47,7 +47,9 @@ void ShotBrowser::publish_note_annotations(
                                     thumbnail_manager,
                                     infinite,
                                     media_reader::get_thumbnail_atom_v,
-                                    tnail)
+                                    tnail,
+                                    100 // jpeg quality = 100
+                                    )
                                     .then(
                                         [=](const std::vector<std::byte> &jpgbuf) mutable {
                                             // final step...

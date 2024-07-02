@@ -52,6 +52,23 @@ namespace utility {
         return str;
     }
 
+    static inline std::string title_case(std::string str) {
+        static std::regex whitespace(R"([_\s]+)");
+        static std::regex specials(R"([^\sa-zA-Z0-9])");
+        str = std::regex_replace(str, whitespace, " ");
+        str = std::regex_replace(str, specials, "");
+
+        char last = ' ';
+        for (auto it = str.begin(); it != str.end(); ++it) {
+            if (last == ' ')
+                *it = toupper(*it);
+            else
+                *it = tolower(*it);
+            last = *it;
+        }
+        return str;
+    }
+
     static inline std::string
     replace_all(std::string str, const std::string &from, const std::string &to) {
         size_t start_pos = 0;

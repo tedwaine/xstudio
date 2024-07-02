@@ -104,22 +104,6 @@ XsPrimaryButton{ id: thisItem
             elide: Text.ElideRight
         }
 
-        XsSecondaryButton{ id: favBtn
-            Layout.topMargin: presetItemSpacing
-            Layout.bottomMargin: presetItemSpacing
-            Layout.preferredWidth: height
-            Layout.fillHeight: true
-
-            visible: thisItem.hovered || favouriteRole
-
-            showHoverOnActive: favouriteRole && !thisItem.hovered
-            isColoured: favouriteRole && thisItem.hovered
-            imgSrc: "qrc:///shotbrowser_icons/favorite.svg"
-            // isActive: favouriteRole
-            scale: 0.95
-            onClicked: favouriteRole = !favouriteRole
-        }
-
         XsSecondaryButton{ id: editBtn
             Layout.topMargin: presetItemSpacing
             Layout.bottomMargin: presetItemSpacing
@@ -157,6 +141,23 @@ XsPrimaryButton{ id: thisItem
                 }
             }
         }
+
+        XsSecondaryButton{ id: favBtn
+            Layout.topMargin: presetItemSpacing
+            Layout.bottomMargin: presetItemSpacing
+            Layout.preferredWidth: height
+            Layout.fillHeight: true
+
+            visible: thisItem.hovered || favouriteRole
+
+            showHoverOnActive: favouriteRole && !thisItem.hovered
+            isColoured: favouriteRole && thisItem.hovered
+            imgSrc: "qrc:///shotbrowser_icons/favorite.svg"
+            // isActive: favouriteRole
+            scale: 0.95
+            onClicked: favouriteRole = !favouriteRole
+        }
+
     }
 
 

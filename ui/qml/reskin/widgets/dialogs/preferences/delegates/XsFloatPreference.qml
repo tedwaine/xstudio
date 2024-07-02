@@ -47,9 +47,11 @@ RowLayout {
         // binding to backend
         property var backendValue: valueRole
         onBackendValueChanged: {
-            var v = "" + backendValue.toFixed(2)
-            if (v != text) {
-                text = v
+            if (!activeFocus) {
+                var v = "" + backendValue.toFixed(2)
+                if (v != text) {
+                    text = v
+                }
             }
         }
 

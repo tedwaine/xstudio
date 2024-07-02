@@ -1021,6 +1021,8 @@ int main(int argc, char **argv) {
                     "xstudio.qml.models", 1, 0, "XsReskinPanelsLayoutModel");
                 qmlRegisterType<MediaListColumnsModel>(
                     "xstudio.qml.models", 1, 0, "XsMediaListColumnsModel");
+                qmlRegisterType<MediaListFilterModel>(
+                    "xstudio.qml.models", 1, 0, "XsMediaListFilterModel");
 
                 qmlRegisterType<ViewsModelData>("xstudio.qml.models", 1, 0, "XsViewsModel");
                 qmlRegisterType<SingletonsModelData>(

@@ -34,14 +34,18 @@ void PlayheadGlobalEventsActor::init() {
     link_to(event_group_);
 
     set_down_handler([=](down_msg &msg) {
-        // find in playhead list..
-        auto p = viewport_playheads_.begin();
-        while (p != viewport_playheads_.end()) {
-            if (msg.source == p->second) {
-                demonitor(p->second);
-                p = viewport_playheads_.erase(p);
+        // a playhead OR a viewport has gone offline
+        auto q = viewports_.begin();
+        while (q != viewports_.end()) {
+            if (msg.source == q->second.viewport) {
+                demonitor(q->second.viewport);
+                q = viewports_.erase(q);
             } else {
-                p++;
+                if (msg.source == q->second.playhead) {
+                    demonitor(q->second.playhead);
+                    q->second.playhead = caf::actor();
+                }
+                q++;
             }
         }
     });
@@ -65,9 +69,9 @@ void PlayheadGlobalEventsActor::init() {
             bool request) -> std::vector<caf::actor> {
             std::vector<caf::actor> r;
             // return viewports that are connected to the given playhead
-            for (auto &p : viewport_playheads_) {
-                if (p.second == playhead && viewports_.find(p.first) != viewports_.end()) {
-                    r.push_back(caf::actor_cast<caf::actor>(viewports_[p.first]));
+            for (auto &p : viewports_) {
+                if (p.second.playhead == playhead) {
+                    r.push_back(p.second.viewport);
                 }
             }
             return r;
@@ -77,17 +81,14 @@ void PlayheadGlobalEventsActor::init() {
             // playhead - i.e. the playhead that is being viewed by non-quickview
             // viewports. SessionModel::setPlayheadTo does this for example.
             for (auto &p : viewports_) {
-                auto viewport_actor = caf::actor_cast<caf::actor>(p.second);
-                if (viewport_actor) {
-                    anon_send(viewport_actor, ui::viewport::viewport_playhead_atom_v, playhead);
-                }
+                anon_send(p.second.viewport, ui::viewport::viewport_playhead_atom_v, playhead);
             }
             global_active_playhead_ = playhead;
         },
         [=](ui::viewport::viewport_playhead_atom,
             const std::string viewport_name,
             caf::actor playhead) {
-            if (viewport_playheads_[viewport_name] == playhead)
+            if (viewports_[viewport_name].playhead == playhead)
                 return;
 
             // a viewport named 'viewport_name' is connecting to a playhead
@@ -100,31 +101,31 @@ void PlayheadGlobalEventsActor::init() {
 
             // what's the playhead that is currently attached to the viewport
             // (if any)
-            auto playhead_to_be_disconnected = viewport_playheads_[viewport_name];
+            auto playhead_to_be_disconnected = viewports_[viewport_name].playhead;
+
+            viewports_[viewport_name].playhead = playhead;
 
             // is this old playhead connected to another viewport?
-            bool disconnect_old_playhead = true;
-            for (auto &p : viewport_playheads_) {
-                if (p.first != viewport_name && p.second == playhead_to_be_disconnected) {
-                    disconnect_old_playhead = false;
+            for (auto &p : viewports_) {
+                if (p.second.playhead == playhead_to_be_disconnected) {
+                    playhead_to_be_disconnected = caf::actor();
                     break;
                 }
             }
 
-            if (disconnect_old_playhead) {
+            if (playhead_to_be_disconnected) {
+
                 // No, no other viewports are using the playhead that is to
                 // be disconnected from the viewport. Therefore we tell the
                 // playhead to stop playing (if it is playing).
-                anon_send(viewport_playheads_[viewport_name], playhead::play_atom_v, false);
-                anon_send(
-                    viewport_playheads_[viewport_name], module::disconnect_from_ui_atom_v);
+                anon_send(playhead_to_be_disconnected, playhead::play_atom_v, false);
+                anon_send(playhead_to_be_disconnected, module::disconnect_from_ui_atom_v);
                 // we can stop monitoring it as we don't care if it exits or
                 // not - we're only keeping track of playheads that are
                 // connected to viewports
-                demonitor(viewport_playheads_[viewport_name]);
+                demonitor(playhead_to_be_disconnected);
             }
 
-            viewport_playheads_[viewport_name] = playhead;
             if (playhead) {
                 monitor(playhead);
                 // since the playhead has changed we want to tell subscribers
@@ -159,16 +160,16 @@ void PlayheadGlobalEventsActor::init() {
             // Forward the info to our 'fine grain' message group with details
             // of which viewport the frame is being shown on
             auto playhead = caf::actor_cast<caf::actor>(current_sender());
-            for (auto &p : viewport_playheads_) {
-                if (p.second == playhead) {
+            for (auto &p : viewports_) {
+                if (p.second.playhead == playhead) {
                 }
             }
         },
         [=](show_atom, caf::actor media, caf::actor media_source) {
             // a playhead is telling us the on-screen media has changed
             auto playhead = caf::actor_cast<caf::actor>(current_sender());
-            for (auto &p : viewport_playheads_) {
-                if (p.second == playhead) {
+            for (auto &p : viewports_) {
+                if (p.second.playhead == playhead) {
                     // forward the event, including the name of the viewport(s)
                     // that are attached to the playhead
                     send(
@@ -184,13 +185,14 @@ void PlayheadGlobalEventsActor::init() {
         [=](ui::viewport::viewport_playhead_atom,
             const std::string viewport_name) -> caf::actor {
             if (viewports_.find(viewport_name) != viewports_.end()) {
-                return viewport_playheads_[viewport_name];
+                return viewports_[viewport_name].playhead;
             }
             return caf::actor();
         },
         [=](ui::viewport::viewport_atom, const std::string viewport_name, caf::actor viewport) {
+            monitor(viewport);
             // viewports register themselves by sending us this message
-            viewports_[viewport_name] = caf::actor_cast<caf::actor_addr>(viewport);
+            viewports_[viewport_name] = ViewportAndPlayhead({viewport, caf::actor()});
             send(
                 event_group_,
                 utility::event_atom_v,
@@ -204,7 +206,7 @@ void PlayheadGlobalEventsActor::init() {
             caf::actor r;
             auto p = viewports_.find(viewport_name);
             if (p != viewports_.end()) {
-                r = caf::actor_cast<caf::actor>(p->second);
+                r = p->second.viewport;
             }
             if (!r)
                 return make_error(

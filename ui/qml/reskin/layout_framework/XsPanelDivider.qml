@@ -8,8 +8,6 @@ Item {
     property bool isVertical: true
     property real thresholdSize: 10
     property real dividerSize: isHovered || dragging? 1.5*2.5 : 1.5
-    property real minLimit: 0
-    property real maxLimit: isVertical? parent.width : parent.height
     property int id: -1
     
     property bool dragging: mArea.drag.active
@@ -31,6 +29,10 @@ Item {
         }
 
     }
+    property var fractional_position_minus: index > 0 ? child_dividers[index-1] : 0.0
+    property var fractional_position_plus: index < (child_dividers.length-1) ? child_dividers[index+1] : 1.0
+    property real minLimit: (isVertical ? parent.width : parent.height)*fractional_position_minus + 20
+    property real maxLimit: (isVertical ? parent.width : parent.height)*fractional_position_plus - 20
 
     property var fractional_position: child_dividers[index]
 
@@ -71,6 +73,10 @@ Item {
 
         drag.target: divider
         drag.axis: isVertical? Drag.XAxis : Drag.YAxis
+        drag.minimumX: minLimit
+        drag.minimumY: minLimit
+        drag.maximumX: maxLimit
+        drag.maximumY: maxLimit
 
     }
 

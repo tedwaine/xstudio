@@ -72,7 +72,7 @@ Rectangle{
 
                         bgDiv.opacity: enabled? 1.0 : 0.5
                         forcedBgColorNormal: onDisk ? onDisk == 1? "transparent"
-                            : Qt.darker(siteColour, 1)     
+                            : Qt.darker(siteColour, 1)
                             : Qt.lighter(panelColor, 1.1)
 
                         Rectangle{

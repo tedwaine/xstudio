@@ -41,8 +41,11 @@ namespace playhead {
         caf::actor event_group_;
         caf::actor fine_grain_events_group_;
         caf::actor global_active_playhead_;
-        std::map<std::string, caf::actor> viewport_playheads_;
-        std::map<std::string, caf::actor_addr> viewports_;
+        struct ViewportAndPlayhead {
+            caf::actor viewport;
+            caf::actor playhead;
+        };
+        std::map<std::string, ViewportAndPlayhead> viewports_;
     };
 } // namespace playhead
 } // namespace xstudio

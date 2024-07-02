@@ -63,7 +63,7 @@ Item{
                 Layout.preferredHeight: parent.height
                 iconSrc: "qrc:/icons/link.svg"
                 iconText: "Link"
-                isActive: sequenceTreeLiveLink
+                isActive: sequenceTreeLiveLink && !isPaused
                 onClicked: {
                     searchBtn.isExpanded = false
                     sequenceTreeLiveLink  = !sequenceTreeLiveLink
@@ -84,7 +84,6 @@ Item{
                     sequenceModel.showOmit = !sequenceModel.showOmit
                 }
             }
-
         }
 
         Rectangle{

@@ -32,6 +32,12 @@ caf::message_handler ColourOpPlugin::message_handler_extensions() {
             auto media_source = utility::UuidActor(
                 media_ptr.source_uuid_, caf::actor_cast<caf::actor>(media_ptr.actor_addr_));
 
+            if (!media_source.actor()) {
+                // no media source (missing media etc.) - return empty object
+                rp.deliver(ColourOperationDataPtr());
+                return rp;
+            }
+
             // now get to the MediaActor that owns the MediaSourceActor
             request(media_source.actor(), infinite, utility::parent_atom_v)
                 .then(

@@ -138,7 +138,7 @@ void AudioOutputControl::prepare_samples_for_soundcard(
         long n                = num_samps_to_push;
         long num_samps_pushed = 0;
 
-        if (muted())
+        if (muted() || (!playing_ && !audio_scrubbing_))
             return;
 
         while (n > 0) {

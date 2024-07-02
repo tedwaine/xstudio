@@ -27,7 +27,7 @@ Item {
             color: XsStyleSheet.menuDividerColor
         }
 
-        XsText {
+        Text {
             id: labelDiv
             Layout.leftMargin: text ? 4 : 0
             Layout.rightMargin: text ? 4 : 0

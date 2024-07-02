@@ -158,6 +158,62 @@ class MediaListColumnsModel : public UIModelData {
     Q_INVOKABLE QUuid new_media_list();
 };
 
+class MediaListFilterModel : public QSortFilterProxyModel {
+
+    Q_OBJECT
+
+    Q_PROPERTY(
+        QString searchString READ searchString WRITE setSearchString NOTIFY searchStringChanged)
+    Q_PROPERTY(int columnsModelIndex READ columnsModelIndex WRITE setColumnsModelIndex NOTIFY
+                   columnsModelIndexChanged)
+
+  public:
+    using super = QSortFilterProxyModel;
+
+    MediaListFilterModel(QObject *parent = nullptr);
+
+    const QString &searchString() const { return search_string_; }
+    int columnsModelIndex() const { return columns_model_index_; }
+
+    void setSearchString(const QString &ss) {
+        if (ss != search_string_) {
+            search_string_ = ss;
+            emit searchStringChanged();
+            invalidateFilter();
+        }
+    }
+
+    void setColumnsModelIndex(const int &c) {
+        if (c != columns_model_index_) {
+            columns_model_index_ = c;
+            emit columnsModelIndexChanged();
+            invalidateFilter();
+        }
+    }
+
+    [[nodiscard]] QHash<int, QByteArray> roleNames() const override {
+        if (!sourceModel())
+            return QHash<int, QByteArray>();
+        return sourceModel()->roleNames();
+    }
+
+    Q_INVOKABLE [[nodiscard]] QModelIndex rowToSourceIndex(const int row) const;
+
+    Q_INVOKABLE [[nodiscard]] int sourceIndexToRow(const QModelIndex &) const;
+
+  protected:
+    [[nodiscard]] bool
+    filterAcceptsRow(int source_row, const QModelIndex &source_parent) const override;
+
+  signals:
+    void searchStringChanged();
+    void columnsModelIndexChanged();
+
+  private:
+    QString search_string_;
+    int columns_model_index_ = 0;
+};
+
 class MenuModelItem : public caf::mixin::actor_object<QObject> {
 
     Q_OBJECT

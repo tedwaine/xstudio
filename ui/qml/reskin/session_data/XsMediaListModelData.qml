@@ -11,12 +11,30 @@ import xStudioReskin 1.0
 
 /* This model gives us access to the data of media in a playlist, subset, timeline
 etc. that we can iterate over with a Repeater, ListView etc. */
-DelegateModel {
+Item {
 
     id: mediaList
 
-    // our model is the main sessionData instance
-    model: theSessionData
+    // This gives us a model that just contains a flat list of the
+    // Media items in the current media set (Playlist, Sequence, Subset) - 
+    // it is a  the node in the sessionData at index = inspectedMediaSetIndex
+    QTreeModelToTableModel {
+        model: theSessionData
+        id: mediaListModelData
+    }
+
+    // This filters the media items by inspecting the mediaDisplayInfoRole which
+    // contains the
+
+    property alias model: filteredModel
+    property var rootIndex
+    
+    XsMediaListFilterModel {
+        sourceModel: mediaListModelData
+        columnsModelIndex: columns_model_index ? columns_model_index : 0
+        searchString: mediaListSearchString
+        id: filteredModel
+    }
 
     // we listen to the main selection model that selects stuff in the
     // main sessionData - this thing decides which playlist, subset, timeline
@@ -25,28 +43,28 @@ DelegateModel {
     property var name: theSessionData.get(currentSelectedPlaylistIndex, "nameRole")
     property var uuid: theSessionData.get(currentSelectedPlaylistIndex, "uuidRole")
 
-    XsTimer {
-        id: callback_timer
-    }
+    onCurrentSelectedPlaylistIndexChanged : updateMedia(true)
 
-    onCurrentSelectedPlaylistIndexChanged : updateMedia()
-
-    function updateMedia() {
+    function updateMedia(retry) {
         if(currentSelectedPlaylistIndex.valid) {
             // wait for valid index..
             let mind = currentSelectedPlaylistIndex.model.index(0, 0, currentSelectedPlaylistIndex)
+
             if(mind.valid) {
-                mediaList.rootIndex = helpers.makePersistent(mind)
-            } else {
+                mediaListModelData.rootIndex = helpers.makePersistent(currentSelectedPlaylistIndex)
+                mediaListModelData.expandRow(0)
+                mediaList.rootIndex = mind
+            } else if (retry) {
                 // try again in 200 milliseconds
                 callbackTimer.setTimeout(function() { return function() {
-                    updateMedia()
+                    updateMedia(false)
                 }}(), 200);
             }
         } else {
-            mediaList.rootIndex = null
+            mediaListModelData.rootIndex = theSessionData.index(-1,-1)
         }
     }
+
 
 }
 

@@ -254,8 +254,8 @@ Viewport::Viewport(
         "Mirror",
         "Mirr",
         "Off",
-        {"Mirror X", "Mirror Y", "Mirror Both", "Off"},
-        {"Mirror X", "Mirror Y", "Mirror Both", "Off"});
+        {"Mirror Horizontally", "Mirror Vertically", "Mirror Both", "Off"},
+        {"Mirror Horizontally", "Mirror Vertically", "Mirror Both", "Off"});
 
     filter_mode_preference_ = add_string_choice_attribute(
         "Viewport Filter Mode", "Vp. Filtering", ViewportRenderer::pixel_filter_mode_names);
@@ -1267,10 +1267,16 @@ void Viewport::attribute_changed(const utility::Uuid &attr_uuid, const int role)
         }
         event_callback_(Redraw);
 
-    } else if (attr_uuid == hud_toggle_->uuid()) {
+    } else if (attr_uuid == hud_toggle_->uuid() && role != module::Attribute::Groups) {
 
         // HUD toggle should be synced between viewports viewing the same
-        // playhead
+        // playhead - except the 'Groups' role because otherwise when one hud
+        // button adds itself to a particular viewport toolbar, all the other
+        // hud buttons for the other viewports will get added too.
+        //
+        // TODO: Make separate HUDManagerActor that takes care of all the HUD
+        // plugins and interfaces between them and the viewport. Would be much
+        // neater.
         try {
 
             caf::scoped_actor sys(self()->home_system());
@@ -1306,9 +1312,9 @@ void Viewport::attribute_changed(const utility::Uuid &attr_uuid, const int role)
 
     } else if (attr_uuid == mirror_mode_->uuid()) {
         const std::string mode = mirror_mode_->value();
-        if (mode == "Mirror X")
+        if (mode == "Mirror Horizontally")
             set_mirror_mode(MirrorMode::Flip);
-        else if (mode == "Mirror Y")
+        else if (mode == "Mirror Vertically")
             set_mirror_mode(MirrorMode::Flop);
         else if (mode == "Mirror Both")
             set_mirror_mode(MirrorMode::Both);

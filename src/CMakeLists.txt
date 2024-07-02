@@ -58,6 +58,11 @@ if(INSTALL_XSTUDIO)
 		add_src_and_test(demos/colour_op_plugins/source_grading_demo)
 	endif(BUILD_GRADING_DEMO)
 
+	add_custom_target(
+		preferences-copy ALL DEPENDS
+	  ${PREFERENCE_FILES}
+	)
+
 endif ()
 
 add_src_and_test(broadcast)

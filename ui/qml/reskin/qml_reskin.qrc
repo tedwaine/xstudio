@@ -20,10 +20,10 @@
 	    <file>windows/drag_drop/XsGlobalDragDropHandler.qml</file>
 	    <file>windows/main_menu_bar/XsMainMenuBar.qml</file>
 	    <file>windows/main_menu_bar/file_menu/XsFileMenu.qml</file>
+	    <file>windows/main_menu_bar/XsSnippetMenu.qml</file>
 	    <file>windows/main_menu_bar/file_menu/XsFileFunctions.qml</file>
 	    <file>windows/quickview/XsQuickViewLauncher.qml</file>
 	    <file>windows/quickview/XsQuickViewWindow.qml</file>
-	    <file>windows/runtime/XsRuntimeQMLItems.qml</file>
 
 	    <file>layout_framework/XsDragDropHandler.qml</file>
 	    <file>layout_framework/XsLayoutModeBar.qml</file>
@@ -46,13 +46,13 @@
 		<file>views/media/list_view/data_indicators/XsMediaFlagIndicator.qml</file>
 		<file>views/media/list_view/data_indicators/XsMediaNotesIndicator.qml</file>
 		<file>views/media/list_view/data_indicators/XsMediaTextItem.qml</file>
-		<file>views/media/list_view/data_indicators/XsMediaThumbnailImage.qml</file>
-		<file>views/media/list_view/data_indicators/XsMediaThumbnailHighlight.qml</file>
 	    <file>views/media/list_view/widgets/XsMediaListConfigureDialog.qml</file>
 	    <file>views/media/list_view/widgets/XsMediaMetadataWindow.qml</file>
 	    <file>views/media/list_view/widgets/XsMediaListMouseArea.qml</file>
 	    <file>views/media/widgets/XsMediaListPlusMenu.qml</file>
 		<file>views/media/widgets/XsMediaListContextMenu.qml</file>
+		<file>views/media/common_delegates/XsMediaThumbnailHighlight.qml</file>
+		<file>views/media/common_delegates/XsMediaThumbnailImage.qml</file>
 
 	    <file>views/playlists/XsPlaylists.qml</file>
 	    <file>views/playlists/XsPlaylistItems.qml</file>
@@ -90,6 +90,9 @@
 	    <file>views/timeline/XsTimelinePanel.qml</file>
 	    <file>views/timeline/XsTimelineTrackMenu.qml</file>
 	    <file>views/timeline/XsNewTrackMenu.qml</file>
+
+	    <file>views/python/XsPythonPanel.qml</file>
+	    <file>views/log/XsLogPanel.qml</file>
 
 	    <file>views/viewport/XsViewportPanel.qml</file>
 	    <file>views/viewport/XsViewport.qml</file>
@@ -167,7 +170,7 @@
 	    <file>widgets/dialogs/preferences/delegates/XsFloatPreference.qml</file>
 	    <file>widgets/dialogs/preferences/delegates/XsIntegerPreference.qml</file>
 	    <file>widgets/dialogs/preferences/delegates/XsStringPreference.qml</file>
-	    <file>widgets/dialogs/preferences/delegates/XsStringMultichoicePreference.qml</file>		
+	    <file>widgets/dialogs/preferences/delegates/XsStringMultichoicePreference.qml</file>
 	    <file>widgets/dialogs/preferences/delegates/XsTogglePreference.qml</file>
 	    <file>widgets/dialogs/preferences/widgets/XsPreferenceInfoButton.qml</file>
 

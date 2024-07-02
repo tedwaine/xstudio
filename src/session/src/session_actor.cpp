@@ -244,7 +244,7 @@ void MediaCopyActor::copy_media_to(
 
                                 //  add to subgroup
                                 if (target_playlist != target) {
-                                    spdlog::warn("add dup to sub");
+                                    // spdlog::warn("add dup to sub");
                                     anon_send(
                                         target,
                                         playlist::add_media_atom_v,
@@ -749,8 +749,6 @@ caf::message_handler SessionActor::message_handler() {
                     .then(
                         [=](const utility::JsonStore &js) mutable {
                             save_json_to(rp, js, path, update_path, hash);
-                            const std::string t = utility::to_string(utility::sysclock::now());
-                            spdlog::info("Session saved as {} at {}", uri_to_posix_path(path), t);
                         },
                         [=](error &err) mutable { rp.deliver(std::move(err)); });
             } else {
@@ -762,8 +760,6 @@ caf::message_handler SessionActor::message_handler() {
                     .then(
                         [=](const utility::JsonStore &js) mutable {
                             save_json_to(rp, js, path, false, hash);
-                            const std::string t = utility::to_string(utility::sysclock::now());
-                            spdlog::info("Session saved as {} at {}", uri_to_posix_path(path), t);
                         },
                         [=](error &err) mutable { rp.deliver(std::move(err)); });
             }
@@ -1312,6 +1308,59 @@ caf::message_handler SessionActor::message_handler() {
                     name);
             }
             return result;
+        },
+
+
+        [=](session::current_playlist_atom,
+            const bool viewed,
+            const UuidActor &playlist,
+            const std::string &container_type,
+            const UuidActor &container) {
+            if (viewed) {
+                viewedPlaylist_        = UuidActorAddr(playlist.uuid(), playlist.actor_addr());
+                viewedContainer_.first = container_type;
+                viewedContainer_.second =
+                    UuidActorAddr(container.uuid(), container.actor_addr());
+            } else {
+                inspectedPlaylist_ = UuidActorAddr(playlist.uuid(), playlist.actor_addr());
+                inspectedContainer_.first = container_type;
+                inspectedContainer_.second =
+                    UuidActorAddr(container.uuid(), container.actor_addr());
+            }
+        },
+
+        [=](session::current_playlist_atom,
+            const bool viewed) -> std::pair<UuidActor, std::pair<std::string, UuidActor>> {
+            auto result = std::pair<UuidActor, std::pair<std::string, UuidActor>>();
+            if (viewed) {
+                result.first        = UuidActor(viewedPlaylist_.first, viewedPlaylist_.second);
+                result.second.first = viewedContainer_.first;
+                result.second.second =
+                    UuidActor(viewedContainer_.second.first, viewedContainer_.second.second);
+            } else {
+                result.first = UuidActor(inspectedPlaylist_.first, inspectedPlaylist_.second);
+                result.second.first  = inspectedContainer_.first;
+                result.second.second = UuidActor(
+                    inspectedContainer_.second.first, inspectedContainer_.second.second);
+            }
+            return result;
+        },
+
+
+        [=](media::current_media_atom) -> UuidActorVector {
+            auto result = UuidActorVector();
+
+            for (const auto &i : selectedMedia_)
+                result.emplace_back(UuidActor(i.first, i.second));
+
+            return result;
+        },
+
+        [=](media::current_media_atom, const UuidActorVector &media) {
+            selectedMedia_.clear();
+            for (const auto &i : media) {
+                selectedMedia_.push_back(std::make_pair(i.uuid(), i.actor_addr()));
+            }
         },
 
         [=](session::current_playlist_atom) -> result<caf::actor> {
@@ -2041,6 +2090,9 @@ void SessionActor::save_json_to(
 
         // rename tmp to final name
         fs::rename(save_path + ".tmp", save_path);
+
+        const std::string t = utility::to_string(utility::sysclock::now());
+        spdlog::info("Session saved as {} at {}", save_path, t);
 
         if (update_path) {
             base_.set_filepath(path);

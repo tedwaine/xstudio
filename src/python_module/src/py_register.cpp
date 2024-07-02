@@ -72,7 +72,6 @@ void register_uuid_class(py::module &m, const std::string &name) {
         .def(py::init<const std::string &>())
         .def("generate", &utility::Uuid::generate)
         .def("generate_in_place", &utility::Uuid::generate_in_place)
-        .def("generate_from_name", &utility::Uuid::generate_in_place_from_name)        
         .def("is_null", &utility::Uuid::is_null)
         .def(py::self == py::self)
         .def(py::self != py::self)
@@ -416,11 +415,11 @@ void register_item_class(py::module &m, const std::string &name) {
         .def("uuid_actor", &timeline::Item::uuid_actor)
         .def("enabled", &timeline::Item::enabled)
         .def("transparent", &timeline::Item::transparent)
-
         .def("rate", &timeline::Item::rate)
         .def("name", &timeline::Item::name)
         .def("flag", &timeline::Item::flag)
         .def("prop", &timeline::Item::prop)
+        .def("locked", &timeline::Item::locked)
 
         .def("active_range", &timeline::Item::active_range)
         .def("active_duration", &timeline::Item::active_duration)

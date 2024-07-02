@@ -165,6 +165,13 @@ ThumbnailManagerActor::ThumbnailManagerActor(caf::actor_config &cfg)
         },
 
         // convert to jpg
+        [=](media_reader::get_thumbnail_atom,
+            const ThumbnailBufferPtr &buffer,
+            const int quality) {
+            delegate(dsk_cache_, media_reader::get_thumbnail_atom_v, buffer, quality);
+        },
+
+        // convert to jpg
         [=](media_reader::get_thumbnail_atom, const ThumbnailBufferPtr &buffer) {
             delegate(dsk_cache_, media_reader::get_thumbnail_atom_v, buffer);
         },

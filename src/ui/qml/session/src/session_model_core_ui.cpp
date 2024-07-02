@@ -27,6 +27,7 @@ SessionModel::SessionModel(QObject *parent) : super(parent) {
 
     auto role_names = std::vector<std::string>(
         {{"activeDurationRole"},
+         {"activeRangeValidRole"},
          {"activeStartRole"},
          {"actorRole"},
          {"actorUuidRole"},
@@ -765,6 +766,25 @@ QVariant SessionModel::data(const QModelIndex &index, int role) const {
                 }
                 break;
 
+
+            case Roles::activeRangeValidRole:
+                if (j.count("placeholder")) {
+                    result = QVariant::fromValue(true);
+                } else if (
+                    j.count("active_range") and j.at("active_range").is_object() and
+                    j.count("available_range") and j.at("available_range").is_object()) {
+                    try {
+                        const auto active = j.value("active_range", FrameRange());
+                        const auto avail  = j.value("available_range", FrameRange());
+                        result = QVariant::fromValue(avail.intersect(active) == active);
+                    } catch (...) {
+                        result = QVariant::fromValue(true);
+                    }
+                } else {
+                    result = QVariant::fromValue(true);
+                }
+                break;
+
             case Roles::trimmedStartRole:
                 if (j.count("placeholder")) {
                     result = QVariant::fromValue(0);
@@ -977,6 +997,7 @@ bool SessionModel::setData(const QModelIndex &index, const QVariant &qvalue, int
                         j["active_range"] = fr;
                         // probably pointless, as this will trigger from the backend update
                         roles.push_back(trimmedStartRole);
+                        roles.push_back(activeRangeValidRole);
                         if (actor)
                             anon_send(actor, timeline::active_range_atom_v, fr);
                     }
@@ -1032,6 +1053,7 @@ bool SessionModel::setData(const QModelIndex &index, const QVariant &qvalue, int
                         j["active_range"] = fr;
                         // probably pointless, as this will trigger from the backend update
                         roles.push_back(trimmedDurationRole);
+                        roles.push_back(activeRangeValidRole);
                         if (actor)
                             anon_send(actor, timeline::active_range_atom_v, fr);
                     }
@@ -1050,6 +1072,8 @@ bool SessionModel::setData(const QModelIndex &index, const QVariant &qvalue, int
                         j["available_range"] = fr;
                         // probably pointless, as this will trigger from the backend update
                         roles.push_back(trimmedStartRole);
+                        roles.push_back(activeRangeValidRole);
+
                         if (actor)
                             anon_send(actor, timeline::available_range_atom_v, fr);
                     }
@@ -1068,6 +1092,7 @@ bool SessionModel::setData(const QModelIndex &index, const QVariant &qvalue, int
                         j["available_range"] = fr;
                         // probably pointless, as this will trigger from the backend update
                         roles.push_back(trimmedDurationRole);
+                        roles.push_back(activeRangeValidRole);
                         if (actor)
                             anon_send(actor, timeline::available_range_atom_v, fr);
                     }

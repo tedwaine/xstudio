@@ -5,128 +5,65 @@
 #include <caf/io/all.hpp>
 
 // CAF_PUSH_WARNINGS
-// #include <QTextEdit>
-// #include <QWidget>
-// #include <QString>
+// #include <QFuture>
+// #include <QList>
+// #include <QUuid>
+// #include <QtConcurrent>
 // CAF_POP_WARNINGS
 
 #include "xstudio/ui/qml/helper_ui.hpp"
+#include "xstudio/ui/qml/json_tree_model_ui.hpp"
 
 namespace xstudio {
 namespace ui {
     namespace qml {
 
-        // class Snippet {
-
-        // };
-
-        class SnippetUI : public QObject {
-            Q_OBJECT
-            Q_PROPERTY(QString name READ name NOTIFY nameChanged)
-            Q_PROPERTY(QString menuModelName READ menuModelName NOTIFY menuNameChanged)
-            Q_PROPERTY(QString script READ script NOTIFY scriptChanged)
-            Q_PROPERTY(QString description READ description NOTIFY descriptionChanged)
-
-          public:
-            explicit SnippetUI(
-                const QString menu_name,
-                const QString name,
-                const QString script,
-                QObject *parent = nullptr)
-                : QObject(parent),
-                  menu_name_(std::move(menu_name)),
-                  name_(std::move(name)),
-                  script_(std::move(script)) {}
-            explicit SnippetUI(const utility::JsonStore &json, QObject *parent = nullptr);
-
-            ~SnippetUI() override = default;
-
-            [[nodiscard]] QString name() const { return name_; }
-            [[nodiscard]] QString menuModelName() const { return menu_name_; }
-            [[nodiscard]] QString script() const { return script_; }
-            [[nodiscard]] QString description() const { return description_; }
-
-          signals:
-            void nameChanged();
-            void menuNameChanged();
-            void scriptChanged();
-            void descriptionChanged();
-
-          private:
-            QString menu_name_   = {};
-            QString name_        = {};
-            QString script_      = {};
-            QString description_ = {};
-        };
-
-        class SnippetMenuUI : public QObject {
-            Q_OBJECT
-            Q_PROPERTY(QString name READ name NOTIFY nameChanged)
-            Q_PROPERTY(QList<QObject *> snippets READ snippets NOTIFY snippetsChanged)
-
-          public:
-            explicit SnippetMenuUI(const QString name, QObject *parent = nullptr)
-                : QObject(parent), name_(std::move(name)) {}
-            ~SnippetMenuUI() override = default;
-
-            [[nodiscard]] QString name() const { return name_; }
-            [[nodiscard]] QList<QObject *> snippets() const { return snippets_; }
-
-            void addSnippet(QObject *snippet) {
-                snippets_.push_back(snippet);
-                emit snippetsChanged();
-            }
-
-          signals:
-            void nameChanged();
-            void snippetsChanged();
-
-          private:
-            QString name_;
-            QList<QObject *> snippets_;
-        };
-
-        class EmbeddedPythonUI : public QMLActor {
+        class EmbeddedPythonUI : public caf::mixin::actor_object<JSONTreeModel> {
 
             Q_OBJECT
             Q_PROPERTY(bool waiting READ waiting NOTIFY waitingChanged)
-            Q_PROPERTY(
-                QList<QObject *> snippetMenus READ snippetMenus NOTIFY snippetMenusChanged)
-            Q_PROPERTY(QList<QObject *> snippets READ snippets NOTIFY snippetsChanged)
+            Q_PROPERTY(QUuid sessionId READ sessionId NOTIFY sessionIdChanged)
 
           public:
+            using super = caf::mixin::actor_object<JSONTreeModel>;
+            enum Roles {
+                nameRole = JSONTreeModel::Roles::LASTROLE,
+                menuPathRole,
+                scriptPathRole,
+                typeRole
+            };
+
             explicit EmbeddedPythonUI(QObject *parent = nullptr);
             ~EmbeddedPythonUI() override = default;
 
-            void init(caf::actor_system &system) override;
+            caf::actor_system &system() const {
+                return const_cast<caf::actor_companion *>(self())->home_system();
+            }
+
+            void init(caf::actor_system &system);
             void set_backend(caf::actor backend);
             caf::actor backend() { return backend_; }
 
             [[nodiscard]] bool waiting() const { return waiting_; }
+            [[nodiscard]] QUuid sessionId() const { return QUuidFromUuid(event_uuid_); }
 
-            [[nodiscard]] QList<QObject *> snippetMenus() const { return snippet_menus_; }
-            [[nodiscard]] QList<QObject *> snippets() const { return snippets_; }
-
+            [[nodiscard]] QVariant
+            data(const QModelIndex &index, int role = Qt::DisplayRole) const override;
 
           public slots:
             void pyEvalFile(const QUrl &path);
-            void pyExec(const QString &str);
+            void pyExec(const QString &str) const;
             QVariant pyEval(const QString &str);
             QUuid createSession();
             bool sendInput(const QString &str);
             bool sendInterrupt();
-
-            // QVariant pyEval(const QString &str, const QVariant &locals);
-            // QVariant pyEvalLocals(const QString &str);
-            // QVariant pyEvalLocals(const QString &str, const QVariant &locals);
-
-            void addSnippet(SnippetUI *snippet);
+            void reloadSnippets() const;
+            bool saveSnippet(const QUrl &path, const QString &content) const;
 
           signals:
-            void snippetMenusChanged();
-            void snippetsChanged();
             void waitingChanged();
             void backendChanged();
+            void sessionIdChanged();
             void stdoutEvent(const QString &str);
             void stderrEvent(const QString &str);
 
@@ -135,9 +72,9 @@ namespace ui {
             caf::actor backend_events_;
             bool waiting_{false};
 
-            QList<QObject *> snippet_menus_;
-            QList<QObject *> snippets_;
             utility::Uuid event_uuid_;
+
+            utility::Uuid snippet_uuid_{utility::Uuid::generate()};
         };
     } // namespace qml
 } // namespace ui

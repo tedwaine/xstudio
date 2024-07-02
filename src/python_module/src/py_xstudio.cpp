@@ -133,8 +133,6 @@ PYBIND11_MODULE(__pybind_xstudio, m) {
         .value("TextContainerBox", module::Attribute::Role::TextContainerBox)
         .value("Colour", module::Attribute::Role::Colour)
         .value("HotkeyUuid", module::Attribute::Role::HotkeyUuid)
-        .value("IconPath", module::Attribute::Role::IconPath)
-        .value("CallbackData", module::Attribute::Role::CallbackData)
         .export_values();
 
     // set XSTUDIO_LOCAL_PLUGIN_PATH so we can load python plugins that are

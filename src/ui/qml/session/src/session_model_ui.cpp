@@ -199,6 +199,15 @@ void SessionModel::forcePopulate(
         } catch (const std::exception &err) {
             spdlog::warn("{} {}", __PRETTY_FUNCTION__, err.what());
         }
+    } else if (type == "MediaSource") {
+        // for grab of path data..
+        // might be over kill ?
+        requestData(
+            QVariant::fromValue(QUuidFromUuid(tjson.at("id"))),
+            JSONTreeModel::Roles::idRole,
+            search_hint,
+            tjson,
+            Roles::pathRole);
     }
 }
 
@@ -234,7 +243,6 @@ void SessionModel::processChildren(const nlohmann::json &rj, const QModelIndex &
         emit dataChanged(parent_index, parent_index, roles);
         return;
     }*/
-
 
     try {
         if (type == "Session" or type == "Container List" or type == "Media" or
@@ -434,7 +442,7 @@ void SessionModel::processChildren(const nlohmann::json &rj, const QModelIndex &
             // all rows exist but in wrong order..
             try {
 
-                // First, make a vector of the *original* index of each row 
+                // First, make a vector of the *original* index of each row
                 // after any re-ordering has happened ....
 
                 bool reorder_done = false;
@@ -459,10 +467,10 @@ void SessionModel::processChildren(const nlohmann::json &rj, const QModelIndex &
                     // key ... find out the index of the corresponding child of
                     // ptree (whose compare key matches the j'th entry of rjc).
                     //
-                    // Thus we have a vector telling us how to re-order the 
+                    // Thus we have a vector telling us how to re-order the
                     // children of ptree ... the j'th element of the vector gives
                     // us the src index in ptree. So if reordered_src_indeces[5] = 1,
-                    // say, then the 2nd child of ptree needs to be moved to be 
+                    // say, then the 2nd child of ptree needs to be moved to be
                     // the 6th child etc.
                     for (int j = 0; j < rjc.size(); j++) {
                         if (rjc.at(j).contains(compare_key)) {
@@ -471,17 +479,29 @@ void SessionModel::processChildren(const nlohmann::json &rj, const QModelIndex &
                         }
                     }
                     if (reordered_src_indeces.size() == ptree->size()) {
-                        reorder_done = JSONTreeModel::reorderRows(
-                            parent_index,
-                            reordered_src_indeces
-                            );
+
+                        // if reordered_src_indeces looks like [0,1,2,3,4,5]
+                        // then of course it's already in the correct order
+                        bool needs_reorder = false;
+                        for (int iii = 0; iii < (int)reordered_src_indeces.size(); ++iii) {
+                            if (iii != reordered_src_indeces[iii]) {
+                                needs_reorder = true;
+                                break;
+                            }
+                        }
+                        if (needs_reorder) {
+                            reorder_done =
+                                JSONTreeModel::reorderRows(parent_index, reordered_src_indeces);
+                        } else {
+                            reorder_done = true;
+                        }
                     }
                 }
 
                 if (!reorder_done) {
 
                     // the first attempt requires that we have compare key for
-                    // each and every child of rjc and ptree ... not sure if 
+                    // each and every child of rjc and ptree ... not sure if
                     // that is guaranteed
 
                     // second attempt ... do one by one 'move rows' for re-ordering.
@@ -504,26 +524,22 @@ void SessionModel::processChildren(const nlohmann::json &rj, const QModelIndex &
                         if (rjc.at(dest_idx).count(compare_key)) {
 
                             const auto &kk = rjc.at(dest_idx).at(compare_key);
-                            auto p = elements_to_move.find(kk);
+                            auto p         = elements_to_move.find(kk);
                             if (p != elements_to_move.end()) {
 
-                                auto q = std::find(reordered_state.begin(), reordered_state.end(), p->second);
+                                auto q = std::find(
+                                    reordered_state.begin(), reordered_state.end(), p->second);
                                 int source_index = std::distance(reordered_state.begin(), q);
 
                                 if (source_index != dest_idx) {
 
                                     JSONTreeModel::moveRows(
-                                            parent_index,
-                                            source_index,
-                                            1,
-                                            parent_index,
-                                            dest_idx);
+                                        parent_index, source_index, 1, parent_index, dest_idx);
 
                                     reordered_state.erase(q);
                                     q = reordered_state.begin();
                                     std::advance(q, dest_idx);
                                     reordered_state.insert(q, p->second);
-
                                 }
                             }
                         }
@@ -531,7 +547,7 @@ void SessionModel::processChildren(const nlohmann::json &rj, const QModelIndex &
                 }
 
                 // This was the old re-ordering code. Was pretty slow and failed
-                // in some cases (re-ordering long media lists, for example). 
+                // in some cases (re-ordering long media lists, for example).
                 // Keeping for reference.
 
                 /*auto ordered = false;

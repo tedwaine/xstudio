@@ -210,7 +210,7 @@ MenuItem {
         // gradient:widget.highlighted? styleGradient.accent_gradient : Gradient.gradient
 
         gradient: Gradient {
-            GradientStop { position: 0.0; color: widget.highlighted? bgColorPressed: "transparent" } //"#33FFFFFF" }
+            GradientStop { position: 0.0; color: widget.highlighted? bgColorPressed: "transparent" } //XsStyleSheet.controlColour }
             GradientStop { position: 1.0; color: widget.highlighted? bgColorPressed: "transparent" } //"#11FFFFFF" }
         }
 

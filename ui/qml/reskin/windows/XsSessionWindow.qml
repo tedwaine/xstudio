@@ -13,7 +13,6 @@ import xstudio.qml.helpers 1.0
 import xstudio.qml.viewport 1.0
 
 import "./quickview/"
-import "./runtime/"
 
 ApplicationWindow {
 
@@ -100,7 +99,7 @@ ApplicationWindow {
     // the pop-up. This convenience function makes that easy ... it also makes
     // sure menus don't get placed so they go outside the application window
     function repositionPopupMenu(menu, refItem, refX, refY, altRightEdge) {
-        
+
         var global_pos = refItem.mapToItem(
             appWindow.contentItem,
             refX,
@@ -315,6 +314,7 @@ ApplicationWindow {
     property alias callbackTimer: sessionData.callbackTimer
     property alias viewsModel: sessionData.viewsModel
     property alias sessionProperties: sessionData.sessionProperties
+    property alias embeddedPython: sessionData.embeddedPython
     property alias bookmarkModel: sessionData.bookmarkModel
     property alias currentOnScreenMediaData: sessionData.currentOnScreenMediaData
     property alias currentOnScreenMediaSourceData: sessionData.currentOnScreenMediaSourceData
@@ -413,6 +413,8 @@ ApplicationWindow {
         viewsModel.register_view("qrc:/views/viewport/XsViewportPanel.qml", "Viewport")
         viewsModel.register_view("qrc:/views/timeline/XsTimelinePanel.qml", "Timeline")
         viewsModel.register_view("qrc:/views/notes/XsNotesView.qml", "Notes")
+        viewsModel.register_view("qrc:/views/python/XsPythonPanel.qml", "Python")
+        viewsModel.register_view("qrc:/views/log/XsLogPanel.qml", "Log")
 
         singletonsModel.register_singleton_qml("qrc:/views/notes/XsNotesSingleton.qml")
 
@@ -491,7 +493,8 @@ ApplicationWindow {
     }
 
 
-    // Bind UI highligh colour to the backend preference
+    // Bind UI highligh colour, 'flat theme' and interface brightness to the
+    // correspondin preferences
     XsPreference {
         id: __accentColour
         path: "/ui/qml/accent_color"
@@ -507,8 +510,26 @@ ApplicationWindow {
         path: "/ui/qml/use_flat_theme"
     }
 
-    // For dynamic loading of QML by plugins
-    XsRuntimeQMLItems {
+    XsPreference {
+        path: "/ui/qml/ui_brightness"
+        onValueChanged: set()
+        Component.onCompleted: set()
+        function set() {
+            if (typeof value == "number") {
+                XsStyleSheet.darkerFactor = 100.0/value
+            }
+        }
+    }
+
+    XsPreference {
+        path: "/ui/qml/ui_text_brightness"
+        onValueChanged: set()
+        Component.onCompleted: set()
+        function set() {
+            if (typeof value == "number") {
+                XsStyleSheet.textDarkerFactor = 100.0/value
+            }
+        }
     }
 
 }

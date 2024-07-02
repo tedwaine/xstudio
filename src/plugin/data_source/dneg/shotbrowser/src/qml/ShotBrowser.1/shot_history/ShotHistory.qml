@@ -40,6 +40,9 @@ Item{
     property int queryRunning: 0
     readonly property string panelType: "ShotHistory"
 
+    property alias nameFilter: results.filterName
+    property string sentTo: ""
+
     // used ?
     property real btnHeight: XsStyleSheet.widgetStdHeight + 4
 
@@ -47,15 +50,15 @@ Item{
 
     onOnScreenMediaUuidChanged: {if(visible) updateTimer.start()}
 
+    onSentToChanged: {
+        runQuery()
+    }
+
     onOnScreenLogicalFrameChanged: {
         if(updateTimer.running) {
             updateTimer.restart()
             if(isPanelEnabled && !isPaused) {
                 isPaused = true
-                resultsSelectionModel.clear()
-                results.setResultData([])
-                ShotBrowserEngine.liveLinkKey = ""
-                ShotBrowserEngine.liveLinkMetadata = "null"
             }
         }
     }
@@ -160,23 +163,37 @@ Item{
             // make sure the results appear in sync.
             queryCounter += 1
             queryRunning += 1
+            let custom = []
+
+            if(sentTo != "" && sentTo != "Ignore")
+                custom.push({
+                    "enabled": true,
+                    "type": "term",
+                    "term": "Sent To",
+                    "value": sentTo
+                })
 
             let i = queryCounter
             Future.promise(
                 ShotBrowserEngine.executeQuery(
-                    [ShotBrowserEngine.presetsModel.get(activeScopeIndex, "jsonPathRole")])//, {"up": "down"})
-                ).then(function(json_string) {
+                    [ShotBrowserEngine.presetsModel.get(activeScopeIndex, "jsonPathRole")],
+                    {},
+                    custom
+                )
+            ).then(
+                function(json_string) {
                     if(queryCounter == i) {
                         resultsSelectionModel.clear()
-                        results.setResultData([json_string])
+                        resultsBaseModel.setResultData([json_string])
                     }
                     queryRunning -= 1
                 },
                 function() {
                     resultsSelectionModel.clear()
-                    results.setResultData([])
+                    resultsBaseModel.setResultData([])
                     queryRunning -= 1
-                })
+                }
+            )
         }
     }
 
@@ -198,8 +215,14 @@ Item{
     }
 
     ShotBrowserResultModel {
-        id: results
+        id: resultsBaseModel
     }
+
+    ShotBrowserResultFilterModel {
+        id: results
+        sourceModel: resultsBaseModel
+    }
+
 
     ItemSelectionModel {
         id: resultsSelectionModel
@@ -213,7 +236,7 @@ Item{
         ShotHistoryTitleDiv{id: titleDiv
             titleButtonHeight: (buttonHeight + 4)
             Layout.fillWidth: true
-            Layout.preferredHeight: titleButtonHeight + (panelPadding*2)
+            Layout.preferredHeight: titleButtonHeight*2 + (panelPadding*2) + titleButtonSpacing
         }
 
         ShotHistoryListDiv{ id: contentDiv
