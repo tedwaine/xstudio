@@ -591,11 +591,11 @@ void timeline_importer(
 
     std::map<std::string, UuidActor> target_url_map;
 
-    // spdlog::warn("processing {} clips", clips.size());
+    spdlog::warn("processing {} clips", clips.size());
 
     for (const auto &cl : clips) {
         const auto &name = cl->name();
-        // spdlog::warn("{} {}", name, cl->active_media_reference_key());
+         spdlog::warn("{} {}", name, cl->active_media_reference_key());
 
         const auto active_key = cl->active_media_reference_key();
         auto active_path      = std::string();
@@ -605,12 +605,12 @@ void timeline_importer(
             active_path = active->target_url();
         }
 
-        // spdlog::warn("{} {}", active_key, active_path);
+        spdlog::warn("BLAGH {} {}", active_key, active_path);
 
         // WARNING this may inadvertantly skip auxiliary sources we want..
         if (active_path.empty() or target_url_map.count(active_path)) {
             // spdlog::warn("SKIP");
-            continue;
+           continue;
         }
 
 
@@ -630,13 +630,16 @@ void timeline_importer(
 
         // create media sources.
         for (const auto &mr : cl->media_references()) {
-            // spdlog::warn("{} {}", mr.first, mr.second->name());
+             spdlog::warn("BLOB {} {}", mr.first, mr.second->name());
             // try and dynamic cast to
             if (auto ext = otio::SerializableObject::Retainer<otio::ExternalReference>(
                     dynamic_cast<otio::ExternalReference *>(mr.second))) {
 
-                // spdlog::warn("{}", ext->target_url());
                 auto uri = caf::make_uri(ext->target_url());
+                if (!uri) {
+                    uri = posix_path_to_uri(ext->target_url());
+                }
+                 spdlog::warn("FLOB {} {} {}", ext->target_url(), to_string(uri), bool(uri));
                 if (uri) {
                     auto extname     = ext->name();
                     auto source_uuid = utility::Uuid::generate();
@@ -675,6 +678,8 @@ void timeline_importer(
             }
         }
 
+        std::cerr << "NUM SOURCES " << sources.size() << " .... " << name << "\n";
+
         // //  add media.
         if (not sources.empty()) {
             // create media
@@ -696,11 +701,13 @@ void timeline_importer(
                 sources.front().uuid());
         }
 
-        // otio::RationalTime dur = cl->duration();
-        // std::cout << "Name: " << cl->name() << " [";
-        // std::cout << dur.value() << "/" << dur.rate() << "]" << std::endl;
+        otio::RationalTime dur = cl->duration();
+        std::cout << "Name: " << cl->name() << " [";
+        std::cout << dur.value() << "/" << dur.rate() << "]" << std::endl;
         // trigger population of additional sources ? May conflict with timeline ?
     }
+
+    std::cerr << "target_url_map " << target_url_map.size() << "\n";
 
     // populate source
     if (not target_url_map.empty()) {

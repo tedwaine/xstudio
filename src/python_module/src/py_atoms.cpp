@@ -148,6 +148,7 @@ void py_config::add_atoms() {
     ADD_ATOM(xstudio::session, path_atom);
     ADD_ATOM(xstudio::session, remove_serialise_target_atom);
     ADD_ATOM(xstudio::session, export_atom);
+    ADD_ATOM(xstudio::session, import_atom);
     ADD_ATOM(xstudio::media_reader, clear_precache_queue_atom);
     ADD_ATOM(xstudio::media_reader, get_image_atom);
     ADD_ATOM(xstudio::media_reader, get_thumbnail_atom);

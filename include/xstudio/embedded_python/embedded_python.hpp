@@ -55,17 +55,20 @@ namespace embedded_python {
         void push_caf_message_to_py_callbacks(caf::actor sender, caf::message &m);
 
         void add_message_callback(const py::tuple &xs);
-
         void remove_message_callback(const py::tuple &xs);
+        void run_callback_with_delay(const py::tuple &args);
+        void run_callback(const utility::Uuid &id);
 
         static void s_add_message_callback(const py::tuple &xs);
         static void s_remove_message_callback(const py::tuple &xs);
+        static void s_run_callback_with_delay(const py::tuple &delayed_cb_args);
 
         void finalize();
 
       private:
         // py::function cb_;
         std::map<caf::actor_addr, std::vector<py::function>> message_handler_callbacks_;
+        std::map<utility::Uuid, py::function> delayed_callbacks_;
 
         EmbeddedPythonActor *parent_;
 

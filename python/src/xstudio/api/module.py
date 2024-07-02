@@ -552,6 +552,22 @@ class ModuleBase(ActorConnection):
             print (err)
             print (traceback.format_exc())
 
+    def run_callback_with_delay(
+        self,
+        delay_microseconds,
+        callback_fn
+        ):
+        """Run a callback after specified delay in microseconds
+        Args:
+            delay_microseconds(int): The delay in microseconds
+            callback_fn(method): Callback function to be executed
+        """
+        if XStudioExtensions:
+            XStudioExtensions.run_callback_with_delay(
+                (callback_fn, delay_microseconds)
+            )
+
+
     def incoming_msg(self, *args):
 
         try:

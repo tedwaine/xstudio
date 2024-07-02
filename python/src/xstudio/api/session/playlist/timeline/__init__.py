@@ -1,6 +1,8 @@
 # SPDX-License-Identifier: Apache-2.0
 from xstudio.core import UuidActor, Uuid, actor, item_atom, MediaType, ItemType, enable_atom, item_flag_atom
 from xstudio.core import active_range_atom, available_range_atom, undo_atom, redo_atom, history_atom, add_media_atom, item_name_atom
+from xstudio.core import URI
+from xstudio.core import import_atom
 from xstudio.api.session.container import Container
 from xstudio.api.intrinsic import History
 from xstudio.api.session.media.media import Media
@@ -385,6 +387,23 @@ class Timeline(Container):
             before_uuid = before_uuid.uuid
 
         result = self.connection.request_receive(self.remote, add_media_atom(), media, before_uuid)[0]
+
+        return result
+
+    def load_otio(self, otio_body, path=""):
+        """Load otio json data into the timeline. Replaces entire timeline
+        with the incoming otio
+
+        Args:
+            otio_body(json dict): OTIO data
+
+        Kwargs:
+            path(str): Path that otio_body was loaded from
+
+        Returns:
+            seccess(bool): True on successful load from OTIO.
+        """
+        result = self.connection.request_receive(self.remote, import_atom(), URI(path) if path else URI(), otio_body)[0]
 
         return result
 
