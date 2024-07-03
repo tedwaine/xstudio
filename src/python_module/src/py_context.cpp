@@ -4,6 +4,7 @@
 #include "xstudio/utility/logging.hpp"
 #include "xstudio/utility/caf_helpers.hpp"
 #include "xstudio/utility/helpers.hpp"
+#include "xstudio/atoms.hpp"
 #include "xstudio/global/global_actor.hpp"
 
 #include "py_opaque.hpp"
@@ -32,7 +33,12 @@ py_context::py_context(int argc, char **argv)
       py_local_system_(*this),
       system_(xstudio::utility::ActorSystemSingleton::actor_system_ref(py_local_system_)),
       self_(system_),
-      remote_() {}
+      remote_() {
+
+        std::cerr << "py_context " << this << "\n";
+
+
+      }
 
 std::optional<message> py_context::py_build_message(const py::args &xs) {
     if (xs.size() < 2) {
@@ -272,6 +278,123 @@ py_context::py_dequeue_with_timeout(xstudio::utility::absolute_receive_timeout t
     }
     return tuple_from_message(ptr->mid, ptr->sender, std::move(ptr->content()));
 }
+
+void py_context::py_run_xstudio_message_loop() {
+
+    while (self_) {
+        self_->await_data();
+        mailbox_element_ptr ptr = self_->next_message();
+        try {
+
+            auto addr = caf::actor_cast<caf::actor_addr>(ptr->sender);
+            const auto p = message_handler_callbacks_.find(addr);
+            if (p != message_handler_callbacks_.end()) {
+                caf::message r = ptr->content();
+                py::tuple py_msg(1);
+                PyTuple_SetItem(py_msg.ptr(), 0, py::cast(r).release().ptr());
+                for (auto &func : p->second) {                    
+                    func(py_msg);
+                }
+            }
+
+        } catch (std::exception &e) {
+            PyErr_SetString(PyExc_RuntimeError, e.what());
+        }
+    }
+
+}
+
+void py_context::py_add_message_callback(const py::args &xs) {
+
+    try {
+
+        std::cerr << "py_add_message_callback " << this << " " << xs.size() << "\n";
+
+        if (xs.size() == 2 || xs.size() == 3) {
+
+            auto i            = xs.begin();
+            auto remote_actor = (*i).cast<caf::actor>();
+            i++;
+            auto callback_func = (*i).cast<py::function>();
+            auto addr          = caf::actor_cast<caf::actor_addr>(remote_actor);
+
+            std::cerr << "remote_actor " << to_string(remote_actor) << " " << to_string(self_) << "\n";
+
+            if (xs.size() == 3) {
+                // Let's say we want to receive event messages from a MediaActor.
+                // We need to call 'join_broadcast' with the event_group actor
+                // belonging to the MediaActor. However, in
+                // push_caf_message_to_py_callbacks we need to resolve who sent
+                // the message in order to call the correct python callback.
+                // The 'sender' when a message comes via an event_group actor is
+                // the owner (in this case the MediaActor). So here, the 3rd
+                // argument is the owner of the event group and we use this to
+                // set the actor address that we register the callback against.
+                i++;
+                auto parent_actor = (*i).cast<caf::actor>();
+                addr              = caf::actor_cast<caf::actor_addr>(parent_actor);
+            }
+
+            const auto p = message_handler_callbacks_.find(addr);
+            if (p != message_handler_callbacks_.end()) {
+                auto q = p->second.begin();
+                while (q != p->second.end()) {
+                    if (*q == callback_func) {
+                        return;
+                    }
+                    q++;
+                }
+            }
+
+            message_handler_callbacks_[addr].push_back(callback_func);
+            self_->send(remote_actor, xstudio::broadcast::join_broadcast_atom_v, caf::actor_cast<caf::actor>(self_));
+
+        } else {
+            throw std::runtime_error(
+                "Set message callback expecting tuple of size 2 or 3 "
+                "(remote_event_group_actor, callack_func, (optional: parent_actor)).");
+        }
+
+    } catch (std::exception &e) {
+        PyErr_SetString(PyExc_RuntimeError, e.what());
+    }
+}
+
+void py_context::py_remove_message_callback(const py::args &xs) {
+
+    try {
+
+        if (xs.size() == 2) {
+
+            auto i            = xs.begin();
+            auto remote_actor = (*i).cast<caf::actor>();
+            i++;
+            auto callback_func = (*i).cast<py::function>();
+            auto addr          = caf::actor_cast<caf::actor_addr>(remote_actor);
+
+            const auto p = message_handler_callbacks_.find(addr);
+            if (p != message_handler_callbacks_.end()) {
+                auto q = p->second.begin();
+                while (q != p->second.end()) {
+                    if (*q == callback_func) {
+                        q = p->second.erase(q);
+                    } else {
+                        q++;
+                    }
+                }
+            }
+            self_->send(remote_actor, xstudio::broadcast::leave_broadcast_atom_v, caf::actor_cast<caf::actor>(self_));
+
+        } else {
+            throw std::runtime_error("Remove message callback expecting tuple of size 2 "
+                                     "(remote_actor, callack_func).");
+        }
+
+    } catch (std::exception &e) {
+        PyErr_SetString(PyExc_RuntimeError, e.what());
+    }
+}
+
 
 void py_context::disconnect() {
     host_   = "";

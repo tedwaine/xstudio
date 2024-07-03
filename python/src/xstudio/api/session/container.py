@@ -156,6 +156,11 @@ class Container(ActorConnection):
             XStudioExtensions.add_message_callback(
                 (self.group, callback_function, self.remote)
                 )
+        else:
+            self.connection.link.run_callback_with_delay(
+                (self.group, callback_function, self.remote)
+                )
+
 
     def remove_event_callback_function(self, callback_function):
         """Remove a callback that was set-up to get event messages from the
@@ -168,6 +173,10 @@ class Container(ActorConnection):
         """
         if XStudioExtensions:
             XStudioExtensions.remove_message_callback(
+                (self.group, callback_function)
+                )
+        else:
+            self.connection.remove_message_callback(
                 (self.group, callback_function)
                 )
 

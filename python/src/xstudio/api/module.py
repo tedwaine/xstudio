@@ -198,7 +198,9 @@ class ModuleBase(ActorConnection):
                 (remote_event_group, self.incoming_msg)
             )
         else:
-            connection.add_handler(remote_event_group, self.incoming_msg)
+            self.connection.link.add_message_callback(
+                remote_event_group, self.incoming_msg
+            )
 
         self.__attribute_changed = None
         self.__playhead_event_callback = None
@@ -319,17 +321,24 @@ class ModuleBase(ActorConnection):
         Args:
             playhead_event_callback(Callable): Call back function
         """
+
+        gphev = self.connection.request_receive(
+            self.connection.remote(),
+            get_global_playhead_events_atom())[0]
+
+        playhead_event_group = get_event_group(self.connection, gphev)
+
         if XStudioExtensions:
-
-            gphev = self.connection.request_receive(
-                self.connection.remote(),
-                get_global_playhead_events_atom())[0]
-
-            playhead_event_group = get_event_group(self.connection, gphev)
 
             XStudioExtensions.add_message_callback(
                 (gphev, self.__playhead_events)
-            )
+                )
+
+        else:
+            self.connection.link.add_message_callback(
+                (gphev, self.__playhead_events)
+                )
+
 
     def menu_item_activated(self, menu_item_data, user_data):
         pass
@@ -562,8 +571,13 @@ class ModuleBase(ActorConnection):
             delay_microseconds(int): The delay in microseconds
             callback_fn(method): Callback function to be executed
         """
+
         if XStudioExtensions:
             XStudioExtensions.run_callback_with_delay(
+                (callback_fn, delay_microseconds)
+            )
+        else:
+            self.connection.link.run_callback_with_delay(
                 (callback_fn, delay_microseconds)
             )
 
