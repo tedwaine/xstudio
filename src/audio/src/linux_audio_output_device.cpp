@@ -92,18 +92,16 @@ long LinuxAudioOutputDevice::latency_microseconds() {
 }
 
 
-bool LinuxAudioOutputDevice::push_samples(const void *sample_data, const long num_samples) {
+void LinuxAudioOutputDevice::push_samples(const void *sample_data, const long num_samples) {
 
     int error;
+    // TODO: * 2 below is because we ASSUME 16bits per sample. Need to handle different
+    // bitdepths
     if (playback_handle_ &&
-        pa_simple_write(playback_handle_, sample_data, (size_t)num_samples * 2 * 2, &error) <
+        pa_simple_write(playback_handle_, sample_data, (size_t)num_samples * 2, &error) <
             0) {
-        spdlog::warn(
-            "{}  pa_simple_write() failed: {}", __PRETTY_FUNCTION__, pa_strerror(error));
-        return false;
-
-    } else if (!playback_handle_) {
-        return false;
+        std::stringstream ss;
+        ss << __FILE__ ": pa_simple_write() failed: " << pa_strerror(error);
+        throw std::runtime_error(ss.str().c_str());
     }
-    return true;
 }

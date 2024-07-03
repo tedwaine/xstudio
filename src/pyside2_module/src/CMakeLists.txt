@@ -88,16 +88,22 @@ set(SOURCES
 	plain_viewport.cpp
 	qml_viewport.cpp
 	caf_system.cpp
-	../../../../ui/qml/xstudio/qml_reskin.qrc
+	../../../../ui/qml/xstudio/qml.qrc
 	${GENERATED_SOURCES}
 )
 
 add_library(${PROJECT_NAME} SHARED ${SOURCES})
 
+if(WIN32)
+    set(EXE_EXTENSION ".exe")
+else()
+    set(EXE_EXTENSION ".bin")
+endif()
+
 set_target_properties(${PROJECT_NAME}
     PROPERTIES
     RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/bin"
-    OUTPUT_NAME "${PROJECT_NAME}.bin"
+    OUTPUT_NAME "${PROJECT_NAME}${EXE_EXTENSION}"
 	LINK_DEPENDS_NO_SHARED true
 )
 
@@ -109,8 +115,10 @@ target_link_libraries(${PROJECT_NAME}
 		xstudio::ui::viewport
 		xstudio::ui::opengl::viewport
 		xstudio::ui::qt::viewport_widget
+		xstudio::ui::qml::module
 		xstudio::ui::qml::global_store
 		xstudio::ui::qml::helper
+		xstudio::ui::qml::playhead
 		xstudio::ui::qml::bookmark
 		xstudio::ui::qml::session
 		xstudio::ui::qml::studio

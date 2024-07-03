@@ -3,6 +3,9 @@
 
 #include <caf/actor_companion.hpp>
 
+// include CMake auto-generated export hpp
+#include "xstudio/ui/qml/viewport_qml_export.h"
+
 CAF_PUSH_WARNINGS
 
 #include <QCursor>
@@ -28,7 +31,7 @@ namespace ui {
 
         class QMLViewportRenderer;
 
-        class QMLViewport : public QQuickItem {
+        class VIEWPORT_QML_EXPORT QMLViewport : public QQuickItem {
             Q_OBJECT
 
             Q_PROPERTY(int mouseButtons READ mouseButtons NOTIFY mouseButtonsChanged)

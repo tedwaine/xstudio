@@ -5,7 +5,7 @@
 
 #include "xstudio/ui/qml/helper_ui.hpp"
 #include "xstudio/ui/qml/json_tree_model_ui.hpp"
-#include "xstudio/ui/qml/tag_ui.hpp"
+//#include "xstudio/ui/qml/tag_ui.hpp"
 
 
 CAF_PUSH_WARNINGS
@@ -18,7 +18,7 @@ CAF_POP_WARNINGS
 namespace xstudio::ui::qml {
 using namespace caf;
 
-class UIModelData : public caf::mixin::actor_object<JSONTreeModel> {
+class HELPER_QML_EXPORT UIModelData : public caf::mixin::actor_object<JSONTreeModel> {
 
     Q_OBJECT
 
@@ -97,7 +97,7 @@ class UIModelData : public caf::mixin::actor_object<JSONTreeModel> {
     static QMap<QString, QObject *> context_object_lookup_map_;
 };
 
-class MenusModelData : public UIModelData {
+class HELPER_QML_EXPORT MenusModelData : public UIModelData {
 
     Q_OBJECT
 
@@ -105,7 +105,7 @@ class MenusModelData : public UIModelData {
     explicit MenusModelData(QObject *parent = nullptr);
 };
 
-class ViewsModelData : public UIModelData {
+class HELPER_QML_EXPORT ViewsModelData : public UIModelData {
 
     Q_OBJECT
 
@@ -123,7 +123,7 @@ class ViewsModelData : public UIModelData {
     QVariant view_qml_source(QString view_name);
 };
 
-class SingletonsModelData : public UIModelData {
+class HELPER_QML_EXPORT SingletonsModelData : public UIModelData {
 
     Q_OBJECT
 
@@ -135,7 +135,7 @@ class SingletonsModelData : public UIModelData {
     void register_singleton_qml(const QString &qml_code);
 };
 
-class ReskinPanelsModel : public UIModelData {
+class HELPER_QML_EXPORT ReskinPanelsModel : public UIModelData {
 
     Q_OBJECT
 
@@ -148,7 +148,7 @@ class ReskinPanelsModel : public UIModelData {
     Q_INVOKABLE QModelIndex duplicate_layout(QModelIndex panel_index);
 };
 
-class MediaListColumnsModel : public UIModelData {
+class HELPER_QML_EXPORT MediaListColumnsModel : public UIModelData {
 
     Q_OBJECT
 
@@ -158,7 +158,7 @@ class MediaListColumnsModel : public UIModelData {
     Q_INVOKABLE QUuid new_media_list();
 };
 
-class MediaListFilterModel : public QSortFilterProxyModel {
+class HELPER_QML_EXPORT MediaListFilterModel : public QSortFilterProxyModel {
 
     Q_OBJECT
 
@@ -214,7 +214,7 @@ class MediaListFilterModel : public QSortFilterProxyModel {
     int columns_model_index_ = 0;
 };
 
-class MenuModelItem : public caf::mixin::actor_object<QObject> {
+class HELPER_QML_EXPORT MenuModelItem : public caf::mixin::actor_object<QObject> {
 
     Q_OBJECT
 
@@ -412,7 +412,7 @@ Then when the pop-up menu is built from the central menu model, we check if the
 menu item has 'menu_item_context' and only add an entry on the menu *IF* the
 menu_item_context matches the stringified address of the parent panel that is
 creating the pop-up. simples ;-)*/
-class PanelMenuModelFilter : public QSortFilterProxyModel {
+class HELPER_QML_EXPORT PanelMenuModelFilter : public QSortFilterProxyModel {
 
     Q_OBJECT
 

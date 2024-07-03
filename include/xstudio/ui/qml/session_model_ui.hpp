@@ -1,6 +1,9 @@
 // SPDX-License-Identifier: Apache-2.0
 #pragma once
 
+// include CMake auto-generated export hpp
+#include "xstudio/ui/qml/session_qml_export.h"
+
 #include <caf/all.hpp>
 
 #include "xstudio/ui/qml/helper_ui.hpp"
@@ -22,7 +25,7 @@ CAF_POP_WARNINGS
 namespace xstudio::ui::qml {
 using namespace caf;
 
-class SessionModel : public caf::mixin::actor_object<JSONTreeModel> {
+class SESSION_QML_EXPORT SessionModel : public caf::mixin::actor_object<JSONTreeModel> {
     Q_OBJECT
 
     Q_PROPERTY(QString sessionActorAddr READ sessionActorAddr WRITE setSessionActorAddr NOTIFY

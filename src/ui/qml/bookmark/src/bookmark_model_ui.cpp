@@ -234,6 +234,7 @@ QFuture<QString>
 BookmarkModel::getJSONFuture(const QModelIndex &index, const QString &path) const {
     return QtConcurrent::run([=]() {
         if (bookmark_actor_) {
+            std::string path_string = StdFromQString(path);
             try {
                 scoped_actor sys{system()};
                 auto addr   = UuidFromQUuid(index.data(uuidRole).toUuid());
@@ -242,11 +243,11 @@ BookmarkModel::getJSONFuture(const QModelIndex &index, const QString &path) cons
                     bookmark_actor_,
                     json_store::get_json_atom_v,
                     addr,
-                    StdFromQString(path));
+                    path_string);
 
                 return QStringFromStd(result.dump());
 
-            } catch (const std::exception &err) {
+            } catch ([[maybe_unused]] const std::exception &err) {
                 // spdlog::warn("{} {}", __PRETTY_FUNCTION__,  err.what());
                 return QString(); // QStringFromStd(err.what());
             }
@@ -399,7 +400,7 @@ void BookmarkModel::setBookmarkActorAddr(const QString &addr) {
             try {
                 request_receive<bool>(
                     *sys, backend_events_, broadcast::leave_broadcast_atom_v, as_actor());
-            } catch (const std::exception &e) {
+            } catch ([[maybe_unused]] const std::exception &e) {
             }
             backend_events_ = caf::actor();
         }

@@ -607,9 +607,18 @@ void SessionModel::processChildren(const nlohmann::json &rj, const QModelIndex &
 
     if (changed) {
         // update totals.
-        if (type == "Media List" and ptree->data().at("children").is_array()) {
-            // spdlog::warn("mediaCountRole {}", ptree->size());
-            setData(parent_index.parent(), QVariant::fromValue(ptree->size()), mediaCountRole);
+        auto children = ptree->data().at("children");
+        if (type == "Media List") {
+            if (children.is_array()) {
+
+                setData(
+                    parent_index.parent(),
+                    QVariant::fromValue(int(children.size())),
+                    mediaCountRole);
+
+            } else {
+                setData(parent_index.parent(), QVariant::fromValue(0), mediaCountRole);
+            }
         }
 
         emit dataChanged(parent_index, parent_index, roles);

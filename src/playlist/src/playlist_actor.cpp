@@ -78,8 +78,13 @@ void blocking_loader(
                 const FrameList &frame_list = i.second;
 
                 const auto uuid = Uuid::generate();
+#ifdef _WIN32
+                std::string ext = ltrim_char(
+                    get_path_extension(to_upper_path(fs::path(uri_to_posix_path(uri)))), '.');
+#else
                 std::string ext =
                     ltrim_char(to_upper(fs::path(uri_to_posix_path(uri)).extension()), '.');
+#endif
                 const auto source_uuid = Uuid::generate();
 
                 auto source =
@@ -385,8 +390,13 @@ void PlaylistActor::init() {
             const utility::FrameRate &rate,
             const utility::UuidActor &uuid_before) {
             const auto uuid = Uuid::generate();
+#ifdef _WIN32
             std::string ext =
+                ltrim_char(to_upper_path(fs::path(uri_to_posix_path(uri)).extension()), '.');
+#else
+	        std::string ext =
                 ltrim_char(to_upper(fs::path(uri_to_posix_path(uri)).extension()), '.');
+#endif
             const auto source_uuid = Uuid::generate();
 
             auto source =
@@ -643,12 +653,13 @@ void PlaylistActor::init() {
         },
 
         [=](add_media_atom,
-            std::vector<UuidActor> media_actors,
+            const std::vector<UuidActor> &ma,
             const utility::Uuid &uuid_before) -> result<bool> {
             // before we can add media actors, we have to make sure the detail has been acquired
             // so that the duration of the media is known. This is because the playhead will
             // update and build a timeline as soon as the playlist notifies of change, so the
             // duration and frame rate must be known up-front
+            std::vector<UuidActor> media_actors = ma;
             auto source_count = std::make_shared<int>();
             (*source_count)   = media_actors.size();
             auto rp           = make_response_promise<bool>();

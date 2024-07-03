@@ -15,8 +15,6 @@ using namespace xstudio::utility;
 using namespace pybind11::literals;
 namespace py = pybind11;
 
-EmbeddedPython *EmbeddedPython::s_instance_ = nullptr;
-
 EmbeddedPython::EmbeddedPython(const std::string &name, EmbeddedPythonActor *parent)
     : Container(name, "EmbeddedPython"), parent_(parent) {
     s_instance_ = this;

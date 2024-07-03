@@ -233,10 +233,6 @@
 	<qresource prefix="/">
 	    <file>helpers/XsDialogHelpers.qml</file>
 	    <file>helpers/XsTimer.qml</file>
-        <file>extern/QuickPromise/promise.js</file>
-        <file>extern/QuickPromise/Promise.qml</file>
-        <file>extern/QuickPromise/PromiseTimer.qml</file>
-        <file>extern/QuickPromise/qmldir</file>
 	</qresource>
 
 	<qresource prefix="/feather_icons">

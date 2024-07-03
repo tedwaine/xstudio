@@ -15,12 +15,13 @@ CAF_POP_WARNINGS
 #include "xstudio/utility/uuid.hpp"
 #include "xstudio/ui/qml/actor_object.hpp"
 
+#include "helper_qml_export.h"
 
 namespace xstudio::ui::qml {
 
 typedef std::function<void(const utility::JsonStore &event)> JSONTreeSendEventFunc;
 
-class JSONTreeModel : public QAbstractItemModel {
+class HELPER_QML_EXPORT JSONTreeModel : public QAbstractItemModel {
     Q_OBJECT
 
     Q_PROPERTY(int count READ length NOTIFY lengthChanged)
@@ -271,7 +272,7 @@ class JSONTreeModel : public QAbstractItemModel {
 //     QModelIndex mapToSource(const QModelIndex &proxyIndex) const override;
 // };
 
-class JSONTreeFilterModel : public QSortFilterProxyModel {
+class HELPER_QML_EXPORT JSONTreeFilterModel : public QSortFilterProxyModel {
     Q_OBJECT
 
     Q_PROPERTY(int length READ length NOTIFY lengthChanged)

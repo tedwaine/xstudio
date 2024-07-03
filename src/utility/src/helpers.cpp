@@ -1,15 +1,16 @@
 // SPDX-License-Identifier: Apache-2.0
+#ifdef __linux__
 #define __USE_POSIX
-
+#include <unistd.h>
+#include <sys/param.h>
+#include <pwd.h>
+#include <sys/types.h>
+#endif
 #include <filesystem>
 #include <limits>
 #include <regex>
 #include <set>
-#include <unistd.h>
 #include <climits>
-#include <sys/types.h>
-#include <sys/param.h>
-#include <pwd.h>
 
 #include <fmt/format.h>
 
@@ -20,6 +21,10 @@
 #include "xstudio/utility/helpers.hpp"
 #include "xstudio/utility/sequence.hpp"
 #include "xstudio/utility/string_helpers.hpp"
+
+#ifndef MAXHOSTNAMELEN
+#define MAXHOSTNAMELEN 256
+#endif
 
 using namespace xstudio::utility;
 using namespace caf;
@@ -78,7 +83,7 @@ std::string xstudio::utility::actor_to_string(caf::actor_system &sys, const caf:
 
         result = utility::make_hex_string(std::begin(buf), std::end(buf));
     } catch (const std::exception &err) {
-        // spdlog::warn("{} {}", __PRETTY_FUNCTION__, err.what());
+         spdlog::warn("{} {}", __PRETTY_FUNCTION__, err.what());
     }
 
     return result;
@@ -228,9 +233,26 @@ std::string xstudio::utility::uri_to_posix_path(const caf::uri &uri) {
     if (uri.path().data()) {
         // spdlog::warn("{} {}",uri.path().data(), uri_decode(uri.path().data()));
         std::string path = uri_decode(uri.path().data());
+#ifdef __linux__
         if (not path.empty() and path[0] != '/' and not uri.authority().empty()) {
             path = "/" + path;
         }
+#endif
+#ifdef _WIN32
+
+        std::size_t pos = path.find("/");
+        if (pos == 0) {
+            // Remove the leading /
+            path.erase(0, 1);
+        }
+        /*
+        // Remove the leading '[protocol]:' part
+        std::size_t pos = path.find(":");
+        if (pos != std::string::npos) {
+            path.erase(0, pos + 1); // +1 to erase the colon
+        }
+        */
+#endif
         return path;
     }
     return "";
@@ -365,7 +387,14 @@ caf::uri xstudio::utility::parse_cli_posix_path(
     const std::regex xstudio_prefix_shake(
         R"(^(.+\.)([-0-9x,]+)([#@]+)(\..+)$)", std::regex::optimize);
 
+#ifdef _WIN32
+    std::string abspath = path;
+    if (abspath[0] == '\\') {
+        abspath.erase(abspath.begin());
+    }
+#else
     const std::string abspath = fs::absolute(path);
+#endif
 
     if (std::regex_match(abspath.c_str(), m, xstudio_prefix_spec)) {
         uri        = posix_path_to_uri(m[1].str() + m[3].str());
@@ -430,9 +459,15 @@ caf::uri xstudio::utility::posix_path_to_uri(const std::string &path, const bool
     if (abspath) {
         auto pwd = get_env("PWD");
         if (pwd and not pwd->empty())
+#ifdef _WIN32
+            p = (fs::path(*pwd) / path).lexically_normal().string();
+        else
+	    p = (std::filesystem::current_path() / path).lexically_normal().string();
+#else
             p = fs::path(fs::path(*pwd) / path).lexically_normal();
         else
             p = fs::path(std::filesystem::current_path() / path).lexically_normal();
+#endif
     }
 
     // spdlog::warn("posix_path_to_uri: {} -> {}", path, p);
@@ -465,10 +500,19 @@ xstudio::utility::scan_posix_path(const std::string &path, const int depth) {
                         std::string(entry.path().filename())[0] == '.')
                         continue;
                     if (fs::is_directory(entry) && (depth > 0 || depth < 0)) {
+#ifdef _WIN32
+                        auto more = scan_posix_path(entry.path().string(), depth - 1);
+#else
                         auto more = scan_posix_path(entry.path(), depth - 1);
+#endif
                         items.insert(items.end(), more.begin(), more.end());
                     } else if (fs::is_regular_file(entry))
+#ifdef _WIN32
+                        files.push_back(
+                            std::regex_replace(entry.path().string(), std::regex("[\]"), "/"));
+#else
                         files.push_back(entry.path());
+#endif
                 }
                 auto file_items = uri_from_file_list(files);
                 items.insert(items.end(), file_items.begin(), file_items.end());
@@ -515,12 +559,19 @@ std::string xstudio::utility::filemanager_show_uris(const std::vector<caf::uri> 
 
 std::string xstudio::utility::get_host_name() {
     std::array<char, MAXHOSTNAMELEN> hostname{0};
-    gethostname(hostname.data(), hostname.size());
+    gethostname(hostname.data(), (int)hostname.size());
     return hostname.data();
 }
 
 std::string xstudio::utility::get_user_name() {
     std::string result;
+#ifdef _WIN32
+    TCHAR username[MAX_PATH];
+    DWORD size = MAX_PATH;
+    if (GetUserName(username, &size)) {
+        result = std::string(username);
+    }
+#else
     long strsize = sysconf(_SC_GETPW_R_SIZE_MAX);
     std::vector<char> buf;
 
@@ -536,6 +587,7 @@ std::string xstudio::utility::get_user_name() {
                 result = pw->pw_name;
         }
     }
+#endif
 
     return result;
 }
@@ -543,6 +595,17 @@ std::string xstudio::utility::get_user_name() {
 
 std::string xstudio::utility::expand_envvars(
     const std::string &src, const std::map<std::string, std::string> &additional) {
+
+#ifdef _WIN32
+#else
+    // some prefs have ${USERPROFILE} which is MS Windows only, on UNIX we want
+    // ${HOME}
+    if (src.find("${USERPROFILE}") != std::string::npos) {
+        std::string unix_home = utility::replace_once(src, "${USERPROFILE}", "${HOME}");
+        return expand_envvars(unix_home, additional);
+    }
+#endif
+
     // use regex to capture envs and replace.
     std::regex words_regex(R"(\$\{[^\}]+\})");
     auto env_begin = std::sregex_iterator(src.begin(), src.end(), words_regex);
@@ -583,6 +646,13 @@ std::string xstudio::utility::expand_envvars(
 
 std::string xstudio::utility::get_login_name() {
     std::string result;
+#ifdef _WIN32
+    TCHAR username[MAX_PATH];
+    DWORD size = MAX_PATH;
+    if (GetUserName(username, &size)) {
+        result = std::string(username);
+    }
+#else
     long strsize = sysconf(_SC_GETPW_R_SIZE_MAX);
     std::vector<char> buf;
 
@@ -595,6 +665,7 @@ std::string xstudio::utility::get_login_name() {
             result = pw->pw_name;
         }
     }
+#endif
 
     return result;
 }

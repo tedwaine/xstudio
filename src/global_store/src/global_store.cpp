@@ -71,8 +71,9 @@ bool xstudio::global_store::preference_load_defaults(
     bool result = false;
     try {
         for (const auto &entry : fs::directory_iterator(path)) {
+
             if (not fs::is_regular_file(entry.status()) or
-                not(entry.path().extension() == ".json")) {
+                not(get_path_extension(entry.path()) == ".json")) {
                 continue;
             }
 
@@ -124,7 +125,8 @@ void load_from_list(const std::string &path, std::vector<fs::path> &overrides) {
                         tmp = fs::canonical(rpath / tmp);
                     }
 
-                    if (fs::is_regular_file(tmp) and tmp.extension() == ".json") {
+                    if (fs::is_regular_file(tmp) and
+                        get_path_extension(tmp) == ".json") {
                         overrides.push_back(tmp);
                     } else {
                         spdlog::warn("Invalid pref entry {}", tmp.string());
@@ -214,9 +216,9 @@ void xstudio::global_store::preference_load_overrides(
         try {
             fs::path p(i);
             if (fs::is_regular_file(p)) {
-                if (p.extension() == ".json")
+                if (get_path_extension(p) == ".json")
                     overrides.push_back(p);
-                else if (p.extension() == ".lst")
+                else if (get_path_extension(p) == ".lst")
                     load_from_list(i, overrides);
                 else
                     throw std::runtime_error("Unrecognised extension");
@@ -224,7 +226,7 @@ void xstudio::global_store::preference_load_overrides(
                 std::set<fs::path> tmp;
                 for (const auto &entry : fs::directory_iterator(p)) {
                     if (not fs::is_regular_file(entry.status()) or
-                        not(entry.path().extension() == ".json")) {
+                        not(get_path_extension(entry.path()) == ".json")) {
                         continue;
                     }
                     tmp.insert(entry.path());

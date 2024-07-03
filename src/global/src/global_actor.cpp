@@ -39,7 +39,7 @@
 #elif __APPLE__
 // TO DO
 #elif _WIN32
-// TO DO
+#include "xstudio/audio/windows_audio_output_device.hpp"
 #endif
 
 using namespace caf;
@@ -138,9 +138,10 @@ void GlobalActor::init(const utility::JsonStore &prefs) {
     auto audio_out = spawn<audio::AudioOutputActor<audio::LinuxAudioOutputDevice>>();
     link_to(audio_out);
 #elif __APPLE__
-    // TO DO
+        // TO DO
 #elif _WIN32
-    // TO DO
+    auto audio_out = spawn<audio::AudioOutputActor<audio::WindowsAudioOutputDevice>>();
+    link_to(audio_out);
 #endif
 
     python_enabled_ = false;

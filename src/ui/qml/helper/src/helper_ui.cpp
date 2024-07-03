@@ -51,7 +51,8 @@ QString xstudio::ui::qml::actorToQString(actor_system &sys, const caf::actor &ac
 }
 
 caf::actor xstudio::ui::qml::actorFromQString(actor_system &sys, const QString &addr_str) {
-    return actorFromString(sys, StdFromQString(addr_str));
+    std::string addr = StdFromQString(addr_str);
+    return actorFromString(sys, addr);
 }
 
 
@@ -92,7 +93,7 @@ QString xstudio::ui::qml::getThumbnailURL(
                 *sys, colour_pipe, colour_pipeline::display_colour_transform_hash_atom_v, mp);
             hash = std::hash<std::string>{}(static_cast<const std::string &>(
                 display_transform_hash + mhash.first + std::to_string(mhash.second)));
-        } catch (const std::exception &err) {
+        } catch ([[maybe_unused]] const std::exception &err) {
             // spdlog::warn("{} {}", __PRETTY_FUNCTION__, err.what());
         }
 
@@ -105,7 +106,7 @@ QString xstudio::ui::qml::getThumbnailURL(
             (cache_to_disk ? "1" : "0"),
             hash));
         thumburl      = QStringFromStd(thumbstr);
-    } catch (const std::exception &err) {
+    } catch ([[maybe_unused]] const std::exception &err) {
         // spdlog::warn("{} {}", __PRETTY_FUNCTION__, err.what());
     }
 

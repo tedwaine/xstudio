@@ -5,10 +5,18 @@ macro(add_preference name path target)
                                                     ${CMAKE_BINARY_DIR}/bin/preference/${name}
                    DEPENDS ${path}/${name})
     if(INSTALL_XSTUDIO)
-	    install(FILES
-	    	${path}/${name}
-	    	DESTINATION share/xstudio/preference)
+		if(WIN32)
+			install(FILES
+			${path}/${name}
+			DESTINATION
+			${CMAKE_INSTALL_PREFIX}/preference)
+		else()
+			install(FILES
+			${path}/${name}
+			DESTINATION share/xstudio/preference)
+		endif()
     endif ()
+
 endmacro()
 
 macro(default_compile_options name)
@@ -84,7 +92,7 @@ macro(default_options_local name)
 		find_package(CAF COMPONENTS core io)
 	endif (NOT CAF_FOUND)
 
-	find_package(spdlog REQUIRED)
+	find_package(spdlog CONFIG REQUIRED)
 
 	default_compile_options(${name})
 	target_include_directories(${name}
@@ -118,7 +126,7 @@ macro(default_options_static name)
 		find_package(CAF COMPONENTS core io)
 	endif (NOT CAF_FOUND)
 
-	find_package(spdlog REQUIRED)
+	find_package(spdlog CONFIG REQUIRED)
 
 	default_compile_options(${name})
 	target_include_directories(${name}
@@ -158,6 +166,22 @@ macro(default_plugin_options name)
 	)
 	install(TARGETS ${name}
         LIBRARY DESTINATION share/xstudio/plugin)
+
+	if(WIN32)
+
+		#This will unfortunately also install the plugin in the /bin directory.  TODO: Figure out how to omit the plugin itself.
+		install(TARGETS ${PROJECT_NAME} RUNTIME DESTINATION ${CMAKE_INSTALL_PREFIX}/bin )
+		# We don't want the vcpkg install because it forces dependences; we just want the plugin.
+		_install(TARGETS ${PROJECT_NAME} RUNTIME DESTINATION ${CMAKE_INSTALL_PREFIX}/plugin)
+
+		#For interactive debugging, we want only the output dll to be copied to the build plugins folder.
+		add_custom_command(
+			TARGET ${PROJECT_NAME}
+			POST_BUILD
+			COMMAND ${CMAKE_COMMAND} -E copy "$<TARGET_FILE:${PROJECT_NAME}>" "${CMAKE_CURRENT_BINARY_DIR}/plugin"
+		)
+	endif()
+
 endmacro()
 
 if (BUILD_TESTING)
@@ -284,6 +308,15 @@ macro(create_component_with_alias NAME ALIASNAME VERSION DEPS)
 
 	set_target_properties(${PROJECT_NAME} PROPERTIES LINK_DEPENDS_NO_SHARED true)
 
+	if(_WIN32)
+	set(CMAKE_CXX_VISIBILITY_PRESET hidden)
+	set(CMAKE_VISIBILITY_INLINES_HIDDEN 1)
+	endif(_WIN32)
+
+	# Generate export header
+	include(GenerateExportHeader)
+	generate_export_header(${PROJECT_NAME})
+
 endmacro()
 
 macro(create_component_static NAME VERSION DEPS STATICDEPS)
@@ -384,11 +417,20 @@ macro(create_qml_component_with_alias NAME ALIASNAME VERSION DEPS EXTRAMOC)
 	add_library(${ALIASNAME} ALIAS ${PROJECT_NAME})
 	default_options_qt(${PROJECT_NAME})
 
+	# Generate export header
+	include(GenerateExportHeader)
+	generate_export_header(${PROJECT_NAME} EXPORT_FILE_NAME "${ROOT_DIR}/include/xstudio/ui/qml/${PROJECT_NAME}_export.h")
 	target_link_libraries(${PROJECT_NAME}
 		PUBLIC ${DEPS}
 	)
 
 	set_target_properties(${PROJECT_NAME} PROPERTIES LINK_DEPENDS_NO_SHARED true)
+	set_property(TARGET ${PROJECT_NAME} PROPERTY AUTOMOC ON)
+
+	## Add the directory containing the generated export header to the include directories
+	#target_include_directories(${PROJECT_NAME} 
+	#	PUBLIC ${CMAKE_BINARY_DIR}  # Include the build directory
+	#)
 
 endmacro()
 
@@ -419,6 +461,11 @@ macro(build_studio_plugins STUDIO)
 
 	endif()
 
+endmacro()
+
+
+macro(set_python_to_proper_build_type)
+	#TODO Resolve linking error when running debug build: https://github.com/pybind/pybind11/issues/3403
 endmacro()
 
 

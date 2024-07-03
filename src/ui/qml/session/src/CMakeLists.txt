@@ -3,8 +3,10 @@ SET(LINK_DEPS
 	Qt5::Core
 	Qt5::Test
 	xstudio::ui::qml::helper
+	xstudio::ui::qml::tag
 	xstudio::timeline
 	xstudio::utility
+	xstudio::session
 )
 
 SET(EXTRAMOC

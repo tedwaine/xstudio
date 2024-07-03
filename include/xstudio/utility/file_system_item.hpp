@@ -3,7 +3,10 @@
 #pragma once
 
 // #include <caf/type_id.hpp>
-#include <pwd.h>
+#ifdef _WIN32
+#else
+ #include <pwd.h>
+#endif
 #include <sys/stat.h>
 #include <filesystem>
 #include <list>

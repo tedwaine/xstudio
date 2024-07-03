@@ -239,13 +239,48 @@ bool AudioOutputControl::queue_samples_for_playing(
     playing_           = playing;
     bool result        = false;
 
+    /*
+    // Earlier attempt at resampling in queue; needs a more reliable sample rate info and needs sample rate from output device.
+    if (audio_frames.size()) {
+        auto audio_sample_rate = audio_frames.front()->sample_rate();
+        if (audio_sample_rate == 0) {
+            audio_sample_rate = audio_frames.back()->sample_rate();
+        }
+
+        if (audio_sample_rate == 0) {
+            // If we can't get the sample rate from anything, use the last best guess.
+            // This seems to happen 
+            audio_sample_rate = last_sample_rate_;
+        } else {
+            last_sample_rate_ = audio_sample_rate;
+        }
+
+        // If our audio card does not match the source rate, we need to respeed/repitch the samples.
+        if (audio_sample_rate and audio_sample_rate != 96000L) {
+            double sample_respeed = (double)audio_sample_rate / 96000.0;
+            playback_velocity_ *= sample_respeed;
+            audio_repitch_ = true;
+        }
+    }
+    */
+
     for (const auto &a : audio_frames) {
 
-        if (!a)
-            continue;
+        auto audio_frame = a;
+        // if we're not playing and the last audio buffer played is the same as
+        // the one we're receiving now we don't queue it for playing. This is because
+        // a viewport refresh (for e.g. exposure scrubbing) results in the same
+        // image frame being broadcast by the playhead
+        if (!audio_frame ||
+            (previous_buf_ && previous_buf_->media_key() == audio_frame->media_key()) ||
+            (current_buf_ && current_buf_->media_key() == audio_frame->media_key()) ||
+            !audio_frame->num_samples())
+        {   
 
-        // mutable copy of the ptr
-        media_reader::AudioBufPtr audio_frame = a;
+            //spdlog::info("Audio frame skipped due to either being null, matching "
+            //              "previous/current buffer or having no samples.");
+            continue;
+         }
 
         // xstudio stores a frame of audio samples for every video frame for any
         // given source (if the source has no video it is assigned a 'virtual' video
@@ -260,16 +295,18 @@ bool AudioOutputControl::queue_samples_for_playing(
 
         // have we already got these audio samples in our queue? If so erase and
         // add back in to update the key
-        for (auto p = sample_data_.begin(); p != sample_data_.end(); ++p) {
-            if (p->second->media_key() == audio_frame->media_key()) {
-                sample_data_.erase(p);
-                break;
+        if (false) {
+            for (auto p = sample_data_.begin(); p != sample_data_.end(); ++p) {
+                if (p->second->media_key() == audio_frame->media_key()) {
+                    sample_data_.erase(p);
+                    break;
+                }
             }
         }
 
-        if (audio_repitch_ && velocity != 1.0f) {
-            audio_frame =
-                super_simple_respeed_audio_buffer<int16_t>(audio_frame, fabs(velocity));
+        if (audio_repitch_ && playback_velocity_ != 1.0f) {
+            audio_frame = super_simple_respeed_audio_buffer<int16_t>(
+                audio_frame, fabs(playback_velocity_));
         }
 
         if (!forwards) {
