@@ -61,8 +61,6 @@ namespace ui {
             const bool auto_repeat,
             caf::actor keypress_monitor);
 
-        static std::map<int, std::string> key_names;
-
         static void
         sequence_to_key_and_modifier(const std::string &sequence, int &keycode, int &modifier);
 
@@ -80,11 +78,12 @@ namespace ui {
         bool auto_repeat_;
         std::vector<std::pair<caf::actor_addr, std::string>> watchers_;
 
+    public: 
     // This is a straight clone of the Qt::Key enums but instead we provide string
     // names for each key. The reason is that the actual key press event comes from
     // qt and we pass the qt key ID - here in xSTUDIO backend we don't want
     // any qt dependency hence this map.
-    inline std::map<int, std::string> Hotkey::key_names = {
+    inline static const std::map<int, std::string> key_names = {
         {0x01000000, "Escape"},
         {0x01000001, "Tab"},
         {0x01000002, "Backtab"},

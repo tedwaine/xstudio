@@ -106,7 +106,8 @@ class AudioOutputDeviceActor : public caf::event_based_actor {
                               // continue the loop
                               if (playing_) {
                                   anon_send(actor_cast<caf::actor>(this), push_samples_atom_v);
-                              }                            }
+                              }                            
+                            }
                         },
                         [=](caf::error &err) mutable { waiting_for_samples_ = false; });
             }

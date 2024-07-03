@@ -69,7 +69,6 @@ CAF_POP_WARNINGS
 #include "xstudio/ui/qml/log_ui.hpp"                 //NOLINT
 #include "xstudio/ui/qml/model_data_ui.hpp"          //NOLINT
 #include "xstudio/ui/qml/module_data_ui.hpp"         //NOLINT
-#include "xstudio/ui/qml/module_menu_ui.hpp"         //NOLINT
 #include "xstudio/ui/qml/qml_viewport.hpp"           //NOLINT
 #include "xstudio/ui/qml/session_model_ui.hpp"       //NOLINT
 #include "xstudio/ui/qml/shotgun_provider_ui.hpp"

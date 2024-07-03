@@ -266,7 +266,7 @@ namespace utility {
         return sig;
     }
 
-    inline std::string xstudio_root(const std::string &append_path) {
+    inline std::string xstudio_root(const std::string &append_path = "") {
         auto root = get_env("XSTUDIO_ROOT");
 
         std::string fallback_root;

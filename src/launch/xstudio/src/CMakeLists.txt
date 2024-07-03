@@ -51,7 +51,7 @@ target_link_libraries(${PROJECT_NAME}
 		xstudio::ui::qml::global_store
 		xstudio::ui::qml::helper
 		xstudio::ui::qml::log
-		xstudio::ui::qml::model_data
+		xstudio::ui::model_data
 		xstudio::ui::qml::session
 		xstudio::ui::qml::studio
 		xstudio::ui::qml::tag
