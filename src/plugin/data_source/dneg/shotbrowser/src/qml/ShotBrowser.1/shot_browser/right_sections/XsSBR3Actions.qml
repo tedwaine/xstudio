@@ -12,39 +12,36 @@ import xStudioReskin 1.0
 import ShotBrowser 1.0
 import xstudio.qml.helpers 1.0
 
-Rectangle{
-    color: "transparent" //panelColor
+RowLayout {
+    spacing: 2
+    property int parentWidth: width
+    readonly property int cellWidth: parentWidth / children.length
 
-    property real itemHeight: XsStyleSheet.widgetStdHeight
+    XsPrimaryButton{
+        Layout.fillHeight: true
+        Layout.preferredWidth: cellWidth
+        text: "Add"
+        onClicked: {
+            if(resultsBaseModel.groupId != helpers.QVariantFromUuidString("087c4ff5-2da0-4e54-afcf-c7914a247fae"))
+                ShotBrowserHelpers.addToCurrent(resultsSelectionModel.selectedIndexes, false)
+            else
+                ShotBrowserHelpers.addSequencesToNewPlaylist(resultsSelectionModel.selectedIndexes)
+        }
+    }
 
-    RowLayout {
-        anchors.fill: parent
-        spacing: buttonSpacing
+    XsPrimaryButton{
+        Layout.fillHeight: true
+        Layout.preferredWidth: cellWidth
+        text: "Replace"
+        onClicked: ShotBrowserHelpers.replaceSelectedResults(resultsSelectionModel.selectedIndexes)
+        enabled: resultsBaseModel.groupId != helpers.QVariantFromUuidString("087c4ff5-2da0-4e54-afcf-c7914a247fae")
+    }
 
-        XsPrimaryButton{
-            Layout.preferredWidth: parent.width / parent.children.length
-            Layout.preferredHeight: itemHeight
-            text: "Add"
-            onClicked: {
-                if(resultsBaseModel.groupId != helpers.QVariantFromUuidString("087c4ff5-2da0-4e54-afcf-c7914a247fae"))
-                    ShotBrowserHelpers.addToCurrent(resultsSelectionModel.selectedIndexes, false)
-                else
-                    ShotBrowserHelpers.addSequencesToNewPlaylist(resultsSelectionModel.selectedIndexes)
-            }
-        }
-        XsPrimaryButton{
-            Layout.preferredWidth: parent.width / parent.children.length
-            Layout.preferredHeight: itemHeight
-            text: "Replace"
-            onClicked: ShotBrowserHelpers.replaceSelectedResults(resultsSelectionModel.selectedIndexes)
-            enabled: resultsBaseModel.groupId != helpers.QVariantFromUuidString("087c4ff5-2da0-4e54-afcf-c7914a247fae")
-        }
-        XsPrimaryButton{
-            Layout.preferredWidth: parent.width / parent.children.length
-            Layout.preferredHeight: itemHeight
-            text: "Compare"
-            enabled: resultsBaseModel.groupId != helpers.QVariantFromUuidString("087c4ff5-2da0-4e54-afcf-c7914a247fae")
-            onClicked: ShotBrowserHelpers.compareSelectedResults(resultsSelectionModel.selectedIndexes)
-        }
+    XsPrimaryButton{
+        Layout.fillHeight: true
+        Layout.preferredWidth: cellWidth
+        text: "Compare"
+        enabled: resultsBaseModel.groupId != helpers.QVariantFromUuidString("087c4ff5-2da0-4e54-afcf-c7914a247fae")
+        onClicked: ShotBrowserHelpers.compareSelectedResults(resultsSelectionModel.selectedIndexes)
     }
 }

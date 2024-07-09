@@ -67,7 +67,8 @@ UIModelData::UIModelData(QObject *parent) : super(parent) {
 
 void UIModelData::setModelDataName(QString name) {
 
-    if (model_name_ != StdFromQString(name)) {
+    std::string m_name = StdFromQString(name);
+    if (model_name_ != m_name) {
 
         if (model_name_ != "") {
             // stops us from watching the old model
@@ -79,7 +80,7 @@ void UIModelData::setModelDataName(QString name) {
                 as_actor());
         }
 
-        model_name_ = StdFromQString(name);
+        model_name_ = m_name;
 
         caf::scoped_actor sys{self()->home_system()};
 
@@ -176,7 +177,8 @@ void UIModelData::init(caf::actor_system &system) {
                                 emit dataChanged(
                                     idx,
                                     idx,
-                                    QVector<int>({Roles::LASTROLE + static_cast<int>(i)}));
+                                    QVector<int>({static_cast<int>(
+                                        Roles::LASTROLE + static_cast<int>(i))}));
                                 break;
                             }
                         }
@@ -247,7 +249,8 @@ bool UIModelData::setData(const QModelIndex &index, const QVariant &value, int r
                         .toJson(QJsonDocument::Compact)
                         .constData());
             } else if (std::string(value.typeName()) == "QString") {
-                j = nlohmann::json::parse(StdFromQString(value.toString()));
+                std::string value_string = StdFromQString(value.toString());
+                j                        = nlohmann::json::parse(value_string);
             } else {
                 j = nlohmann::json::parse(QJsonDocument::fromVariant(value)
                                               .toJson(QJsonDocument::Compact)
@@ -568,6 +571,27 @@ QVariant ViewsModelData::view_qml_source(QString view_name) {
     }
     return QVariant();
 }
+
+PopoutWindowsData::PopoutWindowsData(QObject *parent) : UIModelData(parent) {
+
+    setRoleNames(std::vector<std::string>{
+        "view_name", "view_qml_source", "icon_path", "button_position", "window_is_visible"});
+    setModelDataName("popout windows");
+}
+
+void PopoutWindowsData::register_popout_window(
+    QString name, QString qml_path, QString icon_path, float button_position) {
+
+    auto rc = rowCount(index(-1, -1)); // QModelIndex());
+    insertRowsSync(rc, 1, index(-1, -1));
+    QModelIndex view_reg_index = index(rc, 0, index(-1, -1));
+    std::ignore                = set(view_reg_index, QVariant(name), QString("view_name"));
+    std::ignore                = set(view_reg_index, QVariant(icon_path), QString("icon_path"));
+    std::ignore = set(view_reg_index, QVariant(qml_path), QString("view_qml_source"));
+    std::ignore = set(view_reg_index, QVariant(button_position), QString("button_position"));
+    std::ignore = set(view_reg_index, QVariant(false), QString("window_is_visible"));
+}
+
 
 SingletonsModelData::SingletonsModelData(QObject *parent) : UIModelData(parent) {
 
@@ -1001,7 +1025,8 @@ void MenuModelItem::insertIntoMenuModel() {
 
             utility::JsonStore menu_item_data;
 
-            menu_item_data["name"]        = StdFromQString(text_);
+            std::string name_string       = StdFromQString(text_);
+            menu_item_data["name"]        = name_string;
             menu_item_data["hotkey_uuid"] = UuidFromQUuid(hotkey_uuid_);
 
             if (!current_choice_.isEmpty())
@@ -1064,10 +1089,11 @@ void MenuModelItem::insertIntoMenuModel() {
 
             if (!model_entry_id_.is_null() && item_id != model_entry_id_) {
                 // NEEDS OPTIMISATION!!!! THIS GETS CALLED LIKE MAD AS MENU_ITEMS BUILD
+                std::string menu_name_string = StdFromQString(menu_name_);
                 anon_send(
                     central_models_data_actor,
                     ui::model_data::remove_node_atom_v,
-                    StdFromQString(menu_name_),
+                    menu_name_string,
                     model_entry_id_);
             }
             model_entry_id_ = item_id;
@@ -1085,11 +1111,13 @@ void MenuModelItem::insertIntoMenuModel() {
             }
 
 
+            std::string menu_name_string = StdFromQString(menu_name_);
+            std::string menu_path_string = StdFromQString(menu_path_);
             anon_send(
                 central_models_data_actor,
                 ui::model_data::insert_or_update_menu_node_atom_v,
-                StdFromQString(menu_name_),
-                StdFromQString(menu_path_),
+                menu_name_string,
+                menu_path_string,
                 menu_item_data,
                 as_actor());
 

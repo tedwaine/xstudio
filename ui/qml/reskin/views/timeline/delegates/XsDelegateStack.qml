@@ -37,6 +37,10 @@ DelegateChoice {
 			property real trackHeaderWidth: ListView.view.trackHeaderWidth
             property var setTrackHeaderWidth: ListView.view.setTrackHeaderWidth
 
+            property var draggingStarted: ListView.view.draggingStarted
+            property var dragging: ListView.view.dragging
+            property var draggingStopped: ListView.view.draggingStopped
+
             property string itemFlag: flagColourRole != "" ? flagColourRole : ListView.view.itemFlag
 
 			opacity: enabledRole ? 1.0 : 0.2
@@ -418,6 +422,9 @@ DelegateChoice {
 						    property var setSizerHovered: control.setSizerHovered
 						    property var setSizerDragging: control.setSizerDragging
 
+		                    property var draggingStarted: control.draggingStarted
+                            property var dragging: control.dragging
+				            property var draggingStopped: control.draggingStopped
 
 		        			footerPositioning: ListView.InlineFooter
 					        footer: Rectangle {
@@ -425,12 +432,14 @@ DelegateChoice {
 		        	            	imgSrc: "qrc:/icons/add.svg"
 		        	            	text: "Add Video Track"
 		        	            	width: trackHeaderWidth -4 - 80
-		        	            	height: itemHeight
+		        	            	height: itemHeight * 0.8
 		        	            	anchors.left: parent.left
 		        	            	anchors.bottom: parent.bottom
+									anchors.bottomMargin: 4
+
 		        	            	showBoth: true
 		        	            	onClicked: theTimeline.addTrack("Video Track")
-		        	            	opacity: 0.8
+		        	            	opacity: hovered ? 1.0 : 0.4
 		        	            }
 
 								color: timelineBackground
@@ -522,6 +531,10 @@ DelegateChoice {
 						    property var setSizerHovered: control.setSizerHovered
 						    property var setSizerDragging: control.setSizerDragging
 
+		                    property var draggingStarted: control.draggingStarted
+                            property var dragging: control.dragging
+				            property var draggingStopped: control.draggingStopped
+
 					        displaced: Transition {
 					            NumberAnimation {
 					                properties: "x,y"
@@ -535,12 +548,13 @@ DelegateChoice {
 		        	            	imgSrc: "qrc:/icons/add.svg"
 		        	            	text: "Add Audio Track"
 		        	            	width: trackHeaderWidth-4 - 80
-		        	            	height: itemHeight
+		        	            	height: itemHeight * 0.8
 		        	            	anchors.left: parent.left
 		        	            	anchors.top: parent.top
+		        	            	anchors.topMargin: 4
 		        	            	onClicked: theTimeline.addTrack("Audio Track")
 		        	            	showBoth: true
-		        	            	opacity: 0.8
+		        	            	opacity: hovered ? 1.0 : 0.4
 		        	            }
 
 								color: timelineBackground

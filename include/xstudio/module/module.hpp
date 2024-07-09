@@ -345,8 +345,15 @@ namespace module {
         std::vector<AttributePtr> attributes_;
 
         // Call this code to expose a UI panel in xSTUDIO's panels menu. See
-        // annotations tool for an example.
-        void register_ui_panel_qml(const std::string &panel_name, const std::string &qml_code);
+        // annotations tool for an example. To allow the panel to be shown in
+        // a floating window, provide an incon path and a position within
+        // the pop-out button shelf (top left of viewport panels) for it to
+        // appear in.
+        void register_ui_panel_qml(
+            const std::string &panel_name,
+            const std::string &qml_code,
+            const std::string &viewport_popout_button_icon_path = "",
+            const float &viewport_popout_button_position        = -1.0f);
 
         // Call this code to expose a widget that can dock to the left/right or
         // top/bottom of the viewport

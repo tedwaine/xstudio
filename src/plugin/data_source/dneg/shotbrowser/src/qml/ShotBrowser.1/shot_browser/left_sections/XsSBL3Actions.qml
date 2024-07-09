@@ -140,84 +140,64 @@ Rectangle{
         delegate:  quickCombo.delegate
     }
 
-    RowLayout {
-        width: parent.width - buttonSpacing*2
-        height: parent.height - buttonSpacing*2
-        anchors.centerIn: parent
+    ColumnLayout {
+        anchors.fill: parent
+        anchors.rightMargin: buttonSpacing
+        anchors.leftMargin: buttonSpacing
         spacing: buttonSpacing*4
 
-        XsText{
+        RowLayout {
             Layout.fillWidth: true
-            Layout.minimumWidth: 20
-            Layout.preferredWidth: 100
-            Layout.maximumWidth: 120
-            Layout.fillHeight: true
-            text: "Quick Load:"
-            elide: Text.ElideRight
+            Layout.preferredHeight: parent.height/2
+            spacing: buttonSpacing*4
+
+            XsText{
+                text: "Quick Load:"
+                elide: Text.ElideRight
+                Layout.fillHeight: true
+            }
+
+            XsComboBox {
+                Layout.fillWidth: true
+                Layout.fillHeight: true
+
+                id: quickCombo
+                model: quickModel
+                textRole: "nameRole"
+                currentIndex: 0
+                onActivated: prefs.quickLoad = currentText
+                onCountChanged: currentIndex = find(prefs.quickLoad)
+            }
         }
 
-        Item{
+        RowLayout {
+            spacing: buttonSpacing*4
             Layout.fillWidth: true
-            Layout.minimumWidth: 120
-            Layout.preferredWidth: 120
-            Layout.fillHeight: true
+            Layout.preferredHeight: parent.height/2
 
-            ColumnLayout {
-                anchors.fill: parent
-                spacing: buttonSpacing
-
-                Item{
-                    Layout.fillWidth: true
-                    Layout.preferredHeight: itemHeight
-
-                    XsComboBox {
-                        id: quickCombo
-                        model: quickModel
-                        textRole: "nameRole"
-                        currentIndex: 0
-                        width: parent.width
-                        height: itemHeight
-                        anchors.verticalCenter: parent.verticalCenter
-                        onActivated: prefs.quickLoad = currentText
-                        onCountChanged: currentIndex = find(prefs.quickLoad)
-                    }
+            XsPrimaryButton{
+                Layout.fillWidth: true
+                Layout.fillHeight: true
+                text: "Add"
+                onClicked: {
+                    if(quickCombo.currentIndex != -1)
+                        executeQuery(
+                            quickModel.notifyModel.mapToSource(quickModel.modelIndex(quickCombo.currentIndex)),
+                             "playlist"
+                        )
                 }
+            }
 
-
-                Item{
-                    Layout.fillWidth: true
-                    Layout.preferredHeight: itemHeight
-
-                    RowLayout {
-                        anchors.fill: parent
-                        spacing: buttonSpacing
-
-                        XsPrimaryButton{
-                            Layout.preferredWidth: parent.width/2
-                            Layout.preferredHeight: itemHeight
-                            text: "Add"
-                            onClicked: {
-                                if(quickCombo.currentIndex != -1)
-                                    executeQuery(
-                                        quickModel.notifyModel.mapToSource(quickModel.modelIndex(quickCombo.currentIndex)),
-                                         "playlist"
-                                    )
-                            }
-                        }
-
-                        XsPrimaryButton{
-                            Layout.preferredWidth: parent.width/2
-                            Layout.preferredHeight: itemHeight
-                            text: "Conform To New Sequence"
-                            onClicked: {
-                                if(quickCombo.currentIndex != -1)
-                                    executeQuery(
-                                        quickModel.notifyModel.mapToSource(quickModel.modelIndex(quickCombo.currentIndex)),
-                                         "sequence"
-                                    )
-                            }
-                        }
-                    }
+            XsPrimaryButton{
+                Layout.fillWidth: true
+                Layout.fillHeight: true
+                text: "Conform To New Sequence"
+                onClicked: {
+                    if(quickCombo.currentIndex != -1)
+                        executeQuery(
+                            quickModel.notifyModel.mapToSource(quickModel.modelIndex(quickCombo.currentIndex)),
+                             "sequence"
+                        )
                 }
             }
         }

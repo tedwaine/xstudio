@@ -39,11 +39,13 @@ Bookmark::Bookmark(const JsonStore &jsn)
     if (jsn.count("note") and not jsn["note"].is_null())
         note_ = std::make_shared<Note>(jsn["note"]);
 
-    start_    = jsn.value("start", timebase::k_flicks_low);
-    duration_ = jsn.value("duration", timebase::k_flicks_max);
-    enabled_  = jsn.value("enabled", true);
-    owner_    = jsn.value("owner", utility::Uuid());
-    visible_  = jsn.value("visible", true);
+    start_     = jsn.value("start", timebase::k_flicks_low);
+    duration_  = jsn.value("duration", timebase::k_flicks_max);
+    enabled_   = jsn.value("enabled", true);
+    owner_     = jsn.value("owner", utility::Uuid());
+    visible_   = jsn.value("visible", true);
+    user_data_ = jsn.value("user_data", utility::JsonStore());
+    created_   = jsn.value("created", utility::sysclock::now());
 
     // N.B. AnnotationBase creation requires caf api comms with plugins and
     // is handled by the bookmark actor
@@ -72,11 +74,13 @@ JsonStore Bookmark::serialise() const {
         jsn["annotation"]["plugin_uuid"] = plugin_uuid;
     } else
         jsn["annotation"] = nullptr;
-    jsn["start"]    = start_;
-    jsn["duration"] = duration_;
-    jsn["enabled"]  = enabled_;
-    jsn["owner"]    = owner_;
-    jsn["visible"]  = visible_;
+    jsn["start"]     = start_;
+    jsn["duration"]  = duration_;
+    jsn["enabled"]   = enabled_;
+    jsn["owner"]     = owner_;
+    jsn["visible"]   = visible_;
+    jsn["user_data"] = user_data_;
+    jsn["created"]   = created_;
 
     return jsn;
 }
@@ -112,6 +116,16 @@ bool Bookmark::update(const BookmarkDetail &detail) {
     if (detail.duration_) {
         duration_ = *(detail.duration_);
         changed   = true;
+    }
+
+    if (detail.user_data_) {
+        user_data_ = *(detail.user_data_);
+        changed    = true;
+    }
+
+    if (detail.created_) {
+        created_ = *(detail.created_);
+        changed  = true;
     }
 
     if (detail.author_) {
@@ -209,6 +223,8 @@ BookmarkDetail &BookmarkDetail::operator=(const Bookmark &other) {
     visible_   = other.visible_;
     start_     = other.start_;
     duration_  = other.duration_;
+    user_data_ = other.user_data_;
+    created_   = other.created_;
 
     has_note_       = other.has_note();
     has_annotation_ = other.has_annotation();

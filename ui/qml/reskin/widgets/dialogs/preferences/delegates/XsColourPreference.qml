@@ -138,7 +138,7 @@ RowLayout { id: color_pref
                                 height: 7
                                 radius: 3.5
                             }
-                            Text {
+                            XsText {
                                 id: labelDiv
                                 text: name ? name : "Unknown" //+ (sub_menu && !is_in_bar ? "   >>" : "")
                                 font.pixelSize: XsStyleSheet.fontSize

@@ -8,7 +8,7 @@ import xStudioReskin 1.0
 import ShotBrowser 1.0
 
 Rectangle{
-    color: bgColorNormal
+    color: XsStyleSheet.widgetBgNormalColor
 
     property bool isHovered: thumbMArea.containsMouse ||
             dateToolTip.containsMouse ||
@@ -28,10 +28,10 @@ Rectangle{
         anchors.fill: parent
         anchors.margins:
         {
-            top: itemSpacing
+            top: 1
             bottom: 0
-            left: itemSpacing*2
-            right: itemSpacing*4
+            left: 2
+            right: 4
         }
         spacing: 0
 
@@ -56,7 +56,7 @@ Rectangle{
                 height: thumbnail.height
                 anchors.centerIn: parent
                 wrapMode: Text.WordWrap
-                font.pixelSize: textSize //*1.2
+                font.pixelSize: XsStyleSheet.fontSize
                 font.weight: Font.Black
                 opacity: parent.failed? 0.4 : 0.9
                 color: XsStyleSheet.secondaryTextColor
@@ -106,7 +106,7 @@ Rectangle{
 
         NotesHistoryDetailRow{ id: dateDiv
             Layout.fillWidth: true
-            Layout.preferredHeight: itemHeight/1.5
+            Layout.preferredHeight: XsStyleSheet.widgetStdHeight/1.5
             titleText: "Date :"
             // valueText: "Nov 30 2023"
 
@@ -127,7 +127,7 @@ Rectangle{
 
         NotesHistoryDetailRow{ id: timeDiv
             Layout.fillWidth: true
-            Layout.preferredHeight: itemHeight/1.5
+            Layout.preferredHeight: XsStyleSheet.widgetStdHeight/1.5
             titleText: "Time :"
             // valueText: "10:01 AM IST"
 
@@ -142,29 +142,29 @@ Rectangle{
 
         NotesHistoryDetailRow{ id: typeDiv
             Layout.fillWidth: true
-            Layout.preferredHeight: itemHeight/1.5
+            Layout.preferredHeight: XsStyleSheet.widgetStdHeight/1.5
             titleText: "Type :"
             valueText: noteTypeRole ? noteTypeRole : ""
-            valueColor: palette.text
+            textColor: palette.text
         }
 
         NotesHistoryDetailRow{ id: artistDiv
             Layout.fillWidth: true
-            Layout.preferredHeight: itemHeight/1.5
+            Layout.preferredHeight: XsStyleSheet.widgetStdHeight/1.5
             titleText: "Artist :"
             valueText: artistRole ? artistRole : ""
         }
 
         NotesHistoryDetailRow{ id: fromDiv
             Layout.fillWidth: true
-            Layout.preferredHeight: itemHeight/1.5
+            Layout.preferredHeight: XsStyleSheet.widgetStdHeight/1.5
             titleText: "From :"
             valueText: createdByRole ? createdByRole : ""
         }
 
         NotesHistoryDetailRow{ id: toDiv
             Layout.fillWidth: true
-            Layout.preferredHeight: itemHeight/1.5
+            Layout.preferredHeight: XsStyleSheet.widgetStdHeight/1.5
             titleText: "To :"
             valueText: addressingRole ? addressingRole.join("\n") : ""
         }

@@ -472,7 +472,7 @@ void GlobalUIModelData::set_data(
             broadcast_whole_model_data(model_name);
         }
 
-    } catch (std::exception &e) {
+    } catch ([[maybe_unused]] std::exception &e) {
         // spdlog::warn("{} {}", __PRETTY_FUNCTION__, e.what());
     }
 }
@@ -552,7 +552,7 @@ void GlobalUIModelData::set_data(
             }
         }
 
-    } catch (std::exception &e) {
+    } catch ([[maybe_unused]] std::exception &e) {
         // spdlog::warn("{} {}", __PRETTY_FUNCTION__, e.what());
     }
 }
@@ -560,11 +560,12 @@ void GlobalUIModelData::set_data(
 void GlobalUIModelData::insert_attribute_data_into_model(
     const std::string &model_name,
     const utility::Uuid &attribute_uuid,
-    const utility::JsonStore &attribute_data,
+    const utility::JsonStore &attr_data,
     const std::string &sort_role,
     caf::actor client) {
 
-    auto p = models_.find(model_name);
+    const utility::JsonStore attribute_data = attr_data;
+    auto p                                  = models_.find(model_name);
     if (p != models_.end()) {
 
         // model with this name already exists. Simply add client and send the
@@ -611,7 +612,7 @@ void GlobalUIModelData::insert_attribute_data_into_model(
             }
         }
 
-    } catch (std::exception &e) {
+    } catch ([[maybe_unused]] std::exception &e) {
         // exception is thrown if we fail to find a match
         if (!sort_role.empty() && attribute_data.contains(sort_role)) {
             const auto &sort_v = attribute_data[sort_role];

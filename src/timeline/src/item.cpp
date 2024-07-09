@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
 #include <algorithm>
+#include <nlohmann/json.hpp>
 
 #include "xstudio/timeline/item.hpp"
 #include "xstudio/utility/helpers.hpp"
@@ -1083,7 +1084,7 @@ void Item::redo(const utility::JsonStore &event) {
 bool Item::process_event(const utility::JsonStore &event) {
     // spdlog::warn("{}", event.dump(2));
 
-    if (event.at("uuid") == uuid_addr_.first) {
+    if (Uuid(event.at("uuid")) == uuid_addr_.first) {
         if (item_pre_event_callback_)
             item_pre_event_callback_(event, *this);
 

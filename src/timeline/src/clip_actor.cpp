@@ -95,6 +95,44 @@ ClipActor::ClipActor(
     init();
 }
 
+void ClipActor::link_media(caf::typed_response_promise<bool> rp, const UuidActor &media) {
+
+    // spdlog::warn("link_media_atom {}", to_string(media));
+    auto old_media_actor = caf::actor_cast<caf::actor>(media_);
+    if (old_media_actor) {
+        demonitor(old_media_actor);
+        leave_event_group(this, old_media_actor);
+    }
+
+    monitor(media.actor());
+    join_event_group(this, media.actor());
+    media_ = caf::actor_cast<caf::actor_addr>(media.actor());
+
+    auto jsn = base_.set_media_uuid(media.uuid());
+    if (not jsn.is_null())
+        send(event_group_, event_atom_v, item_atom_v, jsn, false);
+
+    // clear ptr cache
+    image_ptr_cache_.clear();
+    audio_ptr_cache_.clear();
+
+    // force update ?
+    // cache available range ?
+    delayed_send(
+        caf::actor_cast<caf::actor>(this),
+        std::chrono::milliseconds(100),
+        media::acquire_media_detail_atom_v);
+
+    // replace clip name ?
+    request(media.actor(), infinite, name_atom_v)
+        .then(
+            [=](const std::string &value) mutable { anon_send(this, item_name_atom_v, value); },
+            [=](const caf::error &err) mutable {
+                spdlog::warn("{} {}", __PRETTY_FUNCTION__, to_string(err));
+            });
+
+    rp.deliver(true);
+}
 
 void ClipActor::init() {
     print_on_create(this, base_.name());
@@ -124,44 +162,10 @@ void ClipActor::init() {
         base_.make_get_detail_handler(this, event_group_),
 
         // replace current media..
-        [=](link_media_atom, const UuidActor &media) -> bool {
-            // spdlog::warn("link_media_atom {}", to_string(media));
-            auto old_media_actor = caf::actor_cast<caf::actor>(media_);
-            if (old_media_actor) {
-                demonitor(old_media_actor);
-                leave_event_group(this, old_media_actor);
-            }
-
-            monitor(media.actor());
-            join_event_group(this, media.actor());
-            media_ = caf::actor_cast<caf::actor_addr>(media.actor());
-
-            auto jsn = base_.set_media_uuid(media.uuid());
-            if (not jsn.is_null())
-                send(event_group_, event_atom_v, item_atom_v, jsn, false);
-
-            // clear ptr cache
-            image_ptr_cache_.clear();
-            audio_ptr_cache_.clear();
-
-            // force update ?
-            // cache available range ?
-            delayed_send(
-                caf::actor_cast<caf::actor>(this),
-                std::chrono::milliseconds(100),
-                media::acquire_media_detail_atom_v);
-
-            // replace clip name ?
-            request(media.actor(), infinite, name_atom_v)
-                .then(
-                    [=](const std::string &value) mutable {
-                        anon_send(this, item_name_atom_v, value);
-                    },
-                    [=](const caf::error &err) mutable {
-                        spdlog::warn("{} {}", __PRETTY_FUNCTION__, to_string(err));
-                    });
-
-            return true;
+        [=](link_media_atom, const UuidActor &media) -> result<bool> {
+            auto rp = make_response_promise<bool>();
+            link_media(rp, media);
+            return rp;
         },
 
         [=](link_media_atom, const UuidActorMap &media, const bool force) -> result<bool> {
@@ -169,10 +173,7 @@ void ClipActor::init() {
 
             if (media.count(base_.media_uuid())) {
                 if (force) {
-                    rp.delegate(
-                        caf::actor_cast<caf::actor>(this),
-                        link_media_atom_v,
-                        UuidActor(base_.media_uuid(), media.at(base_.media_uuid())));
+                    link_media(rp, UuidActor(base_.media_uuid(), media.at(base_.media_uuid())));
                 } else {
                     auto media_actor = media.at(base_.media_uuid());
                     auto addr        = caf::actor_cast<caf::actor_addr>(media_actor);
@@ -200,9 +201,8 @@ void ClipActor::init() {
             if (swap.count(base_.media_uuid())) {
                 // spdlog::warn("{} {} {}", base_.item().name(), to_string(base_.media_uuid()),
                 // to_string(media.at(swap.at(base_.media_uuid()))));
-                rp.delegate(
-                    caf::actor_cast<caf::actor>(this),
-                    link_media_atom_v,
+                link_media(
+                    rp,
                     UuidActor(
                         swap.at(base_.media_uuid()), media.at(swap.at(base_.media_uuid()))));
             } else

@@ -177,6 +177,10 @@ void OpenGLStrokeRenderer::resize_ssbo(std::size_t size) {
 void OpenGLStrokeRenderer::upload_ssbo(const std::vector<Imath::V2f> &points) {
 
     const std::size_t size = points.size() * sizeof(Imath::V2f);
+    if (size == 0) {
+        spdlog::warn("Stroke renderer trying to allocate zero sized SSBO");
+    }
+
     resize_ssbo(size);
 
     const char *data  = reinterpret_cast<const char *>(points.data());

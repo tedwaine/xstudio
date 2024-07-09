@@ -388,7 +388,7 @@ function selectTimelineCallback(playlist_index, uuids, wait=4) {
 
 			// this puts the timeline into timeline panels
 			// give timeline time to prepare or it gets upset.
-			delayCallback(3000, function() {
+			delayCallback(1000, function() {
 				sessionSelectionModel.setCurrentIndex(
 					helpers.makePersistent(tindex),
 					ItemSelectionModel.ClearAndSelect)

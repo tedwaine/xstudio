@@ -18,8 +18,6 @@
 #  CAF_LIBRARY_$C         Library file for component $C
 #  CAF_INCLUDE_DIR_$C     Include path for component $C
 
-# set(CAF_ROOT_DIR "/u/ted/bob/install/actor_framework")
-
 if(CAF_FIND_COMPONENTS STREQUAL "")
   message(FATAL_ERROR "FindCAF requires at least one COMPONENT.")
 endif()

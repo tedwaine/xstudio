@@ -187,7 +187,7 @@ QModelIndexList SessionModel::getTimelineClipIndexesFromRect(
             if (skipLocked and i.get().locked())
                 continue;
 
-            if (cright < dleft or cbottom < dtop or cleft > dright or ctop > dbottom)
+            if (cright <= dleft or cbottom <= dtop or cleft >= dright or ctop >= dbottom)
                 continue;
 
             result.push_back(searchRecursive(
@@ -597,6 +597,7 @@ QFuture<bool> SessionModel::redoFuture(const QModelIndex &index) {
 
 // trigger actor creation
 void SessionModel::item_event_callback(const utility::JsonStore &event, timeline::Item &item) {
+    auto debug = false;
     try {
         auto index = searchRecursive(
             QVariant::fromValue(QUuidFromUuid(event.at("uuid").get<Uuid>())),
@@ -605,12 +606,17 @@ void SessionModel::item_event_callback(const utility::JsonStore &event, timeline
             0,
             -1);
 
+        if (not index.isValid())
+            throw std::runtime_error(
+                "Invalid item not found " + to_string(event.at("uuid").get<Uuid>()));
+
         switch (static_cast<timeline::ItemAction>(event.at("action"))) {
         case timeline::IA_INSERT:
 
             // check for place holder entry..
-            // spdlog::warn("timeline::IT_INSERT {}", event.dump(2));
-            if (index.isValid()) {
+            if (debug)
+                spdlog::warn("timeline::IA_INSERT {}", event.dump(2));
+            {
                 auto tree = indexToTree(index);
                 if (tree) {
                     auto new_item = timeline::Item(event.at("item"), &system());
@@ -649,92 +655,88 @@ void SessionModel::item_event_callback(const utility::JsonStore &event, timeline
                         SessionModel::index(rowCount(index) - 1, 0, index),
                         QVector<int>({trackIndexRole}));
                 }
+
+                add_lookup(*indexToTree(index), index);
             }
             break;
 
         case timeline::IA_REMOVE:
-            if (index.isValid()) {
-                // spdlog::warn("timeline::IA_REMOVE {}", event.dump(2));
-                JSONTreeModel::removeRows(event.at("index").get<int>(), 1, index);
-                if (index.data(typeRole).toString() == QString("Stack")) {
-                    // refresh teack indexes
-                    emit dataChanged(
-                        SessionModel::index(0, 0, index),
-                        SessionModel::index(rowCount(index) - 1, 0, index),
-                        QVector<int>({trackIndexRole}));
-                }
+            if (debug)
+                spdlog::warn("timeline::IA_REMOVE {}", event.dump(2));
+            JSONTreeModel::removeRows(event.at("index").get<int>(), 1, index);
+            if (index.data(typeRole).toString() == QString("Stack")) {
+                // refresh teack indexes
+                emit dataChanged(
+                    SessionModel::index(0, 0, index),
+                    SessionModel::index(rowCount(index) - 1, 0, index),
+                    QVector<int>({trackIndexRole}));
             }
             break;
 
         case timeline::IA_ENABLE:
-            if (index.isValid()) {
-                // spdlog::warn("timeline::IT_ENABLE {}", event.dump(2));
-                if (indexToData(index).at("enabled").is_null() or
-                    indexToData(index).at("enabled") != event.value("value", true)) {
-                    indexToData(index)["enabled"] = event.value("value", true);
-                    emit dataChanged(index, index, QVector<int>({enabledRole}));
-                }
+            if (debug)
+                spdlog::warn("timeline::IA_ENABLE {}", event.dump(2));
+            if (indexToData(index).at("enabled").is_null() or
+                indexToData(index).at("enabled") != event.value("value", true)) {
+                indexToData(index)["enabled"] = event.value("value", true);
+                emit dataChanged(index, index, QVector<int>({enabledRole}));
             }
             break;
 
         case timeline::IA_LOCK:
-            if (index.isValid()) {
-                // spdlog::warn("timeline::IT_ENABLE {}", event.dump(2));
-                if (indexToData(index).at("locked").is_null() or
-                    indexToData(index).at("locked") != event.value("value", true)) {
-                    indexToData(index)["locked"] = event.value("value", true);
-                    emit dataChanged(index, index, QVector<int>({lockedRole}));
-                }
+            if (debug)
+                spdlog::warn("timeline::IA_LOCK {}", event.dump(2));
+            if (indexToData(index).at("locked").is_null() or
+                indexToData(index).at("locked") != event.value("value", true)) {
+                indexToData(index)["locked"] = event.value("value", true);
+                emit dataChanged(index, index, QVector<int>({lockedRole}));
             }
             break;
 
         case timeline::IA_NAME:
-            if (index.isValid()) {
-                // spdlog::warn("timeline::IT_NAME {}", event.dump(2));
-                if (indexToData(index).at("name").is_null() or
-                    indexToData(index).at("name") != event.value("value", "")) {
-                    indexToData(index)["name"] = event.value("value", "");
-                    emit dataChanged(index, index, QVector<int>({nameRole}));
-                }
+            if (debug)
+                spdlog::warn("timeline::IA_NAME {}", event.dump(2));
+            if (indexToData(index).at("name").is_null() or
+                indexToData(index).at("name") != event.value("value", "")) {
+                indexToData(index)["name"] = event.value("value", "");
+                emit dataChanged(index, index, QVector<int>({nameRole}));
             }
             break;
 
         case timeline::IA_FLAG:
-            if (index.isValid()) {
-                // spdlog::warn("timeline::IT_NAME {}", event.dump(2));
-                if (indexToData(index).at("flag").is_null() or
-                    indexToData(index).at("flag") != event.value("value", "")) {
-                    indexToData(index)["flag"] = event.value("value", "");
-                    emit dataChanged(index, index, QVector<int>({flagColourRole}));
-                }
+            if (debug)
+                spdlog::warn("timeline::IA_FLAG {}", event.dump(2));
+            if (indexToData(index).at("flag").is_null() or
+                indexToData(index).at("flag") != event.value("value", "")) {
+                indexToData(index)["flag"] = event.value("value", "");
+                emit dataChanged(index, index, QVector<int>({flagColourRole}));
             }
             break;
 
         case timeline::IA_MARKER:
-            if (index.isValid()) {
-                // spdlog::warn("timeline::IT_NAME {}", event.dump(2));
-                if (indexToData(index).at("markers").is_null() or
-                    indexToData(index).at("markers") != event.value("value", R"([])"_json)) {
-                    indexToData(index)["markers"] = event.value("value", R"([])"_json);
-                    emit dataChanged(index, index, QVector<int>({markersRole}));
-                }
+            if (debug)
+                spdlog::warn("timeline::IA_MARKER {}", event.dump(2));
+            if (indexToData(index).at("markers").is_null() or
+                indexToData(index).at("markers") != event.value("value", R"([])"_json)) {
+                indexToData(index)["markers"] = event.value("value", R"([])"_json);
+                emit dataChanged(index, index, QVector<int>({markersRole}));
             }
             break;
 
         case timeline::IA_PROP:
-            if (index.isValid()) {
-                // spdlog::warn("timeline::IT_NAME {}", event.dump(2));
-                if (indexToData(index).at("prop").is_null() or
-                    indexToData(index).at("prop") != event.at("value")) {
-                    indexToData(index)["prop"] = event.at("value");
-                    emit dataChanged(
-                        index, index, QVector<int>({propertyRole, clipMediaUuidRole}));
-                }
+            if (debug)
+                spdlog::warn("timeline::IA_PROP {}", event.dump(2));
+            if (indexToData(index).at("prop").is_null() or
+                indexToData(index).at("prop") != event.at("value")) {
+                indexToData(index)["prop"] = event.at("value");
+                emit dataChanged(index, index, QVector<int>({propertyRole, clipMediaUuidRole}));
             }
             break;
 
         case timeline::IA_RANGE:
-            if (index.isValid()) {
+            if (debug)
+                spdlog::warn("timeline::IA_RANGE {}", event.dump(2));
+            {
                 bool changed = false;
                 if (event.at("value2") == true) {
                     if (indexToData(index).at("available_range").is_null() or
@@ -777,120 +779,116 @@ void SessionModel::item_event_callback(const utility::JsonStore &event, timeline
             break;
 
         case timeline::IA_ACTIVE:
-            if (index.isValid()) {
-                // spdlog::warn("timeline::IT_ACTIVE {}", event.dump(2));
+            if (debug)
+                spdlog::warn("timeline::IA_ACTIVE {}", event.dump(2));
 
-                if (event.at("value2") == true) {
-                    if (indexToData(index).at("active_range").is_null() or
-                        indexToData(index).at("active_range") != event.at("value")) {
-                        indexToData(index)["active_range"] = event.at("value");
-                        emit dataChanged(
-                            index,
-                            index,
-                            QVector<int>(
-                                {trimmedDurationRole,
-                                 rateFPSRole,
-                                 activeDurationRole,
-                                 trimmedStartRole,
-                                 activeRangeValidRole,
-                                 activeStartRole}));
-                    }
-                } else {
-                    if (not indexToData(index).at("active_range").is_null()) {
-                        indexToData(index)["active_range"] = nullptr;
-                        emit dataChanged(
-                            index,
-                            index,
-                            QVector<int>(
-                                {trimmedDurationRole,
-                                 rateFPSRole,
-                                 activeDurationRole,
-                                 activeRangeValidRole,
-                                 trimmedStartRole,
-                                 activeStartRole}));
-                    }
+            if (event.at("value2") == true) {
+                if (indexToData(index).at("active_range").is_null() or
+                    indexToData(index).at("active_range") != event.at("value")) {
+                    indexToData(index)["active_range"] = event.at("value");
+                    emit dataChanged(
+                        index,
+                        index,
+                        QVector<int>(
+                            {trimmedDurationRole,
+                             rateFPSRole,
+                             activeDurationRole,
+                             trimmedStartRole,
+                             activeRangeValidRole,
+                             activeStartRole}));
+                }
+            } else {
+                if (not indexToData(index).at("active_range").is_null()) {
+                    indexToData(index)["active_range"] = nullptr;
+                    emit dataChanged(
+                        index,
+                        index,
+                        QVector<int>(
+                            {trimmedDurationRole,
+                             rateFPSRole,
+                             activeDurationRole,
+                             activeRangeValidRole,
+                             trimmedStartRole,
+                             activeStartRole}));
                 }
             }
             break;
 
         case timeline::IA_AVAIL:
-            if (index.isValid()) {
-                // spdlog::warn("timeline::IA_AVAIL {}", event.dump(2));
+            if (debug)
+                spdlog::warn("timeline::IA_AVAIL {}", event.dump(2));
 
-                if (event.at("value2") == true) {
-                    if (indexToData(index).at("available_range").is_null() or
-                        indexToData(index).at("available_range") != event.at("value")) {
-                        indexToData(index)["available_range"] = event.at("value");
-                        emit dataChanged(
-                            index,
-                            index,
-                            QVector<int>(
-                                {trimmedDurationRole,
-                                 rateFPSRole,
-                                 activeRangeValidRole,
-                                 availableDurationRole,
-                                 trimmedStartRole,
-                                 availableStartRole}));
-                    }
-                } else {
-                    if (not indexToData(index).at("available_range").is_null()) {
-                        indexToData(index)["available_range"] = nullptr;
-                        emit dataChanged(
-                            index,
-                            index,
-                            QVector<int>(
-                                {trimmedDurationRole,
-                                 rateFPSRole,
-                                 activeRangeValidRole,
-                                 availableDurationRole,
-                                 trimmedStartRole,
-                                 availableStartRole}));
-                    }
-                }
-            }
-            break;
-
-        case timeline::IA_SPLICE:
-            if (index.isValid()) {
-                // spdlog::warn("timeline::IT_SPLICE {}", event.dump(2));
-
-                auto frst  = event.at("first").get<int>();
-                auto count = event.at("count").get<int>();
-                auto dst   = event.at("dst").get<int>();
-
-                // massage values if they'll not work with qt..
-                if (dst >= frst and dst <= frst + count - 1) {
-                    dst = frst + count;
-                    // spdlog::warn("FAIL ?");
-                }
-
-                JSONTreeModel::moveRows(index, frst, count, index, dst);
-
-                if (index.data(typeRole).toString() == QString("Stack")) {
-                    // refresh teack indexes
+            if (event.at("value2") == true) {
+                if (indexToData(index).at("available_range").is_null() or
+                    indexToData(index).at("available_range") != event.at("value")) {
+                    indexToData(index)["available_range"] = event.at("value");
                     emit dataChanged(
-                        SessionModel::index(0, 0, index),
-                        SessionModel::index(rowCount(index) - 1, 0, index),
-                        QVector<int>({trackIndexRole}));
+                        index,
+                        index,
+                        QVector<int>(
+                            {trimmedDurationRole,
+                             rateFPSRole,
+                             activeRangeValidRole,
+                             availableDurationRole,
+                             trimmedStartRole,
+                             availableStartRole}));
+                }
+            } else {
+                if (not indexToData(index).at("available_range").is_null()) {
+                    indexToData(index)["available_range"] = nullptr;
+                    emit dataChanged(
+                        index,
+                        index,
+                        QVector<int>(
+                            {trimmedDurationRole,
+                             rateFPSRole,
+                             activeRangeValidRole,
+                             availableDurationRole,
+                             trimmedStartRole,
+                             availableStartRole}));
                 }
             }
             break;
+
+        case timeline::IA_SPLICE: {
+            if (debug)
+                spdlog::warn("timeline::IA_SPLICE {}", event.dump(2));
+
+            auto frst  = event.at("first").get<int>();
+            auto count = event.at("count").get<int>();
+            auto dst   = event.at("dst").get<int>();
+
+            // massage values if they'll not work with qt..
+            if (dst >= frst and dst <= frst + count - 1) {
+                dst = frst + count;
+                // spdlog::warn("FAIL ?");
+            }
+
+            JSONTreeModel::moveRows(index, frst, count, index, dst);
+
+            if (index.data(typeRole).toString() == QString("Stack")) {
+                // refresh teack indexes
+                emit dataChanged(
+                    SessionModel::index(0, 0, index),
+                    SessionModel::index(rowCount(index) - 1, 0, index),
+                    QVector<int>({trackIndexRole}));
+            }
+        } break;
 
         case timeline::IA_ADDR:
-            if (index.isValid()) {
-                // spdlog::warn("timeline::IT_ADDR {}", event.dump(2));
-                // is the string actor valid here ?
-                if (event.at("value").is_null() and
-                    not indexToData(index).at("actor").is_null()) {
-                    indexToData(index)["actor"] = nullptr;
-                    emit dataChanged(index, index, QVector<int>({actorRole}));
-                } else if (
-                    event.at("value").is_string() and
-                    (not indexToData(index).at("actor").is_string() or
-                     event.at("value") != indexToData(index).at("actor"))) {
-                    indexToData(index)["actor"] = event.at("value");
-                    emit dataChanged(index, index, QVector<int>({actorRole}));
-                }
+            if (debug)
+                spdlog::warn("timeline::IA_ADDR {}", event.dump(2));
+            // is the string actor valid here ?
+            if (event.at("value").is_null() and not indexToData(index).at("actor").is_null()) {
+                indexToData(index)["actor"] = nullptr;
+                emit dataChanged(index, index, QVector<int>({actorRole}));
+            } else if (
+                event.at("value").is_string() and
+                (not indexToData(index).at("actor").is_string() or
+                 event.at("value") != indexToData(index).at("actor"))) {
+                indexToData(index)["actor"] = event.at("value");
+                emit dataChanged(index, index, QVector<int>({actorRole}));
+                // add_lookup(*indexToTree(index), index);
             }
             break;
 
@@ -1452,100 +1450,377 @@ QModelIndexList SessionModel::modifyItemSelectionVertical(
     const QModelIndexList &items, const int up, const int down) {
     auto result = QModelIndexList();
 
-    spdlog::warn("up {} down {}", up, down);
-
     if (not items.empty()) {
         auto first_type = items[0].data(typeRole);
-        if (first_type == "Audio Track" or first_type == "Video Track") {
-            auto parent = items[0].parent();
-            // simple...
-            // find min , max
+        auto parent     = items[0].parent();
+        // simple...
+        // find min , max
 
-            auto min_a = 0;
-            auto min_v = min_a;
-            auto max_a = rowCount(parent) - 1;
-            auto max_v = max_a;
+        auto min_a = 0;
+        auto min_v = min_a;
+        auto max_a = rowCount(parent) - 1;
+        auto max_v = max_a;
 
-            //  find bounds..
-            for (auto i = 0; i < rowCount(parent) - 1; i++) {
-                auto i_type = index(i, 0, parent).data(typeRole);
-                if (i_type == "Video Track") {
-                    max_v = i;
-                    min_a = i + 1;
-                } else {
-                    break;
-                }
+        //  find bounds..
+        for (auto i = 0; i < rowCount(parent); i++) {
+            auto i_type = index(i, 0, parent).data(typeRole);
+            if (i_type == "Video Track") {
+                max_v = i;
+                min_a = i + 1;
+            } else {
+                break;
             }
+        }
 
-            // add current selection
-            std::map<int, QModelIndex> selected_video;
-            std::map<int, QModelIndex> selected_audio;
+        if (first_type == "Audio Track" or first_type == "Video Track") {
+
+            auto selected_video = std::vector<std::pair<int, int>>();
+            auto selected_audio = std::vector<std::pair<int, int>>();
+
+            // order items by row true = video, false = audio
+            std::map<int, bool> selection;
+
             for (const auto &i : items) {
                 if (i.data(typeRole) == "Video Track")
-                    selected_video[i.row()] = i;
+                    selection[i.row()] = true;
                 else
-                    selected_audio[i.row()] = i;
+                    selection[i.row()] = false;
             }
 
-            auto up_count = up;
-            while (up_count > 0) {
-                for (const auto &i : items) {
-                    auto new_row = i.row() - up_count;
-                    if (i.data(typeRole) == "Video Track" and new_row >= min_v) {
-                        selected_video[new_row] = index(new_row, 0, parent);
-                    } else if (i.data(typeRole) == "Audio Track" and new_row >= min_a) {
-                        selected_audio[new_row] = index(new_row, 0, parent);
+            // iterate over selection..
+            // populate ranges.
+            auto is_video = true;
+            auto start    = -1;
+            auto end      = -1;
+
+            for (const auto &i : selection) {
+                if (start == -1) {
+                    start = end = i.first;
+                    is_video    = i.second;
+                } else {
+                    if (i.first != end + 1 or i.second != is_video) {
+                        if (is_video)
+                            selected_video.emplace_back(std::make_pair(start, end));
+                        else
+                            selected_audio.emplace_back(std::make_pair(start, end));
+
+                        start = end = i.first;
+                        is_video    = i.second;
+                    } else {
+                        end++;
                     }
                 }
-                up_count--;
             }
 
-            auto down_count = down;
-            while (down_count > 0) {
-                for (const auto &i : items) {
-                    auto new_row = i.row() + down_count;
-                    if (i.data(typeRole) == "Video Track" and new_row <= max_v) {
-                        selected_video[new_row] = index(new_row, 0, parent);
-                    } else if (i.data(typeRole) == "Audio Track" and new_row <= max_a) {
-                        selected_audio[new_row] = index(new_row, 0, parent);
-                    }
+            if (start != -1) {
+                if (is_video)
+                    selected_video.emplace_back(std::make_pair(start, end));
+                else
+                    selected_audio.emplace_back(std::make_pair(start, end));
+            }
+
+            if (up != 0) {
+                for (auto &i : selected_video) {
+                    auto new_start = i.first - up;
+                    if (new_start >= min_v and new_start <= max_v)
+                        i.first = new_start;
+                    else
+                        return items;
                 }
-                down_count--;
+
+                for (auto &i : selected_audio) {
+                    auto new_start = i.first - up;
+                    if (new_start >= min_a and new_start <= max_a)
+                        i.first = new_start;
+                    else
+                        return items;
+                }
             }
 
-            // while(up_count < 0) {
-            //     for(const auto &i: items) {
-            //         auto new_row = i.row() + up_count;
-            //         if(i.data(typeRole) == "Video Track" and new_row <= max_v) {
-            //             selected_video[new_row] = index(new_row, 0, parent);
-            //         }
-            //         else if(i.data(typeRole) == "Audio Track" and new_row <= max_a) {
-            //             selected_audio[new_row] = index(new_row, 0, parent);
-            //         }
-            //     }
-            //     down_count --;
-            // }
+            if (down != 0) {
+                for (auto &i : selected_video) {
+                    auto new_end = i.second + down;
+                    if (new_end <= max_v and new_end >= min_v)
+                        i.second = new_end;
+                    else
+                        return items;
+                }
 
-            // while(down_count < 0) {
-            //     for(const auto &i: items) {
-            //         auto new_row = i.row() + down_count;
-            //         if(i.data(typeRole) == "Video Track" and new_row <= max_v) {
-            //             selected_video[new_row] = index(new_row, 0, parent);
-            //         }
-            //         else if(i.data(typeRole) == "Audio Track" and new_row <= max_a) {
-            //             selected_audio[new_row] = index(new_row, 0, parent);
-            //         }
-            //     }
-            //     down_count --;
-            // }
+                for (auto &i : selected_audio) {
+                    auto new_end = i.second + down;
+                    if (new_end <= max_a and new_end >= min_a)
+                        i.second = new_end;
+                    else
+                        return items;
+                }
+            }
 
+            for (const auto &i : selected_video) {
+                for (auto r = i.first; r <= i.second; r++)
+                    result.push_back(index(r, 0, parent));
+            }
 
-            for (const auto &i : selected_video)
-                result.push_back(i.second);
-            for (const auto &i : selected_audio)
-                result.push_back(i.second);
+            for (const auto &i : selected_audio) {
+                for (auto r = i.first; r <= i.second; r++)
+                    result.push_back(index(r, 0, parent));
+            }
 
         } else if (first_type == "Clip") {
+            // even more complex...
+            // build list of vertical regions.
+            // get bounds of audio/video.
+            auto stack_index    = getTimelineTrackIndex(items[0]).parent();
+            auto timeline_index = getTimelineIndex(stack_index);
+            auto tactor = actorFromQString(system(), timeline_index.data(actorRole).toString());
+
+            if (timeline_lookup_.count(tactor)) {
+                auto &titem = timeline_lookup_.at(tactor);
+
+                auto min_a = 0;
+                auto min_v = min_a;
+                auto max_a = rowCount(stack_index) - 1;
+                auto max_v = max_a;
+
+                auto has_audio = false;
+                auto has_video = false;
+
+                //  find bounds..
+                for (auto i = 0; i < rowCount(stack_index); i++) {
+                    auto i_type = index(i, 0, stack_index).data(typeRole);
+                    if (i_type == "Video Track") {
+                        has_video = true;
+                        max_v     = i;
+                        min_a     = i + 1;
+                    } else {
+                        has_audio = true;
+                        break;
+                    }
+                }
+                // get selected clip boxes.
+                auto video_selection_boxes = std::list<timeline::Box>();
+                auto audio_selection_boxes = std::list<timeline::Box>();
+
+                auto print_boxes = [](const std::list<timeline::Box> &boxes) {
+                    for (const auto &i : boxes) {
+                        spdlog::warn(
+                            "l {} t {} r {} b {}",
+                            i.first.first,
+                            i.first.second,
+                            i.second.first,
+                            i.second.second);
+                    }
+                };
+
+                for (const auto &i : items) {
+                    if (getTimelineTrackIndex(i).data(typeRole) == "Video Track")
+                        video_selection_boxes.emplace_back(
+                            *(titem.box(UuidFromQUuid(i.data(idRole).toUuid()))));
+                    else
+                        audio_selection_boxes.emplace_back(
+                            *(titem.box(UuidFromQUuid(i.data(idRole).toUuid()))));
+                }
+
+                auto sort_track_start = [](const timeline::Box &a, const timeline::Box &b) {
+                    return a.first.second < b.first.second or
+                           (a.first.second == b.first.second and a.first.first < b.first.first);
+                };
+
+                auto sort_start_track = [](const timeline::Box &a, const timeline::Box &b) {
+                    return a.first.first < b.first.first or
+                           (a.first.first == b.first.first and a.first.second < b.first.second);
+                };
+
+                auto sort_end_track = [](const timeline::Box &a, const timeline::Box &b) {
+                    return a.second.first < b.second.first or
+                           (a.second.first == b.second.first and
+                            a.first.second < b.first.second);
+                };
+
+                video_selection_boxes.sort(sort_start_track);
+                audio_selection_boxes.sort(sort_start_track);
+
+                // if(not video_selection_boxes.empty()) {
+                //     spdlog::warn("\nvideo");
+                //     print_boxes(video_selection_boxes);
+                // }
+                // if(not audio_selection_boxes.empty()) {
+                //     spdlog::warn("audio");
+                //     print_boxes(audio_selection_boxes);
+                // }
+
+                auto merge_boxes = [=](std::list<timeline::Box> &boxes) {
+                    auto done = false;
+
+                    // merge vertical with same start
+                    while (not done) {
+                        done = true;
+                        boxes.sort(sort_start_track);
+
+                        for (auto it = boxes.begin(); it != boxes.end();) {
+                            auto nit = std::next(it, 1);
+                            if (nit != boxes.end()) {
+                                // it left = nit left and it bottom = nit top
+                                if (it->first.first == nit->first.first and
+                                    it->second.second == nit->first.second) {
+                                    // match but we'll need to deal with under / overhang.
+                                    if (it->second.first < nit->second.first) {
+                                        boxes.emplace_back(std::make_pair(
+                                            std::make_pair(it->second.first, nit->first.second),
+                                            std::make_pair(
+                                                nit->second.first, nit->second.second)));
+                                        it->second.second = nit->second.second;
+                                        boxes.erase(nit);
+                                        done = false;
+                                        break;
+
+                                    } else if (it->second.first > nit->second.first) {
+                                        boxes.emplace_back(std::make_pair(
+                                            std::make_pair(nit->second.first, it->first.second),
+                                            std::make_pair(
+                                                it->second.first, it->second.second)));
+
+                                        it->second.first  = nit->second.first;
+                                        it->second.second = nit->second.second;
+                                        boxes.erase(nit);
+                                        done = false;
+                                        break;
+                                    } else {
+                                        it->second.second = nit->second.second;
+                                        boxes.erase(nit);
+                                    }
+                                } else {
+                                    it++;
+                                }
+                            } else {
+                                it++;
+                            }
+                        }
+                    }
+
+                    // merge vertical with same end
+                    done = false;
+                    while (not done) {
+                        done = true;
+                        boxes.sort(sort_end_track);
+
+                        for (auto it = boxes.begin(); it != boxes.end();) {
+                            auto nit = std::next(it, 1);
+                            if (nit != boxes.end()) {
+                                // it back = nit back and it bottom = nit top
+                                if (it->second.first == nit->second.first and
+                                    it->second.second == nit->first.second) {
+                                    // match but we'll need to deal with under / overhang.
+                                    if (it->first.first < nit->first.first) {
+                                        boxes.emplace_back(std::make_pair(
+                                            std::make_pair(it->first.first, it->first.second),
+                                            std::make_pair(
+                                                nit->first.first, it->second.second)));
+                                        it->first.first   = nit->first.first;
+                                        it->second.second = nit->second.second;
+                                        boxes.erase(nit);
+                                        done = false;
+                                        break;
+
+                                    } else if (it->first.first > nit->first.first) {
+                                        boxes.emplace_back(std::make_pair(
+                                            std::make_pair(nit->first.first, nit->first.second),
+                                            std::make_pair(
+                                                it->first.first, nit->second.second)));
+
+                                        it->second.second = nit->second.second;
+                                        boxes.erase(nit);
+                                        done = false;
+                                        break;
+                                    } else {
+                                        it->second.second = nit->second.second;
+                                        boxes.erase(nit);
+                                    }
+                                } else {
+                                    it++;
+                                }
+                            } else {
+                                it++;
+                            }
+                        }
+                    }
+                };
+
+                merge_boxes(video_selection_boxes);
+                merge_boxes(audio_selection_boxes);
+
+                // if(not video_selection_boxes.empty()) {
+                //     spdlog::warn("\nvideo");
+                //     print_boxes(video_selection_boxes);
+                // }
+                // if(not audio_selection_boxes.empty()) {
+                //     spdlog::warn("audio");
+                //     print_boxes(audio_selection_boxes);
+                // }
+
+                // expand / contract boxes.
+                for (auto &i : video_selection_boxes) {
+                    i.first.second -= up;
+                    if (i.first.second < min_v or i.first.second > max_v)
+                        return items;
+
+                    i.second.second += down;
+                    if (i.second.second < min_v or i.second.second - 1 > max_v)
+                        return items;
+                }
+
+                for (auto &i : audio_selection_boxes) {
+                    i.first.second -= up;
+                    if (i.first.second < min_a or i.first.second > max_a)
+                        return items;
+
+                    i.second.second += down;
+                    if (i.second.second < min_a or i.second.second - 1 > max_a)
+                        return items;
+                }
+
+                // if(not video_selection_boxes.empty()) {
+                //     spdlog::warn("\nvideo");
+                //     print_boxes(video_selection_boxes);
+                // }
+                // if(not audio_selection_boxes.empty()) {
+                //     spdlog::warn("audio");
+                //     print_boxes(audio_selection_boxes);
+                // }
+
+                // apply new selection..
+                std::set<QModelIndex> new_selection;
+
+                if (not video_selection_boxes.empty()) {
+                    for (const auto &i : video_selection_boxes)
+                        for (const auto &j : getTimelineVideoClipIndexesFromRect(
+                                 timeline_index,
+                                 i.first.first,
+                                 i.first.second,
+                                 i.second.first,
+                                 i.second.second,
+                                 1,
+                                 1)) {
+                            new_selection.insert(j);
+                        }
+                }
+
+                if (not audio_selection_boxes.empty()) {
+                    for (const auto &i : audio_selection_boxes)
+                        for (const auto &j : getTimelineAudioClipIndexesFromRect(
+                                 timeline_index,
+                                 i.first.first,
+                                 i.first.second,
+                                 i.second.first,
+                                 i.second.second,
+                                 1,
+                                 1)) {
+                            new_selection.insert(j);
+                        }
+                }
+
+                for (const auto &i : new_selection)
+                    result.push_back(i);
+            }
         }
     }
 

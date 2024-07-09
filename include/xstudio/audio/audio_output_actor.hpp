@@ -42,6 +42,9 @@ class AudioOutputDeviceActor : public caf::event_based_actor {
             },
             [=](json_store::update_atom, const utility::JsonStore & /*j*/) {
                 // TODO: restart soundcard connection with new prefs
+                if (output_device_) {
+                    output_device_->initialize_sound_card();
+                }
             },
             [=](utility::event_atom, playhead::play_atom) {
                 // we get this message every time the AudioOutputActor has
@@ -98,10 +101,13 @@ class AudioOutputDeviceActor : public caf::event_based_actor {
                             waiting_for_samples_ = false;
                             if (output_device_->push_samples(
                                     (const void *)samples_to_play.data(),
-                                    num_samps_soundcard_wants)) {
+                                    samples_to_play.size())) {
 
                                 // continue the loop
-                                anon_send(actor_cast<caf::actor>(this), push_samples_atom_v);
+                                if (playing_) {
+                                    anon_send(
+                                        actor_cast<caf::actor>(this), push_samples_atom_v);
+                                }
                             }
                         },
                         [=](caf::error &err) mutable { waiting_for_samples_ = false; });
@@ -190,7 +196,7 @@ class GlobalAudioOutputActor : public caf::event_based_actor, module::Module {
 
 template <typename OutputClassType> void AudioOutputActor<OutputClassType>::init() {
 
-    spdlog::debug("Created AudioOutputControlActor {}", OutputClassType::name());
+    // spdlog::debug("Created AudioOutputControlActor {}", OutputClassType::name());
     utility::print_on_exit(this, "AudioOutputControlActor");
 
     audio_output_device_ =

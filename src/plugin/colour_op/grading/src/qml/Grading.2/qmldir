@@ -1,0 +1,29 @@
+module Grading
+
+GradingTools        2.0 GradingTools.qml
+GradingOverlay      2.0 GradingOverlay.qml
+GTAttributes        2.0 GTAttributes.qml
+MAttributes         2.0 MAttributes.qml
+GTLeftSection       2.0 GTLeftSection.qml
+GTRightSection      2.0 GTRightSection.qml
+
+L0MaskPopup         2.0 leftSection/L0MaskPopup.qml
+L1Header            2.0 leftSection/L1Header.qml
+L2LayerList         2.0 leftSection/L2LayerList.qml
+
+R1Header            2.0 rightSection/R1Header.qml
+R1MaskTools         2.0 rightSection/R1MaskTools.qml
+R2Controls          2.0 rightSection/R2Controls.qml
+
+GTSliderDiv         2.0 delegates/GTSliderDiv.qml
+GTSliderItem        2.0 delegates/GTSliderItem.qml
+GTWheelItem         2.0 delegates/GTWheelItem.qml
+
+GTSlider            2.0 widgets/GTSlider.qml
+GTToolButton        2.0 widgets/GTToolButton.qml
+GTValueEditor       2.0 widgets/GTValueEditor.qml
+GTWheel             2.0 widgets/GTWheel.qml
+
+MEllipse            2.0 overlays/MEllipse.qml
+MQuad               2.0 overlays/MQuad.qml
+MPolygon            2.0 overlays/MPolygon.qml

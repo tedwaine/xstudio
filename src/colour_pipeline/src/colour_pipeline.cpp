@@ -602,12 +602,10 @@ class HookCollection : public plugin::GPUPreDrawHook {
 void ColourPipeline::make_pre_draw_gpu_hook(
     caf::typed_response_promise<plugin::GPUPreDrawHookPtr> rp) {
 
-    // assumption: requests made in load_colour_op_plugins have finished
-    HookCollection *collection = new HookCollection();
-    auto result = plugin::GPUPreDrawHookPtr(static_cast<plugin::GPUPreDrawHook *>(collection));
+    auto collection = std::make_shared<HookCollection>();
 
     if (colour_op_plugins_.empty()) {
-        rp.deliver(result);
+        rp.deliver(collection);
         return;
     }
     caf::scoped_actor sys(system());
@@ -627,7 +625,7 @@ void ColourPipeline::make_pre_draw_gpu_hook(
                     }
                     (*count)--;
                     if (!(*count)) {
-                        rp.deliver(result);
+                        rp.deliver(collection);
                     }
                 },
                 [=](const caf::error &err) mutable {

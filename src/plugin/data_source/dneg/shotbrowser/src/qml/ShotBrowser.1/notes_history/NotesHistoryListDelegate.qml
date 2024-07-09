@@ -19,15 +19,11 @@ Item{ id: thisItem
 
     property real borderWidth: 1
 
-    property real listSpacing: panelPadding
-    property real itemSpacing: 1
-    property real itemHeight: XsStyleSheet.widgetStdHeight
+    // property real textSize: XsStyleSheet.fontSize
 
-    property real textSize: XsStyleSheet.fontSize
-
-    property color hintColor: XsStyleSheet.hintColor
-    property color highlightColor: palette.highlight
-    property color bgColorNormal: XsStyleSheet.widgetBgNormalColor
+    // property color hintColor: XsStyleSheet.hintColor
+    // property color highlightColor: palette.highlight
+    // property color bgColorNormal: XsStyleSheet.widgetBgNormalColor
 
     property var delegateModel: null
     property var popupMenu: null
@@ -57,10 +53,10 @@ Item{ id: thisItem
     }
 
     Rectangle{ id: frame
-        width: parent.width
-        height: parent.height - listSpacing
-        color: isSelected? Qt.darker(highlightColor, 5) : "transparent"
-        border.color: isHovered? highlightColor : bgColorNormal
+        anchors.fill: parent
+
+        color: isSelected? Qt.darker(palette.highlight, 5) : "transparent"
+        border.color: isHovered? palette.highlight : XsStyleSheet.widgetBgNormalColor
         border.width: borderWidth
 
         MouseArea{ id: mArea

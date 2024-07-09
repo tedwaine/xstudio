@@ -6,18 +6,15 @@ import QtQuick.Layouts 1.15
 import xStudioReskin 1.0
 
 Rectangle{
-    
     property alias text: textDiv.text
-    property var bgColor: bgColorNormal
-    property var textColor: palette.text
-
     property alias textDiv: textDiv
-    
-    color: bgColor
+    property alias textColor: textDiv.color
+
+    color: XsStyleSheet.widgetBgNormalColor
 
     XsText{ id: textDiv //XsTextInput
         text: ""
-        color: textColor
+        color: palette.text
         font.bold: true
         width : parent.width - panelPadding*2
         height: parent.height

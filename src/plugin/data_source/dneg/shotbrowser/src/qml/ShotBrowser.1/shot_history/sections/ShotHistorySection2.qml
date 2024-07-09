@@ -23,17 +23,17 @@ Rectangle{
         }
         ShotHistoryTextRow{ id: dateDiv
             Layout.fillWidth: true
-            Layout.minimumHeight: itemHeight
+            Layout.minimumHeight: XsStyleSheet.widgetStdHeight
             // text: createdDateRole
 
             property var dateFormatted: createdDateRole.toLocaleString().split(" ")
             // property var timeFormatted: dateFormatted[4].split(":")
-            
+
             text: typeof dateFormatted !== 'undefined'? dateFormatted[1].substr(0,3)+" "+dateFormatted[2]+" "+dateFormatted[3] : ""
         }
         ShotHistoryTextRow{ id: frameRangeDiv
             Layout.fillWidth: true
-            Layout.minimumHeight: itemHeight
+            Layout.minimumHeight: XsStyleSheet.widgetStdHeight
             text: frameRangeRole
         }
 

@@ -109,8 +109,8 @@ Item {
 				XsPrimaryButton{
 			    	Layout.fillHeight: true
 					Layout.preferredWidth: height
-					imageDiv.sourceSize.height: height-2
-					imageDiv.sourceSize.width: height-2
+					imageDiv.height: height-2
+					imageDiv.width: height-2
 	                imgSrc: isEnabled ? "qrc:/icons/visibility.svg" : "qrc:/icons/visibility_off.svg"
 					isActiveViaIndicator: false
     	            isActive: !isEnabled
@@ -121,8 +121,8 @@ Item {
 				XsPrimaryButton{
 			    	Layout.fillHeight: true
 					Layout.preferredWidth: height
-					imageDiv.sourceSize.height: height-2
-					imageDiv.sourceSize.width: height-2
+					imageDiv.height: height-2
+					imageDiv.width: height-2
 	                imgSrc: isLocked ? "qrc:/icons/lock.svg" : "qrc:/icons/unlock.svg"
 					isActiveViaIndicator: false
     	            isActive: isLocked

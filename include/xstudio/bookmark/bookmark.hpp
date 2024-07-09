@@ -91,6 +91,7 @@ namespace bookmark {
         std::optional<bool> visible_;
         std::optional<timebase::flicks> start_;
         std::optional<timebase::flicks> duration_;
+        std::optional<utility::JsonStore> user_data_;
 
         std::optional<std::string> author_;
         std::optional<std::string> subject_;
@@ -117,6 +118,7 @@ namespace bookmark {
                 f.field("vis", x.visible_),
                 f.field("sta", x.start_),
                 f.field("dur", x.duration_),
+                f.field("udt", x.user_data_),
                 f.field("hasa", x.has_annotation_),
                 f.field("hasn", x.has_note_),
                 f.field("aut", x.author_),
@@ -237,7 +239,11 @@ namespace bookmark {
 
 
         std::string created() const {
+#ifdef _WIN32
+            auto dt = (created_ ? *created_ : std::chrono::high_resolution_clock::now());
+#else
             auto dt = (created_ ? *created_ : std::chrono::system_clock::now());
+#endif
             return utility::to_string(dt);
         }
 
@@ -287,6 +293,8 @@ namespace bookmark {
         auto visible() const { return visible_; }
         auto start() const { return start_; }
         auto duration() const { return duration_; }
+        auto user_data() const { return user_data_; }
+        auto created() const { return created_; };
 
         auto owner() const { return owner_; }
 
@@ -300,6 +308,8 @@ namespace bookmark {
         void set_duration(const timebase::flicks duration = timebase::k_flicks_max) {
             duration_ = duration;
         }
+        void set_user_data(const utility::JsonStore &user_data) { user_data_ = user_data; }
+        void set_created(const utility::sys_time_point &created) { created_ = created; }
 
         friend BookmarkDetail &BookmarkDetail::operator=(const Bookmark &bookmark);
 
@@ -313,6 +323,8 @@ namespace bookmark {
         bool visible_{true};
         timebase::flicks start_{timebase::k_flicks_low};
         timebase::flicks duration_{timebase::k_flicks_max};
+        utility::JsonStore user_data_;
+        utility::sys_time_point created_{utility::sysclock::now()};
 
         std::shared_ptr<Note> note_{nullptr};
         std::shared_ptr<AnnotationBase> annotation_{nullptr};

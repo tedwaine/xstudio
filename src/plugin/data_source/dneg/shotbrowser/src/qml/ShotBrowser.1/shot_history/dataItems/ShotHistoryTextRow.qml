@@ -8,19 +8,17 @@ import xStudioReskin 1.0
 Rectangle{
 
     property alias text: textDiv.text
-    property var bgColor: bgColorNormal
-    property var textColor: hintColor
-
     property alias textDiv: textDiv
-    
-    color: bgColor
+    property alias textColor: textDiv.color
+
+    color: XsStyleSheet.widgetBgNormalColor
 
     XsText{ id: textDiv
         text: ""
-        color: textColor
+        color: XsStyleSheet.hintColor
         height: parent.height
         anchors.verticalCenter: parent.verticalCenter
-        
+
         Component.onCompleted: {
             if(width != parent.width){
                 leftPadding = panelPadding

@@ -353,7 +353,12 @@ UuidActorVector LoadUrisActor::load_uris(const bool single_playlist) {
         for (const auto &i : uris_) {
             fs::path p(uri_to_posix_path(i));
             if (fs::is_directory(p)) {
+#ifdef _WIN32
+                request(
+                    session_, infinite, add_playlist_atom_v, std::string(p.filename().string()))
+#else
                 request(session_, infinite, add_playlist_atom_v, std::string(p.filename()))
+#endif
                     .then(
                         [=](UuidUuidActor playlist) {
                             anon_send(
@@ -2049,11 +2054,15 @@ void SessionActor::save_json_to(
 
         auto save_path = uri_to_posix_path(ppath);
         if (resolve_link && fs::exists(save_path) && fs::is_symlink(save_path))
+#ifdef _WIN32
+            save_path = fs::canonical(save_path).string();
+#else
             save_path = fs::canonical(save_path);
+#endif
 
 
         // compress data.
-        if (to_lower(fs::path(save_path).extension()) == ".xsz") {
+        if (to_lower(path_to_string(fs::path(save_path).extension())) == ".xsz") {
             zstr::ofstream o(save_path + ".tmp");
             try {
                 o.exceptions(std::ifstream::failbit | std::ifstream::badbit);

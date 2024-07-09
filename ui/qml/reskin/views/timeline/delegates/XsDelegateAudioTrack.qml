@@ -36,6 +36,10 @@ DelegateChoice {
 			property bool isSizerHovered: ListView.view.isSizerHovered
 			property bool isSizerDragging: ListView.view.isSizerDragging
 
+            property var draggingStarted: ListView.view.draggingStarted
+            property var dragging: ListView.view.dragging
+            property var draggingStopped: ListView.view.draggingStopped
+
 			width: ListView.view.width
 			height: itemHeight * scaleY
 
@@ -144,6 +148,10 @@ DelegateChoice {
 					property string itemFlag: control.itemFlag
 					property var itemAtIndex: item_repeater.itemAt
 		            property var parentLV: control.parentLV
+
+                    property var draggingStarted: control.draggingStarted
+                    property var dragging: control.dragging
+		            property var draggingStopped: control.draggingStopped
 
 					property bool isParentLocked: lockedRole
 			        property bool isParentEnabled: enabledRole

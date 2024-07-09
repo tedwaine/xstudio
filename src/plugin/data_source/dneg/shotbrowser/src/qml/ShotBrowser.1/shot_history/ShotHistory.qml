@@ -28,8 +28,6 @@ Item{
     property real panelPadding: XsStyleSheet.panelPadding
     property color panelColor: XsStyleSheet.panelBgColor
 
-    property real buttonHeight: XsStyleSheet.widgetStdHeight
-
     property var activeScopeIndex: ShotBrowserEngine.presetsModel.index(-1,-1)
 
     // Track the uuid of the media that is currently visible in the Viewport
@@ -231,22 +229,31 @@ Item{
 
     ColumnLayout{
         anchors.fill: parent
-        spacing: 0
+        anchors.margins: 4
+        spacing: 4
 
         ShotHistoryTitleDiv{id: titleDiv
-            titleButtonHeight: (buttonHeight + 4)
+            titleButtonHeight: (XsStyleSheet.widgetStdHeight + 4)
             Layout.fillWidth: true
-            Layout.preferredHeight: titleButtonHeight*2 + (panelPadding*2) + titleButtonSpacing
+            Layout.minimumHeight: titleButtonHeight*2
+            Layout.maximumHeight: titleButtonHeight*2
         }
 
-        ShotHistoryListDiv{ id: contentDiv
+        Rectangle{
+            color: panelColor
             Layout.fillWidth: true
             Layout.fillHeight: true
+
+            ShotHistoryListDiv{
+                anchors.fill: parent
+                anchors.margins: 4
+            }
         }
 
         ShotHistoryActionDiv{id: buttonsDiv
             Layout.fillWidth: true
-            Layout.preferredHeight: buttonHeight + (panelPadding*2)
+            Layout.maximumHeight: XsStyleSheet.widgetStdHeight
+            parentWidth: parent.width - 4
         }
     }
 }

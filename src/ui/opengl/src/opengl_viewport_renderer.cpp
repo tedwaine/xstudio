@@ -4,12 +4,9 @@
 #include "xstudio/ui/opengl/shader_program_base.hpp"
 #include "xstudio/ui/opengl/texture.hpp"
 #include "xstudio/ui/opengl/opengl_viewport_renderer.hpp"
+#include "xstudio/ui/opengl/gl_debug_utils.hpp"
 #include "xstudio/utility/logging.hpp"
 #include "xstudio/utility/uuid.hpp"
-
-#ifdef DEBUG_GRAB_FRAMEBUFFER
-#include "xstudio/ui/opengl/gl_debug_utils.h"
-#endif
 
 using namespace xstudio;
 using namespace xstudio::ui::opengl;
@@ -490,6 +487,15 @@ bool OpenGLViewportRenderer::activate_shader(
 void OpenGLViewportRenderer::pre_init() {
 
     glewInit();
+
+// #define OPENGL_DEBUG_CB
+#ifdef OPENGL_DEBUG_CB
+    glEnable(GL_DEBUG_OUTPUT);
+    glEnable(GL_DEBUG_OUTPUT_SYNCHRONOUS);
+    glDebugMessageCallback(debug_message_callback, nullptr);
+    // For simplicity we filter messages inside the callback
+    // Alternative would be using glDebugMessageControl
+#endif
 
     // we need to know if we have alpha in our draw buffer, which might require
     // different strategies for drawing overlays

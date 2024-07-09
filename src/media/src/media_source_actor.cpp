@@ -1484,7 +1484,14 @@ void MediaSourceActor::get_media_pointers_for_frames(
     media::AVFrameID blank = *(media::make_blank_frame(media_type));
     blank.media_uuid_      = parent_uuid_;
     blank.source_uuid_     = base_.uuid();
-    blank.actor_addr_      = caf::actor_cast<caf::actor_addr>(this);
+
+    // IMPORTANT - we don't set the actor address here. This is because in the
+    // media reader it uses the actor addr to lookup what reader to use. If we
+    // temporarily had blank frames before media detail is found then the global
+    // reader will 'cache' the blank reader against the actor address and we are
+    // stuck with blanks even after we have the detail needed for loading the
+    // media.
+    // blank.actor_addr_      = caf::actor_cast<caf::actor_addr>(this);
 
     if (base_.current(media_type).is_null()) {
 
@@ -1520,7 +1527,17 @@ void MediaSourceActor::get_media_pointers_for_frames(
                             auto timecode =
                                 base_.media_reference(base_.current(media_type)).timecode();
 
+                            int prev_range_last = 0;
                             for (const auto &i : ranges) {
+
+                                // We are providing frameIds for a set of logical
+                                // frame ranges. We need to account for the ranges
+                                // to increment the timecode for the 'gaps' between
+                                // the ranges
+                                if (prev_range_last < i.first) {
+                                    timecode = timecode + (i.first - prev_range_last);
+                                }
+
                                 for (auto logical_frame = i.first; logical_frame <= i.second;
                                      logical_frame++) {
                                     // the try block catches posible 'out_of_range'
@@ -1567,7 +1584,7 @@ void MediaSourceActor::get_media_pointers_for_frames(
                                         result.emplace_back(
                                             std::shared_ptr<const media::AVFrameID>(
                                                 new media::AVFrameID(mptr)));
-                                    } catch (const std::exception &e) {
+                                    } catch ([[maybe_unused]] const std::exception &e) {
                                         // spdlog::warn("{}", e.what());
                                         result.emplace_back(blank_ptr);
                                     }

@@ -14,9 +14,11 @@ import xstudio.qml.helpers 1.0
 import xstudio.qml.models 1.0
 import xstudio.qml.viewport 1.0
 
-Item {
+Rectangle {
 
     id: timeline
+
+    color: timelineBackground
 
     property var hovered: null
     property real scaleX: 3.0
@@ -34,6 +36,12 @@ Item {
 
     property alias select_up_hotkey: select_up_hotkey
     property alias select_down_hotkey: select_down_hotkey
+    property alias expand_up_hotkey: expand_up_hotkey
+    property alias expand_down_hotkey: expand_down_hotkey
+    property alias contract_up_hotkey: contract_up_hotkey
+    property alias contract_down_hotkey: contract_down_hotkey
+    property alias expand_up_down_hotkey: expand_up_down_hotkey
+    property alias contract_up_down_hotkey: contract_up_down_hotkey
 
     property alias select_next_hotkey: select_next_hotkey
     property alias select_previous_hotkey: select_previous_hotkey
@@ -52,7 +60,7 @@ Item {
 
     property alias timelineMarkerMenu: markerMenu
     property alias timelineProperty: timelineProperty
-    property string editMode: ""
+    property string editMode: "Select"
 
     property bool scalingModeActive: false
     property bool scrollingModeActive: false
@@ -462,8 +470,27 @@ Item {
         }
     }
 
+    function duplicate(indexes) {
+        if(indexes.length && theSessionData.get(indexes[0], "typeRole") == "Clip")
+            duplicateClips(indexes)
+        else
+            duplicateTracks(indexes)
+    }
+
+    function insertTrackAbove(indexes) {
+        let index = indexes[0]
+        let type = index.model.get(index,"typeRole")
+        addItem(type, index.parent, index.row + (type == "Audio Track" ? 1 : 0), type)
+    }
+
     function duplicateClips(indexes) {
         return theSessionData.duplicateTimelineClips(indexes);
+    }
+
+    function duplicateTracks(indexes) {
+        for(let i=0;i<indexes.length; i++) {
+            theSessionData.duplicateRows(indexes[i].row, 1, indexes[i].parent)
+        }
     }
 
     function deleteItemFrames(index, start, duration) {
@@ -868,23 +895,6 @@ Item {
         id: media_move_copy_dialog
     }*/
 
-    /*Keys.onPressed: {
-        if(event.key == Qt.Key_Z && event.modifiers == Qt.NoModifier) {
-            event.accepted = true
-            scalingModeActive = true
-        }
-        else if(event.key == Qt.Key_X && event.modifiers == Qt.NoModifier) {
-            event.accepted = true
-            scrollingModeActive = true
-        }
-        else if(event.key == Qt.Key_F && event.modifiers == Qt.NoModifier) {
-            event.accepted = true
-            fitItems(timeline.timelineSelection.selectedIndexes)
-        }
-    }*/
-
-    // Keys.forwardTo: [timeline, hotkey_area]
-
     XsHotkeyArea {
         id: hotkey_area
         anchors.fill: parent
@@ -983,7 +993,7 @@ Item {
         context: "timeline"
         sequence:  "PgUp"
         name: "Move Selection Up"
-        description: "Move Clip Selection Up"
+        description: "Move Selection Up"
         onActivated: updateItemSelectionVertical(1,-1)
     }
 
@@ -992,8 +1002,62 @@ Item {
         context: "timeline"
         sequence:  "PgDown"
         name: "Move Selection Down"
-        description: "Move Clip Selection Down"
+        description: "Move Selection Down"
         onActivated: updateItemSelectionVertical(-1,1)
+    }
+
+    XsHotkey {
+        id: expand_up_hotkey
+        context: "timeline"
+        sequence:  "Ctrl+PgUp"
+        name: "Expand Selection Up"
+        description: "Expand Selection Up"
+        onActivated: updateItemSelectionVertical(1,0)
+    }
+
+    XsHotkey {
+        id: expand_down_hotkey
+        context: "timeline"
+        sequence:  "Ctrl+PgDown"
+        name: "Expand Selection Down"
+        description: "Expand Selection Down"
+        onActivated: updateItemSelectionVertical(0,1)
+    }
+
+    XsHotkey {
+        id: contract_up_hotkey
+        context: "timeline"
+        sequence:  "Shift+PgUp"
+        name: "Contract Selection Up"
+        description: "Contract Selection Up"
+        onActivated: updateItemSelectionVertical(-1,0)
+    }
+
+    XsHotkey {
+        id: contract_down_hotkey
+        context: "timeline"
+        sequence:  "Shift+PgDown"
+        name: "Contract Selection Down"
+        description: "Contract Selection Down"
+        onActivated: updateItemSelectionVertical(0,-1)
+    }
+
+    XsHotkey {
+        id: expand_up_down_hotkey
+        context: "timeline"
+        sequence:  "Alt+PgUp"
+        name: "Expand Selection Up and Down"
+        description: "Expand Selection Up and Down"
+        onActivated: updateItemSelectionVertical(1,1)
+    }
+
+    XsHotkey {
+        id: contract_up_down_hotkey
+        context: "timeline"
+        sequence:  "Alt+PgDown"
+        name: "Contract Selection Up and Down"
+        description: "Contract Selection Up and Down"
+        onActivated: updateItemSelectionVertical(-1,-1)
     }
 
     XsHotkey {
@@ -1218,7 +1282,6 @@ Item {
             property var modifyItem: null
             property var modifyPreceedingItem: null
             property var modifyAnteceedingItem: null
-            property string modifyItemType: ""
             property real modifyItemStartX: 0.0
 
             Rectangle {
@@ -1296,7 +1359,7 @@ Item {
                         isScrolling = scrollingModeActive
                         initialValue = list_view.itemAtIndex(0).currentPosition()
                         initialPosition = Qt.point(mouse.x, mouse.y)
-                    } else if(editMode == "Select") {
+                    } else if(editMode == "Select" && mouse.x > trackHeaderWidth) {
                         region.setClick(mouse)
                         isRegionSelection = true
                     } else if(editMode == "Roll") {
@@ -1312,7 +1375,6 @@ Item {
                                 item.isRolling = true
                                 isRolling = true
                                 modifyItem = item
-                                modifyItemType = item_type
                                 modifyItemStartX = mouse.x
                                 modifyItem.adjustStart = 0
                                 modifyItem.isAdjustingStart = true
@@ -1323,25 +1385,6 @@ Item {
                     }
                     else {
                         adjustSelection(mouse)
-                        if(dragLeft.visible || dragRight.visible || dragBothLeft.visible || dragBothRight.visible || moveClip.visible) {
-                            let [item, item_type, local_x, local_y] = resolveItem(mouse.x, mouse.y)
-                            modifyItem = item
-                            modifyItemStartX = mouse.x
-                            modifyItemType = item_type
-                            isResizing = true
-
-                            if(dragLeft.visible) {
-                                beginDragLeft()
-                            } else if(dragRight.visible) {
-                                beginDragRight()
-                            } else if(dragBothLeft.visible) {
-                                beginDragBothLeft()
-                            } else if(dragBothRight.visible) {
-                                beginDragBothRight()
-                            } else if(moveClip.visible) {
-                                beginMove()
-                            }
-                        }
                     }
                 }
             }
@@ -1379,40 +1422,7 @@ Item {
                     modifyItem = null
 
                 } else if(isResizing) {
-                    if(modifyItem != null) {
-                        if(dragRight.visible) {
-                            endDragRight()
-                        } else if(dragLeft.visible) {
-                            endDragLeft()
-                        } else if(dragBothLeft.visible) {
-                            endDragBothLeft()
-                        } else if(dragBothRight.visible) {
-                            endDragBothRight()
-                        } else if(moveClip.visible) {
-                            endMove()
-                        }
 
-                        if(modifyPreceedingItem) {
-                            modifyPreceedingItem.isAdjustingStart = false
-                            modifyPreceedingItem.isAdjustingDuration = false
-                        }
-
-                        if(modifyAnteceedingItem) {
-                            modifyAnteceedingItem.isAdjustingStart = false
-                            modifyAnteceedingItem.isAdjustingDuration = false
-                        }
-
-                        modifyItem = null
-                    }
-
-                    modifyAnteceedingItem = null
-                    modifyPreceedingItem = null
-                    isResizing = false
-                    dragLeft.visible = false
-                    dragRight.visible = false
-                    dragBothLeft.visible = false
-                    moveClip.visible = false
-                    dragBothRight.visible = false
                 } else {
                     moveDragHandler.enabled = false
                 }
@@ -1441,18 +1451,7 @@ Item {
                     let frame_change = -((modifyItemStartX - mouse.x) / scaleX)
                     modifyItem.updateStart(modifyItemStartX, mouse.x)
                 } else if(isResizing) {
-                    let frame_change = -((modifyItemStartX - mouse.x) / scaleX)
 
-                    if(dragRight.visible)
-                        updateDragRight(frame_change)
-                    else if(dragLeft.visible)
-                        updateDragLeft(frame_change)
-                    else if(dragBothLeft.visible)
-                        updateDragBothLeft(frame_change)
-                    else if(dragBothRight.visible)
-                        updateDragBothRight(frame_change)
-                    else if(moveClip.visible)
-                        updateMove(frame_change)
                 } else {
                     if(editMode == "Select"){
                         if(isRegionSelection) {
@@ -1509,21 +1508,12 @@ Item {
                 }
             }
 
-
             function showHandles(mousex, mousey) {
                 let [item, item_type, local_x, local_y] = resolveItem(mousex, mousey)
 
                 if(hovered != item) {
-                    // console.log(item,item.modelIndex(), item_type, local_x, local_y)
                     hovered = item
                 }
-
-                let show_dragLeft = false
-                let show_dragRight = false
-                let show_dragBothLeft = false
-                let show_moveClip = false
-                let show_dragBothRight = false
-                let handle = 32
 
                 if(hovered) {
                     if(["Select"].includes(editMode))
@@ -1545,68 +1535,78 @@ Item {
                         if(pre_index.valid)
                             preceeding_type = pre_index.model.get(pre_index, "typeRole")
 
-                        // expand left
-                        let left = local_x <= (handle * 1.5) && local_x >= 0
-                        let left_edge = left && local_x < (handle / 2)
-                        let right = local_x >= hovered.width - (1.5 * handle) && local_x < hovered.width
-                        let right_edge = right && local_x > hovered.width - (handle / 2)
-                        let middle = local_x >= (hovered.width/2) - (handle / 2) && local_x <= (hovered.width/2) + (handle / 2)
+                        item.dragLeft = true
+                        item.dragRight = true
+                        item.dragMiddle = true
 
-                        if(preceeding_type == "Clip" && left_edge)  {
-                            let ppos = mapFromItem(item, -dragBothLeft.width / 2, 0)
-                            dragBothLeft.x = ppos.x
-                            dragBothLeft.y = ppos.y
-                            show_dragBothLeft = true
-                            item.parentLV.itemAtIndex(mi.row - 1).isBothHovered = true
-                        } else if(left) {
-                            let ppos = mapFromItem(item, 0, 0)
-                            dragLeft.x = ppos.x
-                            dragLeft.y = ppos.y
-                            show_dragLeft = true
-                            if(preceeding_type == "Clip")
-                                item.parentLV.itemAtIndex(mi.row - 1).isBothHovered = false
-                        } else if(anteceeding_type == "Clip" && right_edge) {
-                            let ppos = mapFromItem(item, hovered.width - dragBothRight.width/2, 0)
-                            dragBothRight.x = ppos.x
-                            dragBothRight.y = ppos.y
-                            show_dragBothRight = true
-                            item.parentLV.itemAtIndex(mi.row + 1).isBothHovered = true
-                        } else if(right) {
-                            let ppos = mapFromItem(item, hovered.width - dragRight.width, 0)
-                            dragRight.x = ppos.x
-                            dragRight.y = ppos.y
-                            show_dragRight = true
-                            if(anteceeding_type == "Clip")
-                                item.parentLV.itemAtIndex(mi.row + 1).isBothHovered = false
-                        } else if(middle && (preceeding_type != "Clip" || anteceeding_type != "Clip") && !(preceeding_type == "Track" && anteceeding_type == "Clip")) {
-                            let ppos = mapFromItem(item, hovered.width / 2, hovered.height / 2)
-                            moveClip.x = ppos.x - moveClip.width / 2
-                            moveClip.y = ppos.y - moveClip.height / 2
-                            show_moveClip = true
-                        }
+                        if(preceeding_type == "Clip")
+                            item.dragLeftLeft = true
+                        if(anteceeding_type == "Clip")
+                            item.dragRightRight = true
                     }
-                 }
+                }
+            }
 
-                if(show_dragLeft != dragLeft.visible)
-                    dragLeft.visible = show_dragLeft
+            function draggingStarted(item, mode ) {
+                ma.isResizing = true
 
-                if(show_dragRight != dragRight.visible)
-                    dragRight.visible = show_dragRight
-
-                if(show_dragBothLeft != dragBothLeft.visible)
-                    dragBothLeft.visible = show_dragBothLeft
-
-                if(show_moveClip != moveClip.visible)
-                    moveClip.visible = show_moveClip
-
-                if(show_dragBothRight != dragBothRight.visible)
-                    dragBothRight.visible = show_dragBothRight
+                if(mode == "left")
+                    ma.beginDragLeft(item)
+                else if(mode == "right")
+                    ma.beginDragRight(item)
+                else if(mode == "leftleft")
+                    ma.beginDragBothLeft(item)
+                else if(mode == "rightright")
+                    ma.beginDragBothRight(item)
+                else if(mode == "middle")
+                    ma.beginMove(item)
 
             }
 
-            function beginMove() {
+            function dragging(item, mode, x) {
+                if(mode == "left")
+                    ma.updateDragLeft(item, x)
+                else if(mode == "right")
+                    ma.updateDragRight(item, x)
+                else if(mode == "leftleft")
+                    ma.updateDragBothLeft(item, x)
+                else if(mode == "rightright")
+                    ma.updateDragBothRight(item, x)
+                else if(mode == "middle")
+                    ma.updateMove(item, x)
+            }
+
+            function draggingStopped(item, mode) {
+                if(mode == "left")
+                    ma.endDragLeft(item)
+                else if(mode == "right")
+                    ma.endDragRight(item)
+                else if(mode == "leftleft")
+                    ma.endDragBothLeft(item)
+                else if(mode == "rightright")
+                    ma.endDragBothRight(item)
+                else if(mode == "middle")
+                    ma.endMove(item)
+
+                if(ma.modifyPreceedingItem) {
+                    ma.modifyPreceedingItem.isAdjustingStart = false
+                    ma.modifyPreceedingItem.isAdjustingDuration = false
+                }
+
+                if(ma.modifyAnteceedingItem) {
+                    ma.modifyAnteceedingItem.isAdjustingStart = false
+                    ma.modifyAnteceedingItem.isAdjustingDuration = false
+                }
+
+                // modifyItem = null
+                ma.modifyAnteceedingItem = null
+                ma.modifyPreceedingItem = null
+                ma.isResizing = false
+            }
+
+            function beginMove(item) {
                 // we adjust material either side of us..
-                let mi = modifyItem.modelIndex()
+                let mi = item.modelIndex()
                 let prec_index = preceedingIndex(mi)
                 let ante_index = anteceedingIndex(mi)
 
@@ -1614,25 +1614,25 @@ Item {
                 let anteceeding_type = ante_index.valid ? ante_index.model.get(ante_index, "typeRole") : "Track"
 
                 if(preceeding_type == "Gap") {
-                    modifyPreceedingItem = modifyItem.parentLV.itemAtIndex(mi.row - 1)
+                    modifyPreceedingItem = item.parentLV.itemAtIndex(mi.row - 1)
                     modifyPreceedingItem.adjustDuration = 0
                     modifyPreceedingItem.isAdjustingDuration = true
                 } else {
-                    modifyItem.adjustPreceedingGap = 0
-                    modifyItem.isAdjustPreceeding = true
+                    item.adjustPreceedingGap = 0
+                    item.isAdjustPreceeding = true
                 }
 
                 if(anteceeding_type == "Gap") {
-                    modifyAnteceedingItem = modifyItem.parentLV.itemAtIndex(mi.row + 1)
+                    modifyAnteceedingItem = item.parentLV.itemAtIndex(mi.row + 1)
                     modifyAnteceedingItem.adjustDuration = 0
                     modifyAnteceedingItem.isAdjustingDuration = true
                 } else if(anteceeding_type != "Track") {
-                    modifyItem.adjustAnteceedingGap = 0
-                    modifyItem.isAdjustAnteceeding = true
+                    item.adjustAnteceedingGap = 0
+                    item.isAdjustAnteceeding = true
                 }
             }
 
-            function updateMove(frame_change) {
+            function updateMove(item, frame_change) {
                 if(modifyPreceedingItem)
                     frame_change = modifyPreceedingItem.checkAdjust(frame_change, false)
                 else
@@ -1645,20 +1645,17 @@ Item {
 
                 if(modifyPreceedingItem)
                     modifyPreceedingItem.adjust(frame_change)
-                else if(modifyItem.isAdjustPreceeding)
-                    modifyItem.adjustPreceedingGap = frame_change
+                else if(item.isAdjustPreceeding)
+                    item.adjustPreceedingGap = frame_change
 
                 if(modifyAnteceedingItem)
                     modifyAnteceedingItem.adjust(-frame_change)
-                else if(modifyItem.isAdjustAnteceeding)
-                    modifyItem.adjustAnteceedingGap = -frame_change
-
-                let ppos = mapFromItem(modifyItem, modifyItem.width / 2 - moveClip.width / 2, 0)
-                moveClip.x = ppos.x
+                else if(item.isAdjustAnteceeding)
+                    item.adjustAnteceedingGap = -frame_change
             }
 
-            function endMove() {
-                let mindex = modifyItem.modelIndex()
+            function endMove(item) {
+                let mindex = item.modelIndex()
                 let src_model = mindex.model
 
                 if(modifyPreceedingItem && modifyPreceedingItem.durationFrame) {
@@ -1673,15 +1670,15 @@ Item {
 
                 let delete_preceeding = modifyPreceedingItem && !modifyPreceedingItem.durationFrame
                 let delete_anteceeding = modifyAnteceedingItem && !modifyAnteceedingItem.durationFrame
-                let insert_preceeding = modifyItem.isAdjustPreceeding && modifyItem.adjustPreceedingGap
-                let insert_anteceeding = modifyItem.isAdjustAnteceeding && modifyItem.adjustAnteceedingGap
+                let insert_preceeding = item.isAdjustPreceeding && item.adjustPreceedingGap
+                let insert_anteceeding = item.isAdjustAnteceeding && item.adjustAnteceedingGap
 
                 // some operations are moves
                 if(insert_preceeding && delete_anteceeding) {
                     // move clip left
-                    moveItem(modifyItem.modelIndex(), 1)
+                    moveItem(item.modelIndex(), 1)
                 } else if (delete_preceeding && insert_anteceeding) {
-                    moveItem(modifyItem.modelIndex(), -1)
+                    moveItem(item.modelIndex(), -1)
                 } else {
                     if(delete_preceeding) {
                         theSessionData.removeTimelineItems([modifyPreceedingItem.modelIndex()])
@@ -1692,63 +1689,60 @@ Item {
                     }
 
                     if(insert_preceeding) {
-                        theSessionData.insertTimelineGap(mindex.row, mindex.parent, modifyItem.adjustPreceedingGap, modifyItem.fps, "New Gap")
+                        theSessionData.insertTimelineGap(mindex.row, mindex.parent, item.adjustPreceedingGap, item.fps, "New Gap")
                     }
 
                     if(insert_anteceeding) {
-                        theSessionData.insertTimelineGap(mindex.row + 1, mindex.parent, modifyItem.adjustAnteceedingGap, modifyItem.fps, "New Gap")
+                        theSessionData.insertTimelineGap(mindex.row + 1, mindex.parent, item.adjustAnteceedingGap, item.fps, "New Gap")
                     }
                 }
 
-                modifyItem.adjustPreceedingGap = 0
-                modifyItem.isAdjustPreceeding = false
-                modifyItem.adjustAnteceedingGap = 0
-                modifyItem.isAdjustAnteceeding = false
+                item.adjustPreceedingGap = 0
+                item.isAdjustPreceeding = false
+                item.adjustAnteceedingGap = 0
+                item.isAdjustAnteceeding = false
             }
 
-            function beginDragLeft() {
-                modifyItem.adjustDuration = 0
-                modifyItem.adjustStart = 0
-                modifyItem.isAdjustingDuration = true
-                modifyItem.isAdjustingStart = true
+            function beginDragLeft(item) {
+                item.adjustDuration = 0
+                item.adjustStart = 0
+                item.isAdjustingDuration = true
+                item.isAdjustingStart = true
                 // is there a gap to our left..
-                let mi = modifyItem.modelIndex()
+                let mi = item.modelIndex()
                 let pre_index = preceedingIndex(mi)
                 if(pre_index.valid) {
                     let preceeding_type = pre_index.model.get(pre_index, "typeRole")
 
                     if(preceeding_type == "Gap") {
-                        modifyPreceedingItem = modifyItem.parentLV.itemAtIndex(mi.row - 1)
+                        modifyPreceedingItem = item.parentLV.itemAtIndex(mi.row - 1)
                         modifyPreceedingItem.adjustDuration = 0
                         modifyPreceedingItem.isAdjustingDuration = true
                     }
                 }
             }
 
-            function updateDragLeft(frame_change) {
+            function updateDragLeft(item, frame_change) {
                 // must inject / resize gap.
                 // make sure last frame doesn't change..
-                frame_change = modifyItem.checkAdjust(frame_change, false, true)
+                frame_change = item.checkAdjust(frame_change, false, true)
                 if(modifyPreceedingItem) {
                     frame_change = modifyPreceedingItem.checkAdjust(frame_change, false)
                     modifyPreceedingItem.adjust(frame_change)
                 } else {
-                    modifyItem.adjustPreceedingGap = frame_change
+                    item.adjustPreceedingGap = frame_change
                 }
 
-                modifyItem.adjust(frame_change)
-
-                let ppos = mapFromItem(modifyItem, modifyItem.adjustPreceedingGap * scaleX, 0)
-                dragLeft.x = ppos.x
+                item.adjust(frame_change)
             }
 
-            function endDragLeft() {
-                let mindex = modifyItem.modelIndex()
+            function endDragLeft(item) {
+                let mindex = item.modelIndex()
                 let src_model = mindex.model
-                src_model.set(mindex, modifyItem.startFrame, "activeStartRole")
-                src_model.set(mindex, modifyItem.durationFrame, "activeDurationRole")
-                modifyItem.isAdjustingStart = false
-                modifyItem.isAdjustingDuration = false
+                src_model.set(mindex, item.startFrame, "activeStartRole")
+                src_model.set(mindex, item.durationFrame, "activeDurationRole")
+                item.isAdjustingStart = false
+                item.isAdjustingDuration = false
 
                 if(modifyPreceedingItem) {
                     if(modifyPreceedingItem.durationFrame == 0) {
@@ -1760,89 +1754,83 @@ Item {
                         modifyPreceedingItem.isAdjustingDuration = false
                     }
                 } else {
-                    if(modifyItem.adjustPreceedingGap > 0) {
-                        theSessionData.insertTimelineGap(mindex.row, mindex.parent, modifyItem.adjustPreceedingGap, modifyItem.fps, "New Gap")
+                    if(item.adjustPreceedingGap > 0) {
+                        theSessionData.insertTimelineGap(mindex.row, mindex.parent, item.adjustPreceedingGap, item.fps, "New Gap")
                     }
-                    modifyItem.adjustPreceedingGap = 0
+                    item.adjustPreceedingGap = 0
                 }
             }
 
-            function beginDragBothLeft() {
+            function beginDragBothLeft(item) {
                 // both at front or end..?
-                let mi = modifyItem.modelIndex()
-                modifyItem.adjustDuration = 0
-                modifyItem.adjustStart = 0
-                modifyItem.isAdjustingStart = true
-                modifyItem.isAdjustingDuration = true
+                let mi = item.modelIndex()
+                item.adjustDuration = 0
+                item.adjustStart = 0
+                item.isAdjustingStart = true
+                item.isAdjustingDuration = true
 
-                modifyPreceedingItem = modifyItem.parentLV.itemAtIndex(mi.row - 1)
+                modifyPreceedingItem = item.parentLV.itemAtIndex(mi.row - 1)
                 modifyPreceedingItem.adjustDuration = 0
                 modifyPreceedingItem.isAdjustingDuration = true
             }
 
-            function updateDragBothLeft(frame_change) {
-                frame_change = modifyItem.checkAdjust(frame_change, true)
+            function updateDragBothLeft(item, frame_change) {
+                frame_change = item.checkAdjust(frame_change, true)
                 frame_change = modifyPreceedingItem.checkAdjust(frame_change, true)
 
-                modifyItem.adjust(frame_change)
+                item.adjust(frame_change)
                 modifyPreceedingItem.adjust(frame_change)
-
-                let ppos = mapFromItem(modifyItem, -dragBothLeft.width / 2, 0)
-                dragBothLeft.x = ppos.x
             }
 
-            function endDragBothLeft() {
-                let mindex = modifyItem.modelIndex()
+            function endDragBothLeft(item) {
+                let mindex = item.modelIndex()
                 let src_model = mindex.model
-                src_model.set(mindex, modifyItem.startFrame, "activeStartRole")
-                src_model.set(mindex, modifyItem.durationFrame, "activeDurationRole")
+                src_model.set(mindex, item.startFrame, "activeStartRole")
+                src_model.set(mindex, item.durationFrame, "activeDurationRole")
 
                 if(modifyPreceedingItem) {
                     let pindex = src_model.index(mindex.row-1, 0, mindex.parent)
                     src_model.set(pindex, modifyPreceedingItem.durationFrame, "activeDurationRole")
                 }
-                modifyItem.isAdjustingStart = false
-                modifyItem.isAdjustingDuration = false
+                item.isAdjustingStart = false
+                item.isAdjustingDuration = false
             }
 
-            function beginDragRight() {
-                modifyItem.adjustDuration = 0
-                modifyItem.isAdjustingDuration = true
+            function beginDragRight(item) {
+                item.adjustDuration = 0
+                item.isAdjustingDuration = true
 
-                let mi = modifyItem.modelIndex()
+                let mi = item.modelIndex()
                 let ante_index = anteceedingIndex(mi)
                 if(ante_index.valid) {
                     let anteceeding_type = ante_index.model.get(ante_index, "typeRole")
 
                     if(anteceeding_type == "Gap") {
-                        modifyAnteceedingItem = modifyItem.parentLV.itemAtIndex(mi.row + 1)
+                        modifyAnteceedingItem = item.parentLV.itemAtIndex(mi.row + 1)
                         modifyAnteceedingItem.adjustDuration = 0
                         modifyAnteceedingItem.isAdjustingDuration = true
                     }
                 }
             }
 
-            function updateDragRight(frame_change) {
-                frame_change = modifyItem.checkAdjust(frame_change, true)
+            function updateDragRight(item, frame_change) {
+                frame_change = item.checkAdjust(frame_change, true)
                 if(modifyAnteceedingItem) {
                     frame_change = -modifyAnteceedingItem.checkAdjust(-frame_change, false)
                     modifyAnteceedingItem.adjust(-frame_change)
                 } else {
-                    modifyItem.adjustAnteceedingGap = -frame_change
+                    item.adjustAnteceedingGap = -frame_change
                 }
 
-                modifyItem.adjust(frame_change)
-
-                let ppos = mapFromItem(modifyItem, modifyItem.width - (modifyItem.adjustAnteceedingGap * scaleX) - dragRight.width, 0)
-                dragRight.x = ppos.x
+                item.adjust(frame_change)
             }
 
-            function endDragRight() {
-                let mindex = modifyItem.modelIndex()
+            function endDragRight(item) {
+                let mindex = item.modelIndex()
                 let src_model = mindex.model
 
-                src_model.set(mindex, modifyItem.durationFrame, "activeDurationRole")
-                modifyItem.isAdjustingDuration = false
+                src_model.set(mindex, item.durationFrame, "activeDurationRole")
+                item.isAdjustingDuration = false
 
                 if(modifyAnteceedingItem) {
                     if(modifyAnteceedingItem.durationFrame == 0) {
@@ -1854,47 +1842,44 @@ Item {
                         modifyAnteceedingItem.isAdjustingDuration = false
                     }
                 } else {
-                    if(modifyItem.adjustAnteceedingGap > 0) {
-                        theSessionData.insertTimelineGap(mindex.row+1, mindex.parent, modifyItem.adjustAnteceedingGap, modifyItem.fps, "New Gap")
+                    if(item.adjustAnteceedingGap > 0) {
+                        theSessionData.insertTimelineGap(mindex.row+1, mindex.parent, item.adjustAnteceedingGap, item.fps, "New Gap")
                     }
-                    modifyItem.adjustAnteceedingGap = 0
+                    item.adjustAnteceedingGap = 0
                 }
             }
 
-            function beginDragBothRight() {
+            function beginDragBothRight(item) {
                 // both at front or end..?
-                let mi = modifyItem.modelIndex()
-                modifyItem.adjustDuration = 0
-                modifyItem.isAdjustingDuration = true
+                let mi = item.modelIndex()
+                item.adjustDuration = 0
+                item.isAdjustingDuration = true
 
-                modifyAnteceedingItem = modifyItem.parentLV.itemAtIndex(mi.row + 1)
+                modifyAnteceedingItem = item.parentLV.itemAtIndex(mi.row + 1)
                 modifyAnteceedingItem.adjustStart = 0
                 modifyAnteceedingItem.adjustDuration = 0
                 modifyAnteceedingItem.isAdjustingStart = true
                 modifyAnteceedingItem.isAdjustingDuration = true
             }
 
-            function updateDragBothRight(frame_change) {
-                frame_change = modifyItem.checkAdjust(frame_change, true)
+            function updateDragBothRight(item, frame_change) {
+                frame_change = item.checkAdjust(frame_change, true)
                 frame_change = modifyAnteceedingItem.checkAdjust(frame_change, true)
 
-                modifyItem.adjust(frame_change)
+                item.adjust(frame_change)
                 modifyAnteceedingItem.adjust(frame_change)
-
-                let ppos = mapFromItem(modifyItem, modifyItem.width - dragBothRight.width / 2, 0)
-                dragBothRight.x = ppos.x
             }
 
-            function endDragBothRight() {
-                let mindex = modifyItem.modelIndex()
+            function endDragBothRight(item) {
+                let mindex = item.modelIndex()
                 let src_model = mindex.model
-                src_model.set(mindex, modifyItem.durationFrame, "activeDurationRole")
+                src_model.set(mindex, item.durationFrame, "activeDurationRole")
 
                 let pindex = src_model.index(mindex.row + 1, 0, mindex.parent)
                 src_model.set(pindex, modifyAnteceedingItem.startFrame, "activeStartRole")
                 src_model.set(pindex, modifyAnteceedingItem.durationFrame, "activeDurationRole")
 
-                modifyItem.isAdjustingDuration = false
+                item.isAdjustingDuration = false
             }
 
             function isValidSelection(ctype, ntype) {
@@ -2008,6 +1993,10 @@ Item {
                 property var timelineSelection: timeline.timelineSelection
                 property int playheadFrame: timelinePlayhead.logicalFrame ? timelinePlayhead.logicalFrame : 0
                 property string itemFlag: defaultClip
+
+                property var draggingStarted: ma.draggingStarted
+                property var dragging: ma.dragging
+                property var draggingStopped: ma.draggingStopped
 
                 onPlayheadFrameChanged: {
                     if (itemAtIndex(0))

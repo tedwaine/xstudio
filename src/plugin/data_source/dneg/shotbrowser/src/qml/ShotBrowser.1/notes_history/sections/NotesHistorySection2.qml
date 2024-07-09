@@ -18,21 +18,21 @@ Rectangle{
 
         NotesHistoryTextRow{ id: subjectDiv
             Layout.fillWidth: true
-            Layout.minimumHeight: itemHeight
+            Layout.minimumHeight: XsStyleSheet.widgetStdHeight
             text: versionNameRole
         }
 
         NotesHistoryTextRow{ id: titleDiv
             Layout.fillWidth: true
-            Layout.minimumHeight: itemHeight
+            Layout.minimumHeight: XsStyleSheet.widgetStdHeight
             text: subjectRole
-            textColor: hintColor
+            textColor: XsStyleSheet.hintColor
         }
 
         Rectangle{ id: notesDiv
             Layout.fillWidth: true
             Layout.fillHeight: true
-            color: bgColorNormal
+            color: XsStyleSheet.widgetBgNormalColor
 
             property bool isHovered: mArea.containsMouse || notesEdit.hovered || scrollView.hovered
 

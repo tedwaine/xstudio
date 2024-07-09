@@ -17,14 +17,6 @@
 				"datatype": "string",
 				"context": ["APPLICATION"]
 			},
-			"grading_tracking": {
-				"path": "/plugin/grading/grading_tracking",
-				"default_value": false,
-				"description": "Auto select grading note depending on the current frame",
-				"value": false,
-				"datatype": "bool",
-				"context": ["APPLICATION"]
-			},
 			"drawing_tool": {
 				"path": "/plugin/grading/drawing_tool",
 				"default_value": "Shape",

@@ -16,20 +16,8 @@ Rectangle {
 	property int duration: 0
 	property real fps: 24.0
 	property string name
-    // readonly property bool extraDetail: isSelected && height > 60
 
 	color: timelineBackground
-
-	// XsTickWidget {
-	// 	anchors.left: parent.left
-	// 	anchors.right: parent.right
-	// 	anchors.top: parent.top
-	// 	height: Math.min(parent.height/5, 20)
-	// 	start: control.start
-	// 	duration: control.duration
-	// 	fps: fps
-	// 	endTicks: false
-	// }
 
 	XsElideLabel {
 		anchors.fill: parent
@@ -45,46 +33,4 @@ Rectangle {
 		visible: isHovered
 		z:1
 	}
-	// Label {
-	// 	anchors.horizontalCenter: parent.horizontalCenter
-	// 	text: duration
-	// 	anchors.top: parent.top
-	// 	anchors.topMargin: 5
-	// 	z:2
-	// 	visible: extraDetail
-	// }
-	// Label {
-	// 	anchors.top: parent.top
-	// 	anchors.left: parent.left
-	// 	anchors.topMargin: 5
-	// 	anchors.leftMargin: 10
-	// 	text: start
-	// 	visible: extraDetail
-	// 	z:2
-	// }
-	// Label {
-	// 	anchors.verticalCenter: parent.verticalCenter
-	// 	anchors.left: parent.left
-	// 	anchors.leftMargin: 10
-	// 	text: parentStart
-	// 	visible: isHovered
-	// 	z:2
-	// }
-	// Label {
-	// 	anchors.verticalCenter: parent.verticalCenter
-	// 	anchors.right: parent.right
-	// 	anchors.rightMargin: 10
-	// 	text: parentStart + duration - 1
-	// 	visible: isHovered
-	// 	z:2
-	// }
-	// Label {
-	// 	anchors.top: parent.top
-	// 	anchors.topMargin: 5
-	// 	anchors.right: parent.right
-	// 	anchors.rightMargin: 10
-	// 	text: start + duration - 1
-	// 	z:2
-	// 	visible: extraDetail
-	// }
 }

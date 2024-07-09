@@ -566,6 +566,16 @@ Item {
     }
     property alias viewsModel: views_model
 
+
+    /* This model is a simple list of the pop-out windows that are accessible
+    via buttons in the shelf at the top-left of the viewport panel. e.g. notes
+    or grading tool. */
+    XsPopoutWindowsData {
+        id: popout_windows
+    }
+    property alias popoutWindowsModel: popout_windows
+
+
     /* This model is a flat list with just one attribute 'source' which is qml
     that we want to load once only. This allows plugins to declare some qml
     that is instanced once only at the global level. It is a good way to add

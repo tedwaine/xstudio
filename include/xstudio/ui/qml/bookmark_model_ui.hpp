@@ -13,6 +13,9 @@ CAF_PUSH_WARNINGS
 // #include <QQmlEngine>
 CAF_POP_WARNINGS
 
+// include CMake auto-generated export hpp
+#include "xstudio/ui/qml/bookmark_qml_export.h"
+
 #include "xstudio/ui/qml/helper_ui.hpp"
 #include "xstudio/utility/uuid.hpp"
 #include "xstudio/bookmark/bookmark.hpp"
@@ -20,7 +23,7 @@ CAF_POP_WARNINGS
 
 namespace xstudio::ui::qml {
 
-class BookmarkCategoryModel : public JSONTreeModel {
+class BOOKMARK_QML_EXPORT BookmarkCategoryModel : public JSONTreeModel {
     Q_OBJECT
 
     Q_PROPERTY(QVariant value READ value WRITE setValue NOTIFY valueChanged)
@@ -44,7 +47,7 @@ class BookmarkCategoryModel : public JSONTreeModel {
 };
 
 
-class BookmarkFilterModel : public QSortFilterProxyModel {
+class BOOKMARK_QML_EXPORT BookmarkFilterModel : public QSortFilterProxyModel {
     Q_OBJECT
 
     Q_PROPERTY(
@@ -58,6 +61,8 @@ class BookmarkFilterModel : public QSortFilterProxyModel {
                    setExcludedCategories NOTIFY excludedCategoriesChanged)
     Q_PROPERTY(QStringList includedCategories READ includedCategories WRITE
                    setIncludedCategories NOTIFY includedCategoriesChanged)
+    Q_PROPERTY(bool sortbyCreated READ sortbyCreated WRITE setsortbyCreated NOTIFY
+                   sortbyCreatedChanged)
 
 
   public:
@@ -69,6 +74,7 @@ class BookmarkFilterModel : public QSortFilterProxyModel {
     [[nodiscard]] bool showHidden() const { return showHidden_; }
     [[nodiscard]] QStringList excludedCategories() const { return excluded_categories_; }
     [[nodiscard]] QStringList includedCategories() const { return included_categories_; }
+    [[nodiscard]] bool sortbyCreated() const { return sortbyCreated_; }
 
     void setMediaOrder(const QVariantMap &mo);
     void setDepth(const int value);
@@ -76,6 +82,7 @@ class BookmarkFilterModel : public QSortFilterProxyModel {
     void setShowHidden(const bool value);
     void setExcludedCategories(const QStringList value);
     void setIncludedCategories(const QStringList value);
+    void setsortbyCreated(const bool value);
 
     Q_INVOKABLE bool
     removeRows(int row, int count, const QModelIndex &parent = QModelIndex()) override {
@@ -100,6 +107,7 @@ class BookmarkFilterModel : public QSortFilterProxyModel {
     void showHiddenChanged();
     void excludedCategoriesChanged();
     void includedCategoriesChanged();
+    void sortbyCreatedChanged();
 
   private:
     QVariantMap media_order_;
@@ -108,10 +116,11 @@ class BookmarkFilterModel : public QSortFilterProxyModel {
     bool showHidden_{false};
     QStringList excluded_categories_;
     QStringList included_categories_;
+    bool sortbyCreated_{false};
 };
 
 
-class BookmarkModel : public caf::mixin::actor_object<JSONTreeModel> {
+class BOOKMARK_QML_EXPORT BookmarkModel : public caf::mixin::actor_object<JSONTreeModel> {
     Q_OBJECT
 
     Q_PROPERTY(QString bookmarkActorAddr READ bookmarkActorAddr WRITE setBookmarkActorAddr
@@ -144,7 +153,9 @@ class BookmarkModel : public caf::mixin::actor_object<JSONTreeModel> {
         startRole,
         durationRole,
         durationFrameRole,
-        visibleRole
+        visibleRole,
+        userDataRole,
+        createdEpochRole
     };
 
     using super = caf::mixin::actor_object<JSONTreeModel>;

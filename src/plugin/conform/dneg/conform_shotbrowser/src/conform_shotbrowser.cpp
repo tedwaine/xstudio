@@ -133,150 +133,7 @@ template <typename T> class ShotbrowserConformActor : public caf::event_based_ac
             // show/shot.
             [=](conform_atom, const ConformRequest &crequest) -> result<ConformReply> {
                 auto rp = make_response_promise<ConformReply>();
-                try {
-                    auto creply = ConformReply(crequest);
-                    auto clips =
-                        crequest.template_tracks_.at(0).find_all_items(timeline::IT_CLIP);
-
-                    // build clip lookup.
-                    std::map<Uuid, std::string> clip_project_map;
-                    std::map<Uuid, std::string> clip_shot_map;
-
-                    // remap start frame if requested via metadata..
-                    for (auto &t : creply.request_.template_tracks_) {
-                        for (auto &c : t.find_all_items(timeline::IT_CLIP)) {
-
-                            auto item_meta = c.get().prop();
-                            const auto cut_start_ptr =
-                                json::json_pointer("/metadata/external/DNeg/cut/start");
-                            const auto override_cut_ptr =
-                                json::json_pointer("/metadata/external/DNeg/cut/override");
-                            const auto override_comp_ptr =
-                                json::json_pointer("/metadata/external/DNeg/comp/override");
-
-                            if (item_meta.contains(override_cut_ptr) and
-                                item_meta.at(override_cut_ptr).get<bool>() and
-                                item_meta.contains(cut_start_ptr) and
-                                not item_meta.at(cut_start_ptr).is_null()) {
-                                // get item trimmed start frame
-                                auto trimmed_range = c.get().trimmed_range();
-
-                                item_meta.at(override_cut_ptr)  = false;
-                                item_meta.at(override_comp_ptr) = false;
-                                trimmed_range.set_start(FrameRate(
-                                    trimmed_range.rate() *
-                                    item_meta.at(cut_start_ptr).get<int>()));
-
-                                c.get().set_prop(item_meta);
-                                c.get().set_active_range(trimmed_range);
-                            }
-                        }
-                    }
-
-
-                    for (const auto &c : clips) {
-                        auto clip_uuid  = c.get().uuid();
-                        auto media_uuid = c.get().prop().value("media_uuid", Uuid());
-
-                        auto clip_project =
-                            QueryEngine::get_project_name(crequest.metadata_.at(clip_uuid));
-                        auto clip_shot =
-                            QueryEngine::get_shot_name(crequest.metadata_.at(clip_uuid));
-
-                        if (clip_project.empty() and not media_uuid.is_null())
-                            clip_project = QueryEngine::get_project_name(
-                                crequest.metadata_.at(media_uuid));
-                        if (clip_shot.empty() and not media_uuid.is_null())
-                            clip_shot =
-                                QueryEngine::get_shot_name(crequest.metadata_.at(media_uuid));
-
-                        clip_project_map[clip_uuid] = clip_project;
-                        clip_shot_map[clip_uuid]    = clip_shot;
-
-                        if (clip_project.empty() or clip_shot.empty()) {
-                            spdlog::warn(
-                                "Clip metadata not found, {} project: '{}', 'shot':  {}",
-                                c.get().name(),
-                                clip_project,
-                                clip_shot);
-                        }
-                    }
-
-                    std::set<utility::Uuid> matched_clips;
-                    const auto only_one_match =
-                        crequest.operations_.value("only_one_clip_match", false);
-
-                    auto clip_track_uuid = Uuid();
-
-                    // we're matching media to clips.
-                    for (const auto &i : crequest.items_) {
-                        // find match in clips..
-                        // get show shot..
-                        if (clip_track_uuid != i.clip_track_uuid_) {
-                            matched_clips.clear();
-                            clip_track_uuid = i.clip_track_uuid_;
-                        }
-
-                        if (clips.empty()) {
-                            spdlog::warn("No clips found on selected conform track.");
-                            creply.items_.push_back({});
-                        } else {
-                            try {
-                                // spdlog::warn("GET MEDIA SHOW/SHOT {} {}",
-                                // to_string(std::get<0>(i).uuid()),
-                                // crequest.metadata_.count(std::get<0>(i).uuid()));
-                                const auto meta = crequest.metadata_.at(i.item_.uuid());
-                                auto project    = QueryEngine::get_project_name(meta);
-                                auto shot       = QueryEngine::get_shot_name(meta);
-
-                                if (project.empty() or shot.empty()) {
-                                    creply.items_.push_back({});
-                                    spdlog::warn(
-                                        "Media is missing metadata, {} project: {}, shot: {}",
-                                        to_string(i.item_.uuid()),
-                                        project,
-                                        shot);
-                                } else {
-                                    auto ritems = std::vector<ConformReplyItem>();
-
-                                    for (const auto &c : clips) {
-                                        auto clip_uuid = c.get().uuid();
-                                        if ((not only_one_match or
-                                             not matched_clips.count(clip_uuid)) and
-                                            clip_project_map.at(clip_uuid) == project and
-                                            clip_shot_map.at(clip_uuid) == shot) {
-                                            ritems.push_back(
-                                                std::make_tuple(c.get().uuid_actor()));
-                                            matched_clips.insert(clip_uuid);
-                                            if (only_one_match)
-                                                break;
-                                        }
-                                    }
-                                    if (ritems.empty()) {
-                                        spdlog::warn(
-                                            "Media has no matching clip {} project: {}, shot:  "
-                                            "{}",
-                                            to_string(i.item_.uuid()),
-                                            project,
-                                            shot);
-                                        creply.items_.push_back({});
-                                    } else
-                                        creply.items_.push_back(ritems);
-                                }
-
-                            } catch (const std::exception &err) {
-                                spdlog::warn("{} {}", __PRETTY_FUNCTION__, err.what());
-                                creply.items_.push_back({});
-                            }
-                        }
-                    }
-
-                    rp.deliver(creply);
-                } catch (const std::exception &err) {
-                    spdlog::warn("{} {}", __PRETTY_FUNCTION__, err.what());
-                    rp.deliver(make_error(xstudio_error::error, err.what()));
-                }
-
+                conform_request(rp, crequest);
                 return rp;
             },
 
@@ -284,121 +141,7 @@ template <typename T> class ShotbrowserConformActor : public caf::event_based_ac
                 const std::string &conform_task,
                 const ConformRequest &crequest) -> result<ConformReply> {
                 auto rp = make_response_promise<ConformReply>();
-
-                try {
-
-                    if (not connected_) {
-                        setup();
-                        conform_.update_tasks(presets_);
-                    }
-
-                    // spdlog::warn("conform_request {} {}", conform_task,
-                    // conform_detail.dump(2)); spdlog::warn("conform_request {}",
-                    // crequest.playlist_json_.dump(2));
-
-                    auto query_id = conform_.get_task_id(conform_task);
-
-                    if (query_id) {
-                        // build a query....
-                        if (crequest.items_.empty()) {
-                            rp.deliver(ConformReply(crequest));
-                            return rp;
-                        }
-
-                        auto shotbrowser =
-                            system().registry().template get<caf::actor>("SHOTBROWSER");
-
-                        if (not shotbrowser)
-                            throw std::runtime_error("Failed to find shotbrowser");
-
-
-                        auto shotgrid_count = std::make_shared<size_t>(crequest.items_.size());
-                        auto shotgrid_results = std::make_shared<std::vector<UuidActorVector>>(
-                            crequest.items_.size());
-
-                        // dispatch requests for shotgrid data.
-                        for (size_t i = 0; i < crequest.items_.size(); i++) {
-                            auto metadata =
-                                crequest.metadata_.at(crequest.items_.at(i).item_.uuid());
-
-                            // clip metadata has precedence
-                            auto media_uuid = metadata.value("media_uuid", Uuid());
-                            if (not media_uuid.is_null() and
-                                crequest.metadata_.count(media_uuid)) {
-                                auto tmp = crequest.metadata_.at(media_uuid);
-                                tmp.update(metadata);
-                                metadata = tmp;
-                                // metadata.update(crequest.metadata_.at(media_uuid));
-                            }
-
-                            auto project_id =
-                                QueryEngine::get_project_id(metadata, JsonStore());
-
-                            // if (not project_id)
-                            //     throw std::runtime_error("Failed to find project_id");
-                            // here we go....
-
-                            auto req          = JsonStore(GetExecutePreset);
-                            req["project_id"] = project_id;
-                            req["preset_id"]  = *query_id;
-                            req["metadata"]   = metadata;
-                            req["context"]    = R"({
-                                "type": null,
-                                "epoc": null,
-                                "audio_source": "",
-                                "visual_source": "",
-                                "flag_text": "",
-                                "flag_colour": "",
-                                "truncated": false
-                            })"_json;
-
-                            // req["env"]          = qvariant_to_json(env);
-                            // req["custom_terms"] = qvariant_to_json(custom_terms);
-
-                            // req["context"]["epoc"] =
-                            // utility::to_epoc_milliseconds(utility::clock::now());
-                            // req["context"]["type"] = "result";
-
-                            request(shotbrowser, infinite, data_source::get_data_atom_v, req)
-                                .then(
-                                    [=](const JsonStore &result) mutable {
-                                        request(
-                                            shotbrowser,
-                                            infinite,
-                                            playlist::add_media_atom_v,
-                                            result,
-                                            crequest.container_.uuid(),
-                                            crequest.container_.actor(),
-                                            crequest.items_.at(i).before_)
-                                            .then(
-                                                [=](const UuidActorVector &new_media) mutable {
-                                                    (*shotgrid_results)[i] = new_media;
-                                                    (*shotgrid_count)--;
-                                                    if (not *shotgrid_count)
-                                                        process_results(
-                                                            rp, *shotgrid_results, crequest);
-                                                },
-                                                [=](caf::error &err) mutable {
-                                                    (*shotgrid_count)--;
-                                                    if (not *shotgrid_count)
-                                                        process_results(
-                                                            rp, *shotgrid_results, crequest);
-                                                });
-                                    },
-                                    [=](caf::error &err) mutable {
-                                        (*shotgrid_count)--;
-                                        if (not *shotgrid_count)
-                                            process_results(rp, *shotgrid_results, crequest);
-                                    });
-                        }
-                    } else {
-                        throw std::runtime_error("Failed to find query id");
-                    }
-                } catch (const std::exception &err) {
-                    spdlog::warn("{} {}", __PRETTY_FUNCTION__, err.what());
-                    rp.deliver(make_error(xstudio_error::error, err.what()));
-                }
-
+                conform_task_request(rp, conform_task, crequest);
                 return rp;
             },
 
@@ -407,467 +150,22 @@ template <typename T> class ShotbrowserConformActor : public caf::event_based_ac
                 const bool only_create_conform_track) -> result<bool> {
                 // get timeline detail.
                 auto rp = make_response_promise<bool>();
-
-                scoped_actor sys{system()};
-                try {
-                    auto found_project = std::string();
-                    auto timeline_item = request_receive<timeline::Item>(
-                        *sys, timeline.actor(), timeline::item_atom_v);
-
-
-                    auto timeline_path = timeline_item.prop().value("path", std::string());
-                    if (not timeline_path.empty()) {
-                        std::cmatch m;
-                        auto uri_path         = caf::make_uri(timeline_path);
-                        const auto SHOW_REGEX = std::regex(
-                            R"(^(?:/jobs|/hosts/[^/]+/user_data\d*)/([A-Z0-9]+)/.+$)");
-                        if (uri_path and
-                            std::regex_match(
-                                uri_to_posix_path(*uri_path).c_str(), m, SHOW_REGEX)) {
-                            found_project = m[1];
-                        }
-                    }
-                    // process timeline..
-                    // purge empty tracks.
-
-                    auto video_tracks = timeline_item.find_all_items(timeline::IT_VIDEO_TRACK);
-                    auto insert_index = static_cast<int>(video_tracks.size());
-                    auto vcount       = video_tracks.size();
-                    if (not only_create_conform_track) {
-                        for (auto &i : video_tracks) {
-                            if (i.get().empty() and vcount > 1) {
-                                auto pactor = find_parent_actor(timeline_item, i.get().uuid());
-                                if (pactor) {
-                                    insert_index--;
-                                    vcount--;
-                                    request_receive<JsonStore>(
-                                        *sys,
-                                        pactor,
-                                        timeline::erase_item_atom_v,
-                                        i.get().uuid(),
-                                        true);
-                                }
-                            }
-                        }
-
-                        auto audio_tracks =
-                            timeline_item.find_all_items(timeline::IT_AUDIO_TRACK);
-                        auto acount = audio_tracks.size();
-                        for (auto &i : audio_tracks) {
-                            if (i.get().empty() and acount > 1) {
-                                auto pactor = find_parent_actor(timeline_item, i.get().uuid());
-                                if (pactor) {
-                                    acount--;
-                                    request_receive<JsonStore>(
-                                        *sys,
-                                        pactor,
-                                        timeline::erase_item_atom_v,
-                                        i.get().uuid(),
-                                        true);
-                                }
-                            }
-                        }
-                    }
-                    // create a new track with empty clips based off markers and scan track..
-                    // populate clips with metadata required to conform timeline
-                    auto vtrack = timeline::Item(timeline::IT_NONE);
-                    std::reverse(video_tracks.begin(), video_tracks.end());
-
-                    for (const auto &i : video_tracks) {
-                        if (not i.get().empty()) {
-                            vtrack = i.get();
-                            break;
-                        }
-                    }
-
-                    vtrack.set_name("Conform Track");
-                    vtrack.set_locked(true);
-                    vtrack.set_enabled(false);
-                    // populate vtrack name/metadata
-                    if (not only_create_conform_track)
-                        anon_send(vtrack.actor(), timeline::item_lock_atom_v, true);
-
-                    auto media_metadata = std::map<Uuid, JsonStore>();
-                    auto tframe         = timeline_item.trimmed_start();
-                    const auto trate    = timeline_item.rate();
-
-                    for (auto &i : vtrack.children()) {
-                        if (i.item_type() == timeline::IT_CLIP) {
-                            auto check_clips = true;
-                            i.set_name("UNKNOWN");
-
-                            // mirror changes to Cut Ref Track
-                            if (not only_create_conform_track)
-                                anon_send(i.actor(), timeline::item_name_atom_v, "UNKNOWN");
-
-                            // leed a list of clips at this point in time backed down.
-                            // do we need to check markers..
-                            if (not found_project.empty()) {
-                                // marker should have same start time as clip..
-                                // markers exist on stack..
-                                const auto fcpp = json::json_pointer("/fcp_xml/comment");
-                                const static auto cutcompre =
-                                    std::regex("(\\d+),(\\d+)-(\\d+),(\\d+)");
-
-                                for (const auto &m :
-                                     timeline_item.children().front().markers()) {
-                                    if (m.start() == tframe) {
-                                        auto u =
-                                            R"({"metadata": {"external": {"DNeg": {"shot": null, "show":null, "comp": {"start": null, "end":null, "override":true}, "cut": {"start": null, "end":null, "override":true}}}}})"_json;
-
-                                        if (m.prop().contains(fcpp)) {
-                                            auto comment = m.prop().at(fcpp).get<std::string>();
-                                            std::cmatch match;
-                                            if (std::regex_match(
-                                                    comment.c_str(), match, cutcompre)) {
-                                                auto start_frame = std::stoi(match[2]);
-                                                i.set_active_range(FrameRange(
-                                                    FrameRate(start_frame * trate.to_flicks()),
-                                                    i.trimmed_duration(),
-                                                    i.rate()));
-                                                i.set_available_range(*i.active_range());
-                                                check_clips = false;
-
-                                                u[json::json_pointer(
-                                                    "/metadata/external/DNeg/comp/start")] =
-                                                    std::stoi(match[1]);
-                                                u[json::json_pointer(
-                                                    "/metadata/external/DNeg/cut/start")] =
-                                                    std::stoi(match[2]);
-                                                u[json::json_pointer(
-                                                    "/metadata/external/DNeg/cut/end")] =
-                                                    std::stoi(match[3]);
-                                                u[json::json_pointer(
-                                                    "/metadata/external/DNeg/comp/end")] =
-                                                    std::stoi(match[4]);
-                                            }
-                                        }
-
-                                        auto meta = i.prop();
-                                        u[json::json_pointer("/metadata/external/DNeg/shot")] =
-                                            m.name();
-                                        u[json::json_pointer("/metadata/external/DNeg/show")] =
-                                            found_project;
-                                        meta.update(u);
-
-                                        i.set_prop(meta);
-                                        i.set_name(m.name());
-
-                                        if (not only_create_conform_track) {
-                                            anon_send(
-                                                i.actor(), timeline::item_prop_atom_v, meta);
-                                            anon_send(
-                                                i.actor(),
-                                                timeline::item_name_atom_v,
-                                                m.name());
-                                        }
-                                        break;
-                                    }
-                                }
-                            }
-
-                            if (check_clips) {
-                                auto items = timeline_item.resolve_time_raw(tframe);
-
-                                for (const auto &j : items) {
-                                    auto clip = j.first;
-
-                                    try {
-                                        auto project =
-                                            QueryEngine::get_project_name(clip.prop());
-                                        auto shot =
-                                            QueryEngine::get_shot_name(clip.prop(), true);
-
-                                        if (project.empty() or shot.empty()) {
-                                            // try media metadata..
-                                            auto media_uuid =
-                                                clip.prop().value("media_uuid", Uuid());
-
-                                            if (not media_uuid.is_null() and
-                                                not media_metadata.count(media_uuid)) {
-                                                try {
-                                                    auto tries    = 10;
-                                                    auto metadata = JsonStore();
-                                                    while (true) {
-                                                        metadata = request_receive<JsonStore>(
-                                                            *sys,
-                                                            clip.actor(),
-                                                            playlist::get_media_atom_v,
-                                                            json_store::get_json_atom_v,
-                                                            Uuid(),
-                                                            "");
-                                                        tries--;
-                                                        if (not tries or not metadata.is_null())
-                                                            break;
-                                                        std::this_thread::sleep_for(200ms);
-                                                        // spdlog::warn("retry");
-                                                    }
-
-                                                    if (metadata.is_null())
-                                                        spdlog::warn(
-                                                            "No metadata {} {} {}",
-                                                            clip.name(),
-                                                            metadata.dump(2),
-                                                            tries);
-
-                                                    media_metadata[media_uuid] = metadata;
-                                                } catch (const std::exception &err) {
-                                                    spdlog::warn(
-                                                        "{} {} {}",
-                                                        __PRETTY_FUNCTION__,
-                                                        clip.name(),
-                                                        err.what());
-                                                    media_metadata[media_uuid] = R"({})"_json;
-                                                }
-                                            }
-
-                                            if (project.empty())
-                                                project = QueryEngine::get_project_name(
-                                                    media_metadata.at(media_uuid));
-                                            if (shot.empty())
-                                                shot = QueryEngine::get_shot_name(
-                                                    media_metadata.at(media_uuid), true);
-                                        }
-
-                                        if (not project.empty())
-                                            found_project = project;
-
-                                        if (not project.empty() and not shot.empty()) {
-                                            auto m = i.prop();
-                                            auto u =
-                                                R"({"metadata": {"external": {"DNeg": {"shot": null, "show":null, "comp": {"start": null, "end":null, "override":false}, "cut": {"start": null, "end":null, "override":true}}}}})"_json;
-
-                                            u[json::json_pointer(
-                                                "/metadata/external/DNeg/shot")] = shot;
-                                            u[json::json_pointer(
-                                                "/metadata/external/DNeg/show")] = project;
-
-                                            u[json::json_pointer(
-                                                "/metadata/external/DNeg/cut/start")] =
-                                                clip.trimmed_frame_start().frames();
-                                            u[json::json_pointer(
-                                                "/metadata/external/DNeg/cut/end")] =
-                                                clip.trimmed_frame_start().frames() +
-                                                clip.trimmed_frame_duration().frames() - 1;
-
-                                            m.update(u);
-                                            i.set_prop(m);
-                                            i.set_name(shot);
-                                            // if(clip.available_range()) {
-                                            //     // must not be smaller than current active
-                                            //     i.set_available_range(*(clip.available_range()));
-                                            // }
-                                            i.set_active_range(FrameRange(
-                                                clip.trimmed_start(),
-                                                i.trimmed_duration(),
-                                                i.rate()));
-                                            i.set_available_range(*i.active_range());
-                                            // always use markers...
-                                            // check_markers = false;
-
-                                            if (not only_create_conform_track) {
-                                                anon_send(
-                                                    i.actor(), timeline::item_prop_atom_v, m);
-                                                anon_send(
-                                                    i.actor(),
-                                                    timeline::item_name_atom_v,
-                                                    shot);
-                                            }
-
-                                            break;
-                                        }
-
-                                    } catch (const std::exception &err) {
-                                        spdlog::warn("{} {}", __PRETTY_FUNCTION__, err.what());
-                                    }
-                                }
-                            }
-                        }
-                        if (i.name() == "UNKNOWN") {
-                            // i.set_prop(m);
-                            if (not only_create_conform_track) {
-                                auto m = i.prop();
-                                auto u =
-                                    R"({"metadata": {"external": {"DNeg": {"shot": null, "show":null}}}})"_json;
-
-                                u[json::json_pointer("/metadata/external/DNeg/shot")] =
-                                    "UNKNOWN";
-                                u[json::json_pointer("/metadata/external/DNeg/show")] =
-                                    found_project;
-
-                                m.update(u);
-                                anon_send(i.actor(), timeline::item_flag_atom_v, "#FFFF0000");
-                                anon_send(i.actor(), timeline::item_prop_atom_v, m);
-                            }
-
-                            i.set_flag("#FFFF0000");
-                            i.set_enabled(false);
-                        } else {
-                            // mirror changes to Cut Ref Track
-                            if (not only_create_conform_track)
-                                anon_send(i.actor(), timeline::item_flag_atom_v, "#FF00FF00");
-
-                            i.set_flag("#FF00FF00");
-                        }
-                        tframe += i.trimmed_duration();
-                    }
-
-
-                    if (only_create_conform_track) {
-                        // clean before adding
-                        vtrack.reset_uuid(true);
-                        vtrack.reset_actor(true);
-                        vtrack.reset_media_uuid();
-                        auto vua =
-                            UuidActor(vtrack.uuid(), spawn<timeline::TrackActor>(vtrack));
-
-                        request_receive<JsonStore>(
-                            *sys,
-                            timeline_item.children().front().actor(),
-                            timeline::insert_item_atom_v,
-                            insert_index,
-                            UuidActorVector({vua}));
-                    }
-
-                    auto tprop                  = timeline_item.prop();
-                    tprop["conform_track_uuid"] = vtrack.uuid();
-                    request_receive<JsonStore>(
-                        *sys, timeline_item.actor(), timeline::item_prop_atom_v, tprop);
-
-                    // purge other video tracks
-                    if (not only_create_conform_track and
-                        conform_.purge_sequence_on_import() and vcount > 1) {
-
-                        request_receive<JsonStore>(
-                            *sys,
-                            timeline_item.children().front().actor(),
-                            timeline::erase_item_atom_v,
-                            0,
-                            static_cast<int>(vcount - 1),
-                            true);
-                    }
-
-                    rp.deliver(true);
-                } catch (const std::exception &err) {
-                    spdlog::warn("{} {}", __PRETTY_FUNCTION__, err.what());
-                    rp.deliver(false);
-                }
-
+                prepare_timeline(rp, timeline, only_create_conform_track);
                 return rp;
             },
 
             [=](conform_tasks_atom) -> std::vector<std::string> {
                 setup();
                 conform_.update_tasks(presets_);
-                // for(const auto &i: conform_.conform_tasks())
-                //     spdlog::warn("conform_tasks_atom {}",i);
                 return conform_.conform_tasks();
             },
 
             [=](conform_atom,
                 const std::vector<std::pair<utility::UuidActor, utility::JsonStore>> &media)
                 -> result<std::vector<std::optional<std::pair<std::string, caf::uri>>>> {
-                // build list of sequence id's
                 auto rp = make_response_promise<
                     std::vector<std::optional<std::pair<std::string, caf::uri>>>>();
-
-                // for(const auto &i: media) {
-                //     spdlog::warn("{}", i.second.dump(2));
-                // }
-
-                try {
-
-                    if (not connected_) {
-                        setup();
-                        conform_.update_tasks(presets_);
-                    }
-
-                    auto query_id = conform_.get_cut_query_id(presets_);
-
-                    auto shotbrowser =
-                        system().registry().template get<caf::actor>("SHOTBROWSER");
-
-                    if (not shotbrowser)
-                        throw std::runtime_error("Failed to find shotbrowser");
-
-                    if (query_id) {
-
-                        auto shotgrid_count   = std::make_shared<size_t>(media.size());
-                        auto shotgrid_results = std::make_shared<
-                            std::vector<std::optional<std::pair<std::string, caf::uri>>>>(
-                            media.size());
-
-                        auto count = 0;
-                        for (const auto &i : media) {
-                            auto project_id =
-                                QueryEngine::get_project_id(i.second, JsonStore());
-
-                            auto req          = JsonStore(GetExecutePreset);
-                            req["project_id"] = project_id;
-                            req["preset_id"]  = *query_id;
-                            req["metadata"]   = i.second;
-                            req["context"]    = R"({
-                                "type": null,
-                                "epoc": null,
-                                "audio_source": "",
-                                "visual_source": "",
-                                "flag_text": "",
-                                "flag_colour": "",
-                                "truncated": false
-                            })"_json;
-
-                            request(shotbrowser, infinite, data_source::get_data_atom_v, req)
-                                .then(
-                                    [=](const JsonStore &result) mutable {
-                                        auto jpath = nlohmann::json::json_pointer(
-                                            "/result/data/0/attributes");
-                                        auto spath = nlohmann::json::json_pointer(
-                                            "/result/data/0/relationships/entity/data");
-                                        if (result.contains(jpath)) {
-
-                                            auto fspath = fs::path(result.at(jpath).value(
-                                                "sg_path_to_frames", std::string()));
-                                            // no idea why we have to do parent path twice.. BUG
-                                            // ?
-                                            auto otiopath =
-                                                fspath.parent_path().parent_path() /
-                                                (fspath.stem().string() + std::string(".otio"));
-                                            auto name =
-                                                result.at(spath).value("name", std::string());
-
-                                            try {
-                                                auto uri = posix_path_to_uri(otiopath.string());
-                                                (*shotgrid_results)[count] =
-                                                    std::make_pair(name, uri);
-                                            } catch (...) {
-                                                (*shotgrid_results)[count] = {};
-                                            }
-                                        } else
-                                            (*shotgrid_results)[count] = {};
-
-                                        // spdlog::warn("{}",result.dump(2));
-
-                                        (*shotgrid_count)--;
-                                        if (not *shotgrid_count)
-                                            rp.deliver(*shotgrid_results);
-                                    },
-                                    [=](caf::error &err) mutable {
-                                        (*shotgrid_count)--;
-                                        if (not *shotgrid_count)
-                                            rp.deliver(*shotgrid_results);
-                                    });
-                            count++;
-                        }
-                    } else {
-                        spdlog::warn("{} Sequence preset not found", __PRETTY_FUNCTION__);
-                        rp.deliver(std::vector<std::optional<std::pair<std::string, caf::uri>>>(
-                            media.size()));
-                    }
-                } catch (const std::exception &err) {
-                    spdlog::warn("{} {}", __PRETTY_FUNCTION__, err.what());
-                    rp.deliver(make_error(xstudio_error::error, err.what()));
-                }
-
+                conform_media(rp, media);
                 return rp;
             },
 
@@ -899,6 +197,700 @@ template <typename T> class ShotbrowserConformActor : public caf::event_based_ac
                 }
             });
     }
+
+
+    ~ShotbrowserConformActor() override = default;
+    caf::behavior make_behavior() override { return behavior_; }
+
+  private:
+    void conform_task_request(
+        caf::typed_response_promise<ConformReply> rp,
+        const std::string &conform_task,
+        const ConformRequest &crequest) {
+        try {
+
+            if (not connected_) {
+                setup();
+                conform_.update_tasks(presets_);
+            }
+
+            // spdlog::warn("conform_request {} {}", conform_task,
+            // conform_detail.dump(2)); spdlog::warn("conform_request {}",
+            // crequest.playlist_json_.dump(2));
+
+            if (crequest.items_.empty()) {
+                rp.deliver(ConformReply(crequest));
+            } else {
+                auto query_id = conform_.get_task_id(conform_task);
+
+                if (query_id) {
+                    // build a query....
+
+                    auto shotbrowser =
+                        system().registry().template get<caf::actor>("SHOTBROWSER");
+
+                    if (not shotbrowser)
+                        throw std::runtime_error("Failed to find shotbrowser");
+
+
+                    auto shotgrid_count = std::make_shared<size_t>(crequest.items_.size());
+                    auto shotgrid_results =
+                        std::make_shared<std::vector<UuidActorVector>>(crequest.items_.size());
+
+                    // dispatch requests for shotgrid data.
+                    for (size_t i = 0; i < crequest.items_.size(); i++) {
+                        auto metadata =
+                            crequest.metadata_.at(crequest.items_.at(i).item_.uuid());
+
+                        // clip metadata has precedence
+                        auto media_uuid = metadata.value("media_uuid", Uuid());
+                        if (not media_uuid.is_null() and crequest.metadata_.count(media_uuid)) {
+                            auto tmp = crequest.metadata_.at(media_uuid);
+                            tmp.update(metadata);
+                            metadata = tmp;
+                            // metadata.update(crequest.metadata_.at(media_uuid));
+                        }
+
+                        auto project_id = QueryEngine::get_project_id(metadata, JsonStore());
+
+                        // if (not project_id)
+                        //     throw std::runtime_error("Failed to find project_id");
+                        // here we go....
+
+                        auto req          = JsonStore(GetExecutePreset);
+                        req["project_id"] = project_id;
+                        req["preset_id"]  = *query_id;
+                        req["metadata"]   = metadata;
+                        req["context"]    = R"({
+                            "type": null,
+                            "epoc": null,
+                            "audio_source": "",
+                            "visual_source": "",
+                            "flag_text": "",
+                            "flag_colour": "",
+                            "truncated": false
+                        })"_json;
+
+                        // req["env"]          = qvariant_to_json(env);
+                        // req["custom_terms"] = qvariant_to_json(custom_terms);
+
+                        // req["context"]["epoc"] =
+                        // utility::to_epoc_milliseconds(utility::clock::now());
+                        // req["context"]["type"] = "result";
+
+                        request(shotbrowser, infinite, data_source::get_data_atom_v, req)
+                            .then(
+                                [=](const JsonStore &result) mutable {
+                                    request(
+                                        shotbrowser,
+                                        infinite,
+                                        playlist::add_media_atom_v,
+                                        result,
+                                        crequest.container_.uuid(),
+                                        crequest.container_.actor(),
+                                        crequest.items_.at(i).before_)
+                                        .then(
+                                            [=](const UuidActorVector &new_media) mutable {
+                                                (*shotgrid_results)[i] = new_media;
+                                                (*shotgrid_count)--;
+                                                if (not *shotgrid_count)
+                                                    process_results(
+                                                        rp, *shotgrid_results, crequest);
+                                            },
+                                            [=](caf::error &err) mutable {
+                                                (*shotgrid_count)--;
+                                                if (not *shotgrid_count)
+                                                    process_results(
+                                                        rp, *shotgrid_results, crequest);
+                                            });
+                                },
+                                [=](caf::error &err) mutable {
+                                    (*shotgrid_count)--;
+                                    if (not *shotgrid_count)
+                                        process_results(rp, *shotgrid_results, crequest);
+                                });
+                    }
+                } else {
+                    throw std::runtime_error("Failed to find query id");
+                }
+            }
+        } catch (const std::exception &err) {
+            spdlog::warn("{} {}", __PRETTY_FUNCTION__, err.what());
+            rp.deliver(make_error(xstudio_error::error, err.what()));
+        }
+    }
+
+    void conform_request(
+        caf::typed_response_promise<ConformReply> rp, const ConformRequest &crequest) {
+        try {
+            auto creply = ConformReply(crequest);
+            auto clips  = crequest.template_tracks_.at(0).find_all_items(timeline::IT_CLIP);
+
+            // build clip lookup.
+            std::map<Uuid, std::string> clip_project_map;
+            std::map<Uuid, std::string> clip_shot_map;
+
+            // remap start frame if requested via metadata..
+            for (auto &t : creply.request_.template_tracks_) {
+                for (auto &c : t.find_all_items(timeline::IT_CLIP)) {
+
+                    auto item_meta = c.get().prop();
+                    const auto cut_start_ptr =
+                        json::json_pointer("/metadata/external/DNeg/cut/start");
+                    const auto override_cut_ptr =
+                        json::json_pointer("/metadata/external/DNeg/cut/override");
+                    const auto override_comp_ptr =
+                        json::json_pointer("/metadata/external/DNeg/comp/override");
+
+                    if (item_meta.contains(override_cut_ptr) and
+                        item_meta.at(override_cut_ptr).get<bool>() and
+                        item_meta.contains(cut_start_ptr) and
+                        not item_meta.at(cut_start_ptr).is_null()) {
+                        // get item trimmed start frame
+                        auto trimmed_range = c.get().trimmed_range();
+
+                        item_meta.at(override_cut_ptr)  = false;
+                        item_meta.at(override_comp_ptr) = false;
+                        trimmed_range.set_start(FrameRate(
+                            trimmed_range.rate() * item_meta.at(cut_start_ptr).get<int>()));
+
+                        c.get().set_prop(item_meta);
+                        c.get().set_active_range(trimmed_range);
+                    }
+                }
+            }
+
+
+            for (const auto &c : clips) {
+                auto clip_uuid  = c.get().uuid();
+                auto media_uuid = c.get().prop().value("media_uuid", Uuid());
+
+                auto clip_project =
+                    QueryEngine::get_project_name(crequest.metadata_.at(clip_uuid));
+                auto clip_shot = QueryEngine::get_shot_name(crequest.metadata_.at(clip_uuid));
+
+                if (clip_project.empty() and not media_uuid.is_null())
+                    clip_project =
+                        QueryEngine::get_project_name(crequest.metadata_.at(media_uuid));
+                if (clip_shot.empty() and not media_uuid.is_null())
+                    clip_shot = QueryEngine::get_shot_name(crequest.metadata_.at(media_uuid));
+
+                clip_project_map[clip_uuid] = clip_project;
+                clip_shot_map[clip_uuid]    = clip_shot;
+
+                if (clip_project.empty() or clip_shot.empty()) {
+                    spdlog::warn(
+                        "Clip metadata not found, {} project: '{}', 'shot':  {}",
+                        c.get().name(),
+                        clip_project,
+                        clip_shot);
+                }
+            }
+
+            std::set<utility::Uuid> matched_clips;
+            const auto only_one_match =
+                crequest.operations_.value("only_one_clip_match", false);
+
+            auto clip_track_uuid = Uuid();
+
+            // we're matching media to clips.
+            for (const auto &i : crequest.items_) {
+                // find match in clips..
+                // get show shot..
+                if (clip_track_uuid != i.clip_track_uuid_) {
+                    matched_clips.clear();
+                    clip_track_uuid = i.clip_track_uuid_;
+                }
+
+                if (clips.empty()) {
+                    spdlog::warn("No clips found on selected conform track.");
+                    creply.items_.push_back({});
+                } else {
+                    try {
+                        // spdlog::warn("GET MEDIA SHOW/SHOT {} {}",
+                        // to_string(std::get<0>(i).uuid()),
+                        // crequest.metadata_.count(std::get<0>(i).uuid()));
+                        const auto meta = crequest.metadata_.at(i.item_.uuid());
+                        auto project    = QueryEngine::get_project_name(meta);
+                        auto shot       = QueryEngine::get_shot_name(meta);
+
+                        if (project.empty() or shot.empty()) {
+                            creply.items_.push_back({});
+                            spdlog::warn(
+                                "Media is missing metadata, {} project: {}, shot: {}",
+                                to_string(i.item_.uuid()),
+                                project,
+                                shot);
+                        } else {
+                            auto ritems = std::vector<ConformReplyItem>();
+
+                            for (const auto &c : clips) {
+                                auto clip_uuid = c.get().uuid();
+                                if ((not only_one_match or
+                                     not matched_clips.count(clip_uuid)) and
+                                    clip_project_map.at(clip_uuid) == project and
+                                    clip_shot_map.at(clip_uuid) == shot) {
+                                    ritems.push_back(std::make_tuple(c.get().uuid_actor()));
+                                    matched_clips.insert(clip_uuid);
+                                    if (only_one_match)
+                                        break;
+                                }
+                            }
+                            if (ritems.empty()) {
+                                spdlog::warn(
+                                    "Media has no matching clip {} project: {}, shot:  "
+                                    "{}",
+                                    to_string(i.item_.uuid()),
+                                    project,
+                                    shot);
+                                creply.items_.push_back({});
+                            } else
+                                creply.items_.push_back(ritems);
+                        }
+
+                    } catch (const std::exception &err) {
+                        spdlog::warn("{} {}", __PRETTY_FUNCTION__, err.what());
+                        creply.items_.push_back({});
+                    }
+                }
+            }
+
+            rp.deliver(creply);
+        } catch (const std::exception &err) {
+            spdlog::warn("{} {}", __PRETTY_FUNCTION__, err.what());
+            rp.deliver(make_error(xstudio_error::error, err.what()));
+        }
+    }
+
+    void prepare_timeline(
+        caf::typed_response_promise<bool> rp,
+        const UuidActor &timeline,
+        const bool only_create_conform_track) {
+
+        scoped_actor sys{system()};
+        try {
+            auto found_project = std::string();
+            auto timeline_item =
+                request_receive<timeline::Item>(*sys, timeline.actor(), timeline::item_atom_v);
+
+
+            auto timeline_path = timeline_item.prop().value("path", std::string());
+            if (not timeline_path.empty()) {
+                std::cmatch m;
+                auto uri_path = caf::make_uri(timeline_path);
+                const auto SHOW_REGEX =
+                    std::regex(R"(^(?:/jobs|/hosts/[^/]+/user_data\d*)/([A-Z0-9]+)/.+$)");
+
+                if (uri_path) {
+                    auto posix_path = uri_to_posix_path(*uri_path);
+                    if (std::regex_match(posix_path.c_str(), m, SHOW_REGEX)) {
+                        found_project = m[1];
+                    }
+                }
+            }
+            // process timeline..
+            // purge empty tracks.
+
+            auto video_tracks = timeline_item.find_all_items(timeline::IT_VIDEO_TRACK);
+            auto insert_index = static_cast<int>(video_tracks.size());
+            auto vcount       = video_tracks.size();
+            if (not only_create_conform_track) {
+                for (auto &i : video_tracks) {
+                    if (i.get().empty() and vcount > 1) {
+                        auto pactor = find_parent_actor(timeline_item, i.get().uuid());
+                        if (pactor) {
+                            insert_index--;
+                            vcount--;
+                            request_receive<JsonStore>(
+                                *sys,
+                                pactor,
+                                timeline::erase_item_atom_v,
+                                i.get().uuid(),
+                                true);
+                        }
+                    }
+                }
+
+                auto audio_tracks = timeline_item.find_all_items(timeline::IT_AUDIO_TRACK);
+                auto acount       = audio_tracks.size();
+                for (auto &i : audio_tracks) {
+                    if (i.get().empty() and acount > 1) {
+                        auto pactor = find_parent_actor(timeline_item, i.get().uuid());
+                        if (pactor) {
+                            acount--;
+                            request_receive<JsonStore>(
+                                *sys,
+                                pactor,
+                                timeline::erase_item_atom_v,
+                                i.get().uuid(),
+                                true);
+                        }
+                    }
+                }
+            }
+            // create a new track with empty clips based off markers and scan track..
+            // populate clips with metadata required to conform timeline
+            auto vtrack = timeline::Item(timeline::IT_NONE);
+            std::reverse(video_tracks.begin(), video_tracks.end());
+
+            for (const auto &i : video_tracks) {
+                if (not i.get().empty()) {
+                    vtrack = i.get();
+                    break;
+                }
+            }
+
+            vtrack.set_name("Conform Track");
+            vtrack.set_locked(true);
+            vtrack.set_enabled(false);
+            // populate vtrack name/metadata
+            if (not only_create_conform_track)
+                anon_send(vtrack.actor(), timeline::item_lock_atom_v, true);
+
+            auto media_metadata = std::map<Uuid, JsonStore>();
+            auto tframe         = timeline_item.trimmed_start();
+            const auto trate    = timeline_item.rate();
+
+            for (auto &i : vtrack.children()) {
+                if (i.item_type() == timeline::IT_CLIP) {
+                    auto check_clips = true;
+                    i.set_name("UNKNOWN");
+
+                    // mirror changes to Cut Ref Track
+                    if (not only_create_conform_track)
+                        anon_send(i.actor(), timeline::item_name_atom_v, "UNKNOWN");
+
+                    // leed a list of clips at this point in time backed down.
+                    // do we need to check markers..
+                    if (not found_project.empty()) {
+                        // marker should have same start time as clip..
+                        // markers exist on stack..
+                        const auto fcpp             = json::json_pointer("/fcp_xml/comment");
+                        const static auto cutcompre = std::regex("(\\d+),(\\d+)-(\\d+),(\\d+)");
+
+                        for (const auto &m : timeline_item.children().front().markers()) {
+                            if (m.start() == tframe) {
+                                auto u =
+                                    R"({"metadata": {"external": {"DNeg": {"shot": null, "show":null, "comp": {"start": null, "end":null, "override":true}, "cut": {"start": null, "end":null, "override":true}}}}})"_json;
+
+                                if (m.prop().contains(fcpp)) {
+                                    auto comment = m.prop().at(fcpp).get<std::string>();
+                                    std::cmatch match;
+                                    if (std::regex_match(comment.c_str(), match, cutcompre)) {
+                                        auto start_frame = std::stoi(match[2]);
+                                        i.set_active_range(FrameRange(
+                                            FrameRate(start_frame * trate.to_flicks()),
+                                            i.trimmed_duration(),
+                                            i.rate()));
+                                        i.set_available_range(*i.active_range());
+                                        check_clips = false;
+
+                                        u[json::json_pointer(
+                                            "/metadata/external/DNeg/comp/start")] =
+                                            std::stoi(match[1]);
+                                        u[json::json_pointer(
+                                            "/metadata/external/DNeg/cut/start")] =
+                                            std::stoi(match[2]);
+                                        u[json::json_pointer(
+                                            "/metadata/external/DNeg/cut/end")] =
+                                            std::stoi(match[3]);
+                                        u[json::json_pointer(
+                                            "/metadata/external/DNeg/comp/end")] =
+                                            std::stoi(match[4]);
+                                    }
+                                }
+
+                                auto meta = i.prop();
+                                u[json::json_pointer("/metadata/external/DNeg/shot")] =
+                                    m.name();
+                                u[json::json_pointer("/metadata/external/DNeg/show")] =
+                                    found_project;
+                                meta.update(u);
+
+                                i.set_prop(meta);
+                                i.set_name(m.name());
+
+                                if (not only_create_conform_track) {
+                                    anon_send(i.actor(), timeline::item_prop_atom_v, meta);
+                                    anon_send(i.actor(), timeline::item_name_atom_v, m.name());
+                                }
+                                break;
+                            }
+                        }
+                    }
+
+                    if (check_clips) {
+                        auto items = timeline_item.resolve_time_raw(tframe);
+
+                        for (const auto &j : items) {
+                            auto clip = j.first;
+
+                            try {
+                                auto project = QueryEngine::get_project_name(clip.prop());
+                                auto shot    = QueryEngine::get_shot_name(clip.prop(), true);
+
+                                if (project.empty() or shot.empty()) {
+                                    // try media metadata..
+                                    auto media_uuid = clip.prop().value("media_uuid", Uuid());
+
+                                    if (not media_uuid.is_null() and
+                                        not media_metadata.count(media_uuid)) {
+                                        try {
+                                            auto tries    = 10;
+                                            auto metadata = JsonStore();
+                                            while (true) {
+                                                metadata = request_receive<JsonStore>(
+                                                    *sys,
+                                                    clip.actor(),
+                                                    playlist::get_media_atom_v,
+                                                    json_store::get_json_atom_v,
+                                                    Uuid(),
+                                                    "");
+                                                tries--;
+                                                if (not tries or not metadata.is_null())
+                                                    break;
+                                                std::this_thread::sleep_for(200ms);
+                                                // spdlog::warn("retry");
+                                            }
+
+                                            if (metadata.is_null())
+                                                spdlog::warn(
+                                                    "No metadata {} {} {}",
+                                                    clip.name(),
+                                                    metadata.dump(2),
+                                                    tries);
+
+                                            media_metadata[media_uuid] = metadata;
+                                        } catch (const std::exception &err) {
+                                            spdlog::warn(
+                                                "{} {} {}",
+                                                __PRETTY_FUNCTION__,
+                                                clip.name(),
+                                                err.what());
+                                            media_metadata[media_uuid] = R"({})"_json;
+                                        }
+                                    }
+
+                                    if (project.empty())
+                                        project = QueryEngine::get_project_name(
+                                            media_metadata.at(media_uuid));
+                                    if (shot.empty())
+                                        shot = QueryEngine::get_shot_name(
+                                            media_metadata.at(media_uuid), true);
+                                }
+
+                                if (not project.empty())
+                                    found_project = project;
+
+                                if (not project.empty() and not shot.empty()) {
+                                    auto m = i.prop();
+                                    auto u =
+                                        R"({"metadata": {"external": {"DNeg": {"shot": null, "show":null, "comp": {"start": null, "end":null, "override":false}, "cut": {"start": null, "end":null, "override":true}}}}})"_json;
+
+                                    u[json::json_pointer("/metadata/external/DNeg/shot")] =
+                                        shot;
+                                    u[json::json_pointer("/metadata/external/DNeg/show")] =
+                                        project;
+
+                                    u[json::json_pointer("/metadata/external/DNeg/cut/start")] =
+                                        clip.trimmed_frame_start().frames();
+                                    u[json::json_pointer("/metadata/external/DNeg/cut/end")] =
+                                        clip.trimmed_frame_start().frames() +
+                                        clip.trimmed_frame_duration().frames() - 1;
+
+                                    m.update(u);
+                                    i.set_prop(m);
+                                    i.set_name(shot);
+                                    // if(clip.available_range()) {
+                                    //     // must not be smaller than current active
+                                    //     i.set_available_range(*(clip.available_range()));
+                                    // }
+                                    i.set_active_range(FrameRange(
+                                        clip.trimmed_start(), i.trimmed_duration(), i.rate()));
+                                    i.set_available_range(*i.active_range());
+                                    // always use markers...
+                                    // check_markers = false;
+
+                                    if (not only_create_conform_track) {
+                                        anon_send(i.actor(), timeline::item_prop_atom_v, m);
+                                        anon_send(i.actor(), timeline::item_name_atom_v, shot);
+                                    }
+
+                                    break;
+                                }
+
+                            } catch (const std::exception &err) {
+                                spdlog::warn("{} {}", __PRETTY_FUNCTION__, err.what());
+                            }
+                        }
+                    }
+                }
+                if (i.name() == "UNKNOWN") {
+                    // i.set_prop(m);
+                    if (not only_create_conform_track) {
+                        auto m = i.prop();
+                        auto u =
+                            R"({"metadata": {"external": {"DNeg": {"shot": null, "show":null}}}})"_json;
+
+                        u[json::json_pointer("/metadata/external/DNeg/shot")] = "UNKNOWN";
+                        u[json::json_pointer("/metadata/external/DNeg/show")] = found_project;
+
+                        m.update(u);
+                        anon_send(i.actor(), timeline::item_flag_atom_v, "#FFFF0000");
+                        anon_send(i.actor(), timeline::item_prop_atom_v, m);
+                    }
+
+                    i.set_flag("#FFFF0000");
+                    i.set_enabled(false);
+                } else {
+                    // mirror changes to Cut Ref Track
+                    if (not only_create_conform_track)
+                        anon_send(i.actor(), timeline::item_flag_atom_v, "#FF00FF00");
+
+                    i.set_flag("#FF00FF00");
+                }
+                tframe += i.trimmed_duration();
+            }
+
+
+            if (only_create_conform_track) {
+                // clean before adding
+                vtrack.reset_uuid(true);
+                vtrack.reset_actor(true);
+                vtrack.reset_media_uuid();
+                auto vua = UuidActor(vtrack.uuid(), spawn<timeline::TrackActor>(vtrack));
+
+                request_receive<JsonStore>(
+                    *sys,
+                    timeline_item.children().front().actor(),
+                    timeline::insert_item_atom_v,
+                    insert_index,
+                    UuidActorVector({vua}));
+            }
+
+            auto tprop                  = timeline_item.prop();
+            tprop["conform_track_uuid"] = vtrack.uuid();
+            request_receive<JsonStore>(
+                *sys, timeline_item.actor(), timeline::item_prop_atom_v, tprop);
+
+            // purge other video tracks
+            if (not only_create_conform_track and conform_.purge_sequence_on_import() and
+                vcount > 1) {
+
+                request_receive<JsonStore>(
+                    *sys,
+                    timeline_item.children().front().actor(),
+                    timeline::erase_item_atom_v,
+                    0,
+                    static_cast<int>(vcount - 1),
+                    true);
+            }
+
+            rp.deliver(true);
+        } catch (const std::exception &err) {
+            spdlog::warn("{} {}", __PRETTY_FUNCTION__, err.what());
+            rp.deliver(false);
+        }
+    }
+
+    void conform_media(
+        caf::typed_response_promise<
+            std::vector<std::optional<std::pair<std::string, caf::uri>>>> rp,
+        const std::vector<std::pair<utility::UuidActor, utility::JsonStore>> &media) {
+
+        // for(const auto &i: media) {
+        //     spdlog::warn("{}", i.second.dump(2));
+        // }
+
+        try {
+
+            if (not connected_) {
+                setup();
+                conform_.update_tasks(presets_);
+            }
+
+            auto query_id = conform_.get_cut_query_id(presets_);
+
+            auto shotbrowser = system().registry().template get<caf::actor>("SHOTBROWSER");
+
+            if (not shotbrowser)
+                throw std::runtime_error("Failed to find shotbrowser");
+
+            if (query_id) {
+
+                auto shotgrid_count   = std::make_shared<size_t>(media.size());
+                auto shotgrid_results = std::make_shared<
+                    std::vector<std::optional<std::pair<std::string, caf::uri>>>>(media.size());
+
+                auto count = 0;
+                for (const auto &i : media) {
+                    auto project_id = QueryEngine::get_project_id(i.second, JsonStore());
+
+                    auto req          = JsonStore(GetExecutePreset);
+                    req["project_id"] = project_id;
+                    req["preset_id"]  = *query_id;
+                    req["metadata"]   = i.second;
+                    req["context"]    = R"({
+                        "type": null,
+                        "epoc": null,
+                        "audio_source": "",
+                        "visual_source": "",
+                        "flag_text": "",
+                        "flag_colour": "",
+                        "truncated": false
+                    })"_json;
+
+                    request(shotbrowser, infinite, data_source::get_data_atom_v, req)
+                        .then(
+                            [=](const JsonStore &result) mutable {
+                                auto jpath =
+                                    nlohmann::json::json_pointer("/result/data/0/attributes");
+                                auto spath = nlohmann::json::json_pointer(
+                                    "/result/data/0/relationships/entity/data");
+                                if (result.contains(jpath)) {
+
+                                    auto fspath = fs::path(result.at(jpath).value(
+                                        "sg_path_to_frames", std::string()));
+                                    // no idea why we have to do parent path twice.. BUG
+                                    // ?
+                                    auto otiopath =
+                                        fspath.parent_path().parent_path() /
+                                        (fspath.stem().string() + std::string(".otio"));
+                                    auto name = result.at(spath).value("name", std::string());
+
+                                    try {
+                                        auto uri = posix_path_to_uri(otiopath.string());
+                                        (*shotgrid_results)[count] = std::make_pair(name, uri);
+                                    } catch (...) {
+                                        (*shotgrid_results)[count] = {};
+                                    }
+                                } else
+                                    (*shotgrid_results)[count] = {};
+
+                                // spdlog::warn("{}",result.dump(2));
+
+                                (*shotgrid_count)--;
+                                if (not *shotgrid_count)
+                                    rp.deliver(*shotgrid_results);
+                            },
+                            [=](caf::error &err) mutable {
+                                (*shotgrid_count)--;
+                                if (not *shotgrid_count)
+                                    rp.deliver(*shotgrid_results);
+                            });
+                    count++;
+                }
+            } else {
+                spdlog::warn("{} Sequence preset not found", __PRETTY_FUNCTION__);
+                rp.deliver(
+                    std::vector<std::optional<std::pair<std::string, caf::uri>>>(media.size()));
+            }
+        } catch (const std::exception &err) {
+            spdlog::warn("{} {}", __PRETTY_FUNCTION__, err.what());
+            rp.deliver(make_error(xstudio_error::error, err.what()));
+        }
+    }
+
 
     void setup() {
         if (not connected_) {
@@ -942,6 +934,7 @@ template <typename T> class ShotbrowserConformActor : public caf::event_based_ac
             }
         }
     }
+
 
     void process_results(
         caf::typed_response_promise<ConformReply> rp,
@@ -1006,9 +999,6 @@ template <typename T> class ShotbrowserConformActor : public caf::event_based_ac
 
         rp.deliver(creply);
     }
-
-    ~ShotbrowserConformActor() override = default;
-    caf::behavior make_behavior() override { return behavior_; }
 
   private:
     caf::behavior behavior_;

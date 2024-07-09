@@ -33,6 +33,7 @@ namespace timeline {
         void init();
 
         caf::behavior make_behavior() override { return behavior_; }
+        void link_media(caf::typed_response_promise<bool> rp, const utility::UuidActor &media);
 
       private:
         caf::behavior behavior_;

@@ -63,7 +63,7 @@ void GradingMaskRenderer::add_layer() {
 size_t GradingMaskRenderer::layer_count() const { return render_layers_.size(); }
 
 void GradingMaskRenderer::render_grading_data_masks(
-    std::vector<const GradingData *> grades, xstudio::media_reader::ImageBufPtr &image) {
+    const std::vector<GradingInfo> &grades, xstudio::media_reader::ImageBufPtr &image) {
 
     // First grab the ColourOperationData for this plugin which has already
     // been added to the image. This data is the static data for the colour
@@ -89,7 +89,9 @@ void GradingMaskRenderer::render_grading_data_masks(
 
     size_t grade_index        = 0;
     size_t masked_grade_index = 0;
-    for (const auto grade : grades) {
+    for (const auto grade_info : grades) {
+
+        auto grade = grade_info.data;
 
         // Ignore grade without mask
         if (grade->mask().empty()) {
@@ -141,49 +143,40 @@ void GradingMaskRenderer::render_layer(
     const xstudio::media_reader::ImageBufPtr &frame,
     const bool have_alpha_buffer) {
 
-    if (data.mask().uuid() != layer.last_canvas_uuid ||
-        data.mask().last_change_time() != layer.last_canvas_change_time) {
+    // Use fixed resolution for better performance
+    const Imath::V2i mask_resolution(960, 540);
+    const float image_aspect_ratio =
+        (1.0f * frame->image_size_in_pixels().x / frame->image_size_in_pixels().y);
+    const float canvas_aspect_ratio = mask_resolution.x / mask_resolution.y;
 
-        // instead of varying the canvas size to match the image size, we can
-        // use a fixed canvas size. The grade mask doesn't need to be
-        // high res as the strokes have some softness. Low res will perform
-        // better and have less footprint.
-        layer.offscreen_renderer->resize(
-            Imath::V2i(960, 540)); // frame->image_size_in_pixels());
+    if (data.mask().uuid() != layer.last_canvas_uuid ||
+        data.mask().last_change_time() != layer.last_canvas_change_time ||
+        image_aspect_ratio != layer.last_image_aspect_ratio) {
+
+        layer.offscreen_renderer->resize(mask_resolution);
         layer.offscreen_renderer->begin();
 
         if (!data.mask().empty()) {
+
             glClearColor(0.0, 0.0, 0.0, 0.0);
             glClearDepth(0.0);
             glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
+            // Mask drawing don't depend on viewport transformation, however we still
+            // need to account for the mask texture aspect ratio.
             Imath::M44f to_canvas;
-
-            // see comment above
-            /*const float image_aspect_ratio =
-                frame->pixel_aspect() *
-                (1.0f * 960 / 540);
-                    const float image_aspect_ratio =
-                frame->pixel_aspect() *
-                (1.0f * frame->image_size_in_pixels().x / frame->image_size_in_pixels().y);
-            to_canvas.setScale(Imath::V3f(1.0f, image_aspect_ratio, 1.0f));*/
-
             to_canvas.setScale(Imath::V3f(1.0f, 16.0f / 9.0f, 1.0f));
 
             canvas_renderer_->render_canvas(
                 data.mask(),
                 HandleState(),
-                // We are drawing to an offscreen texture and don't need
-                // any view / projection matrix to account for the viewport
-                // transformation. However, we still need to account for the
-                // image aspect ratio.
                 to_canvas,
                 Imath::M44f(),
-                2.0 / 960, // 2.0f / frame->image_size_in_pixels().x (see note A)
-                have_alpha_buffer);
+                2.0f / mask_resolution.x, // See A1
+                have_alpha_buffer,
+                image_aspect_ratio);
         } else {
-            // blank (empty) maske with no stokes. In this case we flood
-            // texture with 1.0s
+
             glClearColor(1.0, 1.0, 1.0, 1.0);
             glClearDepth(0.0);
             glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
@@ -196,7 +189,9 @@ void GradingMaskRenderer::render_layer(
         // fitted to the span of -1.0 to 1.0 in xSTUDIO's coordinate system.
 
         layer.offscreen_renderer->end();
+
         layer.last_canvas_change_time = data.mask().last_change_time();
         layer.last_canvas_uuid        = data.mask().uuid();
+        layer.last_image_aspect_ratio = image_aspect_ratio;
     }
 }

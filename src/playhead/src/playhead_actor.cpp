@@ -893,36 +893,38 @@ void PlayheadActor::init() {
             const int /*media_frame*/) {
             if (sub_playhead == key_playhead_) {
 
-                if ((to_string(media_uuid) != current_media_uuid_->value() or
-                     to_string(source_uuid) != current_media_source_uuid_->value()) and
-                    media_source_actor) {
+                if (to_string(media_uuid) != current_media_uuid_->value() or
+                    to_string(source_uuid) != current_media_source_uuid_->value()) {
                     previous_source_uuid_ = current_media_source_uuid_->value();
+
                     current_media_uuid_->set_value(to_string(media_uuid));
                     current_media_source_uuid_->set_value(to_string(source_uuid));
 
-                    request(media_source_actor, infinite, utility::parent_atom_v)
-                        .then(
-                            [=](caf::actor media_actor) {
-                                current_media_changed(media_actor, true);
+                    if (media_source_actor) {
+                        request(media_source_actor, infinite, utility::parent_atom_v)
+                            .then(
+                                [=](caf::actor media_actor) {
+                                    current_media_changed(media_actor, true);
 
-                                send(
-                                    event_group_,
-                                    utility::event_atom_v,
-                                    media_source_atom_v,
-                                    UuidActor(media_uuid, media_actor));
-
-                                if (connected_to_ui()) {
                                     send(
-                                        broadcast_,
+                                        event_group_,
                                         utility::event_atom_v,
                                         media_source_atom_v,
-                                        media_source_actor,
-                                        source_uuid);
-                                }
-                            },
-                            [=](const error &err) {
-                                spdlog::warn("{} {}", __PRETTY_FUNCTION__, to_string(err));
-                            });
+                                        UuidActor(media_uuid, media_actor));
+
+                                    if (connected_to_ui()) {
+                                        send(
+                                            broadcast_,
+                                            utility::event_atom_v,
+                                            media_source_atom_v,
+                                            media_source_actor,
+                                            source_uuid);
+                                    }
+                                },
+                                [=](const error &err) {
+                                    spdlog::warn("{} {}", __PRETTY_FUNCTION__, to_string(err));
+                                });
+                    }
                     update_playback_rate();
                 }
             }
@@ -1605,7 +1607,7 @@ void PlayheadActor::update_duration(caf::typed_response_promise<timebase::flicks
 
     request(key_playhead_, infinite, duration_frames_atom_v)
         .then(
-            [=](const int duration) {
+            [=](const size_t duration) {
                 duration_frames_->set_value(duration);
                 send(event_group_, utility::event_atom_v, duration_frames_atom_v, duration);
             },

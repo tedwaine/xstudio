@@ -126,6 +126,7 @@ QModelIndexList SessionModel::searchRecursiveListBase(
                 }
             }
         } else {
+            // spdlog::warn("not cached idRole");
             cached_result = false;
             results =
                 JSONTreeModel::searchRecursiveListBase(value, role, parent, start, hits, depth);
@@ -133,8 +134,7 @@ QModelIndexList SessionModel::searchRecursiveListBase(
                 add_id_uuid_lookup(uuid, i);
             }
         }
-    }
-    if (role == actorUuidRole or role == containerUuidRole) {
+    } else if (role == actorUuidRole or role == containerUuidRole) {
         auto uuid = UuidFromQUuid(value.toUuid());
         if (uuid.is_null()) {
             return QModelIndexList();
@@ -155,6 +155,7 @@ QModelIndexList SessionModel::searchRecursiveListBase(
                 }
             }
         } else {
+            // spdlog::warn("not cached actorUuidRole / containerUuidRole");
             cached_result = false;
             results =
                 JSONTreeModel::searchRecursiveListBase(value, role, parent, start, hits, depth);
@@ -182,6 +183,8 @@ QModelIndexList SessionModel::searchRecursiveListBase(
         } else {
             //  back populate..
             cached_result = false;
+            // spdlog::warn("not cached actorRole {}",
+            // StdFromQString(parent.data(typeRole).toString()));
             results =
                 JSONTreeModel::searchRecursiveListBase(value, role, parent, start, hits, depth);
             for (const auto &i : results) {

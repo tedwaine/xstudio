@@ -17,13 +17,17 @@ namespace viewport {
         std::array<double, 4> offset {0.0, 0.0, 0.0, 0.0};
         std::array<double, 4> power  {1.0, 1.0, 1.0, 1.0};
         double sat {1.0};
+        double exposure {0.0};
+        double contrast {1.0};
 
         bool operator==(const Grade &o) const {
             return (
                 slope == o.slope &&
                 offset == o.offset &&
                 power == o.power &&
-                sat == o.sat
+                sat == o.sat &&
+                exposure == o.exposure &&
+                contrast == o.contrast
             );
         }
     };
@@ -39,7 +43,6 @@ namespace viewport {
         bool operator==(const GradingData &o) const {
             return (
                 colour_space_ == o.colour_space_ &&
-                grade_active_ == o.grade_active_ &&
                 grade_ == o.grade_ &&
                 mask_active_ == o.mask_active_ &&
                 mask_editing_ == o.mask_editing_ &&
@@ -53,9 +56,6 @@ namespace viewport {
 
         void set_colour_space(const std::string &val) { colour_space_ = val; }
         std::string colour_space() const { return colour_space_; }
-
-        void set_grade_active(bool val) { grade_active_ = val; }
-        bool grade_active() const { return grade_active_; }
 
         Grade & grade() { return grade_; }
         const Grade & grade() const { return grade_; }
@@ -74,7 +74,6 @@ namespace viewport {
         friend void to_json(nlohmann::json &j, const GradingData &gd);
 
         std::string colour_space_ {"scene_linear"};
-        bool grade_active_ {true};
         Grade grade_;
         bool mask_active_ {false};
         bool mask_editing_ {false};
@@ -85,6 +84,13 @@ namespace viewport {
     void to_json(nlohmann::json &j, const GradingData &gd);
 
     typedef std::shared_ptr<GradingData> GradingDataPtr;
+
+    // This struct is a convenience wrapper to bundle GradingData
+    // with other metadatas living in the bookmark user_data field.
+    struct GradingInfo {
+        const GradingData* data;
+        bool isActive;
+    };
 
 } // end namespace viewport
 } // end namespace ui

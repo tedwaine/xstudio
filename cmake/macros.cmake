@@ -5,35 +5,52 @@ macro(add_preference name path target)
                                                     ${CMAKE_BINARY_DIR}/bin/preference/${name}
                    DEPENDS ${path}/${name})
     if(INSTALL_XSTUDIO)
-	    install(FILES
-	    	${path}/${name}
-	    	DESTINATION share/xstudio/preference)
+		if(WIN32)
+			install(FILES
+			${path}/${name}
+			DESTINATION
+			${CMAKE_INSTALL_PREFIX}/preference)
+		else()
+			install(FILES
+			${path}/${name}
+			DESTINATION share/xstudio/preference)
+		endif()
     endif ()
+
 endmacro()
 
 macro(default_compile_options name)
 	target_compile_options(${name}
 		# PRIVATE -fvisibility=hidden
-		PRIVATE $<$<CONFIG:RelWithDebInfo>:-fno-omit-frame-pointer>
+		PRIVATE $<$<AND:$<CONFIG:RelWithDebInfo>,$<PLATFORM_ID:Linux>>:-fno-omit-frame-pointer>
+		PRIVATE $<$<AND:$<CONFIG:RelWithDebInfo>,$<PLATFORM_ID:Windows>>:/Oy>
+		PRIVATE -Wno-deprecated
 		# PRIVATE $<$<CONFIG:Debug>:-Wno-unused-variable>
 		# PRIVATE $<$<CONFIG:Debug>:-Wno-unused-but-set-variable>
 		# PRIVATE $<$<CONFIG:Debug>:-Wno-unused-parameter>
-		PRIVATE $<$<CONFIG:Debug>:-Wno-unused-function>
+		PRIVATE $<$<AND:$<CONFIG:Debug>,$<PLATFORM_ID:Linux>>:-Wno-unused-function>
+		PRIVATE $<$<AND:$<CONFIG:Debug>,$<PLATFORM_ID:Linux>>:-Wextra>
+		PRIVATE $<$<AND:$<CONFIG:Debug>,$<PLATFORM_ID:Linux>>:-Wpedantic>
+		PRIVATE $<$<AND:$<CONFIG:Debug>,$<PLATFORM_ID:Windows>>:/wd4100>
 		# PRIVATE $<$<CONFIG:Debug>:-Wall>
 		# PRIVATE $<$<CONFIG:Debug>:-Werror>
-		PRIVATE $<$<CONFIG:Debug>:-Wextra>
-		PRIVATE $<$<CONFIG:Debug>:-Wpedantic>
+		# PRIVATE $<$<CONFIG:Debug>:-Wextra>
+		# PRIVATE $<$<CONFIG:Debug>:-Wpedantic>
 		# PRIVATE ${GTEST_CFLAGS}
 	)
 
 	target_compile_features(${name}
-		PUBLIC cxx_std_17
+		PUBLIC cxx_std_20
 	)
 
 	target_compile_definitions(${name}
 		PUBLIC $<$<BOOL:${BUILD_TESTING}>:test_private=public>
 		PUBLIC $<$<NOT:$<BOOL:${BUILD_TESTING}>>:test_private=private>
-		PRIVATE -D__linux__
+		PRIVATE -DSPDLOG_FMT_EXTERNAL
+		$<$<CXX_COMPILER_ID:GNU>:_GNU_SOURCE> # Define _GNU_SOURCE for Linux
+		$<$<PLATFORM_ID:Linux>:__linux__> # Define __linux__ for Linux
+		$<$<PLATFORM_ID:Linux>:BUILD_OTIO> # Define BUILD_OTIO for Linux - OTIO not in windows yet
+		$<$<PLATFORM_ID:Windows>:_WIN32> # Define _WIN32 for Windows
 		PRIVATE XSTUDIO_GLOBAL_VERSION=\"${XSTUDIO_GLOBAL_VERSION}\"
 		PRIVATE XSTUDIO_GLOBAL_NAME=\"${XSTUDIO_GLOBAL_NAME}\"
 		PUBLIC PROJECT_VERSION=\"${PROJECT_VERSION}\"
@@ -52,16 +69,16 @@ if (BUILD_TESTING)
 			# PRIVATE $<$<CONFIG:Debug>:-Wno-unused-variable>
 			# PRIVATE $<$<CONFIG:Debug>:-Wno-unused-but-set-variable>
 			# PRIVATE $<$<CONFIG:Debug>:-Wno-unused-parameter>
-			PRIVATE $<$<CONFIG:Debug>:-Wno-unused-function>
+			PRIVATE $<$<AND:$<CONFIG:Debug>,$<PLATFORM_ID:Linux>>:-Wno-unused-function>
 			# PRIVATE $<$<CONFIG:Debug>:-Wall>
 			# PRIVATE $<$<CONFIG:Debug>:-Werror>
-			PRIVATE $<$<CONFIG:Debug>:-Wextra>
-			PRIVATE $<$<CONFIG:Debug>:-Wpedantic>
+			PRIVATE $<$<AND:$<CONFIG:Debug>,$<PLATFORM_ID:Linux>>:-Wextra>
+			PRIVATE $<$<AND:$<CONFIG:Debug>,$<PLATFORM_ID:Linux>>:-Wpedantic>
 			PRIVATE ${GTEST_CFLAGS}
 		)
 
 		target_compile_features(${name}
-			PUBLIC cxx_std_17
+			PUBLIC cxx_std_20
 		)
 
 		target_compile_definitions(${name}
@@ -84,7 +101,7 @@ macro(default_options_local name)
 		find_package(CAF COMPONENTS core io)
 	endif (NOT CAF_FOUND)
 
-	find_package(spdlog REQUIRED)
+	find_package(spdlog CONFIG REQUIRED)
 
 	default_compile_options(${name})
 	target_include_directories(${name}
@@ -118,7 +135,7 @@ macro(default_options_static name)
 		find_package(CAF COMPONENTS core io)
 	endif (NOT CAF_FOUND)
 
-	find_package(spdlog REQUIRED)
+	find_package(spdlog CONFIG REQUIRED)
 
 	default_compile_options(${name})
 	target_include_directories(${name}
@@ -141,7 +158,7 @@ macro(default_plugin_options name)
 		find_package(CAF COMPONENTS core io)
 	endif (NOT CAF_FOUND)
 
-	find_package(spdlog REQUIRED)
+	find_package(spdlog CONFIG REQUIRED)
 	default_compile_options(${name})
 	target_include_directories(${name}
 	    PUBLIC
@@ -158,6 +175,22 @@ macro(default_plugin_options name)
 	)
 	install(TARGETS ${name}
         LIBRARY DESTINATION share/xstudio/plugin)
+
+	if(WIN32)
+
+		#This will unfortunately also install the plugin in the /bin directory.  TODO: Figure out how to omit the plugin itself.
+		install(TARGETS ${PROJECT_NAME} RUNTIME DESTINATION ${CMAKE_INSTALL_PREFIX}/bin )
+		# We don't want the vcpkg install because it forces dependences; we just want the plugin.
+		_install(TARGETS ${PROJECT_NAME} RUNTIME DESTINATION ${CMAKE_INSTALL_PREFIX}/plugin)
+
+		#For interactive debugging, we want only the output dll to be copied to the build plugins folder.
+		add_custom_command(
+			TARGET ${PROJECT_NAME}
+			POST_BUILD
+			COMMAND ${CMAKE_COMMAND} -E copy "$<TARGET_FILE:${PROJECT_NAME}>" "${CMAKE_CURRENT_BINARY_DIR}/plugin"
+		)
+	endif()
+
 endmacro()
 
 if (BUILD_TESTING)
@@ -167,7 +200,7 @@ if (BUILD_TESTING)
 		if (NOT CAF_FOUND)
 			find_package(CAF COMPONENTS core io)
 		endif (NOT CAF_FOUND)
-		find_package(spdlog REQUIRED)
+		find_package(spdlog CONFIG REQUIRED)
 		default_compile_options_gtest(${name})
 		target_include_directories(${name}
 		    PUBLIC
@@ -186,7 +219,7 @@ macro(default_options_qt name)
 	if (NOT CAF_FOUND)
 		find_package(CAF COMPONENTS core io)
 	endif (NOT CAF_FOUND)
-	find_package(spdlog REQUIRED)
+	find_package(spdlog CONFIG REQUIRED)
 	default_compile_options(${name})
 	target_include_directories(${name}
 	    PUBLIC
@@ -283,6 +316,15 @@ macro(create_component_with_alias NAME ALIASNAME VERSION DEPS)
 	)
 
 	set_target_properties(${PROJECT_NAME} PROPERTIES LINK_DEPENDS_NO_SHARED true)
+
+	if(_WIN32)
+	set(CMAKE_CXX_VISIBILITY_PRESET hidden)
+	set(CMAKE_VISIBILITY_INLINES_HIDDEN 1)
+	endif(_WIN32)
+
+	# Generate export header
+	include(GenerateExportHeader)
+	generate_export_header(${PROJECT_NAME})
 
 endmacro()
 
@@ -384,11 +426,20 @@ macro(create_qml_component_with_alias NAME ALIASNAME VERSION DEPS EXTRAMOC)
 	add_library(${ALIASNAME} ALIAS ${PROJECT_NAME})
 	default_options_qt(${PROJECT_NAME})
 
+	# Generate export header
+	include(GenerateExportHeader)
+	generate_export_header(${PROJECT_NAME} EXPORT_FILE_NAME "${ROOT_DIR}/include/xstudio/ui/qml/${PROJECT_NAME}_export.h")
 	target_link_libraries(${PROJECT_NAME}
 		PUBLIC ${DEPS}
 	)
 
 	set_target_properties(${PROJECT_NAME} PROPERTIES LINK_DEPENDS_NO_SHARED true)
+	set_property(TARGET ${PROJECT_NAME} PROPERTY AUTOMOC ON)
+
+	## Add the directory containing the generated export header to the include directories
+	#target_include_directories(${PROJECT_NAME} 
+	#	PUBLIC ${CMAKE_BINARY_DIR}  # Include the build directory
+	#)
 
 endmacro()
 
@@ -419,6 +470,11 @@ macro(build_studio_plugins STUDIO)
 
 	endif()
 
+endmacro()
+
+
+macro(set_python_to_proper_build_type)
+	#TODO Resolve linking error when running debug build: https://github.com/pybind/pybind11/issues/3403
 endmacro()
 
 

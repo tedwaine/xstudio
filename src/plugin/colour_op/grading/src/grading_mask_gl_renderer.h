@@ -26,6 +26,7 @@ namespace viewport {
             opengl::OpenGLOffscreenRendererPtr offscreen_renderer;
             utility::clock::time_point last_canvas_change_time;
             utility::Uuid last_canvas_uuid;
+            float last_image_aspect_ratio;
         };
 
       public:
@@ -44,7 +45,7 @@ namespace viewport {
         void add_layer();
 
         void render_grading_data_masks(
-            std::vector<const GradingData*>,
+            const std::vector<GradingInfo> &grades,
             xstudio::media_reader::ImageBufPtr &image);
 
         void render_layer(

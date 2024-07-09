@@ -350,6 +350,15 @@ Item{
         filterGroupUserData: "tree"
         sourceModel: buttonModelBase
 
+        onModelReset: {
+            if(!currentPresetIndex.valid) {
+                let i = treeButtonModel.index(0,0)
+                if(i.valid) {
+                    i = treeButtonModel.mapToSource(i)
+                    currentPresetIndex = i.model.mapToModel(i)
+                }
+            }
+        }
         onRowsInserted: {
             if(!currentPresetIndex.valid) {
                 let i = treeButtonModel.index(0,0)
@@ -444,11 +453,16 @@ Item{
                 }
             }
         }
-        XsSBRightSection{
+
+        XsGradientRectangle{
             SplitView.fillWidth: true
             SplitView.fillHeight: true
-        }
 
+            XsSBRightSection {
+                anchors.fill: parent
+                anchors.margins: 4
+            }
+        }
     }
 
     onOnDiskChanged: {

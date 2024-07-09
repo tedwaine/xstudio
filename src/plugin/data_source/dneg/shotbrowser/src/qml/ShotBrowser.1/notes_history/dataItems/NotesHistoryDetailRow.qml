@@ -11,26 +11,25 @@ Item{
     property alias valueText: valueDiv.text
     property alias toolTipMArea: toolTipMArea
     property alias valueDiv: valueDiv
+    property alias textColor: valueDiv.color
 
-    property color titleColor: hintColor
-    property color valueColor: hintColor
 
     RowLayout{
         anchors.fill: parent
         spacing: 0
         clip: true
-        
+
         XsText{ id: titleDiv
             text: "Title :"
             Layout.preferredWidth: parent.width/4
             Layout.maximumHeight: parent.height
             Layout.alignment: Qt.AlignVCenter | Qt.AlignLeft
             horizontalAlignment: Text.AlignLeft
-            color: titleColor
+            color: XsStyleSheet.hintColor
             elide: Text.ElideRight
-            
+
         }
-    
+
         XsText{ id: valueDiv
             text: "Value"
             Layout.fillWidth: true
@@ -38,7 +37,7 @@ Item{
             Layout.maximumHeight: parent.height
             Layout.alignment: Qt.AlignVCenter | Qt.AlignRight
             horizontalAlignment: Text.AlignRight
-            color: valueColor
+            color: XsStyleSheet.hintColor
             elide: Text.ElideRight
 
             MouseArea { id: toolTipMArea
@@ -58,7 +57,7 @@ Item{
                 }
             }
         }
-        
+
     }
 
 }

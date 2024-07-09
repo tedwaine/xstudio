@@ -124,19 +124,28 @@ bool BookmarkFilterModel::lessThan(
     const QModelIndex &source_left, const QModelIndex &source_right) const {
     bool result = false;
 
-    auto lor = source_left.data(BookmarkModel::Roles::ownerRole);
-    auto ror = source_right.data(BookmarkModel::Roles::ownerRole);
+    if (sortbyCreated_) {
 
-    if (lor == ror) {
-        result = source_left.data(BookmarkModel::Roles::startTimecodeRole).toString() >
-                 source_right.data(BookmarkModel::Roles::startTimecodeRole).toString();
+        auto lcr = source_left.data(BookmarkModel::Roles::createdEpochRole).toLongLong();
+        auto rcr = source_right.data(BookmarkModel::Roles::createdEpochRole).toLongLong();
+        result   = lcr > rcr;
+
     } else {
-        auto lors = lor.toString();
-        auto rors = ror.toString();
 
-        result =
-            ((media_order_.contains(lors) ? media_order_[lors].toInt() : -1) >
-             (media_order_.contains(rors) ? media_order_[rors].toInt() : -1));
+        auto lor = source_left.data(BookmarkModel::Roles::ownerRole);
+        auto ror = source_right.data(BookmarkModel::Roles::ownerRole);
+
+        if (lor == ror) {
+            result = source_left.data(BookmarkModel::Roles::startTimecodeRole).toString() >
+                     source_right.data(BookmarkModel::Roles::startTimecodeRole).toString();
+        } else {
+            auto lors = lor.toString();
+            auto rors = ror.toString();
+
+            result =
+                ((media_order_.contains(lors) ? media_order_[lors].toInt() : -1) >
+                 (media_order_.contains(rors) ? media_order_[rors].toInt() : -1));
+        }
     }
 
     return result;
@@ -191,6 +200,14 @@ void BookmarkFilterModel::setIncludedCategories(const QStringList value) {
     }
 }
 
+void BookmarkFilterModel::setsortbyCreated(const bool value) {
+    if (value != sortbyCreated_) {
+        sortbyCreated_ = value;
+        emit sortbyCreatedChanged();
+        invalidateFilter();
+    }
+}
+
 BookmarkModel::BookmarkModel(QObject *parent) : super(parent) {
     init(CafSystemObject::get_actor_system());
 
@@ -219,7 +236,9 @@ BookmarkModel::BookmarkModel(QObject *parent) : super(parent) {
          "startRole",
          "durationRole",
          "durationFrameRole",
-         "visibleRole"}));
+         "visibleRole",
+         "userDataRole",
+         "createdEpochRole"}));
 }
 
 // don't optimise yet.
@@ -234,19 +253,16 @@ QFuture<QString>
 BookmarkModel::getJSONFuture(const QModelIndex &index, const QString &path) const {
     return QtConcurrent::run([=]() {
         if (bookmark_actor_) {
+            std::string path_string = StdFromQString(path);
             try {
                 scoped_actor sys{system()};
                 auto addr   = UuidFromQUuid(index.data(uuidRole).toUuid());
                 auto result = request_receive<JsonStore>(
-                    *sys,
-                    bookmark_actor_,
-                    json_store::get_json_atom_v,
-                    addr,
-                    StdFromQString(path));
+                    *sys, bookmark_actor_, json_store::get_json_atom_v, addr, path_string);
 
                 return QStringFromStd(result.dump());
 
-            } catch (const std::exception &err) {
+            } catch ([[maybe_unused]] const std::exception &err) {
                 // spdlog::warn("{} {}", __PRETTY_FUNCTION__,  err.what());
                 return QString(); // QStringFromStd(err.what());
             }
@@ -399,7 +415,7 @@ void BookmarkModel::setBookmarkActorAddr(const QString &addr) {
             try {
                 request_receive<bool>(
                     *sys, backend_events_, broadcast::leave_broadcast_atom_v, as_actor());
-            } catch (const std::exception &e) {
+            } catch ([[maybe_unused]] const std::exception &e) {
             }
             backend_events_ = caf::actor();
         }
@@ -524,6 +540,12 @@ QVariant BookmarkModel::data(const QModelIndex &index, int role) const {
                 }
                 break;
 
+            case userDataRole:
+                if (detail.user_data_) {
+                    result = QVariantMapFromJson(*(detail.user_data_));
+                }
+                break;
+
             case uuidRole:
                 result = QVariant::fromValue(QUuidFromUuid(detail.uuid_));
                 break;
@@ -628,6 +650,19 @@ QVariant BookmarkModel::data(const QModelIndex &index, int role) const {
                 } else {
                     result = QVariant::fromValue(QLocale::system().toString(
                         QDateTime::currentDateTime(), QLocale::ShortFormat));
+                }
+                break;
+            case createdEpochRole:
+                if (detail.created_) {
+                    result = QVariant::fromValue(
+                        std::chrono::duration_cast<std::chrono::milliseconds>(
+                            (*(detail.created_)).time_since_epoch())
+                            .count());
+                } else {
+                    result = QVariant::fromValue(
+                        std::chrono::duration_cast<std::chrono::milliseconds>(
+                            utility::sysclock::now().time_since_epoch())
+                            .count());
                 }
                 break;
             case hasAnnotationRole:
@@ -771,6 +806,15 @@ bool BookmarkModel::setData(const QModelIndex &index, const QVariant &value, int
                 }
             } break;
 
+            case createdEpochRole: {
+                auto created = utility::sys_time_point(milliseconds(value.toLongLong()));
+                if (not detail.created_ or (*detail.created_) != created) {
+                    detail.created_ = bm.created_ = created;
+                    sendDetail(bm);
+                    result = true;
+                }
+            } break;
+
             case ownerRole: {
                 auto str = UuidFromQUuid(value.toUuid());
                 if (not detail.owner_ or (*detail.owner_).uuid() != str) {
@@ -812,6 +856,27 @@ bool BookmarkModel::setData(const QModelIndex &index, const QVariant &value, int
                         sendDetail(bm);
                         result = true;
                     }
+                }
+            } break;
+
+            case userDataRole: {
+                // Copied from shotgun_model_ui.cpp setData()
+                nlohmann::json jval;
+                if (std::string(value.typeName()) == "QJSValue") {
+                    jval = nlohmann::json::parse(
+                        QJsonDocument::fromVariant(value.value<QJSValue>().toVariant())
+                            .toJson(QJsonDocument::Compact)
+                            .constData());
+                } else {
+                    jval = nlohmann::json::parse(QJsonDocument::fromVariant(value)
+                                                     .toJson(QJsonDocument::Compact)
+                                                     .constData());
+                }
+
+                if (not detail.user_data_ or (*detail.user_data_) != jval) {
+                    detail.user_data_ = bm.user_data_ = jval;
+                    sendDetail(bm);
+                    result = true;
                 }
             } break;
             }

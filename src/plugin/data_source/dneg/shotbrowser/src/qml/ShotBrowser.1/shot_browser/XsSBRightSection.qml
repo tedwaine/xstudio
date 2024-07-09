@@ -7,31 +7,28 @@ import QtQuick.Layouts 1.15
 import xStudioReskin 1.0
 import ShotBrowser 1.0
 
-Item{
+ColumnLayout {
+    spacing: panelPadding
 
-    property real visibleWidth: 150
-
-    XsGradientRectangle{
-        anchors.fill: parent
+    XsSBR1Tools{
+        Layout.fillWidth: true
     }
 
-    ColumnLayout {
-        anchors.fill: parent
-        anchors.margins: panelPadding
-        spacing: panelPadding 
-        
-        XsSBR1Tools{
-            Layout.fillWidth: true
-            Layout.preferredHeight: btnHeight *2 + parent.spacing*2 + 2
-        }
-        XsSBR2Views{
-            Layout.fillWidth: true
-            Layout.fillHeight: true
-        }
-        XsSBR3Actions{
-            Layout.fillWidth: true
-            Layout.preferredHeight: XsStyleSheet.widgetStdHeight
-        }
+     Rectangle{
+        color: panelColor
+        Layout.fillWidth: true
+        Layout.fillHeight: true
 
+        XsSBR2Views{
+            anchors.fill: parent
+            anchors.margins: 4
+        }
+    }
+
+    XsSBR3Actions{
+        Layout.fillWidth: true
+        Layout.minimumHeight: XsStyleSheet.widgetStdHeight
+        Layout.maximumHeight: XsStyleSheet.widgetStdHeight
+        parentWidth: parent.width - 2
     }
 }

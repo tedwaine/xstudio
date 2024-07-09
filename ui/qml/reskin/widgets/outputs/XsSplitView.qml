@@ -48,13 +48,13 @@ SplitView {
 
     property Component splitHandleVertical:
     Rectangle {
-        implicitWidth: panelPadding
-        implicitHeight: panelPadding
+        implicitWidth: XsStyleSheet.panelPadding
+        implicitHeight: XsStyleSheet.panelPadding
         color: XsStyleSheet.panelBgColor
         
         Rectangle{
             width: parent.width
-            height: panelPadding/2
+            height: XsStyleSheet.panelPadding/2
             color: parent.SplitHandle.pressed ? colorActive : parent.SplitHandle.hovered ? colorNormal : "transparent"
             anchors.centerIn: parent
         }

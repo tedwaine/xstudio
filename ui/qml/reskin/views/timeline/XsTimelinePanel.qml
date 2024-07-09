@@ -12,7 +12,7 @@ import xstudio.qml.viewport 1.0
 
 import xStudioReskin 1.0
 
-Item{
+XsGradientRectangle{
 
     id: panel
     anchors.fill: parent
@@ -33,32 +33,16 @@ Item{
     property real btnHeight: XsStyleSheet.widgetStdHeight+4
     property real panelPadding: XsStyleSheet.panelPadding
 
-    property string currentClipDetail: ""
+    property var currentClipRange: [-1,-1]
+    property var currentClipHandles: [0,0]
     property var currentClipIndex: null
-
-    property bool isEditToolsExpanded: false
 
     //#TODO: test
     property bool showIcons: false
 
     property alias theTimeline: theTimeline
 
-    XsGradientRectangle{ id: bgDiiv
-        z: -10
-        anchors.fill: parent
-    }
-
     enabled: theTimeline.have_timeline
-
-    // XsHotkey {
-    //     id: fit_selection
-    //     sequence: "F"
-    //     name: "Fit Selection"
-    //     description: "Fit Selection"
-    //     onActivated: {
-    //         console.log("FIT")
-    //     }
-    // }
 
     XsModelPropertyMap {
         id: currentClipProperties
@@ -66,10 +50,6 @@ Item{
         onContentChanged: updateCurrentClipDetail()
         onIndexChanged: updateCurrentClipDetail()
     }
-
-    // XsNewTrackMenu {
-    //     id: newTrackMenu
-    // }
 
     function nTimer() {
          return Qt.createQmlObject("import QtQuick 2.0; Timer {}", root);
@@ -111,7 +91,9 @@ Item{
                     start = start - astart + taf
                     let end = start + duration - 1
 
-                    currentClipDetail = "( "+head + " )   " + start + "   " + name + "   " + end + "   ( " + tail + " )"
+                    currentClipRange = [start, end]
+                    currentClipHandles = [head, tail]
+                    // currentClipDetail = "( "+head + " )   " + start + "   " + name + "   " + end + "   ( " + tail + " )"
                 }
             }
         }
@@ -144,7 +126,6 @@ Item{
                     timelinePlayhead.uuid = playhead_uuid
                 }
             }
-    
         }
     }
 
@@ -168,22 +149,22 @@ Item{
     }
 
     function updateClipIndex() {
-        let si = theTimeline.timelineSelection.selectedIndexes
-        if(si.length == 1) {
-            let i = si[0]
-            if(i != currentClipIndex && i.model.get(i, "typeRole") == "Clip")
-                currentClipIndex = helpers.makePersistent(i)
-        } else {
+        // let si = theTimeline.timelineSelection.selectedIndexes
+        // if(si.length == 1) {
+        //     let i = si[0]
+        //     if(i != currentClipIndex && i.model.get(i, "typeRole") == "Clip")
+        //         currentClipIndex = helpers.makePersistent(i)
+        // } else {
             currentClipIndex = helpers.makePersistent(theSessionData.getTimelineClipIndex(theTimeline.timelineModel.rootIndex, timelinePlayhead.logicalFrame))
-        }
+        // }
     }
 
-    Connections {
-        target: theTimeline.timelineSelection
-        function onSelectionChanged(selected, deselected) {
-            updateClipIndex()
-        }
-    }
+    // Connections {
+    //     target: theTimeline.timelineSelection
+    //     function onSelectionChanged(selected, deselected) {
+    //         updateClipIndex()
+    //     }
+    // }
 
     XsHotkeyArea {
         id: hotkey_area
@@ -192,44 +173,17 @@ Item{
         focus: true
     }
 
-    Item{
-
-        id: actionDiv
-        width: parent.width;
-        height: btnHeight+(panelPadding*2)
+    ColumnLayout {
+        anchors.fill: parent
+        anchors.margins: 4
 
         RowLayout{
-            x: panelPadding
-            spacing: 1
-            width: parent.width-(x*2)
-            height: btnHeight
-            anchors.verticalCenter: parent.verticalCenter
+            spacing: 2
+            Layout.maximumHeight: btnHeight
+            Layout.minimumHeight: btnHeight
+            Layout.fillWidth: true
+            Layout.leftMargin: btnWidth + 4
 
-            // XsPrimaryButton{ id: addPlaylistBtn
-            //     Layout.preferredWidth: btnWidth
-            //     Layout.preferredHeight: parent.height
-            //     imgSrc: "qrc:/icons/add.svg"
-            //     text: "Add"
-
-            //     onClicked: {
-            //         // let m = theTimeline.timelineModel.srcModel
-            //         // let stack_index = m.index(0, 0, theTimeline.timelineModel.rootIndex)
-
-            //         // if(theTimeline.timelineSelection.selectedIndexes.length) {
-            //         //     let index = m.getTimelineTrackIndex(theTimeline.timelineSelection.selectedIndexes[0])
-            //         //     let type = m.get(index,"typeRole")
-            //         //     if(type == "Video Track")
-            //         //         theTimeline.addTrack("Video Track")
-            //         //     else if(type == "Audio Track")
-            //         //         theTimeline.addTrack("Audio Track")
-            //         // } else {
-            //             var pos = mapToItem(panel, x+width/2, y+height/2)
-            //             newTrackMenu.x = pos.x
-            //             newTrackMenu.y = pos.y
-            //             newTrackMenu.visible = true
-            //         // }
-            //     }
-            // }
             XsPrimaryButton{ id: deleteBtn
                 Layout.preferredWidth: btnWidth
                 Layout.preferredHeight: parent.height
@@ -254,6 +208,7 @@ Item{
             }
 
            XsPrimaryButton{
+                Layout.leftMargin: 24
                 Layout.preferredWidth: btnWidth
                 Layout.preferredHeight: parent.height
                 imgSrc: "qrc:/icons/crop_free.svg"
@@ -262,6 +217,7 @@ Item{
             }
 
            XsPrimaryButton{
+                Layout.rightMargin: 24
                 Layout.preferredWidth: btnWidth
                 Layout.preferredHeight: parent.height
                 imgSrc: "qrc:/icons/fit_screen.svg"
@@ -280,6 +236,23 @@ Item{
                 }
             }
 
+           XsPrimaryButton{
+                Layout.preferredWidth: btnWidth
+                Layout.preferredHeight: parent.height
+                imgSrc: "qrc:/icons/splitscreen_add.svg"
+                text: "Insert Track Above"
+                onClicked:  theTimeline.insertTrackAbove(theTimeline.timelineSelection.selectedIndexes)
+            }
+
+           XsPrimaryButton{
+                Layout.preferredWidth: btnWidth
+                Layout.preferredHeight: parent.height
+                Layout.rightMargin: 24
+                imgSrc: "qrc:/icons/library_add.svg"
+                text: "Duplicate Selected"
+                onClicked: theTimeline.duplicate(theTimeline.timelineSelection.selectedIndexes)
+            }
+
             XsSearchButton{ id: searchBtn
                 Layout.preferredWidth: isExpanded? btnWidth*6 : btnWidth
                 Layout.preferredHeight: parent.height
@@ -288,196 +261,206 @@ Item{
                 enabled: false
                // isExpandedToLeft: true
             }
-            XsText{ id: titleDiv
+
+            Item{
                 Layout.fillWidth: true
-                Layout.minimumWidth: 0
-                Layout.preferredHeight: parent.height
-                text: currentClipDetail
-                font.bold: true
-                elide: Text.ElideMiddle
-                visible: opacity != 0
-                opacity: searchBtn.isExpanded ? 0 : 1
-                Behavior on opacity { NumberAnimation { duration: 150; easing.type: Easing.OutQuart }  }
             }
+
             XsPrimaryButton{
-                Layout.preferredWidth: btnWidth*2.6
+                Layout.preferredWidth: btnWidth*4
                 Layout.preferredHeight: parent.height
+                showBoth: true
                 imgSrc: "qrc:/icons/laps.svg"
                 text: "Loop Selection"
                 onClicked: theTimeline.loopSelection = !theTimeline.loopSelection
                 isActive: theTimeline.loopSelection
             }
             XsPrimaryButton{
-                Layout.preferredWidth: btnWidth*2.6
+                Layout.preferredWidth: btnWidth*4
                 Layout.preferredHeight: parent.height
+                showBoth: true
                 imgSrc: "qrc:/icons/center_focus_weak.svg"
                 text: "Focus Selection"
                 onClicked: theTimeline.focusSelection = !theTimeline.focusSelection
                 isActive: theTimeline.focusSelection
             }
+
             Item{
-                Layout.preferredWidth: panelPadding/2
-                Layout.preferredHeight: parent.height
+                Layout.fillWidth: true
             }
 
-            // XsPrimaryButton{
-            //     Layout.preferredWidth: showIcons? btnWidth : btnWidth*1.8
-            //     Layout.preferredHeight: parent.height
-            //     imgSrc: showIcons? "qrc:/icons/center_focus_strong.svg":""
-            //     text: "Lock"
-            //     isActive: theTimeline.selectionIsLocked
-            //     onClicked:{
-            //         if(theTimeline.selectionIsLocked)
-            //             theTimeline.lockItems(theTimeline.timelineSelection.selectedIndexes, false)
-            //         else
-            //             theTimeline.lockItems(theTimeline.timelineSelection.selectedIndexes, true)
-            //         theTimeline.updateLockFlag()
-            //     }
-            // }
+            RowLayout {
+                Layout.preferredWidth: btnWidth*5
+                Layout.maximumWidth: btnWidth*5
+                Layout.fillHeight: true
 
-            // XsPrimaryButton{
-            //     Layout.preferredWidth: showIcons? btnWidth : btnWidth*1.8
-            //     Layout.preferredHeight: parent.height
-            //     imgSrc: showIcons? "qrc:/icons/center_focus_strong.svg":""
-            //     text: "Enable"
-            //     isActive: theTimeline.selectionIsEnabled
-            //     onClicked:{
-            //         if(theTimeline.selectionIsEnabled)
-            //             theTimeline.enableItems(theTimeline.timelineSelection.selectedIndexes, false)
-            //         else
-            //             theTimeline.enableItems(theTimeline.timelineSelection.selectedIndexes, true)
-            //         theTimeline.updateEnableFlag()
-            //     }
-            // }
+                ColumnLayout {
+                    Layout.preferredWidth: btnWidth*1.5
+                    Layout.maximumWidth: btnWidth*1.5
+                    Layout.fillHeight: true
 
-            // XsPrimaryButton{
-            //     Layout.preferredWidth: btnWidth*1.8
-            //     Layout.preferredHeight: parent.height
-            //     imgSrc: ""
-            //     text: "Ripple"
-            //     onClicked:{
-            //         isActive = !isActive
-            //     }
-            //     enabled: false
-            // }
-            // XsPrimaryButton{
-            //     Layout.preferredWidth: btnWidth*1.8
-            //     Layout.preferredHeight: parent.height
-            //     imgSrc: ""
-            //     text: "Gang"
-            //     onClicked:{
-            //         isActive = !isActive
-            //     }
-            //     enabled: false
-            // }
-            // XsPrimaryButton{
-            //     Layout.preferredWidth: btnWidth*1.8
-            //     Layout.preferredHeight: parent.height
-            //     imgSrc: ""
-            //     text: "Snap"
-            //     onClicked:{
-            //         isActive = !isActive
-            //     }
-            //     enabled: false
-            // }
-            // Item{
-            //     Layout.preferredWidth: panelPadding/2
-            //     Layout.preferredHeight: parent.height
-            // }
-            // XsPrimaryButton{
-            //     Layout.preferredWidth: btnWidth*1.8
-            //     Layout.preferredHeight: parent.height
-            //     imgSrc: ""
-            //     text: "Overwrite"
-            //     enabled: false
-            // }
-            // XsPrimaryButton{
-            //     Layout.preferredWidth: btnWidth*1.8
-            //     Layout.preferredHeight: parent.height
-            //     imgSrc: ""
-            //     text: "Insert"
-            //     enabled: false
-            // }
-            // Item{
-            //     Layout.preferredWidth: panelPadding/2
-            //     Layout.preferredHeight: parent.height
-            // }
-            // XsPrimaryButton{ id: settingsBtn
-            //     Layout.preferredWidth: btnWidth
-            //     Layout.preferredHeight: parent.height
-            //     imgSrc: "qrc:/icons/settings.svg"
-            //     enabled: false
-            // }
-            // XsPrimaryButton{ id: filterBtn
-            //     Layout.preferredWidth: btnWidth
-            //     Layout.preferredHeight: parent.height
-            //     imgSrc: "qrc:/icons/filter.svg"
-            //     enabled: false
-            // }
-            // XsPrimaryButton{ id: morePlaylistBtn
-            //     Layout.preferredWidth: btnWidth
-            //     Layout.preferredHeight: parent.height
-            //     imgSrc: "qrc:/icons/more_vert.svg"
-            //     enabled: false
-            // }
+                    XsText{
+                        Layout.fillWidth: true
+                        Layout.fillHeight: true
+                        font.bold: true
+                        elide: Text.ElideMiddle
+                        text: "Range:"
+                        horizontalAlignment: Text.AlignRight
+                    }
 
-        }
+                    XsText{
+                        Layout.fillWidth: true
+                        Layout.fillHeight: true
+                        font.bold: true
+                        elide: Text.ElideMiddle
+                        text: "Handles:"
+                        horizontalAlignment: Text.AlignRight
+                    }
+                }
 
-    }
+                ColumnLayout {
+                    Layout.fillWidth: true
+                    Layout.fillHeight: true
 
-    Rectangle{
+                    XsText{
+                        Layout.fillWidth: true
+                        Layout.fillHeight: true
+                        font.bold: true
+                        elide: Text.ElideMiddle
+                        text: currentClipRange[0]
+                        horizontalAlignment: Text.AlignRight
+                    }
 
-        id: timelineDiv
-        x: panelPadding
-        y: actionDiv.height
-        width: panel.width-(x*2)
-        height: panel.height-y-panelPadding
-        color: XsStyleSheet.panelBgColor
+                    XsText{
+                        Layout.fillWidth: true
+                        Layout.fillHeight: true
+                        font.bold: true
+                        elide: Text.ElideMiddle
+                        text: Math.abs(currentClipHandles[0]) + (currentClipHandles[0] < 0 ? " -" : "")
+                        horizontalAlignment: Text.AlignRight
+                    }
+                }
 
-        XsTimelineEditTools{
+                ColumnLayout {
+                    Layout.fillWidth: true
+                    Layout.fillHeight: true
 
-            x: spacing
-            y: spacing
+                    XsText{
+                        Layout.fillHeight: true
+                        font.bold: true
+                        text: " - "
+                    }
 
-            width: isEditToolsExpanded? cellWidth*2 : cellWidth
-            height: parent.height<cellHeight*(model.count/2)+cellHeight? cellHeight*(model.count/2)+cellHeight : parent.height
+                    XsText{
+                        Layout.fillHeight: true
+                        font.bold: true
+                        text: " / "
+                    }
+                }
 
-            onHeightChanged:{
-                if(height<cellWidth*toolsModel.count) isEditToolsExpanded = true
-                else isEditToolsExpanded = false
+                ColumnLayout {
+                    Layout.fillWidth: true
+                    Layout.fillHeight: true
+
+                    XsText{
+                        Layout.fillWidth: true
+                        Layout.fillHeight: true
+                        font.bold: true
+                        elide: Text.ElideMiddle
+                        text: currentClipRange[1]
+                        horizontalAlignment: Text.AlignLeft
+                    }
+
+                    XsText{
+                        Layout.fillWidth: true
+                        Layout.fillHeight: true
+                        font.bold: true
+                        elide: Text.ElideMiddle
+                        text: Math.abs(currentClipHandles[1]) + (currentClipHandles[1] < 0 ? " -" : "")
+                        horizontalAlignment: Text.AlignLeft
+                    }
+                }
             }
-
-            toolsModel: editToolsModel
-
-            onCurrentIndexChanged: theTimeline.editMode = toolsModel.get(currentIndex)._name
         }
 
+        Rectangle{
+            Layout.fillWidth: true
+            Layout.fillHeight: true
+            color: theTimeline.trackBackground
+
+            RowLayout {
+                anchors.fill: parent
+                Rectangle{
+                    Layout.fillHeight: true
+                    Layout.minimumWidth: btnWidth
+                    Layout.maximumWidth: btnWidth
+                    color: theTimeline.trackBackground
+
+                    ColumnLayout {
+                        anchors.fill: parent
+
+                        XsPrimaryButton{
+                            Layout.minimumHeight: btnHeight
+                            Layout.maximumHeight: btnHeight
+                            Layout.fillWidth: true
+                            text: "Select"
+                            isActiveIndicatorAtLeft: true
+                            imgSrc: "qrc:/icons/arrow_selector_tool.svg"
+                            isActive: theTimeline.editMode == text
+                            onClicked: theTimeline.editMode = text
+                        }
+
+                        XsPrimaryButton{
+                            Layout.minimumHeight: btnHeight
+                            Layout.maximumHeight: btnHeight
+                            Layout.fillWidth: true
+                            text: "Move"
+                            isActiveIndicatorAtLeft: true
+                            imgSrc: "qrc:/icons/open_with.svg"
+                            isActive: theTimeline.editMode == text
+                            onClicked: theTimeline.editMode = text
+                        }
+
+                        XsPrimaryButton{
+                            Layout.minimumHeight: btnHeight
+                            Layout.maximumHeight: btnHeight
+                            Layout.fillWidth: true
+                            text: "Roll"
+                            isActiveIndicatorAtLeft: true
+                            imgSrc: "qrc:/icons/expand.svg"
+                            onClicked: theTimeline.editMode = text
+                            isActive: theTimeline.editMode == text
+                            imageDiv.rotation: 90
+                        }
+
+                        Item {
+                            Layout.fillHeight: true
+                        }
+
+                        // XsPrimaryButton{
+                        //     text: "Cut"
+                        //     isActiveIndicatorAtLeft: true
+                        //     imgSrc: "qrc:/icons/content_cut.svg"
+                        //     onClicked: theTimeline.editMode = text
+                        // }
+
+                        // XsPrimaryButton{
+                        //     text: "Reorder"
+                        //     isActiveIndicatorAtLeft: true
+                        //     imgSrc: "qrc:/icons/repartition.svg"
+                        //     onClicked: theTimeline.editMode = text
+                        // }
+
+
+                    }
+                }
+
+                XsTimeline {
+                    id: theTimeline
+                    Layout.fillWidth: true
+                    Layout.fillHeight: true
+                }
+            }
+        }
     }
-
-    XsTimeline
-    {
-        id: theTimeline
-        // TODO: do this with proper anchors. Can't seem to do it
-        // without going over the edit buttons ....
-        y: actionDiv.height
-        width: parent.width - 40
-        height: parent.height - actionDiv.height
-        x: 40
-
-    }
-
-    ListModel{ id: editToolsModel
-
-        ListElement{ _enabled: true; _type:"basic"; _name:"Select"; _icon:"qrc:/icons/arrow_selector_tool.svg"}
-        // ListElement{ _enabled: true; _type:"basic"; _name:"Select Area"; _icon:"qrc:/icons/select.svg"}
-        // ListElement{ _enabled: true; _type:"basic"; _name:"Focus"; _icon:"qrc:/icons/center_focus_strong.svg"}
-        ListElement{ _enabled: true; _type:"basic"; _name:"Move"; _icon:"qrc:/icons/open_with.svg"}
-        // ListElement{ _type:"basic"; _name:"Move LR"; _icon:"qrc:/icons/arrows_outward.svg"}
-        // ListElement{ _type:"basic"; _name:"Move UD"; _icon:"qrc:/icons/arrows_outward.svg"}
-        ListElement{ _enabled: false; _type:"basic"; _name:"Cut"; _icon:"qrc:/icons/content_cut.svg"}
-        ListElement{ _enabled: true; _type:"basic"; _name:"Roll"; _icon:"qrc:/icons/expand.svg"}
-        ListElement{ _enabled: false; _type:"basic"; _name:"Reorder"; _icon:"qrc:/icons/repartition.svg"}
-
-    }
-
 }

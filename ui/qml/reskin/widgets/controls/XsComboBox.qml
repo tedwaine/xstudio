@@ -194,7 +194,7 @@ T.ComboBox { id: widget
         padding: 0
 
         contentItem:
-        Text{
+        XsText {
             text: widget.textRole ? (Array.isArray(widget.model) ? modelData[widget.textRole]: model[widget.textRole]): modelData
             font.pixelSize: fontSize
             font.family: fontFamily

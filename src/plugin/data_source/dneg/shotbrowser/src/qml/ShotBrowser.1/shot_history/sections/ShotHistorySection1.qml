@@ -8,7 +8,7 @@ import xStudioReskin 1.0
 import ShotBrowser 1.0
 
 Rectangle{
-    color: bgColorNormal
+    color: XsStyleSheet.widgetBgNormalColor
 
     property bool isHovered: thumbMArea.containsMouse ||
             notesIndicatorDisplay.hovered ||
@@ -131,10 +131,6 @@ Rectangle{
                     hoverEnabled: true
                 }
             }
-
         }
-
     }
-
-
 }

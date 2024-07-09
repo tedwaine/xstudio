@@ -80,7 +80,8 @@ namespace module {
             Colour,
             HotkeyUuid,
             UserData,
-            IconPath
+            IconPath,
+            CallbackData
         };
 
         inline static const std::map<int, std::string> role_names = {
@@ -121,7 +122,8 @@ namespace module {
             {Colour, "attr_colour"},
             {HotkeyUuid, "hotkey_uuid"},
             {UserData, "user_data"},
-            {IconPath, "icon_path"}};
+            {IconPath, "icon_path"},
+            {CallbackData, "callback_data"}};
 
         ~Attribute() = default;
 

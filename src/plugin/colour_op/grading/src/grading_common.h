@@ -8,7 +8,7 @@ namespace xstudio {
 namespace ui {
 namespace viewport {
 
-    std::vector<const GradingData*> get_active_grades(
+    std::vector<GradingInfo> get_active_grades(
         const xstudio::media_reader::ImageBufPtr &image);
 
 } // end namespace viewport

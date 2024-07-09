@@ -52,14 +52,6 @@ GradingTool::GradingTool(caf::actor_config &cfg, const utility::JsonStore &init_
     grading_bypass_ = add_boolean_attribute("drawing_bypass", "drawing_bypass", false);
     grading_bypass_->expose_in_ui_attrs_group("grading_settings");
 
-    drawing_action_ = add_string_attribute("drawing_action", "drawing_action", "");
-    drawing_action_->expose_in_ui_attrs_group("grading_settings");
-    drawing_action_->expose_in_ui_attrs_group("mask_tool_settings");
-
-    grading_tracking_ = add_boolean_attribute("grading_tracking", "grading_tracking", false);
-    grading_tracking_->expose_in_ui_attrs_group("grading_settings");
-    grading_tracking_->set_preference_path("/plugin/grading/grading_tracking");
-
     media_colour_managed_ =
         add_boolean_attribute("media_colour_managed", "media_colour_managed", false);
     media_colour_managed_->expose_in_ui_attrs_group("grading_settings");
@@ -86,10 +78,6 @@ GradingTool::GradingTool(caf::actor_config &cfg, const utility::JsonStore &init_
     grading_bookmark_ = add_string_attribute("grading_bookmark", "grading_bookmark", "");
     grading_bookmark_->expose_in_ui_attrs_group("grading_settings");
 
-    grade_is_active_ = add_boolean_attribute("grade_active", "grade_active", true);
-    grade_is_active_->set_redraw_viewport_on_change(true);
-    grade_is_active_->expose_in_ui_attrs_group("grading_settings");
-
     colour_space_ = add_string_choice_attribute(
         "colour_space", "colour_space", "scene_linear", {"scene_linear", "compositing_log"});
     colour_space_->expose_in_ui_attrs_group("grading_settings");
@@ -107,13 +95,13 @@ GradingTool::GradingTool(caf::actor_config &cfg, const utility::JsonStore &init_
     slope_ = add_float_vector_attribute(
         "Slope",
         "Slope",
-        std::vector<float>({1.0, 1.0, 1.0, 1.0}),                 // initial value
-        std::vector<float>({0.0, 0.0, 0.0, std::pow(2.0, -6.0)}), // min
-        std::vector<float>({4.0, 4.0, 4.0, std::pow(2.0, 6.0)}),  // max
-        std::vector<float>({0.005, 0.005, 0.005, 0.005})          // step
+        std::vector<float>({1.0, 1.0, 1.0, 1.0}),        // initial value
+        std::vector<float>({0.0, 0.0, 0.0, 0.0}),        // min
+        std::vector<float>({4.0, 4.0, 4.0, 4.0}),        // max
+        std::vector<float>({0.005, 0.005, 0.005, 0.005}) // step
     );
     slope_->expose_in_ui_attrs_group("grading_settings");
-    slope_->expose_in_ui_attrs_group("grading_sliders");
+    slope_->expose_in_ui_attrs_group("grading_wheels");
 
     // Offset
     offset_ = add_float_vector_attribute(
@@ -125,7 +113,7 @@ GradingTool::GradingTool(caf::actor_config &cfg, const utility::JsonStore &init_
         std::vector<float>({0.005, 0.005, 0.005, 0.005}) // step
     );
     offset_->expose_in_ui_attrs_group("grading_settings");
-    offset_->expose_in_ui_attrs_group("grading_sliders");
+    offset_->expose_in_ui_attrs_group("grading_wheels");
 
     // Power
     power_ = add_float_vector_attribute(
@@ -137,14 +125,28 @@ GradingTool::GradingTool(caf::actor_config &cfg, const utility::JsonStore &init_
         std::vector<float>({0.005, 0.005, 0.005, 0.005}) // step
     );
     power_->expose_in_ui_attrs_group("grading_settings");
-    power_->expose_in_ui_attrs_group("grading_sliders");
+    power_->expose_in_ui_attrs_group("grading_wheels");
 
     // Sat
-    sat_ = add_float_attribute("Saturation", "Saturation", 1.0f, 0.0f, 4.0f, 0.005f);
-    sat_->set_redraw_viewport_on_change(true);
-    sat_->set_role_data(module::Attribute::DefaultValue, 1.0f);
-    sat_->expose_in_ui_attrs_group("grading_settings");
-    sat_->expose_in_ui_attrs_group("grading_sliders");
+    saturation_ = add_float_attribute("Saturation", "Sat.", 1.0f, 0.0f, 4.0f, 0.005f);
+    saturation_->set_redraw_viewport_on_change(true);
+    saturation_->set_role_data(module::Attribute::DefaultValue, 1.0f);
+    saturation_->expose_in_ui_attrs_group("grading_settings");
+    saturation_->expose_in_ui_attrs_group("grading_sliders");
+
+    // Exposure
+    exposure_ = add_float_attribute("Exposure", "Exp.", 0.0f, -8.0f, 8.0f, 0.1f);
+    exposure_->set_redraw_viewport_on_change(true);
+    exposure_->set_role_data(module::Attribute::DefaultValue, 0.0f);
+    exposure_->expose_in_ui_attrs_group("grading_settings");
+    exposure_->expose_in_ui_attrs_group("grading_sliders");
+
+    // Contrast
+    contrast_ = add_float_attribute("Contrast", "Cont.", 1.0f, 0.001f, 4.0f, 0.005f);
+    contrast_->set_redraw_viewport_on_change(true);
+    contrast_->set_role_data(module::Attribute::DefaultValue, 1.0f);
+    contrast_->expose_in_ui_attrs_group("grading_settings");
+    contrast_->expose_in_ui_attrs_group("grading_sliders");
 
     // Masking elements
 
@@ -156,6 +158,10 @@ GradingTool::GradingTool(caf::actor_config &cfg, const utility::JsonStore &init_
     drawing_tool_->expose_in_ui_attrs_group("mask_tool_settings");
     drawing_tool_->expose_in_ui_attrs_group("mask_tool_types");
     drawing_tool_->set_preference_path("/plugin/grading/drawing_tool");
+
+    drawing_action_ = add_string_attribute("drawing_action", "drawing_action", "");
+    drawing_action_->expose_in_ui_attrs_group("grading_settings");
+    drawing_action_->expose_in_ui_attrs_group("mask_tool_settings");
 
     draw_pen_size_ = add_integer_attribute("Draw Pen Size", "Draw Pen Size", 10, 1, 300);
     draw_pen_size_->expose_in_ui_attrs_group("mask_tool_settings");
@@ -189,6 +195,11 @@ GradingTool::GradingTool(caf::actor_config &cfg, const utility::JsonStore &init_
     mask_selected_shape_ =
         add_integer_attribute("mask_selected_shape", "mask_selected_shape", -1);
     mask_selected_shape_->expose_in_ui_attrs_group("mask_tool_settings");
+
+    mask_shapes_visible_ =
+        add_boolean_attribute("mask_shapes_visible", "mask_shapes_visible", true);
+    mask_shapes_visible_->set_redraw_viewport_on_change(true);
+    mask_shapes_visible_->expose_in_ui_attrs_group("mask_tool_settings");
 
     display_mode_attribute_ = add_string_choice_attribute(
         "display_mode",
@@ -224,7 +235,7 @@ GradingTool::GradingTool(caf::actor_config &cfg, const utility::JsonStore &init_
         R"(
             import QtGraphicalEffects 1.15
             import QtQuick 2.15
-            import Grading 1.0
+            import Grading 2.0
 
             import xStudioReskin 1.0
 
@@ -235,18 +246,21 @@ GradingTool::GradingTool(caf::actor_config &cfg, const utility::JsonStore &init_
                     anchors.fill: parent
                 }
                 
-                GradingDialog {
+                GradingTools {
                     anchors.fill: parent 
                 }
             }
-        )");
+        )",
+        "qrc:/icons/tune.svg",
+        2.0f);
 
     // here is where we declare the singleton overlay item that will draw
     // our graphics and handle mouse interaction
     qml_viewport_overlay_code(
         R"(
-            import MaskTool 1.0
-            MaskOverlay {
+            import Grading 2.0
+            
+            GradingOverlay {
                 anchors.fill: parent
             }
         )");
@@ -303,45 +317,7 @@ void GradingTool::images_going_on_screen(
         return;
     }
 
-    // Ignore the callback for a short while after we create or delete
-    // a bookmark. This is because the ImageBufPtr info might be out of date.
-    // Note that 500ms might be too conservative a value.
-    auto time_since_bookmark_update = std::chrono::duration_cast<std::chrono::milliseconds>(
-        std::chrono::high_resolution_clock::now() - last_bookmark_update_);
-    if (time_since_bookmark_update.count() < 500) {
-        return;
-    }
-
     current_viewport_ = viewport_name;
-
-    if (grading_tracking_->value()) {
-
-        std::vector<utility::Uuid> on_screen_bookmarks;
-
-        if (images.size()) {
-
-            for (auto &bookmark : images[0].bookmarks()) {
-
-                auto data = dynamic_cast<GradingData *>(bookmark->annotation_.get());
-                if (data) {
-                    on_screen_bookmarks.push_back(data->bookmark_uuid_);
-                }
-            }
-        }
-
-        utility::Uuid selected_bookmark = utility::Uuid(grading_bookmark_->value());
-
-        auto it = std::find(
-            on_screen_bookmarks.begin(), on_screen_bookmarks.end(), selected_bookmark);
-        if (it == on_screen_bookmarks.end() && !on_screen_bookmarks.empty()) {
-            // Selected bookmark no longer on screen, select the first one available
-            select_bookmark(on_screen_bookmarks.front());
-        } else if (selected_bookmark && it == on_screen_bookmarks.end()) {
-            // Selected bookmark no longer on screen and no bookmarks are currently shown
-            // Reset the current bookmark to an empty state
-            select_bookmark(utility::Uuid());
-        }
-    }
 }
 
 void GradingTool::on_screen_media_changed(
@@ -407,7 +383,7 @@ void GradingTool::attribute_changed(const utility::Uuid &attribute_uuid, const i
 
         if (grading_action_->value() == "Clear") {
 
-            clear_cdl();
+            clear_grade();
             refresh_current_grade_from_ui();
 
         } else if (utility::starts_with(grading_action_->value(), "Save CDL ")) {
@@ -440,25 +416,33 @@ void GradingTool::attribute_changed(const utility::Uuid &attribute_uuid, const i
         } else if (drawing_action_->value() == "Redo") {
             redo();
         } else if (drawing_action_->value() == "Add quad") {
+            create_bookmark_if_empty();
             start_quad(
                 {Imath::V2f(-0.5, -0.5),
                  Imath::V2f(-0.5, 0.5),
                  Imath::V2f(0.5, 0.5),
                  Imath::V2f(0.5, -0.5)});
+            update_boomark_shape(current_bookmark());
         } else if (utility::starts_with(drawing_action_->value(), "Add Polygon ")) {
+            create_bookmark_if_empty();
             const auto points = utility::split(drawing_action_->value().substr(12), ',');
             if (points.size() % 2 == 0) {
                 std::vector<Imath::V2f> poly_points;
-                for (int i = 0; i < points.size(); i += 2) {
+                for (size_t i = 0; i < points.size(); i += 2) {
                     poly_points.push_back(
                         Imath::V2f(std::stof(points[i]), std::stof(points[i + 1])));
                 }
                 start_polygon(poly_points);
             }
+            update_boomark_shape(current_bookmark());
         } else if (drawing_action_->value() == "Add ellipse") {
+            create_bookmark_if_empty();
             start_ellipse(Imath::V2f(0.0, 0.0), Imath::V2f(0.35, 0.25), 90.0);
+            update_boomark_shape(current_bookmark());
         } else if (drawing_action_->value() == "Remove shape") {
+            create_bookmark_if_empty();
             remove_shape(mask_selected_shape_->value());
+            update_boomark_shape(current_bookmark());
         }
         drawing_action_->set_value("");
 
@@ -479,11 +463,6 @@ void GradingTool::attribute_changed(const utility::Uuid &attribute_uuid, const i
     } else if (attribute_uuid == display_mode_attribute_->uuid()) {
 
         refresh_current_grade_from_ui();
-
-    } else if (grade_is_active_ && attribute_uuid == grade_is_active_->uuid()) {
-
-        refresh_current_grade_from_ui();
-        save_bookmark();
 
     } else if (grade_in_ && attribute_uuid == grade_in_->uuid()) {
 
@@ -520,7 +499,7 @@ void GradingTool::attribute_changed(const utility::Uuid &attribute_uuid, const i
                 grade_out_->set_value(media.frame_count(), false);
             }
             if (grade_in_->value() == -1) {
-                grade_in_->set_value(grade_out_->value(), false);
+                grade_in_->set_value(0, false);
             }
             if (grade_out_->value() < grade_in_->value()) {
                 grade_in_->set_value(grade_out_->value());
@@ -545,7 +524,8 @@ void GradingTool::attribute_changed(const utility::Uuid &attribute_uuid, const i
 
     } else if (
         attribute_uuid == slope_->uuid() || attribute_uuid == offset_->uuid() ||
-        attribute_uuid == power_->uuid() || attribute_uuid == sat_->uuid()) {
+        attribute_uuid == power_->uuid() || attribute_uuid == saturation_->uuid() ||
+        attribute_uuid == exposure_->uuid() || attribute_uuid == contrast_->uuid()) {
 
         refresh_current_grade_from_ui();
         create_bookmark_if_empty();
@@ -554,7 +534,7 @@ void GradingTool::attribute_changed(const utility::Uuid &attribute_uuid, const i
     } else if (attribute_uuid == mask_selected_shape_->uuid()) {
 
         // Refresh UI settings according to selected shape
-        const uint32_t id = mask_selected_shape_->value();
+        const int id = mask_selected_shape_->value();
         if (id >= 0 && id < mask_shapes_.size()) {
             auto value = mask_shapes_[id]->role_data_as_json(module::Attribute::Value);
 
@@ -606,7 +586,6 @@ void GradingTool::attribute_changed(const utility::Uuid &attribute_uuid, const i
                         value["invert"]);
                 }
 
-                create_bookmark_if_empty();
                 save_bookmark();
 
                 break;
@@ -795,7 +774,7 @@ void GradingTool::start_ellipse(
     end_drawing();
 }
 
-void GradingTool::remove_shape(uint32_t id) {
+void GradingTool::remove_shape(int id) {
 
     if (id >= 0 && id < mask_shapes_.size()) {
         auto canvas_id = mask_shapes_[id]->role_data_as_json(module::Attribute::UserData);
@@ -843,14 +822,14 @@ void GradingTool::clear_mask() {
 
 void GradingTool::clear_shapes() {
 
-    for (int i = 0; i < mask_shapes_.size(); ++i) {
+    for (size_t i = 0; i < mask_shapes_.size(); ++i) {
         expose_attribute_in_model_data(mask_shapes_[i], "grading_tool_overlay_shapes", false);
         remove_attribute(mask_shapes_[i]->uuid());
     }
     mask_shapes_.clear();
 }
 
-void GradingTool::clear_cdl() {
+void GradingTool::clear_grade() {
 
     slope_->set_value(
         slope_->get_role_data<std::vector<float>>(module::Attribute::DefaultValue));
@@ -858,7 +837,9 @@ void GradingTool::clear_cdl() {
         offset_->get_role_data<std::vector<float>>(module::Attribute::DefaultValue));
     power_->set_value(
         power_->get_role_data<std::vector<float>>(module::Attribute::DefaultValue));
-    sat_->set_value(sat_->get_role_data<float>(module::Attribute::DefaultValue));
+    saturation_->set_value(saturation_->get_role_data<float>(module::Attribute::DefaultValue));
+    exposure_->set_value(exposure_->get_role_data<float>(module::Attribute::DefaultValue));
+    contrast_->set_value(contrast_->get_role_data<float>(module::Attribute::DefaultValue));
 }
 
 void GradingTool::save_cdl(const std::string &filepath) const {
@@ -866,9 +847,9 @@ void GradingTool::save_cdl(const std::string &filepath) const {
     OCIO::CDLTransformRcPtr cdl = OCIO::CDLTransform::Create();
 
     std::array<double, 3> slope{
-        slope_->value()[0] * slope_->value()[3],
-        slope_->value()[1] * slope_->value()[3],
-        slope_->value()[2] * slope_->value()[3]};
+        slope_->value()[0] * slope_->value()[3] * std::pow(2.f, exposure_->value()),
+        slope_->value()[1] * slope_->value()[3] * std::pow(2.f, exposure_->value()),
+        slope_->value()[2] * slope_->value()[3] * std::pow(2.f, exposure_->value())};
 
     std::array<double, 3> offset{
         offset_->value()[0] + offset_->value()[3],
@@ -883,7 +864,7 @@ void GradingTool::save_cdl(const std::string &filepath) const {
     cdl->setSlope(slope.data());
     cdl->setOffset(offset.data());
     cdl->setPower(power.data());
-    cdl->setSat(sat_->value());
+    cdl->setSat(saturation_->value());
 
     OCIO::FormatMetadata &metadata = cdl->getFormatMetadata();
     metadata.setID("0");
@@ -917,12 +898,13 @@ void GradingTool::refresh_current_grade_from_ui() {
 
     auto &grade = grading_data_.grade();
 
-    grade.slope  = vector4f_to_array4d(slope_->value());
-    grade.offset = vector4f_to_array4d(offset_->value());
-    grade.power  = vector4f_to_array4d(power_->value());
-    grade.sat    = sat_->value();
+    grade.slope    = vector4f_to_array4d(slope_->value());
+    grade.offset   = vector4f_to_array4d(offset_->value());
+    grade.power    = vector4f_to_array4d(power_->value());
+    grade.sat      = saturation_->value();
+    grade.exposure = exposure_->value();
+    grade.contrast = contrast_->value();
 
-    grading_data_.set_grade_active(grade_is_active_->value());
     grading_data_.set_colour_space(colour_space_->value());
     grading_data_.set_mask_editing(display_mode_attribute_->value() == "Mask");
 }
@@ -934,9 +916,10 @@ void GradingTool::refresh_ui_from_current_grade() {
     slope_->set_value(array4d_to_vector4f(grade.slope), false);
     offset_->set_value(array4d_to_vector4f(grade.offset), false);
     power_->set_value(array4d_to_vector4f(grade.power), false);
-    sat_->set_value(float(grade.sat), false);
+    saturation_->set_value(float(grade.sat), false);
+    exposure_->set_value(float(grade.exposure), false);
+    contrast_->set_value(float(grade.contrast), false);
 
-    grade_is_active_->set_value(grading_data_.grade_active(), false);
     colour_space_->set_value(grading_data_.colour_space(), false);
     display_mode_attribute_->set_value(grading_data_.mask_editing() ? "Mask" : "Grade", false);
 
@@ -946,6 +929,7 @@ void GradingTool::refresh_ui_from_current_grade() {
     using Ellipse = xstudio::ui::canvas::Ellipse;
 
     clear_shapes();
+    mask_selected_shape_->set_value(-1, false);
 
     // Please make sure that attribute_changed don't listen to
     // Group change notification to avoid dealock acquiring the
@@ -1018,6 +1002,23 @@ void GradingTool::refresh_ui_from_current_grade() {
         }
     }
     grading_data_.mask().read_unlock();
+
+    // Auto select the last shape, this will force shape controls
+    // (softness, opacity, etc) to refresh when changing selected layer.
+    mask_selected_shape_->set_value(mask_shapes_.size());
+
+    auto bmd = get_bookmark_detail(current_bookmark());
+    if (bmd.media_reference_ && bmd.start_ && bmd.start_.value() != timebase::k_flicks_low &&
+        bmd.duration_ && bmd.duration_.value() != timebase::k_flicks_max) {
+
+        auto &media = bmd.media_reference_.value();
+        grade_in_->set_value(bmd.start_.value() / media.rate().to_flicks(), false);
+        grade_out_->set_value(
+            (bmd.start_.value() + bmd.duration_.value()) / media.rate().to_flicks(), false);
+    } else {
+        grade_in_->set_value(-1, false);
+        grade_out_->set_value(-1, false);
+    }
 }
 
 utility::Uuid GradingTool::current_bookmark() const {
@@ -1040,6 +1041,15 @@ void GradingTool::create_bookmark() {
     bmd.visible_  = false;
     bmd.category_ = "Grading";
 
+    utility::JsonStore user_data;
+    user_data["grade_active"] = true;
+    user_data["mask_active"]  = false;
+
+    const auto &bookmarks_list = get_bookmarks_on_current_media(current_viewport_);
+    user_data["layer_name"]    = "Grade Layer " + std::to_string(bookmarks_list.size() + 1);
+
+    bmd.user_data_ = user_data;
+
     auto uuid = StandardPlugin::create_bookmark_on_current_media(
         "",             // viewport_name
         "Grading Note", // bookmark_subject
@@ -1053,14 +1063,15 @@ void GradingTool::create_bookmark() {
 
     refresh_ui_from_current_grade();
 
-    last_bookmark_update_ = std::chrono::high_resolution_clock::now();
-
     // spdlog::warn("Created bookmark {}", utility::to_string(grading_data_.bookmark_uuid_));
 }
 
 void GradingTool::select_bookmark(const utility::Uuid &uuid) {
 
     // spdlog::warn("Select bookmark {}", utility::to_string(uuid));
+
+    if (grading_data_.bookmark_uuid_ == uuid)
+        return;
 
     GradingData *grading_data_ptr = nullptr;
     if (uuid) {
@@ -1081,6 +1092,15 @@ void GradingTool::select_bookmark(const utility::Uuid &uuid) {
     refresh_ui_from_current_grade();
 }
 
+void GradingTool::update_boomark_shape(const utility::Uuid &uuid) {
+
+    auto bmd = get_bookmark_detail(uuid);
+    if (bmd.user_data_) {
+        (*bmd.user_data_)["mask_active"] = !mask_shapes_.empty();
+        update_bookmark_detail(uuid, bmd);
+    }
+}
+
 void GradingTool::save_bookmark() {
 
     if (current_bookmark()) {
@@ -1097,8 +1117,6 @@ void GradingTool::remove_bookmark() {
 
         // spdlog::warn("Removing bookmark {}", utility::to_string(current_bookmark()));
         StandardPlugin::remove_bookmark(current_bookmark());
-
-        last_bookmark_update_ = std::chrono::high_resolution_clock::now();
     }
 
     const auto &bookmarks_list = get_bookmarks_on_current_media(current_viewport_);

@@ -7,9 +7,8 @@ import QtQuick.Layouts 1.15
 import xStudioReskin 1.0
 import ShotBrowser 1.0
 
-Item{
-    clip: true
 
+XsSplitView { id: viewDiv
     property var presetsFilterModel: {
         if(!ShotBrowserEngine.ready)
             return null
@@ -20,27 +19,23 @@ Item{
         }
     }
 
-    XsSplitView { id: viewDiv
+    spacing: currentCategory == "Tree"? panelPadding : 0
+    thumbWidth: currentCategory == "Tree"? panelPadding/2 : 0
 
-        anchors.fill: parent
-        spacing: currentCategory == "Tree"? panelPadding : 0
-        thumbWidth: currentCategory == "Tree"? panelPadding/2 : 0
+    XsSBL2V1Tree{ id: treeView
+        SplitView.preferredWidth: prefs.leftPanelWidth-8
+        SplitView.fillHeight: true
 
-        XsSBL2V1Tree{ id: treeView
-            SplitView.preferredWidth: prefs.leftPanelWidth-8
-            SplitView.fillHeight: true
-
-            visible: currentCategory == "Tree"
-            onWidthChanged: {
-                if(SplitView.view.resizing && currentCategory == "Tree")
-                    prefs.leftPanelWidth = width+8
-            }
+        visible: currentCategory == "Tree"
+        onWidthChanged: {
+            if(SplitView.view.resizing && currentCategory == "Tree")
+                prefs.leftPanelWidth = width+8
         }
+    }
 
-        XsSBL2V2Presets{ id: presetsView
-            SplitView.fillWidth: true
-            SplitView.fillHeight: true
-            visible: currentCategory != "Tree" || sequenceTreeShowPresets
-        }
+    XsSBL2V2Presets{ id: presetsView
+        SplitView.fillWidth: true
+        SplitView.fillHeight: true
+        visible: currentCategory != "Tree" || sequenceTreeShowPresets
     }
 }

@@ -136,6 +136,67 @@ XsPopupMenu {
         onActivated: updateItemSelectionVertical(-1, 1)
     }
 
+    XsMenuModelItem {
+        text: "Expand Up"
+        menuPath: "Select"
+        menuItemPosition: 12
+        menuModelName: timelineMenu.menu_model_name
+        hotkeyUuid: theTimeline.expand_up_hotkey.uuid
+        panelContext: timelineMenu.panelContext
+        onActivated: updateItemSelectionVertical(1, 0)
+    }
+
+    XsMenuModelItem {
+        text: "Expand Down"
+        menuPath: "Select"
+        menuItemPosition: 13
+        menuModelName: timelineMenu.menu_model_name
+        hotkeyUuid: theTimeline.expand_down_hotkey.uuid
+        panelContext: timelineMenu.panelContext
+        onActivated: updateItemSelectionVertical(0, 1)
+    }
+
+    XsMenuModelItem {
+        text: "Contract Up"
+        menuPath: "Select"
+        menuItemPosition: 14
+        menuModelName: timelineMenu.menu_model_name
+        hotkeyUuid: theTimeline.contract_up_hotkey.uuid
+        panelContext: timelineMenu.panelContext
+        onActivated: updateItemSelectionVertical(-1, 0)
+    }
+
+    XsMenuModelItem {
+        text: "Contract Down"
+        menuPath: "Select"
+        menuItemPosition: 14
+        menuModelName: timelineMenu.menu_model_name
+        hotkeyUuid: theTimeline.contract_down_hotkey.uuid
+        panelContext: timelineMenu.panelContext
+        onActivated: updateItemSelectionVertical(0, -1)
+    }
+
+    XsMenuModelItem {
+        text: "Expand Up And Down"
+        menuPath: "Select"
+        menuItemPosition: 15
+        menuModelName: timelineMenu.menu_model_name
+        hotkeyUuid: theTimeline.expand_up_down_hotkey.uuid
+        panelContext: timelineMenu.panelContext
+        onActivated: updateItemSelectionVertical(1, 1)
+    }
+
+    XsMenuModelItem {
+        text: "Contract Up And Down"
+        menuPath: "Select"
+        menuItemPosition: 17
+        menuModelName: timelineMenu.menu_model_name
+        hotkeyUuid: theTimeline.contract_up_down_hotkey.uuid
+        panelContext: timelineMenu.panelContext
+        onActivated: updateItemSelectionVertical(-1, -1)
+    }
+
+
     XsFlagMenuInserter {
         // panelContext: timelineMenu.panelContext
         text: qsTr("Media Colour")

@@ -57,8 +57,8 @@ Item{
             isToolTipEnabled: showButtonHints
 
             imgSrc: shapeImage
-            imageDiv.sourceSize.height: 16
-            imageDiv.sourceSize.width: 16
+            imageDiv.height: 16
+            imageDiv.width: 16
 
             width: index%2==0? shapesList.cellWidth - itemSpacing : shapesList.cellWidth
             height: shapesList.cellHeight - itemSpacing

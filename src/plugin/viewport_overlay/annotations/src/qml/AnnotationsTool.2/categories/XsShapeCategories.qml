@@ -55,8 +55,8 @@ Item{
             isToolTipEnabled: showButtonHints
 
             imgSrc: shapeImage
-            imageDiv.sourceSize.height: 16
-            imageDiv.sourceSize.width: 16
+            imageDiv.height: 16
+            imageDiv.width: 16
 
             width: index==(shapesModel.count-1)?
                 shapesList.width/shapesModel.count :

@@ -311,7 +311,11 @@ void OffscreenViewport::renderSnapshot(const int width, const int height, const 
     auto p = fs::path(xstudio::utility::uri_to_posix_path(path));
 
     std::string ext = xstudio::utility::ltrim_char(
+#ifdef _WIN32
+        xstudio::utility::to_upper_path(p.extension()),
+#else
         xstudio::utility::to_upper(p.extension()),
+#endif
         '.'); // yuk!
 
     if (ext == "EXR") {
@@ -516,9 +520,6 @@ void OffscreenViewport::renderToImageBuffer(
         throw std::runtime_error("OffscreenrenderToImageBuffer - GL Context is not valid.");
     }
 
-    glPushClientAttrib(GL_CLIENT_ALL_ATTRIB_BITS);
-    glPopClientAttrib();
-
     setupTextureAndFrameBuffer(w, h, format);
 
     // intialises shaders and textures where necessary
@@ -612,7 +613,6 @@ void OffscreenViewport::renderToImageBuffer(
         << std::chrono::duration_cast<std::chrono::milliseconds>(t5-t0).count() << "\n";*/
 
     glBindTexture(GL_TEXTURE_2D, 0);
-    glPopClientAttrib();
 }
 
 void OffscreenViewport::receive_change_notification(Viewport::ChangeCallbackId id) {

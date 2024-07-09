@@ -1,6 +1,9 @@
 // SPDX-License-Identifier: Apache-2.0
 #pragma once
 
+// include CMake auto-generated export hpp
+#include "xstudio/ui/qml/module_qml_export.h"
+
 #include <caf/all.hpp>
 #include <caf/io/all.hpp>
 
@@ -21,7 +24,7 @@ namespace ui {
 
         class ModuleAttrsToQMLShim;
 
-        class ModuleMenusModel : public QAbstractListModel {
+        class MODULE_QML_EXPORT ModuleMenusModel : public QAbstractListModel {
 
             Q_OBJECT
 

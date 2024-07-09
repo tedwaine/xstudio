@@ -60,6 +60,8 @@ Button {
 
                 width: 20
                 height: 20
+                antialiasing: true
+                smooth: true
                 visible: source && source != ""
                 imgOverlayColor: palette.text
 
@@ -85,7 +87,7 @@ Button {
 
     XsToolTip{
         text: widget.text
-        visible: textDiv.visible? widget.hovered && textDiv.truncated : widget.hovered && widget.text!=""
+        visible: textDiv.visible && isToolTipEnabled? widget.hovered && textDiv.truncated : widget.hovered && widget.text!=""
         width: metricsDiv.width == 0? 0 : textDiv.textWidth +15
         // height: widget.height
         x: widget.width //#TODO: flex/pointer
@@ -130,4 +132,3 @@ Button {
     onReleased: focus = false*/
 
 }
-

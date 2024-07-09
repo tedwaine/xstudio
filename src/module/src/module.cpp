@@ -1075,6 +1075,24 @@ caf::message_handler Module::message_handler() {
                  return caf::make_error(xstudio_error::error, e.what());
              }
          },
+         [=](module_remove_menu_item_atom, const utility::Uuid &menu_id) {
+             for (const auto &p : menu_items_) {
+
+                 for (const auto uuid : p.second) {
+                     if (uuid == menu_id) {
+                         auto central_models_data_actor =
+                             self()->home_system().registry().template get<caf::actor>(
+                                 global_ui_model_data_registry);
+                         anon_send(
+                             central_models_data_actor,
+                             ui::model_data::remove_node_atom_v,
+                             p.first,
+                             menu_id);
+                         return;
+                     }
+                 }
+             }
+         },
          [=](xstudio::ui::model_data::set_node_data_atom,
              const std::string &menu_model_name,
              const std::string &submenu,
@@ -2211,7 +2229,11 @@ utility::JsonStore Module::public_state_data() {
     return data;
 }
 
-void Module::register_ui_panel_qml(const std::string &panel_name, const std::string &qml_code) {
+void Module::register_ui_panel_qml(
+    const std::string &panel_name,
+    const std::string &qml_code,
+    const std::string &viewport_popout_button_icon,
+    const float &viewport_popout_button_position) {
 
     auto central_models_data_actor = self()->home_system().registry().template get<caf::actor>(
         global_ui_model_data_registry);
@@ -2245,6 +2267,32 @@ void Module::register_ui_panel_qml(const std::string &panel_name, const std::str
 
     } catch (std::exception &e) {
         spdlog::warn("{} {}", __PRETTY_FUNCTION__, e.what());
+    }
+
+    if (!viewport_popout_button_icon.empty() && viewport_popout_button_position != -1.0f) {
+
+        utility::JsonStore data;
+        data["view_name"]         = panel_name;
+        data["icon_path"]         = viewport_popout_button_icon;
+        data["view_qml_source"]   = qml_code;
+        data["button_position"]   = viewport_popout_button_position;
+        data["window_is_visible"] = false;
+
+        try {
+
+            anon_send(
+                central_models_data_actor,
+                ui::model_data::insert_rows_atom_v,
+                "popout windows", // the model called 'view widgets' is what's used to build the
+                                  // panels menu
+                "",               // (path) add to root
+                0,                // row
+                1,                // count
+                data);
+
+        } catch (std::exception &e) {
+            spdlog::warn("{} {}", __PRETTY_FUNCTION__, e.what());
+        }
     }
 }
 

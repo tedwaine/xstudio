@@ -1,6 +1,9 @@
 // SPDX-License-Identifier: Apache-2.0
 #pragma once
 
+// include CMake auto-generated export hpp
+#include "xstudio/ui/qml/embedded_python_qml_export.h"
+
 #include <caf/all.hpp>
 #include <caf/io/all.hpp>
 
@@ -18,7 +21,8 @@ namespace xstudio {
 namespace ui {
     namespace qml {
 
-        class EmbeddedPythonUI : public caf::mixin::actor_object<JSONTreeModel> {
+        class EMBEDDED_PYTHON_QML_EXPORT EmbeddedPythonUI
+            : public caf::mixin::actor_object<JSONTreeModel> {
 
             Q_OBJECT
             Q_PROPERTY(bool waiting READ waiting NOTIFY waitingChanged)

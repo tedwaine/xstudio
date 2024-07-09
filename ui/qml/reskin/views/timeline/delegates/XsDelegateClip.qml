@@ -24,6 +24,12 @@ DelegateChoice {
 			width: (durationFrame + adjustPreceedingGap + adjustAnteceedingGap) * config.scaleX
 			height: config.scaleY * config.itemHeight
 
+			property bool dragLeft: false
+			property bool dragRight: false
+			property bool dragMiddle: false
+			property bool dragLeftLeft: false
+			property bool dragRightRight: false
+
     		property bool isAdjustPreceeding: false
     		property bool isAdjustAnteceeding: false
 
@@ -53,6 +59,9 @@ DelegateChoice {
             property bool isParentLocked: config.isParentLocked
             property bool isParentEnabled: config.isParentEnabled
 
+            property var draggingStarted: config.draggingStarted
+            property var dragging: config.dragging
+            property var draggingStopped: config.draggingStopped
 
             property string itemFlag: flagColourRole != "" ? flagColourRole : config.itemFlag
 
@@ -180,11 +189,17 @@ DelegateChoice {
 				isHovered: hoveredItem == control || isAdjustingStart || isAdjustingDuration || isBothHovered
 				start: startFrame
 				duration: durationFrame
-				isLocked: isParentLocked || lockedRole
+				isLocked: (isParentLocked || lockedRole)
 				isRolling: control.isRolling
 				showRolling: (isHovered && editMode == "Roll" && !lockedRole)
 				isEnabled: isParentEnabled && enabledRole
 				isBroken: !hasMedia || (mediaStatus.value != undefined && mediaStatus.value != "Online") || !activeRangeValidRole
+
+				dragLeft: isHovered && control.dragLeft && !isParentLocked && !lockedRole
+				dragRight: isHovered && control.dragRight && !isParentLocked && !lockedRole
+				dragMiddle: isHovered && control.dragMiddle && !isParentLocked && !lockedRole
+				dragLeftLeft: isHovered && control.dragLeftLeft && !isParentLocked && !lockedRole
+				dragRightRight: isHovered && control.dragRightRight && !isParentLocked && !lockedRole
 
 				// onIsBrokenChanged: {
 				// 	if(isBroken) {
@@ -211,6 +226,10 @@ DelegateChoice {
 			    Component.onCompleted: {
 			    	mediaIndex = getMediaIndex()
 			    }
+
+			    onDraggingStarted: control.draggingStarted(control, mode)
+				onDragging: control.dragging(control, mode, x / scaleX)
+				onDraggingStopped: control.draggingStopped(control, mode)
 
 			    Connections {
 			    	target: dragContainer.dragged_items

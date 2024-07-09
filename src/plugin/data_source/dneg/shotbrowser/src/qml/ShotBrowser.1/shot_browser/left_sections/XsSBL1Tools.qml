@@ -8,113 +8,8 @@ import xStudioReskin 1.0
 import ShotBrowser 1.0
 
 
-
-Item{ id: toolDiv
-
-    property real categoryBtnWidth: btnWidth * 1.3
-    clip: true
-
-    RowLayout{
-        spacing: buttonSpacing
-        width: parent.width
-        height: btnHeight
-        anchors.centerIn: parent
-
-        XsPrimaryButton{
-            Layout.preferredWidth: btnWidth
-            Layout.preferredHeight: parent.height
-            imgSrc: "qrc:///shotbrowser_icons/nature.svg"
-            text: "Tree"
-            isActive: currentCategory == text && !sequenceTreeShowPresets
-            onClicked: {
-                currentCategory = text
-                sequenceTreeShowPresets = false
-            }
-        }
-        XsPrimaryButton{
-            Layout.preferredWidth: btnWidth
-            Layout.preferredHeight: parent.height
-            imgSrc: "qrc:///shotbrowser_icons/tree_plus.svg"
-            text: "Tree Plus Presets"
-            isActive: currentCategory == "Tree" && sequenceTreeShowPresets
-            onClicked: {
-                currentCategory = "Tree"
-                sequenceTreeShowPresets = true
-            }
-        }
-        XsPrimaryButton{
-            Layout.preferredWidth: btnWidth
-            Layout.preferredHeight: parent.height
-            imgSrc: "qrc:///shotbrowser_icons/globe.svg"
-            text: "Presets"
-            isActive: currentCategory == "Recent"
-            onClicked: {
-                currentCategory = "Recent"
-            }
-        }
-        XsPrimaryButton{
-            Layout.preferredWidth: btnWidth
-            Layout.preferredHeight: parent.height
-            imgSrc: "qrc:///shotbrowser_icons/settings.svg"
-            text: "Menus"
-            isActive: currentCategory == text
-            onClicked: {
-                currentCategory = text
-            }
-        }
-        Item{
-            Layout.preferredWidth: buttonSpacing*8
-            Layout.preferredHeight: parent.height
-        }
-
-        XsComboBoxEditable{
-            id: combo
-            model: ShotBrowserEngine.ready ? ShotBrowserEngine.presetsModel.termModel("Project") : []
-            textRole: "nameRole"
-            Layout.fillWidth: true
-            Layout.minimumWidth: categoryBtnWidth
-            Layout.preferredHeight: parent.height
-            textField.font.weight: Font.Black
-
-            onActivated: projectIndex = model.index(index, 0)
-            onAccepted: {
-                projectIndex = model.index(currentIndex, 0)
-                toolDiv.forceActiveFocus()
-            }
-
-            Connections {
-                target: panel
-                function onProjectIndexChanged() {
-                    // console.log(projectIndex, projectIndex.row)
-                    if(combo.currentIndex != projectIndex.row) {
-                        combo.currentIndex = projectIndex.row
-                    }
-                }
-            }
-            Component.onCompleted: {
-                if(projectIndex && projectIndex.valid && combo.currentIndex != projectIndex.row) {
-                    combo.currentIndex = projectIndex.row
-                }
-            }
-        }
-
-        Item{
-            Layout.preferredWidth: buttonSpacing*8
-            Layout.preferredHeight: parent.height
-        }
-
-        XsPrimaryButton{ id: credentialsBtn
-            Layout.preferredWidth: btnWidth
-            Layout.preferredHeight: parent.height
-            imgSrc: "qrc:///shotbrowser_icons/manage_accounts.svg"
-            isActive: loginDialog.visible
-            onClicked: {
-                showOrHideLoginDialog()
-            }
-        }
-
-    }
-
+RowLayout{
+    spacing: buttonSpacing
     function showOrHideLoginDialog(){
 
         if(!loginDialog.visible){
@@ -128,9 +23,101 @@ Item{ id: toolDiv
 
     }
 
+    readonly property int butWidth: btnWidth * 0.8
+
     XsSBLoginDialog{
         id: loginDialog
     }
 
+    XsPrimaryButton{
+        Layout.minimumWidth: butWidth
+        Layout.maximumWidth: butWidth
+        Layout.fillHeight: true
+        imgSrc: "qrc:///shotbrowser_icons/nature.svg"
+        text: "Tree"
+        isActive: currentCategory == text && !sequenceTreeShowPresets
+        onClicked: {
+            currentCategory = text
+            sequenceTreeShowPresets = false
+        }
+    }
+    XsPrimaryButton{
+        Layout.minimumWidth: butWidth
+        Layout.maximumWidth: butWidth
+        Layout.fillHeight: true
+        imgSrc: "qrc:///shotbrowser_icons/tree_plus.svg"
+        text: "Tree Plus Presets"
+        isActive: currentCategory == "Tree" && sequenceTreeShowPresets
+        onClicked: {
+            currentCategory = "Tree"
+            sequenceTreeShowPresets = true
+        }
+    }
+    XsPrimaryButton{
+        Layout.minimumWidth: butWidth
+        Layout.maximumWidth: butWidth
+        Layout.fillHeight: true
+        imgSrc: "qrc:///shotbrowser_icons/globe.svg"
+        text: "Presets"
+        isActive: currentCategory == "Recent"
+        onClicked: {
+            currentCategory = "Recent"
+        }
+    }
+    XsPrimaryButton{
+        Layout.minimumWidth: butWidth
+        Layout.maximumWidth: butWidth
+        Layout.fillHeight: true
+        imgSrc: "qrc:///shotbrowser_icons/settings.svg"
+        text: "Menus"
+        isActive: currentCategory == text
+        onClicked: {
+            currentCategory = text
+        }
+    }
+
+    XsComboBoxEditable{
+        id: combo
+        model: ShotBrowserEngine.ready ? ShotBrowserEngine.presetsModel.termModel("Project") : []
+        textRole: "nameRole"
+        Layout.fillWidth: true
+        Layout.minimumWidth: btnWidth * 1.3
+        Layout.fillHeight: true
+        Layout.leftMargin: 4
+        Layout.rightMargin: 4
+        textField.font.weight: Font.Black
+
+        onActivated: projectIndex = model.index(index, 0)
+        onAccepted: {
+            projectIndex = model.index(currentIndex, 0)
+            toolDiv.forceActiveFocus()
+        }
+
+        Connections {
+            target: panel
+            function onProjectIndexChanged() {
+                // console.log(projectIndex, projectIndex.row)
+                if(combo.currentIndex != projectIndex.row) {
+                    combo.currentIndex = projectIndex.row
+                }
+            }
+        }
+        Component.onCompleted: {
+            if(projectIndex && projectIndex.valid && combo.currentIndex != projectIndex.row) {
+                combo.currentIndex = projectIndex.row
+            }
+        }
+    }
+
+    XsPrimaryButton{ id: credentialsBtn
+        Layout.minimumWidth: butWidth
+        Layout.maximumWidth: butWidth
+        Layout.fillHeight: true
+        imgSrc: "qrc:///shotbrowser_icons/manage_accounts.svg"
+        isActive: loginDialog.visible
+        onClicked: {
+            showOrHideLoginDialog()
+        }
+    }
 
 }

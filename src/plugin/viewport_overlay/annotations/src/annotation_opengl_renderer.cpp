@@ -64,7 +64,8 @@ void AnnotationsRenderer::render_opengl(
                 transform_window_to_viewport_space,
                 transform_viewport_to_image_space,
                 viewport_du_dpixel,
-                have_alpha_buffer);
+                have_alpha_buffer,
+                1.f);
         }
     }
 
@@ -84,6 +85,7 @@ void AnnotationsRenderer::render_opengl(
             transform_window_to_viewport_space,
             transform_viewport_to_image_space,
             viewport_du_dpixel,
-            have_alpha_buffer);
+            have_alpha_buffer,
+            1.f);
     }
 }

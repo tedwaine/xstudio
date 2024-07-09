@@ -15,14 +15,21 @@ void xstudio::ui::viewport::from_json(const nlohmann::json &j, Grade &g) {
     j.at("offset").get_to(static_cast<std::array<double, 4> &>(g.offset));
     j.at("power").get_to(static_cast<std::array<double, 4> &>(g.power));
     j.at("sat").get_to(g.sat);
+
+    if (j.contains("exposure"))
+        j.at("exposure").get_to(g.exposure);
+    if (j.contains("contrast"))
+        j.at("contrast").get_to(g.contrast);
 }
 
 void xstudio::ui::viewport::to_json(nlohmann::json &j, const Grade &g) {
 
-    j["slope"]  = g.slope;
-    j["offset"] = g.offset;
-    j["power"]  = g.power;
-    j["sat"]    = g.sat;
+    j["slope"]    = g.slope;
+    j["offset"]   = g.offset;
+    j["power"]    = g.power;
+    j["sat"]      = g.sat;
+    j["exposure"] = g.exposure;
+    j["contrast"] = g.contrast;
 }
 
 GradingData::GradingData(const utility::JsonStore &s) : bookmark::AnnotationBase() {
@@ -42,8 +49,6 @@ void xstudio::ui::viewport::from_json(const nlohmann::json &j, GradingData &l) {
 
     if (j.contains("colour_space"))
         j.at("colour_space").get_to(l.colour_space_);
-    if (j.contains("grade_active"))
-        j.at("grade_active").get_to(l.grade_active_);
 
     j.at("grade").get_to(l.grade_);
     j.at("mask_active").get_to(l.mask_active_);
@@ -54,7 +59,6 @@ void xstudio::ui::viewport::from_json(const nlohmann::json &j, GradingData &l) {
 void xstudio::ui::viewport::to_json(nlohmann::json &j, const GradingData &l) {
 
     j["colour_space"] = l.colour_space_;
-    j["grade_active"] = l.grade_active_;
     j["grade"]        = l.grade_;
     j["mask_active"]  = l.mask_active_;
     j["mask_editing"] = l.mask_editing_;

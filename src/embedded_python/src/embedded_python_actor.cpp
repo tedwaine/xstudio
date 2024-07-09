@@ -8,7 +8,9 @@
 #include <tuple>
 #include <filesystem>
 
+#ifdef BUILD_OTIO
 #include <opentimelineio/timeline.h>
+#endif
 
 #include "xstudio/atoms.hpp"
 #include "xstudio/broadcast/broadcast_actor.hpp"
@@ -25,11 +27,19 @@ using namespace nlohmann;
 using namespace caf;
 using namespace pybind11::literals;
 
-namespace fs   = std::filesystem;
-namespace py   = pybind11;
-namespace otio = opentimelineio::OPENTIMELINEIO_VERSION;
+namespace fs = std::filesystem;
+namespace py = pybind11;
 
+#ifdef BUILD_OTIO
+namespace otio = opentimelineio::OPENTIMELINEIO_VERSION;
+#endif
+
+
+#ifdef __GNUC__ // Check if GCC compiler is being used
 #pragma GCC visibility push(hidden)
+#else
+#pragma warning(push, hidden)
+#endif
 
 class PyStdErrOutStreamRedirect {
   public:
@@ -225,6 +235,8 @@ void EmbeddedPythonActor::act() {
             return result;
         },
 
+#ifdef BUILD_OTIO
+
         // import otio file return as otio xml string.
         // if already native format should be quick..
         [=](session::import_atom, const caf::uri &path) -> result<std::string> {
@@ -290,6 +302,8 @@ void EmbeddedPythonActor::act() {
 
             return make_error(xstudio_error::error, error);
         },
+
+#endif BUILD_OTIO
 
         [=](python_create_session_atom, const bool interactive) -> result<utility::Uuid> {
             if (not base_.enabled())
@@ -623,6 +637,8 @@ void EmbeddedPythonActor::act() {
         },
         [=](bool) {},
 
+        [=](const utility::Uuid &cb_id) { base_.run_callback(cb_id); },
+
         [&](exit_msg &em) {
             if (em.reason) {
                 if (base_.enabled())
@@ -757,4 +773,10 @@ nlohmann::json EmbeddedPythonActor::refresh_snippet(
     }
 
     return result;
+}
+void EmbeddedPythonActor::delayed_callback(utility::Uuid &cb_id, const int microseconds_delay) {
+    delayed_anon_send(
+        caf::actor_cast<caf::actor>(this),
+        std::chrono::microseconds(microseconds_delay),
+        cb_id);
 }

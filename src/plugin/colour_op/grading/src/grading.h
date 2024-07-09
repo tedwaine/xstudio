@@ -65,7 +65,7 @@ class GradingTool : public plugin::StandardPlugin {
     void start_polygon(const std::vector<Imath::V2f> &points);
     void start_ellipse(const Imath::V2f &center, const Imath::V2f &radius, float angle);
 
-    void remove_shape(uint32_t id);
+    void remove_shape(int id);
 
     void end_drawing();
 
@@ -74,13 +74,14 @@ class GradingTool : public plugin::StandardPlugin {
 
     void clear_mask();
     void clear_shapes();
-    void clear_cdl();
+    void clear_grade();
     void save_cdl(const std::string &filepath) const;
 
     utility::Uuid current_bookmark() const;
     void create_bookmark_if_empty();
     void create_bookmark();
     void select_bookmark(const utility::Uuid &uuid);
+    void update_boomark_shape(const utility::Uuid &uuid);
     void save_bookmark();
     void remove_bookmark();
 
@@ -93,7 +94,6 @@ class GradingTool : public plugin::StandardPlugin {
     module::StringAttribute  *grading_action_       {nullptr};
     module::BooleanAttribute *grading_bypass_       {nullptr};
     module::StringAttribute  *drawing_action_       {nullptr};
-    module::BooleanAttribute *grading_tracking_     {nullptr};
     module::BooleanAttribute *media_colour_managed_ {nullptr};
 
     enum class ToolPanel { CC, Mask };
@@ -113,16 +113,17 @@ class GradingTool : public plugin::StandardPlugin {
 
     // Grading
     module::StringAttribute       *grading_bookmark_ {nullptr};
-    module::BooleanAttribute      *grade_is_active_  {nullptr};
     module::StringAttribute       *working_space_    {nullptr};
     module::StringChoiceAttribute *colour_space_     {nullptr};
     module::IntegerAttribute      *grade_in_         {nullptr};
     module::IntegerAttribute      *grade_out_        {nullptr};
 
-    module::FloatVectorAttribute  *slope_  {nullptr};
-    module::FloatVectorAttribute  *offset_ {nullptr};
-    module::FloatVectorAttribute  *power_  {nullptr};
-    module::FloatAttribute        *sat_    {nullptr};
+    module::FloatVectorAttribute  *slope_      {nullptr};
+    module::FloatVectorAttribute  *offset_     {nullptr};
+    module::FloatVectorAttribute  *power_      {nullptr};
+    module::FloatAttribute        *saturation_ {nullptr};
+    module::FloatAttribute        *exposure_   {nullptr};
+    module::FloatAttribute        *contrast_   {nullptr};
 
     // Drawing Mask
     enum class DrawingTool { Draw, Erase, Shape, None };
@@ -132,7 +133,7 @@ class GradingTool : public plugin::StandardPlugin {
         {DrawingTool::Shape, "Shape"}
     };
 
-    module::StringChoiceAttribute *drawing_tool_ {nullptr};
+    module::StringChoiceAttribute *drawing_tool_      {nullptr};
     module::IntegerAttribute      *draw_pen_size_     {nullptr};
     module::IntegerAttribute      *erase_pen_size_    {nullptr};
     module::IntegerAttribute      *pen_opacity_       {nullptr};
@@ -142,6 +143,7 @@ class GradingTool : public plugin::StandardPlugin {
     module::BooleanAttribute      *polygon_init_      {nullptr};
 
     module::IntegerAttribute *mask_selected_shape_{nullptr};
+    module::BooleanAttribute *mask_shapes_visible_{nullptr};
     std::vector<module::Attribute *> mask_shapes_;
 
     enum DisplayMode { Mask, Grade };
@@ -164,8 +166,6 @@ class GradingTool : public plugin::StandardPlugin {
 
     // Grading
     ui::viewport::GradingData grading_data_;
-
-    std::chrono::time_point<std::chrono::high_resolution_clock> last_bookmark_update_;
 
     std::vector<caf::actor> grading_colour_op_actors_;
 };

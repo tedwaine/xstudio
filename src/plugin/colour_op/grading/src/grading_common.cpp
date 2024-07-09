@@ -13,10 +13,10 @@ using namespace xstudio;
 using namespace xstudio::ui::viewport;
 
 
-std::vector<const GradingData *>
+std::vector<GradingInfo>
 xstudio::ui::viewport::get_active_grades(const xstudio::media_reader::ImageBufPtr &image) {
 
-    std::vector<const GradingData *> active_grades;
+    std::vector<GradingInfo> active_grades;
 
     // Make sure the bookmarks are applied in a consistent order.
     // The order matters when applying multiple CDLs.
@@ -33,7 +33,9 @@ xstudio::ui::viewport::get_active_grades(const xstudio::media_reader::ImageBufPt
     for (auto &bookmark : bookmarks) {
         auto bookmark_data = dynamic_cast<GradingData *>(bookmark->annotation_.get());
         if (bookmark_data) {
-            active_grades.push_back(bookmark_data);
+            auto json_data = bookmark->detail_.user_data_.value_or(utility::JsonStore());
+            bool isActive  = json_data.get_or("grade_active", true);
+            active_grades.push_back({bookmark_data, isActive});
         }
     }
 
@@ -50,14 +52,14 @@ xstudio::ui::viewport::get_active_grades(const xstudio::media_reader::ImageBufPt
             auto blind_uuid = render_data->interaction_grading_data_.bookmark_uuid_;
 
             if (!active_grades.empty()) {
-                for (auto &grade_data : active_grades) {
+                for (auto &[grade_data, _] : active_grades) {
                     if (grade_data->bookmark_uuid_ == blind_uuid) {
                         grade_data = &(render_data->interaction_grading_data_);
                         break;
                     }
                 }
             } else {
-                active_grades.push_back(&(render_data->interaction_grading_data_));
+                active_grades.push_back({&(render_data->interaction_grading_data_), true});
             }
         }
     }

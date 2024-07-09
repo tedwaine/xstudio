@@ -8,6 +8,7 @@ XsPreference              1.0 ../session_data/XsPreference.qml
 XsPlayhead                1.0 ../session_data/XsPlayhead.qml
 
 XsSessionWindow           1.0 ../windows/XsSessionWindow.qml
+XsFloatingViewWindow      1.0 ../windows/XsFloatingViewWindow.qml
 XsGlobalDragDropHandler   1.0 ../windows/drag_drop/XsGlobalDragDropHandler.qml
 XsMainMenuBar             1.0 ../windows/main_menu_bar/XsMainMenuBar.qml
 XsSnippetMenu             1.0 ../windows/main_menu_bar/XsSnippetMenu.qml
@@ -37,12 +38,10 @@ XsNewTrackMenu 			  1.0 ../views/timeline/XsNewTrackMenu.qml
 XsSortFilterModel         1.0 ../views/timeline/data/XsSortFilterModel.qml
 XsTimeline                1.0 ../views/timeline/XsTimeline.qml
 XsTimelineClipMenu        1.0 ../views/timeline/XsTimelineClipMenu.qml
-XsTimelineEditTools       1.0 ../views/timeline/XsTimelineEditTools.qml
 XsTimelineMenu            1.0 ../views/timeline/XsTimelineMenu.qml
 XsTimelinePanel           1.0 ../views/timeline/XsTimelinePanel.qml
 XsTimelineTrackMenu       1.0 ../views/timeline/XsTimelineTrackMenu.qml
 
-XsTimelineEditToolItems   1.0 ../views/timeline/delegates/XsTimelineEditToolItems.qml
 XsDelegateAudioTrack      1.0 ../views/timeline/delegates/XsDelegateAudioTrack.qml
 XsDelegateClip            1.0 ../views/timeline/delegates/XsDelegateClip.qml
 XsDelegateGap             1.0 ../views/timeline/delegates/XsDelegateGap.qml

@@ -13,24 +13,22 @@ import xstudio.qml.helpers 1.0
 import xStudioReskin 1.0
 import xstudio.qml.models 1.0
 
-Item{ id: thisItem
+
+Rectangle{ id: frame
+    // anchors.fill: parent
+
+    color: isSelected? Qt.darker(palette.highlight, 5) : "transparent"
+    border.color: isHovered? palette.highlight : XsStyleSheet.widgetBgNormalColor
+    border.width: 1
 
     property bool isActive: false
     property bool isSelected: resultsSelectionModel.isSelected(delegateModel.modelIndex(index))
 
     property int modelDepth: 0
 
-    property real borderWidth: 1
-
-    property real listSpacing: panelPadding
-    property real itemSpacing: 1
-    property real itemHeight: XsStyleSheet.widgetStdHeight - 2
+    property int itemSpacing: 1
 
     property real textSize: XsStyleSheet.fontSize
-
-    property color hintColor: XsStyleSheet.hintColor
-    property color highlightColor: palette.highlight
-    property color bgColorNormal: XsStyleSheet.widgetBgNormalColor
 
     property var delegateModel: null
     property var popupMenu: null
@@ -57,8 +55,9 @@ Item{ id: thisItem
     required property var submittedToDailiesRole
     required property var dateSubmittedToClientRole
 
-
     required property var createdDateRole
+
+    property bool isPlaylist: false
 
     property bool isHovered: mArea.containsMouse ||
         sec1.isHovered ||
@@ -73,76 +72,70 @@ Item{ id: thisItem
         }
     }
 
-    Rectangle{ id: frame
-        width: parent.width
-        height: parent.height - listSpacing
-        anchors.verticalCenter: parent.verticalCenter
-        color: isSelected? Qt.darker(highlightColor, 5) : "transparent"
-        border.color: isHovered? highlightColor : bgColorNormal
-        border.width: borderWidth
+    MouseArea{ id: mArea
+        anchors.fill: parent
+        hoverEnabled: true
+        acceptedButtons: Qt.LeftButton | Qt.RightButton
 
-        MouseArea{ id: mArea
-            anchors.fill: parent
-            hoverEnabled: true
-            acceptedButtons: Qt.LeftButton | Qt.RightButton
-
-            // wierd workaround for flickable..
-            propagateComposedEvents: false
-            onReleased: {
-                if(!propagateComposedEvents)
-                    propagateComposedEvents = true
-            }
-
-            onDoubleClicked: (mouse)=> {
-                let m = ShotBrowserHelpers.mapIndexesToResultModel([delegateModel.modelIndex(index)])[0].model
-                if(m.groupId != helpers.QVariantFromUuidString("087c4ff5-2da0-4e54-afcf-c7914a247fae"))
-                    ShotBrowserHelpers.addToCurrent([delegateModel.modelIndex(index)], panelType != "ShotBrowser")
-                else
-                    ShotBrowserHelpers.addSequencesToNewPlaylist([delegateModel.modelIndex(index)])
-            }
-
-            onPressed: {
-                // required for doubleclick to work
-                mouse.accepted = true
-
-                if (mouse.button == Qt.RightButton){
-                    if(popupMenu.visible) popupMenu.visible = false
-                    else{
-                        if(!isSelected) {
-                            if(mouse.modifiers == Qt.NoModifier) {
-                                ShotBrowserHelpers.selectItem(resultsSelectionModel, delegateModel.modelIndex(index))
-                            } else if(mouse.modifiers == Qt.ShiftModifier){
-                                ShotBrowserHelpers.shiftSelectItem(resultsSelectionModel, delegateModel.modelIndex(index))
-                            } else if(mouse.modifiers == Qt.ControlModifier) {
-                                ShotBrowserHelpers.ctrlSelectItem(resultsSelectionModel, delegateModel.modelIndex(index))
-                            }
-                        }
-                        popupMenu.popupDelegateModel = delegateModel
-                        let ppos = mapToItem(popupMenu.parent, mouseX, mouseY)
-                        popupMenu.x = ppos.x
-                        popupMenu.y = ppos.y
-                        popupMenu.visible = true
-                    }
-                }
-
-                else if(mouse.modifiers == Qt.NoModifier) {
-                    ShotBrowserHelpers.selectItem(resultsSelectionModel, delegateModel.modelIndex(index))
-                } else if(mouse.modifiers == Qt.ShiftModifier){
-                    ShotBrowserHelpers.shiftSelectItem(resultsSelectionModel, delegateModel.modelIndex(index))
-                } else if(mouse.modifiers == Qt.ControlModifier) {
-                    ShotBrowserHelpers.ctrlSelectItem(resultsSelectionModel, delegateModel.modelIndex(index))
-                }
-            }
+        // wierd workaround for flickable..
+        propagateComposedEvents: false
+        onReleased: {
+            if(!propagateComposedEvents)
+                propagateComposedEvents = true
         }
 
+        onDoubleClicked: (mouse)=> {
+            let m = ShotBrowserHelpers.mapIndexesToResultModel([delegateModel.modelIndex(index)])[0].model
+            if(m.groupId != helpers.QVariantFromUuidString("087c4ff5-2da0-4e54-afcf-c7914a247fae"))
+                ShotBrowserHelpers.addToCurrent([delegateModel.modelIndex(index)], panelType != "ShotBrowser")
+            else
+                ShotBrowserHelpers.addSequencesToNewPlaylist([delegateModel.modelIndex(index)])
+        }
+
+        onPressed: {
+            // required for doubleclick to work
+            mouse.accepted = true
+
+            if (mouse.button == Qt.RightButton){
+                if(popupMenu.visible) popupMenu.visible = false
+                else{
+                    if(!isSelected) {
+                        if(mouse.modifiers == Qt.NoModifier) {
+                            ShotBrowserHelpers.selectItem(resultsSelectionModel, delegateModel.modelIndex(index))
+                        } else if(mouse.modifiers == Qt.ShiftModifier){
+                            ShotBrowserHelpers.shiftSelectItem(resultsSelectionModel, delegateModel.modelIndex(index))
+                        } else if(mouse.modifiers == Qt.ControlModifier) {
+                            ShotBrowserHelpers.ctrlSelectItem(resultsSelectionModel, delegateModel.modelIndex(index))
+                        }
+                    }
+                    popupMenu.popupDelegateModel = delegateModel
+                    let ppos = mapToItem(popupMenu.parent, mouseX, mouseY)
+                    popupMenu.x = ppos.x
+                    popupMenu.y = ppos.y
+                    popupMenu.visible = true
+                }
+            }
+
+            else if(mouse.modifiers == Qt.NoModifier) {
+                ShotBrowserHelpers.selectItem(resultsSelectionModel, delegateModel.modelIndex(index))
+            } else if(mouse.modifiers == Qt.ShiftModifier){
+                ShotBrowserHelpers.shiftSelectItem(resultsSelectionModel, delegateModel.modelIndex(index))
+            } else if(mouse.modifiers == Qt.ControlModifier) {
+                ShotBrowserHelpers.ctrlSelectItem(resultsSelectionModel, delegateModel.modelIndex(index))
+            }
+        }
+    }
+
+    RowLayout {
+        anchors.fill: parent
+        anchors.margins: 1
 
         XsPrimaryButton{ id: versionArrowBtn
-            width: visible? 20 : 0
-            height: parent.height - itemSpacing*4
-            anchors.verticalCenter: parent.verticalCenter
-            x: (modelDepth * 40)+ itemSpacing*3
+            Layout.minimumWidth: 20
+            Layout.maximumWidth: 20
+            Layout.fillHeight: true
 
-            visible: groupingEnabled
+            visible: groupingEnabled && !modelDepth
             imgSrc: "qrc:/icons/chevron_right.svg"
             imageDiv.rotation: isActive ? 90 : 0
             isActiveViaIndicator: false
@@ -161,18 +154,18 @@ Item{ id: thisItem
         }
 
         ColumnLayout{ id: col
-            width: parent.width - (versionArrowBtn.x + versionArrowBtn.width) - itemSpacing
-            height: parent.height- itemSpacing*2
-            anchors.verticalCenter: parent.verticalCenter
-            anchors.left: versionArrowBtn.right
-            anchors.leftMargin: itemSpacing
+            // width: visible? 20 : 0
+            Layout.fillHeight: true
+            Layout.fillWidth: true
+            Layout.leftMargin: !versionArrowBtn.visible && groupingEnabled ? 46 : isPlaylist ? 27 : 0
+
             spacing: itemSpacing
 
             Rectangle{ id: shotTitle
                 Layout.fillWidth: true
                 Layout.fillHeight: true
-                Layout.preferredHeight: itemHeight
-                color: bgColorNormal
+                Layout.preferredHeight: XsStyleSheet.widgetStdHeight
+                color: XsStyleSheet.widgetBgNormalColor
 
                 XsText{
                     anchors.fill: parent
@@ -195,7 +188,7 @@ Item{ id: thisItem
 
             RowLayout{
                 Layout.fillWidth: true
-                Layout.preferredHeight: (itemHeight * rowCount) + (spacing * (rowCount-1))
+                Layout.preferredHeight: (XsStyleSheet.widgetStdHeight * rowCount) + (spacing * (rowCount-1))
                 spacing: itemSpacing
                 x: spacing
 
@@ -221,11 +214,7 @@ Item{ id: thisItem
                     Layout.fillHeight: true
                     clip: true
                 }
-
             }
-
         }
-
-
     }
 }

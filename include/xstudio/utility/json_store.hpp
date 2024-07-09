@@ -259,7 +259,7 @@ namespace utility {
 
         // [[nodiscard]] bool empty() const { return json_.empty(); }
         // void clear() { json_.clear(); }
-        [[nodiscard]] std::string dump(size_t pad = 0) const {
+        [[nodiscard]] std::string dump(int pad = 0) const {
             return nlohmann::json::dump(
                 pad, ' ', false, nlohmann::detail::error_handler_t::replace);
         }
@@ -320,7 +320,7 @@ namespace utility {
                 i >> j;
                 merged.merge(j);
             }
-        } catch (const std::exception &e) {
+        } catch ([[maybe_unused]] const std::exception &e) {
             spdlog::warn("Preference path does not exist {}.", path);
         }
         return merged;

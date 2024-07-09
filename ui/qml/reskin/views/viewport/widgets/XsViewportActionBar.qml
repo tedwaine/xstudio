@@ -152,6 +152,22 @@ Item{id: actionDiv
             }
         }
 
+        // additional shelf buttons to launch pop-out floating windows for
+        // e.g. grading tools, notes panel
+        Repeater {
+            model: popoutWindowsModel
+            XsPrimaryButton { 
+
+                Layout.preferredWidth: 40
+                Layout.preferredHeight: parent.height
+                imgSrc: icon_path
+                isActive: window_is_visible
+                onClicked: {
+                    window_is_visible = !window_is_visible
+                }                
+            }
+        }
+
         XsText {
 
             Layout.fillWidth: true

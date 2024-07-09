@@ -222,13 +222,13 @@ void SubPlayhead::init() {
             return rp;
         },
 
-        [=](duration_frames_atom atom) -> result<int> {
+        [=](duration_frames_atom atom) -> result<size_t> {
             if (up_to_date_) {
                 return full_timeline_frames_.size() ? full_timeline_frames_.size() - 1 : 0;
             }
             // not up to date, we need to get the timeline frames list from
             // the source
-            auto rp = make_response_promise<int>();
+            auto rp = make_response_promise<size_t>();
             request(caf::actor_cast<caf::actor>(this), infinite, source_atom_v)
                 .then(
                     [=](caf::actor) mutable {
@@ -965,18 +965,15 @@ void SubPlayhead::broadcast_image_frame(
                     true          // is this the frame that should be on-screen now?
                 );
 
-                auto m = caf::actor_cast<caf::actor>(frame_media_pointer->actor_addr_);
-                if (m) {
-                    send(
-                        parent_,
-                        event_atom_v,
-                        media_source_atom_v,
-                        m,
-                        actor_cast<actor>(this),
-                        frame_media_pointer->media_uuid_,
-                        frame_media_pointer->source_uuid_,
-                        frame_media_pointer->frame_);
-                }
+                send(
+                    parent_,
+                    event_atom_v,
+                    media_source_atom_v,
+                    caf::actor_cast<caf::actor>(frame_media_pointer->actor_addr_),
+                    actor_cast<actor>(this),
+                    frame_media_pointer->media_uuid_,
+                    frame_media_pointer->source_uuid_,
+                    frame_media_pointer->frame_);
 
                 waiting_for_next_frame_ = false;
 

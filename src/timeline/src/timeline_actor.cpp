@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 #include <caf/policy/select_all.hpp>
 
+#ifdef BUILD_OTIO
 #include <opentimelineio/version.h>
 #include <opentimelineio/timeline.h>
 #include <opentimelineio/gap.h>
@@ -8,6 +9,7 @@
 #include <opentimelineio/marker.h>
 #include <opentimelineio/track.h>
 #include <opentimelineio/externalReference.h>
+#endif
 
 #include <cpp-colors/colors.h>
 
@@ -32,6 +34,20 @@ using namespace xstudio;
 using namespace xstudio::utility;
 using namespace xstudio::timeline;
 using namespace caf;
+
+namespace {
+
+auto __sysclock_now() {
+#ifdef _MSC_VER
+    auto tp = sysclock::now();
+    return std::chrono::duration_cast<std::chrono::microseconds>(tp.time_since_epoch()).count();
+#else
+    return sysclock::now();
+#endif
+}
+
+
+} // namespace
 
 caf::actor
 TimelineActor::deserialise(const utility::JsonStore &value, const bool replace_item) {
@@ -201,6 +217,8 @@ void TimelineActor::item_pre_event_callback(const utility::JsonStore &event, Ite
         spdlog::warn("{} {}", __PRETTY_FUNCTION__, err.what());
     }
 }
+
+#ifdef BUILD_OTIO
 
 namespace otio = opentimelineio::OPENTIMELINEIO_VERSION;
 
@@ -592,11 +610,11 @@ void timeline_importer(
 
     std::map<std::string, UuidActor> target_url_map;
 
-    // spdlog::warn("processing {} clips", clips.size());
+    spdlog::warn("processing {} clips", clips.size());
 
     for (const auto &cl : clips) {
         const auto &name = cl->name();
-        // spdlog::warn("{} {}", name, cl->active_media_reference_key());
+        spdlog::warn("{} {}", name, cl->active_media_reference_key());
 
         const auto active_key = cl->active_media_reference_key();
         auto active_path      = std::string();
@@ -606,14 +624,13 @@ void timeline_importer(
             active_path = active->target_url();
         }
 
-        // spdlog::warn("{} {}", active_key, active_path);
+        // spdlog::warn("BLAGH {} {}", active_key, active_path);
 
         // WARNING this may inadvertantly skip auxiliary sources we want..
         if (active_path.empty() or target_url_map.count(active_path)) {
             // spdlog::warn("SKIP");
             continue;
         }
-
 
         auto clip_metadata = JsonStore();
         try {
@@ -631,13 +648,16 @@ void timeline_importer(
 
         // create media sources.
         for (const auto &mr : cl->media_references()) {
-            // spdlog::warn("{} {}", mr.first, mr.second->name());
+            spdlog::warn("BLOB {} {}", mr.first, mr.second->name());
             // try and dynamic cast to
             if (auto ext = otio::SerializableObject::Retainer<otio::ExternalReference>(
                     dynamic_cast<otio::ExternalReference *>(mr.second))) {
 
-                // spdlog::warn("{}", ext->target_url());
                 auto uri = caf::make_uri(ext->target_url());
+                if (!uri) {
+                    uri = posix_path_to_uri(ext->target_url());
+                }
+                spdlog::warn("FLOB {} {} {}", ext->target_url(), to_string(uri), bool(uri));
                 if (uri) {
                     auto extname     = ext->name();
                     auto source_uuid = utility::Uuid::generate();
@@ -676,6 +696,8 @@ void timeline_importer(
             }
         }
 
+        std::cerr << "NUM SOURCES " << sources.size() << " .... " << name << "\n";
+
         // //  add media.
         if (not sources.empty()) {
             // create media
@@ -697,11 +719,13 @@ void timeline_importer(
                 sources.front().uuid());
         }
 
-        // otio::RationalTime dur = cl->duration();
-        // std::cout << "Name: " << cl->name() << " [";
-        // std::cout << dur.value() << "/" << dur.rate() << "]" << std::endl;
+        otio::RationalTime dur = cl->duration();
+        std::cout << "Name: " << cl->name() << " [";
+        std::cout << dur.value() << "/" << dur.rate() << "]" << std::endl;
         // trigger population of additional sources ? May conflict with timeline ?
     }
+
+    std::cerr << "target_url_map " << target_url_map.size() << "\n";
 
     // populate source
     if (not target_url_map.empty()) {
@@ -777,6 +801,8 @@ void timeline_importer(
 
     rp.deliver(true);
 }
+
+#endif // BUILD_OTIO
 
 TimelineActor::TimelineActor(
     caf::actor_config &cfg, const utility::JsonStore &jsn, const caf::actor &playlist)
@@ -984,7 +1010,7 @@ void TimelineActor::init() {
             auto jsn = base_.item().set_active_range(fr);
             if (not jsn.is_null()) {
                 send(event_group_, event_atom_v, item_atom_v, jsn, false);
-                anon_send(history_, history::log_atom_v, sysclock::now(), jsn);
+                anon_send(history_, history::log_atom_v, __sysclock_now(), jsn);
             }
             return jsn;
         },
@@ -1039,7 +1065,7 @@ void TimelineActor::init() {
             auto jsn = base_.item().set_available_range(fr);
             if (not jsn.is_null()) {
                 send(event_group_, event_atom_v, item_atom_v, jsn, false);
-                anon_send(history_, history::log_atom_v, sysclock::now(), jsn);
+                anon_send(history_, history::log_atom_v, __sysclock_now(), jsn);
             }
             return jsn;
         },
@@ -1119,7 +1145,7 @@ void TimelineActor::init() {
                     more.insert(more.begin(), update.begin(), update.end());
                     send(event_group_, event_atom_v, item_atom_v, more, hidden);
                     if (not hidden)
-                        anon_send(history_, history::log_atom_v, sysclock::now(), more);
+                        anon_send(history_, history::log_atom_v, __sysclock_now(), more);
 
                     send(this, utility::event_atom_v, change_atom_v);
                     return;
@@ -1128,7 +1154,7 @@ void TimelineActor::init() {
 
             send(event_group_, event_atom_v, item_atom_v, update, hidden);
             if (not hidden)
-                anon_send(history_, history::log_atom_v, sysclock::now(), update);
+                anon_send(history_, history::log_atom_v, __sysclock_now(), update);
 
             if (base_.item().has_dirty(update))
                 send(this, utility::event_atom_v, change_atom_v);
@@ -2596,8 +2622,8 @@ void TimelineActor::init() {
             const caf::uri &path,
             const std::string &data) -> result<bool> {
             auto rp = make_response_promise<bool>();
-            // purge timeline.. ?
-
+        // purge timeline.. ?
+#ifdef BUILD_OTIO
             spawn(
                 timeline_importer,
                 rp,
@@ -2605,7 +2631,11 @@ void TimelineActor::init() {
                 UuidActor(base_.uuid(), actor_cast<caf::actor>(this)),
                 path,
                 data);
+#else
+            rp.deliver(
+                make_error(xstudio_error::error, "OTIO IS NOT SUPPORTED IN THIS BUILD."));
 
+#endif
             return rp;
         });
 }
@@ -2863,7 +2893,7 @@ void TimelineActor::insert_items(
                     changes.insert(changes.begin(), more.begin(), more.end());
 
                 send(event_group_, event_atom_v, item_atom_v, changes, false);
-                anon_send(history_, history::log_atom_v, sysclock::now(), changes);
+                anon_send(history_, history::log_atom_v, __sysclock_now(), changes);
                 send(this, utility::event_atom_v, change_atom_v);
 
                 rp.deliver(changes);
@@ -2906,7 +2936,7 @@ void TimelineActor::remove_items(
         // why was this commented out ?
         // send(event_group_, event_atom_v, item_atom_v, changes, false);
 
-        anon_send(history_, history::log_atom_v, sysclock::now(), changes);
+        anon_send(history_, history::log_atom_v, __sysclock_now(), changes);
 
         send(this, utility::event_atom_v, change_atom_v);
 

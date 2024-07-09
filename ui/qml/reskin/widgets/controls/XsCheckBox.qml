@@ -67,7 +67,7 @@ CheckBox { id: widget
     }
 
     contentItem:
-    Text { id: textItem
+    XsText { id: textItem
         text: widget.text
         font: widget.font
         opacity: enabled ? 1.0: 0.3

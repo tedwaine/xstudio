@@ -272,7 +272,7 @@ void StandardPlugin::current_viewed_playhead_changed(caf::actor_addr viewed_play
             scoped_actor sys{system()};
             playhead_logical_frame_ = utility::request_receive<int>(
                 *sys, viewed_playhead, playhead::logical_frame_atom_v);
-        } catch (std::exception &e) {
+        } catch ([[maybe_unused]] std::exception &e) {
             // spdlog::warn("{} {}", __PRETTY_FUNCTION__, e.what());
         }
     }
@@ -478,14 +478,16 @@ void StandardPlugin::update_bookmark_annotation(
 
 void StandardPlugin::update_bookmark_detail(
     const utility::Uuid bookmark_id, const bookmark::BookmarkDetail &bmd) {
-    request(bookmark_manager_, infinite, bookmark::get_bookmark_atom_v, bookmark_id)
-        .then(
-            [=](utility::UuidActor &bm) {
-                anon_send(bm.actor(), bookmark::bookmark_detail_atom_v, bmd);
-            },
-            [=](error &err) mutable {
-                spdlog::warn("{} {}", __PRETTY_FUNCTION__, to_string(err));
-            });
+
+    scoped_actor sys{system()};
+    try {
+        auto uuid_actor = utility::request_receive<utility::UuidActor>(
+            *sys, bookmark_manager_, bookmark::get_bookmark_atom_v, bookmark_id);
+        auto result = utility::request_receive<bool>(
+            *sys, uuid_actor.actor(), bookmark::bookmark_detail_atom_v, bmd);
+    } catch (std::exception &e) {
+        spdlog::warn("{} {}", __PRETTY_FUNCTION__, e.what());
+    }
 }
 
 void StandardPlugin::remove_bookmark(const utility::Uuid &bookmark_id) {

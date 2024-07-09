@@ -41,6 +41,9 @@ struct Grade {
     vec3 power;
     float sat;
 
+    float exposure;
+    float contrast;
+
     // Can be extended with more grading operations
 };
 
@@ -56,6 +59,21 @@ vec4 apply_grade(vec4 rgba, Grade grade)
     if (!grade.grade_active)
     {
         return outColor;
+    }
+
+
+    // Exposure
+
+    if (grade.exposure != 0.)
+    {
+        outColor.rgb *= pow(2.0, grade.exposure);
+    }
+
+    // Contrast
+
+    if (grade.contrast != 1.)
+    {
+        outColor.rgb = pow( abs(outColor.rgb / 0.18), vec3(grade.contrast)) * sign(outColor.rgb) * 0.18;
     }
 
     // CDL SOP
@@ -236,11 +254,14 @@ GradingColourOperator::update_shader_uniforms(const media_reader::ImageBufPtr &i
 
     size_t grade_count = 0;
     auto active_grades = get_active_grades(image);
-    for (const auto grade_data : active_grades) {
+    for (const auto grade_info : active_grades) {
+
+        auto grade_data = grade_info.data;
 
         std::string grade_str = fmt::format("grades[{}].", grade_count);
 
-        uniforms_dict[grade_str + "grade_active"] = grade_data->grade_active();
+        uniforms_dict[grade_str + "grade_active"] = grade_info.isActive;
+
         // We only support compositing_log as colour space conversion for now.
         // All other values will be treated as being the current colour space.
         uniforms_dict[grade_str + "color_space"] =
@@ -265,7 +286,9 @@ GradingColourOperator::update_shader_uniforms(const media_reader::ImageBufPtr &i
             grade_data->grade().power[0] * grade_data->grade().power[3],
             grade_data->grade().power[1] * grade_data->grade().power[3],
             grade_data->grade().power[2] * grade_data->grade().power[3]};
-        uniforms_dict[grade_str + "sat"] = grade_data->grade().sat;
+        uniforms_dict[grade_str + "sat"]      = grade_data->grade().sat;
+        uniforms_dict[grade_str + "exposure"] = grade_data->grade().exposure;
+        uniforms_dict[grade_str + "contrast"] = grade_data->grade().contrast;
 
         grade_count++;
     }
@@ -321,8 +344,7 @@ std::shared_ptr<ColourOperationData> GradingColourOperator::setup_shader_data(
 }
 
 plugin::GPUPreDrawHookPtr GradingColourOperator::make_pre_draw_gpu_hook() {
-    return plugin::GPUPreDrawHookPtr(
-        static_cast<plugin::GPUPreDrawHook *>(new GradingMaskRenderer()));
+    return std::make_shared<GradingMaskRenderer>();
 }
 
 OCIO::ConstGpuShaderDescRcPtr GradingColourOperator::setup_ocio_shader(

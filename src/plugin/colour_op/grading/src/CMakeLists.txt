@@ -2,6 +2,7 @@ project(grading VERSION 0.1.0 LANGUAGES CXX)
 
 find_package(Imath)
 find_package(OpenColorIO CONFIG)
+find_package(Qt5 COMPONENTS Concurrent Core Quick Gui Qml Widgets OpenGL REQUIRED)
 
 set(SOURCES
 	grading_data.cpp
@@ -12,6 +13,8 @@ set(SOURCES
 	grading_mask_gl_renderer.cpp
 	serialisers/1.0/serialiser_1_pt_0.cpp
 )
+
+qt5_add_resources(SOURCES qml/Grading.2/grading.qrc)
 
 set(CMAKE_INCLUDE_CURRENT_DIR ON)
 

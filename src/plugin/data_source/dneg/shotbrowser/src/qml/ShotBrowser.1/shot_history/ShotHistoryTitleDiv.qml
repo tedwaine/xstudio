@@ -10,7 +10,7 @@ import xStudioReskin 1.0
 import ShotBrowser 1.0
 import xstudio.qml.helpers 1.0
 
-Item{id: titleDiv
+RowLayout {id: titleDiv
 
     property int titleButtonCount: 4
     property real titleButtonSpacing: 1
@@ -28,19 +28,14 @@ Item{id: titleDiv
         property var srcModel: filterModel
         onSrcModelChanged: model = srcModel
 
-        delegate: Item {
+        delegate: XsPrimaryButton{
             width: ListView.view.width / ListView.view.count
             height: titleButtonHeight
+            text: nameRole
+            isActive: activeScopeIndex == groupModel.srcModel.mapToSource(groupModel.modelIndex(index))
 
-            XsPrimaryButton{
-                width: parent.width  - titleButtonSpacing
-                height: titleButtonHeight
-                text: nameRole
-                isActive: activeScopeIndex == groupModel.srcModel.mapToSource(groupModel.modelIndex(index))
-
-                onClicked: {
-                    activateScope(groupModel.srcModel.mapToSource(groupModel.modelIndex(index)))
-                }
+            onClicked: {
+                activateScope(groupModel.srcModel.mapToSource(groupModel.modelIndex(index)))
             }
         }
     }
@@ -66,10 +61,9 @@ Item{id: titleDiv
     }
 
     XsPrimaryButton{ id: updateScopeBtn
-        x: panelPadding
-        width: 40
-        height: parent.height - (panelPadding*2)
-        anchors.verticalCenter: parent.verticalCenter
+        Layout.preferredWidth: 40
+        Layout.fillHeight: true
+
         imgSrc: isPanelEnabled && !isPaused ? "qrc:///shotbrowser_icons/lock_open.svg" : "qrc:///shotbrowser_icons/lock.svg"
         // text: isPanelEnabled? "ON" : "OFF"
         isActive: !isPanelEnabled || isPaused
@@ -79,35 +73,35 @@ Item{id: titleDiv
     }
 
     ColumnLayout{ id: col
-        width: (parent.width - updateScopeBtn.width) - (panelPadding*2)
-        height: parent.height - (panelPadding*2)
+        Layout.fillWidth: true
+        Layout.fillHeight: true
+
         spacing: titleButtonSpacing
-        anchors.verticalCenter: parent.verticalCenter
-        anchors.left: updateScopeBtn.right
-        anchors.leftMargin: titleButtonSpacing
 
         RowLayout{
-            width: parent.width
-            height: titleButtonHeight
+            Layout.fillWidth: true
+            Layout.preferredHeight: titleButtonHeight
             spacing: 0
 
 
             XsText{ id: scopeTxt
                 Layout.preferredWidth: (textWidth + panelPadding*3)
-                Layout.preferredHeight: titleButtonHeight
+                Layout.fillHeight: true
                 text: "Scope: "
             }
 
             XsListView{ id: scopeList
                 Layout.fillWidth: true
-                Layout.preferredHeight: titleButtonHeight
+                Layout.fillHeight: true
+                spacing: titleButtonSpacing
+
                 orientation: ListView.Horizontal
                 enabled: isPanelEnabled && !isPaused
             }
         }
         RowLayout{
-            width: parent.width
-            height: titleButtonHeight
+            Layout.fillWidth: true
+            Layout.preferredHeight: titleButtonHeight
             spacing: 0
 
             XsSearchButton{ id: filterBtn

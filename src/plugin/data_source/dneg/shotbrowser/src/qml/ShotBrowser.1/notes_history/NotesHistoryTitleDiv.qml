@@ -10,10 +10,9 @@ import xStudioReskin 1.0
 import ShotBrowser 1.0
 import xstudio.qml.helpers 1.0
 
-Item{id: titleDiv
+RowLayout {
 
-    property int titleButtonCount: 4
-    property real titleButtonSpacing: 1
+    readonly property real titleButtonSpacing: 1
     property real titleButtonHeight: XsStyleSheet.widgetStdHeight+4
 
     ShotBrowserPresetFilterModel {
@@ -41,19 +40,14 @@ Item{id: titleDiv
         property var srcModel: scopeFilterModel
         onSrcModelChanged: model = srcModel
 
-        delegate: Item {
+        delegate: XsPrimaryButton {
             width: ListView.view.width / ListView.view.count
             height: titleButtonHeight
+            text: nameRole
+            isActive: activeScopeIndex == scopeGroupModel.srcModel.mapToSource(scopeGroupModel.modelIndex(index))
 
-            XsPrimaryButton{
-                width: parent.width  - titleButtonSpacing
-                height: titleButtonHeight
-                text: nameRole
-                isActive: activeScopeIndex == scopeGroupModel.srcModel.mapToSource(scopeGroupModel.modelIndex(index))
-
-                onClicked: {
-                    activateScope(scopeGroupModel.srcModel.mapToSource(scopeGroupModel.modelIndex(index)))
-                }
+            onClicked: {
+                activateScope(scopeGroupModel.srcModel.mapToSource(scopeGroupModel.modelIndex(index)))
             }
         }
     }
@@ -64,19 +58,14 @@ Item{id: titleDiv
         property var srcModel: typeFilterModel
         onSrcModelChanged: model = srcModel
 
-        delegate: Item {
+        delegate: XsPrimaryButton{
             width: ListView.view.width / ListView.view.count
             height: titleButtonHeight
+            text: nameRole
+            isActive: activeTypeIndex == typeGroupModel.srcModel.mapToSource(typeGroupModel.modelIndex(index))
 
-            XsPrimaryButton{
-                width: parent.width  - titleButtonSpacing
-                height: titleButtonHeight
-                text: nameRole
-                isActive: activeTypeIndex == typeGroupModel.srcModel.mapToSource(typeGroupModel.modelIndex(index))
-
-                onClicked: {
-                    activateType(typeGroupModel.srcModel.mapToSource(typeGroupModel.modelIndex(index)))
-                }
+            onClicked: {
+                activateType(typeGroupModel.srcModel.mapToSource(typeGroupModel.modelIndex(index)))
             }
         }
     }
@@ -106,11 +95,10 @@ Item{id: titleDiv
         }
     }
 
-    XsPrimaryButton{ id: updateScopeBtn
-        x: panelPadding
-        width: 40
-        height: parent.height - (panelPadding*2)
-        anchors.verticalCenter: parent.verticalCenter
+    XsPrimaryButton {
+        Layout.preferredWidth: 40
+        Layout.fillHeight: true
+
         imgSrc: isPanelEnabled && !isPaused ? "qrc:///shotbrowser_icons/lock_open.svg" : "qrc:///shotbrowser_icons/lock.svg"
         // text: isPanelEnabled? "ON" : "OFF"
         isActive: !isPanelEnabled || isPaused
@@ -119,29 +107,30 @@ Item{id: titleDiv
         }
     }
 
-    ColumnLayout{ id: col
-        width: (parent.width - updateScopeBtn.width) - (panelPadding*2)
-        height: parent.height - (panelPadding*2)
+    ColumnLayout {
+        Layout.fillWidth: true
+        Layout.fillHeight: true
+
         spacing: titleButtonSpacing
-        anchors.verticalCenter: parent.verticalCenter
-        anchors.left: updateScopeBtn.right
-        anchors.leftMargin: titleButtonSpacing
 
         RowLayout{
-            width: parent.width
-            height: titleButtonHeight
+            Layout.fillWidth: true
+            Layout.preferredHeight: titleButtonHeight
+            // width: parent.width
+            // height: titleButtonHeight
             spacing: 0
 
             XsText{ id: scopeTxt
                 Layout.preferredWidth: (textWidth + panelPadding*3)
-                Layout.preferredHeight: titleButtonHeight
+                Layout.fillHeight: true
                 text: "Scope: "
             }
 
             XsListView{ id: scopeList
                 Layout.fillWidth: true
-                Layout.preferredHeight: titleButtonHeight
+                Layout.fillHeight: true
 
+                spacing: titleButtonSpacing
                 orientation: ListView.Horizontal
                 enabled: isPanelEnabled && !isPaused
                 model: []
@@ -149,20 +138,23 @@ Item{id: titleDiv
         }
 
         RowLayout{
-            width: parent.width
-            height: titleButtonHeight
+            Layout.fillWidth: true
+            Layout.preferredHeight: titleButtonHeight
+            // width: parent.width
+            // height: titleButtonHeight
             spacing: 0
 
-            XsText{ id: typeTxt
+            XsText{
                 Layout.preferredWidth: scopeTxt.width
-                Layout.preferredHeight: titleButtonHeight
+                Layout.fillHeight: true
                 text: "Type: "
             }
 
             XsListView{ id: typeList
                 Layout.fillWidth: true
-                Layout.preferredHeight: titleButtonHeight
+                Layout.fillHeight: true
 
+                spacing: titleButtonSpacing
                 orientation: ListView.Horizontal
                 enabled: isPanelEnabled && !isPaused
                 model: []

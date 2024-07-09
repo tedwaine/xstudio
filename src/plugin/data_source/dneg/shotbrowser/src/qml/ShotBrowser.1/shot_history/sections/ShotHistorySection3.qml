@@ -24,15 +24,15 @@ Rectangle{
         }
         ShotHistoryTextRow{ id: statusDiv
             Layout.fillWidth: true
-            Layout.minimumHeight: itemHeight
+            Layout.minimumHeight: XsStyleSheet.widgetStdHeight
             text: pipelineStatusFullRole
             textDiv.width: width
         }
 
         Rectangle{ id: siteDiv
             Layout.fillWidth: true
-            Layout.minimumHeight: itemHeight
-            color: bgColorNormal
+            Layout.minimumHeight: XsStyleSheet.widgetStdHeight
+            color: XsStyleSheet.widgetBgNormalColor
 
             Grid{ id: siteGrid
                 width: parent.width - itemSpacing*(siteModel.count-1)

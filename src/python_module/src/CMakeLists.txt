@@ -5,6 +5,11 @@ find_package(Python COMPONENTS Interpreter)
 
 set(PYTHONVP "python${Python_VERSION_MAJOR}.${Python_VERSION_MINOR}")
 
+if(WIN32)
+  add_compile_options("/bigobj")
+  set(PYTHON_MODULE_EXTENSION .pyd)
+endif()
+
 add_library(
 	${PROJECT_NAME}
 	MODULE
@@ -24,6 +29,8 @@ add_library(
 add_library(xstudio::python_module ALIAS ${PROJECT_NAME})
 
 default_options_local(${PROJECT_NAME})
+
+set_python_to_proper_build_type()
 
 target_link_libraries(
 	${PROJECT_NAME}
@@ -58,4 +65,6 @@ else()
 
 endif(INSTALL_XSTUDIO)
 
-
+if(WIN32)
+install(TARGETS ${PROJECT_NAME} DESTINATION "${CMAKE_INSTALL_PREFIX}/python/xstudio/core")
+endif()

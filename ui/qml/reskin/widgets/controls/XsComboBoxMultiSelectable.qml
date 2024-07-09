@@ -125,8 +125,10 @@ Item{ id: widget
         XsPrimaryButton{ id: arrowButton
             property bool isArrowBtnClicked: false
             text: ""
-            imgSrc: "qrc:/icons/keyboard_arrow_up.svg"
-            imageDiv.rotation: isActive? 0: 180
+            imgSrc: "qrc:/icons/arrow_drop_down.svg"
+            imageDiv.width: 25
+            imageDiv.height: 20
+            imageDiv.rotation: isActive? 180: 0
             width: height
             height: widget.height - framePadding
             anchors.verticalCenter: parent.verticalCenter

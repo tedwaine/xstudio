@@ -578,15 +578,17 @@ void IvyMediaWorker::get_show_stalk_uuid(
                 // turn paths into possible dir locations...
                 std::set<fs::path> paths;
                 for (const auto &i : mr) {
-                    auto tmp = fs::path(uri_to_posix_path(i.uri())).parent_path();
-                    if (std::regex_match(tmp.filename().string().c_str(), m, res_re))
+                    auto tmp            = fs::path(uri_to_posix_path(i.uri())).parent_path();
+                    const auto filename = tmp.filename().string();
+
+                    if (std::regex_match(filename.c_str(), m, res_re))
                         paths.insert(tmp.parent_path());
                     else {
                         // movie path...
                         // extract
-                        auto stalk = tmp.filename().string();
+                        auto stalk = filename;
                         tmp        = tmp.parent_path();
-                        auto type  = to_upper(tmp.filename().string());
+                        auto type  = to_upper(filename);
                         if (type == "ELMR")
                             type = "ELEMENT";
                         else if (type == "CGR")
@@ -608,7 +610,8 @@ void IvyMediaWorker::get_show_stalk_uuid(
                                 auto fn = de.path().filename().string();
                                 if (starts_with(fn, ".stalk_")) {
                                     // extract uuid..
-                                    if (std::regex_match(i.string().c_str(), m, SHOW_REGEX)) {
+                                    const auto dirname = i.string();
+                                    if (std::regex_match(dirname.c_str(), m, SHOW_REGEX)) {
                                         dnuuid = utility::Uuid(fn.substr(7));
                                         show   = m[1];
                                     }

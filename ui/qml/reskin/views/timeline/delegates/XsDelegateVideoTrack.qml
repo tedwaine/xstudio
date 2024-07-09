@@ -36,6 +36,10 @@ DelegateChoice {
             property var setSizerHovered: ListView.view.setSizerHovered
             property var setSizerDragging: ListView.view.setSizerDragging
 
+            property var draggingStarted: ListView.view.draggingStarted
+            property var dragging: ListView.view.dragging
+            property var draggingStopped: ListView.view.draggingStopped
+
 			width: ListView.view.width
 			height: itemHeight * scaleY
 
@@ -131,9 +135,11 @@ DelegateChoice {
 						forceEval = !forceEval
 					}
 				}
+				clip: false
 
 		    	Row {
 		    	    id:list_view
+					clip: false
 					// opacity: isHovered ? 1.0 : enabledRole ? (lockedRole ? 0.6 : 1.0) : 0.3
 
 			        property real scaleX: control.scaleX
@@ -147,6 +153,10 @@ DelegateChoice {
 					// property bool isParentLocked: lockedRole
 					property var itemAtIndex: item_repeater.itemAt
 		            property var parentLV: control.parentLV
+
+                    property var draggingStarted: control.draggingStarted
+                    property var dragging: control.dragging
+		            property var draggingStopped: control.draggingStopped
 
 					property bool isParentLocked: lockedRole
 			        property bool isParentEnabled: enabledRole

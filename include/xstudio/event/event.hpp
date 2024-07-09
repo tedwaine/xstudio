@@ -45,10 +45,10 @@ namespace event {
             return static_cast<bool>(targets_.count(value));
         }
         [[nodiscard]] auto progress_percentage() const {
-            float percentage = 100.0;
+            float percentage = 100.0f;
             auto range       = progress_maximum_ - progress_minimum_;
             if (range > 0) {
-                auto div   = 100.0 / static_cast<float>(range);
+                auto div   = 100.0f / static_cast<float>(range);
                 percentage = div * static_cast<float>(progress_ - progress_minimum_);
             }
 

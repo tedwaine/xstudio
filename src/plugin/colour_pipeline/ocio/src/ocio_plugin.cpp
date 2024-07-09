@@ -414,9 +414,11 @@ void OCIOColourPipeline::attribute_changed(
 
     } else if (attribute_uuid == display_->uuid()) {
 
-        update_views(display_->value());
+        if (role == module::Attribute::Value) {
 
-        synchronize_attribute(attribute_uuid, role, true);
+            update_views(display_->value());
+            synchronize_attribute(attribute_uuid, role, true);
+        }
 
     } else if (attribute_uuid == view_->uuid()) {
 
@@ -452,15 +454,20 @@ void OCIOColourPipeline::screen_changed(
     const std::string &manufacturer,
     const std::string &serialNumber) {
 
-    const std::string detected_display = detect_display(
-        name, model, manufacturer, serialNumber, current_source_colour_mgmt_metadata_);
-
     auto menu_populated = [](module::StringChoiceAttribute *attr) {
         return attr->get_role_data<std::vector<std::string>>(module::Attribute::StringChoices)
                    .size() > 0;
     };
 
-    if (menu_populated(display_)) {
+    if (menu_populated(display_) && !monitor_name_.empty()) {
+
+        // we only override the display if the screen info is *changing* ... if
+        // it's being set for the first time we don't want to auto-set the
+        // display as it has already been chosen either in populate_ui or
+        // by the user
+
+        const std::string detected_display = detect_display(
+            name, model, manufacturer, serialNumber, current_source_colour_mgmt_metadata_);
         display_->set_value(detected_display);
     }
 
@@ -637,10 +644,11 @@ void OCIOColourPipeline::populate_ui(const utility::JsonStore &src_colour_mgmt_m
             auto stored_config_settings = utility::request_receive<utility::JsonStore>(
                 *sys, global_controls_, global_ocio_controls_atom_v, current_config_name_);
 
-            if (stored_config_settings.contains("View") &&
-                stored_config_settings.contains("Display")) {
+            if (stored_config_settings.contains("Display")) {
                 display = stored_config_settings["Display"];
-                view    = stored_config_settings["View"];
+            }
+            if (stored_config_settings.contains("View")) {
+                view = stored_config_settings["View"];
             }
 
         } catch (std::exception &e) {

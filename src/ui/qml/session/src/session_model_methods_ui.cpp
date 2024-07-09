@@ -122,7 +122,7 @@ Q_INVOKABLE QModelIndex SessionModel::currentPlaylistIndex() {
         auto actor_string = QStringFromStd(actorToString(system(), actor));
         return searchRecursive(actor_string, "actorRole");
     } catch (const std::exception &e) {
-        spdlog::warn("{} {}", __PRETTY_FUNCTION__, e.what());
+        spdlog::debug("{} {}", __PRETTY_FUNCTION__, e.what());
     }
     return index(-1, -1);
 }
@@ -235,6 +235,7 @@ void SessionModel::setSessionActorAddr(const QString &addr) {
             string_lookup_.clear();
 
             setModelData(data);
+            add_lookup(*indexToTree(index(0, 0)), index(0, 0));
             emit playlistsChanged();
 
             // if (backend_events_) {
@@ -739,14 +740,18 @@ QFuture<QList<QUuid>> SessionModel::handleUriListDropFuture(
 
                 // spdlog::warn("{}", type);
 
+                std::string actor;
                 if (type == "Playlist") {
-                    target = actorFromString(system(), ij.at("actor"));
+                    actor  = ij.at("actor");
+                    target = actorFromString(system(), actor);
                 } else if (type == "Subset") {
+                    actor      = ij.at("actor");
                     target     = actorFromIndex(index.parent(), true);
-                    sub_target = actorFromString(system(), ij.at("actor"));
+                    sub_target = actorFromString(system(), actor);
                 } else if (type == "Timeline") {
+                    actor      = ij.at("actor");
                     target     = actorFromIndex(index.parent(), true);
-                    sub_target = actorFromString(system(), ij.at("actor"));
+                    sub_target = actorFromString(system(), actor);
                 } else if (
                     type == "Video Track" or type == "Audio Track" or type == "Gap" or
                     type == "Clip") {
@@ -766,7 +771,8 @@ QFuture<QList<QUuid>> SessionModel::handleUriListDropFuture(
 
                 if (target) {
                     for (const auto &path : jdrop.at("text/uri-list")) {
-                        auto uri = caf::make_uri(url_clean(path.get<std::string>()));
+                        auto path_string = path.get<std::string>();
+                        auto uri         = caf::make_uri(url_clean(path_string));
                         if (uri) {
                             // uri maybe timeline...
                             // hacky...
@@ -1183,13 +1189,10 @@ QFuture<QString> SessionModel::getJSONFuture(
                     scoped_actor sys{system()};
 
                     try {
+                        std::string path_string = StdFromQString(path);
                         if (type == "Media") {
                             auto jsn = request_receive<JsonStore>(
-                                *sys,
-                                actor,
-                                json_store::get_json_atom_v,
-                                Uuid(),
-                                StdFromQString(path));
+                                *sys, actor, json_store::get_json_atom_v, Uuid(), path_string);
 
                             if (includeSource) {
                                 auto imageuuid =
@@ -1215,7 +1218,7 @@ QFuture<QString> SessionModel::getJSONFuture(
                             result = QStringFromStd(jsn.dump());
                         } else {
                             auto jsn = request_receive<JsonStore>(
-                                *sys, actor, json_store::get_json_atom_v, StdFromQString(path));
+                                *sys, actor, json_store::get_json_atom_v, path_string);
 
                             result = QStringFromStd(jsn.dump());
                         }

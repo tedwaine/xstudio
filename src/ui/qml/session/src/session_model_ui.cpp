@@ -721,6 +721,7 @@ void SessionModel::receivedData(
                 nlohmann::json &j = indexToData(index);
 
                 switch (role) {
+
                 default:
                     if (role_to_key.count(role)) {
                         if (j.count(role_to_key[role]) and j.at(role_to_key[role]) != result) {
@@ -729,6 +730,20 @@ void SessionModel::receivedData(
                         } else if (not j.count(role_to_key[role])) {
                             j[role_to_key[role]] = result;
                             emit dataChanged(index, index, roles);
+                        }
+                    }
+                    break;
+
+                case Roles::actorRole:
+                    if (role_to_key.count(role)) {
+                        if (j.count(role_to_key[role]) and j.at(role_to_key[role]) != result) {
+                            j[role_to_key[role]] = result;
+                            emit dataChanged(index, index, roles);
+                            add_lookup(*indexToTree(index), index);
+                        } else if (not j.count(role_to_key[role])) {
+                            j[role_to_key[role]] = result;
+                            emit dataChanged(index, index, roles);
+                            add_lookup(*indexToTree(index), index);
                         }
                     }
                     break;
@@ -847,6 +862,7 @@ void SessionModel::receivedData(
                         // rebuild json
                         auto jsn =
                             timelineItemToJson(timeline_lookup_.at(owner), system(), true);
+
                         // spdlog::info("construct timeline object {}", jsn.dump(2));
                         // root is myself
                         auto node     = indexToTree(index);
@@ -866,7 +882,10 @@ void SessionModel::receivedData(
                         j["transparent"]     = jsn["transparent"];
                         j["active_range"]    = jsn["active_range"];
                         j["available_range"] = jsn["available_range"];
+
                         emit dataChanged(index, index, QVector<int>());
+                        // make sure timeline id's are cached!
+                        add_lookup(*indexToTree(index), index);
                     }
                     break;
 

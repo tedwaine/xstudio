@@ -5,7 +5,9 @@
 
 #include <Iex.h>
 #include <IexErrnoExc.h>
+#ifdef __linux__
 #include <IlmThreadMutex.h>
+#endif
 #include <Imath/ImathBox.h>
 #include <ImfInputFile.h>
 #include <ImfInputPart.h>
@@ -641,29 +643,39 @@ xstudio::media::MediaDetail OpenEXRMediaReader::detail(const caf::uri &uri) cons
         // apply its global frame rate
         frd.set_rate(fr == 0.0 ? utility::FrameRate() : utility::FrameRate(1.0 / fr));
 
-        std::vector<std::string> stream_ids;
-        std::vector<Imath::V2i> resolutions;
-        std::vector<float> pixel_aspects;
-        std::vector<int> part_number;
+        struct PartDetail {
+            std::vector<std::string> stream_ids;
+            Imath::V2i resolution;
+            float pixel_aspect;
+            int part_number;
+        };
+
+        std::vector<PartDetail> parts_detail;
+
         for (int prt = 0; prt < parts; ++prt) {
             // skip incomplete parts - maybe better error/handling messaging required?
             if (!input.partComplete(prt))
                 continue;
+
             const Imf::Header &part_header = input.header(prt);
-            stream_ids_from_exr_part(part_header, stream_ids);
-            resolutions.emplace_back(
+
+            PartDetail pd;
+            stream_ids_from_exr_part(part_header, pd.stream_ids);
+            pd.resolution = {
                 part_header.displayWindow().max.x - part_header.displayWindow().min.x,
-                part_header.displayWindow().max.y - part_header.displayWindow().min.y);
-            pixel_aspects.emplace_back(part_header.pixelAspectRatio());
-            part_number.emplace_back(prt);
+                part_header.displayWindow().max.y - part_header.displayWindow().min.y};
+            pd.pixel_aspect = part_header.pixelAspectRatio();
+            pd.part_number  = prt;
+            parts_detail.push_back(pd);
         }
 
-        int ct = 0;
-        for (const auto &stream_id : stream_ids) {
-            streams.emplace_back(media::StreamDetail(frd, stream_id));
-            streams.back().resolution_   = resolutions[ct];
-            streams.back().pixel_aspect_ = pixel_aspects[ct];
-            streams.back().index_        = part_number[ct++];
+        for (const auto &part : parts_detail) {
+            for (const auto &stream_id : part.stream_ids) {
+                streams.emplace_back(media::StreamDetail(frd, stream_id));
+                streams.back().resolution_   = part.resolution;
+                streams.back().pixel_aspect_ = part.pixel_aspect;
+                streams.back().index_        = part.part_number;
+            }
         }
 
     } catch (const std::exception &e) {

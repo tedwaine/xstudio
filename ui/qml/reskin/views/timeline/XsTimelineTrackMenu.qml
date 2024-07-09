@@ -32,7 +32,7 @@ XsPopupMenu {
     }
 
     XsMenuModelItem {
-        text: "Selection Up"
+        text: "Move Up"
         menuPath: "Select"
         menuItemPosition: 1
         menuModelName: timelineMenu.menu_model_name
@@ -42,7 +42,7 @@ XsPopupMenu {
     }
 
     XsMenuModelItem {
-        text: "Selection Down"
+        text: "Move Down"
         menuPath: "Select"
         menuItemPosition: 2
         menuModelName: timelineMenu.menu_model_name
@@ -50,6 +50,67 @@ XsPopupMenu {
         panelContext: timelineMenu.panelContext
         onActivated: updateItemSelectionVertical(-1, 1)
     }
+
+    XsMenuModelItem {
+        text: "Expand Up"
+        menuPath: "Select"
+        menuItemPosition: 3
+        menuModelName: timelineMenu.menu_model_name
+        hotkeyUuid: theTimeline.expand_up_hotkey.uuid
+        panelContext: timelineMenu.panelContext
+        onActivated: updateItemSelectionVertical(1, 0)
+    }
+
+    XsMenuModelItem {
+        text: "Expand Down"
+        menuPath: "Select"
+        menuItemPosition: 4
+        menuModelName: timelineMenu.menu_model_name
+        hotkeyUuid: theTimeline.expand_down_hotkey.uuid
+        panelContext: timelineMenu.panelContext
+        onActivated: updateItemSelectionVertical(0, 1)
+    }
+
+    XsMenuModelItem {
+        text: "Contract Up"
+        menuPath: "Select"
+        menuItemPosition: 5
+        menuModelName: timelineMenu.menu_model_name
+        hotkeyUuid: theTimeline.contract_up_hotkey.uuid
+        panelContext: timelineMenu.panelContext
+        onActivated: updateItemSelectionVertical(-1, 0)
+    }
+
+    XsMenuModelItem {
+        text: "Contract Down"
+        menuPath: "Select"
+        menuItemPosition: 6
+        menuModelName: timelineMenu.menu_model_name
+        hotkeyUuid: theTimeline.contract_down_hotkey.uuid
+        panelContext: timelineMenu.panelContext
+        onActivated: updateItemSelectionVertical(0, -1)
+    }
+
+    XsMenuModelItem {
+        text: "Expand Up And Down"
+        menuPath: "Select"
+        menuItemPosition: 7
+        menuModelName: timelineMenu.menu_model_name
+        hotkeyUuid: theTimeline.expand_up_down_hotkey.uuid
+        panelContext: timelineMenu.panelContext
+        onActivated: updateItemSelectionVertical(1, 1)
+    }
+
+    XsMenuModelItem {
+        text: "Contract Up And Down"
+        menuPath: "Select"
+        menuItemPosition: 8
+        menuModelName: timelineMenu.menu_model_name
+        hotkeyUuid: theTimeline.contract_up_down_hotkey.uuid
+        panelContext: timelineMenu.panelContext
+        onActivated: updateItemSelectionVertical(-1, -1)
+    }
+
 
 
     function updateFlags() {
@@ -93,12 +154,7 @@ XsPopupMenu {
         menuPath: ""
         menuItemPosition: 4
         menuModelName: timelineMenu.menu_model_name
-        onActivated: {
-            let indexes = timelineSelection.selectedIndexes
-            for(let i=0;i<indexes.length; i++) {
-                theSessionData.duplicateRows(indexes[i].row, 1, indexes[i].parent)
-            }
-        }
+        onActivated: theTimeline.duplicateTracks(timelineSelection.selectedIndexes)
         panelContext: timelineMenu.panelContext
     }
 
@@ -119,15 +175,9 @@ XsPopupMenu {
         menuPath: ""
         menuItemPosition: 8
         menuModelName: timelineMenu.menu_model_name
-        onActivated: {
-            let index = timelineSelection.selectedIndexes[0]
-            let type = index.model.get(index,"typeRole")
-            theTimeline.addItem(type, index.parent, index.row + (type == "Audio Track"?1:0), type)
-        }
+        onActivated: theTimeline.insertTrackAbove(timelineSelection.selectedIndexes)
         panelContext: timelineMenu.panelContext
     }
-
-
 
     XsMenuModelItem {
         menuItemType: "divider"

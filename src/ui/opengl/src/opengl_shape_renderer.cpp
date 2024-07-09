@@ -14,6 +14,8 @@ const char *vertex_shader = R"(
     in vec4 vertices;
     out vec2 coords;
 
+    uniform float scale_ar;
+
     const vec2 positions[4] = {
         vec2(-1, -1),
         vec2( 1, -1),
@@ -23,60 +25,84 @@ const char *vertex_shader = R"(
 
     void main() {
         gl_Position = vec4(positions[gl_VertexID].xy, 0.0, 1.0);
-        coords = vec2(gl_Position.x, -gl_Position.y);
+        coords = vec2(gl_Position.x, -gl_Position.y / scale_ar);
     }
 )";
 
 const char *frag_shader = R"(
     #version 430
+    #extension GL_ARB_shader_storage_buffer_object : require
 
-    // TODO: Turn these shapes uniform arrays into proper buffer
-    // to have more flexibility in terms of maximum number available.
+    // We use SSBO to avoid thinking about size limits,
+    // in theory UBO would be much faster and might be used if
+    // we determine we won't need more than the allowed size.
+    // For our currrent usage here, we do not compute masked
+    // shape in real time, only when the canvas gets updated
+    // by the user, so no performance review was done in that
+    // sense.
+
+    // Note that std430 is used here for easier match to C++
+    // memory layout, note the following points:
+    //   1. std430 doesn't pack vec3 so we use vec4 instead
+    //      to avoid dealing with padding in the C++ side
+    //      (eg. for color fields).
+    //   2. vec4 are aligned on 16 bytes, so we place them
+    //      at the begining of the structs to avoid having
+    //      to deal with alignment on the C++ side.
+    // See the OpenGL specs for more details on std430
 
     struct Quad {
+        vec4 color;
         vec2 tl;
         vec2 tr;
         vec2 br;
         vec2 bl;
-        vec3 color;
         float opacity;
         float softness;
         float invert;
     };
+    layout (std430, binding = 1) buffer QuadsBuffer {
+        Quad items[];
+    } quads;
 
     struct Ellipse {
+        vec4 color;
         vec2 center;
         vec2 radius;
         float angle;
-        vec3 color;
         float opacity;
         float softness;
         float invert;
     };
+    layout (std430, binding = 2) buffer EllipsesBuffer {
+        Ellipse items[];
+    } ellipses;
 
-    const int MAX_POINTS_PER_POLYGON = 32;
     struct Polygon {
-        vec2 points[MAX_POINTS_PER_POLYGON];
-        int count;
-        vec3 color;
+        vec4 color;
+        uint offset;
+        uint count;
         float opacity;
         float softness;
         float invert;
     };
+    layout (std430, binding = 3) buffer PolygonsBuffer {
+        Polygon items[];
+    } polygons;
 
-    const int MAX_QUADS = 16;
+    layout (std430, binding = 4) buffer PointsBuffer {
+        vec2 items[];
+    } points;
+
+    // Note that we could in theory use the .length() function
+    // on the variable sized arrays, however it seem to have
+    // issues working reliably when multiple SSBO are present.
+    // So we use explicit size forr the time being.
     uniform int quads_count;
-    uniform Quad quads[MAX_QUADS];
-
-    const int MAX_ELLIPSES = 16;
     uniform int ellipses_count;
-    uniform Ellipse ellipses[MAX_ELLIPSES];
-
-    const int MAX_POLYGONS = 16;
     uniform int polygons_count;
-    uniform Polygon polygons[MAX_POLYGONS];
 
-    uniform float image_aspectratio;
+    uniform float canvas_aspectratio;
 
     in vec2 coords;
     out vec4 color;
@@ -113,17 +139,21 @@ const char *frag_shader = R"(
     }
 
     // https://iquilezles.org/articles/distfunctions2d/
-    float sdPolygon(vec2 p, vec2[MAX_POINTS_PER_POLYGON] v, uint count)
+    float sdPolygon(vec2 p, uint offset, uint count)
     {
-        float d = dot(p-v[0],p-v[0]);
+        vec2 v0 = points.items[offset];
+        float d = dot(p-v0,p-v0);
         float s = 1.0;
         for( uint i=0, j=count-1; i<count; j=i, i++ )
         {
-            vec2 e = v[j] - v[i];
-            vec2 w =    p - v[i];
+            vec2 vi = points.items[offset+i];
+            vec2 vj = points.items[offset+j];
+
+            vec2 e = vj - vi;
+            vec2 w =  p - vi;
             vec2 b = w - e*clamp( dot(w,e)/dot(e,e), 0.0, 1.0 );
             d = min( d, dot(b,b) );
-            bvec3 c = bvec3(p.y>=v[i].y,p.y<v[j].y,e.x*w.y>e.y*w.x);
+            bvec3 c = bvec3(p.y>=vi.y,p.y<vj.y,e.x*w.y>e.y*w.x);
             if( all(c) || all(not(c)) ) s*=-1.0;
         }
         return s*sqrt(d);
@@ -165,11 +195,11 @@ const char *frag_shader = R"(
 
         mat2 scale_fwd = mat2(
             1.0f, 0.0,
-            0.0, image_aspectratio
+            0.0, canvas_aspectratio
         );
         mat2 scale_inv = mat2(
             1.0f, 0.0,
-            0.0, 1.0f / image_aspectratio
+            0.0, 1.0f / canvas_aspectratio
         );
         mat2 rotation_mat = mat2(
             cos(rad),-sin(rad),
@@ -182,38 +212,189 @@ const char *frag_shader = R"(
     {
         vec4 accum_color = vec4(0.0f);
 
-        // Interactive shapes from QML
-
         for (int i = 0; i < quads_count; ++i) {
-            Quad q = quads[i];
-            float softness = q.softness;
+            Quad q = quads.items[i];
             float d = sdQuad(coords, q.bl, q.tl, q.tr, q.br) * q.invert;
-            float d_smooth = opRound(d, softness);
-            vec4 color = mix(vec4(0.0f), vec4(q.color, 1.0f), q.opacity);
+            float d_smooth = opRound(d, q.softness);
+            vec4 color = mix(vec4(0.0f), q.color, q.opacity);
             accum_color = max(accum_color, mix(color, vec4(0.0f), smoothstep(0.0f, d - d_smooth, d)));
         }
 
         for (int i = 0; i < ellipses_count; ++i) {
-            Ellipse e = ellipses[i];
-            float softness = e.softness;
+            Ellipse e = ellipses.items[i];
             float d = sdEllipse4(opRotate(coords - e.center, e.angle), e.radius) * e.invert;
-            float d_smooth = opRound(d, softness);
-            vec4 color = mix(vec4(0.0f), vec4(e.color, 1.0f), e.opacity);
+            float d_smooth = opRound(d, e.softness);
+            vec4 color = mix(vec4(0.0f), e.color, e.opacity);
             accum_color = max(accum_color, mix(color, vec4(0.0f), smoothstep(0.0f, d - d_smooth, d)));
         }
 
         for (int i = 0; i < polygons_count; ++i) {
-            Polygon p = polygons[i];
-            float softness = p.softness;
-            float d = sdPolygon(coords, p.points, p.count) * p.invert;
-            float d_smooth = opRound(d, softness);
-            vec4 color = mix(vec4(0.0f), vec4(p.color, 1.0f), p.opacity);
+            Polygon p = polygons.items[i];
+            float d = sdPolygon(coords, p.offset, p.count) * p.invert;
+            float d_smooth = opRound(d, p.softness);
+            vec4 color = mix(vec4(0.0f), p.color, p.opacity);
             accum_color = max(accum_color, mix(color, vec4(0.0f), smoothstep(0.0f, d - d_smooth, d)));
         }
 
         color = accum_color;
     }
 )";
+
+// These struct must match the GLSL buffer layout, see shader for more details.
+// We avoid the need to manually specify each member alignment (with alignas())
+// by using the adjustments mentioned in the shader.
+// However, we need to align the whole structures to vec4 (16 bytes), quote from
+// the spec (https://registry.khronos.org/OpenGL/specs/gl/glspec45.core.pdf#page=160):
+//
+//   If the member is a structure, the base alignment of the structure is N, where
+//   N is the largest base alignment value of any of its members, and rounded
+//   up to the base alignment of a vec4.
+
+struct alignas(16) GLQuad {
+    float colour[4];
+    float tl[2];
+    float tr[2];
+    float br[2];
+    float bl[2];
+    float opacity;
+    float softness;
+    float invert;
+};
+
+struct alignas(16) GLEllipse {
+    float colour[4];
+    float center[2];
+    float radius[2];
+    float angle;
+    float opacity;
+    float softness;
+    float invert;
+};
+
+struct alignas(16) GLPolygon {
+    float colour[4];
+    uint32_t offset;
+    uint32_t count;
+    float opacity;
+    float softness;
+    float invert;
+};
+
+struct GLPoint {
+    float pt[2];
+};
+
+
+// Use to debug memory layout issues
+void dump_mem_layout(GLuint prog_obj) {
+    // C++
+
+    std::cout << "sizeof GLQuad = " << sizeof(GLQuad) << "\n";
+    std::cout << "offset of GLQuad.colour = " << offsetof(GLQuad, colour) << '\n'
+              << "offset of GLQuad.tl = " << offsetof(GLQuad, tl) << '\n'
+              << "offset of GLQuad.tr = " << offsetof(GLQuad, tr) << '\n'
+              << "offset of GLQuad.br = " << offsetof(GLQuad, br) << '\n'
+              << "offset of GLQuad.bl = " << offsetof(GLQuad, bl) << '\n'
+              << "offset of GLQuad.opacity = " << offsetof(GLQuad, opacity) << '\n'
+              << "offset of GLQuad.softness = " << offsetof(GLQuad, softness) << '\n'
+              << "offset of GLQuad.invert = " << offsetof(GLQuad, invert) << '\n';
+
+    std::cout << "sizeof GLEllipse = " << sizeof(GLEllipse) << "\n";
+    std::cout << "offset of GLEllipse.colour = " << offsetof(GLEllipse, colour) << '\n'
+              << "offset of GLEllipse.center = " << offsetof(GLEllipse, center) << '\n'
+              << "offset of GLEllipse.radius = " << offsetof(GLEllipse, radius) << '\n'
+              << "offset of GLEllipse.angle = " << offsetof(GLEllipse, angle) << '\n'
+              << "offset of GLEllipse.opacity = " << offsetof(GLEllipse, opacity) << '\n'
+              << "offset of GLEllipse.softness = " << offsetof(GLEllipse, softness) << '\n'
+              << "offset of GLEllipse.invert = " << offsetof(GLEllipse, invert) << '\n';
+
+    std::cout << "sizeof GLPolygon = " << sizeof(GLPolygon) << "\n";
+    std::cout << "offset of GLPolygon.colour = " << offsetof(GLPolygon, colour) << '\n'
+              << "offset of GLPolygon.offset = " << offsetof(GLPolygon, offset) << '\n'
+              << "offset of GLPolygon.count = " << offsetof(GLPolygon, count) << '\n'
+              << "offset of GLPolygon.opacity = " << offsetof(GLPolygon, opacity) << '\n'
+              << "offset of GLPolygon.softness = " << offsetof(GLPolygon, softness) << '\n'
+              << "offset of GLPolygon.invert = " << offsetof(GLPolygon, invert) << '\n';
+
+    // GLSL
+    // https://stackoverflow.com/a/56513136
+
+    GLint no_of, ssbo_max_len, var_max_len;
+    glGetProgramInterfaceiv(prog_obj, GL_SHADER_STORAGE_BLOCK, GL_ACTIVE_RESOURCES, &no_of);
+    glGetProgramInterfaceiv(
+        prog_obj, GL_SHADER_STORAGE_BLOCK, GL_MAX_NAME_LENGTH, &ssbo_max_len);
+    glGetProgramInterfaceiv(prog_obj, GL_BUFFER_VARIABLE, GL_MAX_NAME_LENGTH, &var_max_len);
+
+    std::vector<GLchar> name(var_max_len);
+    for (int i_resource = 0; i_resource < no_of; i_resource++) {
+
+        // get name of the shader storage block
+        GLsizei strLength;
+        glGetProgramResourceName(
+            prog_obj,
+            GL_SHADER_STORAGE_BLOCK,
+            i_resource,
+            ssbo_max_len,
+            &strLength,
+            name.data());
+
+        // get resource index of the shader storage block
+        GLint resInx =
+            glGetProgramResourceIndex(prog_obj, GL_SHADER_STORAGE_BLOCK, name.data());
+
+        // get number of the buffer variables in the shader storage block
+        GLenum prop = GL_NUM_ACTIVE_VARIABLES;
+        GLint num_var;
+        glGetProgramResourceiv(
+            prog_obj, GL_SHADER_STORAGE_BLOCK, resInx, 1, &prop, 1, nullptr, &num_var);
+
+        // get resource indices of the buffer variables
+        std::vector<GLint> vars(num_var);
+        prop = GL_ACTIVE_VARIABLES;
+        glGetProgramResourceiv(
+            prog_obj,
+            GL_SHADER_STORAGE_BLOCK,
+            resInx,
+            1,
+            &prop,
+            (GLsizei)vars.size(),
+            nullptr,
+            vars.data());
+
+        std::vector<GLint> offsets(num_var);
+        std::vector<std::string> var_names(num_var);
+        for (GLint i = 0; i < num_var; i++) {
+
+            // get offset of buffer variable relative to SSBO
+            GLenum prop = GL_OFFSET;
+            glGetProgramResourceiv(
+                prog_obj,
+                GL_BUFFER_VARIABLE,
+                vars[i],
+                1,
+                &prop,
+                (GLsizei)offsets.size(),
+                nullptr,
+                &offsets[i]);
+
+            // get name of buffer variable
+            std::vector<GLchar> var_name(var_max_len);
+            GLsizei strLength;
+            glGetProgramResourceName(
+                prog_obj,
+                GL_BUFFER_VARIABLE,
+                vars[i],
+                var_max_len,
+                &strLength,
+                var_name.data());
+            var_names[i] = var_name.data();
+        }
+
+        for (int i = 0; i < offsets.size(); ++i) {
+            std::cout << var_names[i] << " offset is " << offsets[i] << "\n";
+        }
+    }
+}
 
 } // anonymous namespace
 
@@ -225,9 +406,44 @@ void OpenGLShapeRenderer::init_gl() {
     if (!shader_) {
         shader_ = std::make_unique<ui::opengl::GLShaderProgram>(vertex_shader, frag_shader);
     }
+
+    if (ssbo_id_ == std::array<GLuint, 4>{0, 0, 0, 0}) {
+        glCreateBuffers(4, ssbo_id_.data());
+    }
 }
 
-void OpenGLShapeRenderer::cleanup_gl() {}
+void OpenGLShapeRenderer::cleanup_gl() {
+
+    if (ssbo_id_ != std::array<GLuint, 4>{0, 0, 0, 0}) {
+        glDeleteBuffers(4, ssbo_id_.data());
+        ssbo_id_ = {0, 0, 0, 0};
+    }
+}
+
+void OpenGLShapeRenderer::upload_ssbo(
+    const std::vector<GLQuad> &quads,
+    const std::vector<GLEllipse> &ellipses,
+    const std::vector<GLPolygon> &polygons,
+    const std::vector<GLPoint> &points) {
+
+    std::array<GLuint, 4> size = {
+        static_cast<GLuint>(quads.size() * sizeof(GLQuad)),
+        static_cast<GLuint>(ellipses.size() * sizeof(GLEllipse)),
+        static_cast<GLuint>(polygons.size() * sizeof(GLPolygon)),
+        static_cast<GLuint>(points.size() * sizeof(GLPoint))};
+
+    std::array<const void *, 4> data = {
+        quads.data(), ellipses.data(), polygons.data(), points.data()};
+
+    for (int i = 0; i < 4; ++i) {
+        glNamedBufferData(ssbo_id_[i], size[i], nullptr, GL_DYNAMIC_DRAW);
+        if (size[i] > 0) {
+            void *buf = glMapNamedBuffer(ssbo_id_[i], GL_WRITE_ONLY);
+            memcpy(buf, data[i], size[i]);
+            glUnmapNamedBuffer(ssbo_id_[i]);
+        }
+    }
+}
 
 void OpenGLShapeRenderer::render_shapes(
     const std::vector<Quad> &quads,
@@ -235,49 +451,70 @@ void OpenGLShapeRenderer::render_shapes(
     const std::vector<Ellipse> &ellipses,
     const Imath::M44f &transform_window_to_viewport_space,
     const Imath::M44f &transform_viewport_to_image_space,
-    float viewport_du_dx) {
+    float viewport_du_dx,
+    float image_aspectratio) {
 
     if (!shader_)
         init_gl();
 
     utility::JsonStore shader_params;
 
-    shader_params["image_aspectratio"] = transform_window_to_viewport_space[1][1];
+    shader_params["scale_ar"] = image_aspectratio / transform_window_to_viewport_space[1][1];
+    shader_params["canvas_aspectratio"] = transform_window_to_viewport_space[1][1];
+    shader_params["quads_count"]        = quads.size();
+    shader_params["ellipses_count"]     = ellipses.size();
+    shader_params["polygons_count"]     = polygons.size();
 
+    std::vector<GLQuad> gl_quads;
     for (int i = 0; i < quads.size(); ++i) {
-        shader_params[fmt::format("quads[{}].tl", i)]       = quads[i].tl;
-        shader_params[fmt::format("quads[{}].tr", i)]       = quads[i].tr;
-        shader_params[fmt::format("quads[{}].br", i)]       = quads[i].br;
-        shader_params[fmt::format("quads[{}].bl", i)]       = quads[i].bl;
-        shader_params[fmt::format("quads[{}].color", i)]    = quads[i].colour;
-        shader_params[fmt::format("quads[{}].softness", i)] = quads[i].softness / 500.0f;
-        shader_params[fmt::format("quads[{}].opacity", i)]  = quads[i].opacity / 100.0f;
-        shader_params[fmt::format("quads[{}].invert", i)]   = quads[i].invert ? -1.f : 1.f;
+        gl_quads.push_back({
+            {quads[i].colour.r, quads[i].colour.g, quads[i].colour.b, 1.0f},
+            {quads[i].tl.x, quads[i].tl.y},
+            {quads[i].tr.x, quads[i].tr.y},
+            {quads[i].br.x, quads[i].br.y},
+            {quads[i].bl.x, quads[i].bl.y},
+            quads[i].opacity / 100.0f,
+            quads[i].softness / 500.0f,
+            quads[i].invert ? -1.f : 1.f,
+        });
     }
-    shader_params["quads_count"] = quads.size();
 
-    for (int i = 0; i < polygons.size(); ++i) {
-        for (int j = 0; j < polygons[i].points.size(); ++j) {
-            shader_params[fmt::format("polygons[{}].points[{}]", i, j)] = polygons[i].points[j];
-        }
-        shader_params[fmt::format("polygons[{}].count", i)]    = polygons[i].points.size();
-        shader_params[fmt::format("polygons[{}].color", i)]    = polygons[i].colour;
-        shader_params[fmt::format("polygons[{}].softness", i)] = polygons[i].softness / 500.0f;
-        shader_params[fmt::format("polygons[{}].opacity", i)]  = polygons[i].opacity / 100.0f;
-        shader_params[fmt::format("polygons[{}].invert", i)] = polygons[i].invert ? -1.f : 1.f;
-    }
-    shader_params["polygons_count"] = polygons.size();
-
+    std::vector<GLEllipse> gl_ellipses;
     for (int i = 0; i < ellipses.size(); ++i) {
-        shader_params[fmt::format("ellipses[{}].center", i)]   = ellipses[i].center;
-        shader_params[fmt::format("ellipses[{}].radius", i)]   = ellipses[i].radius;
-        shader_params[fmt::format("ellipses[{}].angle", i)]    = ellipses[i].angle;
-        shader_params[fmt::format("ellipses[{}].color", i)]    = ellipses[i].colour;
-        shader_params[fmt::format("ellipses[{}].softness", i)] = ellipses[i].softness / 500.0f;
-        shader_params[fmt::format("ellipses[{}].opacity", i)]  = ellipses[i].opacity / 100.0f;
-        shader_params[fmt::format("ellipses[{}].invert", i)] = ellipses[i].invert ? -1.f : 1.f;
+        gl_ellipses.push_back({
+            {ellipses[i].colour.r, ellipses[i].colour.g, ellipses[i].colour.b, 1.0f},
+            {ellipses[i].center.x, ellipses[i].center.y},
+            {ellipses[i].radius.x, ellipses[i].radius.y},
+            ellipses[i].angle,
+            ellipses[i].opacity / 100.0f,
+            ellipses[i].softness / 500.0f,
+            ellipses[i].invert ? -1.f : 1.f,
+        });
     }
-    shader_params["ellipses_count"] = ellipses.size();
+
+    std::vector<GLPolygon> gl_polygons;
+    std::vector<GLPoint> gl_points;
+    for (int i = 0; i < polygons.size(); ++i) {
+        gl_polygons.push_back({
+            {polygons[i].colour.r, polygons[i].colour.g, polygons[i].colour.b, 1.0f},
+            (unsigned int)gl_points.size(),
+            (unsigned int)polygons[i].points.size(),
+            polygons[i].opacity / 100.0f,
+            polygons[i].softness / 500.0f,
+            polygons[i].invert ? -1.f : 1.f,
+        });
+        for (int j = 0; j < polygons[i].points.size(); ++j) {
+            gl_points.push_back({{polygons[i].points[j].x, polygons[i].points[j].y}});
+        }
+    }
+
+    upload_ssbo(gl_quads, gl_ellipses, gl_polygons, gl_points);
+
+    for (int i = 0; i < 4; ++i) {
+        glBindBuffer(GL_SHADER_STORAGE_BUFFER, ssbo_id_[i]);
+        glBindBufferBase(GL_SHADER_STORAGE_BUFFER, i + 1, ssbo_id_[i]);
+        glBindBuffer(GL_SHADER_STORAGE_BUFFER, 0);
+    }
 
     shader_->use();
     shader_->set_shader_parameters(shader_params);

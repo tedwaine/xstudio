@@ -10,13 +10,16 @@ Rectangle { id: widget
     property color flatColor: XsStyleSheet.panelBgFlatColor
     property color topColor: XsStyleSheet.panelBgGradTopColor
     property color bottomColor: XsStyleSheet.panelBgGradBottomColor
+    property alias orientation: grad.orientation
+    property bool flatTheme: isFlatTheme
 
     property real topPosition: 0.0
     property real bottomPosition: 1.0
 
     gradient: Gradient {
-        GradientStop { position: topPosition; color: isFlatTheme ? flatColor : topColor }
-        GradientStop { position: bottomPosition; color: isFlatTheme ? flatColor : bottomColor } 
+    	id: grad
+        GradientStop { position: topPosition; color: flatTheme ? flatColor : topColor }
+        GradientStop { position: bottomPosition; color: flatTheme ? flatColor : bottomColor }
     }
 
 }

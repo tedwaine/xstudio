@@ -24,10 +24,7 @@ Item{
     property bool isPanelEnabled: true
     property var dataModel: results
 
-    property real panelPadding: XsStyleSheet.panelPadding
     property color panelColor: XsStyleSheet.panelBgColor
-
-    property real buttonHeight: XsStyleSheet.widgetStdHeight
 
     property var activeScopeIndex: ShotBrowserEngine.presetsModel.index(-1,-1)
     property var activeTypeIndex: ShotBrowserEngine.presetsModel.index(-1,-1)
@@ -300,23 +297,33 @@ Item{
 
     ColumnLayout{
         anchors.fill: parent
-        spacing: 0
+        anchors.margins: 4
+        spacing: 4
+        // clip: true
 
-        NotesHistoryTitleDiv{id: titleDiv
-            titleButtonHeight: (buttonHeight + 4)
+        NotesHistoryTitleDiv{
+            titleButtonHeight: (XsStyleSheet.widgetStdHeight + 4)
             Layout.fillWidth: true
-            Layout.preferredHeight: titleButtonHeight*2 + (panelPadding*2) + titleButtonSpacing
+            Layout.minimumHeight: titleButtonHeight*2
+            Layout.maximumHeight: titleButtonHeight*2
         }
 
-        NotesHistoryListDiv{ id: contentDiv
+        Rectangle{
+            color: panelColor
             Layout.fillWidth: true
             Layout.fillHeight: true
+
+            NotesHistoryListDiv{
+                anchors.fill: parent
+                anchors.margins: 4
+            }
         }
 
-        NotesHistoryActionDiv{id: buttonsDiv
+        NotesHistoryActionDiv{
             Layout.fillWidth: true
-            Layout.preferredHeight: buttonHeight + (panelPadding*2)
+            Layout.maximumHeight: XsStyleSheet.widgetStdHeight
+            // nasty hack because QML crashes, if I try and do it properly.
+            parentWidth: parent.width - 4
         }
-
     }
 }

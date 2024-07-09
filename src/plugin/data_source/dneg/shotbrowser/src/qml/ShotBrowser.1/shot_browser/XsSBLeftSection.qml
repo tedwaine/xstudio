@@ -20,12 +20,15 @@ Item{
 
         XsSBL1Tools{
             Layout.fillWidth: true
-            Layout.preferredHeight: btnHeight
+            Layout.minimumHeight: btnHeight
+            Layout.maximumHeight: btnHeight
         }
+
         XsSBL2Views{ id: viewDiv
             Layout.fillWidth: true
             Layout.fillHeight: true
         }
+
         XsSBL3Actions{
             visible: currentCategory=="Tree"
             Layout.fillWidth: true

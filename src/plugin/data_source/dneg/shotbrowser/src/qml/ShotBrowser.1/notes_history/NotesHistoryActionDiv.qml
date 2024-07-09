@@ -16,36 +16,30 @@ import Qt.labs.qmlmodels 1.0
 import xstudio.qml.helpers 1.0
 
 
-Item{id: buttonsDiv
+RowLayout{
+    spacing: 2
+    property int parentWidth: width
+    readonly property int cellWidth: parentWidth / children.length
 
-    property real actionButtonHeight: XsStyleSheet.widgetStdHeight
+    XsPrimaryButton{
+        text: "Add"
+        clip:true
+        Layout.fillHeight: true
+        Layout.preferredWidth: cellWidth
+        onClicked: ShotBrowserHelpers.addToCurrent(resultsSelectionModel.selectedIndexes)
+    }
 
-    // enabled: isPanelEnabled
+    XsPrimaryButton{
+        text: "Replace"
+        Layout.fillHeight: true
+        Layout.preferredWidth: cellWidth
+        onClicked: ShotBrowserHelpers.replaceSelectedResults(resultsSelectionModel.selectedIndexes)
+    }
 
-    RowLayout{ id: row
-        x: panelPadding
-        width: parent.width - (panelPadding*2)
-        height: actionButtonHeight
-        anchors.centerIn: parent
-        spacing: 1
-
-        XsPrimaryButton{
-            text: "Add"
-            Layout.preferredWidth: parent.width / parent.children.length
-            Layout.preferredHeight: parent.height
-            onClicked: ShotBrowserHelpers.addToCurrent(resultsSelectionModel.selectedIndexes)
-        }
-        XsPrimaryButton{
-            text: "Replace"
-            Layout.preferredWidth: parent.width / parent.children.length
-            Layout.preferredHeight: parent.height
-            onClicked: ShotBrowserHelpers.replaceSelectedResults(resultsSelectionModel.selectedIndexes)
-        }
-        XsPrimaryButton{
-            text: "Compare"
-            Layout.preferredWidth: parent.width / parent.children.length
-            Layout.preferredHeight: parent.height
-            onClicked: ShotBrowserHelpers.compareSelectedResults(resultsSelectionModel.selectedIndexes)
-        }
+    XsPrimaryButton{
+        text: "Compare"
+        Layout.fillHeight: true
+        Layout.preferredWidth: cellWidth
+        onClicked: ShotBrowserHelpers.compareSelectedResults(resultsSelectionModel.selectedIndexes)
     }
 }

@@ -17,6 +17,7 @@
 
 	    <file>windows/XsPopoutViewerWindow.qml</file>
 	    <file>windows/XsSessionWindow.qml</file>
+	    <file>windows/XsFloatingViewWindow.qml</file>
 	    <file>windows/drag_drop/XsGlobalDragDropHandler.qml</file>
 	    <file>windows/main_menu_bar/XsMainMenuBar.qml</file>
 	    <file>windows/main_menu_bar/file_menu/XsFileMenu.qml</file>
@@ -24,6 +25,7 @@
 	    <file>windows/main_menu_bar/file_menu/XsFileFunctions.qml</file>
 	    <file>windows/quickview/XsQuickViewLauncher.qml</file>
 	    <file>windows/quickview/XsQuickViewWindow.qml</file>
+	    <file>windows/runtime/XsRuntimeQMLItems.qml</file>
 
 	    <file>layout_framework/XsDragDropHandler.qml</file>
 	    <file>layout_framework/XsLayoutModeBar.qml</file>
@@ -70,7 +72,6 @@
 	    <file>views/timeline/delegates/XsDelegateGap.qml</file>
 	    <file>views/timeline/delegates/XsDelegateStack.qml</file>
 	    <file>views/timeline/delegates/XsDelegateVideoTrack.qml</file>
-	    <file>views/timeline/delegates/XsTimelineEditToolItems.qml</file>
 	    <file>views/timeline/widgets/XsClipItem.qml</file>
 	    <file>views/timeline/widgets/XsDragBoth.qml</file>
 	    <file>views/timeline/widgets/XsDragLeft.qml</file>
@@ -85,7 +86,6 @@
 	    <file>views/timeline/XsTimeline.qml</file>
 	    <file>views/timeline/XsTimelineClipMenu.qml</file>
 	    <file>views/timeline/XsMarkerMenu.qml</file>
-	    <file>views/timeline/XsTimelineEditTools.qml</file>
 	    <file>views/timeline/XsTimelineMenu.qml</file>
 	    <file>views/timeline/XsTimelinePanel.qml</file>
 	    <file>views/timeline/XsTimelineTrackMenu.qml</file>
@@ -232,10 +232,6 @@
 	<qresource prefix="/">
 	    <file>helpers/XsDialogHelpers.qml</file>
 	    <file>helpers/XsTimer.qml</file>
-        <file>extern/QuickPromise/promise.js</file>
-        <file>extern/QuickPromise/Promise.qml</file>
-        <file>extern/QuickPromise/PromiseTimer.qml</file>
-        <file>extern/QuickPromise/qmldir</file>
 	</qresource>
 
 	<qresource prefix="/feather_icons">
@@ -247,6 +243,8 @@
 
 	<qresource prefix="/icons">
 		<file alias="ad_group.svg">assets/icons/new/ad_group.svg</file>
+		<file alias="library_add.svg">assets/icons/new/library_add.svg</file>
+		<file alias="splitscreen_add.svg">assets/icons/new/splitscreen_add.svg</file>
 		<file alias="add.svg">assets/icons/new/add.svg</file>
 		<file alias="arrow_drop_down.svg">assets/icons/new/arrow_drop_down.svg</file>
 		<file alias="arrow_range.svg">assets/icons/new/arrow_range.svg</file>
@@ -262,6 +260,7 @@
 		<file alias="chevron_right.svg">assets/icons/new/chevron_right.svg</file>
 		<file alias="close.svg">assets/icons/new/close.svg</file>
 		<file alias="content_cut.svg">assets/icons/new/content_cut.svg</file>
+		<file alias="content_copy.svg">assets/icons/new/content_copy.svg</file>
 		<file alias="content_paste.svg">assets/icons/new/content_paste.svg</file>
 		<file alias="crop_free.svg">assets/icons/new/crop_free.svg</file>
 		<file alias="delete.svg">assets/icons/new/delete.svg</file>
@@ -316,6 +315,7 @@
 		<file alias="reset_image.svg">assets/icons/new/reset_image.svg</file>
 		<file alias="reset_tv.svg">assets/icons/new/reset_tv.svg</file>
 		<file alias="restart.svg">assets/icons/new/restart.svg</file>
+		<file alias="rotate-ccw.svg">assets/icons/new/rotate-ccw.svg</file>
 		<file alias="search.svg">assets/icons/new/search.svg</file>
 		<file alias="search_off.svg">assets/icons/new/search_off.svg</file>
 		<file alias="select.svg">assets/icons/new/select.svg</file>

@@ -7,7 +7,7 @@ Item {
     id: control
 
     property real thickness: 2
-    property color color: playheadActive ? palette.highlight : Qt.darker(palette.highlight, 1.8)
+    property color color: playheadActive ? palette.highlight : Qt.darker(palette.base, 1.8)
 
     property int position: start
     property int start: 0

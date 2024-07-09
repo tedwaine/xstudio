@@ -13,6 +13,7 @@ import xstudio.qml.helpers 1.0
 import xstudio.qml.viewport 1.0
 
 import "./quickview/"
+import "./runtime/"
 
 ApplicationWindow {
 
@@ -313,6 +314,7 @@ ApplicationWindow {
     property alias currentPlayhead: sessionData.current_playhead
     property alias callbackTimer: sessionData.callbackTimer
     property alias viewsModel: sessionData.viewsModel
+    property alias popoutWindowsModel: sessionData.popoutWindowsModel
     property alias sessionProperties: sessionData.sessionProperties
     property alias embeddedPython: sessionData.embeddedPython
     property alias bookmarkModel: sessionData.bookmarkModel
@@ -416,6 +418,8 @@ ApplicationWindow {
         viewsModel.register_view("qrc:/views/python/XsPythonPanel.qml", "Python")
         viewsModel.register_view("qrc:/views/log/XsLogPanel.qml", "Log")
 
+        popoutWindowsModel.register_popout_window("Notes", "qrc:/views/notes/XsNotesView.qml", "qrc:/icons/sticky_note.svg", 1.0)
+
         singletonsModel.register_singleton_qml("qrc:/views/notes/XsNotesSingleton.qml")
 
     }
@@ -450,6 +454,45 @@ ApplicationWindow {
             }
         }
     }
+
+    /*****************************************************************
+     *
+     * Floating Panel Window Management (e.g. notes, grading tools
+     * that are activated via buttons in top left shelf on viewport)
+     *
+     ****************************************************************/
+
+    XsPreference {
+        path: "/ui/qml/floating_panel_window_positions"
+        id: __floating_window_positions
+    }
+    property alias floating_window_positions: __floating_window_positions.value
+
+    Repeater {
+        model: popoutWindowsModel
+        Item { 
+            property var isActive: window_is_visible
+            onIsActiveChanged: {
+                if (isActive) {
+                    popout_loader.sourceComponent = popout
+                    popout_loader.item.visible = true
+                } else {
+                    popout_loader.sourceComponent = undefined
+                }
+            }
+            
+            Component {
+                id: popout
+                XsFloatingViewWindow {
+                }
+            }
+
+            Loader {
+                id: popout_loader
+            }
+        }
+    }
+
     /*****************************************************************
      *
      * 'Pop-out' viewer management
@@ -531,6 +574,8 @@ ApplicationWindow {
             }
         }
     }
+    // For dynamic loading of QML by plugins
+    XsRuntimeQMLItems {
+    }
 
 }
-

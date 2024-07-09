@@ -6,7 +6,6 @@
 #include "xstudio/ui/mouse.hpp"
 
 #include "xstudio/ui/qml/module_ui.hpp"          //NOLINT
-#include "xstudio/ui/qml/module_menu_ui.hpp"     //NOLINT
 #include "xstudio/ui/qml/embedded_python_ui.hpp" //NOLINT
 #include "xstudio/ui/qml/helper_ui.hpp"          //NOLINT
 #include "xstudio/ui/qml/bookmark_ui.hpp"        //NOLINT

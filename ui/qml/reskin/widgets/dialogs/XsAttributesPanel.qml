@@ -53,7 +53,7 @@ XsWindow {
                     width: label_metrics.width
                     Layout.alignment: Qt.AlignRight
 
-                    Text {
+                    XsText {
                         id: thetext
                         anchors.fill: parent
                         text: title ? title : ""

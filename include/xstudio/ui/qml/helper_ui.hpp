@@ -14,6 +14,9 @@
 #include "xstudio/utility/json_store.hpp"
 #include "xstudio/utility/uuid.hpp"
 
+// include CMake auto-generated export hpp
+#include "xstudio/ui/qml/helper_qml_export.h"
+
 CAF_PUSH_WARNINGS
 #include <QCursor>
 #include <QDesktopServices>
@@ -58,7 +61,7 @@ namespace ui {
         }
 
 
-        class TimeCode : public QObject {
+        class HELPER_QML_EXPORT TimeCode : public QObject {
             Q_OBJECT
 
             Q_PROPERTY(unsigned int hours READ hours WRITE setHours NOTIFY timeCodeChanged)
@@ -159,7 +162,7 @@ namespace ui {
             utility::Timecode timecode_;
         };
 
-        class ModelRowCount : public QObject {
+        class HELPER_QML_EXPORT ModelRowCount : public QObject {
             Q_OBJECT
 
             Q_PROPERTY(QModelIndex index READ index WRITE setIndex NOTIFY indexChanged)
@@ -194,7 +197,7 @@ namespace ui {
             int count_{0};
         };
 
-        class ModelProperty : public QObject {
+        class HELPER_QML_EXPORT ModelProperty : public QObject {
             Q_OBJECT
 
             Q_PROPERTY(QVariant value READ value WRITE setValue NOTIFY valueChanged)
@@ -238,7 +241,7 @@ namespace ui {
             QVariant value_;
         };
 
-        class ModelPropertyTree : public JSONTreeModel {
+        class HELPER_QML_EXPORT ModelPropertyTree : public JSONTreeModel {
             Q_OBJECT
 
             Q_PROPERTY(QModelIndex index READ index WRITE setIndex NOTIFY indexChanged)
@@ -277,7 +280,7 @@ namespace ui {
         };
 
 
-        class ModelPropertyMap : public QObject {
+        class HELPER_QML_EXPORT ModelPropertyMap : public QObject {
             Q_OBJECT
 
             Q_PROPERTY(QQmlPropertyMap *values READ values NOTIFY valuesChanged)
@@ -313,7 +316,7 @@ namespace ui {
             QQmlPropertyMap *values_{nullptr};
         };
 
-        class PreferencePropertyMap : public ModelPropertyMap {
+        class HELPER_QML_EXPORT PreferencePropertyMap : public ModelPropertyMap {
             Q_OBJECT
 
             Q_PROPERTY(QVariant value READ value WRITE setMyValue NOTIFY myValueChanged)
@@ -353,7 +356,7 @@ namespace ui {
             void emitChange(const QString &key);
         };
 
-        class ModelNestedPropertyMap : public ModelPropertyMap {
+        class HELPER_QML_EXPORT ModelNestedPropertyMap : public ModelPropertyMap {
             Q_OBJECT
 
           public:
@@ -369,7 +372,7 @@ namespace ui {
             QString default_role_ = {"defaultValueRole"};
         };
 
-        class CafSystemObject : public QObject {
+        class HELPER_QML_EXPORT CafSystemObject : public QObject {
 
             Q_OBJECT
 
@@ -459,7 +462,7 @@ namespace ui {
             return jsn;
         }
 
-        class Helpers : public QObject {
+        class HELPER_QML_EXPORT Helpers : public QObject {
             Q_OBJECT
 
           public:
@@ -671,7 +674,7 @@ namespace ui {
             QQmlEngine *engine_;
         };
 
-        class KeyEventsItem : public QQuickItem {
+        class HELPER_QML_EXPORT KeyEventsItem : public QQuickItem {
             Q_OBJECT
 
             Q_PROPERTY(QString context READ context WRITE setContext NOTIFY contextChanged)
@@ -701,7 +704,7 @@ namespace ui {
         };
 
 
-        class QMLUuid : public QObject {
+        class HELPER_QML_EXPORT QMLUuid : public QObject {
             Q_OBJECT
             Q_PROPERTY(QString asString READ asString WRITE setFromString NOTIFY changed)
             Q_PROPERTY(QUuid asQuuid READ asQuuid WRITE setFromQuuid NOTIFY changed)
@@ -743,7 +746,7 @@ namespace ui {
             utility::Uuid uuid_;
         };
 
-        class SemVer : public QObject {
+        class HELPER_QML_EXPORT SemVer : public QObject {
             Q_OBJECT
             Q_PROPERTY(QString version READ version WRITE setVersion NOTIFY versionChanged)
             Q_PROPERTY(uint major READ major WRITE setMajor NOTIFY versionChanged)
@@ -789,7 +792,7 @@ namespace ui {
             semver::version version_;
         };
 
-        class ClipboardProxy : public QObject {
+        class HELPER_QML_EXPORT ClipboardProxy : public QObject {
             Q_OBJECT
             Q_PROPERTY(QString text READ dataText WRITE setDataText NOTIFY dataChanged)
             Q_PROPERTY(QString selectionText READ selectionText WRITE setSelectionText NOTIFY
@@ -812,7 +815,7 @@ namespace ui {
             void selectionChanged();
         };
 
-        class Plugin : public QObject {
+        class HELPER_QML_EXPORT Plugin : public QObject {
             Q_OBJECT
             Q_PROPERTY(QString qmlName READ qmlName NOTIFY qmlNameChanged)
             Q_PROPERTY(
@@ -889,7 +892,7 @@ namespace ui {
             caf::actor_id backend_id_;
         };
 
-        class ImagePainter : public QQuickPaintedItem {
+        class HELPER_QML_EXPORT ImagePainter : public QQuickPaintedItem {
 
             Q_OBJECT
 
@@ -924,7 +927,7 @@ namespace ui {
         };
 
 
-        class MarkerModel : public JSONTreeModel {
+        class HELPER_QML_EXPORT MarkerModel : public JSONTreeModel {
             Q_OBJECT
 
             Q_PROPERTY(QVariant markerData READ markerData WRITE setMarkerData NOTIFY

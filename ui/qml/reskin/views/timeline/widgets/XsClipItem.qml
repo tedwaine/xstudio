@@ -8,7 +8,6 @@ import xStudioReskin 1.0
 XsGradientRectangle {
 	id: control
 
-	// clip:true
 	property bool isHovered: false
 	property bool isEnabled: true
 	property bool isLocked: false
@@ -17,19 +16,26 @@ XsGradientRectangle {
 	property bool showRolling: false
 	property bool isBroken: false
 
-	// property int parentStart: 0
+	property bool dragLeft: false
+	property bool dragRight: false
+	property bool dragLeftLeft: false
+	property bool dragRightRight: false
+	property bool dragMiddle: false
+
 	property int start: 0
 	property int duration: 0
 	property int availableStart: 0
 	property int availableDuration: 1
-	// property real fps: 24.0
 	property string name
 	property color primaryColor: defaultClip
 	property var realColor: Qt.tint(timelineBackground, helpers.saturate(helpers.alphate(primaryColor, 0.3), 0.3))
     property bool isMoving: false
     property bool isCopying: false
     property color mediaFlagColour: "transparent"
-    // readonly property bool extraDetail: isHovered && height > 60
+
+	signal draggingStarted(mode: string)
+	signal dragging(mode: string, x: real)
+	signal draggingStopped(mode: string)
 
     opacity: isHovered ? 1.0 : isEnabled ? (isLocked ? 0.6 : 1.0) : 0.3
 
@@ -41,129 +47,220 @@ XsGradientRectangle {
     topColor: isSelected ? Qt.darker(palette.highlight, 2) : realColor
     bottomColor: isSelected ? Qt.darker(palette.highlight, 2) :  Qt.darker(realColor,1.2)
 
-	// XsTickWidget {
-	// 	anchors.left: parent.left
-	// 	anchors.right: parent.right
-	// 	anchors.top: parent.top
-	// 	height: Math.min(parent.height/5, 20)
-	// 	start: control.start
-	// 	duration: control.duration
-	// 	fps: control.fps
-	// 	endTicks: false
-	// }
-
-	// Rectangle {
-	// 	color: "transparent"
-	// 	z:5
-	// 	anchors.fill: parent
-	// 	border.width: 1
-	// 	border.color: isMoving || isCopying ? "red" : isHovered ? palette.highlight : Qt.lighter(
-	// 		Qt.tint(timelineBackground, helpers.saturate(helpers.alphate(mainColor, 0.4), 0.4)),
-	// 		1.2)
-	// }
-
-	Rectangle {
+	XsGradientRectangle {
 		anchors.left: parent.left
-		anchors.leftMargin: 1.5
+		anchors.leftMargin: 1
+		anchors.topMargin: 1
+		anchors.bottomMargin: 1
 		anchors.top: parent.top
 		anchors.bottom: parent.bottom
-		width: 1.5
-		color: mediaFlagColour
-		// z: 6
+		width: 10
+		orientation: Gradient.Horizontal
+		topColor: mediaFlagColour
+		bottomColor: control.bottomColor
+		flatTheme: false
+		visible: mediaFlagColour != "transparent" && mediaFlagColour != "#00000000"
+		opacity: dragMiddle ? 0.2 : 0.6
 	}
 
 	XsElideLabel {
 		anchors.fill: parent
-		anchors.leftMargin: 5
+		anchors.leftMargin: 11
 		anchors.rightMargin: 5
 		anchors.bottomMargin: 5
 		elide: Qt.ElideMiddle
 		text: name
-		opacity: 0.8
 		// font.pixelSize: 14
 		z:1
-		clip: true
+		// clip: true
 	    horizontalAlignment: isRolling ? Text.AlignHCenter : Text.AlignLeft
 	    verticalAlignment: isRolling ? Text.AlignVCenter : Text.AlignBottom
+		opacity: dragMiddle ? 0.2 : 0.8
 	}
 
-	// Label {
-	// 	anchors.verticalCenter: parent.verticalCenter
-	// 	text: parentStart
-	// 	anchors.left: parent.left
-	// 	anchors.leftMargin: 10
-	// 	visible: isHovered
-	// 	z:2
-	// }
+	readonly property int dragWidth: 6
 
-	// Label {
-	// 	anchors.verticalCenter: parent.verticalCenter
-	// 	text: parentStart + duration -1
-	// 	anchors.right: parent.right
-	// 	anchors.rightMargin: 10
-	// 	visible: isHovered
-	// 	z:2
-	// }
+	Rectangle {
+		radius: 2
+		visible: dragMiddle
+		anchors.top: parent.top
+		anchors.bottom: parent.bottom
+		anchors.topMargin: 2
+		anchors.bottomMargin: 2
+		anchors.horizontalCenter: parent.horizontalCenter
+		width: dragWidth * 2
+		color: palette.highlight
+		opacity: hoverMiddleHandler.hovered ? 1.0 : 0.5
 
-	// Label {
-	// 	text: duration
-	// 	anchors.top: parent.top
-	// 	anchors.horizontalCenter: parent.horizontalCenter
-	// 	anchors.topMargin: 5
-	// 	visible: extraDetail
-	// 	z:2
-	// }
-	// Label {
-	// 	anchors.left: parent.left
-	// 	anchors.leftMargin: 10
-	// 	anchors.topMargin: 5
-	// 	text: start
-	// 	visible: extraDetail
-	// 	z:2
-	// }
-	// Label {
-	// 	anchors.top: parent.top
-	// 	anchors.right: parent.right
-	// 	anchors.rightMargin: 10
-	// 	anchors.topMargin: 5
-	// 	text: start + duration - 1
-	// 	visible: extraDetail
-	// 	z:2
-	// }
+        HoverHandler {
+        	id: hoverMiddleHandler
+            cursorShape: Qt.PointingHandCursor
+        }
 
-	// Label {
-	// 	text: availableDuration
-	// 	anchors.horizontalCenter: parent.horizontalCenter
-	// 	anchors.bottom: parent.bottom
-	// 	anchors.bottomMargin: 5
-	// 	visible: extraDetail
-	// 	opacity: 0.5
-	// 	z:2
-	// }
-	// Label {
-	// 	anchors.bottom: parent.bottom
-	// 	anchors.left: parent.left
-	// 	anchors.leftMargin: 10
-	// 	anchors.bottomMargin: 5
-	// 	text: availableStart
-	// 	visible: extraDetail
-	// 	opacity: 0.5
-	// 	z:2
-	// }
-	// Label {
-	// 	anchors.bottom: parent.bottom
-	// 	anchors.right: parent.right
-	// 	anchors.rightMargin: 10
-	// 	anchors.bottomMargin: 5
-	// 	opacity: 0.5
-	// 	text: availableStart + availableDuration - 1
-	// 	visible: extraDetail
-	// 	z:2
-	// }
+        DragHandler {
+            cursorShape: Qt.PointingHandCursor
+            yAxis.enabled: false
+
+            dragThreshold: 1
+            onTranslationChanged: dragging("middle", translation.x)
+            onActiveChanged: {
+            	if(active) {
+            		draggingStarted("middle")
+            		parent.anchors.horizontalCenter = undefined
+            	} else {
+            		draggingStopped("middle")
+	            	parent.anchors.horizontalCenter = parent.parent.horizontalCenter
+	            }
+            }
+        }
+	}
+
+	Rectangle {
+		radius: 2
+		visible: dragLeft
+		anchors.top: parent.top
+		anchors.bottom: parent.bottom
+		anchors.left: parent.left
+		anchors.topMargin: 6
+		anchors.bottomMargin: 6
+		anchors.leftMargin: dragWidth * 2
+		width: dragWidth
+		color: palette.highlight
+		opacity: hoveredLeftHandler.hovered ? 1.0 : 0.5
+
+        HoverHandler {
+        	id: hoveredLeftHandler
+            cursorShape: Qt.PointingHandCursor
+        }
+
+        // modifies the activeStart / activeDuration frame, bounded by duration>0 and availableStartFrame
+        // also bounded by precedding item being a gap.
+
+        DragHandler {
+            cursorShape: Qt.PointingHandCursor
+            yAxis.enabled: false
+            dragThreshold: 1
+            onTranslationChanged: dragging("left", translation.x)
+            xAxis.minimum: 0
+            onActiveChanged: {
+            	if(active) {
+            		draggingStarted("left")
+            		parent.anchors.left = undefined
+            	} else {
+            		draggingStopped("left")
+	            	parent.anchors.left = parent.parent.left
+	            }
+            }
+        }
+	}
+
+	Rectangle {
+		radius: 2
+		visible: dragRight
+		anchors.top: parent.top
+		anchors.bottom: parent.bottom
+		anchors.right: parent.right
+		anchors.topMargin: 6
+		anchors.bottomMargin: 6
+		anchors.rightMargin: dragWidth * 2
+		width: dragWidth
+		color: palette.highlight
+		opacity: hoveredRightHandler.hovered ? 1.0 : 0.5
+
+        HoverHandler {
+        	id: hoveredRightHandler
+            cursorShape: Qt.PointingHandCursor
+        }
+
+        DragHandler {
+            cursorShape: Qt.PointingHandCursor
+            yAxis.enabled: false
+            dragThreshold: 1
+            onTranslationChanged: dragging("right", translation.x)
+            onActiveChanged: {
+            	if(active) {
+            		draggingStarted("right")
+            		parent.anchors.right = undefined
+            	} else {
+            		draggingStopped("right")
+	            	parent.anchors.right = parent.parent.right
+	            }
+            }
+        }
+   	}
+
+	Rectangle {
+		radius: 2
+		visible: dragLeftLeft
+		anchors.top: parent.top
+		anchors.bottom: parent.bottom
+		anchors.left: parent.left
+		anchors.topMargin: 2
+		anchors.bottomMargin: 2
+		width: dragWidth
+		color: palette.highlight
+		opacity: dragLeftLeftHandler.hovered ? 1.0 : 0.5
+
+        HoverHandler {
+        	id: dragLeftLeftHandler
+            cursorShape: Qt.PointingHandCursor
+        }
+
+        DragHandler {
+            cursorShape: Qt.PointingHandCursor
+            yAxis.enabled: false
+            dragThreshold: 1
+            xAxis.minimum: 0
+            onTranslationChanged: dragging("leftleft", translation.x)
+            onActiveChanged: {
+            	if(active) {
+            		draggingStarted("leftleft")
+            		parent.anchors.left = undefined
+            	} else {
+            		draggingStopped("leftleft")
+	            	parent.anchors.left = parent.parent.left
+	            }
+            }
+        }
+	}
+
+	Rectangle {
+		radius: 2
+		visible: dragRightRight
+		anchors.top: parent.top
+		anchors.bottom: parent.bottom
+		anchors.right: parent.right
+		anchors.topMargin: 2
+		anchors.bottomMargin: 2
+		width: dragWidth
+		color: palette.highlight
+		opacity: dragRightRightHandler.hovered ? 1.0 : 0.5
+
+        HoverHandler {
+        	id: dragRightRightHandler
+            cursorShape: Qt.PointingHandCursor
+        }
+        DragHandler {
+            cursorShape: Qt.PointingHandCursor
+            yAxis.enabled: false
+            dragThreshold: 1
+            onTranslationChanged: dragging("rightright", translation.x)
+            onActiveChanged: {
+            	if(active) {
+            		draggingStarted("rightright")
+            		parent.anchors.right = undefined
+            	} else {
+            		draggingStopped("rightright")
+	            	parent.anchors.right = parent.parent.right
+	            }
+            }
+        }
+	}
 
 
 	// position of clip in media
 	Rectangle {
+		radius: 2
 
 		visible: showRolling
 
@@ -177,7 +274,6 @@ XsGradientRectangle {
 		color: palette.highlight
 
 		width: ((parent.width / availableDuration) * duration)
-		clip: true
 	}
 
 	// position of clip in media
@@ -196,7 +292,6 @@ XsGradientRectangle {
 		opacity: 0.1
 
 		width: (parent.width / availableDuration) * (start - availableStart)
-		clip: true
 	}
 
 	Rectangle {
@@ -211,8 +306,6 @@ XsGradientRectangle {
 
 		color: "black"
 		opacity: 0.1
-		// color: Qt.darker( control.color, 1.2)
-		clip: true
 		width: parent.width - ((parent.width / availableDuration) * duration) - ((parent.width / availableDuration) * (start - availableStart))
 	}
 }
