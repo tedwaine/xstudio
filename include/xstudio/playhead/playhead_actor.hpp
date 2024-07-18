@@ -127,6 +127,8 @@ namespace playhead {
         std::map<utility::Uuid, int> switch_key_playhead_hotkeys_;
         utility::Uuid move_selection_up_hotkey_;
         utility::Uuid move_selection_down_hotkey_;
+        utility::Uuid jump_to_previous_note_hotkey_;
+        utility::Uuid jump_to_next_note_hotkey_;
 
         // std::map<utility::Uuid, timebase::flicks> media_frame_per_media_uuid_;
         std::vector<std::tuple<utility::Uuid, std::string, int, int>> bookmark_frames_ranges_;

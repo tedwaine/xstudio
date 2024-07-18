@@ -48,7 +48,7 @@ Rectangle{
 
                 TextArea{ id: notesEdit // XsTextEdit{ id: notesEdit
                     // anchors.margins: itemSpacing*2
-                    anchors.fill: parent
+                    // anchors.fill: parent
                     enabled: false
                     readOnly: true
                     clip: true

@@ -602,6 +602,19 @@ Rectangle {
         theSessionData.set(index, name, "nameRole")
     }
 
+    function splitClips(indexes, frame=timelinePlayhead.logicalFrame) {
+        if(!indexes.length) {
+            let cind = theSessionData.getTimelineClipIndex(timeline_items.rootIndex, timelinePlayhead.logicalFrame)
+            if(cind.valid)
+                indexes = [cind]
+        }
+
+        for(let i=0; i < indexes.length; i++) {
+            if(theSessionData.get(indexes[i], "typeRole") == "Clip" && !theSessionData.get(indexes[i], "lockedRole") && !theSessionData.get(indexes[i].parent, "lockedRole"))
+                splitClip(indexes[i], theSessionData.get(indexes[i], "trimmedStartRole") + frame - theSessionData.get(indexes[i], "parentStartRole"))
+        }
+    }
+
     function splitClip(index, frame) {
         return theSessionData.splitTimelineClip(frame, index)
     }
@@ -812,27 +825,11 @@ Rectangle {
     }
 
     function anteceedingIndex(item_index) {
-        let result = item_index.model.index(-1,-1,item_index.parent)
-        let mi_row = item_index.row
-        let count = item_index.model.rowCount(item_index.parent)
-
-        if(count != 1 && mi_row + 1 < count) {
-            result = item_index.model.index(mi_row + 1, 0, item_index.parent)
-        }
-
-        return result;
+        return item_index.model.index(item_index.row + 1, 0, item_index.parent)
     }
 
     function preceedingIndex(item_index) {
-        let result = item_index.model.index(-1,-1,item_index.parent)
-        let mi_row = item_index.row
-        let count = item_index.model.rowCount(item_index.parent)
-
-        if(count != 1 && mi_row) {
-            result = item_index.model.index(mi_row - 1, 0, item_index.parent)
-        }
-
-        return result;
+        return item_index.model.index(item_index.row - 1, 0, item_index.parent)
     }
 
 
@@ -1269,10 +1266,8 @@ Rectangle {
             propagateComposedEvents: true
             // preventStealing: true
 
-            property bool isResizing: false
             property bool isScaling: false
             property bool isScrolling: false
-            property bool isRolling: false
             property bool isRegionSelection: false
 
             property var initialPosition: Qt.point(0,0)
@@ -1359,31 +1354,10 @@ Rectangle {
                         isScrolling = scrollingModeActive
                         initialValue = list_view.itemAtIndex(0).currentPosition()
                         initialPosition = Qt.point(mouse.x, mouse.y)
-                    } else if(editMode == "Select" && mouse.x > trackHeaderWidth) {
+                    } else if(mouse.x > trackHeaderWidth) {
                         region.setClick(mouse)
                         isRegionSelection = true
-                    } else if(editMode == "Roll") {
-                        // highlight hovered clip..
-                        let [item, item_type, local_x, local_y] = resolveItem(mouse.x, mouse.y)
-
-                        if(item_type == "Clip") {
-                            if(hovered != item) {
-                                hovered = item
-                            }
-                            selectItem()
-                            if(!item.isLocked && !item.isParentLocked) {
-                                item.isRolling = true
-                                isRolling = true
-                                modifyItem = item
-                                modifyItemStartX = mouse.x
-                                modifyItem.adjustStart = 0
-                                modifyItem.isAdjustingStart = true
-                            }
-                        } else {
-                            timelineSelection.clear()
-                        }
-                    }
-                    else {
+                    } else {
                         adjustSelection(mouse)
                     }
                 }
@@ -1412,20 +1386,7 @@ Rectangle {
                     }
                 }
 
-
-                if(isRolling) {
-                    isRolling = false
-                    let src_model = modifyItem.modelIndex().model
-                    src_model.set(modifyItem.modelIndex(), modifyItem.startFrame, "activeStartRole")
-                    modifyItem.isAdjustingStart = false
-                    modifyItem.isRolling = false
-                    modifyItem = null
-
-                } else if(isResizing) {
-
-                } else {
-                    moveDragHandler.enabled = false
-                }
+                moveDragHandler.enabled = false
             }
 
             onPositionChanged: {
@@ -1447,34 +1408,22 @@ Rectangle {
                         initialValue = rnp
                         initialPosition = Qt.point(mouse.x, mouse.y)
                     }
-                } else if(isRolling) {
-                    let frame_change = -((modifyItemStartX - mouse.x) / scaleX)
-                    modifyItem.updateStart(modifyItemStartX, mouse.x)
-                } else if(isResizing) {
-
                 } else {
-                    if(editMode == "Select"){
-                        if(isRegionSelection) {
-                            region.update(mouse)
-                            updateRegionTimer.region = region
-                            if(!updateRegionTimer.running)
-                                updateRegionTimer.start()
+                    if(isRegionSelection) {
+                        region.update(mouse)
+                        updateRegionTimer.region = region
+                        if(!updateRegionTimer.running)
+                            updateRegionTimer.start()
+                    } else {
+                        if(editMode == "Move" || editMode == "Roll") {
+                            showHandles(mouse.x, mouse.y)
                         } else {
                             let [item, item_type, local_x, local_y] = resolveItem(mouse.x, mouse.y)
 
                             if(hovered != item)
                                 hovered = item
                         }
-                    } else if(editMode == "Roll") {
-                        // highlight hovered clip..
-                        let [item, item_type, local_x, local_y] = resolveItem(mouse.x, mouse.y)
-
-                        if(hovered != item) {
-                            hovered = item
-                        }
                     }
-                    else
-                        showHandles(mouse.x, mouse.y)
                 }
             }
 
@@ -1512,6 +1461,14 @@ Rectangle {
                 let [item, item_type, local_x, local_y] = resolveItem(mousex, mousey)
 
                 if(hovered != item) {
+                    if(hovered && hovered.itemTypeRole == "Clip") {
+                        hovered.showRolling = false
+                        hovered.showDragLeft = false
+                        hovered.showDragRight = false
+                        hovered.showDragMiddle = false
+                        hovered.showDragLeftLeft = false
+                        hovered.showDragRightRight = false
+                    }
                     hovered = item
                 }
 
@@ -1520,35 +1477,39 @@ Rectangle {
                         return
 
                     if("Clip" == item_type) {
+                        if(editMode == "Roll") {
+                            item.showRolling = true
+                        } else {
+                            let preceeding_type = "Track"
+                            let anteceeding_type = "Track"
 
-                        let preceeding_type = "Track"
-                        let anteceeding_type = "Track"
+                            let mi = item.modelIndex()
 
-                        let mi = item.modelIndex()
+                            let ante_index = anteceedingIndex(mi)
+                            let pre_index = preceedingIndex(mi)
 
-                        let ante_index = anteceedingIndex(mi)
-                        let pre_index = preceedingIndex(mi)
+                            if(ante_index.valid)
+                                anteceeding_type = ante_index.model.get(ante_index, "typeRole")
 
-                        if(ante_index.valid)
-                            anteceeding_type = ante_index.model.get(ante_index, "typeRole")
+                            if(pre_index.valid)
+                                preceeding_type = pre_index.model.get(pre_index, "typeRole")
 
-                        if(pre_index.valid)
-                            preceeding_type = pre_index.model.get(pre_index, "typeRole")
+                            item.showDragLeft = true
+                            item.showDragRight = true
+                            item.showDragMiddle = true
 
-                        item.dragLeft = true
-                        item.dragRight = true
-                        item.dragMiddle = true
-
-                        if(preceeding_type == "Clip")
-                            item.dragLeftLeft = true
-                        if(anteceeding_type == "Clip")
-                            item.dragRightRight = true
+                            if(preceeding_type == "Clip")
+                                item.showDragLeftLeft = true
+                            if(anteceeding_type == "Clip")
+                                item.showDragRightRight = true
+                        }
                     }
                 }
             }
 
             function draggingStarted(item, mode ) {
-                ma.isResizing = true
+                ma.modifyPreceedingItem = null
+                ma.modifyPreceedingItem = null
 
                 if(mode == "left")
                     ma.beginDragLeft(item)
@@ -1560,7 +1521,8 @@ Rectangle {
                     ma.beginDragBothRight(item)
                 else if(mode == "middle")
                     ma.beginMove(item)
-
+                else if(mode == "roll")
+                    ma.beginRoll(item)
             }
 
             function dragging(item, mode, x) {
@@ -1574,6 +1536,8 @@ Rectangle {
                     ma.updateDragBothRight(item, x)
                 else if(mode == "middle")
                     ma.updateMove(item, x)
+                else if(mode == "roll")
+                    ma.updateRoll(item, x)
             }
 
             function draggingStopped(item, mode) {
@@ -1587,6 +1551,8 @@ Rectangle {
                     ma.endDragBothRight(item)
                 else if(mode == "middle")
                     ma.endMove(item)
+                else if(mode == "roll")
+                    ma.endRoll(item)
 
                 if(ma.modifyPreceedingItem) {
                     ma.modifyPreceedingItem.isAdjustingStart = false
@@ -1598,10 +1564,8 @@ Rectangle {
                     ma.modifyAnteceedingItem.isAdjustingDuration = false
                 }
 
-                // modifyItem = null
                 ma.modifyAnteceedingItem = null
                 ma.modifyPreceedingItem = null
-                ma.isResizing = false
             }
 
             function beginMove(item) {
@@ -1640,8 +1604,8 @@ Rectangle {
 
                 if(modifyAnteceedingItem)
                     frame_change = -modifyAnteceedingItem.checkAdjust(-frame_change, false)
-                // else
-                //     frame_change = Math.max(0, frame_change)
+                else
+                    frame_change = Math.min(0, frame_change)
 
                 if(modifyPreceedingItem)
                     modifyPreceedingItem.adjust(frame_change)
@@ -1652,6 +1616,9 @@ Rectangle {
                     modifyAnteceedingItem.adjust(-frame_change)
                 else if(item.isAdjustAnteceeding)
                     item.adjustAnteceedingGap = -frame_change
+
+                // fake value to just update hint.
+                item.adjustDuration = frame_change
             }
 
             function endMove(item) {
@@ -1703,6 +1670,21 @@ Rectangle {
                 item.isAdjustAnteceeding = false
             }
 
+            function beginRoll(item) {
+                item.adjustStart = 0
+                item.isAdjustingStart = true
+            }
+
+            function updateRoll(item, frame_change) {
+                item.updateStart(frame_change)
+            }
+
+            function endRoll(item) {
+                let src_model = item.modelIndex().model
+                src_model.set(item.modelIndex(), item.startFrame, "activeStartRole")
+                item.isAdjustingStart = false
+            }
+
             function beginDragLeft(item) {
                 item.adjustDuration = 0
                 item.adjustStart = 0
@@ -1730,6 +1712,7 @@ Rectangle {
                     frame_change = modifyPreceedingItem.checkAdjust(frame_change, false)
                     modifyPreceedingItem.adjust(frame_change)
                 } else {
+                    frame_change = Math.max(0, frame_change)
                     item.adjustPreceedingGap = frame_change
                 }
 
@@ -1815,10 +1798,13 @@ Rectangle {
 
             function updateDragRight(item, frame_change) {
                 frame_change = item.checkAdjust(frame_change, true)
+
+                // this must be a gap.
                 if(modifyAnteceedingItem) {
                     frame_change = -modifyAnteceedingItem.checkAdjust(-frame_change, false)
                     modifyAnteceedingItem.adjust(-frame_change)
                 } else {
+                    frame_change = Math.min(0, frame_change)
                     item.adjustAnteceedingGap = -frame_change
                 }
 
@@ -1835,7 +1821,6 @@ Rectangle {
                 if(modifyAnteceedingItem) {
                     if(modifyAnteceedingItem.durationFrame == 0) {
                         theSessionData.removeTimelineItems([modifyAnteceedingItem.modelIndex()])
-                        modifyAnteceedingItem = null
                     } else {
                         src_model.set(modifyAnteceedingItem.modelIndex(), modifyAnteceedingItem.durationFrame, "activeDurationRole")
                         src_model.set(modifyAnteceedingItem.modelIndex(), modifyAnteceedingItem.durationFrame, "availableDurationRole")
@@ -2029,12 +2014,17 @@ Rectangle {
 
 				// root playlist:
                 var trackIdx = addTrack("Video Track")[0]
-                console.log("trackIdx", trackIdx)
-				for (var c = 0; c < data.length; ++c) {
-					var mediaName = theSessionData.get(data[c], "pathRole")
-					theSessionData.insertTimelineClip(c, trackIdx, data[c], mediaName)
-				}
+                let new_indexes = theSessionData.moveRows(
+                    data,
+                    -1, // insertion row: make invalid so always inserts on the end
+                    timeline_items.rootIndex.parent,
+                    true
+                )
 
+				for (var c = 0; c < new_indexes.length; ++c) {
+                    // must add to container..
+					theSessionData.insertTimelineClip(c, trackIdx, new_indexes[c], "")
+				}
 			}
 
         }

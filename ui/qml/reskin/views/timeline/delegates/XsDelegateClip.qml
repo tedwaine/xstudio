@@ -24,16 +24,15 @@ DelegateChoice {
 			width: (durationFrame + adjustPreceedingGap + adjustAnteceedingGap) * config.scaleX
 			height: config.scaleY * config.itemHeight
 
-			property bool dragLeft: false
-			property bool dragRight: false
-			property bool dragMiddle: false
-			property bool dragLeftLeft: false
-			property bool dragRightRight: false
+			property bool showDragLeft: false
+			property bool showDragRight: false
+			property bool showDragMiddle: false
+			property bool showDragLeftLeft: false
+			property bool showDragRightRight: false
+			property bool showRolling: false
 
     		property bool isAdjustPreceeding: false
     		property bool isAdjustAnteceeding: false
-
-    		property bool isRolling: false
 
     		property int adjustPreceedingGap: 0
     		property int adjustAnteceedingGap: 0
@@ -162,15 +161,12 @@ DelegateChoice {
 			}
 
 
-	        function updateStart(startX, x) {
-	        	let tmp = - (startX - x) * ((availableDurationRole - activeDurationRole) / width)
+	        function updateStart(change) {
         		adjustStart = Math.floor(Math.min(
-        			Math.max(trimmedStartRole + tmp, availableStartRole),
+        			Math.max(trimmedStartRole + change, availableStartRole),
         			availableStartRole + availableDurationRole - trimmedDurationRole
         		) - trimmedStartRole)
 	        }
-
-
 
     		XsGapItem {
     			visible: adjustPreceedingGap != 0
@@ -190,16 +186,15 @@ DelegateChoice {
 				start: startFrame
 				duration: durationFrame
 				isLocked: (isParentLocked || lockedRole)
-				isRolling: control.isRolling
-				showRolling: (isHovered && editMode == "Roll" && !lockedRole)
 				isEnabled: isParentEnabled && enabledRole
 				isBroken: !hasMedia || (mediaStatus.value != undefined && mediaStatus.value != "Online") || !activeRangeValidRole
 
-				dragLeft: isHovered && control.dragLeft && !isParentLocked && !lockedRole
-				dragRight: isHovered && control.dragRight && !isParentLocked && !lockedRole
-				dragMiddle: isHovered && control.dragMiddle && !isParentLocked && !lockedRole
-				dragLeftLeft: isHovered && control.dragLeftLeft && !isParentLocked && !lockedRole
-				dragRightRight: isHovered && control.dragRightRight && !isParentLocked && !lockedRole
+				showRolling: isSelected && isHovered && control.showRolling && !isParentLocked && !lockedRole
+				showDragLeft: isSelected && isHovered && control.showDragLeft && !isParentLocked && !lockedRole
+				showDragRight: isSelected && isHovered && control.showDragRight && !isParentLocked && !lockedRole
+				showDragMiddle: isSelected && isHovered && control.showDragMiddle && !isParentLocked && !lockedRole
+				showDragLeftLeft: isSelected && isHovered && control.showDragLeftLeft && !isParentLocked && !lockedRole
+				showDragRightRight: isSelected && isHovered && control.showDragRightRight && !isParentLocked && !lockedRole
 
 				// onIsBrokenChanged: {
 				// 	if(isBroken) {
@@ -210,7 +205,7 @@ DelegateChoice {
 				// 	}
 				// }
 				// fps: control.fps
-				name: !isRolling ? nameRole : adjustStart > 0 ? "+" + adjustStart : adjustStart
+				name: !isDragging ? nameRole : isAdjustingStart ? (adjustStart > 0 ? "+" + adjustStart : adjustStart) : (adjustDuration > 0 ? "+" + adjustDuration : adjustDuration)
 				// parentStart: parentStartRole
 				availableStart: availableStartRole
 				availableDuration: availableDurationRole
@@ -227,9 +222,15 @@ DelegateChoice {
 			    	mediaIndex = getMediaIndex()
 			    }
 
-			    onDraggingStarted: control.draggingStarted(control, mode)
+			    onDraggingStarted: {
+			    	control.draggingStarted(control, mode)
+			    	isDragging = true
+			    }
 				onDragging: control.dragging(control, mode, x / scaleX)
-				onDraggingStopped: control.draggingStopped(control, mode)
+				onDraggingStopped: {
+					control.draggingStopped(control, mode)
+			    	isDragging = false
+				}
 
 			    Connections {
 			    	target: dragContainer.dragged_items

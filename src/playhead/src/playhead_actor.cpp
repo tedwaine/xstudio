@@ -164,6 +164,18 @@ void PlayheadActor::init() {
         "selection. If only one item is selected then select the next item in the playlist.",
         true);
 
+    jump_to_previous_note_hotkey_ = register_hotkey(
+        ",",
+        "Move backwards to previous note",
+        "Jump the playhead backwards to the next note.",
+        true);
+
+    jump_to_next_note_hotkey_ = register_hotkey(
+        ".",
+        "Move forwards to next note",
+        "Jump the playhead forwards to the next note ",
+        true);
+
     set_down_handler([=](down_msg &msg) {
         /*if (msg.source == playlist_selection_) {
             demonitor(playlist_selection_);
@@ -2133,6 +2145,38 @@ void PlayheadActor::hotkey_pressed(
                     break;
                 }
             }
+        }
+
+    } else if (hotkey_uuid == jump_to_previous_note_hotkey_) {
+
+        int cframe = playhead_logical_frame_->value();
+        int d      = std::numeric_limits<int>::max();
+        int r      = -1;
+        for (const auto &bm : bookmark_frames_ranges_) {
+            int delta = cframe - std::get<2>(bm);
+            if (delta > 0 && delta < d) {
+                r = std::get<2>(bm);
+                d = delta;
+            }
+        }
+        if (r != -1) {
+            anon_send(caf::actor_cast<caf::actor>(this), jump_atom_v, r);
+        }
+
+    } else if (hotkey_uuid == jump_to_next_note_hotkey_) {
+
+        int cframe = playhead_logical_frame_->value();
+        int d      = std::numeric_limits<int>::max();
+        int r      = -1;
+        for (const auto &bm : bookmark_frames_ranges_) {
+            int delta = std::get<2>(bm) - cframe;
+            if (delta > 0 && delta < d) {
+                r = std::get<2>(bm);
+                d = delta;
+            }
+        }
+        if (r != -1) {
+            anon_send(caf::actor_cast<caf::actor>(this), jump_atom_v, r);
         }
 
     } else if (

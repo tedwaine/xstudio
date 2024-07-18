@@ -78,13 +78,6 @@ Item {
     property alias display_mode: __display_mode.value
 
     XsAttributeValue {
-        id: __tool_panel
-        attributeTitle: "tool_panel"
-        model: mask_tool_attrs_data
-    }
-    property alias tool_panel: __tool_panel.value
-
-    XsAttributeValue {
         id: __mask_selected_shape
         attributeTitle: "mask_selected_shape"
         model: mask_tool_attrs_data

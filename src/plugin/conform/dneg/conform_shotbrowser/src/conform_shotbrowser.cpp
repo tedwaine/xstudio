@@ -245,9 +245,15 @@ template <typename T> class ShotbrowserConformActor : public caf::event_based_ac
                         // clip metadata has precedence
                         auto media_uuid = metadata.value("media_uuid", Uuid());
                         if (not media_uuid.is_null() and crequest.metadata_.count(media_uuid)) {
-                            auto tmp = crequest.metadata_.at(media_uuid);
-                            tmp.update(metadata);
-                            metadata = tmp;
+                            auto tmp               = crequest.metadata_.at(media_uuid);
+                            auto sg_twig_type_code = nlohmann::json::json_pointer(
+                                "/metadata/shotgun/version/attributes/sg_twig_type_code");
+                            if (not tmp.contains(sg_twig_type_code) or
+                                tmp.value(sg_twig_type_code, "") != "cut") {
+                                tmp.update(metadata, true);
+                                metadata = tmp;
+                                // spdlog::warn("{}", metadata.dump(2));
+                            }
                             // metadata.update(crequest.metadata_.at(media_uuid));
                         }
 
@@ -365,6 +371,8 @@ template <typename T> class ShotbrowserConformActor : public caf::event_based_ac
                 auto clip_uuid  = c.get().uuid();
                 auto media_uuid = c.get().prop().value("media_uuid", Uuid());
 
+                // spdlog::warn("{}", c.get().prop().dump(2));
+
                 auto clip_project =
                     QueryEngine::get_project_name(crequest.metadata_.at(clip_uuid));
                 auto clip_shot = QueryEngine::get_shot_name(crequest.metadata_.at(clip_uuid));
@@ -385,6 +393,10 @@ template <typename T> class ShotbrowserConformActor : public caf::event_based_ac
                         clip_project,
                         clip_shot);
                 }
+                // else {
+                //     spdlog::warn("CLIP {} {} {}", to_string(clip_uuid), clip_project,
+                //     clip_shot);
+                // }
             }
 
             std::set<utility::Uuid> matched_clips;
@@ -736,8 +748,8 @@ template <typename T> class ShotbrowserConformActor : public caf::event_based_ac
                         u[json::json_pointer("/metadata/external/DNeg/show")] = found_project;
 
                         m.update(u);
-                        anon_send(i.actor(), timeline::item_flag_atom_v, "#FFFF0000");
                         anon_send(i.actor(), timeline::item_prop_atom_v, m);
+                        anon_send(i.actor(), timeline::item_flag_atom_v, "#FFFF0000");
                     }
 
                     i.set_flag("#FFFF0000");
@@ -784,6 +796,38 @@ template <typename T> class ShotbrowserConformActor : public caf::event_based_ac
                     0,
                     static_cast<int>(vcount - 1),
                     true);
+            }
+
+            // we shouldn't return until the main timeline item is fully sync'd with it's
+            // children. how do we tell ?
+
+            if (not only_create_conform_track) {
+                // we get here when this function is called by the system
+                // we might be chaining a conform after this..
+                // so we need to be in sync..
+                // request item
+                spdlog::warn("check timeline item is ready");
+                auto done = false;
+                while (not done) {
+                    try {
+                        auto conform_item = request_receive<timeline::Item>(
+                            *sys, timeline.actor(), timeline::item_atom_v, vtrack.uuid());
+                        done = true;
+                        for (const auto &i : conform_item) {
+                            // all clips in the base video track should be red or green..
+                            if (i.item_type() == timeline::IT_CLIP and
+                                not(i.flag() == "#FFFF0000" or i.flag() == "#FF00FF00")) {
+                                done = false;
+                                spdlog::warn("Waiting for timeline to sync");
+                                std::this_thread::sleep_for(1s);
+                                break;
+                            }
+                        }
+                    } catch (...) {
+                        spdlog::warn("can't find conform track");
+                        break;
+                    }
+                }
             }
 
             rp.deliver(true);

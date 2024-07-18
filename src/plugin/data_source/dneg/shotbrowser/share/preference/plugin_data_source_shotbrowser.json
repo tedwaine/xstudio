@@ -1061,6 +1061,320 @@
                     "children": [
                         {
                             "enabled": true,
+                            "id": "35fe5de6-1201-4599-b07e-72591e18e876",
+                            "livelink": false,
+                            "negated": null,
+                            "term": "Preferred Visual",
+                            "type": "term",
+                            "value": "movie_dneg"
+                        },
+                        {
+                            "enabled": true,
+                            "id": "5dddcc96-cb6f-4057-bad0-f8811f779251",
+                            "livelink": null,
+                            "negated": null,
+                            "term": "Has Contents",
+                            "type": "term",
+                            "value": "True"
+                        }
+                    ],
+                    "favourite": false,
+                    "hidden": false,
+                    "id": "963185ba-25d7-4a22-8b56-cda119ce8105",
+                    "name": "PRESET",
+                    "type": "preset",
+                    "update": false,
+                    "userdata": ""
+                },
+                {
+                    "children": [
+                        {
+                            "children": [
+                                {
+                                    "enabled": true,
+                                    "id": "c9ade46f-6056-4c41-890b-647cacdf9036",
+                                    "livelink": null,
+                                    "negated": null,
+                                    "term": "Lookback",
+                                    "type": "term",
+                                    "value": "20 Days"
+                                }
+                            ],
+                            "favourite": true,
+                            "hidden": false,
+                            "id": "dc3b3e35-98ab-46be-a647-4688e035ee57",
+                            "name": "Recent Playlists",
+                            "type": "preset",
+                            "update": false,
+                            "userdata": ""
+                        },
+                        {
+                            "children": [
+                                {
+                                    "enabled": true,
+                                    "id": "cb6b5d69-72de-435d-aa2f-165e20c7e783",
+                                    "livelink": null,
+                                    "negated": null,
+                                    "term": "Lookback",
+                                    "type": "term",
+                                    "value": "30 Days"
+                                }
+                            ],
+                            "favourite": false,
+                            "hidden": false,
+                            "id": "b64445a1-fe5d-4ed4-8fd9-623d9f25688a",
+                            "name": "Previous Month",
+                            "type": "preset",
+                            "update": false,
+                            "userdata": ""
+                        },
+                        {
+                            "children": [
+                                {
+                                    "enabled": true,
+                                    "id": "962422da-5733-4a42-8f90-b062dda1e830",
+                                    "livelink": null,
+                                    "negated": false,
+                                    "term": "Playlist Type",
+                                    "type": "term",
+                                    "value": "Cinesync"
+                                },
+                                {
+                                    "enabled": true,
+                                    "id": "69c31115-4fc2-4b65-b071-ba2099a1a5d8",
+                                    "livelink": null,
+                                    "negated": false,
+                                    "term": "Playlist Type",
+                                    "type": "term",
+                                    "value": "Client Review"
+                                },
+                                {
+                                    "enabled": true,
+                                    "id": "f9b7a4f3-2ba1-4eec-a798-21429ffd1987",
+                                    "livelink": null,
+                                    "negated": false,
+                                    "term": "Playlist Type",
+                                    "type": "term",
+                                    "value": "Client Send"
+                                }
+                            ],
+                            "favourite": false,
+                            "hidden": false,
+                            "id": "cfc5103f-1ca4-4c09-b7cb-54074d1e6fe9",
+                            "name": "Sent To Client",
+                            "type": "preset",
+                            "update": false,
+                            "userdata": ""
+                        },
+                        {
+                            "children": [
+                                {
+                                    "enabled": true,
+                                    "id": "d06cbe61-d872-40a9-8a61-3a4541650477",
+                                    "livelink": null,
+                                    "negated": false,
+                                    "term": "Filter",
+                                    "type": "term",
+                                    "value": "Dailies"
+                                },
+                                {
+                                    "enabled": true,
+                                    "id": "7e2273fa-ef3e-4a99-b41b-c77d3f6ad3b9",
+                                    "livelink": null,
+                                    "negated": null,
+                                    "term": "Lookback",
+                                    "type": "term",
+                                    "value": "3 Days"
+                                }
+                            ],
+                            "favourite": false,
+                            "hidden": false,
+                            "id": "1025cc97-f781-465c-9b99-3dbcff9510e6",
+                            "name": "Dailies",
+                            "type": "preset",
+                            "update": false,
+                            "userdata": ""
+                        },
+                        {
+                            "children": [
+                                {
+                                    "enabled": false,
+                                    "id": "96a99992-0e1d-4a3f-a999-22d6242a5cc8",
+                                    "livelink": null,
+                                    "negated": false,
+                                    "term": "Playlist Type",
+                                    "type": "term",
+                                    "value": "Cinesync"
+                                },
+                                {
+                                    "enabled": false,
+                                    "id": "706c87d9-2629-4812-9115-37ba220234d1",
+                                    "livelink": null,
+                                    "negated": false,
+                                    "term": "Playlist Type",
+                                    "type": "term",
+                                    "value": "Client Review"
+                                },
+                                {
+                                    "enabled": false,
+                                    "id": "08d55677-e2ec-4970-af80-1d3fe15f2aa9",
+                                    "livelink": null,
+                                    "negated": false,
+                                    "term": "Playlist Type",
+                                    "type": "term",
+                                    "value": "Client Send"
+                                },
+                                {
+                                    "enabled": true,
+                                    "id": "cee8728d-644c-430e-8eee-41ebe8bb8e93",
+                                    "livelink": null,
+                                    "negated": false,
+                                    "term": "Filter",
+                                    "type": "term",
+                                    "value": "master"
+                                }
+                            ],
+                            "favourite": false,
+                            "hidden": false,
+                            "id": "6cc0d544-adbf-408b-9f45-e2fc6f02157a",
+                            "name": "Master Playlists",
+                            "type": "preset",
+                            "update": false,
+                            "userdata": ""
+                        },
+                        {
+                            "children": [
+                                {
+                                    "enabled": true,
+                                    "id": "e09337c9-52dc-47bb-93a7-7c510eb7b32e",
+                                    "livelink": null,
+                                    "negated": false,
+                                    "term": "Playlist Type",
+                                    "type": "term",
+                                    "value": "Client Review"
+                                },
+                                {
+                                    "enabled": true,
+                                    "id": "121f765b-4758-41c5-a147-21e6dc4e5e6e",
+                                    "livelink": null,
+                                    "negated": false,
+                                    "term": "Filter",
+                                    "type": "term",
+                                    "value": "DNEG_VFX_"
+                                },
+                                {
+                                    "enabled": false,
+                                    "id": "fdbfc8f4-2987-40b6-8aab-8b956bf183fc",
+                                    "livelink": null,
+                                    "negated": false,
+                                    "term": "Filter",
+                                    "type": "term",
+                                    "value": "DIRECTOR"
+                                },
+                                {
+                                    "enabled": false,
+                                    "id": "28d85321-c391-4010-80c0-83aa2e066edb",
+                                    "livelink": null,
+                                    "negated": false,
+                                    "term": "Filter",
+                                    "type": "term",
+                                    "value": "ANIM_SUPER"
+                                }
+                            ],
+                            "favourite": false,
+                            "hidden": false,
+                            "id": "afda9cef-ffa6-4a2a-a8e1-c5e5307669d2",
+                            "name": "Supervisor Playlists",
+                            "type": "preset",
+                            "update": false,
+                            "userdata": ""
+                        },
+                        {
+                            "children": [
+                                {
+                                    "enabled": true,
+                                    "id": "a1754b27-4912-4b6c-ae7a-6aa0f1b5d5f8",
+                                    "livelink": null,
+                                    "negated": false,
+                                    "term": "Playlist Type",
+                                    "type": "term",
+                                    "value": "Client Review"
+                                },
+                                {
+                                    "enabled": false,
+                                    "id": "08a744ad-77d0-4aa4-9551-60e1ad9daffd",
+                                    "livelink": null,
+                                    "negated": false,
+                                    "term": "Filter",
+                                    "type": "term",
+                                    "value": "DNEG_VFX_"
+                                },
+                                {
+                                    "enabled": true,
+                                    "id": "1c702d63-4c7b-428b-9505-4740a2563e2c",
+                                    "livelink": null,
+                                    "negated": false,
+                                    "term": "Filter",
+                                    "type": "term",
+                                    "value": "DIRECTOR"
+                                },
+                                {
+                                    "enabled": false,
+                                    "id": "d5964a74-9302-40f1-86a8-3026c40c32fe",
+                                    "livelink": null,
+                                    "negated": false,
+                                    "term": "Filter",
+                                    "type": "term",
+                                    "value": "ANIM_SUPER"
+                                }
+                            ],
+                            "favourite": false,
+                            "hidden": false,
+                            "id": "bdbadc8d-a80f-4850-894e-69e0083c3fc5",
+                            "name": "Director Playlists",
+                            "type": "preset",
+                            "update": false,
+                            "userdata": ""
+                        },
+                        {
+                            "children": [
+                                {
+                                    "enabled": true,
+                                    "id": "8ddce99d-59cb-40d5-89f4-8ec3c794e3ab",
+                                    "livelink": null,
+                                    "negated": null,
+                                    "term": "Has Contents",
+                                    "type": "term",
+                                    "value": "True"
+                                }
+                            ],
+                            "favourite": false,
+                            "hidden": false,
+                            "id": "17cd0d67-314a-4717-a692-3df8baeb224f",
+                            "name": "All Playlists",
+                            "type": "preset",
+                            "update": false,
+                            "userdata": ""
+                        }
+                    ],
+                    "id": "e411ccce-e80f-4698-9af5-5e60e42f0ecf",
+                    "type": "presets"
+                }
+            ],
+            "entity": "Playlists",
+            "hidden": false,
+            "id": "b85255fd-ad54-4829-bae1-4eac422fc5b5",
+            "name": "Playlists",
+            "type": "group",
+            "update": false,
+            "userdata": "recent"
+        },
+        {
+            "children": [
+                {
+                    "children": [
+                        {
+                            "enabled": true,
                             "id": "9372e556-c42e-499e-b1ae-5b99d69bc66a",
                             "livelink": null,
                             "negated": null,
@@ -1840,321 +2154,7 @@
             "entity": "Versions",
             "hidden": false,
             "id": "4689c10f-eb27-4e16-8164-468cdd69142e",
-            "name": "Latest Versions",
-            "type": "group",
-            "update": false,
-            "userdata": "recent"
-        },
-        {
-            "children": [
-                {
-                    "children": [
-                        {
-                            "enabled": true,
-                            "id": "35fe5de6-1201-4599-b07e-72591e18e876",
-                            "livelink": false,
-                            "negated": null,
-                            "term": "Preferred Visual",
-                            "type": "term",
-                            "value": "movie_dneg"
-                        },
-                        {
-                            "enabled": true,
-                            "id": "5dddcc96-cb6f-4057-bad0-f8811f779251",
-                            "livelink": null,
-                            "negated": null,
-                            "term": "Has Contents",
-                            "type": "term",
-                            "value": "True"
-                        }
-                    ],
-                    "favourite": false,
-                    "hidden": false,
-                    "id": "963185ba-25d7-4a22-8b56-cda119ce8105",
-                    "name": "PRESET",
-                    "type": "preset",
-                    "update": false,
-                    "userdata": ""
-                },
-                {
-                    "children": [
-                        {
-                            "children": [
-                                {
-                                    "enabled": true,
-                                    "id": "c9ade46f-6056-4c41-890b-647cacdf9036",
-                                    "livelink": null,
-                                    "negated": null,
-                                    "term": "Lookback",
-                                    "type": "term",
-                                    "value": "20 Days"
-                                }
-                            ],
-                            "favourite": true,
-                            "hidden": false,
-                            "id": "dc3b3e35-98ab-46be-a647-4688e035ee57",
-                            "name": "Recent Playlists",
-                            "type": "preset",
-                            "update": false,
-                            "userdata": ""
-                        },
-                        {
-                            "children": [
-                                {
-                                    "enabled": true,
-                                    "id": "cb6b5d69-72de-435d-aa2f-165e20c7e783",
-                                    "livelink": null,
-                                    "negated": null,
-                                    "term": "Lookback",
-                                    "type": "term",
-                                    "value": "30 Days"
-                                }
-                            ],
-                            "favourite": false,
-                            "hidden": false,
-                            "id": "b64445a1-fe5d-4ed4-8fd9-623d9f25688a",
-                            "name": "Previous Month",
-                            "type": "preset",
-                            "update": false,
-                            "userdata": ""
-                        },
-                        {
-                            "children": [
-                                {
-                                    "enabled": true,
-                                    "id": "962422da-5733-4a42-8f90-b062dda1e830",
-                                    "livelink": null,
-                                    "negated": false,
-                                    "term": "Playlist Type",
-                                    "type": "term",
-                                    "value": "Cinesync"
-                                },
-                                {
-                                    "enabled": true,
-                                    "id": "69c31115-4fc2-4b65-b071-ba2099a1a5d8",
-                                    "livelink": null,
-                                    "negated": false,
-                                    "term": "Playlist Type",
-                                    "type": "term",
-                                    "value": "Client Review"
-                                },
-                                {
-                                    "enabled": true,
-                                    "id": "f9b7a4f3-2ba1-4eec-a798-21429ffd1987",
-                                    "livelink": null,
-                                    "negated": false,
-                                    "term": "Playlist Type",
-                                    "type": "term",
-                                    "value": "Client Send"
-                                }
-                            ],
-                            "favourite": false,
-                            "hidden": false,
-                            "id": "cfc5103f-1ca4-4c09-b7cb-54074d1e6fe9",
-                            "name": "Sent To Client",
-                            "type": "preset",
-                            "update": false,
-                            "userdata": ""
-                        },
-                        {
-                            "children": [
-                                {
-                                    "enabled": true,
-                                    "id": "d06cbe61-d872-40a9-8a61-3a4541650477",
-                                    "livelink": null,
-                                    "negated": false,
-                                    "term": "Filter",
-                                    "type": "term",
-                                    "value": "Dailies"
-                                },
-                                {
-                                    "enabled": true,
-                                    "id": "7e2273fa-ef3e-4a99-b41b-c77d3f6ad3b9",
-                                    "livelink": null,
-                                    "negated": null,
-                                    "term": "Lookback",
-                                    "type": "term",
-                                    "value": "3 Days"
-                                }
-                            ],
-                            "favourite": false,
-                            "hidden": false,
-                            "id": "1025cc97-f781-465c-9b99-3dbcff9510e6",
-                            "name": "Dailies",
-                            "type": "preset",
-                            "update": false,
-                            "userdata": ""
-                        },
-                        {
-                            "children": [
-                                {
-                                    "enabled": false,
-                                    "id": "96a99992-0e1d-4a3f-a999-22d6242a5cc8",
-                                    "livelink": null,
-                                    "negated": false,
-                                    "term": "Playlist Type",
-                                    "type": "term",
-                                    "value": "Cinesync"
-                                },
-                                {
-                                    "enabled": false,
-                                    "id": "706c87d9-2629-4812-9115-37ba220234d1",
-                                    "livelink": null,
-                                    "negated": false,
-                                    "term": "Playlist Type",
-                                    "type": "term",
-                                    "value": "Client Review"
-                                },
-                                {
-                                    "enabled": false,
-                                    "id": "08d55677-e2ec-4970-af80-1d3fe15f2aa9",
-                                    "livelink": null,
-                                    "negated": false,
-                                    "term": "Playlist Type",
-                                    "type": "term",
-                                    "value": "Client Send"
-                                },
-                                {
-                                    "enabled": true,
-                                    "id": "cee8728d-644c-430e-8eee-41ebe8bb8e93",
-                                    "livelink": null,
-                                    "negated": false,
-                                    "term": "Filter",
-                                    "type": "term",
-                                    "value": "master"
-                                }
-                            ],
-                            "favourite": false,
-                            "hidden": false,
-                            "id": "6cc0d544-adbf-408b-9f45-e2fc6f02157a",
-                            "name": "Master Playlists",
-                            "type": "preset",
-                            "update": false,
-                            "userdata": ""
-                        },
-                        {
-                            "children": [
-                                {
-                                    "enabled": true,
-                                    "id": "e09337c9-52dc-47bb-93a7-7c510eb7b32e",
-                                    "livelink": null,
-                                    "negated": false,
-                                    "term": "Playlist Type",
-                                    "type": "term",
-                                    "value": "Client Review"
-                                },
-                                {
-                                    "enabled": true,
-                                    "id": "121f765b-4758-41c5-a147-21e6dc4e5e6e",
-                                    "livelink": null,
-                                    "negated": false,
-                                    "term": "Filter",
-                                    "type": "term",
-                                    "value": "DNEG_VFX_"
-                                },
-                                {
-                                    "enabled": false,
-                                    "id": "fdbfc8f4-2987-40b6-8aab-8b956bf183fc",
-                                    "livelink": null,
-                                    "negated": false,
-                                    "term": "Filter",
-                                    "type": "term",
-                                    "value": "DIRECTOR"
-                                },
-                                {
-                                    "enabled": false,
-                                    "id": "28d85321-c391-4010-80c0-83aa2e066edb",
-                                    "livelink": null,
-                                    "negated": false,
-                                    "term": "Filter",
-                                    "type": "term",
-                                    "value": "ANIM_SUPER"
-                                }
-                            ],
-                            "favourite": false,
-                            "hidden": false,
-                            "id": "afda9cef-ffa6-4a2a-a8e1-c5e5307669d2",
-                            "name": "Supervisor Playlists",
-                            "type": "preset",
-                            "update": false,
-                            "userdata": ""
-                        },
-                        {
-                            "children": [
-                                {
-                                    "enabled": true,
-                                    "id": "a1754b27-4912-4b6c-ae7a-6aa0f1b5d5f8",
-                                    "livelink": null,
-                                    "negated": false,
-                                    "term": "Playlist Type",
-                                    "type": "term",
-                                    "value": "Client Review"
-                                },
-                                {
-                                    "enabled": false,
-                                    "id": "08a744ad-77d0-4aa4-9551-60e1ad9daffd",
-                                    "livelink": null,
-                                    "negated": false,
-                                    "term": "Filter",
-                                    "type": "term",
-                                    "value": "DNEG_VFX_"
-                                },
-                                {
-                                    "enabled": true,
-                                    "id": "1c702d63-4c7b-428b-9505-4740a2563e2c",
-                                    "livelink": null,
-                                    "negated": false,
-                                    "term": "Filter",
-                                    "type": "term",
-                                    "value": "DIRECTOR"
-                                },
-                                {
-                                    "enabled": false,
-                                    "id": "d5964a74-9302-40f1-86a8-3026c40c32fe",
-                                    "livelink": null,
-                                    "negated": false,
-                                    "term": "Filter",
-                                    "type": "term",
-                                    "value": "ANIM_SUPER"
-                                }
-                            ],
-                            "favourite": false,
-                            "hidden": false,
-                            "id": "bdbadc8d-a80f-4850-894e-69e0083c3fc5",
-                            "name": "Director Playlists",
-                            "type": "preset",
-                            "update": false,
-                            "userdata": ""
-                        },
-                        {
-                            "children": [
-                                {
-                                    "enabled": true,
-                                    "id": "8ddce99d-59cb-40d5-89f4-8ec3c794e3ab",
-                                    "livelink": null,
-                                    "negated": null,
-                                    "term": "Has Contents",
-                                    "type": "term",
-                                    "value": "True"
-                                }
-                            ],
-                            "favourite": false,
-                            "hidden": false,
-                            "id": "17cd0d67-314a-4717-a692-3df8baeb224f",
-                            "name": "All Playlists",
-                            "type": "preset",
-                            "update": false,
-                            "userdata": ""
-                        }
-                    ],
-                    "id": "e411ccce-e80f-4698-9af5-5e60e42f0ecf",
-                    "type": "presets"
-                }
-            ],
-            "entity": "Playlists",
-            "hidden": false,
-            "id": "b85255fd-ad54-4829-bae1-4eac422fc5b5",
-            "name": "Playlists",
+            "name": "Global Shots",
             "type": "group",
             "update": false,
             "userdata": "recent"
@@ -3168,358 +3168,6 @@
             "hidden": false,
             "id": "c8c5c2de-23ca-44ec-95c1-ea44384f43aa",
             "name": "Versions",
-            "type": "group",
-            "update": false,
-            "userdata": "tree"
-        },
-        {
-            "children": [
-                {
-                    "children": [
-                        {
-                            "enabled": true,
-                            "id": "8e8d7a4f-dce1-4e80-9b2c-0bb8cd80189a",
-                            "livelink": null,
-                            "negated": null,
-                            "term": "Has Contents",
-                            "type": "term",
-                            "value": "True"
-                        },
-                        {
-                            "enabled": true,
-                            "id": "1667f691-614d-415a-8078-2a3ea8e107e7",
-                            "livelink": false,
-                            "negated": null,
-                            "term": "Preferred Visual",
-                            "type": "term",
-                            "value": "movie_dneg"
-                        },
-                        {
-                            "enabled": true,
-                            "id": "a740d999-4fd3-4c8a-982d-7273f85ec517",
-                            "livelink": null,
-                            "negated": null,
-                            "term": "Result Limit",
-                            "type": "term",
-                            "value": "500"
-                        }
-                    ],
-                    "favourite": false,
-                    "hidden": false,
-                    "id": "2cb25b6b-2b09-4a76-8246-4a1f5916908d",
-                    "name": "PRESET",
-                    "type": "preset",
-                    "update": false,
-                    "userdata": ""
-                },
-                {
-                    "children": [
-                        {
-                            "children": [
-                                {
-                                    "enabled": true,
-                                    "id": "e1696042-2f35-42da-904a-ee461c4dbb4f",
-                                    "livelink": null,
-                                    "negated": null,
-                                    "term": "Lookback",
-                                    "type": "term",
-                                    "value": "7 Days"
-                                }
-                            ],
-                            "favourite": true,
-                            "hidden": false,
-                            "id": "9a946b2a-0124-4360-8ea3-2df99a351781",
-                            "name": "Latest Playlists",
-                            "type": "preset",
-                            "update": false,
-                            "userdata": ""
-                        },
-                        {
-                            "children": [
-                                {
-                                    "enabled": false,
-                                    "id": "714a7ac1-db12-4871-8cd9-101f41144274",
-                                    "livelink": null,
-                                    "negated": null,
-                                    "term": "Lookback",
-                                    "type": "term",
-                                    "value": "20 Days"
-                                },
-                                {
-                                    "enabled": true,
-                                    "id": "0deac63e-1750-41f7-8fe2-8a04b8ac5c8e",
-                                    "livelink": null,
-                                    "negated": false,
-                                    "term": "Playlist Type",
-                                    "type": "term",
-                                    "value": "Cinesync"
-                                },
-                                {
-                                    "enabled": true,
-                                    "id": "249664e9-395a-406a-a14b-3e14e43b3d46",
-                                    "livelink": null,
-                                    "negated": false,
-                                    "term": "Playlist Type",
-                                    "type": "term",
-                                    "value": "Client Review"
-                                },
-                                {
-                                    "enabled": true,
-                                    "id": "ca674830-2239-430a-ac1a-fc2a0fe89530",
-                                    "livelink": null,
-                                    "negated": false,
-                                    "term": "Playlist Type",
-                                    "type": "term",
-                                    "value": "Client Send"
-                                },
-                                {
-                                    "enabled": true,
-                                    "id": "487814c0-72dd-4524-8214-7d5e2754ea15",
-                                    "livelink": false,
-                                    "negated": null,
-                                    "term": "Preferred Visual",
-                                    "type": "term",
-                                    "value": "movie_client"
-                                }
-                            ],
-                            "favourite": false,
-                            "hidden": false,
-                            "id": "596794d8-2fbf-40a9-aa65-3e5b83e4c184",
-                            "name": "Client Playlists",
-                            "type": "preset",
-                            "update": false,
-                            "userdata": ""
-                        },
-                        {
-                            "children": [
-                                {
-                                    "enabled": true,
-                                    "id": "f46d5d8e-4f35-451f-9b02-b3034377c165",
-                                    "livelink": null,
-                                    "negated": false,
-                                    "term": "Playlist Type",
-                                    "type": "term",
-                                    "value": "Dailies"
-                                }
-                            ],
-                            "favourite": false,
-                            "hidden": false,
-                            "id": "b972ed83-7da5-4fc5-9aeb-ba4f1e5e5995",
-                            "name": "Dailies Reviews",
-                            "type": "preset",
-                            "update": false,
-                            "userdata": ""
-                        },
-                        {
-                            "children": [
-                                {
-                                    "enabled": true,
-                                    "id": "c644066c-d054-43db-9d62-f124774188bb",
-                                    "livelink": null,
-                                    "negated": false,
-                                    "term": "Playlist Type",
-                                    "type": "term",
-                                    "value": "Desk Review"
-                                }
-                            ],
-                            "favourite": false,
-                            "hidden": false,
-                            "id": "5c24eb62-8012-4eb6-bf2b-5c50ed016a3f",
-                            "name": "Desk Reviews",
-                            "type": "preset",
-                            "update": false,
-                            "userdata": ""
-                        },
-                        {
-                            "children": [
-                                {
-                                    "enabled": true,
-                                    "id": "d7cde419-4cb2-4dff-8cc5-63b22859f458",
-                                    "livelink": null,
-                                    "negated": false,
-                                    "term": "Playlist Type",
-                                    "type": "term",
-                                    "value": "Department Dailies"
-                                },
-                                {
-                                    "enabled": true,
-                                    "id": "cf0bbf52-6ff9-412d-9636-e33e826ed140",
-                                    "livelink": null,
-                                    "negated": null,
-                                    "term": "Lookback",
-                                    "type": "term",
-                                    "value": "30 Days"
-                                }
-                            ],
-                            "favourite": false,
-                            "hidden": false,
-                            "id": "2c484ad5-47d3-46f2-ba0d-1e71f3daeb8c",
-                            "name": "Department Dailies",
-                            "type": "preset",
-                            "update": false,
-                            "userdata": ""
-                        },
-                        {
-                            "children": [
-                                {
-                                    "enabled": false,
-                                    "id": "54e7cfa5-1b7d-4f31-838b-2a80ffe3fce1",
-                                    "livelink": null,
-                                    "negated": null,
-                                    "term": "Lookback",
-                                    "type": "term",
-                                    "value": "20 Days"
-                                },
-                                {
-                                    "enabled": true,
-                                    "id": "5d0a9696-2f8e-4e20-8327-c87566ed065c",
-                                    "livelink": null,
-                                    "negated": false,
-                                    "term": "Playlist Type",
-                                    "type": "term",
-                                    "value": "Reference Playlist"
-                                }
-                            ],
-                            "favourite": false,
-                            "hidden": false,
-                            "id": "de224e49-4bee-4c0c-9171-4db80e36e8d1",
-                            "name": "Production Playlists",
-                            "type": "preset",
-                            "update": false,
-                            "userdata": ""
-                        },
-                        {
-                            "children": [
-                                {
-                                    "enabled": true,
-                                    "id": "e5c6548c-a9a1-441f-a7be-8b4a5b037bba",
-                                    "livelink": null,
-                                    "negated": null,
-                                    "term": "Lookback",
-                                    "type": "term",
-                                    "value": "30 Days"
-                                },
-                                {
-                                    "enabled": false,
-                                    "id": "10f3a734-6a22-45a2-850d-5c99763f37bb",
-                                    "livelink": null,
-                                    "negated": false,
-                                    "term": "Playlist Type",
-                                    "type": "term",
-                                    "value": "Reference Playlist"
-                                },
-                                {
-                                    "enabled": true,
-                                    "id": "4600dd30-98d4-4446-8129-d2acda2458b3",
-                                    "livelink": null,
-                                    "negated": null,
-                                    "term": "Has Contents",
-                                    "type": "term",
-                                    "value": "False"
-                                },
-                                {
-                                    "enabled": true,
-                                    "id": "e71658fd-4a15-4651-8c69-0583da3bc2f1",
-                                    "livelink": null,
-                                    "negated": null,
-                                    "term": "Result Limit",
-                                    "type": "term",
-                                    "value": "4500"
-                                }
-                            ],
-                            "favourite": false,
-                            "hidden": false,
-                            "id": "47b37b1f-b246-4290-bc96-256b636dffaf",
-                            "name": "Empty Playlists",
-                            "type": "preset",
-                            "update": false,
-                            "userdata": ""
-                        },
-                        {
-                            "children": [
-                                {
-                                    "enabled": false,
-                                    "id": "05a439ee-c333-42ec-88f1-f6a96aeaf9cf",
-                                    "livelink": null,
-                                    "negated": null,
-                                    "term": "Lookback",
-                                    "type": "term",
-                                    "value": "30 Days"
-                                },
-                                {
-                                    "enabled": false,
-                                    "id": "80294e11-1ffc-4a21-a853-7a7be7ce8f38",
-                                    "livelink": null,
-                                    "negated": false,
-                                    "term": "Playlist Type",
-                                    "type": "term",
-                                    "value": "Reference Playlist"
-                                },
-                                {
-                                    "enabled": true,
-                                    "id": "8c4d332c-f3e1-4b4c-b2a2-f15a663233d3",
-                                    "livelink": null,
-                                    "negated": null,
-                                    "term": "Has Contents",
-                                    "type": "term",
-                                    "value": "True"
-                                },
-                                {
-                                    "enabled": true,
-                                    "id": "9f1fcf5e-3f90-4f87-8bc8-5c5284104866",
-                                    "livelink": null,
-                                    "negated": null,
-                                    "term": "Result Limit",
-                                    "type": "term",
-                                    "value": "4500"
-                                }
-                            ],
-                            "favourite": false,
-                            "hidden": false,
-                            "id": "0ab880b5-b37e-4ece-a9f8-1d30563369b4",
-                            "name": "Non-Empty Playlists",
-                            "type": "preset",
-                            "update": false,
-                            "userdata": ""
-                        },
-                        {
-                            "children": [
-                                {
-                                    "enabled": true,
-                                    "id": "dcc0c3be-a03b-45c8-99f5-8caadcf3e7b6",
-                                    "livelink": null,
-                                    "negated": null,
-                                    "term": "Disable Global",
-                                    "type": "term",
-                                    "value": "Has Contents"
-                                },
-                                {
-                                    "enabled": true,
-                                    "id": "43b5bac9-e62e-49ff-944e-d3c0571adc4a",
-                                    "livelink": null,
-                                    "negated": null,
-                                    "term": "Result Limit",
-                                    "type": "term",
-                                    "value": "4500"
-                                }
-                            ],
-                            "favourite": false,
-                            "hidden": false,
-                            "id": "d478e8be-5948-4311-ae8c-52b183580453",
-                            "name": "All Playlists",
-                            "type": "preset",
-                            "update": false,
-                            "userdata": ""
-                        }
-                    ],
-                    "id": "f6e1784c-57cd-49e4-b5e5-0355ec026de7",
-                    "type": "presets"
-                }
-            ],
-            "entity": "Playlists",
-            "hidden": false,
-            "id": "541062ba-09f9-41b0-b0a1-909a1fa14b15",
-            "name": "Playlists",
             "type": "group",
             "update": false,
             "userdata": "tree"

@@ -241,7 +241,7 @@ Item{
     }
 
 
-    function conformPrepareSequence(sequenceIndex, onlyCreateConfrom=true) {
+    function conformPrepareSequence(sequenceIndex, onlyCreateConfrom=true, callback=null) {
         if(sequenceIndex.valid && sequenceIndex.model.get(sequenceIndex, "typeRole") == "Timeline") {
             Future.promise(
                 engine.conformPrepareSequenceFuture(
@@ -249,8 +249,8 @@ Item{
                 )
             ).then(
                 function(result) {
-                    // create new selection.
-                    // console.log(media_uuid_list)
+                    if(callback)
+                        callback(sequenceIndex, result)
                 },
                 function() {
                 }
@@ -262,7 +262,7 @@ Item{
         text: "Conform"
         menuItemType: "divider"
         menuPath: ""
-        menuItemPosition: 30
+        menuItemPosition: 20
         menuModelName: "media_list_menu_"
     }
 
@@ -270,7 +270,7 @@ Item{
         text: "Replace"
         // menuItemType: "button"
         menuPath: ""
-        menuItemPosition: 34
+        menuItemPosition: 21
         menuModelName: "media_list_menu_"
     }
 
@@ -278,28 +278,27 @@ Item{
         text: "Compare"
         // menuItemType: "button"
         menuPath: ""
-        menuItemPosition: 35
+        menuItemPosition: 22
         menuModelName: "media_list_menu_"
-    }
-
-    XsMenuModelItem {
-        text: "Conform To Sequence"
-        // menuItemType: "button"
-        menuPath: ""
-        menuItemPosition: 35.5
-        menuModelName: "media_list_menu_"
-        onActivated: conformToSequence(menuContext.mediaSelection, viewedMediaSetIndex)
     }
 
     XsMenuModelItem {
         text: "Conform To New Sequence"
         // menuItemType: "button"
         menuPath: ""
-        menuItemPosition: 35.6
+        menuItemPosition: 23
         menuModelName: "media_list_menu_"
         onActivated: conformToNewSequence(menuContext.mediaSelection)
     }
 
+    XsMenuModelItem {
+        text: "Conform To Current Sequence"
+        // menuItemType: "button"
+        menuPath: ""
+        menuItemPosition: 25
+        menuModelName: "media_list_menu_"
+        onActivated: conformToSequence(menuContext.mediaSelection, viewedMediaSetIndex)
+    }
 
     XsMenuModelItem {
         text: "Replace"

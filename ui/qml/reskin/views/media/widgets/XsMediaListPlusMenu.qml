@@ -22,7 +22,7 @@ XsPopupMenu {
     property var panelContext: helpers.contextPanel(plusMenu)
 
     XsMenuModelItem {
-        text: "Add Playlist"
+        text: "Add To New Playlist"
         menuItemType: "button"
         menuPath: ""
         menuItemPosition: 1
@@ -37,9 +37,9 @@ XsPopupMenu {
         }
         panelContext: plusMenu.panelContext
     }
-        
+
     XsMenuModelItem {
-        text: "Add Subset"
+        text: "Add To New Subset"
         menuItemType: "button"
         menuPath: ""
         menuItemPosition: 2
@@ -56,7 +56,7 @@ XsPopupMenu {
     }
 
     XsMenuModelItem {
-        text: "Add Sequence"
+        text: "Add To New Sequence"
         menuItemType: "button"
         menuPath: ""
         menuItemPosition: 3
@@ -73,14 +73,14 @@ XsPopupMenu {
     }
 
     XsMenuModelItem {
-        text: "Add Contact Sheet"
+        text: "Add To New Contact Sheet"
         menuItemType: "button"
         menuPath: ""
         menuItemPosition: 3
         menuModelName: plusMenu.menu_model_name
         enabled: false
         onActivated: {
-            
+
         }
         panelContext: plusMenu.panelContext
     }
@@ -106,31 +106,20 @@ XsPopupMenu {
 
     function addPlaylist(new_name, button) {
         if (button == "Add") {
-            theSessionData.createPlaylist(new_name)
+            let pl = theSessionData.createPlaylist(new_name)
+            theSessionData.copyRows(mediaSelectionModel.selectedIndexes, 0, pl)
         }
     }
 
     function addSubset(new_name, button) {
         if (button == "Add") {
-            addSubitem(new_name, "Subset")
+            media_list_functions.addToNewSubset(new_name)
         }
     }
 
     function addTimeline(new_name, button) {
         if (button == "Add") {
-            addSubitem(new_name, "Timeline")
+            media_list_functions.addToNewSequence(new_name)
         }
     }
-
-    function addSubitem(new_name, type) {
-        var subsetIdx = theSessionData.createSubItem(new_name, type)
-        if(subsetIdx != null && subsetIdx.valid)  {
-            var media = mediaSelectionModel.selectedIndexes
-            callbackTimer.setTimeout(function(subsetIdx, media) { return function() {
-                subsetIdx.model.copyRows(media, 0, subsetIdx)
-            }}( subsetIdx, media ), 100);
-            // make sure parent is not collapsed in Playlists panel
-            theSessionData.set(subsetIdx.parent.parent, true, "expandedRole")
-        }
-    }    
 }

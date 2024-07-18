@@ -165,15 +165,19 @@ class SESSION_QML_EXPORT SessionModel : public caf::mixin::actor_object<JSONTree
     getTimelineClipIndex(const QModelIndex &timelineIndex, const int frame);
 
     // return clips using media
+
     Q_INVOKABLE QModelIndexList
     getTimelineClipIndexes(const QModelIndex &timelineIndex, const QModelIndex &mediaIndex);
+
+    Q_INVOKABLE QModelIndexList getIndexesByName(
+        const QModelIndex &idx, const QString &name, const QString &type = "") const;
 
     Q_INVOKABLE QModelIndexList modifyItemSelectionHorizontal(
         const QModelIndexList &clips, const int left, const int right);
     Q_INVOKABLE QModelIndexList
     modifyItemSelectionVertical(const QModelIndexList &clips, const int up, const int down);
 
-    Q_INVOKABLE QModelIndexList getTimelineVisibleClipIndexes(
+    Q_INVOKABLE QVariantList mediaFrameToTimelineFrames(
         const QModelIndex &timelineIndex,
         const QModelIndex &mediaIndex,
         const int logicalMediaFrame,

@@ -58,6 +58,7 @@ class GradingTool : public plugin::StandardPlugin {
       caf::message_handler message_handler_extensions() override;
 
   private:
+    bool grading_tools_active() const;
     void start_stroke(const Imath::V2f &point);
     void update_stroke(const Imath::V2f &point);
 
@@ -90,26 +91,11 @@ class GradingTool : public plugin::StandardPlugin {
 
   private:
     // General
-    module::BooleanAttribute *tool_is_active_       {nullptr};
+    module::IntegerAttribute *tool_opened_count_    {nullptr};
     module::StringAttribute  *grading_action_       {nullptr};
     module::BooleanAttribute *grading_bypass_       {nullptr};
     module::StringAttribute  *drawing_action_       {nullptr};
     module::BooleanAttribute *media_colour_managed_ {nullptr};
-
-    enum class ToolPanel { CC, Mask };
-    const std::map<ToolPanel, std::string> tool_panel_names_ = {
-        {ToolPanel::CC, "CC"},
-        {ToolPanel::Mask, "Mask"}
-    };
-    module::StringChoiceAttribute *tool_panel_ {nullptr};
-
-    enum class GradingPanel { Basic, CDLSliders, CDLWheels };
-    const std::map<GradingPanel, std::string> grading_panel_names_ = {
-        {GradingPanel::Basic, "Basic"},
-        {GradingPanel::CDLSliders, "Sliders"},
-        {GradingPanel::CDLWheels, "Wheels"}
-    };
-    module::StringChoiceAttribute *grading_panel_    {nullptr};
 
     // Grading
     module::StringAttribute       *grading_bookmark_ {nullptr};
@@ -129,8 +115,7 @@ class GradingTool : public plugin::StandardPlugin {
     enum class DrawingTool { Draw, Erase, Shape, None };
     const std::map<DrawingTool, std::string> drawing_tool_names_ = {
         {DrawingTool::Draw, "Draw"},
-        {DrawingTool::Erase, "Erase"},
-        {DrawingTool::Shape, "Shape"}
+        {DrawingTool::Erase, "Erase"}
     };
 
     module::StringChoiceAttribute *drawing_tool_      {nullptr};
@@ -154,8 +139,6 @@ class GradingTool : public plugin::StandardPlugin {
     module::StringChoiceAttribute *display_mode_attribute_  {nullptr};
 
     // Shortcuts
-    utility::Uuid toggle_active_hotkey_;
-    utility::Uuid toggle_mask_hotkey_;
     utility::Uuid undo_hotkey_;
     utility::Uuid redo_hotkey_;
 

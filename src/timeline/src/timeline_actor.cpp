@@ -610,11 +610,11 @@ void timeline_importer(
 
     std::map<std::string, UuidActor> target_url_map;
 
-    spdlog::warn("processing {} clips", clips.size());
+    spdlog::warn("Processing {} clips", clips.size());
 
     for (const auto &cl : clips) {
         const auto &name = cl->name();
-        spdlog::warn("{} {}", name, cl->active_media_reference_key());
+        // spdlog::warn("{} {}", name, cl->active_media_reference_key());
 
         const auto active_key = cl->active_media_reference_key();
         auto active_path      = std::string();
@@ -648,7 +648,7 @@ void timeline_importer(
 
         // create media sources.
         for (const auto &mr : cl->media_references()) {
-            spdlog::warn("BLOB {} {}", mr.first, mr.second->name());
+            // spdlog::warn("BLOB {} {}", mr.first, mr.second->name());
             // try and dynamic cast to
             if (auto ext = otio::SerializableObject::Retainer<otio::ExternalReference>(
                     dynamic_cast<otio::ExternalReference *>(mr.second))) {
@@ -657,7 +657,7 @@ void timeline_importer(
                 if (!uri) {
                     uri = posix_path_to_uri(ext->target_url());
                 }
-                spdlog::warn("FLOB {} {} {}", ext->target_url(), to_string(uri), bool(uri));
+                // spdlog::warn("FLOB {} {} {}", ext->target_url(), to_string(uri), bool(uri));
                 if (uri) {
                     auto extname     = ext->name();
                     auto source_uuid = utility::Uuid::generate();
@@ -696,7 +696,7 @@ void timeline_importer(
             }
         }
 
-        std::cerr << "NUM SOURCES " << sources.size() << " .... " << name << "\n";
+        // std::cerr << "NUM SOURCES " << sources.size() << " .... " << name << "\n";
 
         // //  add media.
         if (not sources.empty()) {
@@ -720,12 +720,12 @@ void timeline_importer(
         }
 
         otio::RationalTime dur = cl->duration();
-        std::cout << "Name: " << cl->name() << " [";
-        std::cout << dur.value() << "/" << dur.rate() << "]" << std::endl;
+        // std::cout << "Name: " << cl->name() << " [";
+        // std::cout << dur.value() << "/" << dur.rate() << "]" << std::endl;
         // trigger population of additional sources ? May conflict with timeline ?
     }
 
-    std::cerr << "target_url_map " << target_url_map.size() << "\n";
+    // std::cerr << "target_url_map " << target_url_map.size() << "\n";
 
     // populate source
     if (not target_url_map.empty()) {
@@ -849,23 +849,22 @@ TimelineActor::TimelineActor(
       playlist_(playlist ? caf::actor_cast<caf::actor_addr>(playlist) : caf::actor_addr()) {
 
     // create default stack
-    auto suuid = Uuid::generate();
-    auto stack = spawn<StackActor>("Stack", suuid);
+
+    auto stack_item = Item(IT_STACK, "Stack");
+
     if (with_tracks) {
-        auto vuuid  = Uuid::generate();
-        auto auuid  = Uuid::generate();
-        auto vactor = spawn<TrackActor>("Video Track", media::MediaType::MT_IMAGE, vuuid);
-        auto aactor = spawn<TrackActor>("Audio Track", media::MediaType::MT_AUDIO, auuid);
-        anon_send<message_priority::high>(
-            stack, insert_item_atom_v, 0, UuidActorVector({UuidActor(vuuid, vactor)}));
-        anon_send<message_priority::high>(
-            stack, insert_item_atom_v, 1, UuidActorVector({UuidActor(auuid, aactor)}));
+        stack_item.insert(stack_item.end(), Item(IT_VIDEO_TRACK, "Video Track"));
+        stack_item.insert(stack_item.end(), Item(IT_AUDIO_TRACK, "Audio Track"));
     }
 
-    anon_send<message_priority::high>(
-        this, insert_item_atom_v, 0, UuidActorVector({UuidActor(suuid, stack)}));
+    auto stack = spawn<StackActor>(stack_item, stack_item);
+
     base_.item().set_system(&system());
     base_.item().set_name(name);
+
+    add_item(UuidActor(stack_item.uuid(), stack));
+    base_.item().insert(base_.item().begin(), stack_item);
+    base_.item().refresh();
 
     base_.item().bind_item_pre_event_func(
         [this](const utility::JsonStore &event, Item &item) {
@@ -1349,6 +1348,22 @@ void TimelineActor::init() {
                 return *ri;
 
             return make_error(xstudio_error::error, "No clip resolved");
+        },
+
+        [=](media_frame_to_timeline_frames_atom,
+            const utility::Uuid &media_uuid,
+            const int mediaFrame,
+            const bool skipDisabled) -> std::vector<int> {
+            std::vector<int> result;
+            auto media_clips = find_media_clips(base_.children(), media_uuid);
+            for (const auto &clip_uuid : media_clips) {
+                auto frame =
+                    base_.item().frame_at_item_frame(clip_uuid, mediaFrame, skipDisabled);
+                if (frame) {
+                    result.push_back(*frame);
+                }
+            }
+            return result;
         },
 
         [=](insert_item_atom,

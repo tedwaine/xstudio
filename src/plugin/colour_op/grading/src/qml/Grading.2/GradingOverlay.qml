@@ -9,7 +9,10 @@ import xStudioReskin 1.0
 
 Item {
     id: root
-    visible: mask_shapes_visible === undefined ? true : mask_shapes_visible
+
+    GTAttributes {
+        id: grd_attrs
+    }
 
     MAttributes {
         id: attrs
@@ -27,15 +30,16 @@ Item {
     property real viewportScale: 1.0
     property var viewportOffset: Qt.point(0, 0)
 
+    property var tool_opened_count: grd_attrs.tool_opened_count
     property var mask_shapes_visible: attrs.mask_shapes_visible
     property var mask_selected_shape: attrs.mask_selected_shape
-    property var tool_panel: attrs.tool_panel
     property var pen_softness: attrs.pen_softness
     property var pen_opacity: attrs.pen_opacity
     property var pen_colour: attrs.pen_colour
     property var shape_invert: attrs.shape_invert
-
     property var drawing_action: attrs.drawing_action
+
+    visible: mask_shapes_visible && tool_opened_count > 0
 
     property var polygon_init: attrs.polygon_init
     property var polygon_points: []

@@ -1,22 +1,6 @@
 {
 	"plugin": {
 		"grading": {
-			"tool_panel": {
-				"path": "/plugin/grading/tool_panel",
-				"default_value": "CC",
-				"description": "Tool panel",
-				"value": "CC",
-				"datatype": "string",
-				"context": ["APPLICATION"]
-			},
-			"grading_panel": {
-				"path": "/plugin/grading/grading_panel",
-				"default_value": "Basic",
-				"description": "Grading panel",
-				"value": "Basic",
-				"datatype": "string",
-				"context": ["APPLICATION"]
-			},
 			"drawing_tool": {
 				"path": "/plugin/grading/drawing_tool",
 				"default_value": "Shape",

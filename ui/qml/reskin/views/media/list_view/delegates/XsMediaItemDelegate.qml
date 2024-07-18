@@ -266,8 +266,7 @@ Rectangle {
             var selection = []
 
             for (var i = first; i <= last; ++i) {
-
-                selection.push(mediaList.itemAtIndex(i).modelIndex())
+                selection.push(helpers.makePersistent(mediaListModelData.rowToSourceIndex(i)))
             }
 
             mediaSelectionModel.select(

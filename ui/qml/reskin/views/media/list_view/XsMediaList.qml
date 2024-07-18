@@ -98,12 +98,12 @@ XsListView {
         }
     }
 
-    XsHotkeyArea {
-        id: hotkey_area
-        anchors.fill: parent
-        context: "" + mediaList
-        focus: true
-    }
+    // XsHotkeyArea {
+    //     id: hotkey_area
+    //     anchors.fill: parent
+    //     context: "" + mediaList
+    //     focus: true
+    // }
 
     XsMediaListMouseArea {
         id: mouseArea
@@ -146,63 +146,6 @@ XsListView {
             my);
     }
 
-    /**************************************************************
-
-    HOTKEYS
-
-    ****************************************************************/
-    XsHotkey {
-        id: select_all_hotkey
-        sequence: "Ctrl+A"
-        name: "Select All Media in Playlist"
-        description: "Selects all the media in the playlist/subset"
-        context: "" + mediaList
-        onActivated: {
-            functions.selectAll()
-        }
-    }
-
-    XsHotkey {
-        id: deselect_all_hotkey
-        sequence: "Ctrl+D"
-        name: "Deselect All Media"
-        description: "De-selects all the media in the playlist/subset"
-        context: "" + mediaList
-        onActivated: {
-            functions.deselectAll()
-        }
-    }
-
-    XsHotkey {
-        id: delete_selected
-        sequence: "Delete"
-        name: "Delete Selected Media"
-        description: "Removes selected media from media list"
-        context: "" + mediaList
-        onActivated: {
-            functions.deleteSelected()
-        }
-    }
-
-    XsHotkey {
-        sequence: "Shift+Up"
-        name: "Add to selected media (upwards)"
-        description: "Adds the media item immediately above the first selected media item."
-        context: "" + mediaList
-        onActivated: functions.selectUp()
-    }
-
-    XsHotkey {
-        sequence: "Shift+Down"
-        name: "Add to selected media (downwards)"
-        description: "Adds the media item immediately below the last selected media item."
-        context: "" + mediaList
-        onActivated: functions.selectDown()
-    }
-
-    property alias select_all_hotkey: select_all_hotkey
-    property alias deselect_all_hotkey: deselect_all_hotkey
-
 
     XsDragDropHandler {
 
@@ -213,7 +156,7 @@ XsListView {
         onIsDragTargetChanged: {
             if (!isDragTarget) {
                 scrollUp.cancel()
-                scrollDown.cancel()    
+                scrollDown.cancel()
             }
         }
 
@@ -259,7 +202,7 @@ XsListView {
                         )
                     dragTargetIndex = undefined
                 }
-            } 
+            }
         }
 
     }

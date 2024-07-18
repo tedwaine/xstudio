@@ -597,6 +597,14 @@ QFuture<QList<QUuid>> ConformEngineUI::conformToNewSequenceFuture(
                     count++;
                 }
 
+                // for(const auto &i: seq_to_name) {
+                //     spdlog::warn("{} {}", to_string(i.first), i.second);
+                // }
+
+                // for(const auto &i: seq_to_media) {
+                //     spdlog::warn("{} {}", to_string(i.first), i.second.size());
+                // }
+
                 if (not seq_to_media.empty()) {
                     // find session actor
                     auto session = request_receive<caf::actor>(

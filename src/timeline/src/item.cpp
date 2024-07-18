@@ -1295,6 +1295,23 @@ int Item::frame_at_index(const int item_index, const int item_frame) const {
     return frame_at_index(item_index) + dur;
 }
 
+std::optional<int> Item::frame_at_item_frame(
+    const utility::Uuid &item_uuid,
+    const int item_local_frame,
+    const bool skip_disabled) const {
+    std::vector<int> result;
+    auto item          = find_item(children(), item_uuid);
+    auto item_top_left = top_left(item_uuid);
+    if (item_top_left && item && (!skip_disabled || (*item)->enabled())) {
+        int f = item_local_frame - (*item)->trimmed_frame_start().frames();
+        if (f >= 0 && f <= (*item)->trimmed_frame_duration().frames()) {
+            return item_top_left->first + item_local_frame -
+                   (*item)->trimmed_frame_start().frames();
+        }
+    }
+    return {};
+}
+
 std::optional<Items::const_iterator> Item::item_at_index(const int index) const {
     if (index < 0 or index >= static_cast<int>(size()))
         return {};

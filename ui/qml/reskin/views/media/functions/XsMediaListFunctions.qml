@@ -4,16 +4,15 @@ import QtQml.Models 2.15
 
 import xStudioReskin 1.0
 
-Item { 
-    
+Item {
+
     function selectAll() {
-        var media_idx = theSessionData.index(0, 0, inspectedMediaSetIndex)
-        var rc = theSessionData.rowCount(media_idx)
         var selection = []
-        for (var i = 0; i < rc; ++i) {
-            selection.push(theSessionData.index(i,0,media_idx))
+        for (var i = 0; i < mediaListModelData.rowCount(); ++i) {
+            selection.push(mediaListModelData.rowToSourceIndex(i))
         }
-       mediaSelectionModel.select(
+
+        mediaSelectionModel.select(
             helpers.createItemSelection(selection),
             ItemSelectionModel.ClearAndSelect
         )
@@ -104,4 +103,31 @@ Item {
         }
     }
 
+    function addToNewSequence(name) {
+        let sub = theSessionData.createPlaylistChild(name, "Timeline", theSessionData.getPlaylistIndex(mediaSelectionModel.selectedIndexes[0]))
+
+        // get reference to timelineitem
+        let tindex = theSessionData.index(2, 0, sub)
+
+        theSessionData.fetchMoreWait(tindex)
+        let sindex = theSessionData.index(0, 0, tindex)
+        let vindex = theSessionData.index(0, 0, sindex)
+        let aindex = theSessionData.index(1, 0, sindex)
+
+        // copy media into timeline medialist.
+        theSessionData.copyRows(mediaSelectionModel.selectedIndexes, 0, sub)
+
+        for(let i = 0; i< mediaSelectionModel.selectedIndexes.length; i++) {
+            let mindex = mediaSelectionModel.selectedIndexes[i]
+            if(mindex.valid && vindex.valid && aindex.valid) {
+                theSessionData.insertTimelineClip(i, vindex, mindex, "")
+                theSessionData.insertTimelineClip(i, aindex, mindex, "")
+            }
+        }
+    }
+
+    function addToNewSubset(name) {
+        let sub = theSessionData.createPlaylistChild(name, "Subset", theSessionData.getPlaylistIndex(mediaSelectionModel.selectedIndexes[0]))
+        theSessionData.copyRows(mediaSelectionModel.selectedIndexes, 0, sub)
+    }
 }

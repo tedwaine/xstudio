@@ -232,7 +232,8 @@ void SessionModel::processChildren(const nlohmann::json &rj, const QModelIndex &
     const auto type = ptree->data().count("type") ? ptree->data().at("type").get<std::string>()
                                                   : std::string();
 
-    // spdlog::warn("processChildren {} {} {}", type, ptree->data().dump(2), rj.dump(2));
+    // if(type == "Media List")
+    //     spdlog::warn("processChildren {} {} {}", type, ptree->data().dump(2), rj.dump(2));
     // spdlog::warn("processChildren {}", tree_to_json( *ptree,"children").dump(2));
     // spdlog::warn("processChildren {}", rj.dump(2));
 
@@ -877,7 +878,7 @@ void SessionModel::receivedData(
 
                         j["id"]              = jsn["id"];
                         j["prop"]            = jsn["prop"];
-                        j["actor"]           = jsn["actor"];
+                        j["actor_owner"]     = jsn["actor"];
                         j["enabled"]         = jsn["enabled"];
                         j["transparent"]     = jsn["transparent"];
                         j["active_range"]    = jsn["active_range"];
@@ -910,7 +911,6 @@ void SessionModel::requestData(
     const int role) const {
     // dispatch call to backend to retrieve missing data.
 
-    // spdlog::warn("{} {}", role, StdFromQString(roleName(role)));
     try {
         requestData(search_value, search_role, search_hint, indexToData(index), role);
     } catch (const std::exception &err) {

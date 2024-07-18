@@ -67,6 +67,11 @@ namespace media {
             const utility::JsonStore item_query_info,
             caf::typed_response_promise<utility::JsonStore> rp);
 
+        void duplicate(
+            caf::typed_response_promise<utility::UuidUuidActor> rp,
+            caf::actor src_bookmarks,
+            caf::actor dst_bookmarks);
+
         caf::behavior behavior_;
         Media base_;
         caf::actor json_store_;
@@ -134,6 +139,8 @@ namespace media {
             const utility::Timecode &timecode);
 
         void send_stream_metadata_to_stream_actors(const utility::JsonStore &meta);
+
+        void duplicate(caf::typed_response_promise<utility::UuidUuidActor> rp);
 
         inline static const std::string NAME = "MediaSourceActor";
         void init();

@@ -1051,8 +1051,15 @@ QFuture<bool> SessionModel::importFuture(const QUrl &path, const QVariant &json)
         }
 
         try {
+            spdlog::stopwatch sw;
+
             auto session = sys->spawn<session::SessionActor>(js, UriFromQUrl(path));
-            sys->anon_send(session_actor_, session::merge_session_atom_v, session);
+
+            request_receive<utility::UuidVector>(
+                *sys, session_actor_, session::merge_session_atom_v, session);
+
+            spdlog::info(
+                "Session {} merged in {:.3} seconds.", StdFromQString(path.path()), sw);
 
             result = true;
         } catch (const std::exception &err) {

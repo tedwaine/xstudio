@@ -244,7 +244,6 @@ void MediaCopyActor::copy_media_to(
 
                                 //  add to subgroup
                                 if (target_playlist != target) {
-                                    // spdlog::warn("add dup to sub");
                                     anon_send(
                                         target,
                                         playlist::add_media_atom_v,
@@ -270,6 +269,7 @@ void MediaCopyActor::copy_media_to(
                                 }
                             }
                         }
+
                         // all done just do removal..
                         if (not removal_list.empty()) {
                             fan_out_request<policy::select_all>(
@@ -1798,13 +1798,16 @@ void SessionActor::duplicate_container(
     const bool into,
     const bool rename,
     const bool kill_source) {
+
     // find all actor children.. (Timeline/SUBSET/CONTACTSHEET)
     // quick clone of divider..
 
     // clone structure
     PlaylistTree new_tree(tree);
+
     // regenerate uuids..
     new_tree.reset_uuid(true);
+
     duplicate_tree(new_tree, source_session, rename);
 
     std::function<void(const PlaylistTree &, std::vector<Uuid> &)> flatten_tree;

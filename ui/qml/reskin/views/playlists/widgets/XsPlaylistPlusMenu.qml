@@ -23,7 +23,7 @@ XsPopupMenu {
     property var panelContext: helpers.contextPanel(plusMenu)
 
     XsMenuModelItem {
-        text: "Add Playlist"
+        text: "Playlist"
         menuItemType: "button"
         menuPath: path
         menuItemPosition: 1
@@ -40,7 +40,7 @@ XsPopupMenu {
     }
 
     XsMenuModelItem {
-        text: "Add Subset"
+        text: "Subset"
         menuItemType: "button"
         menuPath: path
         menuItemPosition: 2
@@ -57,7 +57,7 @@ XsPopupMenu {
     }
 
     XsMenuModelItem {
-        text: "Add Sequence"
+        text: "Sequence"
         menuItemType: "button"
         menuPath: path
         menuItemPosition: 3
@@ -74,7 +74,7 @@ XsPopupMenu {
     }
 
     XsMenuModelItem {
-        text: "Add Contact Sheet"
+        text: "Contact Sheet"
         menuItemType: "button"
         menuPath: path
         menuItemPosition: 3
@@ -87,7 +87,14 @@ XsPopupMenu {
     }
 
     XsMenuModelItem {
-        text: "Add Divider"
+        menuItemType: "divider"
+        menuPath: path
+        menuItemPosition: 3.2
+        menuModelName: plusMenu.menu_model_name
+    }
+
+    XsMenuModelItem {
+        text: "Divider"
         menuItemType: "button"
         menuPath: path
         menuItemPosition: 3.5
@@ -104,7 +111,7 @@ XsPopupMenu {
     }
 
     XsMenuModelItem {
-        text: "Add Dated Divider"
+        text: "Dated Divider"
         menuItemType: "button"
         menuPath: path
         menuItemPosition: 3.6
@@ -125,7 +132,7 @@ XsPopupMenu {
     }
 
     XsMenuModelItem {
-        text: "Add Media ..."
+        text: "Media ..."
         menuItemType: "button"
         menuPath: path
         menuItemPosition: 5

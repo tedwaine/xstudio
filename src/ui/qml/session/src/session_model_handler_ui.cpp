@@ -230,7 +230,6 @@ void SessionModel::init(caf::actor_system &_system) {
                         try {
                             // request update of containers.
                             const nlohmann::json &j = indexToData(index);
-
                             emit mediaAdded(index);
 
                             index = SessionModel::index(0, 0, index);
@@ -238,9 +237,10 @@ void SessionModel::init(caf::actor_system &_system) {
                                 const nlohmann::json &jj = indexToData(index);
 
                                 // spdlog::info(
-                                //     "utility::event_atom, playlist::add_media_atom {} {}",
+                                //     "utility::event_atom, playlist::add_media_atom {} {} {}",
                                 //     to_string(jj.at("id").get<Uuid>()),
-                                //     src_str);
+                                //     src_str,
+                                //     jj.dump(2));
 
                                 requestData(
                                     QVariant::fromValue(QUuidFromUuid(jj.at("id"))),

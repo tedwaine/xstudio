@@ -12,15 +12,15 @@ XsGradientRectangle {
 	property bool isEnabled: true
 	property bool isLocked: false
 	property bool isSelected: false
-	property bool isRolling: false
-	property bool showRolling: false
+	property bool isDragging: false
 	property bool isBroken: false
 
-	property bool dragLeft: false
-	property bool dragRight: false
-	property bool dragLeftLeft: false
-	property bool dragRightRight: false
-	property bool dragMiddle: false
+	property bool showRolling: false
+	property bool showDragLeft: false
+	property bool showDragRight: false
+	property bool showDragLeftLeft: false
+	property bool showDragRightRight: false
+	property bool showDragMiddle: false
 
 	property int start: 0
 	property int duration: 0
@@ -60,7 +60,7 @@ XsGradientRectangle {
 		bottomColor: control.bottomColor
 		flatTheme: false
 		visible: mediaFlagColour != "transparent" && mediaFlagColour != "#00000000"
-		opacity: dragMiddle ? 0.2 : 0.6
+		opacity: showDragMiddle ? 0.2 : 0.6
 	}
 
 	XsElideLabel {
@@ -71,26 +71,28 @@ XsGradientRectangle {
 		elide: Qt.ElideMiddle
 		text: name
 		// font.pixelSize: 14
-		z:1
+		z:2
 		// clip: true
-	    horizontalAlignment: isRolling ? Text.AlignHCenter : Text.AlignLeft
-	    verticalAlignment: isRolling ? Text.AlignVCenter : Text.AlignBottom
-		opacity: dragMiddle ? 0.2 : 0.8
+		color: palette.text
+	    horizontalAlignment: isDragging ? Text.AlignHCenter : Text.AlignLeft
+	    verticalAlignment: isDragging ? Text.AlignVCenter : Text.AlignBottom
+		opacity: 0.8
 	}
 
 	readonly property int dragWidth: 6
 
 	Rectangle {
+		z: 0
 		radius: 2
-		visible: dragMiddle
+		visible: showDragMiddle
 		anchors.top: parent.top
 		anchors.bottom: parent.bottom
 		anchors.topMargin: 2
 		anchors.bottomMargin: 2
 		anchors.horizontalCenter: parent.horizontalCenter
-		width: dragWidth * 2
-		color: palette.highlight
-		opacity: hoverMiddleHandler.hovered ? 1.0 : 0.5
+		width: control.width
+		color: "transparent"
+		// opacity: hoverMiddleHandler.hovered ? 1.0 : 0.5
 
         HoverHandler {
         	id: hoverMiddleHandler
@@ -102,6 +104,9 @@ XsGradientRectangle {
             yAxis.enabled: false
 
             dragThreshold: 1
+            xAxis.minimum: (control.width/2) - dragWidth
+            xAxis.maximum: (control.width/2) + dragWidth
+
             onTranslationChanged: dragging("middle", translation.x)
             onActiveChanged: {
             	if(active) {
@@ -117,7 +122,7 @@ XsGradientRectangle {
 
 	Rectangle {
 		radius: 2
-		visible: dragLeft
+		visible: showDragLeft
 		anchors.top: parent.top
 		anchors.bottom: parent.bottom
 		anchors.left: parent.left
@@ -141,7 +146,8 @@ XsGradientRectangle {
             yAxis.enabled: false
             dragThreshold: 1
             onTranslationChanged: dragging("left", translation.x)
-            xAxis.minimum: 0
+            xAxis.minimum: (dragWidth * 2) - 1
+            xAxis.maximum: (dragWidth * 2) + 1
             onActiveChanged: {
             	if(active) {
             		draggingStarted("left")
@@ -156,7 +162,7 @@ XsGradientRectangle {
 
 	Rectangle {
 		radius: 2
-		visible: dragRight
+		visible: showDragRight
 		anchors.top: parent.top
 		anchors.bottom: parent.bottom
 		anchors.right: parent.right
@@ -176,6 +182,10 @@ XsGradientRectangle {
             cursorShape: Qt.PointingHandCursor
             yAxis.enabled: false
             dragThreshold: 1
+
+            xAxis.minimum: control.width - (dragWidth * 3) - 1
+            xAxis.maximum: control.width - (dragWidth * 3) + 1
+
             onTranslationChanged: dragging("right", translation.x)
             onActiveChanged: {
             	if(active) {
@@ -191,7 +201,7 @@ XsGradientRectangle {
 
 	Rectangle {
 		radius: 2
-		visible: dragLeftLeft
+		visible: showDragLeftLeft
 		anchors.top: parent.top
 		anchors.bottom: parent.bottom
 		anchors.left: parent.left
@@ -210,7 +220,8 @@ XsGradientRectangle {
             cursorShape: Qt.PointingHandCursor
             yAxis.enabled: false
             dragThreshold: 1
-            xAxis.minimum: 0
+            xAxis.minimum: - 1
+            xAxis.maximum: 1
             onTranslationChanged: dragging("leftleft", translation.x)
             onActiveChanged: {
             	if(active) {
@@ -226,7 +237,7 @@ XsGradientRectangle {
 
 	Rectangle {
 		radius: 2
-		visible: dragRightRight
+		visible: showDragRightRight
 		anchors.top: parent.top
 		anchors.bottom: parent.bottom
 		anchors.right: parent.right
@@ -244,6 +255,8 @@ XsGradientRectangle {
             cursorShape: Qt.PointingHandCursor
             yAxis.enabled: false
             dragThreshold: 1
+            xAxis.minimum: control.width - dragWidth
+            xAxis.maximum: control.width
             onTranslationChanged: dragging("rightright", translation.x)
             onActiveChanged: {
             	if(active) {
@@ -257,11 +270,8 @@ XsGradientRectangle {
         }
 	}
 
-
-	// position of clip in media
 	Rectangle {
 		radius: 2
-
 		visible: showRolling
 
 		anchors.top: parent.top
@@ -271,41 +281,30 @@ XsGradientRectangle {
 		anchors.bottomMargin: 1
 		anchors.leftMargin: (parent.width / availableDuration) * (start - availableStart)
 
-		color: palette.highlight
-
 		width: ((parent.width / availableDuration) * duration)
-	}
+		color: palette.highlight
+		opacity: rollHandler.hovered ? 1.0 : 0.5
 
-	// position of clip in media
-	Rectangle {
-
-		visible: showRolling
-
-		anchors.top: parent.top
-		anchors.bottom: parent.bottom
-		anchors.left: parent.left
-		anchors.topMargin: 1
-		anchors.bottomMargin: 1
-		anchors.leftMargin: 1
-
-		color: "black"
-		opacity: 0.1
-
-		width: (parent.width / availableDuration) * (start - availableStart)
-	}
-
-	Rectangle {
-		visible: showRolling
-
-		anchors.top: parent.top
-		anchors.bottom: parent.bottom
-		anchors.right: parent.right
-		anchors.topMargin: 1
-		anchors.bottomMargin: 1
-		anchors.rightMargin: 1
-
-		color: "black"
-		opacity: 0.1
-		width: parent.width - ((parent.width / availableDuration) * duration) - ((parent.width / availableDuration) * (start - availableStart))
+        HoverHandler {
+        	id: rollHandler
+            cursorShape: Qt.PointingHandCursor
+        }
+        DragHandler {
+            cursorShape: Qt.PointingHandCursor
+            yAxis.enabled: false
+            dragThreshold: 1
+            xAxis.minimum: 0
+            xAxis.maximum: control.width - parent.width
+            onTranslationChanged: dragging("roll", translation.x)
+            onActiveChanged: {
+            	if(active) {
+            		draggingStarted("roll")
+            		parent.anchors.left = undefined
+            	} else {
+            		draggingStopped("roll")
+	            	parent.anchors.left = parent.parent.left
+	            }
+            }
+        }
 	}
 }

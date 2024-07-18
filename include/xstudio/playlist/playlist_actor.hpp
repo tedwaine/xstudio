@@ -75,6 +75,16 @@ namespace playlist {
         void sort_by_media_display_info(
             const int info_set_idx, const int info_item_idx, const bool ascending);
 
+        void duplicate(
+            caf::typed_response_promise<utility::UuidActor> rp,
+            caf::actor src_bookmarks,
+            caf::actor dst_bookmarks);
+
+        void duplicate_containers(
+            caf::typed_response_promise<utility::UuidActor> rp,
+            const utility::UuidActor &new_playlist,
+            const utility::UuidUuidMap &media_map);
+
       private:
         caf::behavior behavior_;
         Playlist base_;

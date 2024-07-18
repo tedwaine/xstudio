@@ -23,6 +23,9 @@ Item {
 
     height: XsStyleSheet.widgetStdHeight + 4
 
+    signal editingCompleted()
+
+
     XsPrimaryButton{ id: searchBtn
         x: isExpandedToLeft? searchBar.width : 0
         width: buttonWidth
@@ -51,6 +54,7 @@ Item {
         // anchors.left: searchBtn.right
 
         placeholderText: isExpanded? hint : "" //activeFocus? "" : hint
+        onEditingCompleted: widget.editingCompleted()
 
         Component.onCompleted: {
             if(isExpandedToLeft) anchors.right = searchBtn.left

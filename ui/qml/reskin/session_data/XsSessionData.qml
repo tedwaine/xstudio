@@ -103,8 +103,8 @@ Item {
         }
 
         function createPlaylistChild(name, type, playlistIndex, insert_before) {
-
             // note row 2 of Playlist in tree is the list of subsets, contactsheets etc
+
             var newidx = sessionData.insertRowsSync(
                 insert_before==undefined ? sessionData.rowCount(sessionData.index(2, 0, playlistIndex)) : insert_before,
                 1, type, name,
@@ -280,7 +280,10 @@ Item {
 
         session.setCurrentContainer(inspectedMediaSetIndex, false);
         let pl = session.getPlaylistIndex(inspectedMediaSetIndex)
-        session.set(pl, true, "expandedRole")
+
+        // if child make sure it's visible
+        if(pl != inspectedMediaSetIndex)
+            session.set(pl, true, "expandedRole")
 
     }
 
@@ -289,8 +292,10 @@ Item {
         session.setCurrentPlaylist(viewedMediaSetIndex)
         session.setCurrentContainer(viewedMediaSetIndex, true);
 
-        let pl = session.getPlaylistIndex(inspectedMediaSetIndex)
-        session.set(pl, true, "expandedRole")
+        // if child make sure it's visible
+        let pl = session.getPlaylistIndex(viewedMediaSetIndex)
+        if(pl != viewedMediaSetIndex)
+            session.set(pl, true, "expandedRole")
     }
 
     // This ItemSelectionModel manages playlist, subset, timeline etc. selection

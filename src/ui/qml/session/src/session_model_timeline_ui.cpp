@@ -79,6 +79,25 @@ QRect SessionModel::timelineRect(const QModelIndexList &indexes) const {
     return result;
 }
 
+QModelIndexList SessionModel::getIndexesByName(
+    const QModelIndex &idx, const QString &name, const QString &type) const {
+    auto results = QModelIndexList();
+
+    if (idx.isValid()) {
+        if ((type.isEmpty() or idx.data(typeRole).toString() == type) and
+            idx.data(nameRole).toString().contains(name, Qt::CaseInsensitive)) {
+            results.push_back(idx);
+        }
+
+        if (idx.model()->hasChildren(idx)) {
+            for (auto i = 0; i < idx.model()->rowCount(idx); i++)
+                results.append(getIndexesByName(idx.model()->index(i, 0, idx), name, type));
+        }
+    }
+
+    return results;
+}
+
 QModelIndexList SessionModel::getTimelineClipIndexes(
     const QModelIndex &timelineIndex, const QModelIndex &mediaIndex) {
     auto result = QModelIndexList();
@@ -94,23 +113,42 @@ QModelIndexList SessionModel::getTimelineClipIndexes(
     return result;
 }
 
-QModelIndexList SessionModel::getTimelineVisibleClipIndexes(
+QVariantList SessionModel::mediaFrameToTimelineFrames(
     const QModelIndex &timelineIndex,
     const QModelIndex &mediaIndex,
     const int logicalMediaFrame,
     const bool skipDisabled) {
-    auto result = QModelIndexList();
-    auto tmp    = getTimelineClipIndexes(timelineIndex, mediaIndex);
 
-    for (const auto &i : tmp) {
-        auto start = i.data(trimmedStartRole).toInt();
-        auto end   = start + i.data(trimmedDurationRole).toInt() - 1;
-        if (logicalMediaFrame >= start and logicalMediaFrame <= end and
-            (not skipDisabled or
-             (i.data(enabledRole).toBool() and i.parent().data(enabledRole).toBool())))
-            result.push_back(i);
+    // given the index of a media item, and a logical frame into that media,
+    // we want to return the corresponding timeline logical frames - i.e. the
+    // timeline frames where 'logicalMediaFrame' of the given media will be
+    // on screen.
+
+    auto result = QVariantList();
+
+    // get the timeline actor
+    auto timeline_actor = actorFromQString(system(), timelineIndex.data(actorRole).toString());
+
+    // get the uuid of the media actor
+    utility::Uuid media_uuid;
+    if (mediaIndex.isValid() and mediaIndex.data(typeRole).toString() == QString("Media")) {
+        media_uuid = UuidFromQUuid(mediaIndex.data(actorUuidRole).toUuid());
     }
 
+    scoped_actor sys{system()};
+    try {
+        auto ri = request_receive<std::vector<int>>(
+            *sys,
+            timeline_actor,
+            timeline::media_frame_to_timeline_frames_atom_v,
+            media_uuid,
+            logicalMediaFrame,
+            skipDisabled);
+        for (const auto &i : ri) {
+            result.push_back(i);
+        }
+    } catch (...) {
+    }
     return result;
 }
 

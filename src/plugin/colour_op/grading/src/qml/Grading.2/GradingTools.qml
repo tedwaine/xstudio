@@ -32,11 +32,26 @@ Item { id: dialog
     property alias grading_sliders_model: attrs.grading_sliders_model
     property alias grading_wheels_model: attrs.grading_wheels_model
 
-    onVisibleChanged: {
+    Component.onCompleted: {
+        // If created in hidden state, just rely on onVisibleChanged
+        // to increment the property when the component becomes visible.
         if (visible) {
-            attrs.grading_tool_active = true
+            attrs.tool_opened_count += 1
+        }
+    }
+    Component.onDestruction: {
+        attrs.tool_opened_count -= 1
+    }
+
+    onVisibleChanged: {
+        if (attrs.tool_opened_count === undefined) {
+            return
+        }
+
+        if (visible) {
+            attrs.tool_opened_count += 1
         } else {
-            attrs.grading_tool_active = false
+            attrs.tool_opened_count -= 1
         }
     }
 
