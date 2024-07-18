@@ -76,6 +76,7 @@ MediaDetailAndThumbnailReaderActor::MediaDetailAndThumbnailReaderActor(
         [=](get_media_detail_atom _get_media_detail_atom,
             const caf::uri &_uri,
             const caf::actor_addr &key) -> result<MediaDetail> {
+
             // clear old entries.
             auto prune_age = utility::clock::now() - std::chrono::seconds(120);
             for (auto i = media_detail_cache_age_.begin();

@@ -614,6 +614,8 @@ void PlayheadActor::init() {
                     tc);
 
                 media_frame_per_media_uuid_[source_uuid] = media_logical_frame;
+
+                static int foo = 0;
                 send(
                     event_group_,
                     utility::event_atom_v,
@@ -621,6 +623,7 @@ void PlayheadActor::init() {
                     logical_frame,
                     media_frame,
                     media_logical_frame,
+                    user_is_frame_scrubbing_->value(),
                     media_rate,
                     min(position(), duration() - playhead_rate()),
                     tc);

@@ -7,26 +7,19 @@ Item {
     id: divider
     property bool isVertical: true
     property real thresholdSize: 10
-    property real dividerSize: isHovered || dragging? 1.5*2.5 : 1.5
-    property int id: -1
+    property real thickness: (isHovered || dragging) ? XsStyleSheet.dividerSize+2 : XsStyleSheet.dividerSize //isHovered || dragging? 20 : XsStyleSheet.dividerSize
     
     property bool dragging: mArea.drag.active
     property bool isHovered: mArea.containsMouse
 
 
-    width: isVertical? dividerSize*2 : parent.width
-    height: isVertical? parent.height : dividerSize*2
+    width: isVertical? thickness : parent.width
+    height: isVertical? parent.height : thickness
 
     Rectangle{ id: visualThumb
 
-        width: isVertical? dividerSize : parent.width
-        height: isVertical? parent.height : dividerSize
-        color: isHovered || dragging? mArea.pressed? palette.highlight : XsStyleSheet.secondaryTextColor : "#AA000000"
-
-        Component.onCompleted: {
-            if(isVertical) anchors.left = parent.left
-            else anchors.top = parent.top
-        }
+        anchors.fill: parent
+        color: dragging? palette.highlight : isHovered ? XsStyleSheet.secondaryTextColor : "#FF000000"
 
     }
     property var fractional_position_minus: index > 0 ? child_dividers[index-1] : 0.0
@@ -36,7 +29,7 @@ Item {
 
     property var fractional_position: child_dividers[index]
 
-    property var computed_position: (isVertical ? parent.width : parent.height)*fractional_position
+    property var computed_position: (isVertical ? parent.width : parent.height)*fractional_position - thickness/2
 
     onComputed_positionChanged: {
         if (!dragging) {
@@ -48,7 +41,7 @@ Item {
     onYChanged: {
         if (dragging && !isVertical) {
             var v = child_dividers;
-            v[index] = y/parent.height
+            v[index] = (y+thickness/2)/parent.height
             child_dividers= v;
         }
     }
@@ -56,7 +49,7 @@ Item {
     onXChanged: {
         if (dragging && isVertical) {
             var v = child_dividers;
-            v[index] = x/parent.width
+            v[index] = (x+thickness/2)/parent.width
             child_dividers= v;
         }
     }

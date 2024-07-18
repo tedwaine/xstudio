@@ -526,6 +526,25 @@ void StackActor::init() {
             return rp;
         },
 
+        [=](utility::clear_atom) -> result<bool> {
+
+            auto rp = make_response_promise<bool>();
+            request(
+                caf::actor_cast<caf::actor>(this),
+                infinite,
+                remove_item_atom_v,
+                0,
+                (int)base_.item().size(),
+                true).then(
+                    [=](const std::pair<JsonStore, std::vector<Item>>&) mutable {
+                        rp.deliver(true);
+                    },
+                    [=](caf::error &err) mutable {
+                        rp.deliver(err);
+                    });
+            return rp;
+        },
+
         [=](remove_item_atom,
             const int index,
             const bool) -> result<std::pair<JsonStore, std::vector<Item>>> {

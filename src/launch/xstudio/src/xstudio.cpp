@@ -709,8 +709,16 @@ struct Launcher {
 
                     // add to scan list..
                     FrameList fl;
-                    caf::uri uri = parse_cli_posix_path(p, fl, true);
-                    uri_fl.emplace_back(std::make_pair(uri, fl));
+                    if (p.find("http") == 0) {
+                        // TODO: extend parse_cli_posix_path to handle http protocol.
+                        auto uri = caf::make_uri(p);
+                        if (uri) {
+                            uri_fl.emplace_back(std::make_pair(*uri, fl));
+                        }
+                    } else {
+                        caf::uri uri = parse_cli_posix_path(p, fl, true);
+                        uri_fl.emplace_back(std::make_pair(uri, fl));
+                    }
 
                 } catch (const std::exception &e) {
                     spdlog::error("Failed to load media '{}'", e.what());

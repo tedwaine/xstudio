@@ -62,10 +62,14 @@ Rectangle {
                 property var e: index >= topItem.dividers.length ? 1.0 : topItem.dividers[index]
                 property var frac_size: e-d
 
-                width: topItem.isVertical ? topItem.width*frac_size : topItem.width
-                height: topItem.isVertical ? topItem.height : topItem.height*frac_size
-                x: topItem.isVertical ? topItem.width*d : 0
-                y: topItem.isVertical ? 0 : topItem.height*d
+                property real divsize0: index == 0 ? 0 : XsStyleSheet.dividerSize/2
+                property real divsize1: index >= topItem.dividers.length ? 0 : XsStyleSheet.dividerSize/2
+                property real divsizeTotal: divsize0 + divsize1
+
+                width: topItem.isVertical ? (topItem.width*frac_size-divsizeTotal) : topItem.width
+                height: topItem.isVertical ? topItem.height : (topItem.height*frac_size-divsizeTotal)
+                x: topItem.isVertical ? topItem.width*d+divsize0 : 0
+                y: topItem.isVertical ? 0 : topItem.height*d+divsize0
 
                 property var child
                 property var child_type

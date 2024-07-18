@@ -114,6 +114,7 @@ void py_config::add_atoms() {
     ADD_ATOM(xstudio::playlist, create_subset_atom);
     ADD_ATOM(xstudio::playlist, create_timeline_atom);
     ADD_ATOM(xstudio::playlist, duplicate_container_atom);
+    ADD_ATOM(xstudio::playlist, expanded_atom);    
     ADD_ATOM(xstudio::playlist, get_change_event_group_atom);
     ADD_ATOM(xstudio::playlist, get_container_atom);
     ADD_ATOM(xstudio::playlist, get_media_atom);

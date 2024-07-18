@@ -156,16 +156,27 @@ class PluginBase(ModuleBase):
             item can trigger the callback by calling xstudio_callback(JSON)
             function somewhere in the qml signal handlers etc.
         """
-        attr = self.add_attribute(
-            "Create ".format(qml_item),
-            attribute_value = False,
-            attribute_role_data={
-                "qml_code": qml_item,
-                "groups": ["dynamic qml items"],
-                "enabled": False
-            })
+
+        attr_name = "QML item {}".format(hash(qml_item))
+
+        try:
+            attr = self.get_attribute(attr_name)
+        except:
+            attr = None
+
+        if not attr:
+            attr = self.add_attribute(
+                attr_name,
+                attribute_value = False,
+                attribute_role_data={
+                    "qml_code": qml_item,
+                    "groups": ["dynamic qml items"],
+                    "enabled": False
+                })
+
         self.qml_item_attrs[attr.uuid] = (attr, callback_fn)
-        attr.set_role_data("attr_enabled", True) # causes the qml item to be shown
+        # 'attr_enabled' controls the visibility of the widget
+        attr.set_role_data("attr_enabled", True) 
 
     def _PluginBase__attribute_changed(
         self,

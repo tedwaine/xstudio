@@ -47,7 +47,8 @@ void blocking_loader(
     const utility::Uuid &before) {
     std::vector<UuidActor> result;
     std::vector<UuidActor> batched_media_to_add;
-    // spdlog::error("blocking_loader uri {}", to_string(path));
+    
+    spdlog::error("blocking_loader uri {}", to_string(path));
     // spdlog::error("blocking_loader posix {}", uri_to_posix_path(path));
 
     self->anon_send(dst.actor(), playlist::loading_media_atom_v, true);
@@ -56,7 +57,7 @@ void blocking_loader(
 
     event::send_event(self, event_msg);
 
-    auto items = utility::scan_posix_path(uri_to_posix_path(path), recursive ? -1 : 0);
+    auto items = utility::scan_posix_path(to_string(path).find("http") == 0 ? to_string(path) : uri_to_posix_path(path), recursive ? -1 : 0);
     std::sort(
         std::begin(items),
         std::end(items),
@@ -659,7 +660,12 @@ void PlaylistActor::init() {
             // so that the duration of the media is known. This is because the playhead will
             // update and build a timeline as soon as the playlist notifies of change, so the
             // duration and frame rate must be known up-front
-            std::vector<UuidActor> media_actors = ma;
+            std::vector<UuidActor> media_actors;
+            for (const auto &media: ma) {
+                if (!media_.count(media.uuid())) {
+                    media_actors.push_back(media);
+                }
+            }
             auto source_count                   = std::make_shared<int>();
             (*source_count)                     = media_actors.size();
             auto rp                             = make_response_promise<bool>();

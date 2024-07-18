@@ -24,6 +24,7 @@ Item {
             property var source: qml_code
             property var itemEnabled: attr_enabled
             property var dynamic_widget
+            property var widget_visible: dynamic_widget ? dynamic_widget.visible : false
             onSourceChanged: {
                 if (typeof source != "string" || dynamic_widget) return
                 if (source.endsWith(".qml")) {
@@ -32,16 +33,20 @@ Item {
                         dynamic_widget = component.createObject(
                             parent_item, {})
                     } else {
-                        console.log("Couldn't load singleton qml file.", component, component.errorString())
+                        console.log("Couldn't load qml file.", component, component.errorString())
                     }
                 } else {
                     dynamic_widget = Qt.createQmlObject(source, parent_item)
                 }
             }
+            onWidget_visibleChanged: {
+                if (!widget_visible) {
+                    attr_enabled = false
+                }
+            }
             onItemEnabledChanged: {
                 if (itemEnabled && dynamic_widget) {
                     dynamic_widget.visible = true
-                    itemEnabled = false
                 }
             }
             function xstudio_callback(data) {

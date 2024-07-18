@@ -92,6 +92,7 @@ class py_context : public py_config {
     std::thread my_thread;
 
     std::map<caf::actor_addr, std::vector<py::function>> message_handler_callbacks_;
+    std::map<caf::actor_addr, py::function> message_conversion_function_;
     std::map<xstudio::utility::Uuid, py::function> delayed_callbacks_;
 };
 } // namespace caf::python

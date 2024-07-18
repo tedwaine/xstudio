@@ -15,6 +15,14 @@ Item { id: modeBar
         anchors.fill: parent
     }
 
+    Rectangle {
+        anchors.left: parent.left
+        anchors.right: parent.right
+        anchors.bottom: parent.bottom
+        height: 0.5
+        color: "black"
+    }
+
     property string barId: ""
     property real panelPadding: XsStyleSheet.panelPadding
     property real buttonHeight: XsStyleSheet.widgetStdHeight-4

@@ -33,6 +33,7 @@ FFMpegDecoder::FFMpegDecoder(
       stream_id_(std::move(stream_id))
 
 {
+    // ffmpeg doesn't like /localhost in the URI
     open_handles();
 }
 

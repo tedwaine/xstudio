@@ -284,13 +284,31 @@ void py_context::py_run_xstudio_message_loop() {
 
             auto addr    = caf::actor_cast<caf::actor_addr>(ptr->sender);
             const auto p = message_handler_callbacks_.find(addr);
+            const auto q = message_conversion_function_.find(addr);
             if (p != message_handler_callbacks_.end()) {
+
                 caf::message r = ptr->content();
                 py::tuple py_msg(1);
                 PyTuple_SetItem(py_msg.ptr(), 0, py::cast(r).release().ptr());
-                for (auto &func : p->second) {
-                    func(py_msg);
+
+                if (q != message_conversion_function_.end()) {
+
+                    // we have a py funct that will convert the caf message to
+                    // a tuple
+                    auto message_as_tuple = q->second(py_msg);
+                    for (auto &func : p->second) {
+                       func(message_as_tuple);
+                    }
+
+                } else {
+
+                    for (auto &func : p->second) {
+                        func(py_msg);
+                    }
+
                 }
+
+                
             }
 
         } catch (std::exception &e) {
@@ -303,9 +321,7 @@ void py_context::py_add_message_callback(const py::args &xs) {
 
     try {
 
-        std::cerr << "py_add_message_callback " << this << " " << xs.size() << "\n";
-
-        if (xs.size() == 2 || xs.size() == 3) {
+        if (xs.size() >= 2 && xs.size() <= 4) {
 
             auto i            = xs.begin();
             auto remote_actor = (*i).cast<caf::actor>();
@@ -313,10 +329,7 @@ void py_context::py_add_message_callback(const py::args &xs) {
             auto callback_func = (*i).cast<py::function>();
             auto addr          = caf::actor_cast<caf::actor_addr>(remote_actor);
 
-            std::cerr << "remote_actor " << to_string(remote_actor) << " " << to_string(self_)
-                      << "\n";
-
-            if (xs.size() == 3) {
+            if (xs.size() >= 3) {
                 // Let's say we want to receive event messages from a MediaActor.
                 // We need to call 'join_broadcast' with the event_group actor
                 // belonging to the MediaActor. However, in
@@ -329,6 +342,20 @@ void py_context::py_add_message_callback(const py::args &xs) {
                 i++;
                 auto parent_actor = (*i).cast<caf::actor>();
                 addr              = caf::actor_cast<caf::actor_addr>(parent_actor);
+            }
+
+            if (xs.size() == 4) {
+                i++;
+                // as an optional 4th argument, we take a function that will convert
+                // a caf message into a tuple. This conversion function is provided 
+                // by the Link class in the xstuduio python module which we can't
+                // get to from the C++ side here, hence we take a python function
+                // that lets us run the conversion. Awkward.
+                i++;
+                auto convert_function = (*i).cast<py::function>();
+                if (convert_function) {
+                    message_conversion_function_[addr] = convert_function;
+                }
             }
 
             const auto p = message_handler_callbacks_.find(addr);

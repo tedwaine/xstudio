@@ -608,9 +608,29 @@ void timeline_importer(
     const std::vector<otio::SerializableObject::Retainer<otio::Clip>> clips =
         (timeline->find_clips());
 
+    // this maps Media actors to the url for the active media ref. We use this
+    // to check if a clip can re-use Media that we already have, or whether we
+    // need to create a new Media item.
+    std::map<std::string, UuidActor> existing_media_url_map;
     std::map<std::string, UuidActor> target_url_map;
 
-    spdlog::warn("processing {} clips", clips.size());
+    // fill our map with media that's already in the parent playlist
+    self->request(playlist, infinite, playlist::get_media_atom_v)
+        .receive(
+            [&](const std::vector<UuidActor> &all_media_in_playlist) mutable { 
+
+                for (auto &media: all_media_in_playlist) {
+                    self->request(media.actor(), infinite, media::media_reference_atom_v, utility::Uuid())
+                        .receive(
+                            [&](const std::pair<Uuid, MediaReference> & ref) mutable {
+                                existing_media_url_map[uri_to_posix_path(ref.second.uri())] = media;
+                            },
+                            [=](error &err) { spdlog::warn("{} {}", __PRETTY_FUNCTION__, to_string(err)); });
+
+
+                }
+            },
+            [=](error &err) { spdlog::warn("{} {}", __PRETTY_FUNCTION__, to_string(err)); });
 
     for (const auto &cl : clips) {
         const auto &name = cl->name();
@@ -622,6 +642,7 @@ void timeline_importer(
         if (auto active = otio::SerializableObject::Retainer<otio::ExternalReference>(
                 dynamic_cast<otio::ExternalReference *>(cl->media_reference()))) {
             active_path = active->target_url();
+            
         }
 
         // spdlog::warn("BLAGH {} {}", active_key, active_path);
@@ -629,6 +650,9 @@ void timeline_importer(
         // WARNING this may inadvertantly skip auxiliary sources we want..
         if (active_path.empty() or target_url_map.count(active_path)) {
             // spdlog::warn("SKIP");
+            continue;
+        } else if (existing_media_url_map.count(active_path)) {
+            target_url_map[active_path] = existing_media_url_map[active_path];
             continue;
         }
 
@@ -648,7 +672,6 @@ void timeline_importer(
 
         // create media sources.
         for (const auto &mr : cl->media_references()) {
-            spdlog::warn("BLOB {} {}", mr.first, mr.second->name());
             // try and dynamic cast to
             if (auto ext = otio::SerializableObject::Retainer<otio::ExternalReference>(
                     dynamic_cast<otio::ExternalReference *>(mr.second))) {
@@ -657,7 +680,6 @@ void timeline_importer(
                 if (!uri) {
                     uri = posix_path_to_uri(ext->target_url());
                 }
-                spdlog::warn("FLOB {} {} {}", ext->target_url(), to_string(uri), bool(uri));
                 if (uri) {
                     auto extname     = ext->name();
                     auto source_uuid = utility::Uuid::generate();
@@ -696,8 +718,6 @@ void timeline_importer(
             }
         }
 
-        std::cerr << "NUM SOURCES " << sources.size() << " .... " << name << "\n";
-
         // //  add media.
         if (not sources.empty()) {
             // create media
@@ -724,8 +744,6 @@ void timeline_importer(
         std::cout << dur.value() << "/" << dur.rate() << "]" << std::endl;
         // trigger population of additional sources ? May conflict with timeline ?
     }
-
-    std::cerr << "target_url_map " << target_url_map.size() << "\n";
 
     // populate source
     if (not target_url_map.empty()) {
@@ -2035,8 +2053,16 @@ void TimelineActor::init() {
             }
             return not removed.empty();
         },
-
-
+        [=](utility::clear_atom) -> bool {
+             base_.clear();
+             for (const auto &i : actors_) {
+                 // this->leave(i.second);
+                 unlink_from(i.second);
+                 send_exit(i.second, caf::exit_reason::user_shutdown);
+             }
+             actors_.clear();
+             return true;
+        },
         // // code for playhead// get edit_list for all tracks/stacks..// this is temporary,
         // it'll
         // // need heavy changes..// also this only returns edit_lists for images, audio may be
@@ -2339,10 +2365,10 @@ void TimelineActor::init() {
             // Should this be trimmed_range, active_range or available_range or
             // something else?
             const int start_frame =
-                (*base_.item().available_range()).frame_start().frames(override_rate);
+                (*base_.item().available_range()).frame_start().frames(base_.rate());
             const int end_frame =
                 start_frame +
-                (*base_.item().available_range()).frame_duration().frames(override_rate);
+                (*base_.item().available_range()).frame_duration().frames(base_.rate());
 
             // request the sequential AVFrameIDs for this timeline
             request(
@@ -2354,7 +2380,7 @@ void TimelineActor::init() {
                     start_frame,
                     end_frame,
                 }}),
-                override_rate)
+                base_.rate())
                 .then(
                     [=](const media::AVFrameIDs &frame_ids) mutable {
                         auto time_point = timebase::flicks(0);
@@ -2387,7 +2413,7 @@ void TimelineActor::init() {
         [=](media::get_media_pointers_atom atom,
             const media::MediaType media_type,
             const media::LogicalFrameRanges &ranges,
-            const FrameRate &override_rate) -> caf::result<media::AVFrameIDs> {
+            const FrameRate &/*override_rate*/) -> caf::result<media::AVFrameIDs> {
             auto num_frames = 0;
             for (const auto &i : ranges)
                 num_frames += (i.second - i.first) + 1;
@@ -2399,6 +2425,12 @@ void TimelineActor::init() {
             // spdlog::warn("{} {} {} {}", media_type, num_frames, start_frame,
             // override_rate.to_fps());
 
+            // N.B. !! We do not use 'override_rate' - the time base for the
+            // whole timeline is base_.rate() - that means if the timeline is
+            // 30fps but some media is 60fps, it will show every other frame
+            // from that media, for example.
+            const FrameRate base_frame_rate = base_.rate();
+
             caf::scoped_actor sys(system());
 
             auto item_tp = std::vector<std::optional<ResolvedItem>>();
@@ -2408,7 +2440,7 @@ void TimelineActor::init() {
             for (const auto &r : ranges) {
                 for (auto i = r.first; i <= r.second; i++) {
                     auto ii = base_.item().resolve_time(
-                        FrameRate(i * override_rate.to_flicks()),
+                        FrameRate(i * base_frame_rate.to_flicks()),
                         media_type,
                         base_.focus_list());
                     if (ii) {
@@ -2449,11 +2481,12 @@ void TimelineActor::init() {
                         media::get_media_pointer_atom_v,
                         media_type,
                         tps,
-                        override_rate)
+                        base_frame_rate)
                         .then(
                             [=, s = start, e = end](const media::AVFrameIDs &mps) mutable {
                                 for (auto ii = s; ii <= e; ii++) {
                                     (*result)[ii] = mps[ii - s];
+                                    std::cerr << to_string(mps[ii - s]->key_) << "\n";
                                     (*count)--;
                                     // spdlog::error("s {} e {} ii {} c {}", s, e, ii, *count);
                                     if (not *count) {
@@ -2502,7 +2535,7 @@ void TimelineActor::init() {
                     media::get_media_pointer_atom_v,
                     media_type,
                     tps,
-                    override_rate)
+                    base_frame_rate)
                     .then(
                         [=, s = start, e = end](const media::AVFrameIDs &mps) mutable {
                             for (auto ii = s; ii <= e; ii++) {
@@ -2616,6 +2649,30 @@ void TimelineActor::init() {
 
         [=](session::get_playlist_atom) -> caf::actor {
             return caf::actor_cast<caf::actor>(playlist_);
+        },
+
+        [=](session::import_atom,
+            const caf::uri &path,
+            const std::string &data,
+            bool clear) -> result<bool> {
+
+            auto rp = make_response_promise<bool>();
+
+            if (clear && base_.item().size()) {
+                // send a clear atom to the stack actor.
+                auto stack_item = *(base_.item().begin());
+                request(stack_item.actor(), infinite, utility::clear_atom_v).then(
+                    [=](bool) mutable {
+                        rp.delegate(caf::actor_cast<caf::actor>(this), session::import_atom_v, path, data);
+                    },
+                    [=](caf::error &err) mutable {
+                        rp.deliver(err);
+                    });
+            } else {
+                rp.delegate(caf::actor_cast<caf::actor>(this), session::import_atom_v, path, data);
+            }
+            return rp;
+           
         },
 
         [=](session::import_atom,
