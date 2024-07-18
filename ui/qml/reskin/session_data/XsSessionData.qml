@@ -55,8 +55,19 @@ Item {
             playlistsRootIdx = index(0, 0, index(-1, -1))
         }
         onCurrentPlaylistChanged: {
-            if (inspectedMediaSetIndex != currentPlaylistIndex()) {
-                sessionSelectionModel.setCurrentIndex(currentPlaylistIndex(), ItemSelectionModel.ClearAndSelect)
+            setActivePlaylistIndex(true)
+        }
+        function setActivePlaylistIndex(retry) {
+            var idx = currentPlaylistIndex()
+            if (idx.valid) {
+                sessionSelectionModel.setCurrentIndex(idx, ItemSelectionModel.ClearAndSelect)
+            } else if (retry) {
+                // playlist may have *just* been created and isn't inserted into the
+                // session model yet
+                callbackTimer.setTimeout(
+                    function() { return function() {
+                        sessionData.setActivePlaylistIndex(false)
+                        }}(), 200)                    
             }
         }
 

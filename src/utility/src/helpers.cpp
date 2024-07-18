@@ -478,8 +478,14 @@ caf::uri xstudio::utility::posix_path_to_uri(const std::string &path, const bool
     // relative
     if (not p.empty() && p[0] != '/')
         return caf::uri_builder().scheme("file").path(p).make();
-
-    return caf::uri_builder().scheme("file").host("localhost").path(p).make();
+    if (p.find("///") == 0) {
+        return caf::uri_builder().scheme("file").host("").path(p).make();
+    } else if (p.find("//") == 0) {
+        return caf::uri_builder().scheme("file").host("").path("/" + p).make();
+    } else if (p.find("/") == 0) {
+        return caf::uri_builder().scheme("file").host("").path("//" + p).make();
+    }
+    return caf::uri_builder().scheme("file").host("").path("//" + p).make();
 }
 
 std::vector<std::pair<caf::uri, FrameList>>
@@ -522,12 +528,21 @@ xstudio::utility::scan_posix_path(const std::string &path, const int depth) {
         } else if (fs::is_regular_file(p)) {
             items.emplace_back(std::make_pair(posix_path_to_uri(path), FrameList()));
         } else {
+
             FrameList fl;
-            auto uri = xstudio::utility::parse_cli_posix_path(path, fl, true);
-            if (not uri.empty()) {
-                items.emplace_back(std::make_pair(uri, fl));
+            if (path.find("http") == 0) {
+                // TODO: extend parse_cli_posix_path to handle http protocol.
+                auto uri = caf::make_uri(path);
+                if (uri) {
+                    items.emplace_back(std::make_pair(*uri, fl));
+                }
             } else {
-                spdlog::warn("{} {}", __PRETTY_FUNCTION__, path);
+                auto uri = xstudio::utility::parse_cli_posix_path(path, fl, true);
+                if (not uri.empty()) {
+                    items.emplace_back(std::make_pair(uri, fl));
+                } else {
+                    spdlog::warn("{} {}", __PRETTY_FUNCTION__, path);
+                }
             }
         }
     } catch (const std::exception &err) {
@@ -696,7 +711,7 @@ bool xstudio::utility::check_plugin_uri_request(const std::string &request) {
     const static std::regex re(R"((\w+)://.+)");
     std::cmatch m;
     if (std::regex_match(request.c_str(), m, re)) {
-        if (m[1] != "xstudio" and m[1] != "file")
+        if (m[1] != "xstudio" and m[1] != "file" and m[1] != "https")
             return true;
     }
     return false;

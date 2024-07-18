@@ -36,6 +36,7 @@ QtObject {
     property color panelBgGradTopColor: Qt.darker("#5C5C5C", darkerFactor)
     property color panelBgGradBottomColor: menuBarColor
     property real panelPadding: 4
+    property real dividerSize: 2
 
     property color widgetBgNormalColor: Qt.darker("#1AFFFFFF", darkerFactor)
     property real widgetStdHeight: 24

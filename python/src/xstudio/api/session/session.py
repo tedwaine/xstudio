@@ -414,3 +414,24 @@ class Session(Container):
             path = URI(path)
 
         return self.connection.request_receive(self.remote, save_atom(), path)[0]
+
+    @property
+    def current_playlist(self):
+        """Current playlist uuid
+
+        Returns:
+           uuid(Uuid): Uuid of current (active, on-screen) playlist, timeline or subset.
+        """
+        actor = self.connection.request_receive(self.remote, current_playlist_atom())[0]
+        return self.connection.request_receive(actor, uuid_atom())[0]
+
+
+    @current_playlist.setter
+    def current_playlist(self, playlist_uuid):
+        """Set the current, on-screen playlist
+
+        Args:
+            playlist_uuid(Uuid): Uuid of playlist, subset or timeline(sequence)
+        """
+        print ("SETTING PLAYLIST", playlist_uuid)
+        self.connection.send(self.remote, current_playlist_atom(), playlist_uuid)

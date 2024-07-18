@@ -15,6 +15,8 @@ find_package(GLEW REQUIRED)
 find_package(Qt5 COMPONENTS Core Quick Gui Widgets OpenGL REQUIRED)
 find_package(OpenSSL)
 find_package(ZLIB)
+find_package(fmt REQUIRED)
+
 if(WIN32)
 # TED - OTIO disabled for WINDOWS?
 #find_package(OpenTime REQUIRED)

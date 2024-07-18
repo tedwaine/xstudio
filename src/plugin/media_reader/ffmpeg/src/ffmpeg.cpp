@@ -236,6 +236,19 @@ static ui::viewport::GPUShaderPtr
 static ui::viewport::GPUShaderPtr
     ffmpeg_shader_rgb(new ui::opengl::OpenGLShader(ffmpeg_shader_uuid_rgb, the_shader_rgb));
 
+std::string uri_convert(const caf::uri & uri) {
+
+    // This may be a kettle of fish.
+
+    // uri like https://aswf.s3-accelerate.amazonaws.com/ALab_h264_MOVs/mk020_0220.mov
+    // can be passed through.
+    // uri like file://localhost/user_data/my_vid.mov needs the 'localhost' removed.
+    auto path = to_string(uri);
+    utility::replace_string_in_place(path, "file://localhost", "file:");
+    return path;
+
+}
+
 } // namespace
 
 
@@ -282,7 +295,7 @@ static std::mutex m;
 static int ct = 0;
 
 ImageBufPtr FFMpegMediaReader::image(const media::AVFrameID &mptr) {
-    std::string path = uri_to_posix_path(mptr.uri_);
+    std::string path = uri_convert(mptr.uri_);
 
     if (last_decoded_image_ && last_decoded_image_->media_key() == mptr.key_) {
         return last_decoded_image_;
@@ -313,7 +326,7 @@ AudioBufPtr FFMpegMediaReader::audio(const media::AVFrameID &mptr) {
 
         // Set the path for the media file. Currently, it's hard-coded to a specific file.
         // This may be updated later to use the URI from the AVFrameID object.
-        std::string path = uri_to_posix_path(mptr.uri_);
+        std::string path = uri_convert(mptr.uri_);
 
         // If the audio_decoder object doesn't exist or the path it's using differs
         // from the one we're interested in, then create a new audio_decoder.
@@ -348,7 +361,7 @@ AudioBufPtr FFMpegMediaReader::audio(const media::AVFrameID &mptr) {
 
 xstudio::media::MediaDetail FFMpegMediaReader::detail(const caf::uri &uri) const {
 
-    FFMpegDecoder t_decoder(uri_to_posix_path(uri), soundcard_sample_rate_);
+    FFMpegDecoder t_decoder(uri_convert(uri), soundcard_sample_rate_);
     // N.B. MediaDetail needs frame duration, so invert frame rate
     std::vector<media::StreamDetail> streams;
 
@@ -373,7 +386,7 @@ xstudio::media::MediaDetail FFMpegMediaReader::detail(const caf::uri &uri) const
                     static_cast<int>(t_decoder.duration_frames()), frameRate),
                 fmt::format("stream {}", p.first),
                 (p.second->codec_type() == AVMEDIA_TYPE_VIDEO ? media::MT_IMAGE
-                                                              : media::MT_AUDIO),
+                                                            : media::MT_AUDIO),
                 "{0}@{1}/{2}",
                 p.second->resolution(),
                 p.second->pixel_aspect(),
@@ -382,6 +395,7 @@ xstudio::media::MediaDetail FFMpegMediaReader::detail(const caf::uri &uri) const
     }
 
     return xstudio::media::MediaDetail(name(), streams, t_decoder.first_frame_timecode());
+
 }
 
 MRCertainty FFMpegMediaReader::supported(const caf::uri &uri, const std::array<uint8_t, 16> &) {
@@ -403,7 +417,7 @@ std::shared_ptr<thumbnail::ThumbnailBuffer>
 FFMpegMediaReader::thumbnail(const media::AVFrameID &mptr, const size_t thumb_size) {
     try {
 
-        std::string path = uri_to_posix_path(mptr.uri_);
+        std::string path = uri_convert(mptr.uri_);
 
         // DebugTimer d(path, mptr.frame_);
         if (!thumbnail_decoder || thumbnail_decoder->path() != path) {

@@ -838,6 +838,10 @@ void SubPlayhead::set_position(
             }
         }
 
+        if (frame) {
+            std::cerr << "Frame " << to_string(frame->key_) << "\n";
+        }
+
         // update the parent playhead with our position
         if (frame && (previous_frame_ != frame || force_updates)) {
             anon_send(

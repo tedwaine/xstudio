@@ -15,6 +15,14 @@ Item {
         anchors.fill: parent
     }
 
+    Rectangle {
+        anchors.left: parent.left
+        anchors.right: parent.right
+        anchors.bottom: parent.bottom
+        height: 0.5
+        color: "black"
+    }
+
     property string menu_model_name
 
     // Here we declare the menu model. Doing this creates an empty JsonTree 

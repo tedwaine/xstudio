@@ -69,7 +69,7 @@ class Stack(Item):
         Returns:
             success(bool): Item erased
         """
-        return self.connection.request_receive(self.remote, erase_item_atom(), index)[0]
+        return self.connection.request_receive(self.remote, erase_item_atom(), index, True)[0]
 
     def move_children(self, start, count, dest):
         """Move child items

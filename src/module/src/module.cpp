@@ -475,6 +475,10 @@ caf::message_handler Module::message_handler() {
              }
          },
 
+         [=](utility::uuid_atom) -> utility::Uuid {
+             return uuid();
+         },
+
          [=](utility::get_event_group_atom, bool) -> caf::actor {
              return attribute_events_group_;
          },
