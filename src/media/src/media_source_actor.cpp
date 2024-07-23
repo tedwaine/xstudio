@@ -191,6 +191,8 @@ void MediaSourceActor::update_media_detail() {
 
 void MediaSourceActor::acquire_detail(
     const utility::FrameRate &rate, caf::typed_response_promise<bool> rp) {
+ 
+    std::cerr << this << " MediaSourceActor::acquire_detail " << base_.online() << " " << media_streams_.size() << " " << pending_stream_detail_requests_.size() << "\n";
 
     // is this a good idea ? We can never update the details.
     if (media_streams_.size()) {
@@ -218,12 +220,17 @@ void MediaSourceActor::acquire_detail(
         if (gmra) {
             int frame;
             auto _uri = base_.media_reference().uri(0, frame);
-            if (not _uri)
+            if (not _uri) {
+                std::cerr << "FUNCK\n";
                 throw std::runtime_error("Invalid frame index");
+            }
+            std::cerr << "OIOI " << to_string(*_uri) << " " << to_string(base_.media_reference().uri()) << "\n";
             request(
                 gmra, infinite, get_media_detail_atom_v, *_uri, actor_cast<actor_addr>(this))
                 .then(
                     [=](const MediaDetail &md) mutable {
+
+                        std::cerr << "STREAMS " << md.streams_.size() << "\n";
                         base_.set_reader(md.reader_);
 
                         bool media_ref_set = false;
@@ -254,7 +261,7 @@ void MediaSourceActor::acquire_detail(
                                 add_media_stream_atom_v,
                                 UuidActor(uuid, stream));
 
-                            spdlog::debug(
+                            spdlog::info(
                                 "Media {} fps, {} frames {} timecode.",
                                 base_.media_reference().rate().to_fps(),
                                 base_.media_reference().frame_count(),
@@ -263,6 +270,7 @@ void MediaSourceActor::acquire_detail(
 
                         if (md.streams_.empty()) {
                             if (base_.media_status() == MS_ONLINE) {
+                                std::cerr << "SDLGHISDLKGH\n";
                                 anon_send(this, media_status_atom_v, MS_MISSING);
                             }
                         }
@@ -297,7 +305,7 @@ void MediaSourceActor::acquire_detail(
                         // set duration to one frame. Or things get upset.
                         // base_.media_reference().set_duration(
                         //     FrameRateDuration(1, base_.media_reference().duration().rate()));
-                        spdlog::debug("{} {}", __PRETTY_FUNCTION__, to_string(err));
+                        spdlog::critical("{} {}", __PRETTY_FUNCTION__, to_string(err));
                         base_.send_changed(event_group_, this);
                         send(event_group_, utility::event_atom_v, change_atom_v);
                         base_.set_error_detail(to_string(err));
@@ -387,6 +395,7 @@ void MediaSourceActor::init() {
         [=](media_status_atom) -> MediaStatus { return base_.media_status(); },
 
         [=](media_status_atom, const MediaStatus status) -> bool {
+            std::cerr << "MEDIA STATSAAGDAOUGH " << status << "\n";
             if (base_.media_status() != status) {
                 base_.set_media_status(status);
                 base_.send_changed(event_group_, this);
@@ -1495,7 +1504,7 @@ void MediaSourceActor::get_media_pointers_for_frames(
 
     if (base_.current(media_type).is_null()) {
 
-
+        std::cerr << "FAil1\n";
         // in the case where there is no source, return list of empty frames.
         // This is useful for sources that have no audio or no video, to keep
         // them compatible with the video based frame request/deliver playback
@@ -1526,6 +1535,7 @@ void MediaSourceActor::get_media_pointers_for_frames(
                             media::AVFrameID mptr;
                             auto timecode =
                                 base_.media_reference(base_.current(media_type)).timecode();
+        std::cerr << "FAiladfaf1\n";
 
                             int prev_range_last = 0;
                             for (const auto &i : ranges) {
@@ -1549,9 +1559,11 @@ void MediaSourceActor::get_media_pointers_for_frames(
                                             base_.media_reference(base_.current(media_type))
                                                 .uri(logical_frame, frame);
 
+std::cerr << "DF\n";
 
                                         if (not _uri)
                                             throw std::runtime_error("Time out of range");
+        std::cerr << "asfas " << to_string(*_uri) << "\n";
 
                                         if (mptr.is_nil()) {
                                             mptr = media::AVFrameID(
@@ -1713,6 +1725,8 @@ void MediaSourceActor::update_stream_media_reference(
         media_reference.set_timecode_from_frames();
     }
     base_.set_media_reference(media_reference);
+
+    std::cerr << "MEDIA REF SET " << to_string(base_.media_reference().uri()) << "\n";
 }
 
 void MediaSourceActor::send_stream_metadata_to_stream_actors(const utility::JsonStore &meta) {

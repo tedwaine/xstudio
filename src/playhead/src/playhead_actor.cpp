@@ -615,7 +615,6 @@ void PlayheadActor::init() {
 
                 media_frame_per_media_uuid_[source_uuid] = media_logical_frame;
 
-                static int foo = 0;
                 send(
                     event_group_,
                     utility::event_atom_v,

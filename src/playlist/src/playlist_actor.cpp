@@ -48,8 +48,7 @@ void blocking_loader(
     std::vector<UuidActor> result;
     std::vector<UuidActor> batched_media_to_add;
     
-    spdlog::error("blocking_loader uri {}", to_string(path));
-    // spdlog::error("blocking_loader posix {}", uri_to_posix_path(path));
+    // spdlog::error("blocking_loader uri {}", to_string(path));
 
     self->anon_send(dst.actor(), playlist::loading_media_atom_v, true);
 

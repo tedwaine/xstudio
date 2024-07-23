@@ -376,6 +376,7 @@ void EmbeddedPython::run_callback(const utility::Uuid &id) {
     try {
         delayed_callbacks_[id]();
     } catch (std::exception &e) {
+        spdlog::warn("{} : {}", __PRETTY_FUNCTION__, e.what());
         PyErr_SetString(PyExc_RuntimeError, e.what());
     }
     
@@ -439,6 +440,7 @@ void EmbeddedPython::push_caf_message_to_py_callbacks(caf::actor sender, caf::me
         }
 
     } catch (std::exception &e) {
+        spdlog::warn("{} : {}", __PRETTY_FUNCTION__, e.what());
         PyErr_SetString(PyExc_RuntimeError, e.what());
     }
 }

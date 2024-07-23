@@ -274,6 +274,9 @@ void MediaDetailAndThumbnailReaderActor::send_error_to_source(
     if (addr) {
         auto dest = caf::actor_cast<caf::actor>(addr);
         if (dest and err.category() == caf::type_id_v<media::media_error>) {
+
+            std::cerr << "MediaDetailAndThumbnailReaderActorsend_error_to_source " << to_string(err) << "\n";
+
             media_error me;
             from_integer(err.code(), me);
             switch (me) {

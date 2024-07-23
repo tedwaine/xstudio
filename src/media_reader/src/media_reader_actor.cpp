@@ -963,6 +963,9 @@ void GlobalMediaReaderActor::send_error_to_source(
 
         auto dest = caf::actor_cast<caf::actor>(addr);
         if (dest and err.category() == caf::type_id_v<media::media_error>) {
+
+            std::cerr << "send_error_to_source " << to_string(err) << "\n";
+            
             media_error me;
             from_integer(err.code(), me);
             switch (me) {

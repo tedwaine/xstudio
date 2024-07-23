@@ -461,7 +461,7 @@ std::optional<ResolvedItem> Item::resolve_time(
     case IT_TIMELINE:
         // pass to stack
         if (not empty()) {
-            auto t = front().resolve_time(time + trimmed_start(), mt, focus, must_have_focus);
+            auto t = front().resolve_time(time, mt, focus, must_have_focus);
             if (t)
                 return *t;
         }
@@ -509,6 +509,7 @@ std::optional<ResolvedItem> Item::resolve_time(
 
         } else {
             std::optional<ResolvedItem> found_item = {};
+
             for (const auto &it : *this) {
                 // we skip video track
                 if (it.transparent() or it.item_type() == IT_VIDEO_TRACK)

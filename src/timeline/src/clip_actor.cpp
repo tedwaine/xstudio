@@ -678,8 +678,9 @@ void ClipActor::init() {
                         FrameRate())
                         .then(
                             [=](const media::AVFrameIDs &mps) mutable {
-                                // spdlog::warn("const media::AVFrameIDs &mps {} {}",
-                                // base_.item().name(), mps.size());
+                                
+                                /*spdlog::warn("const media::AVFrameIDs &mps {} {}",
+                                    base_.item().name(), mps.size());*/
 
                                 auto mp = mps.begin();
                                 int ct  = 0;
@@ -710,6 +711,7 @@ void ClipActor::init() {
                                 rp.deliver(*result);
                             },
                             [=](error &err) mutable {
+                                std::cerr << "ERR " << to_string(err) << "\n";
                                 // can get an error for missing media - instead
                                 // of passing error up we allow delivery of
                                 // the blank frames

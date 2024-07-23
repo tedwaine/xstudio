@@ -199,6 +199,7 @@ void PlayheadGlobalEventsActor::init() {
                 ui::viewport::viewport_atom_v,
                 viewport_name,
                 viewport);
+            std::cerr << "NEW VIEWPORT " << viewport_name << "\n";
         },
         [=](ui::viewport::viewport_atom,
             const std::string viewport_name) -> result<caf::actor> {

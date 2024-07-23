@@ -331,17 +331,26 @@ class ModuleBase(ActorConnection):
             self.connection.remote(),
             get_global_playhead_events_atom())[0]
 
-        playhead_event_group = get_event_group(self.connection, gphev)
+        print ("gphev", gphev)
+
+        event_group = self.connection.request_receive(
+            gphev,
+            get_event_group_atom())[0]
+
+        print ("subscribe_to_playhead_events", gphev, event_group)
+
+        if not event_group:
+            raise Exception("Actor has no event group.")
 
         if XStudioExtensions:
 
             XStudioExtensions.add_message_callback(
-                (gphev, self.__playhead_events)
+                (event_group, playhead_event_callback, gphev, self.__caf_message_to_tuple)
                 )
 
         else:
             self.connection.link.add_message_callback(
-                (gphev, self.__playhead_events)
+                (event_group, playhead_event_callback, gphev, self.__caf_message_to_tuple)
                 )
 
     def __caf_message_to_tuple(self, caf_message):
@@ -495,8 +504,6 @@ class ModuleBase(ActorConnection):
             divider,
             hotkey_uuid,
             user_data)[0]
-
-        print ("menu_item_uuid", menu_item_uuid, menu_text, menu_item_uuid)
 
         self.menu_item_ids.append(menu_item_uuid)
 

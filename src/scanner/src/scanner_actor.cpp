@@ -33,6 +33,12 @@ media::MediaStatus check_media_status(const MediaReference &mr) {
     // test exists and is readable..
     try {
 
+        if (to_string(mr.uri()).find("http") == 0) {
+            // TODO: need some sort of ssl stuff to check if we can reach
+            // the media at this address
+            return ms;
+        }
+
         if (mr.container()) {
             if (not fs::exists(uri_to_posix_path(mr.uri())))
                 ms = media::MediaStatus::MS_MISSING;

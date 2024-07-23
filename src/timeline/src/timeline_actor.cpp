@@ -2415,9 +2415,9 @@ void TimelineActor::init() {
             const media::LogicalFrameRanges &ranges,
             const FrameRate &/*override_rate*/) -> caf::result<media::AVFrameIDs> {
             auto num_frames = 0;
-            for (const auto &i : ranges)
+            for (const auto &i : ranges) {
                 num_frames += (i.second - i.first) + 1;
-
+            }
 
             auto result = std::make_shared<media::AVFrameIDs>(num_frames);
             auto count  = std::make_shared<int>();
@@ -2436,11 +2436,13 @@ void TimelineActor::init() {
             auto item_tp = std::vector<std::optional<ResolvedItem>>();
             item_tp.reserve(num_frames);
 
+            const auto timeline_start = base_.item().trimmed_start();
+
             // spdlog::stopwatch sw;
             for (const auto &r : ranges) {
                 for (auto i = r.first; i <= r.second; i++) {
                     auto ii = base_.item().resolve_time(
-                        FrameRate(i * base_frame_rate.to_flicks()),
+                        FrameRate((i * base_frame_rate.to_flicks()) - timeline_start),
                         media_type,
                         base_.focus_list());
                     if (ii) {
@@ -2486,7 +2488,6 @@ void TimelineActor::init() {
                             [=, s = start, e = end](const media::AVFrameIDs &mps) mutable {
                                 for (auto ii = s; ii <= e; ii++) {
                                     (*result)[ii] = mps[ii - s];
-                                    std::cerr << to_string(mps[ii - s]->key_) << "\n";
                                     (*count)--;
                                     // spdlog::error("s {} e {} ii {} c {}", s, e, ii, *count);
                                     if (not *count) {
