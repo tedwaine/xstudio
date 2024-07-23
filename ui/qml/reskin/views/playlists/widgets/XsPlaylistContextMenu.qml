@@ -13,19 +13,21 @@ XsPopupMenu {
 
     XsPlaylistPlusMenu {
         menu_model_name: "playlist_context_menu"
-        path: "Add"
+        path: "Add New"
     }
 
-    XsMenuModelItem {
-        menuItemType: "divider"
-        menuPath: ""
-        menuItemPosition: -1.0
-        menuModelName: contextMenu.menu_model_name
-    }
+    // XsMenuModelItem {
+    //     menuItemType: "divider"
+    //     menuPath: ""
+    //     menuItemPosition: -1.0
+    //     menuModelName: contextMenu.menu_model_name
+    // }
 
     Component.onCompleted: {
         // make sure the 'Add' sub-menu appears in the correct place
         helpers.setMenuPathPosition("Add", "playlist_context_menu", -2.0)
+        helpers.setMenuPathPosition("Cleanup", "playlist_context_menu", 22.0)
+        helpers.setMenuPathPosition("Export", "playlist_context_menu", 4.0)
     }
 
     // property idenfies the 'panel' that is the anticedent of this
@@ -36,7 +38,7 @@ XsPopupMenu {
     property var panelContext: helpers.contextPanel(contextMenu)
 
     XsFlagMenuInserter {
-        text: "Colour"
+        text: "Set Colour"
         panelContext: contextMenu.panelContext
         menuModelName: contextMenu.menu_model_name
         menuPath: ""
@@ -51,58 +53,40 @@ XsPopupMenu {
         }
     }
 
-    XsMenuModelItem {
-        text: "Combine Selected Playlists"
-        panelContext: contextMenu.panelContext
-        menuModelName: contextMenu.menu_model_name
-        menuPath: ""
-        menuItemPosition: 1.0
-        onActivated: {
-            if(sessionSelectionModel.selectedIndexes.length) {
-                theSessionData.mergeRows(sessionSelectionModel.selectedIndexes)
-            }
-        }
-    }
-
-    XsMenuModelItem {
-        text: "Export Selected Playlists as Session ..."
-        panelContext: contextMenu.panelContext
-        menuModelName: contextMenu.menu_model_name
-        menuPath: ""
-        menuItemPosition: 2.0
-        onActivated: {
-            file_functions.saveSelelctionNewPath(undefined)
-        }
-    }
+   // XsMenuModelItem {
+   //      text: qsTr("Dump JSON")
+   //      menuPath: "Debug"
+   //      menuItemPosition: 100
+   //      menuModelName: contextMenu.menu_model_name
+   //      onActivated: {
+   //          for(let i=0;i<sessionSelectionModel.selectedIndexes.length;i++) {
+   //              let idx = sessionSelectionModel.selectedIndexes[i]
+   //              console.log(idx.model.get(idx, "jsonTextRole"))
+   //              for(let j=0; j< theSessionData.rowCount(idx); j++) {
+   //                  let idxx = theSessionData.index(j,0,idx)
+   //                  console.log(idx.model.get(idxx, "jsonTextRole"))
+   //                  for(let k=0; k< theSessionData.rowCount(idxx); k++) {
+   //                      let idxxx = theSessionData.index(k,0,idxx)
+   //                      console.log(idx.model.get(idxxx, "jsonTextRole"))
+   //                  }
+   //              }
+   //          }
+   //      }
+   //      panelContext: contextMenu.panelContext
+   //  }
 
     XsMenuModelItem {
         menuItemType: "divider"
         menuPath: ""
-        menuItemPosition: 3.0
+        menuItemPosition: 0.9
         menuModelName: contextMenu.menu_model_name
-    }
-
-    XsMenuModelItem {
-        text: "Remove Media not in Timeline/Subsets"
-        menuItemType: "button"
-        menuPath: ""
-        menuItemPosition: 4.0
-        menuModelName: contextMenu.menu_model_name
-        onActivated: {
-            for (var idx = 0; idx < sessionSelectionModel.selectedIndexes.length; ++idx) {
-                if (theSessionData.get(sessionSelectionModel.selectedIndexes[idx], "typeRole") == "Playlist") {
-                    theSessionData.purgePlaylist(sessionSelectionModel.selectedIndexes[idx])
-                }
-            }
-        }
-        panelContext: contextMenu.panelContext
     }
 
     XsMenuModelItem {
         text: "Rename ..."
         menuItemType: "button"
         menuPath: ""
-        menuItemPosition: 5.0
+        menuItemPosition: 1.0
         menuModelName: contextMenu.menu_model_name
         property var targetIdx
         onActivated: {
@@ -130,12 +114,11 @@ XsPopupMenu {
         }
     }
 
-
     XsMenuModelItem {
-        text: "Duplicate Selected"
+        text: "Duplicate"
         menuItemType: "button"
         menuPath: ""
-        menuItemPosition: 6.0
+        menuItemPosition: 2.0
         menuModelName: contextMenu.menu_model_name
         onActivated: {
             for (var i = 0; i < sessionSelectionModel.selectedIndexes.length; ++i) {
@@ -146,10 +129,36 @@ XsPopupMenu {
         panelContext: contextMenu.panelContext
     }
 
+
+    XsMenuModelItem {
+        text: "Combine"
+        panelContext: contextMenu.panelContext
+        menuModelName: contextMenu.menu_model_name
+        menuPath: ""
+        menuItemPosition: 3.0
+        onActivated: {
+            if(sessionSelectionModel.selectedIndexes.length) {
+                theSessionData.mergeRows(sessionSelectionModel.selectedIndexes)
+            }
+        }
+    }
+
+    XsMenuModelItem {
+        text: "Selected Playlists..."
+        panelContext: contextMenu.panelContext
+        menuModelName: contextMenu.menu_model_name
+        menuPath: "Export"
+        menuItemPosition: 4.0
+        onActivated: {
+            file_functions.saveSelelctionNewPath(undefined)
+        }
+    }
+
+
     XsMenuModelItem {
         menuItemType: "divider"
         menuPath: ""
-        menuItemPosition: 6.5
+        menuItemPosition: 20
         menuModelName: contextMenu.menu_model_name
     }
 
@@ -157,9 +166,25 @@ XsPopupMenu {
         text: "Remove Selected"
         menuItemType: "button"
         menuPath: ""
-        menuItemPosition: 7.0
+        menuItemPosition: 21
         menuModelName: contextMenu.menu_model_name
         onActivated: removeSelected()
+        panelContext: contextMenu.panelContext
+    }
+
+    XsMenuModelItem {
+        text: "Remove Unused Media"
+        menuItemType: "button"
+        menuPath: "Cleanup"
+        menuItemPosition: 32
+        menuModelName: contextMenu.menu_model_name
+        onActivated: {
+            for (var idx = 0; idx < sessionSelectionModel.selectedIndexes.length; ++idx) {
+                if (theSessionData.get(sessionSelectionModel.selectedIndexes[idx], "typeRole") == "Playlist") {
+                    theSessionData.purgePlaylist(sessionSelectionModel.selectedIndexes[idx])
+                }
+            }
+        }
         panelContext: contextMenu.panelContext
     }
 }

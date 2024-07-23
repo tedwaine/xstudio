@@ -241,7 +241,11 @@ QVariant ShotBrowserPresetModel::data(const QModelIndex &index, int role) const 
                 break;
 
             case Roles::hiddenRole:
-                if (j.count("hidden") and not j.at("hidden").is_null())
+                // check parent hidden
+                if (j.value("type", "") == "preset" and
+                    index.parent().parent().data(Roles::hiddenRole).toBool())
+                    result = true;
+                else if (j.count("hidden") and not j.at("hidden").is_null())
                     result = j.at("hidden").get<bool>();
                 else
                     result = false;
@@ -382,6 +386,14 @@ bool ShotBrowserPresetModel::setData(
             if (result) {
                 emit presetHidden(index, value.toBool());
                 markedAsUpdated(index.parent());
+
+                if (index.data(typeRole).toString() == "group") {
+                    auto presets = ShotBrowserPresetModel::index(1, 0, index);
+                    emit dataChanged(
+                        ShotBrowserPresetModel::index(0, 0, presets),
+                        ShotBrowserPresetModel::index(rowCount(presets) - 1, 0, presets),
+                        roles);
+                }
             }
             break;
 

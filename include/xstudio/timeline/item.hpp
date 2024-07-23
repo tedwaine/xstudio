@@ -165,6 +165,11 @@ namespace timeline {
         [[nodiscard]] int frame_at_index(const int item_index) const;
         [[nodiscard]] int frame_at_index(const int item_index, const int item_frame) const;
 
+        [[nodiscard]] std::optional<int> frame_at_item_frame(
+            const utility::Uuid &item_uuid,
+            const int item_local_frame,
+            const bool skip_disabled) const;
+
         [[nodiscard]] std::optional<Point> top_left(const utility::Uuid &uuid) const;
         [[nodiscard]] std::optional<Point> bottom_right(const utility::Uuid &uuid) const;
         [[nodiscard]] std::optional<Box> box(const utility::Uuid &uuid) const;

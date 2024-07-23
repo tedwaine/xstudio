@@ -52,16 +52,16 @@ Item {
             color: XsStyleSheet.menuBarColor
             visible: lineVisible
         }
-        
+
     }
 
     // flag
-    Rectangle{ 
+    Rectangle{
         color: flagColourRole
         height: itemRowStdHeight
         width: flagIndicatorWidth
     }
-    
+
     /* modelIndex should be set to point into the session data model and get
     to the playlist that we are representing */
     property var modelIndex
@@ -107,7 +107,7 @@ Item {
 
         /*onMouseXChanged: checkInspectHover()
         onMouseYChanged: checkInspectHover()
-        
+
         function checkInspectHover() {
             var pt = mapToItem(inspect_icon, mouseX, mouseY);
             if (pt.x > 0 && pt.x < inspect_icon.width && pt.y > 0 && pt.y < inspect_icon.height) {
@@ -249,7 +249,7 @@ Item {
         XsImage {
 
             id: inspect_icon
-            source: "qrc:/icons/video_cam.svg"
+            source: "qrc:/icons/desktop_windows.svg"
             visible: isViewed
             imgOverlayColor: palette.highlight
             Layout.fillHeight: true
@@ -258,7 +258,7 @@ Item {
 
         }
 
-        XsText{ 
+        XsText{
             id: countDiv
             text: itemCount
             Layout.minimumWidth: buttonWidth + 5
@@ -271,7 +271,7 @@ Item {
             Layout.preferredWidth: errorIndicator.visible ? buttonWidth : 0
             Layout.preferredHeight: errorIndicator.visible ? buttonWidth : 0
 
-            XsSecondaryButton{ 
+            XsSecondaryButton{
                 id: errorIndicator
                 anchors.fill: parent
                 visible: errorRole != 0
@@ -291,9 +291,9 @@ Item {
 
         dragSourceName: "PlayList"
         dragData: sessionSelectionModel.selectedIndexes
-    
+
         onDragEntered: {
-            
+
             if (source == "MediaList") {
 
                 // User is dragging selected media from a MediaList into
@@ -303,13 +303,13 @@ Item {
                 // child into the same child or the parent playlist
                 // (note, the parent of the items in data will be 'MediaList'.
                 // The parent of the MediaList is the Subset, Timeline, Playlist.
-                // If the media is from a subset, say, it's parent's parent's 
+                // If the media is from a subset, say, it's parent's parent's
                 // parent's parent will be the Playlist ... we also check for an
-                // attempt to drop from subset into parent playlist! - these 
+                // attempt to drop from subset into parent playlist! - these
                 // wil be no-ops)
 
-                if (data.length && 
-                    (data[0].parent.parent == modelIndex || 
+                if (data.length &&
+                    (data[0].parent.parent == modelIndex ||
                         data[0].parent.parent.parent.parent == modelIndex)) {
 
                     canReceiveDrag = false
@@ -326,22 +326,41 @@ Item {
         }
 
         function doMove(button, data) {
-            if (button == "Cancel") return
-            theSessionData.moveRows(
-                data,
-                -1, // insertion row: make invalid so always inserts on the end
-                modelIndex,
-                button == "Copy"
+            if (button != "Cancel") {
+                let type = modelIndex.model.get(modelIndex, "typeRole")
+                let new_indexes = theSessionData.moveRows(
+                    data,
+                    -1, // insertion row: make invalid so always inserts on the end
+                    modelIndex,
+                    button == "Copy"
                 )
+
+                if(type == "Timeline" && new_indexes.length) {
+                    // insert new media as new tracks.
+                    // find stack..
+
+                    let tindex = theSessionData.index(2, 0, modelIndex)
+                    theSessionData.fetchMoreWait(tindex)
+                    let sindex = theSessionData.index(0, 0, tindex)
+
+                    let newvindex = theSessionData.insertRowsSync(0, 1, "Video Track", "Dropped", sindex)[0];
+                    let newaindex = theSessionData.insertRowsSync(theSessionData.rowCount(sindex), 1 ,"Audio Track", "Dropped", sindex)[0];
+
+                    for(let i = 0; i < new_indexes.length;i++) {
+                        theSessionData.insertTimelineClip(i, newvindex, new_indexes[i], "")
+                        theSessionData.insertTimelineClip(i, newaindex, new_indexes[i], "")
+                    }
+                }
+            }
         }
 
         onDropped: {
-            
+
             if (!isDragTarget) return
             isDragTarget = false
             if (source == "MediaList") {
                 if (data[0].parent.parent == modelIndex.parent.parent) {
-                    // here the source media is from the same playlist as the 
+                    // here the source media is from the same playlist as the
                     // parent playlist (i.e. copy from parent playlist into a
                     // child (subset/timeline) of the same playlist)
                     doMove("Copy", data)
@@ -361,7 +380,7 @@ Item {
                 })
             }
         }
-    
+
     }
 
 

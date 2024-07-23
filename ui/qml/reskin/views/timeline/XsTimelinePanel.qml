@@ -33,8 +33,8 @@ XsGradientRectangle{
     property real btnHeight: XsStyleSheet.widgetStdHeight+4
     property real panelPadding: XsStyleSheet.panelPadding
 
-    property var currentClipRange: [-1,-1]
-    property var currentClipHandles: [0,0]
+    property var currentClipRange: []
+    property var currentClipHandles: []
     property var currentClipIndex: null
 
     //#TODO: test
@@ -81,7 +81,7 @@ XsGradientRectangle{
                 if(taf == undefined) {
                     delay(250, function() {updateCurrentClipDetail()} )
                 } else {
-                    let name = currentClipProperties.values.nameRole
+                    // let name = currentClipProperties.values.nameRole
                     let start = currentClipProperties.values.trimmedStartRole
                     let astart = currentClipProperties.values.availableStartRole
                     let duration = currentClipProperties.values.trimmedDurationRole
@@ -93,9 +93,11 @@ XsGradientRectangle{
 
                     currentClipRange = [start, end]
                     currentClipHandles = [head, tail]
-                    // currentClipDetail = "( "+head + " )   " + start + "   " + name + "   " + end + "   ( " + tail + " )"
                 }
             }
+        } else {
+            currentClipRange = []
+            currentClipHandles = []
         }
     }
 
@@ -149,22 +151,8 @@ XsGradientRectangle{
     }
 
     function updateClipIndex() {
-        // let si = theTimeline.timelineSelection.selectedIndexes
-        // if(si.length == 1) {
-        //     let i = si[0]
-        //     if(i != currentClipIndex && i.model.get(i, "typeRole") == "Clip")
-        //         currentClipIndex = helpers.makePersistent(i)
-        // } else {
-            currentClipIndex = helpers.makePersistent(theSessionData.getTimelineClipIndex(theTimeline.timelineModel.rootIndex, timelinePlayhead.logicalFrame))
-        // }
+        currentClipIndex = helpers.makePersistent(theSessionData.getTimelineClipIndex(theTimeline.timelineModel.rootIndex, timelinePlayhead.logicalFrame))
     }
-
-    // Connections {
-    //     target: theTimeline.timelineSelection
-    //     function onSelectionChanged(selected, deselected) {
-    //         updateClipIndex()
-    //     }
-    // }
 
     XsHotkeyArea {
         id: hotkey_area
@@ -258,8 +246,19 @@ XsGradientRectangle{
                 Layout.preferredHeight: parent.height
                 isExpanded: false
                 hint: "Search..."
-                enabled: false
-               // isExpandedToLeft: true
+                onTextChanged: {
+                    if(text.length)
+                        theTimeline.timelineSelection.select(
+                            helpers.createItemSelection(
+                                theSessionData.getIndexesByName(
+                                    theTimeline.timelineModel.rootIndex, text, "Clip"
+                                )
+                            ),
+                            ItemSelectionModel.ClearAndSelect
+                        )
+
+                }
+                onEditingCompleted: forceActiveFocus(panel)
             }
 
             Item{
@@ -302,7 +301,6 @@ XsGradientRectangle{
                     XsText{
                         Layout.fillWidth: true
                         Layout.fillHeight: true
-                        font.bold: true
                         elide: Text.ElideMiddle
                         text: "Range:"
                         horizontalAlignment: Text.AlignRight
@@ -311,7 +309,6 @@ XsGradientRectangle{
                     XsText{
                         Layout.fillWidth: true
                         Layout.fillHeight: true
-                        font.bold: true
                         elide: Text.ElideMiddle
                         text: "Handles:"
                         horizontalAlignment: Text.AlignRight
@@ -326,8 +323,9 @@ XsGradientRectangle{
                         Layout.fillWidth: true
                         Layout.fillHeight: true
                         font.bold: true
+                        font.family: XsStyleSheet.fixedWidthFontFamily
                         elide: Text.ElideMiddle
-                        text: currentClipRange[0]
+                        text: currentClipRange.length ? currentClipRange[0] : ""
                         horizontalAlignment: Text.AlignRight
                     }
 
@@ -335,8 +333,9 @@ XsGradientRectangle{
                         Layout.fillWidth: true
                         Layout.fillHeight: true
                         font.bold: true
+                        font.family: XsStyleSheet.fixedWidthFontFamily
                         elide: Text.ElideMiddle
-                        text: Math.abs(currentClipHandles[0]) + (currentClipHandles[0] < 0 ? " -" : "")
+                        text: currentClipHandles.length ? (Math.abs(currentClipHandles[0]) + (currentClipHandles[0] < 0 ? " -" : "")) : ""
                         horizontalAlignment: Text.AlignRight
                     }
                 }
@@ -347,13 +346,11 @@ XsGradientRectangle{
 
                     XsText{
                         Layout.fillHeight: true
-                        font.bold: true
                         text: " - "
                     }
 
                     XsText{
                         Layout.fillHeight: true
-                        font.bold: true
                         text: " / "
                     }
                 }
@@ -367,7 +364,8 @@ XsGradientRectangle{
                         Layout.fillHeight: true
                         font.bold: true
                         elide: Text.ElideMiddle
-                        text: currentClipRange[1]
+                        text: currentClipRange.length ? currentClipRange[1] : ""
+                        font.family: XsStyleSheet.fixedWidthFontFamily
                         horizontalAlignment: Text.AlignLeft
                     }
 
@@ -376,7 +374,8 @@ XsGradientRectangle{
                         Layout.fillHeight: true
                         font.bold: true
                         elide: Text.ElideMiddle
-                        text: Math.abs(currentClipHandles[1]) + (currentClipHandles[1] < 0 ? " -" : "")
+                        font.family: XsStyleSheet.fixedWidthFontFamily
+                        text: currentClipHandles.length ? (Math.abs(currentClipHandles[1]) + (currentClipHandles[1] < 0 ? " -" : "")): ""
                         horizontalAlignment: Text.AlignLeft
                     }
                 }
@@ -398,6 +397,7 @@ XsGradientRectangle{
 
                     ColumnLayout {
                         anchors.fill: parent
+                        spacing: 2
 
                         XsPrimaryButton{
                             Layout.minimumHeight: btnHeight
@@ -433,16 +433,21 @@ XsGradientRectangle{
                             imageDiv.rotation: 90
                         }
 
+                        XsPrimaryButton{
+                            Layout.topMargin: 8
+                            Layout.minimumHeight: btnHeight
+                            Layout.maximumHeight: btnHeight
+                            Layout.fillWidth: true
+                            text: "Cut"
+                            // isActiveIndicatorAtLeft: true
+                            imgSrc: "qrc:/icons/content_cut.svg"
+                            onClicked: theTimeline.splitClips(theTimeline.timelineSelection.selectedIndexes)
+                        }
+
                         Item {
                             Layout.fillHeight: true
                         }
 
-                        // XsPrimaryButton{
-                        //     text: "Cut"
-                        //     isActiveIndicatorAtLeft: true
-                        //     imgSrc: "qrc:/icons/content_cut.svg"
-                        //     onClicked: theTimeline.editMode = text
-                        // }
 
                         // XsPrimaryButton{
                         //     text: "Reorder"

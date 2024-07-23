@@ -511,6 +511,9 @@ nlohmann::json xstudio::ui::qml::mapFromValue(const QVariant &value) {
         case QMetaType::Double:
             result = value.toDouble();
             break;
+        case QMetaType::Float:
+            result = value.toDouble();
+            break;
         case QMetaType::Int:
             result = value.toInt();
             break;

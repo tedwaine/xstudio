@@ -39,39 +39,19 @@ GradingTool::GradingTool(caf::actor_config &cfg, const utility::JsonStore &init_
 
     // General
 
-    tool_is_active_ =
-        add_boolean_attribute("grading_tool_active", "grading_tool_active", false);
-    tool_is_active_->expose_in_ui_attrs_group("grading_settings");
-    tool_is_active_->set_role_data(
-        module::Attribute::MenuPaths,
-        std::vector<std::string>({"panels_main_menu_items|Grading Tool"}));
+    tool_opened_count_ =
+        add_integer_attribute("tool_opened_count", "tool_opened_count", 0);
+    tool_opened_count_->expose_in_ui_attrs_group("grading_settings");
 
     grading_action_ = add_string_attribute("grading_action", "grading_action", "");
     grading_action_->expose_in_ui_attrs_group("grading_settings");
 
-    grading_bypass_ = add_boolean_attribute("drawing_bypass", "drawing_bypass", false);
+    grading_bypass_ = add_boolean_attribute("grading_bypass", "grading_bypass", false);
     grading_bypass_->expose_in_ui_attrs_group("grading_settings");
 
     media_colour_managed_ =
         add_boolean_attribute("media_colour_managed", "media_colour_managed", false);
     media_colour_managed_->expose_in_ui_attrs_group("grading_settings");
-
-    tool_panel_ = add_string_choice_attribute(
-        "tool_panel",
-        "tool_panel",
-        utility::map_value_to_vec(tool_panel_names_).front(),
-        utility::map_value_to_vec(tool_panel_names_));
-    tool_panel_->expose_in_ui_attrs_group("grading_settings");
-    tool_panel_->expose_in_ui_attrs_group("mask_tool_settings");
-    tool_panel_->set_preference_path("/plugin/grading/tool_panel");
-
-    grading_panel_ = add_string_choice_attribute(
-        "grading_panel",
-        "grading_panel",
-        utility::map_value_to_vec(grading_panel_names_).front(),
-        utility::map_value_to_vec(grading_panel_names_));
-    grading_panel_->expose_in_ui_attrs_group("grading_settings");
-    grading_panel_->set_preference_path("/plugin/grading/grading_panel");
 
     // Grading elements
 
@@ -240,7 +220,7 @@ GradingTool::GradingTool(caf::actor_config &cfg, const utility::JsonStore &init_
             import xStudioReskin 1.0
 
             Item {
-                anchors.fill: parent 
+                anchors.fill: parent
 
                 XsGradientRectangle{
                     anchors.fill: parent
@@ -345,34 +325,19 @@ void GradingTool::attribute_changed(const utility::Uuid &attribute_uuid, const i
     if (role != module::Attribute::Value)
         return;
 
-    if (attribute_uuid == tool_is_active_->uuid()) {
+    if (attribute_uuid == tool_opened_count_->uuid()) {
 
-        if (tool_is_active_->value()) {
-            if (drawing_tool_->value() == "None")
-                drawing_tool_->set_value("Draw");
-            grab_mouse_focus();
 
-        } else {
+        if (tool_opened_count_->value() < 0) {
+            tool_opened_count_->set_value(0);
+        }
+
+        if (!grading_tools_active()) {
+
             release_mouse_focus();
             release_keyboard_focus();
             end_drawing();
         }
-
-    } else if (attribute_uuid == tool_panel_->uuid()) {
-
-        if (tool_panel_->value() == "Mask") {
-            if (drawing_tool_->value() == "None") {
-                drawing_tool_->set_value("Draw");
-            }
-            grab_mouse_focus();
-
-        } else {
-            release_mouse_focus();
-            release_keyboard_focus();
-            end_drawing();
-        }
-
-        refresh_current_grade_from_ui();
 
     } else if (attribute_uuid == grading_bookmark_->uuid()) {
 
@@ -448,7 +413,7 @@ void GradingTool::attribute_changed(const utility::Uuid &attribute_uuid, const i
 
     } else if (attribute_uuid == drawing_tool_->uuid()) {
 
-        if (tool_is_active_->value()) {
+        if (grading_tools_active()) {
 
             if (drawing_tool_->value() == "None") {
                 release_mouse_focus();
@@ -472,19 +437,25 @@ void GradingTool::attribute_changed(const utility::Uuid &attribute_uuid, const i
             auto &media = bmd.media_reference_.value();
 
             if (grade_in_->value() == -1) {
-                grade_in_->set_value(0, false);
-            }
-            if (grade_out_->value() == -1) {
+                grade_out_->set_value(-1, false);
+            } else if (grade_out_->value() == -1) {
                 grade_out_->set_value(media.frame_count(), false);
             }
+
             if (grade_in_->value() > grade_out_->value()) {
                 grade_out_->set_value(grade_in_->value());
             }
 
-            bmd.start_    = grade_in_->value() * media.rate().to_flicks();
-            bmd.duration_ = std::min(
-                (grade_out_->value() - grade_in_->value()) * media.rate().to_flicks(),
-                media.frame_count() * media.rate().to_flicks());
+            if (grade_in_->value() != -1 && grade_out_->value() != -1) {
+                bmd.start_    = grade_in_->value() * media.rate().to_flicks();
+                bmd.duration_ = std::min(
+                    (grade_out_->value() - grade_in_->value()) * media.rate().to_flicks(),
+                    media.frame_count() * media.rate().to_flicks());
+            } else {
+                bmd.start_ = timebase::k_flicks_low;
+                bmd.duration_ = timebase::k_flicks_max;
+            }
+
             update_bookmark_detail(current_bookmark(), bmd);
         }
 
@@ -496,18 +467,23 @@ void GradingTool::attribute_changed(const utility::Uuid &attribute_uuid, const i
             auto &media = bmd.media_reference_.value();
 
             if (grade_out_->value() == -1) {
-                grade_out_->set_value(media.frame_count(), false);
-            }
-            if (grade_in_->value() == -1) {
+                grade_in_->set_value(-1, false);
+            } else if (grade_in_->value() == -1) {
                 grade_in_->set_value(0, false);
             }
+
             if (grade_out_->value() < grade_in_->value()) {
                 grade_in_->set_value(grade_out_->value());
             }
 
-            bmd.start_ = grade_in_->value() * media.rate().to_flicks();
-            bmd.duration_ =
-                (grade_out_->value() - grade_in_->value()) * media.rate().to_flicks();
+            if (grade_in_->value() != -1 && grade_out_->value() != -1) {
+                bmd.start_ = grade_in_->value() * media.rate().to_flicks();
+                bmd.duration_ =
+                    (grade_out_->value() - grade_in_->value()) * media.rate().to_flicks();
+            } else {
+                bmd.start_ = timebase::k_flicks_low;
+                bmd.duration_ = timebase::k_flicks_max;
+            }
             update_bookmark_detail(current_bookmark(), bmd);
         }
 
@@ -598,18 +574,6 @@ void GradingTool::attribute_changed(const utility::Uuid &attribute_uuid, const i
 
 void GradingTool::register_hotkeys() {
 
-    toggle_active_hotkey_ = register_hotkey(
-        int('G'),
-        ui::ControlModifier,
-        "Toggle Grading Tool",
-        "Show or hide the grading toolbox");
-
-    toggle_mask_hotkey_ = register_hotkey(
-        int('M'),
-        ui::NoModifier,
-        "Toggle masking",
-        "Use drawing tools to apply a matte or apply grading to whole frame");
-
     undo_hotkey_ = register_hotkey(
         int('Z'),
         ui::ControlModifier,
@@ -626,20 +590,12 @@ void GradingTool::register_hotkeys() {
 void GradingTool::hotkey_pressed(
     const utility::Uuid &hotkey_uuid, const std::string & /*context*/) {
 
-    if (hotkey_uuid == toggle_active_hotkey_) {
-
-        tool_is_active_->set_value(!tool_is_active_->value());
-
-    } else if (hotkey_uuid == toggle_mask_hotkey_ && tool_is_active_->value()) {
-
-        tool_panel_->set_value(tool_panel_->value() == "CC" ? "Mask" : "CC");
-
-    } else if (hotkey_uuid == undo_hotkey_ && tool_is_active_->value()) {
+    if (hotkey_uuid == undo_hotkey_ && grading_tools_active()) {
 
         undo();
         redraw_viewport();
 
-    } else if (hotkey_uuid == redo_hotkey_ && tool_is_active_->value()) {
+    } else if (hotkey_uuid == redo_hotkey_ && grading_tools_active()) {
 
         redo();
         redraw_viewport();
@@ -648,7 +604,7 @@ void GradingTool::hotkey_pressed(
 
 bool GradingTool::pointer_event(const ui::PointerEvent &e) {
 
-    if (!tool_is_active_->value() || !(tool_panel_->value() == "Mask"))
+    if (!grading_tools_active())
         return false;
 
     bool redraw = true;
@@ -675,6 +631,11 @@ bool GradingTool::pointer_event(const ui::PointerEvent &e) {
         redraw_viewport();
 
     return false;
+}
+
+bool GradingTool::grading_tools_active() const {
+
+    return tool_opened_count_->value() > 0;
 }
 
 void GradingTool::start_stroke(const Imath::V2f &point) {
@@ -795,19 +756,13 @@ void GradingTool::end_drawing() {
 
 void GradingTool::undo() {
 
-    if (tool_panel_->value() == "Mask") {
-
-        grading_data_.mask().undo();
-    }
+    grading_data_.mask().undo();
     save_bookmark();
 }
 
 void GradingTool::redo() {
 
-    if (tool_panel_->value() == "Mask") {
-
-        grading_data_.mask().redo();
-    }
+    grading_data_.mask().redo();
     save_bookmark();
 }
 

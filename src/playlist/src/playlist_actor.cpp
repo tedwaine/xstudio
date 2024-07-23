@@ -979,9 +979,6 @@ void PlaylistActor::init() {
             auto rp    = make_response_promise<utility::UuidUuidActor>();
             auto actor = spawn<timeline::TimelineActor>(
                 name, utility::Uuid::generate(), actor_cast<caf::actor>(this), true);
-            // add video and audio tracks.
-
-
             // anon_send(actor, playhead::playhead_rate_atom_v, base_.playhead_rate());
             create_container(actor, rp, uuid_before, into);
             return rp;
@@ -1010,106 +1007,11 @@ void PlaylistActor::init() {
         [=](duplicate_atom,
             caf::actor src_bookmarks,
             caf::actor dst_bookmarks) -> result<UuidActor> {
-            auto uuid = utility::Uuid::generate();
-            auto actor =
-                spawn<PlaylistActor>(base_.name(), uuid, caf::actor_cast<caf::actor>(session_));
-            anon_send(actor, session::media_rate_atom_v, base_.media_rate());
-            anon_send(actor, playhead::playhead_rate_atom_v, base_.playhead_rate());
+            auto rp = make_response_promise<UuidActor>();
 
-            caf::scoped_actor sys(system());
+            duplicate(rp, src_bookmarks, dst_bookmarks);
 
-            auto json =
-                request_receive<JsonStore>(*sys, json_store_, json_store::get_json_atom_v);
-            anon_send(actor, json_store::set_json_atom_v, json, "");
-
-            // clone media into new playlist
-            // store mapping from old to new uuids
-            UuidUuidMap media_map;
-            for (const auto &i : base_.media()) {
-                try {
-                    // duplicate media
-                    auto ua = request_receive<UuidUuidActor>(
-                        *sys,
-                        media_.at(i),
-                        utility::duplicate_atom_v,
-                        src_bookmarks,
-                        dst_bookmarks);
-
-                    // store new media uuid
-                    media_map[i] = ua.second.uuid();
-
-                    // add new media to new playlist
-                    auto mua = request_receive<UuidActor>(
-                        *sys, actor, add_media_atom_v, ua.second.actor(), Uuid());
-                } catch (const std::exception &err) {
-                    spdlog::warn("{} {}", __PRETTY_FUNCTION__, err.what());
-                }
-            }
-
-            // clone subgroups / dividers
-
-            try {
-                // need to clone container tree..
-                // if we process in order....
-                for (const auto &i : base_.containers().uuids(true)) {
-                    auto ii = base_.containers().cfind(i);
-                    if (ii) {
-                        // create in new playlist..
-                        //  is actor ?
-                        if (container_.count((*ii)->value().uuid())) {
-                            auto ua = request_receive<UuidActor>(
-                                *sys,
-                                container_[(*ii)->value().uuid()],
-                                utility::duplicate_atom_v);
-
-                            // add to new playlist
-                            auto nua = request_receive<UuidUuidActor>(
-                                *sys,
-                                actor,
-                                create_container_atom_v,
-                                ua.actor(),
-                                Uuid(),
-                                false);
-
-                            // reassign media / reparent
-
-                            request_receive<bool>(
-                                *sys,
-                                nua.second.actor(),
-                                playhead::source_atom_v,
-                                actor,
-                                media_map);
-
-                            request_receive<bool>(
-                                *sys,
-                                actor,
-                                reflag_container_atom_v,
-                                (*ii)->value().flag(),
-                                nua.first);
-                        } else {
-                            // add to new playlist
-                            auto u = request_receive<utility::Uuid>(
-                                *sys,
-                                actor,
-                                create_divider_atom_v,
-                                (*ii)->value().name(),
-                                Uuid(),
-                                false);
-                            request_receive<bool>(
-                                *sys, actor, reflag_container_atom_v, (*ii)->value().flag(), u);
-                        }
-                    }
-                }
-
-                // have we really changed ?
-                base_.send_changed(event_group_, this);
-                return utility::UuidActor(uuid, actor);
-
-            } catch (const std::exception &err) {
-                spdlog::warn("{} {}", __PRETTY_FUNCTION__, err.what());
-            }
-
-            return make_error(xstudio_error::error, "Invalid uuid");
+            return rp;
         },
 
         // is this actually used ?
@@ -2567,5 +2469,142 @@ void PlaylistActor::sort_by_media_display_info(
                 [=](error &err) mutable {
                     spdlog::warn("{} {}", __PRETTY_FUNCTION__, to_string(err));
                 });
+    }
+}
+
+
+void PlaylistActor::duplicate(
+    caf::typed_response_promise<UuidActor> rp,
+    caf::actor src_bookmarks,
+    caf::actor dst_bookmarks) {
+    // spdlog::stopwatch sw;
+
+    auto uuid = utility::Uuid::generate();
+    auto actor =
+        spawn<PlaylistActor>(base_.name(), uuid, caf::actor_cast<caf::actor>(session_));
+
+    anon_send(actor, session::media_rate_atom_v, base_.media_rate());
+    anon_send(actor, playhead::playhead_rate_atom_v, base_.playhead_rate());
+
+    caf::scoped_actor sys(system());
+    auto json = request_receive<JsonStore>(*sys, json_store_, json_store::get_json_atom_v);
+    anon_send(actor, json_store::set_json_atom_v, json, "");
+
+    // clone media into new playlist
+    // store mapping from old to new uuids
+
+    // spdlog::info("duplicate {:.3} seconds.", sw);
+
+    if (not media_.empty()) {
+        fan_out_request<policy::select_all>(
+            map_value_to_vec(media_),
+            infinite,
+            utility::duplicate_atom_v,
+            src_bookmarks,
+            dst_bookmarks)
+            .then(
+                [=](const std::vector<UuidUuidActor> dmedia) mutable {
+                    std::map<Uuid, UuidActor> dmedia_map;
+
+                    // spdlog::info("cloned media {:.3} seconds.", sw);
+
+
+                    for (const auto &i : dmedia)
+                        dmedia_map[i.first] = i.second;
+
+                    UuidUuidMap media_map;
+                    UuidActorVector new_media;
+
+                    for (const auto &i : base_.media()) {
+                        media_map[i] = dmedia_map[i].uuid();
+                        new_media.push_back(dmedia_map[i]);
+                    }
+
+                    caf::scoped_actor sys(system());
+                    request_receive<bool>(*sys, actor, add_media_atom_v, new_media, Uuid());
+
+                    // spdlog::info("added media {:.3} seconds.", sw);
+
+                    // handle containers.
+                    duplicate_containers(rp, UuidActor(uuid, actor), media_map);
+                    // spdlog::info("duplicate_containers {:.3} seconds.", sw);
+                },
+                [=](error &err) mutable {
+                    spdlog::warn("{} {}", __PRETTY_FUNCTION__, to_string(err));
+                });
+    } else {
+        duplicate_containers(rp, UuidActor(uuid, actor), UuidUuidMap());
+    }
+}
+
+void PlaylistActor::duplicate_containers(
+    caf::typed_response_promise<UuidActor> rp,
+    const utility::UuidActor &new_playlist,
+    const utility::UuidUuidMap &media_map) {
+
+    try {
+        caf::scoped_actor sys(system());
+
+        // need to clone container tree..
+        // if we process in order....
+        for (const auto &i : base_.containers().uuids(true)) {
+            auto ii = base_.containers().cfind(i);
+            if (ii) {
+                // create in new playlist..
+                //  is actor ?
+                if (container_.count((*ii)->value().uuid())) {
+                    auto ua = request_receive<UuidActor>(
+                        *sys, container_[(*ii)->value().uuid()], utility::duplicate_atom_v);
+
+                    // add to new playlist
+                    auto nua = request_receive<UuidUuidActor>(
+                        *sys,
+                        new_playlist.actor(),
+                        create_container_atom_v,
+                        ua.actor(),
+                        Uuid(),
+                        false);
+
+                    // reassign media / reparent
+
+                    request_receive<bool>(
+                        *sys,
+                        nua.second.actor(),
+                        playhead::source_atom_v,
+                        new_playlist.actor(),
+                        media_map);
+
+                    request_receive<bool>(
+                        *sys,
+                        new_playlist.actor(),
+                        reflag_container_atom_v,
+                        (*ii)->value().flag(),
+                        nua.first);
+                } else {
+                    // add to new playlist
+                    auto u = request_receive<utility::Uuid>(
+                        *sys,
+                        new_playlist.actor(),
+                        create_divider_atom_v,
+                        (*ii)->value().name(),
+                        Uuid(),
+                        false);
+                    request_receive<bool>(
+                        *sys,
+                        new_playlist.actor(),
+                        reflag_container_atom_v,
+                        (*ii)->value().flag(),
+                        u);
+                }
+            }
+        }
+
+        // have we really changed ?
+        base_.send_changed(event_group_, this);
+        rp.deliver(new_playlist);
+
+    } catch (const std::exception &err) {
+        spdlog::warn("{} {}", __PRETTY_FUNCTION__, err.what());
+        rp.deliver(make_error(xstudio_error::error, err.what()));
     }
 }

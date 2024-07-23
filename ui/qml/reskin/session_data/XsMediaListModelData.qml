@@ -16,7 +16,7 @@ Item {
     id: mediaList
 
     // This gives us a model that just contains a flat list of the
-    // Media items in the current media set (Playlist, Sequence, Subset) - 
+    // Media items in the current media set (Playlist, Sequence, Subset) -
     // it is a  the node in the sessionData at index = inspectedMediaSetIndex
     QTreeModelToTableModel {
         model: theSessionData
@@ -28,10 +28,10 @@ Item {
 
     property alias model: filteredModel
     property var rootIndex
-    
+
     XsMediaListFilterModel {
         sourceModel: mediaListModelData
-        columnsModelIndex: columns_model_index ? columns_model_index : 0
+        columnsModelIndex: columns_model_index ? columns_model_index.row : 0
         searchString: mediaListSearchString
         id: filteredModel
     }

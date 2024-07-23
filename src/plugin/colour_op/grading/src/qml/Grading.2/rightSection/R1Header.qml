@@ -25,10 +25,10 @@ Rectangle{
             text: "Bypass All"
             imgSrc: ""
             //tooltip: "Bypass all CDLs or not"
-            isActive: attrs.drawing_bypass
+            isActive: attrs.grading_bypass
             
             onClicked: {
-                attrs.drawing_bypass = !attrs.drawing_bypass
+                attrs.grading_bypass = !attrs.grading_bypass
             }
         }
         XsPrimaryButton{
@@ -116,7 +116,7 @@ Rectangle{
             enabled: hasActiveGrade()
             isActive: {
                 return (
-                    (attrs.grade_out != -1 && attrs.grade_out != currentPlayhead.durationFrames) &&
+                    (attrs.grade_out != -1) &&
                     (attrs.grade_in != attrs.grade_out)
                 )
             }

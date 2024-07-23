@@ -23,26 +23,11 @@ Item {
     // choices in a StringChoiceAttribute) or 'default_value' etc.
 
     XsAttributeValue {
-        id: __grading_tool_active
-        attributeTitle: "grading_tool_active"
+        id: __tool_opened_count
+        attributeTitle: "tool_opened_count"
         model: grading_tool_attrs_data
     }
-    property alias grading_tool_active: __grading_tool_active.value
-
-    XsAttributeValue {
-        id: __grading_panel
-        attributeTitle: "grading_panel"
-        model: grading_tool_attrs_data
-    }
-    property alias grading_panel: __grading_panel.value
-
-    XsAttributeValue {
-        id: __grading_panel_options
-        attributeTitle: "grading_panel"
-        role: "combo_box_options"
-        model: grading_tool_attrs_data
-    }
-    property alias grading_panel_options: __grading_panel_options.value
+    property alias tool_opened_count: __tool_opened_count.value
 
     XsAttributeValue {
         id: __grading_action
@@ -66,18 +51,11 @@ Item {
     property alias grading_bookmark: __grading_bookmark.value
 
     XsAttributeValue {
-        id: __tool_panel
-        attributeTitle: "tool_panel"
+        id: __grading_bypass
+        attributeTitle: "grading_bypass"
         model: grading_tool_attrs_data
     }
-    property alias tool_panel: __tool_panel.value
-
-    XsAttributeValue {
-        id: __drawing_bypass
-        attributeTitle: "drawing_bypass"
-        model: grading_tool_attrs_data
-    }
-    property alias drawing_bypass: __drawing_bypass.value
+    property alias grading_bypass: __grading_bypass.value
 
     XsAttributeValue {
         id: __working_space

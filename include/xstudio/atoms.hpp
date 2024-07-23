@@ -648,6 +648,7 @@ CAF_BEGIN_TYPE_ID_BLOCK(xstudio_session_atoms, FIRST_CUSTOM_ID + (200 * 4))
     CAF_ADD_ATOM(xstudio_session_atoms, xstudio::timeline, bake_atom)
     CAF_ADD_ATOM(xstudio_session_atoms, xstudio::timeline, item_prop_atom)
     CAF_ADD_ATOM(xstudio_session_atoms, xstudio::timeline, item_marker_atom)
+    CAF_ADD_ATOM(xstudio_session_atoms, xstudio::timeline, media_frame_to_timeline_frames_atom)
     CAF_ADD_ATOM(xstudio_session_atoms, xstudio::playlist, expanded_atom)
 
     CAF_ADD_ATOM(xstudio_session_atoms, xstudio::media, current_media_atom)

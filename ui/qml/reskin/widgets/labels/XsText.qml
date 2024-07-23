@@ -19,9 +19,9 @@ Text {
     property alias tooltipText: toolTip.text
     property alias tooltipVisibility: toolTip.visible
     property real toolTipWidth: widget.width+15 //150
-
+    opacity: enabled ? 1.0 : 0.5
     text: ""
-    color: textColorNormal 
+    color: textColorNormal
 
     font.pixelSize: XsStyleSheet.fontSize
     font.family: XsStyleSheet.fontFamily
@@ -32,7 +32,7 @@ Text {
     // bottomPadding: 2
     // leftPadding: 20
     // rightPadding: 20
-    
+
     //elide: Text.ElideRight
     wrapMode: Text.NoWrap
 

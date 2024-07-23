@@ -616,6 +616,7 @@ class CafRequest : public ControllableJob<QMap<int, QString>> {
             result[JSONTreeModel::Roles::JSONTextRole] =
                 QStringFromStd(item.serialise().dump());
 
+            // spdlog::warn("{}", item.serialise().dump(2));
         } else if (type == "MediaSource") {
 
             auto idetail = request_receive<std::vector<ContainerDetail>>(
@@ -693,7 +694,7 @@ class CafRequest : public ControllableJob<QMap<int, QString>> {
         } else if (type == "Playhead" || type == "Aux Playhead") {
             // Playhead has no children
         } else {
-            spdlog::warn("CafRequest unhandled ChildrenRole type {}", type);
+            spdlog::warn("CafRequest unhandled ChildrenRole type {} {}", type, json_.dump(2));
         }
     }
 

@@ -79,9 +79,8 @@ SessionModel::SessionModel(QObject *parent) : super(parent) {
 
 void SessionModel::fetchMore(const QModelIndex &parent) {
     try {
-        if (parent.isValid() and canFetchMore(parent)) {
+        if (canFetchMore(parent)) {
             const auto &j = indexToData(parent);
-
             requestData(
                 QVariant::fromValue(QUuidFromUuid(j.at("id"))),
                 idRole,
@@ -595,7 +594,18 @@ QVariant SessionModel::data(const QModelIndex &index, int role) const {
                             role);
                     else
                         result = QString::fromStdString(j.at("actor"));
+                } else if (j.count("actor_owner")) {
+                    if (j.at("actor_owner").is_null())
+                        requestData(
+                            QVariant::fromValue(QUuidFromUuid(j.at("id"))),
+                            idRole,
+                            index,
+                            index,
+                            role);
+                    else
+                        result = QString::fromStdString(j.at("actor_owner"));
                 }
+
                 break;
 
             case Roles::groupActorRole:
@@ -1152,6 +1162,7 @@ bool SessionModel::setData(const QModelIndex &index, const QVariant &qvalue, int
                     result = true;
                 }
                 break;
+
             case actorRole:
                 if (j.count("actor") and j.at("actor") != value) {
                     j["actor"] = value;

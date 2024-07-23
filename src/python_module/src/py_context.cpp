@@ -33,8 +33,7 @@ py_context::py_context(int argc, char **argv)
       py_local_system_(*this),
       system_(xstudio::utility::ActorSystemSingleton::actor_system_ref(py_local_system_)),
       self_(system_),
-      remote_() {
-}
+      remote_() {}
 
 std::optional<message> py_context::py_build_message(const py::args &xs) {
     if (xs.size() < 2) {

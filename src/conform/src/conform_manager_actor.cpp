@@ -762,9 +762,18 @@ void ConformWorkerActor::get_media_sequences(
             true)
             .then(
                 [=](const std::vector<std::pair<UuidActor, JsonStore>> media_metadata) mutable {
+                    //  order matters must match original order.
+                    std::map<utility::Uuid, JsonStore> meta_map;
+                    for (const auto &i : media_metadata)
+                        meta_map[i.first.uuid()] = i.second;
+
+                    std::vector<std::pair<UuidActor, JsonStore>> ordered_media_metadata;
+                    for (const auto &i : media)
+                        ordered_media_metadata.push_back(std::make_pair(i, meta_map[i.uuid()]));
+
                     // request.dump();
                     fan_out_request<policy::select_all>(
-                        conformers_, infinite, conform_atom_v, media_metadata)
+                        conformers_, infinite, conform_atom_v, ordered_media_metadata)
                         .then(
                             [=](const std::vector<
                                 std::vector<std::optional<std::pair<std::string, caf::uri>>>>

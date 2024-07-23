@@ -90,7 +90,7 @@ RowLayout{
         onActivated: projectIndex = model.index(index, 0)
         onAccepted: {
             projectIndex = model.index(currentIndex, 0)
-            toolDiv.forceActiveFocus()
+            panel.forceActiveFocus()
         }
 
         Connections {

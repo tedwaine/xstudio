@@ -243,8 +243,6 @@
 
 	<qresource prefix="/icons">
 		<file alias="ad_group.svg">assets/icons/new/ad_group.svg</file>
-		<file alias="library_add.svg">assets/icons/new/library_add.svg</file>
-		<file alias="splitscreen_add.svg">assets/icons/new/splitscreen_add.svg</file>
 		<file alias="add.svg">assets/icons/new/add.svg</file>
 		<file alias="arrow_drop_down.svg">assets/icons/new/arrow_drop_down.svg</file>
 		<file alias="arrow_range.svg">assets/icons/new/arrow_range.svg</file>
@@ -259,11 +257,12 @@
 		<file alias="check_box_unchecked.svg">assets/icons/new/check_box_unchecked.svg</file>
 		<file alias="chevron_right.svg">assets/icons/new/chevron_right.svg</file>
 		<file alias="close.svg">assets/icons/new/close.svg</file>
-		<file alias="content_cut.svg">assets/icons/new/content_cut.svg</file>
 		<file alias="content_copy.svg">assets/icons/new/content_copy.svg</file>
+		<file alias="content_cut.svg">assets/icons/new/content_cut.svg</file>
 		<file alias="content_paste.svg">assets/icons/new/content_paste.svg</file>
 		<file alias="crop_free.svg">assets/icons/new/crop_free.svg</file>
 		<file alias="delete.svg">assets/icons/new/delete.svg</file>
+		<file alias="desktop_windows.svg">assets/icons/new/desktop_windows.svg</file>
 		<file alias="disabled.svg">assets/icons/new/disabled.svg</file>
 		<file alias="draft.svg">assets/icons/new/draft.svg</file>
 		<file alias="error.svg">assets/icons/new/error.svg</file>
@@ -284,6 +283,7 @@
 		<file alias="keyboard_arrow_up.svg">assets/icons/new/keyboard_arrow_up.svg</file>
 		<file alias="keyboard_tab.svg">assets/icons/new/keyboard_tab.svg</file>
 		<file alias="laps.svg">assets/icons/new/laps.svg</file>
+		<file alias="library_add.svg">assets/icons/new/library_add.svg</file>
 		<file alias="library_music.svg">assets/icons/new/library_music.svg</file>
 		<file alias="link.svg">assets/icons/new/link.svg</file>
 		<file alias="list.svg">assets/icons/new/list.svg</file>
@@ -328,6 +328,7 @@
 		<file alias="sort_flipped.png">assets/icons/sort_flipped.png</file>
 		<file alias="splitscreen.svg">assets/icons/new/splitscreen.svg</file>
 		<file alias="splitscreen2.svg">assets/icons/new/splitscreen2.svg</file>
+		<file alias="splitscreen_add.svg">assets/icons/new/splitscreen_add.svg</file>
 		<file alias="stacks.svg">assets/icons/new/stacks.svg</file>
 		<file alias="sticky_note.svg">assets/icons/new/sticky_note.svg</file>
 		<file alias="swap_horiz.svg">assets/icons/new/swap_horiz.svg</file>

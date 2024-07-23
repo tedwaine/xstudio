@@ -273,7 +273,7 @@ void EmbeddedPython::add_message_callback(const py::tuple &cb_particulars) {
             if (p != message_handler_callbacks_.end()) {
                 auto q = p->second.begin();
                 while (q != p->second.end()) {
-                    if (*q == callback_func) {
+                    if ((*q).is(callback_func)) {
                         return;
                     }
                     q++;
@@ -310,7 +310,7 @@ void EmbeddedPython::remove_message_callback(const py::tuple &cb_particulars) {
             if (p != message_handler_callbacks_.end()) {
                 auto q = p->second.begin();
                 while (q != p->second.end()) {
-                    if (*q == callback_func) {
+                    if ((*q).is(callback_func)) {
                         q = p->second.erase(q);
                     } else {
                         q++;
@@ -342,7 +342,7 @@ void EmbeddedPython::run_callback_with_delay(const py::tuple &args) {
 
             utility::Uuid id;
             for (auto &cb : delayed_callbacks_) {
-                if (cb.second == callback_func) {
+                if (cb.second.is(callback_func)) {
                     id = cb.first;
                     break;
                 }
@@ -360,7 +360,7 @@ void EmbeddedPython::run_callback_with_delay(const py::tuple &args) {
         }
 
     } catch (std::exception &e) {
-        std::cerr << "E " << e.what() << "\n";
+        // std::cerr << "E " << e.what() << "\n";
         PyErr_SetString(PyExc_RuntimeError, e.what());
     }
 }

@@ -1402,61 +1402,17 @@ void MediaActor::init() {
             return rp;
         },
 
-        [=](utility::duplicate_atom atom) {
-            delegate(caf::actor_cast<caf::actor>(this), atom, caf::actor(), caf::actor());
+        [=](utility::duplicate_atom) -> result<UuidUuidActor> {
+            auto rp = make_response_promise<UuidUuidActor>();
+            duplicate(rp, caf::actor(), caf::actor());
+            return rp;
         },
+
         [=](utility::duplicate_atom,
             caf::actor src_bookmarks,
             caf::actor dst_bookmarks) -> result<UuidUuidActor> {
             auto rp = make_response_promise<UuidUuidActor>();
-
-            auto uuid  = utility::Uuid::generate();
-            auto actor = spawn<MediaActor>(base_.name(), uuid);
-
-            caf::scoped_actor sys(system());
-            auto json =
-                request_receive<JsonStore>(*sys, json_store_, json_store::get_json_atom_v);
-            anon_send(actor, json_store::set_json_atom_v, Uuid(), json, "");
-            anon_send(
-                actor,
-                playlist::reflag_container_atom_v,
-                std::make_tuple(
-                    std::optional<std::string>(base_.flag()),
-                    std::optional<std::string>(base_.flag_text())));
-            // sometimes caf makes my head bleed. see below.
-
-            auto source_count = std::make_shared<int>();
-            (*source_count)   = base_.media_sources().size();
-            for (const Uuid i : base_.media_sources()) {
-
-                request(media_sources_.at(i), infinite, utility::duplicate_atom_v)
-                    .then(
-                        [=](UuidActor media_src) mutable {
-                            request(actor, infinite, add_media_source_atom_v, media_src.actor())
-                                .then(
-                                    [=](const Uuid &) mutable {
-                                        if (i == base_.current()) {
-                                            anon_send(
-                                                actor,
-                                                current_media_source_atom_v,
-                                                media_src.uuid());
-                                        }
-                                        (*source_count)--;
-                                        if (!*source_count) {
-                                            // done!
-                                            auto ua = UuidActor(uuid, actor);
-                                            if (src_bookmarks)
-                                                clone_bookmarks_to(
-                                                    ua, src_bookmarks, dst_bookmarks);
-                                            rp.deliver(UuidUuidActor(base_.uuid(), ua));
-                                        }
-                                    },
-                                    [=](const error &err) mutable { rp.deliver(err); });
-                        },
-                        [=](const error &err) mutable { rp.deliver(err); });
-            }
-
-
+            duplicate(rp, src_bookmarks, dst_bookmarks);
             return rp;
         },
 
@@ -1653,25 +1609,56 @@ void MediaActor::add_or_rename_media_source(
 void MediaActor::clone_bookmarks_to(
     const utility::UuidActor &ua, caf::actor src_bookmark, caf::actor dst_bookmark) {
     // use global session (should be safe.. ish)
-    try {
-        scoped_actor sys{system()};
-        try {
-            UuidActorVector copied;
-            // // duplicate bookmarks if any
-            auto bookmarks = utility::request_receive<UuidActorVector>(
-                *sys, src_bookmark, bookmark::get_bookmarks_atom_v, base_.uuid());
-            for (const auto &i : bookmarks) {
-                copied.push_back(utility::request_receive<UuidActor>(
-                    *sys, src_bookmark, utility::duplicate_atom_v, i.uuid(), ua));
-            }
-            utility::request_receive<bool>(
-                *sys, dst_bookmark, bookmark::add_bookmark_atom_v, copied);
-        } catch (const std::exception &err) {
-            spdlog::warn("{} {}", __PRETTY_FUNCTION__, err.what());
-        }
-    } catch (const std::exception &err) {
-        spdlog::warn("{} {}", __PRETTY_FUNCTION__, err.what());
-    }
+    // DON'T USE REQUEST RECEIVE!!
+
+    request(src_bookmark, infinite, bookmark::get_bookmarks_atom_v, base_.uuid())
+        .then(
+            [=](const UuidActorVector &bookmarks) mutable {
+                auto copied = std::make_shared<UuidActorVector>();
+                auto count  = std::make_shared<int>(bookmarks.size());
+
+                for (const auto &i : bookmarks) {
+                    request(src_bookmark, infinite, utility::duplicate_atom_v, i.uuid(), ua)
+                        .then(
+                            [=](const UuidActor &new_bookmark) mutable {
+                                copied->push_back(new_bookmark);
+                                (*count)--;
+                                if (not(*count))
+                                    anon_send(
+                                        dst_bookmark, bookmark::add_bookmark_atom_v, *copied);
+                            },
+                            [=](const error &err) mutable {
+                                (*count)--;
+                                if (not(*count))
+                                    anon_send(
+                                        dst_bookmark, bookmark::add_bookmark_atom_v, *copied);
+                            });
+                }
+            },
+            [=](const error &err) mutable {
+                spdlog::warn("{} {}", __PRETTY_FUNCTION__, to_string(err));
+            });
+
+
+    // try {
+    //     scoped_actor sys{system()};
+    //     try {
+    //         UuidActorVector copied;
+    //         // // duplicate bookmarks if any
+    //         auto bookmarks = utility::request_receive<UuidActorVector>(
+    //             *sys, src_bookmark, bookmark::get_bookmarks_atom_v, base_.uuid());
+    //         for (const auto &i : bookmarks) {
+    //             copied.push_back(utility::request_receive<UuidActor>(
+    //                 *sys, src_bookmark, utility::duplicate_atom_v, i.uuid(), ua));
+    //         }
+    //         utility::request_receive<bool>(
+    //             *sys, dst_bookmark, bookmark::add_bookmark_atom_v, copied);
+    //     } catch (const std::exception &err) {
+    //         spdlog::warn("{} {}", __PRETTY_FUNCTION__, err.what());
+    //     }
+    // } catch (const std::exception &err) {
+    //     spdlog::warn("{} {}", __PRETTY_FUNCTION__, err.what());
+    // }
 }
 
 void MediaActor::switch_current_source_to_named_source(
@@ -2147,4 +2134,96 @@ void MediaActor::build_display_info(caf::typed_response_promise<utility::JsonSto
         }
         set_idx++;
     }
+}
+
+void MediaActor::duplicate(
+    caf::typed_response_promise<utility::UuidUuidActor> rp,
+    caf::actor src_bookmarks,
+    caf::actor dst_bookmarks) {
+    auto uuid  = utility::Uuid::generate();
+    auto actor = spawn<MediaActor>(base_.name(), uuid);
+
+    // don't use request receive..
+    request(json_store_, infinite, json_store::get_json_atom_v)
+        .then(
+            [=](const JsonStore &jsn) mutable {
+                anon_send(actor, json_store::set_json_atom_v, Uuid(), jsn, "");
+            },
+            [=](const error &err) mutable {
+                spdlog::warn("{} {}", __PRETTY_FUNCTION__, to_string(err));
+            });
+
+    anon_send(
+        actor,
+        playlist::reflag_container_atom_v,
+        std::make_tuple(
+            std::optional<std::string>(base_.flag()),
+            std::optional<std::string>(base_.flag_text())));
+    // sometimes caf makes my head bleed. see below.
+
+    // auto source_count = std::make_shared<int>();
+    // (*source_count)   = base_.media_sources().size();
+
+    fan_out_request<policy::select_all>(
+        map_value_to_vec(media_sources_), infinite, utility::duplicate_atom_v)
+        .then(
+            [=](const std::vector<UuidUuidActor> dmedia_srcs) mutable {
+                std::map<Uuid, UuidActor> dmedia_srcs_map;
+
+                for (const auto &i : dmedia_srcs)
+                    dmedia_srcs_map[i.first] = i.second;
+
+                UuidActorVector new_media_srcs;
+
+                for (const auto &i : base_.media_sources())
+                    new_media_srcs.push_back(dmedia_srcs_map[i]);
+
+                // bulk add srcs.
+                request(actor, infinite, add_media_source_atom_v, new_media_srcs)
+                    .then(
+                        [=](const bool) mutable {
+                            // set current source.
+                            anon_send(
+                                actor,
+                                current_media_source_atom_v,
+                                dmedia_srcs_map[base_.current()].uuid());
+
+                            auto ua = UuidActor(uuid, actor);
+                            if (src_bookmarks)
+                                clone_bookmarks_to(ua, src_bookmarks, dst_bookmarks);
+                            rp.deliver(UuidUuidActor(base_.uuid(), ua));
+                        },
+                        [=](const error &err) mutable { rp.deliver(err); });
+            },
+            [=](const caf::error &err) mutable { rp.deliver(err); });
+
+
+    // for (const Uuid i : base_.media_sources()) {
+    //     request(media_sources_.at(i), infinite, utility::duplicate_atom_v)
+    //         .then(
+    //             [=](UuidUuidActor media_src) mutable {
+    //                 request(actor, infinite, add_media_source_atom_v,
+    //                 media_src.second.actor())
+    //                     .then(
+    //                         [=](const Uuid &) mutable {
+    //                             if (i == base_.current()) {
+    //                                 anon_send(
+    //                                     actor,
+    //                                     current_media_source_atom_v,
+    //                                     media_src.second.uuid());
+    //                             }
+    //                             (*source_count)--;
+    //                             if (!*source_count) {
+    //                                 // done!
+    //                                 auto ua = UuidActor(uuid, actor);
+    //                                 if (src_bookmarks)
+    //                                     clone_bookmarks_to(
+    //                                         ua, src_bookmarks, dst_bookmarks);
+    //                                 rp.deliver(UuidUuidActor(base_.uuid(), ua));
+    //                             }
+    //                         },
+    //                         [=](const error &err) mutable { rp.deliver(err); });
+    //             },
+    //             [=](const error &err) mutable { rp.deliver(err); });
+    // }
 }

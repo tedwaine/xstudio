@@ -30,6 +30,8 @@ ColumnLayout{
                     Layout.fillWidth: true
                     Layout.fillHeight: true
                     text: nameRole
+                    toolTip:  getPresetIndex().valid ? getPresetIndex().model.get(getPresetIndex().parent.parent, "nameRole") + " / " + nameRole : ""
+
                     function getPresetIndex() {
                         let tindex = delegate_model.notifyModel.mapToSource(delegate_model.modelIndex(index))
                         if(tindex.valid)

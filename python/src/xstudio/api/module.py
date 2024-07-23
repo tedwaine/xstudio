@@ -505,6 +505,8 @@ class ModuleBase(ActorConnection):
             hotkey_uuid,
             user_data)[0]
 
+        print ("menu_item_uuid", menu_item_uuid, menu_text, menu_item_uuid)
+
         self.menu_item_ids.append(menu_item_uuid)
 
         if callback:

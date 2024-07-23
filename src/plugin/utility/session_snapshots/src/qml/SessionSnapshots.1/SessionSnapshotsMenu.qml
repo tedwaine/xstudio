@@ -28,12 +28,20 @@ XsMenuItemNew {
 	property var action_idx
 
 	function saveSnapshot(snapshot_name, button) {
-            
+
 		if (button != "Save Snapshot") return
-		let path = snapshotModel.buildSavePath(action_idx, snapshot_name)		
+		let path = snapshotModel.buildSavePath(action_idx, snapshot_name)
 		console.log("saveSnapshot", path)
 		file_functions.saveSessionAs(path, undefined, doRescan)
 
+	}
+
+	function saveSelectedSnapshot(snapshot_name, button) {
+
+		if (button != "Save Snapshot") return
+		let path = snapshotModel.buildSavePath(action_idx, snapshot_name)
+		console.log("saveSelectedSnapshot", path)
+		file_functions.saveSelectionAs(path, undefined, doRescan)
 	}
 
 	function doRescan() {
@@ -63,8 +71,8 @@ XsMenuItemNew {
 		// we provide this function which is called by certain instances of
 		// XsMenuItem within the sub menus that we are dynamically building
 		// to show the filesystem tree in these menus.
-		// When a sub menu becomes visible, we get the XsSnapshotMenuModel to 
-		// rescan the filesystem folder whose content is shown in the given 
+		// When a sub menu becomes visible, we get the XsSnapshotMenuModel to
+		// rescan the filesystem folder whose content is shown in the given
 		// sub-menu.
 		function menuItemVisibilityChanged(index, visibility, panel) {
 			if (visibility) {
@@ -82,7 +90,7 @@ XsMenuItemNew {
 			if (action_type == "SNAPSHOT_REMOVE_SNAPSHOT") {
 
 				let v = snapshot_paths
-				let new_v = []	
+				let new_v = []
 				for(let i =0; i< v.length;i++) {
 					if(path != v[i].path)
 						new_v.push(v[i])
@@ -92,7 +100,7 @@ XsMenuItemNew {
 			} else if (action_type == "SNAPSHOT_ADD") {
 
 				loader.sourceComponent = new_snapshot_folder_dlg
-				loader.item.visible = true	
+				loader.item.visible = true
 
 			} else if (action_type == "SNAPSHOT_SAVE") {
 
@@ -102,7 +110,16 @@ XsMenuItemNew {
 					"Enter a name for your session snapshot.",
 					"",
 					["Cancel", "Save Snapshot"])
-				
+
+			} else if (action_type == "SNAPSHOT_SELECTED_SAVE") {
+
+				dialogHelpers.textInputDialog(
+					saveSelectedSnapshot,
+					"Save Selected Snapshot",
+					"Enter a name for your session snapshot.",
+					"",
+					["Cancel", "Save Snapshot"])
+
 			} else if (action_type == "SNAPSHOT_NEW_FOLDER") {
 
 				dialogHelpers.textInputDialog(
@@ -111,7 +128,7 @@ XsMenuItemNew {
 					"Enter a name for a new snapshot sub-folder",
 					"",
 					["Cancel", "Create Folder"])
-				
+
 			} else if (action_type == "SNAPSHOT_LOAD") {
 
 				Future.promise(theSessionData.importFuture(path, null)).then(
@@ -122,7 +139,7 @@ XsMenuItemNew {
 							dialogHelpers.errorDialogFunc("Snapshot ERror", "Snapshot " + name + " was not added to your session, an error occurred. Check your terminal for more info.")
 						}
 					})
-				
+
 			}
 		}
     }
@@ -130,7 +147,7 @@ XsMenuItemNew {
 	menu_model: snapshotModel
     menu_model_index: snapshotModel.index(-1, -1)
 
-	Component {		
+	Component {
 		id: new_snapshot_folder_dlg
 		NewSnapshotDialog {
 			id: snapshot_path_dialog
@@ -141,7 +158,7 @@ XsMenuItemNew {
 					loader.sourceComponent = undefined
 				}
 			}
-		}	
+		}
 	}
 
 	Loader {
@@ -168,7 +185,7 @@ XsMenuItemNew {
 	menu_model: snapshotModel
     menu_model_index: snapshotModel.index(-1, -1)
 
-	
+
 
     ListView {
         id: snapshot_items

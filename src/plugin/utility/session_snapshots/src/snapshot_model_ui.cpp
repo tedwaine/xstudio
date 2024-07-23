@@ -172,6 +172,15 @@ utility::JsonStore SnapshotMenuModel::toMenuModelItemData(FileSystemItem *item) 
             save_snapshot_item["user_data"]                = "SNAPSHOT_SAVE";
             menu_item_data["children"].push_back(save_snapshot_item);
 
+            utility::JsonStore save_selected_snapshot_item;
+            save_selected_snapshot_item["name"]              = "Save Selected Snapshot ...";
+            save_selected_snapshot_item["menu_item_type"]    = "button";
+            save_selected_snapshot_item["menu_item_enabled"] = true;
+            save_selected_snapshot_item["snapshot_filesystem_path"] = snapshot_filesystem_path;
+            save_selected_snapshot_item["watch_visibility"]         = false;
+            save_selected_snapshot_item["user_data"]                = "SNAPSHOT_SELECTED_SAVE";
+            menu_item_data["children"].push_back(save_selected_snapshot_item);
+
             utility::JsonStore create_folder_item;
             create_folder_item["name"]                     = "Create New Folder ...";
             create_folder_item["menu_item_type"]           = "button";

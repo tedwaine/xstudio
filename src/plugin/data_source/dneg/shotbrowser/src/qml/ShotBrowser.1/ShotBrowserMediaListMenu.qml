@@ -19,48 +19,32 @@ Item {
     // Create a menu 'Some Menu' with an item in it that says 'Do Something'
 
     XsMenuModelItem {
-        text: "Shot Browser"
+        text: "Pipeline"
         menuItemType: "divider"
         menuPath: ""
-        menuItemPosition: 4
+        menuItemPosition: 25
         menuModelName: "media_list_menu_"
     }
 
     XsMenuModelItem {
         text: "In ShotGrid..."
         menuPath: "Reveal Source"
-        menuItemPosition: 10
+        menuItemPosition: 2
         menuModelName: "media_list_menu_"
         onActivated: ShotBrowserHelpers.revealMediaInShotgrid(menuContext.mediaSelection)
     }
     XsMenuModelItem {
         text: "In Ivy..."
         menuPath: "Reveal Source"
-        menuItemPosition: 11
+        menuItemPosition: 3
         menuModelName: "media_list_menu_"
         onActivated: ShotBrowserHelpers.revealMediaInIvy(menuContext.mediaSelection)
     }
 
     XsMenuModelItem {
-        text: "Download SG Movie"
+        text: "Publish Selected Media Notes"
         menuPath: ""
-        menuItemPosition: 11
-        menuModelName: "media_list_menu_"
-        onActivated: ShotBrowserHelpers.downloadMovies(menuContext.mediaSelection)
-    }
-
-    XsMenuModelItem {
-        text: "Download SG Previews (missing)"
-        menuPath: ""
-        menuItemPosition: 11
-        menuModelName: "media_list_menu_"
-        onActivated: ShotBrowserHelpers.downloadMissingMovies(menuContext.mediaSelection)
-    }
-
-    XsMenuModelItem {
-        text: "Publish ShotGrid Media Notes"
-        menuPath: ""
-        menuItemPosition: 11
+        menuItemPosition: 25.1
         menuModelName: "media_list_menu_"
         onActivated: {
             publish_notes.show()
@@ -69,8 +53,25 @@ Item {
     }
 
     XsMenuModelItem {
-        text: "ShotGrid Playlist Notes"
-        menuPath: "Publish"
+        text: "Download Missing SG Previews"
+        menuPath: ""
+        menuItemPosition: 26.1
+        menuModelName: "media_list_menu_"
+        onActivated: ShotBrowserHelpers.downloadMissingMovies(menuContext.mediaSelection)
+    }
+
+    XsMenuModelItem {
+        text: "Download SG Movie"
+        menuPath: ""
+        menuItemPosition: 26.2
+        menuModelName: "media_list_menu_"
+        onActivated: ShotBrowserHelpers.downloadMovies(menuContext.mediaSelection)
+    }
+
+
+    XsMenuModelItem {
+        text: "Publish Playlist Notes"
+        menuPath: "Pipeline"
         menuItemPosition: 1
         menuModelName: "main menu bar"
         onActivated: {
@@ -80,8 +81,8 @@ Item {
     }
 
     XsMenuModelItem {
-        text: "Refresh Current Playlist"
-        menuPath: "Publish"
+        text: "Reload Selected SG Playlists"
+        menuPath: "Pipeline"
         menuItemPosition: 2
         menuModelName: "main menu bar"
         onActivated: ShotBrowserHelpers.syncPlaylistFromShotGrid(
@@ -90,8 +91,8 @@ Item {
     }
 
     XsMenuModelItem {
-        text: "Push Current Playlist"
-        menuPath: "Publish"
+        text: "Push Media To Selected SG Playlists"
+        menuPath: "Pipeline"
         menuItemPosition: 2
         menuModelName: "main menu bar"
         onActivated: {
@@ -101,8 +102,8 @@ Item {
     }
 
     XsMenuModelItem {
-        text: "Publish Current Playlist"
-        menuPath: "Publish"
+        text: "Publish New SG Playlist"
+        menuPath: "Pipeline"
         menuItemPosition: 2
         menuModelName: "main menu bar"
         onActivated: {
@@ -113,16 +114,16 @@ Item {
 
     XsMenuModelItem {
         menuItemType: "divider"
-        text: "ShotBrowser"
+        text: "Pipeline"
         menuPath: ""
-        menuItemPosition: 100
+        menuItemPosition: 10
         menuModelName: "playlist_context_menu"
     }
 
     XsMenuModelItem {
-        text: "Refresh Selected Playlist"
+        text: "Reload Selected SG Playlists"
         menuPath: ""
-        menuItemPosition: 101
+        menuItemPosition: 11
         menuModelName: "playlist_context_menu"
         onActivated: ShotBrowserHelpers.syncPlaylistFromShotGrid(
             helpers.QVariantFromUuidString(inspectedMediaSetProperties.values.actorUuidRole)
@@ -130,9 +131,9 @@ Item {
     }
 
     XsMenuModelItem {
-        text: "Push Current Playlist"
+        text: "Push Media To Selected SG Playlists"
         menuPath: ""
-        menuItemPosition: 102
+        menuItemPosition: 12
         menuModelName: "playlist_context_menu"
         onActivated: {
             sync_to_dialog.show()
@@ -141,9 +142,9 @@ Item {
     }
 
     XsMenuModelItem {
-        text: "Publish Current Playlist"
+        text: "Publish New SG Playlist"
         menuPath: ""
-        menuItemPosition: 103
+        menuItemPosition: 13
         menuModelName: "playlist_context_menu"
         onActivated: {
             publish_to_dialog.show()
@@ -152,9 +153,9 @@ Item {
     }
 
     XsMenuModelItem {
-        text: "Publish ShotGrid Playlist Notes"
+        text: "Publish Playlist Notes"
         menuPath: ""
-        menuItemPosition: 104
+        menuItemPosition: 14
         menuModelName: "playlist_context_menu"
         onActivated: {
             publish_notes.show()

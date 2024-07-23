@@ -27,17 +27,27 @@ Rectangle{ id: sec1
                 // if we are seeking to a note within a timeline, need some different
                 // logic here.
                 if (media_idx.valid) {
-                    let c = theSessionData.getTimelineVisibleClipIndexes(
+
+                    let frames = theSessionData.mediaFrameToTimelineFrames(
                         viewedMediaSetIndex,
                         media_idx,
-                        frameFromTimecodeRole
+                        frameFromTimecodeRole,
+                        true // skip disabled clips
                         )
 
-                    if(c.length) {
-                        currentPlayhead.logicalFrame = theSessionData.getTimelineFrameFromClip(c[0], frameFromTimecodeRole)                        
-                        // this is a signal we emit - XsTimeline has a connection to
-                        // the signal allowing us to control timeline selection
-                        theSessionData.makeTimelineSelection(viewedMediaSetIndex, [c[0]]);
+                    if(frames.length) {
+
+                        // set the frame to the first timeline frame that shows
+                        // this note
+                        currentPlayhead.logicalFrame = frames[0]
+
+                        // now, if we can, we want to select the corresponding 
+                        // clip too
+                        let c = theSessionData.getTimelineClipIndexes(viewedMediaSetIndex, media_idx);
+                        if (c.length) {
+                            theSessionData.makeTimelineSelection(viewedMediaSetIndex, [c[0]]);
+                        }
+
                         return
                     }
                 }

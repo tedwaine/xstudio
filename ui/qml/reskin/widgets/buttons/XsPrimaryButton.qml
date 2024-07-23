@@ -17,6 +17,8 @@ Button {
     property bool isToolTipEnabled: true
     property bool showBoth: false
 
+    property string toolTip: widget.text
+
     property alias textDiv: textDiv
     property alias imageDiv: imageDiv
     property alias bgDiv: bgDiv
@@ -86,8 +88,8 @@ Button {
     }
 
     XsToolTip{
-        text: widget.text
-        visible: textDiv.visible && isToolTipEnabled? widget.hovered && textDiv.truncated : widget.hovered && widget.text!=""
+        text: toolTip
+        visible: textDiv.visible && isToolTipEnabled? widget.hovered && (textDiv.truncated || toolTip!= widget.text) : widget.hovered && toolTip!=""
         width: metricsDiv.width == 0? 0 : textDiv.textWidth +15
         // height: widget.height
         x: widget.width //#TODO: flex/pointer

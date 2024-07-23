@@ -15,6 +15,11 @@ RowLayout {
     width: parent.width
     height: XsStyleSheet.widgetStdHeight
 
+    property var value__: valueRole
+    onValue__Changed: {
+        combo_box.backendValueChanged()
+    }
+
     function spangle(oof) {
         console.log("Setting ", valueRole, oof)
         if (valueRole != oof) {
@@ -40,19 +45,22 @@ RowLayout {
         Layout.minimumWidth: prefsLabelWidth/2
         Layout.fillHeight: true
         model: optionsRole
+        property bool settingFromBackend: false
 
         onCurrentIndexChanged: {
-            if (optionsRole != undefined) {
+            if (!settingFromBackend && optionsRole != undefined) {
                 spangle(optionsRole[currentIndex])
             }
         }
 
-        property var value__: valueRole
-        onValue__Changed: {
+        function backendValueChanged() {
+            settingFromBackend = true
             if (optionsRole != undefined && optionsRole.indexOf(value__) != -1) {
                 currentIndex = optionsRole.indexOf(value__)
             }
+            settingFromBackend = false
         }
+
     }
 
     XsPreferenceInfoButton {

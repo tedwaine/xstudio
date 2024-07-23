@@ -303,7 +303,8 @@ void EmbeddedPythonActor::act() {
             return make_error(xstudio_error::error, error);
         },
 
-#endif BUILD_OTIO
+#endif
+        //BUILD_OTIO
 
         [=](python_create_session_atom, const bool interactive) -> result<utility::Uuid> {
             if (not base_.enabled())

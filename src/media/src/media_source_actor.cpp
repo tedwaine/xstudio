@@ -1257,72 +1257,9 @@ void MediaSourceActor::init() {
             return rp;
         },
 
-        [=](utility::duplicate_atom) -> result<UuidActor> {
-            auto rp    = make_response_promise<UuidActor>();
-            auto uuid  = utility::Uuid::generate();
-            auto actor = spawn<MediaSourceActor>(
-                base_.name(), base_.reader(), base_.media_reference(), uuid);
-
-            // using a lambda to try and make this more, err, 'readable'
-            auto copy_metadata = [=](UuidActor destination,
-                                     caf::typed_response_promise<UuidActor> rp) {
-                request(json_store_, infinite, json_store::get_json_atom_v)
-                    .then(
-                        [=](const JsonStore &meta) mutable {
-                            request(
-                                destination.actor(),
-                                infinite,
-                                json_store::set_json_atom_v,
-                                meta)
-                                .then(
-                                    [=](bool) mutable { rp.deliver(destination); },
-                                    [=](const error &err) mutable { rp.deliver(err); });
-                        },
-                        [=](const error &err) mutable { rp.deliver(err); });
-            };
-
-            // duplicate streams..
-            if (media_streams_.size()) {
-                auto source_count = std::make_shared<int>();
-                (*source_count)   = media_streams_.size();
-                for (auto p : media_streams_) {
-                    request(p.second, infinite, utility::duplicate_atom_v)
-                        .await(
-                            [=](UuidActor stream) mutable {
-                                // add the stream to the duplicated media_source_actor
-                                request(actor, infinite, add_media_stream_atom_v, stream)
-                                    .await(
-                                        [=](UuidActor) mutable {
-                                            // set the current stream as required
-                                            if (p.first == base_.current(MT_IMAGE)) {
-
-                                                anon_send(
-                                                    actor,
-                                                    current_media_stream_atom_v,
-                                                    MT_IMAGE,
-                                                    stream.uuid());
-
-                                            } else if (p.first == base_.current(MT_AUDIO)) {
-
-                                                anon_send(
-                                                    actor,
-                                                    current_media_stream_atom_v,
-                                                    MT_AUDIO,
-                                                    stream.uuid());
-                                            }
-
-                                            (*source_count)--;
-                                            if (!(*source_count)) {
-                                                copy_metadata(UuidActor(uuid, actor), rp);
-                                            }
-                                        },
-                                        [=](const error &err) mutable { rp.deliver(err); });
-                            },
-                            [=](const error &err) mutable { rp.deliver(err); });
-                }
-            } else {
-                copy_metadata(UuidActor(uuid, actor), rp);
-            }
+        [=](utility::duplicate_atom) -> result<UuidUuidActor> {
+            auto rp = make_response_promise<UuidUuidActor>();
+            duplicate(rp);
             return rp;
         },
 
@@ -1755,5 +1692,70 @@ void MediaSourceActor::send_stream_metadata_to_stream_actors(const utility::Json
                         [=](caf::error &err) {});
             }
         }
+    }
+}
+
+void MediaSourceActor::duplicate(caf::typed_response_promise<utility::UuidUuidActor> rp) {
+    auto uuid = utility::Uuid::generate();
+    auto actor =
+        spawn<MediaSourceActor>(base_.name(), base_.reader(), base_.media_reference(), uuid);
+
+    // using a lambda to try and make this more, err, 'readable'
+    auto copy_metadata = [=](UuidActor destination,
+                             caf::typed_response_promise<UuidUuidActor> rp) {
+        request(json_store_, infinite, json_store::get_json_atom_v)
+            .then(
+                [=](const JsonStore &meta) mutable {
+                    request(destination.actor(), infinite, json_store::set_json_atom_v, meta)
+                        .then(
+                            [=](bool) mutable {
+                                rp.deliver(UuidUuidActor(base_.uuid(), destination));
+                            },
+                            [=](const error &err) mutable { rp.deliver(err); });
+                },
+                [=](const error &err) mutable { rp.deliver(err); });
+    };
+
+    // duplicate streams..
+    if (media_streams_.size()) {
+        auto source_count = std::make_shared<int>();
+        (*source_count)   = media_streams_.size();
+        for (auto p : media_streams_) {
+            request(p.second, infinite, utility::duplicate_atom_v)
+                .await(
+                    [=](UuidActor stream) mutable {
+                        // add the stream to the duplicated media_source_actor
+                        request(actor, infinite, add_media_stream_atom_v, stream)
+                            .await(
+                                [=](UuidActor) mutable {
+                                    // set the current stream as required
+                                    if (p.first == base_.current(MT_IMAGE)) {
+
+                                        anon_send(
+                                            actor,
+                                            current_media_stream_atom_v,
+                                            MT_IMAGE,
+                                            stream.uuid());
+
+                                    } else if (p.first == base_.current(MT_AUDIO)) {
+
+                                        anon_send(
+                                            actor,
+                                            current_media_stream_atom_v,
+                                            MT_AUDIO,
+                                            stream.uuid());
+                                    }
+
+                                    (*source_count)--;
+                                    if (!(*source_count)) {
+                                        copy_metadata(UuidActor(uuid, actor), rp);
+                                    }
+                                },
+                                [=](const error &err) mutable { rp.deliver(err); });
+                    },
+                    [=](const error &err) mutable { rp.deliver(err); });
+        }
+    } else {
+        copy_metadata(UuidActor(uuid, actor), rp);
     }
 }
