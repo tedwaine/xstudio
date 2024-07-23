@@ -614,10 +614,6 @@ void timeline_importer(
     std::map<std::string, UuidActor> existing_media_url_map;
     std::map<std::string, UuidActor> target_url_map;
 
-<<<<<<< HEAD
-=======
-    spdlog::warn("Processing {} clips", clips.size());
->>>>>>> bbfc61c02b3379785939412ae086e4ffed44276d
     // fill our map with media that's already in the parent playlist
     self->request(playlist, infinite, playlist::get_media_atom_v)
         .receive(
