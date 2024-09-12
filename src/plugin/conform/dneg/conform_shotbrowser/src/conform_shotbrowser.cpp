@@ -169,6 +169,16 @@ template <typename T> class ShotbrowserConformActor : public caf::event_based_ac
                 return rp;
             },
 
+            [=](conform_atom,
+                const std::string &key,
+                const std::pair<utility::UuidActor, utility::JsonStore> &needle,
+                const std::vector<std::pair<utility::UuidActor, utility::JsonStore>> &haystack)
+                -> result<utility::UuidActorVector> {
+                auto rp = make_response_promise<utility::UuidActorVector>();
+                find_matching(rp, key, needle, haystack);
+                return rp;
+            },
+
             [=](utility::event_atom,
                 json_store::sync_atom,
                 const Uuid &uuid,
@@ -354,6 +364,11 @@ template <typename T> class ShotbrowserConformActor : public caf::event_based_ac
                         not item_meta.at(cut_start_ptr).is_null()) {
                         // get item trimmed start frame
                         auto trimmed_range = c.get().trimmed_range();
+
+                        // spdlog::warn("conform_request {} {} {} {}",
+                        // item_meta.at(cut_start_ptr).get<int>(),
+                        // trimmed_range.rate().to_seconds(),
+                        // trimmed_range.rate().to_fps(),trimmed_range.rate().count());
 
                         item_meta.at(override_cut_ptr)  = false;
                         item_meta.at(override_comp_ptr) = false;
@@ -563,29 +578,36 @@ template <typename T> class ShotbrowserConformActor : public caf::event_based_ac
             auto tframe         = timeline_item.trimmed_start();
             const auto trate    = timeline_item.rate();
 
+            auto unknown_name = std::string("UNKNOWN");
+
             for (auto &i : vtrack.children()) {
                 if (i.item_type() == timeline::IT_CLIP) {
-                    auto check_clips = true;
-                    i.set_name("UNKNOWN");
+                    auto is_valid   = false;
+                    auto comp_start = R"(null)"_json;
+                    auto comp_end   = R"(null)"_json;
+                    auto cut_start  = R"(null)"_json;
+                    auto cut_end    = R"(null)"_json;
+                    auto project    = R"(null)"_json;
+                    auto shot       = R"(null)"_json;
 
-                    // mirror changes to Cut Ref Track
-                    if (not only_create_conform_track)
-                        anon_send(i.actor(), timeline::item_name_atom_v, "UNKNOWN");
+                    auto pm =
+                        R"({"metadata": {"external": {"DNeg": {"shot": null, "show":null, "comp": {"start": null, "end":null, "override": true}, "cut": {"start": null, "end":null, "override":true}}}}})"_json;
 
-                    // leed a list of clips at this point in time backed down.
-                    // do we need to check markers..
+                    // from premiere markers
                     if (not found_project.empty()) {
+
+                        // need a list of clips at this point in time backed down.
+                        // do we need to check markers..
                         // marker should have same start time as clip..
                         // markers exist on stack..
-                        const auto fcpp             = json::json_pointer("/fcp_xml/comment");
-                        const static auto cutcompre = std::regex("(\\d+),(\\d+)-(\\d+),(\\d+)");
+                        const auto fcpp = json::json_pointer("/fcp_xml/comment");
 
                         for (const auto &m : timeline_item.children().front().markers()) {
                             if (m.start() == tframe) {
-                                auto u =
-                                    R"({"metadata": {"external": {"DNeg": {"shot": null, "show":null, "comp": {"start": null, "end":null, "override":true}, "cut": {"start": null, "end":null, "override":true}}}}})"_json;
-
-                                if (m.prop().contains(fcpp)) {
+                                if (m.prop().contains(fcpp) and not m.name().empty()) {
+                                    const static auto cutcompre =
+                                        std::regex("\\s*(\\d+)\\s*,\\s*(\\d+)\\s*-\\s*(\\d+)"
+                                                   "\\s*,\\s*(\\d+)\\s*");
                                     auto comment = m.prop().at(fcpp).get<std::string>();
                                     std::cmatch match;
                                     if (std::regex_match(comment.c_str(), match, cutcompre)) {
@@ -595,53 +617,100 @@ template <typename T> class ShotbrowserConformActor : public caf::event_based_ac
                                             i.trimmed_duration(),
                                             i.rate()));
                                         i.set_available_range(*i.active_range());
-                                        check_clips = false;
 
-                                        u[json::json_pointer(
-                                            "/metadata/external/DNeg/comp/start")] =
-                                            std::stoi(match[1]);
-                                        u[json::json_pointer(
-                                            "/metadata/external/DNeg/cut/start")] =
-                                            std::stoi(match[2]);
-                                        u[json::json_pointer(
-                                            "/metadata/external/DNeg/cut/end")] =
-                                            std::stoi(match[3]);
-                                        u[json::json_pointer(
-                                            "/metadata/external/DNeg/comp/end")] =
-                                            std::stoi(match[4]);
+                                        comp_start = std::stoi(match[1]);
+                                        cut_start  = std::stoi(match[2]);
+                                        cut_end    = std::stoi(match[3]);
+                                        comp_end   = std::stoi(match[4]);
+                                        shot       = m.name();
+                                        project    = found_project;
+                                        is_valid   = true;
+                                    } else {
+                                        // spdlog::warn("no match {}", comment);
                                     }
                                 }
 
-                                auto meta = i.prop();
-                                u[json::json_pointer("/metadata/external/DNeg/shot")] =
-                                    m.name();
-                                u[json::json_pointer("/metadata/external/DNeg/show")] =
-                                    found_project;
-                                meta.update(u);
-
-                                i.set_prop(meta);
-                                i.set_name(m.name());
-
-                                if (not only_create_conform_track) {
-                                    anon_send(i.actor(), timeline::item_prop_atom_v, meta);
-                                    anon_send(i.actor(), timeline::item_name_atom_v, m.name());
-                                }
-                                break;
+                                if (is_valid)
+                                    break;
                             }
                         }
                     }
 
-                    if (check_clips) {
+                    // from check clip metadata
+                    if (not is_valid and not found_project.empty()) {
+                        auto cm = i.prop();
+                        if (cm.contains("media_stalk_dnuuid")) {
+                            project   = found_project;
+                            cut_start = i.trimmed_frame_start().frames();
+                            cut_end   = i.trimmed_frame_start().frames() +
+                                      i.trimmed_frame_duration().frames() - 1;
+
+                            shot     = i.name();
+                            is_valid = true;
+                            // if (auto tmp = cm.value("shot_label", ""); not tmp.empty()) {
+                            //     shot     = tmp;
+                            //     is_valid = true;
+                            // }
+                        }
+                    }
+
+                    // from turnover auto markers
+                    if (not is_valid) {
+                        // marker should have same start time as clip..
+                        // markers exist on stack..
+                        for (const auto &m : timeline_item.children().front().markers()) {
+                            if (m.start() == tframe) {
+                                if (m.prop().contains("comp")) {
+                                    if (auto tmp = m.prop().at("comp").value(
+                                            "start", std::numeric_limits<int>::max());
+                                        tmp != std::numeric_limits<int>::max())
+                                        comp_start = tmp;
+                                    if (auto tmp = m.prop().at("comp").value(
+                                            "end", std::numeric_limits<int>::max());
+                                        tmp != std::numeric_limits<int>::max())
+                                        comp_end = tmp;
+                                }
+
+                                if (m.prop().contains("cut")) {
+                                    if (auto tmp = m.prop().at("cut").value(
+                                            "start", std::numeric_limits<int>::max());
+                                        tmp != std::numeric_limits<int>::max())
+                                        cut_start = tmp;
+                                    if (auto tmp = m.prop().at("cut").value(
+                                            "end", std::numeric_limits<int>::max());
+                                        tmp != std::numeric_limits<int>::max())
+                                        cut_end = tmp;
+                                }
+
+                                if (auto tmp = m.prop().value("show", found_project);
+                                    not tmp.empty())
+                                    project = tmp;
+
+                                if (auto tmp = m.prop().value("shot", ""); not tmp.empty()) {
+                                    shot = tmp;
+                                    // got shot close enough...
+                                    is_valid = true;
+                                }
+                            }
+
+                            if (is_valid)
+                                break;
+                        }
+                    }
+
+                    // from media metadata
+                    if (not is_valid) {
                         auto items = timeline_item.resolve_time_raw(tframe);
 
                         for (const auto &j : items) {
                             auto clip = j.first;
 
                             try {
-                                auto project = QueryEngine::get_project_name(clip.prop());
-                                auto shot    = QueryEngine::get_shot_name(clip.prop(), true);
+                                project = QueryEngine::get_project_name(clip.prop());
+                                shot    = QueryEngine::get_shot_name(clip.prop(), true);
 
-                                if (project.empty() or shot.empty()) {
+                                if (project.get<std::string>().empty() or
+                                    shot.get<std::string>().empty()) {
                                     // try media metadata..
                                     auto media_uuid = clip.prop().value("media_uuid", Uuid());
 
@@ -683,87 +752,84 @@ template <typename T> class ShotbrowserConformActor : public caf::event_based_ac
                                         }
                                     }
 
-                                    if (project.empty())
+                                    if (project.get<std::string>().empty())
                                         project = QueryEngine::get_project_name(
                                             media_metadata.at(media_uuid));
-                                    if (shot.empty())
+                                    if (shot.get<std::string>().empty())
                                         shot = QueryEngine::get_shot_name(
                                             media_metadata.at(media_uuid), true);
                                 }
 
-                                if (not project.empty())
+                                if (not project.get<std::string>().empty())
                                     found_project = project;
 
-                                if (not project.empty() and not shot.empty()) {
-                                    auto m = i.prop();
-                                    auto u =
-                                        R"({"metadata": {"external": {"DNeg": {"shot": null, "show":null, "comp": {"start": null, "end":null, "override":false}, "cut": {"start": null, "end":null, "override":true}}}}})"_json;
+                                if (not project.get<std::string>().empty() and
+                                    not shot.get<std::string>().empty()) {
+                                    cut_start = clip.trimmed_frame_start().frames();
+                                    cut_end   = clip.trimmed_frame_start().frames() +
+                                              clip.trimmed_frame_duration().frames() - 1;
 
-                                    u[json::json_pointer("/metadata/external/DNeg/shot")] =
-                                        shot;
-                                    u[json::json_pointer("/metadata/external/DNeg/show")] =
-                                        project;
-
-                                    u[json::json_pointer("/metadata/external/DNeg/cut/start")] =
-                                        clip.trimmed_frame_start().frames();
-                                    u[json::json_pointer("/metadata/external/DNeg/cut/end")] =
-                                        clip.trimmed_frame_start().frames() +
-                                        clip.trimmed_frame_duration().frames() - 1;
-
-                                    m.update(u);
-                                    i.set_prop(m);
-                                    i.set_name(shot);
-                                    // if(clip.available_range()) {
-                                    //     // must not be smaller than current active
-                                    //     i.set_available_range(*(clip.available_range()));
-                                    // }
                                     i.set_active_range(FrameRange(
                                         clip.trimmed_start(), i.trimmed_duration(), i.rate()));
                                     i.set_available_range(*i.active_range());
-                                    // always use markers...
-                                    // check_markers = false;
-
-                                    if (not only_create_conform_track) {
-                                        anon_send(i.actor(), timeline::item_prop_atom_v, m);
-                                        anon_send(i.actor(), timeline::item_name_atom_v, shot);
-                                    }
-
+                                    is_valid = true;
                                     break;
                                 }
-
                             } catch (const std::exception &err) {
                                 spdlog::warn("{} {}", __PRETTY_FUNCTION__, err.what());
                             }
                         }
                     }
-                }
-                if (i.name() == "UNKNOWN") {
-                    // i.set_prop(m);
-                    if (not only_create_conform_track) {
-                        auto m = i.prop();
-                        auto u =
-                            R"({"metadata": {"external": {"DNeg": {"shot": null, "show":null}}}})"_json;
 
-                        u[json::json_pointer("/metadata/external/DNeg/shot")] = "UNKNOWN";
-                        u[json::json_pointer("/metadata/external/DNeg/show")] = found_project;
+                    // update clips with results
+                    if (not is_valid) {
+                        auto meta                                              = i.prop();
+                        pm[json::json_pointer("/metadata/external/DNeg/shot")] = unknown_name;
+                        pm[json::json_pointer("/metadata/external/DNeg/show")] =
+                            found_project.empty() ? unknown_name : found_project;
 
-                        m.update(u);
-                        anon_send(i.actor(), timeline::item_prop_atom_v, m);
-                        anon_send(i.actor(), timeline::item_flag_atom_v, "#FFFF0000");
+                        meta.update(pm, true);
+
+                        if (not only_create_conform_track) {
+                            anon_send(i.actor(), timeline::item_prop_atom_v, meta);
+                            anon_send(i.actor(), timeline::item_name_atom_v, unknown_name);
+                            anon_send(i.actor(), timeline::item_flag_atom_v, "#FFFF0000");
+                        }
+
+                        i.set_prop(meta);
+                        i.set_name(unknown_name);
+                        i.set_flag("#FFFF0000");
+                        i.set_enabled(false);
+                    } else {
+                        pm[json::json_pointer("/metadata/external/DNeg/show")] = project;
+                        pm[json::json_pointer("/metadata/external/DNeg/shot")] = shot;
+                        pm[json::json_pointer("/metadata/external/DNeg/comp/start")] =
+                            comp_start;
+                        pm[json::json_pointer("/metadata/external/DNeg/comp/end")]  = comp_end;
+                        pm[json::json_pointer("/metadata/external/DNeg/cut/start")] = cut_start;
+                        pm[json::json_pointer("/metadata/external/DNeg/cut/end")]   = cut_end;
+
+                        if (found_project.empty())
+                            found_project = project;
+
+                        auto meta = i.prop();
+                        meta.update(pm, true);
+
+                        i.set_prop(meta);
+                        i.set_name(shot);
+                        i.set_flag("#FF00FF00");
+                        i.set_enabled(true);
+
+                        if (not only_create_conform_track) {
+                            anon_send(i.actor(), timeline::item_prop_atom_v, meta);
+                            anon_send(
+                                i.actor(), timeline::item_name_atom_v, shot.get<std::string>());
+                            anon_send(i.actor(), timeline::item_flag_atom_v, "#FF00FF00");
+                        }
                     }
-
-                    i.set_flag("#FFFF0000");
-                    i.set_enabled(false);
-                } else {
-                    // mirror changes to Cut Ref Track
-                    if (not only_create_conform_track)
-                        anon_send(i.actor(), timeline::item_flag_atom_v, "#FF00FF00");
-
-                    i.set_flag("#FF00FF00");
                 }
                 tframe += i.trimmed_duration();
             }
-
 
             if (only_create_conform_track) {
                 // clean before adding
@@ -806,7 +872,6 @@ template <typename T> class ShotbrowserConformActor : public caf::event_based_ac
                 // we might be chaining a conform after this..
                 // so we need to be in sync..
                 // request item
-                spdlog::warn("check timeline item is ready");
                 auto done = false;
                 while (not done) {
                     try {
@@ -818,7 +883,7 @@ template <typename T> class ShotbrowserConformActor : public caf::event_based_ac
                             if (i.item_type() == timeline::IT_CLIP and
                                 not(i.flag() == "#FFFF0000" or i.flag() == "#FF00FF00")) {
                                 done = false;
-                                spdlog::warn("Waiting for timeline to sync");
+                                spdlog::warn("Waiting for timeline to sync. {}", timeline_path);
                                 std::this_thread::sleep_for(1s);
                                 break;
                             }
@@ -828,6 +893,7 @@ template <typename T> class ShotbrowserConformActor : public caf::event_based_ac
                         break;
                     }
                 }
+                spdlog::warn("Timeline is ready. {}", timeline_path);
             }
 
             rp.deliver(true);
@@ -1012,6 +1078,11 @@ template <typename T> class ShotbrowserConformActor : public caf::event_based_ac
                     auto trimmed_range = request_receive<FrameRange>(
                         *sys, i.item_.actor(), timeline::trimmed_range_atom_v);
 
+                    // spdlog::warn("conform_request {} {} {} {}",
+                    // item_meta.at(cut_start_ptr).get<int>(),
+                    // trimmed_range.rate().to_seconds(),
+                    // trimmed_range.rate().to_fps(),trimmed_range.rate().count());
+
                     prop.at(override_cut_ptr)  = false;
                     prop.at(override_comp_ptr) = false;
                     trimmed_range.set_start(FrameRate(
@@ -1042,6 +1113,34 @@ template <typename T> class ShotbrowserConformActor : public caf::event_based_ac
         creply.operations_["insert_media"] = true;
 
         rp.deliver(creply);
+    }
+
+    void find_matching(
+        caf::typed_response_promise<utility::UuidActorVector> rp,
+        const std::string &key,
+        const std::pair<utility::UuidActor, utility::JsonStore> &needle,
+        const std::vector<std::pair<utility::UuidActor, utility::JsonStore>> &haystack) {
+        // spdlog::warn("{}", needle.second.dump(2));
+
+        auto result = utility::UuidActorVector();
+        auto pointer =
+            nlohmann::json::json_pointer("/metadata/shotgun/version/attributes/sg_ivy_dnuuid");
+
+        for (const auto &i : haystack) {
+            if (i.first.uuid() == needle.first.uuid())
+                continue;
+
+            try {
+                if (i.second.value(pointer, Uuid()) == needle.second.value(pointer, Uuid()))
+                    result.push_back(i.first);
+            } catch (...) {
+            }
+
+            // spdlog::warn("{}", i.second.dump(2));
+        }
+
+
+        rp.deliver(result);
     }
 
   private:

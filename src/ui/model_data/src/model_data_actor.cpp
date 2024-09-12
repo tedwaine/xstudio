@@ -198,7 +198,7 @@ GlobalUIModelData::GlobalUIModelData(caf::actor_config &cfg) : caf::event_based_
                 return caf::make_error(xstudio_error::error, e.what());
             }
         },
-        [=](register_model_data_atom,
+        [=](deregister_model_data_atom,
             const std::string &model_name,
             const utility::Uuid &attribute_uuid,
             caf::actor client) {
@@ -350,6 +350,12 @@ GlobalUIModelData::GlobalUIModelData(caf::actor_config &cfg) : caf::event_based_
             // the same level.
             set_menu_node_position(model_name, menu_path, position_in_menu);
         },
+        [=](set_row_ordering_role_atom,
+            const std::string &model_name,
+            const std::string &role_name) {
+            // not implemented yet .. idea is you can sort the model based off
+            // a particular role.
+        },
         [=](remove_node_atom,
             const std::string model_name,
             const utility::Uuid &model_item_id) { remove_node(model_name, model_item_id); },
@@ -380,9 +386,10 @@ GlobalUIModelData::GlobalUIModelData(caf::actor_config &cfg) : caf::event_based_
         [=](keypress_monitor::hotkey_event_atom,
             const utility::Uuid kotkey_uuid,
             const bool pressed,
-            const std::string &context) {
+            const std::string &context,
+            const std::string &window) {
             if (pressed)
-                hotkey_pressed(kotkey_uuid, context);
+                hotkey_pressed(kotkey_uuid, context, window);
         },
         [=](const caf::error &err) {
             spdlog::warn("{} {}", __PRETTY_FUNCTION__, to_string(err));
@@ -432,16 +439,28 @@ void GlobalUIModelData::set_data(
 
         if (changed) { //} && !role.empty()) {
 
-            for (auto &client : models_[model_name]->clients_) {
-                send(
-                    client,
-                    utility::event_atom_v,
-                    set_node_data_atom_v,
-                    model_name,
-                    path,
-                    data,
-                    role,
-                    uuid_role_data);
+            if (!role.empty()) {
+                for (auto &client : models_[model_name]->clients_) {
+                    send(
+                        client,
+                        utility::event_atom_v,
+                        set_node_data_atom_v,
+                        model_name,
+                        path,
+                        data,
+                        role,
+                        uuid_role_data);
+                }
+            } else {
+                for (auto &client : models_[model_name]->clients_) {
+                    send(
+                        client,
+                        utility::event_atom_v,
+                        set_node_data_atom_v,
+                        model_name,
+                        path,
+                        data);
+                }
             }
 
             push_to_prefs(model_name);
@@ -851,6 +870,15 @@ void GlobalUIModelData::insert_rows(
         }
 
         auto model_data_json = model_data_as_json(model_name);
+
+        if (data.contains("hotkey_uuid")) {
+
+            utility::Uuid hotkey_uuid(data["hotkey_uuid"]);
+            if (!hotkey_uuid.is_null()) {
+
+                models_[model_name]->hotkeys_.insert(hotkey_uuid);
+            }
+        }
 
         // caf::scoped_actor sys(system());
         for (auto &client : models_[model_name]->clients_) {
@@ -1339,19 +1367,20 @@ void GlobalUIModelData::update_hotkeys_model_data(const Hotkey &hotkey) {
                     "hotkey_sequence");
 
             } catch (std::exception &e) {
-                spdlog::warn("{} {}", __PRETTY_FUNCTION__, e.what());
+                spdlog::debug("{} {} {}", __PRETTY_FUNCTION__, e.what(), hotkey.hotkey_name());
             }
         }
     }
 }
 
 void GlobalUIModelData::hotkey_pressed(
-    const utility::Uuid &hotkey_uuid, const std::string &context) {
+    const utility::Uuid &hotkey_uuid, const std::string &context, const std::string &window) {
     // a hotkey has been pressed and we've beein informed by the keypress_monitor
     // class
 
     // Are any of our models linked to this hotkey?
     for (auto &p : models_) {
+
         if (p.second->hotkeys_.find(hotkey_uuid) != p.second->hotkeys_.end()) {
 
             try {
@@ -1359,6 +1388,25 @@ void GlobalUIModelData::hotkey_pressed(
                 // find the menu item that is linked to the hotkey
                 auto menu_model_data = find_node_matching_string_field(
                     &(p.second->data_), "hotkey_uuid", to_string(hotkey_uuid));
+
+                if (p.second->name_ == "popout windows" && menu_model_data) {
+                    // special case .. the "popout windows" model is the button tray
+                    // in the top left of the viewport panels that shows/hides some
+                    // registered ui elements in pop-out windows... we can use
+                    // a hotkey to toggle them. That's what's happening now.
+                    // We will toggle the "window_is_visible" role data
+                    if (menu_model_data->data().contains("window_is_visible") &&
+                        menu_model_data->data()["window_is_visible"].is_boolean()) {
+                        auto v = nlohmann::json(
+                            !menu_model_data->data()["window_is_visible"].get<bool>());
+                        set_data(
+                            p.second->name_,
+                            path_from_node(menu_model_data),
+                            v,
+                            "window_is_visible");
+                        return;
+                    }
+                }
 
                 // run our 'activated' method which will trigger an 'activated'
                 // signal on any XsMenuItem that are hooked to this node

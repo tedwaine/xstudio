@@ -30,9 +30,9 @@ TEST(TrackActorAddTest, Test) {
     auto t = f.self->spawn<TrackActor>("Top Track");
 
     {
-        auto uuid = utility::Uuid::generate();
-        auto invalid =
-            f.self->spawn<TrackActor>("Invalid Track", media::MediaType::MT_IMAGE, uuid);
+        auto uuid    = utility::Uuid::generate();
+        auto invalid = f.self->spawn<TrackActor>(
+            "Invalid Track", utility::FrameRate(), media::MediaType::MT_IMAGE, uuid);
         EXPECT_THROW(
             request_receive<JsonStore>(
                 *(f.self),
@@ -45,8 +45,9 @@ TEST(TrackActorAddTest, Test) {
     }
 
     {
-        auto uuid    = utility::Uuid::generate();
-        auto invalid = f.self->spawn<TimelineActor>("Invalid Timeline", uuid);
+        auto uuid = utility::Uuid::generate();
+        auto invalid =
+            f.self->spawn<TimelineActor>("Invalid Timeline", utility::FrameRate(), uuid);
         EXPECT_THROW(
             request_receive<JsonStore>(
                 *(f.self),
@@ -60,7 +61,7 @@ TEST(TrackActorAddTest, Test) {
 
     {
         auto uuid  = utility::Uuid::generate();
-        auto valid = f.self->spawn<StackActor>("Valid Stack", uuid);
+        auto valid = f.self->spawn<StackActor>("Valid Stack", utility::FrameRate(), uuid);
         EXPECT_NO_THROW(request_receive<JsonStore>(
             *(f.self), t, insert_item_atom_v, 0, UuidActorVector({UuidActor(uuid, valid)})));
     }

@@ -1,10 +1,7 @@
 module ShotBrowser
 
-ShotBrowserAltPanel         1.0 ShotBrowserAltPanel.qml
 ShotBrowserHelpers          1.0 ShotBrowserHelpers.js
 ShotBrowserMediaListMenu    1.0 ShotBrowserMediaListMenu.qml
-ShotBrowserMenuModel        1.0 ShotBrowserMenuModel.qml
-ShotBrowserPanel            1.0 ShotBrowserPanel.qml
 
 XsSBPublishNotesFeedback.qml 1.0 dialogs/XsSBPublishNotesFeedback.qml
 XsSBPublishNotesDialog      1.0 dialogs/XsSBPublishNotesDialog.qml

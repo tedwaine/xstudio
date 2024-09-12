@@ -158,13 +158,8 @@ void MediaActor::init() {
         [=](utility::event_atom,
             media::media_display_info_atom,
             const utility::JsonStore &metadata_filter_sets) {
-            metadata_filter_sets_ = utility::json_to_tree(metadata_filter_sets, "children");
-            num_metadata_filter_results_ = 0;
-            for (const auto &i : metadata_filter_sets_) {
-                for (const auto &j : i) {
-                    num_metadata_filter_results_++;
-                }
-            }
+            media_list_columns_config_ =
+                utility::json_to_tree(metadata_filter_sets, "children");
             anon_send(this, media_display_info_atom_v);
         },
 
@@ -646,7 +641,7 @@ void MediaActor::init() {
             return rp;
         },
 
-        [=](current_media_source_atom atom, const Uuid &uuid) -> bool {
+        [=](current_media_source_atom, const Uuid &uuid) -> bool {
             auto result = base_.set_current(uuid, MT_IMAGE);
             result |= base_.set_current(uuid, MT_AUDIO);
 
@@ -654,6 +649,7 @@ void MediaActor::init() {
             // do we need to specify which media type is changing ?
             if (result) {
                 anon_send(this, media_display_info_atom_v);
+                anon_send(this, human_readable_info_atom_v, true);
                 base_.send_changed(event_group_, this);
                 send(
                     event_group_,
@@ -678,8 +674,8 @@ void MediaActor::init() {
 
             // Audio media source must have same duration as video media source.
             // We force that here.
-            if (media_type == media::MT_IMAGE ||
-                not media_sources_.count(base_.current(media::MT_IMAGE))) {
+            if (media_type == media::MT_IMAGE &&
+                media_sources_.count(base_.current(media::MT_IMAGE))) {
                 rp.delegate(
                     media_sources_.at(base_.current(media_type)),
                     atom,
@@ -724,7 +720,7 @@ void MediaActor::init() {
                                         }
                                         rp.deliver(utility::EditList(modified_audio_clips));
                                     },
-                                    [=](error &err) mutable { rp.deliver(err); });
+                                    [=](error &err) mutable { rp.deliver(audio_edl); });
                         },
                         [=](error &err) mutable { rp.deliver(err); });
             }
@@ -807,7 +803,8 @@ void MediaActor::init() {
         [=](get_media_pointers_atom atom,
             const MediaType media_type,
             const LogicalFrameRanges &ranges,
-            const FrameRate &override_rate) -> caf::result<media::AVFrameIDs> {
+            const FrameRate &override_rate,
+            const utility::Uuid &clip_uuid) -> caf::result<media::AVFrameIDs> {
             if (base_.empty() or not media_sources_.count(base_.current(media_type)))
                 return make_error(xstudio_error::error, "No MediaSources");
 
@@ -826,13 +823,28 @@ void MediaActor::init() {
                             infinite,
                             atom,
                             media_type,
-                            ranges)
+                            ranges,
+                            clip_uuid)
                             .then(
                                 [=](const media::AVFrameIDs &ids) mutable { rp.deliver(ids); },
                                 [=](error &err) mutable { rp.deliver(err); });
                     },
                     [=](error &err) mutable { rp.deliver(err); });
             return rp;
+        },
+
+        [=](get_media_pointers_atom atom,
+            const MediaType media_type,
+            const LogicalFrameRanges &ranges,
+            const FrameRate &override_rate) {
+            // no clip ID provided
+            delegate(
+                caf::actor_cast<caf::actor>(this),
+                atom,
+                media_type,
+                ranges,
+                override_rate,
+                utility::Uuid());
         },
 
         [=](media_reference_atom) -> caf::result<std::vector<MediaReference>> {
@@ -1543,7 +1555,7 @@ void MediaActor::init() {
                 caf::actor_cast<caf::actor>(this), infinite, human_readable_info_atom_v, true)
                 .then(
                     [=](const utility::JsonStore &human_readable) mutable {
-                        build_display_info(rp);
+                        build_media_list_info(rp);
                     },
                     [=](caf::error &err) mutable { rp.deliver(err); });
             return rp;
@@ -1607,36 +1619,56 @@ void MediaActor::add_or_rename_media_source(
 }
 
 void MediaActor::clone_bookmarks_to(
-    const utility::UuidActor &ua, caf::actor src_bookmark, caf::actor dst_bookmark) {
+    caf::typed_response_promise<utility::UuidUuidActor> rp,
+    const utility::UuidUuidActor &uua,
+    caf::actor src_bookmark,
+    caf::actor dst_bookmark) {
     // use global session (should be safe.. ish)
     // DON'T USE REQUEST RECEIVE!!
 
     request(src_bookmark, infinite, bookmark::get_bookmarks_atom_v, base_.uuid())
         .then(
             [=](const UuidActorVector &bookmarks) mutable {
-                auto copied = std::make_shared<UuidActorVector>();
-                auto count  = std::make_shared<int>(bookmarks.size());
-
-                for (const auto &i : bookmarks) {
-                    request(src_bookmark, infinite, utility::duplicate_atom_v, i.uuid(), ua)
-                        .then(
-                            [=](const UuidActor &new_bookmark) mutable {
-                                copied->push_back(new_bookmark);
-                                (*count)--;
-                                if (not(*count))
-                                    anon_send(
-                                        dst_bookmark, bookmark::add_bookmark_atom_v, *copied);
-                            },
-                            [=](const error &err) mutable {
-                                (*count)--;
-                                if (not(*count))
-                                    anon_send(
-                                        dst_bookmark, bookmark::add_bookmark_atom_v, *copied);
-                            });
+                if (bookmarks.empty())
+                    rp.deliver(uua);
+                else {
+                    auto copied = std::make_shared<UuidActorVector>();
+                    auto count  = std::make_shared<int>(bookmarks.size());
+                    for (const auto &i : bookmarks) {
+                        request(
+                            src_bookmark,
+                            infinite,
+                            utility::duplicate_atom_v,
+                            i.uuid(),
+                            uua.second)
+                            .then(
+                                [=](const UuidActor &new_bookmark) mutable {
+                                    copied->push_back(new_bookmark);
+                                    (*count)--;
+                                    if (not(*count)) {
+                                        anon_send(
+                                            dst_bookmark,
+                                            bookmark::add_bookmark_atom_v,
+                                            *copied);
+                                        rp.deliver(uua);
+                                    }
+                                },
+                                [=](const error &err) mutable {
+                                    (*count)--;
+                                    if (not(*count)) {
+                                        anon_send(
+                                            dst_bookmark,
+                                            bookmark::add_bookmark_atom_v,
+                                            *copied);
+                                        rp.deliver(uua);
+                                    }
+                                });
+                    }
                 }
             },
             [=](const error &err) mutable {
                 spdlog::warn("{} {}", __PRETTY_FUNCTION__, to_string(err));
+                rp.deliver(err);
             });
 
 
@@ -2082,57 +2114,55 @@ inline void dump_tree3(const utility::JsonTree &node, const int depth = 0) {
         dump_tree3(i, depth + 1);
 }
 
-void MediaActor::build_display_info(caf::typed_response_promise<utility::JsonStore> rp) {
+void MediaActor::build_media_list_info(caf::typed_response_promise<utility::JsonStore> rp) {
 
     // empty json array for results of the filter sets
     auto result = std::make_shared<JsonStore>(nlohmann::json::parse(R"([])"));
 
-    int set_idx = 0;
     // because do this by firing off a bunch of asynchronous requests, we count
     // the number of results we get until it matches num_metadata_filter_results_
     // before delivering the response promise
-    auto result_countdown = std::make_shared<int>(num_metadata_filter_results_);
+    auto result_countdown = std::make_shared<int>(media_list_columns_config_.size());
 
     auto check_if_finished = [=]() mutable {
         (*result_countdown)--;
         if (*result_countdown == 0) {
-            if (filtered_metadata_ != *result) {
-                filtered_metadata_ = *result;
+            // we've received reposnses to all the requests made in the
+            // loop below. Boradcast
+            if (media_list_columns_info_ != *result) {
+                media_list_columns_info_ = *result;
+
                 send(
                     event_group_,
                     utility::event_atom_v,
                     media_display_info_atom_v,
-                    filtered_metadata_);
+                    media_list_columns_info_);
             }
             rp.deliver(*result);
         }
     };
 
-    for (const auto &i : metadata_filter_sets_.base()) {
+    // empty json array for results of the filter set items
+    result->push_back(nlohmann::json::parse(R"([])"));
 
-        // empty json array for results of the filter set items
-        result->push_back(nlohmann::json::parse(R"([])"));
+    int item_idx = 0;
 
-        int item_idx = 0;
+    for (const auto &j : media_list_columns_config_.base()) {
 
-        for (const auto &j : i.base()) {
-
-            (*result)[set_idx][item_idx]             = nlohmann::json();
-            const utility::JsonStore metadata_filter = utility::tree_to_json(j);
-            request(
-                caf::actor_cast<caf::actor>(this),
-                infinite,
-                media_display_info_atom_v,
-                metadata_filter)
-                .then(
-                    [=](utility::JsonStore &data) mutable {
-                        (*result)[set_idx][item_idx] = data;
-                        check_if_finished();
-                    },
-                    [=](caf::error &err) mutable { check_if_finished(); });
-            item_idx++;
-        }
-        set_idx++;
+        (*result)[item_idx]                      = nlohmann::json();
+        const utility::JsonStore metadata_filter = utility::tree_to_json(j);
+        request(
+            caf::actor_cast<caf::actor>(this),
+            infinite,
+            media_display_info_atom_v,
+            metadata_filter)
+            .then(
+                [=](utility::JsonStore &data) mutable {
+                    (*result)[item_idx] = data;
+                    check_if_finished();
+                },
+                [=](caf::error &err) mutable { check_if_finished(); });
+        item_idx++;
     }
 }
 
@@ -2183,15 +2213,28 @@ void MediaActor::duplicate(
                     .then(
                         [=](const bool) mutable {
                             // set current source.
-                            anon_send(
-                                actor,
-                                current_media_source_atom_v,
-                                dmedia_srcs_map[base_.current()].uuid());
 
-                            auto ua = UuidActor(uuid, actor);
-                            if (src_bookmarks)
-                                clone_bookmarks_to(ua, src_bookmarks, dst_bookmarks);
-                            rp.deliver(UuidUuidActor(base_.uuid(), ua));
+                            // anon_send(
+                            //     actor,
+                            //     current_media_source_atom_v,
+                            //     dmedia_srcs_map[base_.current()].uuid());
+                            request(
+                                actor,
+                                infinite,
+                                current_media_source_atom_v,
+                                dmedia_srcs_map[base_.current()].uuid())
+                                .then(
+                                    [=](const bool) mutable {
+                                        auto uua =
+                                            UuidUuidActor(base_.uuid(), UuidActor(uuid, actor));
+
+                                        if (src_bookmarks)
+                                            clone_bookmarks_to(
+                                                rp, uua, src_bookmarks, dst_bookmarks);
+                                        else
+                                            rp.deliver(uua);
+                                    },
+                                    [=](const caf::error &err) mutable { rp.deliver(err); });
                         },
                         [=](const error &err) mutable { rp.deliver(err); });
             },

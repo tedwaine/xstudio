@@ -75,14 +75,14 @@ namespace module {
         QmlCodeAttribute(const std::string &title, const std::string &code);
     };
 
-    class IntegerAttribute : public TypeAttribute<int> {
+    class IntegerAttribute : public TypeAttribute<int64_t> {
       public:
         IntegerAttribute(
             const std::string &title,
             const std::string &abbr_title,
-            const int value,
-            const int int_min = std::numeric_limits<int>::lowest(),
-            const int int_max = std::numeric_limits<int>::max());
+            const int64_t value,
+            const int64_t int_min = std::numeric_limits<int64_t>::lowest(),
+            const int64_t int_max = std::numeric_limits<int64_t>::max());
     };
 
     class ColourAttribute : public TypeAttribute<utility::ColourTriplet> {

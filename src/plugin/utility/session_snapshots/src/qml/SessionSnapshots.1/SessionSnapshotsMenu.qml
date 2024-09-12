@@ -7,7 +7,7 @@ import QtQml.Models 2.14
 import Qt.labs.qmlmodels 1.0
 import QuickFuture 1.0
 
-import xStudioReskin 1.0
+import xStudio 1.0
 import xstudio.qml.models 1.0
 import xstudio.qml.helpers 1.0
 import SessionSnapshots 1.0
@@ -24,14 +24,12 @@ XsMenuItemNew {
 	property var menu_icon: undefined
 	property var name: "Snapshots"
 	property var hotkey_sequence: undefined
-	property var parent_menu: menu_bar
 	property var action_idx
 
 	function saveSnapshot(snapshot_name, button) {
 
 		if (button != "Save Snapshot") return
 		let path = snapshotModel.buildSavePath(action_idx, snapshot_name)
-		console.log("saveSnapshot", path)
 		file_functions.saveSessionAs(path, undefined, doRescan)
 
 	}
@@ -40,7 +38,6 @@ XsMenuItemNew {
 
 		if (button != "Save Snapshot") return
 		let path = snapshotModel.buildSavePath(action_idx, snapshot_name)
-		console.log("saveSelectedSnapshot", path)
 		file_functions.saveSelectionAs(path, undefined, doRescan)
 	}
 
@@ -92,7 +89,7 @@ XsMenuItemNew {
 				let v = snapshot_paths
 				let new_v = []
 				for(let i =0; i< v.length;i++) {
-					if(path != v[i].path)
+					if(helpers.QUrlFromQString(path) != helpers.QUrlFromQString(v[i].path))
 						new_v.push(v[i])
 				}
 				snapshot_paths = new_v
@@ -122,6 +119,7 @@ XsMenuItemNew {
 
 			} else if (action_type == "SNAPSHOT_NEW_FOLDER") {
 
+				action_idx = index
 				dialogHelpers.textInputDialog(
 					newFolder,
 					"Create a New Folder",
@@ -129,6 +127,8 @@ XsMenuItemNew {
 					"",
 					["Cancel", "Create Folder"])
 
+			} else if (action_type == "SNAPSHOT_REVEAL") {
+				console.log(helpers.showURIS([helpers.QUrlFromQString(path)]))
 			} else if (action_type == "SNAPSHOT_LOAD") {
 
 				Future.promise(theSessionData.importFuture(path, null)).then(
@@ -136,7 +136,7 @@ XsMenuItemNew {
 						if (result) {
 							dialogHelpers.errorDialogFunc("Snapshot Loaded", "Snapshot " + name + " was added to your session.")
 						} else {
-							dialogHelpers.errorDialogFunc("Snapshot ERror", "Snapshot " + name + " was not added to your session, an error occurred. Check your terminal for more info.")
+							dialogHelpers.errorDialogFunc("Snapshot Error", "Snapshot " + name + " was not added to your session, an error occurred. Check your terminal for more info.")
 						}
 					})
 
@@ -165,59 +165,3 @@ XsMenuItemNew {
 		id: loader
 	}
 }
-
-/*XsMenuNew {
-
-    id: snapshotMenu
-
-	XsModelProperty {
-        id: __snapshot_paths
-        role: "valueRole"
-        index: globalStoreModel.searchRecursive("/core/snapshot/paths", "pathRole")
-    }
-	property alias snapshot_paths: __snapshot_paths.value
-
-    XsSnapshotMenuModel {
-    	id: snapshotModel
-    	paths: snapshot_paths
-    }
-
-	menu_model: snapshotModel
-    menu_model_index: snapshotModel.index(-1, -1)
-
-
-
-    ListView {
-        id: snapshot_items
-        model: snapshotModelDelegate
-    }
-
-	DelegateModel {
-		id: snapshotModelDelegate
-		model: snapshotModel
-		delegate: XsSnapshotMenuItem {
-			menuPath: "Snapshots"
-			rootIndex: snapshotModel.index(index, 0)
-			position: index
-			top_level: true
-		}
-	}*/
-
-	/*XsMenuModelItem {
-        menuItemType: "divider"
-        menuPath: "Snapshots"
-        menuItemPosition: 99.0
-        menuModelName: "main menu bar"
-    }
-
-	XsMenuModelItem {
-        text: "Add Snapshot Folder ..."
-        menuPath: "Snapshots"
-        menuItemPosition: 100.0
-        menuModelName: "main menu bar"
-        onActivated: {
-            loader.sourceComponent = new_snapshot_folder_dlg
-			loader.item.visible = true
-        }
-    }
-}*/

@@ -5,7 +5,7 @@ import QtQuick.Controls 2.15
 import QtQuick.Layouts 1.15
 import QtQuick.Window 2.14
 
-import xStudioReskin 1.0
+import xStudio 1.0
 import ShotBrowser 1.0
 import xstudio.qml.helpers 1.0
 import QtQml.Models 2.14
@@ -19,7 +19,13 @@ XsWindow{
     property string entityName: ""
     property string entityCategory: "Group"
 
-    property real itemHeight: 24
+    property int itemHeight: 24
+
+    property int dragWidth: btnWidth/2
+    property int enableWidth: itemHeight
+    property int termWidth: btnWidth*4.2
+    property int modeWidth: itemHeight
+    property int closeWidth: btnWidth
 
     width: 460
     height: 40 + 200 + (nameDiv.height + coln.spacing*2) //+ presetList.height
@@ -56,7 +62,7 @@ XsWindow{
 
     ColumnLayout { id: coln
         anchors.fill: parent
-        anchors.margins: 15
+        anchors.margins: 10
         spacing: 10
 
         Item{ id: nameDiv
@@ -69,20 +75,20 @@ XsWindow{
                 spacing: 1
 
                 Item{
-                    Layout.preferredWidth: btnWidth/3
+                    Layout.preferredWidth: dragWidth
                     Layout.fillHeight: true
                 }
                 Item {
-                    Layout.preferredWidth: itemHeight
+                    Layout.preferredWidth: enableWidth
                     Layout.fillHeight: true
                 }
                 XsText{
-                    Layout.preferredWidth: btnWidth*4.2
+                    Layout.preferredWidth: termWidth
                     Layout.fillHeight: true
                     text: entityCategory+" name:"
                 }
                 Item {
-                    Layout.preferredWidth: itemHeight
+                    Layout.preferredWidth: modeWidth
                     Layout.fillHeight: true
                 }
                 XsTextField{ id: nameEditDiv
@@ -91,7 +97,6 @@ XsWindow{
                     Layout.fillHeight: true
                     text: entityName
                     placeholderText: entityName
-                    clip: true
                     onEditingFinished: {
                         if(ShotBrowserEngine.presetsModel.get(presetIndex.parent,"typeRole") == "presets")
                             ShotBrowserEngine.presetsModel.set(presetIndex, text, "nameRole")
@@ -108,7 +113,7 @@ XsWindow{
                     }
                 }
                 Item{
-                    Layout.preferredWidth: btnWidth + itemHeight + 2
+                    Layout.preferredWidth: closeWidth + itemHeight + 2
                     Layout.fillHeight: true
                 }
 
@@ -117,49 +122,43 @@ XsWindow{
 
         XsListView{ id: presetList
             Layout.fillWidth: true
-            Layout.preferredHeight: itemHeight*model.count + itemHeight
+            Layout.fillHeight: true
 
             model: presetDelegateModel
-            interactive: false
+            interactive: true
+            spacing: 1
 
-            footer: XsSBPresetEditNewItem{
-                width: presetList.width
-                height: itemHeight
-                delegateModel: presetDelegateModel
-                termModel: ShotBrowserEngine.presetsModel.termLists[entityType]
-            }
-        }
-
-        Item{
-            Layout.fillWidth: true
-            Layout.fillHeight: true
-        }
-        Item{ id: btnDiv
-            Layout.fillWidth: true
-            Layout.preferredHeight: itemHeight
-
-            RowLayout{
-                anchors.fill: parent
-
-                Item{
-                    Layout.preferredWidth: parent.width/3
-                    Layout.fillHeight: true
-                }
-                Item{
-                    Layout.preferredWidth: parent.width/3
-                    Layout.fillHeight: true
-                }
-                XsPrimaryButton{
-                    Layout.fillWidth: true
-                    Layout.fillHeight: true
-                    text: "Close"
-                    onClicked: {
-                        close()
-                    }
+            footer: Item{
+                    width: presetList.width
+                    height: itemHeight
+                    XsSBPresetEditNewItem{
+                        anchors.fill: parent
+                        anchors.topMargin: 1
+                        delegateModel: presetDelegateModel
+                        termModel: ShotBrowserEngine.presetsModel.termLists[entityType]
                 }
             }
         }
 
+        RowLayout{
+            Layout.fillWidth: true
+            Layout.maximumHeight: itemHeight
+            Layout.minimumHeight: itemHeight
+
+            Item{
+                Layout.preferredWidth: parent.width / 3 * 2
+                Layout.fillHeight: true
+            }
+
+            XsPrimaryButton{
+                Layout.fillWidth: true
+                Layout.fillHeight: true
+                text: "Close"
+                onClicked: {
+                    close()
+                }
+            }
+        }
     }
 }
 

@@ -18,27 +18,28 @@
 #include "xstudio/ui/qml/helper_qml_export.h"
 
 CAF_PUSH_WARNINGS
+#include <QClipboard>
 #include <QCursor>
 #include <QDesktopServices>
-#include <QJsonDocument>
-#include <QJsonArray>
-#include <QJsonObject>
-#include <QPointF>
-#include <QClipboard>
-#include <QQmlApplicationEngine>
-#include <QQuickItem>
-#include <QQmlPropertyMap>
-#include <QString>
 #include <QImage>
 #include <QItemSelection>
-#include <QUrl>
-#include <QUuid>
+#include <QItemSelectionModel>
+#include <QJsonArray>
+#include <QJsonDocument>
+#include <QJsonObject>
 #include <QModelIndex>
-#include <QQuickPaintedItem>
 #include <QPersistentModelIndex>
+#include <QPointF>
+#include <QQmlApplicationEngine>
 #include <QQmlContext>
 #include <QQmlPropertyMap>
-#include <QItemSelectionModel>
+#include <QQmlPropertyMap>
+#include <QQuickItem>
+#include <QQuickPaintedItem>
+#include <QString>
+#include <QtConcurrent>
+#include <QUrl>
+#include <QUuid>
 
 CAF_POP_WARNINGS
 
@@ -60,6 +61,23 @@ namespace ui {
             return str.toUtf8().constData();
         }
 
+        /* Get the name of the window that this QObject belongs to (if any)*/
+        inline QString item_window_name(QObject *obj) {
+
+            if (qmlContext(obj)) {
+                QQmlContext *c = qmlContext(obj);
+                QObject *pobj  = obj;
+                while (c) {
+                    QObject *cobj = c->contextObject();
+                    if (cobj && cobj->isWindowType()) {
+                        return cobj->objectName();
+                    }
+                    pobj = cobj;
+                    c    = c->parentContext();
+                }
+            }
+            return QString();
+        }
 
         class HELPER_QML_EXPORT TimeCode : public QObject {
             Q_OBJECT
@@ -457,7 +475,11 @@ namespace ui {
             auto jsn = qvariant_to_json(drop);
             std::regex rgx(R"(\r\n|\n)"); //, std::regex::extended);
             for (auto i : jsn.items()) {
-                jsn[i.key()] = utility::resplit(i.value(), rgx);
+                if (i.value().is_string()) {
+                    jsn[i.key()] = utility::resplit(i.value(), rgx);
+                } else {
+                    jsn[i.key()] = i.value();
+                }
             }
             return jsn;
         }
@@ -471,16 +493,31 @@ namespace ui {
             ~Helpers() override = default;
 
             Q_INVOKABLE [[nodiscard]] bool openURL(const QUrl &url) const {
-                return QDesktopServices::openUrl(url);
+                return openURLFuture(url).result();
+            }
+
+            Q_INVOKABLE [[nodiscard]] QFuture<bool> openURLFuture(const QUrl &url) const {
+                return QtConcurrent::run([=]() { return QDesktopServices::openUrl(url); });
             }
 
             Q_INVOKABLE [[nodiscard]] QModelIndex qModelIndex() const { return QModelIndex(); }
 
-            Q_INVOKABLE [[nodiscard]] QString ShowURIS(const QList<QUrl> &urls) const {
-                std::vector<caf::uri> uris;
+            Q_INVOKABLE [[nodiscard]] bool showURIS(const QList<QUrl> &urls) const {
+                auto uris = QStringList();
                 for (const auto &i : urls)
-                    uris.emplace_back(UriFromQUrl(i));
-                return QStringFromStd(utility::filemanager_show_uris(uris));
+                    uris.push_back(i.toString());
+
+                auto arguments = QStringList(
+                    {"--session",
+                     "--print-reply",
+                     "--dest=org.freedesktop.FileManager1",
+                     "--type=method_call",
+                     "/org/freedesktop/FileManager1",
+                     "org.freedesktop.FileManager1.ShowItems",
+                     QString("array:string:") + uris.join(','),
+                     "string:"});
+
+                return startDetachedProcess("dbus-send", arguments);
             }
 
             Q_INVOKABLE [[nodiscard]] QString getUserName() const {
@@ -494,6 +531,10 @@ namespace ui {
             Q_INVOKABLE [[nodiscard]] QPersistentModelIndex
             makePersistent(const QModelIndex &index) const {
                 return QPersistentModelIndex(index);
+            }
+
+            Q_INVOKABLE [[nodiscard]] QUrl QUrlFromQString(const QString &str) const {
+                return QUrl(str);
             }
 
             Q_INVOKABLE [[nodiscard]] bool urlExists(const QUrl &url) const {
@@ -701,6 +742,7 @@ namespace ui {
           private:
             std::string context_;
             caf::actor keypress_monitor_;
+            std::string window_name_;
         };
 
 
@@ -897,12 +939,14 @@ namespace ui {
             Q_OBJECT
 
             Q_PROPERTY(QVariant image READ image WRITE setImage NOTIFY imageChanged)
+            Q_PROPERTY(bool fill READ fill WRITE setFill NOTIFY fillChanged)
 
           public:
             ImagePainter(QQuickItem *parent = nullptr);
             ~ImagePainter() override = default;
 
             [[nodiscard]] const QVariant &image() const { return image_property_; }
+            [[nodiscard]] bool fill() const { return fill_; }
 
             void setImage(QVariant &image) {
                 image_property_ = image;
@@ -915,15 +959,25 @@ namespace ui {
                 update();
             }
 
+            void setFill(const bool fill) {
+                if (fill != fill_) {
+                    fill_ = fill;
+                    emit fillChanged();
+                    update();
+                }
+            }
+
             void paint(QPainter *painter) override;
 
           signals:
 
             void imageChanged();
+            void fillChanged();
 
           private:
             QVariant image_property_;
             QImage image_;
+            bool fill_ = {false};
         };
 
 
@@ -938,6 +992,7 @@ namespace ui {
                 commentRole = JSONTreeModel::Roles::LASTROLE,
                 durationRole,
                 flagRole,
+                layerRole,
                 nameRole,
                 rateRole,
                 startRole

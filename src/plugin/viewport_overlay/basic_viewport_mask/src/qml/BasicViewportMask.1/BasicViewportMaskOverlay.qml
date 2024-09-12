@@ -7,10 +7,10 @@ import QuickPromise 1.0
 
 // These imports are necessary to have access to custom QML types that are
 // part of the xSTUDIO UI implementation.
-import xStudioReskin 1.0
+import xStudio 1.0
 import xstudio.qml.models 1.0
 
-// Our Overlay is based on a transparent rectangle that simply fills the 
+// Our Overlay is based on a transparent rectangle that simply fills the
 // xSTUDIO view. Within this we draw the overlay graphics as required.
 Rectangle {
 

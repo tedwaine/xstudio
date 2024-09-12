@@ -8,27 +8,27 @@
 
 namespace xstudio::audio {
 
-template <typename OutputClassType>
 class AudioOutputDeviceActor : public caf::event_based_actor {
 
   public:
-    AudioOutputDeviceActor(caf::actor_config &cfg, caf::actor samples_actor)
+    AudioOutputDeviceActor(caf::actor_config &cfg, caf::actor samples_actor, std::shared_ptr<AudioOutputDevice> output_device)
         : caf::event_based_actor(cfg),
           playing_(false),
           waiting_for_samples_(false),
-          audio_samples_actor_(samples_actor) {
+          audio_samples_actor_(samples_actor),
+          output_device_(output_device) {
 
-        spdlog::debug("Created {} {}", "AudioOutputDeviceActor", OutputClassType::name());
-        utility::print_on_exit(this, OutputClassType::name());
+        //spdlog::debug("Created {} {}", "AudioOutputDeviceActor", OutputClassType::name());
+        //utility::print_on_exit(this, OutputClassType::name());
 
-        try {
+        /*try {
             auto prefs = global_store::GlobalStoreHelper(system());
             utility::JsonStore j;
             utility::join_broadcast(this, prefs.get_group(j));
             open_output_device(j);
         } catch (...) {
             open_output_device(utility::JsonStore());
-        }
+        }*/
 
         behavior_.assign(
 
@@ -116,15 +116,6 @@ class AudioOutputDeviceActor : public caf::event_based_actor {
         );
     }
 
-    void open_output_device(const utility::JsonStore &prefs) {
-        try {
-            output_device_ = std::make_unique<OutputClassType>(prefs);
-        } catch (std::exception &e) {
-            spdlog::debug(
-                "{} Failed to connect to an audio device: {}", __PRETTY_FUNCTION__, e.what());
-        }
-    }
-
     ~AudioOutputDeviceActor() override = default;
 
     caf::behavior make_behavior() override { return behavior_; }
@@ -132,7 +123,8 @@ class AudioOutputDeviceActor : public caf::event_based_actor {
     const char *name() const override { return name_.c_str(); }
 
   protected:
-    std::unique_ptr<AudioOutputDevice> output_device_;
+
+    std::shared_ptr<AudioOutputDevice> output_device_;
 
   private:
     caf::behavior behavior_;
@@ -142,11 +134,12 @@ class AudioOutputDeviceActor : public caf::event_based_actor {
     bool waiting_for_samples_;
 };
 
-template <typename OutputClassType>
 class AudioOutputActor : public caf::event_based_actor, AudioOutputControl {
 
   public:
-    AudioOutputActor(caf::actor_config &cfg) : caf::event_based_actor(cfg) { init(); }
+    AudioOutputActor(
+        caf::actor_config &cfg,
+        std::shared_ptr<AudioOutputDevice> output_device) : caf::event_based_actor(cfg), output_device_(output_device) { init(); }
 
     ~AudioOutputActor() override = default;
 
@@ -166,6 +159,8 @@ class AudioOutputActor : public caf::event_based_actor, AudioOutputControl {
     int retry_on_error_ = {0};
     utility::Uuid uuid_ = {utility::Uuid::generate()};
     utility::Uuid sub_playhead_uuid_;
+    std::shared_ptr<AudioOutputDevice> output_device_;
+
 };
 
 /* Singleton class that receives audio sample buffers from the current
@@ -193,77 +188,5 @@ class GlobalAudioOutputActor : public caf::event_based_actor, module::Module {
     module::FloatAttribute *volume_;
     module::BooleanAttribute *muted_;
 };
-
-template <typename OutputClassType> void AudioOutputActor<OutputClassType>::init() {
-
-    // spdlog::debug("Created AudioOutputControlActor {}", OutputClassType::name());
-    utility::print_on_exit(this, "AudioOutputControlActor");
-
-    audio_output_device_ =
-        spawn<AudioOutputDeviceActor<OutputClassType>>(caf::actor_cast<caf::actor>(this));
-    link_to(audio_output_device_);
-
-    auto global_audio_actor =
-        system().registry().template get<caf::actor>(audio_output_registry);
-    utility::join_event_group(this, global_audio_actor);
-
-    behavior_.assign(
-
-        [=](xstudio::broadcast::broadcast_down_atom, const caf::actor_addr &) {},
-
-        [=](utility::event_atom, playhead::play_atom, const bool is_playing) {
-            send(
-                audio_output_device_, utility::event_atom_v, playhead::play_atom_v, is_playing);
-            if (!is_playing)
-                clear_queued_samples();
-        },
-
-        [=](get_samples_for_soundcard_atom,
-            const long num_samps_to_push,
-            const long microseconds_delay,
-            const int num_channels,
-            const int sample_rate) -> result<std::vector<int16_t>> {
-            std::vector<int16_t> samples;
-            try {
-
-                prepare_samples_for_soundcard(
-                    samples, num_samps_to_push, microseconds_delay, num_channels, sample_rate);
-
-            } catch (std::exception &e) {
-
-                return caf::make_error(xstudio_error::error, e.what());
-            }
-            return samples;
-        },
-        [=](utility::event_atom,
-            module::change_attribute_event_atom,
-            const float volume,
-            const bool muted,
-            const bool repitch,
-            const bool scrubbing) { set_attrs(volume, muted, repitch, scrubbing); },
-        [=](utility::event_atom,
-            playhead::sound_audio_atom,
-            const std::vector<media_reader::AudioBufPtr> &audio_buffers,
-            const utility::Uuid &sub_playhead,
-            const bool playing,
-            const bool forwards,
-            const float velocity) {
-            if (sub_playhead != sub_playhead_uuid_) {
-                // sound is coming from a different source to
-                // previous time
-                clear_queued_samples();
-                sub_playhead_uuid_ = sub_playhead;
-            }
-            if (queue_samples_for_playing(audio_buffers, playing, forwards, velocity)) {
-                send(audio_output_device_, utility::event_atom_v, playhead::play_atom_v);
-            }
-        });
-
-    // kicks the global samples actor to update us with current volume etc.
-    send(
-        global_audio_actor,
-        module::change_attribute_event_atom_v,
-        caf::actor_cast<caf::actor>(this));
-}
 
 } // namespace xstudio::audio

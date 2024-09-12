@@ -233,7 +233,7 @@ void EmbeddedPython::add_message_callback(const py::tuple &cb_particulars) {
 
     try {
 
-        if (cb_particulars.size() == 2 || cb_particulars.size() == 3) {
+        if (cb_particulars.size() >= 2 || cb_particulars.size() <= 4) {
 
             auto i            = cb_particulars.begin();
             auto remote_actor = (*i).cast<caf::actor>();
@@ -241,7 +241,7 @@ void EmbeddedPython::add_message_callback(const py::tuple &cb_particulars) {
             auto callback_func = (*i).cast<py::function>();
             auto addr          = caf::actor_cast<caf::actor_addr>(remote_actor);
 
-            if (cb_particulars.size() == 3) {
+            if (cb_particulars.size() >= 3) {
                 // Let's say we want to receive event messages from a MediaActor.
                 // We need to call 'join_broadcast' with the event_group actor
                 // belonging to the MediaActor. However, in
@@ -254,6 +254,19 @@ void EmbeddedPython::add_message_callback(const py::tuple &cb_particulars) {
                 i++;
                 auto parent_actor = (*i).cast<caf::actor>();
                 addr              = caf::actor_cast<caf::actor_addr>(parent_actor);
+            }
+
+            if (cb_particulars.size() == 4) {
+                // as an optional 4th argument, we take a function that will convert
+                // a caf message into a tuple. This conversion function is provided
+                // by the Link class in the xstuduio python module which we can't
+                // get to from the C++ side here, hence we take a python function
+                // that lets us run the conversion. Awkward.
+                i++;
+                auto convert_function = (*i).cast<py::function>();
+                if (convert_function) {
+                    message_conversion_function_[addr] = convert_function;
+                }
             }
 
             const auto p = message_handler_callbacks_.find(addr);
@@ -360,7 +373,11 @@ void EmbeddedPython::run_callback(const utility::Uuid &id) {
     }
 
     // run the python callback!
-    delayed_callbacks_[id]();
+    try {
+        delayed_callbacks_[id]();
+    } catch (std::exception &e) {
+        PyErr_SetString(PyExc_RuntimeError, e.what());
+    }
 }
 
 void EmbeddedPython::s_add_message_callback(const py::tuple &cb_particulars) {
@@ -394,16 +411,28 @@ void EmbeddedPython::push_caf_message_to_py_callbacks(caf::actor sender, caf::me
 
     try {
 
-        caf::message r = m;
-        py::tuple result(1);
-        PyTuple_SetItem(result.ptr(), 0, py::cast(r).release().ptr());
-
         auto addr = caf::actor_cast<caf::actor_addr>(sender);
 
         const auto p = message_handler_callbacks_.find(addr);
+        const auto q = message_conversion_function_.find(addr);
         if (p != message_handler_callbacks_.end()) {
             for (auto &func : p->second) {
-                func(result);
+
+                caf::message r = m;
+                py::tuple msg(1);
+                PyTuple_SetItem(msg.ptr(), 0, py::cast(r).release().ptr());
+
+                if (q != message_conversion_function_.end()) {
+
+                    // we have a py funct that will convert the caf message to
+                    // a tuple
+                    auto message_as_tuple = q->second(msg);
+                    func(message_as_tuple);
+
+                } else {
+
+                    func(msg);
+                }
             }
         }
 

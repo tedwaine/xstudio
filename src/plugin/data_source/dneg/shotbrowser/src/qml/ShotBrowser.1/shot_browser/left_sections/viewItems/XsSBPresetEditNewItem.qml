@@ -4,38 +4,35 @@ import QtQuick 2.15
 import QtQuick.Controls 2.15
 import QtQuick.Layouts 1.15
 
-import xStudioReskin 1.0
+import xStudio 1.0
 import ShotBrowser 1.0
 import xstudio.qml.helpers 1.0
 
-Item{
+Rectangle {
     id: control
     property var termModel: null
     property var delegateModel: null
-
-    Rectangle{ id: bgDiv
-        anchors.fill: parent;
-        color: XsStyleSheet.widgetBgNormalColor
-        opacity: 0.5
-    }
+    color: XsStyleSheet.widgetBgNormalColor
 
     RowLayout {
-        width: parent.width
-        height: parent.height -1
+        anchors.fill: parent
         spacing: 1
 
         Item{
-            Layout.preferredWidth: btnWidth/3
+            Layout.maximumWidth: dragWidth
+            Layout.minimumWidth: dragWidth
             Layout.fillHeight: true
         }
         Item {
-            Layout.preferredWidth: height
+            Layout.maximumWidth: enableWidth
+            Layout.minimumWidth: enableWidth
             Layout.fillHeight: true
         }
 
         XsComboBox {
-            Layout.preferredWidth: btnWidth*4.2
-            Layout.fillHeight: true
+            Layout.maximumWidth: termWidth
+            Layout.minimumWidth: termWidth
+            Layout.preferredHeight: control.height
 
             model: termModel
             displayText: currentIndex == -1? "Select Term..." : currentText
@@ -52,7 +49,7 @@ Item{
                     let parent_index = control.delegateModel.newTermParent
                     let row = ShotBrowserEngine.presetsModel.rowCount(parent_index)
 
-                    console.log(parent_index, row, presetDelegateModel.newTermParent)
+                    // console.log(parent_index, row, presetDelegateModel.newTermParent)
 
                     let i = ShotBrowserEngine.presetsModel.insertTerm(
                         textAt(index),
@@ -64,7 +61,7 @@ Item{
 
                     if(i.valid) {
                         let t = ShotBrowserEngine.presetsModel.get(i, "termRole")
-                        let tm = ShotBrowserEngine.presetsModel.termModel(t, entityType, projectPref.value)
+                        let tm = ShotBrowserEngine.presetsModel.termModel(t, entityType, projectId)
                         if(tm.length && tm.get(tm.index(0,0), "nameRole") == "True") {
                             ShotBrowserEngine.presetsModel.set(i, "True", "valueRole")
                         }
@@ -73,20 +70,11 @@ Item{
                 }
             }
         }
-        Item{
-            Layout.preferredWidth: height
-            Layout.fillHeight: true
-        }
-        Item{
-            Layout.fillWidth: true
-            Layout.preferredWidth: btnWidth*4.2
-            Layout.fillHeight: true
-        }
-        Item{
-            Layout.preferredWidth: btnWidth
-            Layout.fillHeight: true
-        }
 
+        Item {
+            Layout.fillHeight: true
+            Layout.fillWidth: true
+        }
     }
 }
 

@@ -39,8 +39,7 @@ GradingTool::GradingTool(caf::actor_config &cfg, const utility::JsonStore &init_
 
     // General
 
-    tool_opened_count_ =
-        add_integer_attribute("tool_opened_count", "tool_opened_count", 0);
+    tool_opened_count_ = add_integer_attribute("tool_opened_count", "tool_opened_count", 0);
     tool_opened_count_->expose_in_ui_attrs_group("grading_settings");
 
     grading_action_ = add_string_attribute("grading_action", "grading_action", "");
@@ -133,11 +132,14 @@ GradingTool::GradingTool(caf::actor_config &cfg, const utility::JsonStore &init_
     drawing_tool_ = add_string_choice_attribute(
         "drawing_tool",
         "drawing_tool",
-        utility::map_value_to_vec(drawing_tool_names_).front(),
+        "Shape",
         utility::map_value_to_vec(drawing_tool_names_));
     drawing_tool_->expose_in_ui_attrs_group("mask_tool_settings");
     drawing_tool_->expose_in_ui_attrs_group("mask_tool_types");
-    drawing_tool_->set_preference_path("/plugin/grading/drawing_tool");
+
+    // Not using preference for drawing_tool attr for now, as it should
+    // be set to 'Shape' always as mask painting is disabled
+    // drawing_tool_->set_preference_path("/plugin/grading/drawing_tool");
 
     drawing_action_ = add_string_attribute("drawing_action", "drawing_action", "");
     drawing_action_->expose_in_ui_attrs_group("grading_settings");
@@ -217,7 +219,7 @@ GradingTool::GradingTool(caf::actor_config &cfg, const utility::JsonStore &init_
             import QtQuick 2.15
             import Grading 2.0
 
-            import xStudioReskin 1.0
+            import xStudio 1.0
 
             Item {
                 anchors.fill: parent
@@ -225,13 +227,13 @@ GradingTool::GradingTool(caf::actor_config &cfg, const utility::JsonStore &init_
                 XsGradientRectangle{
                     anchors.fill: parent
                 }
-                
+
                 GradingTools {
-                    anchors.fill: parent 
+                    anchors.fill: parent
                 }
             }
         )",
-        "qrc:/icons/tune.svg",
+        "qrc:/icons/instant_mix.svg",
         2.0f);
 
     // here is where we declare the singleton overlay item that will draw
@@ -239,7 +241,7 @@ GradingTool::GradingTool(caf::actor_config &cfg, const utility::JsonStore &init_
     qml_viewport_overlay_code(
         R"(
             import Grading 2.0
-            
+
             GradingOverlay {
                 anchors.fill: parent
             }
@@ -401,6 +403,7 @@ void GradingTool::attribute_changed(const utility::Uuid &attribute_uuid, const i
             }
             update_boomark_shape(current_bookmark());
         } else if (drawing_action_->value() == "Add ellipse") {
+            cancel_other_drawing_tools();
             create_bookmark_if_empty();
             start_ellipse(Imath::V2f(0.0, 0.0), Imath::V2f(0.35, 0.25), 90.0);
             update_boomark_shape(current_bookmark());
@@ -452,7 +455,7 @@ void GradingTool::attribute_changed(const utility::Uuid &attribute_uuid, const i
                     (grade_out_->value() - grade_in_->value()) * media.rate().to_flicks(),
                     media.frame_count() * media.rate().to_flicks());
             } else {
-                bmd.start_ = timebase::k_flicks_low;
+                bmd.start_    = timebase::k_flicks_low;
                 bmd.duration_ = timebase::k_flicks_max;
             }
 
@@ -481,7 +484,7 @@ void GradingTool::attribute_changed(const utility::Uuid &attribute_uuid, const i
                 bmd.duration_ =
                     (grade_out_->value() - grade_in_->value()) * media.rate().to_flicks();
             } else {
-                bmd.start_ = timebase::k_flicks_low;
+                bmd.start_    = timebase::k_flicks_low;
                 bmd.duration_ = timebase::k_flicks_max;
             }
             update_bookmark_detail(current_bookmark(), bmd);
@@ -519,6 +522,15 @@ void GradingTool::attribute_changed(const utility::Uuid &attribute_uuid, const i
             // TODO: Fix colour json <-> qvariant conversion
             // pen_colour_->set_value(value["colour"]);
             shape_invert_->set_value(value["invert"]);
+        }
+
+    } else if (attribute_uuid == polygon_init_->uuid()) {
+
+        if (polygon_init_->value()) {
+            cancel_other_drawing_tools();
+            grab_mouse_focus();
+        } else {
+            release_mouse_focus();
         }
 
     } else {
@@ -588,7 +600,9 @@ void GradingTool::register_hotkeys() {
 }
 
 void GradingTool::hotkey_pressed(
-    const utility::Uuid &hotkey_uuid, const std::string & /*context*/) {
+    const utility::Uuid &hotkey_uuid,
+    const std::string & /*context*/,
+    const std::string & /*window*/) {
 
     if (hotkey_uuid == undo_hotkey_ && grading_tools_active()) {
 
@@ -633,10 +647,14 @@ bool GradingTool::pointer_event(const ui::PointerEvent &e) {
     return false;
 }
 
-bool GradingTool::grading_tools_active() const {
-
-    return tool_opened_count_->value() > 0;
+void GradingTool::turn_off_overlay_interaction() {
+    polygon_init_->set_value(false);
+    release_mouse_focus();
+    release_keyboard_focus();
+    end_drawing();
 }
+
+bool GradingTool::grading_tools_active() const { return tool_opened_count_->value() > 0; }
 
 void GradingTool::start_stroke(const Imath::V2f &point) {
 
@@ -981,6 +999,22 @@ utility::Uuid GradingTool::current_bookmark() const {
     return utility::Uuid(grading_bookmark_->value());
 }
 
+utility::UuidList GradingTool::current_clip_bookmarks() {
+
+    const utility::UuidList bookmarks_list = get_bookmarks_on_current_media(current_viewport_);
+    utility::UuidList filtered_list;
+    std::copy_if(
+        bookmarks_list.begin(),
+        bookmarks_list.end(),
+        std::back_inserter(filtered_list),
+        [this](const auto &uuid) {
+            auto bmd = get_bookmark_detail(uuid);
+            return bmd.category_.value_or("") == "Grading";
+        });
+
+    return filtered_list;
+}
+
 void GradingTool::create_bookmark_if_empty() {
 
     if (!current_bookmark()) {
@@ -1000,8 +1034,8 @@ void GradingTool::create_bookmark() {
     user_data["grade_active"] = true;
     user_data["mask_active"]  = false;
 
-    const auto &bookmarks_list = get_bookmarks_on_current_media(current_viewport_);
-    user_data["layer_name"]    = "Grade Layer " + std::to_string(bookmarks_list.size() + 1);
+    auto clip_layers        = current_clip_bookmarks();
+    user_data["layer_name"] = "Grade Layer " + std::to_string(clip_layers.size() + 1);
 
     bmd.user_data_ = user_data;
 
@@ -1074,9 +1108,9 @@ void GradingTool::remove_bookmark() {
         StandardPlugin::remove_bookmark(current_bookmark());
     }
 
-    const auto &bookmarks_list = get_bookmarks_on_current_media(current_viewport_);
-    if (!bookmarks_list.empty()) {
-        select_bookmark(bookmarks_list.back());
+    auto clip_layers = current_clip_bookmarks();
+    if (!clip_layers.empty()) {
+        select_bookmark(clip_layers.back());
     } else {
         select_bookmark(utility::Uuid());
     }

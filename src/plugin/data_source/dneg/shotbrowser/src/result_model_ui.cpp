@@ -20,6 +20,7 @@ ShotBrowserResultModel::ShotBrowserResultModel(QObject *parent) : JSONTreeModel(
         {"addressingRole",
          "artistRole",
          "assetRole",
+         "attachmentsRole",
          "authorRole",
          "clientFilenameRole",
          "clientNoteRole",
@@ -54,7 +55,6 @@ ShotBrowserResultModel::ShotBrowserResultModel(QObject *parent) : JSONTreeModel(
          "projectRole",
          "resultRowRole",
          "sequenceRole",
-         "shotNameRole",
          "shotRole",
          "siteRole",
          "stalkUuidRole",
@@ -254,12 +254,14 @@ QVariant ShotBrowserResultModel::data(const QModelIndex &index, int role) const 
         case Roles::pipelineStatusRole:
             result = QString::fromStdString(j.at("attributes").value("sg_status_list", ""));
             break;
+
         case Roles::pipelineStatusFullRole: {
             result = QString::fromStdString(
-                QueryEngine::resolve_query_value(
+                QueryEngine::resolve_attribute_value(
                     "Pipeline Status",
                     j.at("attributes").at("sg_status_list"),
                     ShotBrowserEngine::instance()->queryEngine().lookup())
+                    .at("name")
                     .get<std::string>());
         } break;
 
@@ -339,6 +341,10 @@ QVariant ShotBrowserResultModel::data(const QModelIndex &index, int role) const 
             if (j.at("relationships").at("entity").at("data").at("type") == "Asset")
                 result = QString::fromStdString(
                     j.at("relationships").at("entity").at("data").at("name"));
+            break;
+
+        case Roles::attachmentsRole:
+            result = mapFromValue(j.at("relationships").at("attachments").at("data"));
             break;
 
         case Roles::movieRole:

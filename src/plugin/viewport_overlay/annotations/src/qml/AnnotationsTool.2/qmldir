@@ -15,3 +15,11 @@ XsToolSelectorLR          2.0 dockedLR/XsToolSelectorLR.qml
 XsColourPresetsLR         2.0 dockedLR/XsColourPresetsLR.qml
 XsShapeCategoriesLR       2.0 dockedLR/XsShapeCategoriesLR.qml
 XsTextCategoriesLR        2.0 dockedLR/XsTextCategoriesLR.qml
+
+XsDrawingToolsTB          2.0 dockedTB/XsDrawingToolsTB.qml
+XsToolActionsTB           2.0 dockedTB/XsToolActionsTB.qml
+XsToolPropertiesTB        2.0 dockedTB/XsToolPropertiesTB.qml
+XsToolSelectorTB          2.0 dockedTB/XsToolSelectorTB.qml
+XsColourPresetsTB         2.0 dockedTB/XsColourPresetsTB.qml
+XsShapeCategoriesTB      2.0 dockedTB/XsShapeCategoriesTB.qml
+XsTextCategoriesTB        2.0 dockedTB/XsTextCategoriesTB.qml

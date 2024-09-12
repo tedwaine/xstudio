@@ -291,6 +291,10 @@ namespace shotbrowser {
             const utility::JsonStore &env,
             const utility::JsonStore &custom_terms);
 
+        std::vector<std::string>
+        extend_fields(const std::string &entity, const std::vector<std::string> &fields) const;
+
+
       private:
         module::StringChoiceAttribute *authentication_method_;
         module::StringAttribute *client_id_;
@@ -346,6 +350,11 @@ namespace shotbrowser {
         utility::ManagedDir download_cache_;
 
         bool pending_preference_update_ = {false};
+
+        std::vector<std::string> version_fields_;
+        std::vector<std::string> shot_fields_;
+        std::vector<std::string> note_fields_;
+        std::vector<std::string> playlist_fields_;
     };
 
 } // namespace shotbrowser

@@ -58,7 +58,8 @@ namespace ui::qml {
     class ShotBrowserSequenceFilterModel : public QSortFilterProxyModel {
         Q_OBJECT
 
-        Q_PROPERTY(bool showOmit READ showOmit WRITE setShowOmit NOTIFY showOmitChanged)
+        Q_PROPERTY(
+            QStringList hideStatus READ hideStatus WRITE setHideStatus NOTIFY hideStatusChanged)
 
       public:
         ShotBrowserSequenceFilterModel(QObject *parent = nullptr)
@@ -74,12 +75,12 @@ namespace ui::qml {
             const int start           = 0,
             const int depth           = -1);
 
-        bool showOmit() const { return show_omit_; }
+        QStringList hideStatus() const;
 
-        void setShowOmit(const bool value);
+        void setHideStatus(const QStringList &value);
 
       signals:
-        void showOmitChanged();
+        void hideStatusChanged();
 
       protected:
         [[nodiscard]] bool
@@ -87,7 +88,7 @@ namespace ui::qml {
 
 
       private:
-        bool show_omit_{false};
+        std::set<QString> hide_status_;
     };
 
 

@@ -74,9 +74,75 @@ QVariant BookmarkCategoryModel::data(const QModelIndex &index, int role) const {
 }
 
 BookmarkFilterModel::BookmarkFilterModel(QObject *parent) : QSortFilterProxyModel(parent) {
+
+    connect(
+        this, &QSortFilterProxyModel::rowsInserted, this, &BookmarkFilterModel::lengthChanged);
+    connect(
+        this, &QSortFilterProxyModel::modelReset, this, &BookmarkFilterModel::lengthChanged);
+    connect(
+        this, &QSortFilterProxyModel::rowsRemoved, this, &BookmarkFilterModel::lengthChanged);
+
+
     setDynamicSortFilter(true);
     sort(0, Qt::DescendingOrder);
 }
+
+QModelIndex
+BookmarkFilterModel::nextBookmark(const int mediaFrame, const QUuid &ownerUuid) const {
+    // find last match
+    auto result          = QModelIndex();
+    auto startedMatching = false;
+
+    for (auto i = 0; i < rowCount(); i++) {
+        auto ind = index(i, 0);
+        if (ind.isValid()) {
+            auto owner      = ind.data(BookmarkModel::Roles::ownerRole).toUuid();
+            auto startFrame = ind.data(BookmarkModel::Roles::startFrameRole).toInt();
+            auto endFrame   = ind.data(BookmarkModel::Roles::endFrameRole).toInt();
+
+            if (ownerUuid == owner and mediaFrame >= startFrame and mediaFrame <= endFrame) {
+                startedMatching = true;
+            } else if (not startedMatching and ownerUuid == owner and mediaFrame < startFrame) {
+                result = ind;
+                break;
+            } else if (startedMatching) {
+                result = ind;
+                break;
+            }
+        }
+    }
+
+    return result;
+}
+
+QModelIndex
+BookmarkFilterModel::previousBookmark(const int mediaFrame, const QUuid &ownerUuid) const {
+    auto result          = QModelIndex();
+    auto startedMatching = false;
+
+    for (auto i = rowCount() - 1; i >= 0; i--) {
+        auto ind = index(i, 0);
+
+        if (ind.isValid()) {
+            auto owner      = ind.data(BookmarkModel::Roles::ownerRole).toUuid();
+            auto startFrame = ind.data(BookmarkModel::Roles::startFrameRole).toInt();
+            auto endFrame   = ind.data(BookmarkModel::Roles::endFrameRole).toInt();
+
+            if (ownerUuid == owner and endFrame < mediaFrame) {
+                result = ind;
+                break;
+            } else if (ownerUuid == owner) {
+                startedMatching = true;
+            } else if (startedMatching) {
+                result = ind;
+                break;
+            }
+        }
+    }
+
+    return result;
+}
+
 
 bool BookmarkFilterModel::filterAcceptsRow(
     int source_row, const QModelIndex &source_parent) const {
@@ -825,7 +891,7 @@ bool BookmarkModel::setData(const QModelIndex &index, const QVariant &value, int
             } break;
 
             case startRole: {
-                timebase::flicks val = timebase::to_flicks(value.toDouble());
+                timebase::flicks val(value.toLongLong());
                 if (not detail.start_ or (*detail.start_) != val) {
                     detail.start_ = bm.start_ = val;
                     sendDetail(bm);

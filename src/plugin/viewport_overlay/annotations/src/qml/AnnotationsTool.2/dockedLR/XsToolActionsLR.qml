@@ -9,12 +9,12 @@ import QtQml.Models 2.14
 import QtQuick.Dialogs 1.3
 import QtGraphicalEffects 1.15
 
-import xStudioReskin 1.0
+import xStudio 1.0
 import xstudio.qml.models 1.0
 
 Item{ id: toolActionsDiv
 
-    height: toolActionUndoRedo.height + toolActionCopyPasteClear.height + displayBtns.height
+    height: cBox.y + cBox.height + 5
 
     XsAttributeValue {
         id: __action_attr
@@ -27,7 +27,7 @@ Item{ id: toolActionsDiv
     ListView{ id: toolActionUndoRedo
 
         width: parent.width - framePadding*2
-        height: XsStyleSheet.primaryButtonStdHeight //buttonHeight
+        height: XsStyleSheet.primaryButtonStdHeight
         x: framePadding
         y: framePadding + spacing/2
 
@@ -45,6 +45,10 @@ Item{ id: toolActionsDiv
                 action: "Redo"
                 icon: "qrc:///anno_icons/redo.svg"
             }
+            ListElement{
+                action: "Clear"
+                icon: "qrc:///anno_icons/delete.svg"
+            }
         }
 
         delegate: XsPrimaryButton{
@@ -59,44 +63,12 @@ Item{ id: toolActionsDiv
         }
     }
 
-    ListView{ id: toolActionCopyPasteClear
-
-        width: parent.width - framePadding*2
-        height: XsStyleSheet.primaryButtonStdHeight //buttonHeight
-        x: framePadding //+ spacing/2
-        y: toolActionUndoRedo.y + toolActionUndoRedo.height + spacing
-
-        spacing: itemSpacing
-        interactive: false
-        orientation: ListView.Horizontal
-
-        model:
-        ListModel{
-            id: modelCopyPasteClear
-            ListElement{
-                action: "Clear"
-                icon: "qrc:///anno_icons/delete.svg"
-            }
-        }
-
-        delegate:
-        XsPrimaryButton{
-            text: "" //model.action
-            imgSrc: model.icon //""
-            width: toolActionCopyPasteClear.width/modelCopyPasteClear.count - toolActionCopyPasteClear.spacing
-            height: toolActionCopyPasteClear.height
-            onClicked: {
-                action_attribute = model.action
-            }
-
-        }
-    }
 
     Rectangle{ id: displayAnnotations
         width: parent.width - framePadding
-        height: buttonHeight;
+        height: buttonHeight/2
         color: "transparent";
-        anchors.top: toolActionCopyPasteClear.bottom
+        anchors.top: toolActionUndoRedo.bottom
         anchors.topMargin: colSpacing
         anchors.horizontalCenter: parent.horizontalCenter
 
@@ -127,71 +99,31 @@ Item{ id: toolActionsDiv
     }
     property alias display_mode: __display_mode.value
 
-    RowLayout{ id: displayBtns
+    XsComboBox { id: cBox
         x: framePadding
-        width: parent.width- x*2 - spacing
+        width: parent.width- x*3
         height: XsStyleSheet.primaryButtonStdHeight
-        spacing: 1
-
         anchors.top: displayAnnotations.bottom
-        anchors.topMargin: itemSpacing/2
+        anchors.topMargin: itemSpacing
 
-        XsPrimaryButton{
+        model: ["Always", "Never", "When Paused"]
+        currentIndex: 0
+        framePadding: 2
+        fontSize: XsStyleSheet.fontSize - 1
 
-            id: annotationBtn
-            Layout.preferredWidth: parent.width/2
-            Layout.fillHeight: true
-            Layout.alignment: Qt.AlignHCenter
-            text: "A"
-            textDiv.font.pixelSize: XsStyleSheet.fontSize*1.2
-            onClicked:{
-                if(annotationMenu.visible) annotationMenu.visible = false
-                else{
-                    annotationMenu.x = displayBtns.x + x //+ width
-                    annotationMenu.y = displayBtns.y + y + height
-                    annotationMenu.visible = true
-                }
+        onActivated: (aindex) => {
+            if(textAt(aindex) == "Always") {
+                display_mode = "Always"
+                cBox.displayText = "Always"
             }
-        }
-    }
-
-    XsPopupMenu {
-        id: annotationMenu
-        visible: false
-        menu_model_name: "annotationMenu"+toolActionsDiv
-    }
-
-    XsMenuModelItem {
-        text: "Always"
-        enabled: annotationBtn.text !== "A"
-        menuPath: ""
-        menuItemPosition: 1
-        menuModelName: annotationMenu.menu_model_name
-        onActivated: {
-            annotationBtn.text = "A"
-            display_mode = "Always"
-        }
-    }
-    XsMenuModelItem {
-        text: "Never"
-        enabled: annotationBtn.text !== "N"
-        menuPath: ""
-        menuItemPosition: 2
-        menuModelName: annotationMenu.menu_model_name
-        onActivated: {
-            annotationBtn.text = "N"
-            display_mode = "With Drawing Tools"
-        }
-    }
-    XsMenuModelItem {
-        text: "When Paused"
-        enabled: annotationBtn.text !== "P"
-        menuPath: ""
-        menuItemPosition: 3
-        menuModelName: annotationMenu.menu_model_name
-        onActivated: {
-            annotationBtn.text = "P"
-            display_mode = "Only When Paused"
+            else if(textAt(aindex) == "Never") {
+                display_mode = "With Drawing Tools"
+                cBox.displayText = "Never"
+            }
+            else if(textAt(aindex) == "When Paused") {
+                display_mode = "Only When Paused"
+                cBox.displayText = "Paused"
+            }
         }
     }
 

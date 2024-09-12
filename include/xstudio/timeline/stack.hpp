@@ -16,9 +16,10 @@ namespace timeline {
     class Stack : public utility::Container {
       public:
         Stack(
-            const std::string &name   = "Stack",
-            const utility::Uuid &uuid = utility::Uuid::generate(),
-            const caf::actor &actor   = caf::actor());
+            const std::string &name        = "Stack",
+            const utility::FrameRate &rate = utility::FrameRate(),
+            const utility::Uuid &uuid      = utility::Uuid::generate(),
+            const caf::actor &actor        = caf::actor());
 
         Stack(const utility::JsonStore &jsn);
         Stack(const Item &item, const caf::actor &actor);

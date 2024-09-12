@@ -10,14 +10,13 @@ import QtQml.Models 2.14
 import QtQuick.Dialogs 1.3 //for ColorDialog
 import QtGraphicalEffects 1.15 //for RadialGradient
 
-import xStudioReskin 1.0
+import xStudio 1.0
 import xstudio.qml.models 1.0
 import Grading 2.0
 
 Item {
-    clip: true
     property real dividerWidth: 2
-    
+
     Rectangle{ id: bg
         anchors.fill: parent
         color: XsStyleSheet.baseColor
@@ -32,9 +31,9 @@ Item {
             model: attrs.grading_sliders_model
 
             Row{
-                Layout.minimumWidth: (parent.width-(dividerWidth*2))/repeater.count + dividerWidth
-                Layout.preferredWidth: (parent.width-(dividerWidth*2))/repeater.count + dividerWidth
-                Layout.maximumWidth: (parent.width-(dividerWidth*2))/repeater.count + dividerWidth
+                Layout.minimumWidth: (parent.width-(dividerWidth*(repeater.count-1)))/repeater.count + dividerWidth
+                Layout.preferredWidth: (parent.width-(dividerWidth*(repeater.count-1)))/repeater.count + dividerWidth
+                Layout.maximumWidth: (parent.width-(dividerWidth*(repeater.count-1)))/repeater.count + dividerWidth
                 Layout.fillHeight: true
 
                 GTSliderDiv{

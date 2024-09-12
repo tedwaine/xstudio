@@ -3,7 +3,7 @@ import QtQuick 2.15
 
 import xstudio.qml.models 1.0
 
-import xStudioReskin 1.0
+import xStudio 1.0
 
 Item {
 

@@ -74,7 +74,10 @@ class OCIOColourPipeline : public ColourPipeline {
 
     void register_hotkeys() override;
 
-    void hotkey_pressed(const utility::Uuid &hotkey_uuid, const std::string &context) override;
+    void hotkey_pressed(
+        const utility::Uuid &hotkey_uuid,
+        const std::string &context,
+        const std::string &window) override;
 
     void hotkey_released(const utility::Uuid &hotkey_uuid, const std::string &context) override;
 
@@ -165,6 +168,10 @@ class OCIOColourPipeline : public ColourPipeline {
     std::string monitor_manufacturer_;
     std::string monitor_serialNumber_;
     std::string viewport_name_;
+
+    // The ID of the window that this instance of the colour pipeline is used
+    // to display images into
+    std::string window_id_;
 
     std::map<std::string, std::vector<std::string>> display_views_;
 

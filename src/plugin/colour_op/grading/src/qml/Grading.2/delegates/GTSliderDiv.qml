@@ -9,40 +9,70 @@ import xstudio.qml.bookmarks 1.0
 import QtQml.Models 2.14
 import QtGraphicalEffects 1.15
 
-import xStudioReskin 1.0
+import xStudio 1.0
 import xstudio.qml.models 1.0
 import Grading 2.0
 
 Item{
-    clip: true
 
     property string titleText: ""
-    
-    ColumnLayout{
+
+    ColumnLayout{ id: col
         anchors.fill: parent
         anchors.horizontalCenter: parent.horizontalCenter
         anchors.margins: 2
         spacing: 1
 
-        Item{ id: titleSlider
+        RowLayout{ id: titleSlider
             Layout.fillWidth: true
-            Layout.preferredHeight: XsStyleSheet.widgetStdHeight
-            Layout.minimumHeight: XsStyleSheet.widgetStdHeight
-            
-            // XsGradientRectangle{
-            //     width: parent.width+2
-            //     height: parent.height
-            //     // bottomColor: XsStyleSheet.panelTitleBarColor
-            //     bottomColor: "transparent"
-            //     bottomPosition: 2
-            // }
-            XsText {
+            Layout.preferredHeight: XsStyleSheet.secondaryButtonStdWidth + 2
+            Layout.maximumHeight: XsStyleSheet.secondaryButtonStdWidth + 2
+            spacing: 0
+
+            Item{
+                Layout.fillWidth: true
+                Layout.fillHeight: true
+            }
+            XsText { id: textDiv
+                Layout.preferredWidth: textWidth
+                Layout.fillHeight: true
                 text: titleText
-                width: parent.width - spacing*2
                 elide: Text.ElideRight
                 font.pixelSize: XsStyleSheet.fontSize*1.2
                 font.bold: true
-                anchors.centerIn: parent
+
+                MouseArea{ id: textMA
+                    anchors.fill: parent
+                    hoverEnabled: true
+                    onClicked:{
+                        resetButton.clicked()
+                    }
+                    onPressed: resetButton.down = true
+                    onReleased: resetButton.down = undefined
+                }
+            }
+            Item{
+                Layout.fillWidth: true
+                Layout.minimumWidth: 0
+                Layout.maximumWidth: 4
+                Layout.fillHeight: true
+            }
+            XsSecondaryButton {  id: resetButton
+                Layout.minimumWidth: XsStyleSheet.secondaryButtonStdWidth
+                Layout.preferredWidth: XsStyleSheet.secondaryButtonStdWidth
+                Layout.fillHeight: true
+                imgSrc: "qrc:/icons/rotate-ccw.svg"
+                imageDiv.sourceSize.width: 14
+                imageDiv.sourceSize.height: 14
+                forcedHover: textMA.containsMouse
+
+                onClicked: {
+                    value = default_value
+                }
+            }
+            Item{
+                Layout.fillWidth: true
+                Layout.fillHeight: true
             }
         }
 
@@ -54,8 +84,7 @@ Item{
         Item{ id: controlDiv
             Layout.fillWidth: true
             Layout.fillHeight: true
-            // Layout.preferredHeight: 140 + XsStyleSheet.widgetStdHeight*2
-            
+
             GTSlider{ id: slider
                 height: parent.height
                 anchors.horizontalCenter: parent.horizontalCenter
@@ -75,7 +104,7 @@ Item{
             Layout.minimumHeight: XsStyleSheet.widgetStdHeight
 
             GTValueEditor{
-                width: 45 //parent.width
+                width: 45
                 height: XsStyleSheet.widgetStdHeight
                 valueText: value.toFixed(3)
                 indicatorColor: "transparent"
@@ -83,30 +112,6 @@ Item{
 
                 onEdited:{
                     value = parseFloat(currentText)
-                }
-            }
-        }
-
-        Item{ 
-            Layout.fillWidth: true
-            Layout.minimumHeight: XsStyleSheet.widgetStdHeight + 4
-
-            XsPrimaryButton { id: resetBtn
-                width: 45 
-                height: XsStyleSheet.widgetStdHeight
-                anchors.horizontalCenter: parent.horizontalCenter
-                anchors.top: parent.top
-                
-                imgSrc: "qrc:/icons/rotate-ccw.svg"
-                imageDiv.width: 16
-                imageDiv.height: 16
-                onClicked: { 
-
-                    value = default_value
-
-                    // var _value = value
-                    // _value[index] = default_value[index]
-                    // value = _value
                 }
             }
         }

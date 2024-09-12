@@ -304,7 +304,7 @@ void EmbeddedPythonActor::act() {
         },
 
 #endif
-        //BUILD_OTIO
+        // BUILD_OTIO
 
         [=](python_create_session_atom, const bool interactive) -> result<utility::Uuid> {
             if (not base_.enabled())

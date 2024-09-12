@@ -123,27 +123,54 @@ void SessionModel::init(caf::actor_system &_system) {
             [=](utility::event_atom,
                 media::media_display_info_atom,
                 const utility::JsonStore &info) {
+                // this comes direct from media actor, we don't use as we
+                // prefer to get it via the playlist to reduce the searching
+                // that we have to do
+            },
+
+            [=](utility::event_atom,
+                media::media_display_info_atom,
+                const utility::JsonStore &info,
+                caf::actor_addr media) {
+                // re-broadcast of media_display_info_atom event that came from
+                // a MediaActor. The playlist has done the re-braodcast
+
                 auto src     = caf::actor_cast<caf::actor>(self()->current_sender());
                 auto src_str = actorToString(system(), src);
                 // request update of children..
                 // find container owner..
-                auto index =
+                auto playlist_index =
                     searchRecursive(QVariant::fromValue(QStringFromStd(src_str)), actorRole);
 
-                if (index.isValid()) {
-                    // request update of containers.
-                    try {
-                        nlohmann::json &j = indexToData(index);
-                        if (j.at("type") == "Media") {
-                            if (j.count("media_display_info") and
-                                j.at("media_display_info") != info) {
-                                j["media_display_info"] = info;
-                                emit dataChanged(
-                                    index, index, QVector<int>({mediaDisplayInfoRole}));
+                if (playlist_index.isValid()) {
+
+                    auto m         = caf::actor_cast<caf::actor>(media);
+                    auto media_str = actorToString(system(), m);
+
+                    auto indeces = searchRecursiveList(
+                        QVariant::fromValue(QStringFromStd(media_str)),
+                        actorRole,
+                        playlist_index,
+                        0,
+                        -1);
+
+                    for (const auto index : indeces) {
+                        if (index.isValid()) {
+                            // request update of containers.
+                            try {
+                                nlohmann::json &j = indexToData(index);
+                                if (j.at("type") == "Media") {
+                                    if (j.count("media_display_info") and
+                                        j.at("media_display_info") != info) {
+                                        j["media_display_info"] = info;
+                                        emit dataChanged(
+                                            index, index, QVector<int>({mediaDisplayInfoRole}));
+                                    }
+                                }
+                            } catch (const std::exception &err) {
+                                spdlog::warn("{} {}", __PRETTY_FUNCTION__, err.what());
                             }
                         }
-                    } catch (const std::exception &err) {
-                        spdlog::warn("{} {}", __PRETTY_FUNCTION__, err.what());
                     }
                 }
             },
@@ -567,12 +594,39 @@ void SessionModel::init(caf::actor_system &_system) {
 
             [=](utility::event_atom,
                 bookmark::bookmark_change_atom,
-                const utility::Uuid &uuid) {},
+                const utility::Uuid &uuid) {
+                auto src     = caf::actor_cast<caf::actor>(self()->current_sender());
+                auto src_str = actorToString(system(), src);
+
+                auto qactor = QVariant::fromValue(QStringFromStd(src_str));
+
+                auto mindex = searchRecursive(qactor, actorRole);
+                if (mindex.isValid()) {
+                    auto pindex = getPlaylistIndex(mindex);
+                    if (pindex.isValid()) {
+                        auto media_indexes =
+                            searchRecursiveList(qactor, actorRole, pindex, 0, -1);
+
+                        for (auto &index : media_indexes) {
+                            if (index.isValid() and
+                                StdFromQString(index.data(typeRole).toString()) == "Media") {
+                                const auto &j = indexToData(index);
+                                requestData(
+                                    QVariant::fromValue(QUuidFromUuid(j.at("id"))),
+                                    idRole,
+                                    index,
+                                    index,
+                                    bookmarkUuidsRole);
+                            }
+                        }
+                    }
+                }
+            },
 
             [=](utility::event_atom,
                 bookmark::bookmark_change_atom,
-                const utility::Uuid &,
-                const utility::UuidList &) {},
+                const utility::Uuid &uuid,
+                const utility::UuidList &uuid_list) {},
 
             [=](utility::event_atom,
                 playlist::remove_container_atom,

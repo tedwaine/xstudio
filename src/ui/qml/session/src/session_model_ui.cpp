@@ -735,6 +735,20 @@ void SessionModel::receivedData(
                     }
                     break;
 
+                case Roles::bookmarkUuidsRole:
+                    // force update for bookmarks so we can detect changes in content
+                    if (role_to_key.count(role)) {
+                        if (j.count(role_to_key[role]) and j.at(role_to_key[role]) != result) {
+                            j[role_to_key[role]] = result;
+                            emit dataChanged(index, index, roles);
+                        } else if (not j.count(role_to_key[role])) {
+                            j[role_to_key[role]] = result;
+                            emit dataChanged(index, index, roles);
+                        } else
+                            emit dataChanged(index, index, roles);
+                    }
+                    break;
+
                 case Roles::actorRole:
                     if (role_to_key.count(role)) {
                         if (j.count(role_to_key[role]) and j.at(role_to_key[role]) != result) {
@@ -849,44 +863,47 @@ void SessionModel::receivedData(
                 case JSONTreeModel::Roles::JSONTextRole:
                     if (j.at("type") == "TimelineItem") {
                         // this is an init setup..
+                        // watchout for duplicate event..
                         auto owner =
                             actorFromString(system(), j.at("actor_owner").get<std::string>());
-                        timeline_lookup_.emplace(
-                            std::make_pair(owner, timeline::Item(result, &system())));
 
-                        timeline_lookup_[owner].bind_item_post_event_func(
-                            [this](const utility::JsonStore &event, timeline::Item &item) {
-                                item_event_callback(event, item);
-                            },
-                            true);
+                        if (not timeline_lookup_.count(owner)) {
+                            timeline_lookup_.emplace(
+                                std::make_pair(owner, timeline::Item(result, &system())));
 
-                        // rebuild json
-                        auto jsn =
-                            timelineItemToJson(timeline_lookup_.at(owner), system(), true);
+                            timeline_lookup_[owner].bind_item_post_event_func(
+                                [this](const utility::JsonStore &event, timeline::Item &item) {
+                                    item_event_callback(event, item);
+                                },
+                                true);
 
-                        // spdlog::info("construct timeline object {}", jsn.dump(2));
-                        // root is myself
-                        auto node     = indexToTree(index);
-                        auto new_node = json_to_tree(jsn, children_);
+                            // rebuild json
+                            auto jsn =
+                                timelineItemToJson(timeline_lookup_.at(owner), system(), true);
 
-                        node->splice(node->end(), new_node.base());
+                            // spdlog::info("construct timeline object {}", jsn.dump(2));
+                            // root is myself
+                            auto node     = indexToTree(index);
+                            auto new_node = json_to_tree(jsn, children_);
 
-                        // update root..
-                        j[children_] = nlohmann::json::array();
+                            // beginInsertRows(index, 0, 0);
+                            node->splice(node->end(), new_node.base());
+                            // endInsertRows();
 
-                        // spdlog::error("{} {}", j["id"], jsn["uuid"]);
+                            // update root..
+                            j[children_]         = nlohmann::json::array();
+                            j["id"]              = jsn["id"];
+                            j["prop"]            = jsn["prop"];
+                            j["actor_owner"]     = jsn["actor"];
+                            j["enabled"]         = jsn["enabled"];
+                            j["transparent"]     = jsn["transparent"];
+                            j["active_range"]    = jsn["active_range"];
+                            j["available_range"] = jsn["available_range"];
 
-                        j["id"]              = jsn["id"];
-                        j["prop"]            = jsn["prop"];
-                        j["actor_owner"]     = jsn["actor"];
-                        j["enabled"]         = jsn["enabled"];
-                        j["transparent"]     = jsn["transparent"];
-                        j["active_range"]    = jsn["active_range"];
-                        j["available_range"] = jsn["available_range"];
-
-                        emit dataChanged(index, index, QVector<int>());
-                        // make sure timeline id's are cached!
-                        add_lookup(*indexToTree(index), index);
+                            add_lookup(*indexToTree(index), index);
+                            emit dataChanged(index, index, QVector<int>());
+                            // make sure timeline id's are cached!
+                        }
                     }
                     break;
 
@@ -1242,6 +1259,28 @@ void SessionModel::updateSelection(const QModelIndex &index, const QModelIndexLi
     }
 }
 
+void SessionModel::updateMediaListFilterString(
+    const QModelIndex &index, const QString &filter_string) {
+    try {
+
+        if (index.isValid()) {
+            nlohmann::json &j = indexToData(index);
+            if (j.at("type") == "PlayheadSelection" && j.at("actor").is_string()) {
+                auto actor = actorFromString(system(), j.at("actor"));
+                if (actor) {
+                    anon_send(
+                        actor, playlist::media_filter_string_v, StdFromQString(filter_string));
+                }
+            }
+        }
+    } catch (const std::exception &err) {
+        spdlog::warn("{} {}", __PRETTY_FUNCTION__, err.what());
+        /*if (index.isValid()) {
+            nlohmann::json &j = indexToData(index);
+            spdlog::warn("{}", j.dump(2));
+        }*/
+    }
+}
 
 nlohmann::json SessionModel::timelineItemToJson(
     const timeline::Item &item, caf::actor_system &sys, const bool recurse) {

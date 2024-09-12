@@ -202,7 +202,7 @@ namespace utility {
 
     // std::string exec(const std::vector<std::string> &cmd, int &exit_code);
 
-    std::string filemanager_show_uris(const std::vector<caf::uri> &uris);
+    // std::string filemanager_show_uris(const std::vector<caf::uri> &uris);
 
     caf::uri posix_path_to_uri(const std::string &path, const bool abspath = false);
 
@@ -365,6 +365,8 @@ namespace utility {
     std::vector<std::pair<caf::uri, FrameList>>
     scan_posix_path(const std::string &path, const int depth = -1);
 
+    std::vector<caf::uri> uri_subfolders(const caf::uri parent_uri);
+
     std::string get_host_name();
     std::string get_user_name();
     std::string get_login_name();
@@ -426,7 +428,7 @@ namespace utility {
 
     inline bool is_timeline_supported(const caf::uri &uri) {
         fs::path p(uri_to_posix_path(uri));
-        spdlog::error(p.string());
+        // spdlog::error(p.string());
         std::string ext = to_upper(get_path_extension(p));
 
         for (const auto &i : supported_timeline_extensions)
@@ -508,6 +510,15 @@ namespace utility {
         return result;
     }
 
+    template <typename V>
+    std::vector<typename V::value_type> concatenate_vector(const V &a, const V &b) {
+        std::vector<typename V::value_type> result;
+        result.reserve(a.size() + b.size());
+        result.insert(result.end(), a.begin(), a.end());
+        result.insert(result.end(), b.begin(), b.end());
+        return result;
+    }
+
     //  this is annoying.. we now have to create all these silly UuidActor functions..
 
 
@@ -547,6 +558,7 @@ namespace utility {
         }
         return result;
     }
+
 
 } // namespace utility
 } // namespace xstudio

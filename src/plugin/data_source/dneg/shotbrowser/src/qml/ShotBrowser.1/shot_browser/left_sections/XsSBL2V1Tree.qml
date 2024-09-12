@@ -6,8 +6,11 @@ import QtQuick.Layouts 1.15
 import QtQml.Models 2.14
 import Qt.labs.qmlmodels 1.0
 
-import xStudioReskin 1.0
+import xStudio 1.0
 import ShotBrowser 1.0
+import xstudio.qml.models 1.0
+import xstudio.qml.helpers 1.0
+
 
 Item{
 
@@ -35,13 +38,12 @@ Item{
             XsSBTreeSearchButton{ id: searchBtn
                 Layout.fillWidth: isExpanded
                 Layout.minimumWidth: btnWidth
-                Layout.preferredWidth: isExpanded? expandedWidth : btnWidth
+                Layout.preferredWidth: btnWidth
                 Layout.preferredHeight: parent.height
-                expandedWidth: btnWidth*3
                 isExpanded: false
                 hint: "Search..."
                 model: ShotBrowserFilterModel {
-                    sourceModel: ShotBrowserEngine.presetsModel.termModel("ShotSequenceList", "", projectPref.value)
+                    sourceModel: ShotBrowserEngine.presetsModel.termModel("ShotSequenceList", "", projectId)
                 }
                 onIndexSelected: {
                     // possibility of id collisions ?
@@ -65,7 +67,7 @@ Item{
                 iconText: "Link"
                 isActive: sequenceTreeLiveLink && !isPaused
                 onClicked: {
-                    searchBtn.isExpanded = false
+                    // searchBtn.isExpanded = false
                     sequenceTreeLiveLink  = !sequenceTreeLiveLink
                 }
             }
@@ -78,10 +80,53 @@ Item{
                 Layout.preferredWidth: btnWidth
                 Layout.preferredHeight: parent.height
                 imgSrc: "qrc:/icons/filter.svg"
-                isActive: sequenceModel && !sequenceModel.showOmit
+                isActive: sequenceModel && sequenceModel.hideStatus.length
                 onClicked: {
-                    searchBtn.isExpanded = false
-                    sequenceModel.showOmit = !sequenceModel.showOmit
+                    // searchBtn.isExpanded = false
+                    if(shotFilterPopup.visible) {
+                        shotFilterPopup.visible = false
+                    } else {
+                        shotFilterPopup.showMenu(
+                            filterBtn,
+                            width/2,
+                            height/2);
+                    }
+                }
+            }
+        }
+
+        XsPopupMenu {
+            id: shotFilterPopup
+            menu_model_name: "shot_filter_popup"
+            visible: false
+
+            closePolicy: filterBtn.hovered ? Popup.CloseOnEscape :  Popup.CloseOnEscape | Popup.CloseOnPressOutside
+
+            Repeater {
+                model:  DelegateModel {
+                    property var notifyModel: ShotBrowserEngine.presetsModel.termModel("Shot Status")
+                    model: notifyModel
+                    delegate :
+                        Item {
+                            XsMenuModelItem {
+                                text: nameRole
+                                menuItemType: "toggle"
+                                menuPath: ""
+                                menuItemPosition: index
+                                menuModelName: shotFilterPopup.menu_model_name
+                                isChecked: sequenceModel && (sequenceModel.hideStatus.includes(nameRole) || sequenceModel.hideStatus.includes(idRole))
+                                onActivated: {
+                                    if(isChecked) {
+                                        sequenceModel.hideStatus = Array.from(sequenceModel.hideStatus).filter(r => r !== idRole && r !== nameRole)
+                                    } else {
+                                        let tmp = sequenceModel.hideStatus
+                                        tmp.push(idRole)
+                                        tmp.push(nameRole)
+                                        sequenceModel.hideStatus = tmp
+                                    }
+                                }
+                            }
+                        }
                 }
             }
         }
@@ -120,7 +165,7 @@ Item{
                     // jump up
                     if(my < contentY) {
                         contentY = my - height + r.height
-                    } else if(my + r.height > contentY + height) {
+                    } else if(my + btnHeight - 4 > contentY + sequenceTreeView.parent.height) {
                         contentY = my
                     }
                 }

@@ -6,7 +6,7 @@ import QtQuick.Layouts 1.15
 import QtQml.Models 2.14
 import Qt.labs.qmlmodels 1.0
 
-import xStudioReskin 1.0
+import xStudio 1.0
 import ShotBrowser 1.0
 
 ColumnLayout{
@@ -38,11 +38,21 @@ ColumnLayout{
                             return tindex.model.mapToModel(tindex)
                         return tindex
                     }
+                    property bool isRunning: queryRunning && isActive
 
                     isActive: currentPresetIndex == getPresetIndex()
                     onClicked: {
                         activatePreset(getPresetIndex())
                         presetsSelectionModel.select(getPresetIndex(), ItemSelectionModel.ClearAndSelect)
+                    }
+
+                    XsBusyIndicator{ id: busyIndicator
+                        x: 4
+                        width: height
+                        height: parent.height
+                        running: visible
+                        visible: isRunning
+                        scale: 0.5
                     }
                 }
             }
@@ -72,6 +82,7 @@ ColumnLayout{
             isExpanded: true
             hint: "Filter"
             onTextChanged: nameFilter = text
+            onEditingCompleted: forceActiveFocus(panel)
 
             Connections {
                 target: panel

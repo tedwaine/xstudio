@@ -24,6 +24,8 @@ namespace module {
 
         virtual ~Module();
 
+        void parent_actor_exiting();
+
         FloatAttribute *add_float_attribute(
             const std::string &title,
             const std::string &abbr_title    = "",
@@ -72,9 +74,9 @@ namespace module {
         IntegerAttribute *add_integer_attribute(
             const std::string &title,
             const std::string &abbr_title,
-            const int value,
-            const int int_min = std::numeric_limits<int>::lowest(),
-            const int int_max = std::numeric_limits<int>::max());
+            const int64_t value,
+            const int64_t int_min = std::numeric_limits<int64_t>::lowest(),
+            const int64_t int_max = std::numeric_limits<int64_t>::max());
 
         ActionAttribute *
         add_action_attribute(const std::string &title, const std::string &abbr_title);
@@ -173,10 +175,7 @@ namespace module {
             const std::string &hotkey_name,
             const std::string &description,
             const bool autorepeat        = false,
-            const std::string &component = "MODULE_NAME",
-            const std::string &context   = "any" // context "any" means hotkey will be activated
-                                                 // regardless of which window it came from
-        );
+            const std::string &component = "MODULE_NAME");
 
         utility::Uuid register_hotkey(
             int default_keycode,
@@ -184,18 +183,16 @@ namespace module {
             const std::string &hotkey_name,
             const std::string &description,
             const bool autorepeat        = false,
-            const std::string &component = "MODULE_NAME",
-            const std::string &context   = "any" // context "any" means hotkey will be activated
-                                                 // regardless of which window it came from
-        );
+            const std::string &component = "MODULE_NAME");
 
         void remove_hotkey(const utility::Uuid &hotkey_uuid);
 
         // re-implement to handle viewport hotkey events. context argument indicates where the
         // hotkey was pressed (e.g. 'main_viewport', 'popout_viewport' etc.)
-        virtual void
-        hotkey_pressed(const utility::Uuid & /*hotkey_uuid*/, const std::string & /*context*/) {
-        }
+        virtual void hotkey_pressed(
+            const utility::Uuid & /*hotkey_uuid*/,
+            const std::string & /*context*/,
+            const std::string & /*window*/) {}
 
         // re-implement to handle viewport hotkey release events
         virtual void hotkey_released(
@@ -353,7 +350,8 @@ namespace module {
             const std::string &panel_name,
             const std::string &qml_code,
             const std::string &viewport_popout_button_icon_path = "",
-            const float &viewport_popout_button_position        = -1.0f);
+            const float &viewport_popout_button_position        = -1.0f,
+            const utility::Uuid toggle_hotkey_id                = utility::Uuid());
 
         // Call this code to expose a widget that can dock to the left/right or
         // top/bottom of the viewport
@@ -409,7 +407,6 @@ namespace module {
         utility::Uuid module_uuid_;
         std::string name_;
         std::set<utility::Uuid> attrs_waiting_to_update_prefs_;
-        std::vector<ui::Hotkey> unregistered_hotkeys_;
         std::map<std::string, std::vector<utility::Uuid>> menu_items_;
     };
 

@@ -32,11 +32,52 @@ Module::Module(const std::string name, const utility::Uuid &uuid)
     : name_(std::move(name)), module_uuid_(uuid) {}
 
 Module::~Module() {
+
     disconnect_from_ui();
     keypress_monitor_actor_ = caf::actor();
 }
 
+void Module::parent_actor_exiting() {
+
+    if (self()) {
+
+        disconnect_from_ui();
+
+        auto central_models_data_actor =
+            self()->home_system().registry().template get<caf::actor>(
+                global_ui_model_data_registry);
+
+        if (central_models_data_actor) {
+
+            // make sure attribute data is removed from UI data models that expose
+            // attrs in the UI layer
+            for (auto &attribute : attributes_) {
+
+                if (attribute->has_role_data(Attribute::UIDataModels)) {
+
+                    try {
+
+                        auto groups = attribute->get_role_data<std::vector<std::string>>(
+                            Attribute::UIDataModels);
+
+                        for (const auto &group : groups) {
+                            anon_send(
+                                central_models_data_actor,
+                                ui::model_data::deregister_model_data_atom_v,
+                                group,
+                                attribute->uuid(),
+                                caf::actor());
+                        }
+                    } catch (...) {
+                    }
+                }
+            }
+        }
+    }
+}
+
 void Module::set_parent_actor_addr(caf::actor_addr addr) {
+
 
     parent_actor_addr_ = addr;
     if (!attribute_events_group_) {
@@ -64,23 +105,6 @@ void Module::set_parent_actor_addr(caf::actor_addr addr) {
 
     // we can't add hotkeys until the parent actor has been set. Subclasses of
     // Module should define hotkeys in the virtual register_hotkeys() function
-
-
-    // Some 'Modules' might try and register their hotkeys before they have been
-    // hooked in to an actor - here we are able to register tham
-    if (unregistered_hotkeys_.size()) {
-        if (!keypress_monitor_actor_) {
-            keypress_monitor_actor_ =
-                self()->home_system().registry().template get<caf::actor>(keyboard_events);
-        }
-
-        for (auto &hk : unregistered_hotkeys_) {
-            hk.add_watcher(addr);
-            anon_send(
-                keypress_monitor_actor_, ui::keypress_monitor::register_hotkey_atom_v, hk);
-        }
-        unregistered_hotkeys_.clear();
-    }
 
     auto a = caf::actor_cast<caf::event_based_actor *>(self());
     if (a) {
@@ -242,9 +266,9 @@ StringAttribute *Module::add_string_attribute(
 IntegerAttribute *Module::add_integer_attribute(
     const std::string &title,
     const std::string &abbr_title,
-    const int value,
-    const int int_min,
-    const int int_max) {
+    const int64_t value,
+    const int64_t int_min,
+    const int64_t int_max) {
 
     auto rt = new IntegerAttribute(title, abbr_title, value, int_min, int_max);
     add_attribute(static_cast<Attribute *>(rt));
@@ -324,8 +348,9 @@ void Module::remove_attribute(const utility::Uuid &attribute_uuid) {
             self()->home_system().registry().template get<caf::actor>(
                 global_ui_model_data_registry);
 
-        if (attr->has_role_data(Attribute::Groups)) {
-            auto groups = attr->get_role_data<std::vector<std::string>>(Attribute::Groups);
+        if (attr->has_role_data(Attribute::UIDataModels)) {
+            auto groups =
+                attr->get_role_data<std::vector<std::string>>(Attribute::UIDataModels);
             for (const auto &group_name : groups) {
 
                 anon_send(
@@ -474,6 +499,8 @@ caf::message_handler Module::message_handler() {
                  return caf::make_error(xstudio_error::error, e.what());
              }
          },
+
+         [=](utility::uuid_atom) -> utility::Uuid { return uuid(); },
 
          [=](utility::get_event_group_atom, bool) -> caf::actor {
              return attribute_events_group_;
@@ -770,8 +797,7 @@ caf::message_handler Module::message_handler() {
              const std::string &hotkey_name,
              const std::string &description,
              const bool auto_repeat,
-             const std::string &component,
-             const std::string &context) -> result<utility::Uuid> {
+             const std::string &component) -> result<utility::Uuid> {
              try {
                  return register_hotkey(
                      default_keycode,
@@ -779,8 +805,7 @@ caf::message_handler Module::message_handler() {
                      hotkey_name,
                      description,
                      auto_repeat,
-                     component,
-                     context);
+                     component);
              } catch (std::exception &e) {
                  return make_error(xstudio_error::error, e.what());
              }
@@ -792,8 +817,7 @@ caf::message_handler Module::message_handler() {
              const std::string &hotkey_name,
              const std::string &description,
              const bool auto_repeat,
-             const std::string &component,
-             const std::string &context) -> result<utility::Uuid> {
+             const std::string &component) -> result<utility::Uuid> {
              int default_keycode = -1;
              for (const auto &p : ui::Hotkey::key_names) {
                  if (p.second == key_name) {
@@ -815,8 +839,7 @@ caf::message_handler Module::message_handler() {
                      hotkey_name,
                      description,
                      auto_repeat,
-                     component,
-                     context);
+                     component);
              } catch (std::exception &e) {
                  return make_error(xstudio_error::error, e.what());
              }
@@ -825,17 +848,19 @@ caf::message_handler Module::message_handler() {
          [=](ui::keypress_monitor::hotkey_event_atom,
              const utility::Uuid uuid,
              bool activated,
-             const std::string &context) {
+             const std::string &context,
+             const std::string &window) {
              anon_send(
                  attribute_events_group_,
                  ui::keypress_monitor::hotkey_event_atom_v,
                  uuid,
                  activated,
-                 context);
+                 context,
+                 window);
 
              if (activated && connected_to_ui_ /*&&
                  connected_viewport_names_.find(context) != connected_viewport_names_.end()*/) {
-                 hotkey_pressed(uuid, context);
+                 hotkey_pressed(uuid, context, window);
 
                  for (auto attr_uuid : dock_widget_attributes_) {
                      module::Attribute *attr = get_attribute(attr_uuid);
@@ -1124,13 +1149,14 @@ void Module::notify_change(
             role,
             value);
 
-        if (attr->has_role_data(Attribute::Groups)) {
+        if (attr->has_role_data(Attribute::UIDataModels)) {
 
             auto central_models_data_actor =
                 self()->home_system().registry().template get<caf::actor>(
                     global_ui_model_data_registry);
 
-            auto groups = attr->get_role_data<std::vector<std::string>>(Attribute::Groups);
+            auto groups =
+                attr->get_role_data<std::vector<std::string>>(Attribute::UIDataModels);
             for (const auto &group_name : groups) {
                 anon_send(
                     central_models_data_actor,
@@ -1209,13 +1235,13 @@ void Module::attribute_changed(const utility::Uuid &attr_uuid, const int role_id
         update_attribute_menu_item_data(attr);
     }
 
-    if (role_id == Attribute::Groups && attr) {
+    if (role_id == Attribute::UIDataModels && attr) {
 
         auto central_models_data_actor =
             self()->home_system().registry().template get<caf::actor>(
                 global_ui_model_data_registry);
 
-        auto groups = attr->get_role_data<std::vector<std::string>>(Attribute::Groups);
+        auto groups = attr->get_role_data<std::vector<std::string>>(Attribute::UIDataModels);
 
         for (const auto &group_name : groups) {
             anon_send(
@@ -1239,7 +1265,7 @@ void Module::attribute_changed(const utility::Uuid &attr_uuid, const int role_id
         int activated           = 0;
         std::string name;
         try {
-            activated = attr->get_role_data<int>(module::Attribute::Activated);
+            activated = attr->get_role_data<int64_t>(module::Attribute::Activated);
             name      = attr->get_role_data<std::string>(module::Attribute::Title);
         } catch (...) {
         }
@@ -1340,14 +1366,12 @@ utility::Uuid Module::register_hotkey(
     const std::string &hotkey_name,
     const std::string &description,
     const bool auto_repeat,
-    const std::string &component,
-    const std::string &context) {
+    const std::string &component) {
     try {
 
         int key, modifier;
         ui::Hotkey::sequence_to_key_and_modifier(sequence, key, modifier);
-        return register_hotkey(
-            key, modifier, hotkey_name, description, auto_repeat, component, context);
+        return register_hotkey(key, modifier, hotkey_name, description, auto_repeat, component);
 
     } catch (std::exception &e) {
         spdlog::warn("{} : {} {}", name(), __PRETTY_FUNCTION__, e.what());
@@ -1362,8 +1386,7 @@ utility::Uuid Module::register_hotkey(
     const std::string &hotkey_name,
     const std::string &description,
     const bool auto_repeat,
-    const std::string &component,
-    const std::string &context) {
+    const std::string &component) {
     if (self()) {
 
         if (!keypress_monitor_actor_) {
@@ -1377,7 +1400,7 @@ utility::Uuid Module::register_hotkey(
             hotkey_name,
             component == "MODULE_NAME" ? name() : component,
             description,
-            context,
+            "any", // window
             auto_repeat,
             caf::actor_cast<caf::actor_addr>(self()));
 
@@ -1386,18 +1409,12 @@ utility::Uuid Module::register_hotkey(
         return hk.uuid();
 
     } else {
-
-        unregistered_hotkeys_.emplace_back(
-            default_keycode,
-            default_modifier,
+        spdlog::warn(
+            "{} Attempt to register hotkey {} in module {} before module has been initialised "
+            "with a parent actor",
+            __PRETTY_FUNCTION__,
             hotkey_name,
-            component == "MODULE_NAME" ? name() : component,
-            description,
-            context,
-            auto_repeat,
-            caf::actor_addr());
-
-        return unregistered_hotkeys_.back().uuid();
+            name());
     }
 
     return utility::Uuid();
@@ -1509,8 +1526,8 @@ void Module::connect_to_ui() {
 
     for (auto &a : attributes_) {
 
-        if (a->has_role_data(Attribute::Groups)) {
-            auto groups = a->get_role_data<std::vector<std::string>>(Attribute::Groups);
+        if (a->has_role_data(Attribute::UIDataModels)) {
+            auto groups = a->get_role_data<std::vector<std::string>>(Attribute::UIDataModels);
             for (const auto &group_name : groups) {
 
                 anon_send(
@@ -1561,12 +1578,11 @@ void Module::disconnect_from_ui() {
 
         for (auto &a : attributes_) {
 
-            if (a->has_role_data(Attribute::Groups)) {
-                auto groups = a->get_role_data<std::vector<std::string>>(Attribute::Groups);
-                for (const auto &group_name : groups) {
-                    anon_send(
-                        central_models_data_actor,
-                        ui::model_data::register_model_data_atom_v,
+            if (a->has_role_data(Attribute::UIDataModels)) {
+                auto groups =
+        a->get_role_data<std::vector<std::string>>(Attribute::UIDataModels); for (const auto
+        &group_name : groups) { anon_send( central_models_data_actor,
+                        ui::model_data::deregister_model_data_atom_v,
                         group_name,
                         a->uuid(),
                         self());
@@ -2055,7 +2071,7 @@ void Module::make_attribute_visible_in_viewport_toolbar(
 
                 anon_send(
                     central_models_data_actor,
-                    ui::model_data::register_model_data_atom_v,
+                    ui::model_data::deregister_model_data_atom_v,
                     toolbar_name,
                     attr->uuid(),
                     caf::actor());
@@ -2171,7 +2187,7 @@ void Module::expose_attribute_in_model_data(
             // 'model_name'
             anon_send(
                 central_models_data_actor,
-                ui::model_data::register_model_data_atom_v,
+                ui::model_data::deregister_model_data_atom_v,
                 model_name,
                 attr->uuid(),
                 self());
@@ -2233,7 +2249,8 @@ void Module::register_ui_panel_qml(
     const std::string &panel_name,
     const std::string &qml_code,
     const std::string &viewport_popout_button_icon,
-    const float &viewport_popout_button_position) {
+    const float &viewport_popout_button_position,
+    const utility::Uuid toggle_hotkey_id) {
 
     auto central_models_data_actor = self()->home_system().registry().template get<caf::actor>(
         global_ui_model_data_registry);
@@ -2277,6 +2294,7 @@ void Module::register_ui_panel_qml(
         data["view_qml_source"]   = qml_code;
         data["button_position"]   = viewport_popout_button_position;
         data["window_is_visible"] = false;
+        data["hotkey_uuid"]       = toggle_hotkey_id;
 
         try {
 
@@ -2312,6 +2330,16 @@ Attribute *Module::register_viewport_dockable_widget(
     attr->set_role_data(Attribute::ToolTip, button_tooltip);
     attr->set_role_data(Attribute::Activated, -1);
     attr->set_role_data(Attribute::Enabled, enabled);
+
+    if (!left_right_dockable_widget_qml.empty()) {
+        attr->set_role_data(
+            Attribute::LeftRightDockWidgetQmlCode, left_right_dockable_widget_qml);
+    }
+    if (!top_bottom_dockable_widget_qml.empty()) {
+        attr->set_role_data(
+            Attribute::TopBottomDockWidgetQmlCode, top_bottom_dockable_widget_qml);
+    }
+
     if (!toggle_widget_visible_hotkey.is_null()) {
         attr->set_role_data(Attribute::HotkeyUuid, toggle_widget_visible_hotkey);
     }

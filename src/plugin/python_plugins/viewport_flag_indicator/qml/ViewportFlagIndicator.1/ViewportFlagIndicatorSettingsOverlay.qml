@@ -7,7 +7,7 @@ import QuickPromise 1.0
 
 // These imports are necessary to have access to custom QML types that are
 // part of the xSTUDIO UI implementation.
-import xStudioReskin 1.0
+import xStudio 1.0
 import xstudio.qml.models 1.0
 
 // This overlay is as simple as it gets. We're just putting a circle in a corner

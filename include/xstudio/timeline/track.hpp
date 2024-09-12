@@ -20,6 +20,7 @@ namespace timeline {
       public:
         Track(
             const std::string &name           = "Track",
+            const utility::FrameRate &rate    = utility::FrameRate(),
             const media::MediaType media_type = media::MediaType::MT_IMAGE,
             const utility::Uuid &uuid         = utility::Uuid::generate(),
             const caf::actor &actor           = caf::actor());

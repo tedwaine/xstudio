@@ -10,7 +10,7 @@ import Qt.labs.qmlmodels 1.0
 import QuickFuture 1.0
 import QuickPromise 1.0
 
-import xStudioReskin 1.0
+import xStudio 1.0
 import xstudio.qml.bookmarks 1.0
 import xstudio.qml.models 1.0
 import xstudio.qml.helpers 1.0
@@ -37,12 +37,15 @@ Item{
     property var onScreenMediaUuid: currentPlayhead.mediaUuid
     property var onScreenLogicalFrame: currentPlayhead.logicalFrame
 
+    property int projectId: -1
     property var projectIndex: null
     property var sequenceModel: null
     property var currentPresetIndex: ShotBrowserEngine.presetsModel.index(-1,-1)
 
     property bool sequenceTreeLiveLink: false
     property bool sequenceTreeShowPresets: false
+
+    property bool isPopout: typeof panels_layout_model_index == "undefined"
 
     property alias sortByNaturalOrder: resultsFilteredModel.sortByNaturalOrder
     property alias sortByCreationDate: resultsFilteredModel.sortByCreationDate
@@ -62,6 +65,7 @@ Item{
 
     onOnScreenMediaUuidChanged: {if(visible) updateTimer.start()}
 
+
     onOnScreenLogicalFrameChanged: {
         if(updateTimer.running)
             updateTimer.restart()
@@ -73,6 +77,11 @@ Item{
             // ShotBrowserEngine.liveLinkMetadata = "null"
         }
     }
+
+    /*MouseArea {
+        anchors.fill: parent
+        onClicked: forceActiveFocus(panel)
+    }*/
 
     Timer {
         id: updateTimer
@@ -87,6 +96,14 @@ Item{
 
     Clipboard {
         id: clipboard
+    }
+
+    function setProjectIndex(force = false) {
+        if(ShotBrowserEngine.ready && (force || (projectIndex == null || !projectIndex.valid))) {
+            let pi = getProjectIndexFromName(projectPref.value)
+            if(pi.valid)
+                projectIndex = pi
+        }
     }
 
     function updateMetaData() {
@@ -134,23 +151,11 @@ Item{
         }
     }
 
+
+
     Connections {
         target: ShotBrowserEngine
-        function onReadyChanged() {
-            if(ShotBrowserEngine.ready) {
-                prefs.updateFromValue()
-                if(projectIndex == null) {
-                    if(prefs.project) {
-                        let i = getProjectIndexFromName(prefs.project)
-                        if(i && i.valid)
-                            projectIndex = i
-                    }
-                    if(projectIndex == null)
-                        projectIndex = getProjectIndexFromId(projectPref.value)
-                }
-                // console.log("onReadyChanged", projectIndex, prefs.project, projectPref.value)
-            }
-        }
+        function onReadyChanged() {setProjectIndex()}
     }
 
     Connections {
@@ -174,93 +179,63 @@ Item{
 
     XsPreference {
         id: projectPref
-        path: "/plugin/data_source/shotbrowser/browser/project_id"
+        path: "/plugin/data_source/shotbrowser/browser/project"
+        onValueChanged: setProjectIndex(true)
     }
 
-    XsModelProperty {
+    XsPreference {
+        id: popoutPref
+        path: "/plugin/data_source/shotbrowser/browser/popout"
+    }
+
+    Item {
+        // Hold properties that we want to persist between sessions.
+        // The 'user_data' property is provided by the model data that
+        // instantiates this item and we can access directly
         id: prefs
-        index: panels_layout_model_index
-        role: "user_data"
-
-        property int leftPanelWidth: 200
-        property int rightPanelWidth: 200
+        property int resultPanelWidth: 600
+        property int treePlusResultPanelWidth: 600
+        property int treePanelWidth: 200
         property string category: "Tree"
-        property string project: "NSFL"
         property string quickLoad: ""
+        property bool initialised: false
 
-        onLeftPanelWidthChanged: {
-            let i = createDefaults()
-            if(i["left_panel_width"] != leftPanelWidth) {
-                i["left_panel_width"] = leftPanelWidth
-                value = i
-            }
+        property var store: {
+            "resultPanelWidth": resultPanelWidth,
+            "treePlusResultPanelWidth": treePlusResultPanelWidth,
+            "treePanelWidth": treePanelWidth,
+            "category": category,
+            "quickLoad": quickLoad,
         }
 
-        onRightPanelWidthChanged: {
-            let i = createDefaults()
-            if(i["right_panel_width"] != rightPanelWidth) {
-                i["right_panel_width"] = rightPanelWidth
-                value = i
-            }
-        }
-
-        onCategoryChanged: {
-            let i = createDefaults()
-            if(i["category"] != category) {
-                i["category"] = category
-                value = i
-            }
-        }
-
-        onQuickLoadChanged: {
-            let i = createDefaults()
-            if(i["quick_load"] != quickLoad) {
-                i["quick_load"] = quickLoad
-                value = i
-            }
-        }
-
-        onProjectChanged: {
-            let i = createDefaults()
-            if(i["project"] != project) {
-                i["project"] = project
-                value = i
-            }
-
-            if(ShotBrowserEngine.ready) {
-                let index = getProjectIndexFromName(project)
-                if(index.valid && projectIndex != index) {
-                    projectIndex = index
-                    // console.log("onProjectChanged", projectIndex, project)
+        onStoreChanged: {
+            // push these prefs values to user_data so they get stored
+            // in the user's preference files for next time
+            if (initialised) {
+                if(isPopout) {
+                    popoutPref.value = store
+                } else {
+                    user_data = store
                 }
             }
         }
 
-        function createDefaults() {
-            let i = {}
-            i["left_panel_width"] = value != undefined && value.hasOwnProperty("left_panel_width") ? value["left_panel_width"] : 200
-            i["right_panel_width"] = value != undefined && value.hasOwnProperty("right_panel_width") ? value["right_panel_width"] : 200
-            i["category"] = value != undefined && value.hasOwnProperty("category") ? value["category"] : "Tree"
-            i["project"] = value != undefined && value.hasOwnProperty("project") ? value["project"] : "NSFL"
-            i["quick_load"] = value != undefined && value.hasOwnProperty("quick_load") ? value["quick_load"] : ""
-            return i
-        }
-
-        onValueChanged: updateFromValue()
-
-        function updateFromValue() {
-            if(value) {
-                if(value["left_panel_width"] && leftPanelWidth != value["left_panel_width"])
-                    leftPanelWidth = value["left_panel_width"]
-                if(value["right_panel_width"] && rightPanelWidth != value["right_panel_width"])
-                    rightPanelWidth = value["right_panel_width"]
-                if(value["category"] && category != value["category"])
-                    category = value["category"]
-                if(value["project"] && project != value["project"])
-                    project = value["project"]
-                if(value["quick_load"] && quickLoad != value["quick_load"])
-                    quickLoad = value["quick_load"]
+        Component.onCompleted: {
+            // one time initialise from user_data if it is not empty
+            if (typeof user_data == "object") {
+                if (user_data.resultPanelWidth) resultPanelWidth = Math.max(user_data.resultPanelWidth, 600)
+                if (user_data.treePlusResultPanelWidth) treePlusResultPanelWidth = Math.max(user_data.treePlusResultPanelWidth, 600)
+                if (user_data.treePanelWidth) treePanelWidth = Math.max(user_data.treePanelWidth, 200)
+                if (user_data.category) category = user_data.category
+                if (user_data.quickLoad) quickLoad = user_data.quickLoad
+            } else if(isPopout) {
+                if (popoutPref.value.resultPanelWidth) resultPanelWidth = Math.max(popoutPref.value.resultPanelWidth, 600)
+                if (popoutPref.value.treePlusResultPanelWidth) treePlusResultPanelWidth = Math.max(popoutPref.value.treePlusResultPanelWidth, 600)
+                if (popoutPref.value.treePanelWidth) treePanelWidth = Math.max(popoutPref.value.treePanelWidth, 200)
+                if (popoutPref.value.category) category = popoutPref.value.category
+                if (popoutPref.value.quickLoad) quickLoad = popoutPref.value.quickLoad
             }
+            initialised = true
         }
     }
 
@@ -317,19 +292,19 @@ Item{
 
     ShotHistoryResultPopup {
         id: versionResultPopup
-        menu_model_name: "version_shot_browser_popup"
+        menu_model_name: "version_shot_browser_popup"+versionResultPopup
         popupSelectionModel: resultsSelectionModel
     }
 
     NotesHistoryResultPopup {
         id: noteResultPopup
-        menu_model_name: "note_shot_browser_popup"
+        menu_model_name: "note_shot_browser_popup"+noteResultPopup
         popupSelectionModel: resultsSelectionModel
     }
 
     XsSBRPlaylistResultPopup {
         id: playlistResultPopup
-        menu_model_name: "playlist_shot_browser_popup"
+        menu_model_name: "playlist_shot_browser_popup"+playlistResultPopup
         popupSelectionModel: resultsSelectionModel
     }
 
@@ -426,42 +401,69 @@ Item{
             ShotBrowserEngine.cacheProject(i)
             sequenceModel = ShotBrowserEngine.sequenceTreeFilterModel(i)
 
-            if(projectPref.value != i)
-                projectPref.value = i
-
-            prefs.project = m.get(projectIndex, "nameRole")
-
-            // console.log("onProjectIndexChanged", projectPref.value, prefs.project)
+            projectPref.value = m.get(projectIndex, "nameRole")
+            projectId = i
         }
     }
-
-    // onCurrentCategoryChanged: leftSection.SplitView.preferredWidth = currentCategory == "Tree" && sequenceTreeShowPresets ? prefs.leftPanelWidth + prefs.rightPanelWidth : prefs.leftPanelWidth
 
     XsSplitView {
         id: main_split
         anchors.fill: parent
 
+        property bool treePlusActive: currentCategory == "Tree" && sequenceTreeShowPresets
+
+        readonly property int minimumResultWidth: 600
+        readonly property int minimumPresetWidth: 300
+        readonly property int minimumTreeWidth: 200
+
         XsSBLeftSection{ id: leftSection
-            SplitView.preferredWidth: currentCategory == "Tree" && sequenceTreeShowPresets ? prefs.leftPanelWidth + prefs.rightPanelWidth : prefs.leftPanelWidth
             SplitView.fillHeight: true
-            onWidthChanged: {
-                if(SplitView.view.resizing) {
-                    if(currentCategory == "Tree" && sequenceTreeShowPresets)
-                        prefs.rightPanelWidth = width - prefs.leftPanelWidth
-                    else
-                        prefs.leftPanelWidth = width
-                }
-            }
+            // SplitView.fillWidth: true
+            SplitView.minimumWidth: (
+                main_split.treePlusActive ?
+                prefs.treePanelWidth + 150 :
+                main_split.minimumPresetWidth
+            )
+            SplitView.preferredWidth: (main_split.treePlusActive ? main_split.width - prefs.treePlusResultPanelWidth : main_split.width -prefs.resultPanelWidth)
+
+            /*XsHotkeyArea {
+                anchors.fill: parent
+                context: "shotbrowser"
+                focus: true
+            }*/
+
         }
 
         XsGradientRectangle{
-            SplitView.fillWidth: true
             SplitView.fillHeight: true
+            SplitView.fillWidth: true
+            // SplitView.preferredWidth: (main_split.treePlusActive ? prefs.treePlusResultPanelWidth : prefs.resultPanelWidth)
+            SplitView.minimumWidth: main_split.minimumResultWidth
+
+            onWidthChanged: {
+                if(SplitView.view.resizing) {
+                    if(main_split.treePlusActive) {
+                        prefs.treePlusResultPanelWidth = width
+                    } else {
+                        prefs.resultPanelWidth = width
+                    }
+                }
+            }
 
             XsSBRightSection {
+
                 anchors.fill: parent
                 anchors.margins: 4
+                id: right_section
+
             }
+
+            /*XsHotkeyArea {
+                anchors.fill: right_section
+                context: "shotbrowser"
+                focus: true
+            }*/
+
         }
     }
 
@@ -509,11 +511,10 @@ Item{
                 queryRunningCount += 1
 
                 let i = queryCounter
-                let pi = ShotBrowserEngine.presetsModel.termModel("Project").get(projectIndex, "idRole")
 
                 Future.promise(
                     ShotBrowserEngine.executeProjectQuery(
-                        [ShotBrowserEngine.presetsModel.get(currentPresetIndex, "jsonPathRole")], pi, {}, [])
+                        [ShotBrowserEngine.presetsModel.get(currentPresetIndex, "jsonPathRole")], projectId, {}, [])
                     ).then(function(json_string) {
                         // console.log(json_string)
                         if(queryCounter == i) {
@@ -527,7 +528,6 @@ Item{
                         queryRunningCount -= 1
                     })
             } else {
-                let pi = ShotBrowserEngine.presetsModel.termModel("Project").get(projectIndex, "idRole")
                 let custom = []
                 let seqsel = sequenceSelectionModel.selectedIndexes
                 for(let i=0;i<seqsel.length;i++) {
@@ -557,7 +557,7 @@ Item{
                     let i = queryCounter
                     Future.promise(
                         ShotBrowserEngine.executeProjectQuery(
-                            [ShotBrowserEngine.presetsModel.get(currentPresetIndex, "jsonPathRole")], pi, {}, custom)
+                            [ShotBrowserEngine.presetsModel.get(currentPresetIndex, "jsonPathRole")], projectId, {}, custom)
                         ).then(function(json_string) {
                             // console.log(json_string)
                             if(queryCounter == i) {
@@ -590,13 +590,14 @@ Item{
     Component.onCompleted: {
         if(visible) {
             ShotBrowserEngine.connected = true
+            setProjectIndex()
         }
-        prefs.updateFromValue()
     }
 
     onVisibleChanged: {
         if(visible) {
             ShotBrowserEngine.connected = true
+            setProjectIndex()
             updateMetaData()
         }
     }

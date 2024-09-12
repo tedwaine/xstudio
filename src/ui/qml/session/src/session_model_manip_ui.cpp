@@ -571,7 +571,12 @@ QModelIndexList SessionModel::insertRows(
 
                         for (auto i = 0; i < count; i++) {
                             anon_send(
-                                actor, playlist::create_timeline_atom_v, name, before, false);
+                                actor,
+                                playlist::create_timeline_atom_v,
+                                name,
+                                before,
+                                false,
+                                true);
                             result.push_back(index(row + i, 0, parent));
                         }
                     }
@@ -612,6 +617,11 @@ QModelIndexList SessionModel::insertRows(
                         R"({"type": null, "id": null,  "placeholder": true, "actor": null})"_json;
                     insertion_json["type"] = type;
 
+                    // get timeline rate from parent.
+                    auto rate = request_receive<FrameRate>(*sys, parent_actor, rate_atom_v);
+
+                    // spdlog::warn("{}", rate.to_fps());
+
                     JSONTreeModel::insertRows(row, count, parent, insertion_json);
 
                     for (auto i = 0; i < count; i++) {
@@ -621,20 +631,21 @@ QModelIndexList SessionModel::insertRows(
                         if (type == "Video Track") {
                             new_item = self()->spawn<timeline::TrackActor>(
                                 name.empty() ? "New Video Track" : name,
+                                rate,
                                 media::MediaType::MT_IMAGE,
                                 new_uuid);
                         } else if (type == "Audio Track") {
                             new_item = self()->spawn<timeline::TrackActor>(
                                 name.empty() ? "New Audio Track" : name,
+                                rate,
                                 media::MediaType::MT_AUDIO,
                                 new_uuid);
                         } else if (type == "Stack") {
                             new_item = self()->spawn<timeline::StackActor>(
-                                name.empty() ? "New Stack" : name, new_uuid);
+                                name.empty() ? "New Stack" : name, rate, new_uuid);
                         } else if (type == "Gap") {
-                            auto duration = utility::FrameRateDuration(
-                                24, FrameRate(timebase::k_flicks_24fps));
-                            new_item = self()->spawn<timeline::GapActor>(
+                            auto duration = utility::FrameRateDuration(24, rate);
+                            new_item      = self()->spawn<timeline::GapActor>(
                                 name.empty() ? "New Gap" : name, duration, new_uuid);
                         } else if (type == "Clip") {
                             new_item = self()->spawn<timeline::ClipActor>(

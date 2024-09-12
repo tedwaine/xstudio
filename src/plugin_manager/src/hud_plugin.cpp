@@ -68,18 +68,18 @@ void HUDPluginBase::attribute_changed(const utility::Uuid &attribute_uuid, const
         role == module::Attribute::Value) {
 
         std::vector<std::string> groups;
-        if (hud_data_->has_role_data(module::Attribute::Groups)) {
+        if (hud_data_->has_role_data(module::Attribute::UIDataModels)) {
 
             auto central_models_data_actor =
                 system().registry().template get<caf::actor>(global_ui_model_data_registry);
 
             // a bit ugly, but if the hud is in 'HUD Bottom Left', say, then
             // and user wants it 'HUD Top Right' then we have to erase 'Hud Bottom Left'
-            // from the Groups attribute role data but preserve other groups
+            // from the UIDataModels attribute role data but preserve other groups
             // that it might belong to
             static const auto positions = utility::map_value_to_vec(position_names_);
-            groups =
-                hud_data_->get_role_data<std::vector<std::string>>(module::Attribute::Groups);
+            groups                      = hud_data_->get_role_data<std::vector<std::string>>(
+                module::Attribute::UIDataModels);
             auto p = groups.begin();
             while (p != groups.end()) {
                 if (std::find(positions.begin(), positions.end(), *p) != positions.end()) {
@@ -87,7 +87,7 @@ void HUDPluginBase::attribute_changed(const utility::Uuid &attribute_uuid, const
                     // is being taken out of the group (e.g. 'HUD Bottom Left')
                     anon_send(
                         central_models_data_actor,
-                        ui::model_data::register_model_data_atom_v,
+                        ui::model_data::deregister_model_data_atom_v,
                         *p,
                         hud_data_->uuid(),
                         self());
@@ -99,7 +99,7 @@ void HUDPluginBase::attribute_changed(const utility::Uuid &attribute_uuid, const
         }
         groups.push_back(hud_item_position_->value());
 
-        hud_data_->set_role_data(module::Attribute::Groups, groups);
+        hud_data_->set_role_data(module::Attribute::UIDataModels, groups);
     }
 
     plugin::StandardPlugin::attribute_changed(attribute_uuid, role);

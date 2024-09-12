@@ -68,6 +68,7 @@ namespace embedded_python {
       private:
         // py::function cb_;
         std::map<caf::actor_addr, std::vector<py::function>> message_handler_callbacks_;
+        std::map<caf::actor_addr, py::function> message_conversion_function_;
         std::map<utility::Uuid, py::function> delayed_callbacks_;
 
         EmbeddedPythonActor *parent_;

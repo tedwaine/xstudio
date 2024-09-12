@@ -100,6 +100,19 @@ ConformWorkerActor::ConformWorkerActor(caf::actor_config &cfg) : caf::event_base
             return rp;
         },
 
+        // find matching clips in timeline
+        [=](conform_atom,
+            const std::string &key,
+            const UuidActor &clip,
+            const UuidActor &timeline) {
+            auto rp = make_response_promise<UuidActorVector>();
+
+            find_matched(rp, key, clip, timeline);
+
+            return rp;
+        },
+
+
         [=](conform_atom, const UuidActorVector &media)
             -> result<std::vector<std::optional<std::pair<std::string, caf::uri>>>> {
             auto rp = make_response_promise<
@@ -480,6 +493,11 @@ void ConformWorkerActor::process_request(
                         auto track_to_use = 0;
                         scoped_actor sys{system()};
 
+                        auto unconformed_track = result.request_.template_tracks_.at(track_to_use);
+                        unconformed_track.reset_actor(true);
+                        unconformed_track.clear();
+                        unconformed_track.set_name("Unconformed Media");
+
                         for (size_t i = 0; i < request.items_.size(); i++) {
                             const auto &media           = request.items_.at(i).item_;
                             const auto &clip            = request.items_.at(i).clip_;
@@ -589,6 +607,34 @@ void ConformWorkerActor::process_request(
                                             trackit++;
                                     }
                                 }
+                            } else {
+                                // unconformed media.
+                                // add to unconformed track.
+                                try {
+                                    // spdlog::warn("Unconformed {}", to_string(media.uuid()));
+                                    request_receive<UuidActor>(
+                                        *sys,
+                                        result.request_.container_.actor(),
+                                        playlist::add_media_atom_v,
+                                        media,
+                                        Uuid());
+
+                                    auto detail = request_receive<std::pair<Uuid, MediaReference>>(*sys, media.actor(), media::media_reference_atom_v, Uuid());
+
+                                    auto clip = timeline::Item(
+                                        timeline::IT_CLIP,
+                                        "",
+                                        unconformed_track.rate());
+
+                                    auto media_prop = R"({"media_uuid": null})"_json;
+                                    media_prop["media_uuid"] = media.uuid();
+                                    clip.set_prop(media_prop);
+                                    unconformed_track.push_back(clip);
+                                    unconformed_track.refresh();
+
+                                } catch(const std::exception &err) {
+                                    spdlog::warn("{} {}", __PRETTY_FUNCTION__, err.what());
+                                }
                             }
                         }
 
@@ -628,6 +674,23 @@ void ConformWorkerActor::process_request(
                                 // to_string(track_actor), to_string(i.actor()),
                                 // to_string(i.uuid()));
                                 track_actors.push_back(i.uuid_actor());
+
+                                request_receive<bool>(
+                                    *sys,
+                                    track_actor,
+                                    timeline::link_media_atom_v,
+                                    mediamap,
+                                    true);
+                            }
+
+                            if(not unconformed_track.empty()) {
+                                unconformed_track.clean(true);
+                                unconformed_track.reset_uuid(true);
+                                auto track_actor = spawn<timeline::TrackActor>(unconformed_track, unconformed_track);
+                                // spdlog::warn("NEW TRACK {} {} {}",
+                                // to_string(track_actor), to_string(i.actor()),
+                                // to_string(i.uuid()));
+                                track_actors.push_back(unconformed_track.uuid_actor());
 
                                 request_receive<bool>(
                                     *sys,
@@ -815,50 +878,53 @@ void ConformWorkerActor::conform_to_timeline(
         auto timeline_prop =
             request_receive<JsonStore>(*sys, timeline.actor(), timeline::item_prop_atom_v);
 
-        auto conform_track_uuid = Uuid();
+        auto conform_track_uuid = conform_track.uuid();
 
         if (conform_track.uuid().is_null()) {
             if (timeline_prop.is_null() or not timeline_prop.count("conform_track_uuid"))
                 throw std::runtime_error("No conform track defined.");
             conform_track_uuid = timeline_prop.value("conform_track_uuid", utility::Uuid());
-        } else {
-            conform_track_uuid = conform_track.uuid();
         }
 
         if (conform_track_uuid.is_null())
             throw std::runtime_error("No conform track defined.");
 
         // find track..
-        auto track_item = request_receive<timeline::Item>(
-            *sys, timeline.actor(), timeline::item_atom_v, conform_track_uuid);
+        try {
+            auto track_item = request_receive<timeline::Item>(
+                *sys, timeline.actor(), timeline::item_atom_v, conform_track_uuid);
 
-        track_item.unbind();
-        track_item.set_enabled(true);
-        track_item.set_locked(false);
+            track_item.unbind();
+            track_item.set_enabled(true);
+            track_item.set_locked(false);
 
-        // need media metadata populating.
-        auto ritems = std::vector<ConformRequestItem>();
-        for (const auto &i : media) {
-            ritems.emplace_back(ConformRequestItem(i, i));
+            // need media metadata populating.
+            auto ritems = std::vector<ConformRequestItem>();
+            for (const auto &i : media) {
+                ritems.emplace_back(ConformRequestItem(i, i));
+            }
+
+            auto clip_items = track_item.find_all_items(timeline::IT_CLIP);
+            for (auto &i : clip_items) {
+                i.get().set_flag("");
+                i.get().set_enabled(true);
+                i.get().set_locked(false);
+            }
+
+            auto crequest        = ConformRequest(playlist, timeline, track_item, ritems);
+            crequest.operations_ = conform_operations;
+
+            for (const auto &i : clip_items) {
+                crequest.metadata_[i.get().uuid()] = i.get().prop();
+            }
+
+            // need to populate all metadata.
+            conform_chain(rp, crequest);
+
+        } catch (const std::exception &err) {
+            spdlog::warn("{} {}", __PRETTY_FUNCTION__, err.what());
+            rp.deliver(make_error(sec::runtime_error, err.what()));
         }
-
-        auto clip_items = track_item.find_all_items(timeline::IT_CLIP);
-        for (auto &i : clip_items) {
-            i.get().set_flag("");
-            i.get().set_enabled(true);
-            i.get().set_locked(false);
-        }
-
-        auto crequest        = ConformRequest(playlist, timeline, track_item, ritems);
-        crequest.operations_ = conform_operations;
-
-        for (const auto &i : clip_items) {
-            crequest.metadata_[i.get().uuid()] = i.get().prop();
-        }
-
-        // need to populate all metadata.
-        conform_chain(rp, crequest);
-
     } catch (const std::exception &err) {
         spdlog::warn("{} {}", __PRETTY_FUNCTION__, err.what());
         rp.deliver(make_error(sec::runtime_error, err.what()));
@@ -1220,6 +1286,81 @@ void ConformWorkerActor::conform_step_get_media_source(
             });
 }
 
+void ConformWorkerActor::find_matched(
+    caf::typed_response_promise<UuidActorVector> rp,
+    const std::string &key,
+    const UuidActor &clip,
+    const UuidActor &timeline) {
+
+    std::pair<utility::UuidActor, utility::JsonStore> needle;
+    std::vector<std::pair<utility::UuidActor, utility::JsonStore>> haystack;
+
+    // very heavy get all clips in timeline and all metadata.
+
+    try {
+        scoped_actor sys{system()};
+
+        auto timeline_item =
+            request_receive<timeline::Item>(*sys, timeline.actor(), timeline::item_atom_v);
+
+        auto clip_items = timeline_item.find_all_items(timeline::IT_CLIP);
+        for (const auto &i : clip_items) {
+            auto metadata = i.get().prop();
+
+            try {
+                auto media_meta = request_receive<JsonStore>(
+                    *sys,
+                    i.get().actor(),
+                    playlist::get_media_atom_v,
+                    json_store::get_json_atom_v,
+                    utility::Uuid(),
+                    "");
+                metadata.update(media_meta);
+            } catch (...) {
+            }
+
+            if (i.get().uuid() == clip.uuid()) {
+                needle.first  = clip;
+                needle.second = metadata;
+            } else {
+                haystack.push_back(std::make_pair(i.get().uuid_actor(), metadata));
+            }
+        }
+
+        // need to request media metadata as well..
+
+
+        if (not conformers_.empty()) {
+            // request.dump();
+            fan_out_request<policy::select_all>(
+                conformers_, infinite, conform_atom_v, key, needle, haystack)
+                .then(
+                    [=](const std::vector<UuidActorVector> all_results) mutable {
+                        // compile results..
+                        auto result = UuidActorVector();
+                        auto dup    = std::set<Uuid>();
+
+                        for (const auto &i : all_results) {
+                            for (const auto &j : i) {
+                                if (not dup.count(j.uuid())) {
+                                    result.push_back(j);
+                                    dup.insert(j.uuid());
+                                }
+                            }
+                        }
+
+                        rp.deliver(result);
+                    },
+                    [=](const error &err) mutable { rp.deliver(err); });
+        } else {
+            rp.deliver(UuidActorVector());
+        }
+    } catch (const std::exception &err) {
+        spdlog::warn("{} {}", __PRETTY_FUNCTION__, err.what());
+        rp.deliver(make_error(sec::runtime_error, err.what()));
+    }
+}
+
 ConformManagerActor::ConformManagerActor(caf::actor_config &cfg, const utility::Uuid uuid)
     : caf::event_based_actor(cfg), uuid_(std::move(uuid)), module::Module("ConformManager") {
     spdlog::debug("Created ConformManagerActor.");
@@ -1305,6 +1446,14 @@ caf::message_handler ConformManagerActor::message_handler_extensions() {
 
         [=](conform_atom, const UuidActor &timeline, const bool only_create_conform_track) {
             delegate(pool_, conform_atom_v, timeline, only_create_conform_track);
+        },
+
+        // find matching clips in timeline
+        [=](conform_atom,
+            const std::string &key,
+            const UuidActor &clip,
+            const UuidActor &timeline) {
+            delegate(pool_, conform_atom_v, key, clip, timeline);
         },
 
         [=](conform_atom,
@@ -1442,5 +1591,6 @@ caf::message_handler ConformManagerActor::message_handler_extensions() {
             }
         });
 }
+
 
 void ConformManagerActor::on_exit() { system().registry().erase(conform_registry); }

@@ -24,8 +24,14 @@ std::vector<std::optional<std::pair<std::string, caf::uri>>> Conformer::conform_
     return std::vector<std::optional<std::pair<std::string, caf::uri>>>(media.size());
 }
 
-
 bool Conformer::conform_prepare_timeline(
     const UuidActor &timeline, const bool only_create_conform_track) {
     return false;
+}
+
+utility::UuidActorVector Conformer::find_matching(
+    const std::string &key,
+    const std::pair<utility::UuidActor, utility::JsonStore> &needle,
+    const std::vector<std::pair<utility::UuidActor, utility::JsonStore>> &haystack) {
+    return utility::UuidActorVector();
 }

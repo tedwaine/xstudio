@@ -6,7 +6,7 @@ import QtQuick.Layouts 1.15
 import QtQml.Models 2.14
 import Qt.labs.qmlmodels 1.0
 
-import xStudioReskin 1.0
+import xStudio 1.0
 import xstudio.qml.models 1.0
 import ShotBrowser 1.0
 
@@ -28,7 +28,7 @@ MouseArea {
 
     property bool isParent: typeRole == "group" || typeRole == "preset" ? true : false
     property bool isIconVisible: false
-    property bool isMouseHovered: groupOnlyMArea.containsMouse || addBtn.hovered || editBtn.hovered || moreBtn.hovered
+    property bool isMouseHovered: groupOnlyMArea.containsMouse || addBtn.hovered || editBtn.hovered || moreBtn.hovered || favBtn.hovered
     property bool held: false
     property bool was_current: false
 
@@ -144,7 +144,7 @@ MouseArea {
                             groupMenu.visible = false
                         }
                         else{
-                            showGroupMenu(mouseX, 0)
+                            showGroupMenu(groupOnlyMArea, mouseX, mouseY)
                         }
                     }
 
@@ -156,7 +156,8 @@ MouseArea {
                 anchors.fill: parent
 
                 XsPrimaryButton{ id: expandButton
-                    Layout.preferredWidth: height
+                    Layout.minimumWidth: height
+                    Layout.maximumWidth: height
                     Layout.fillHeight: true
 
                     imgSrc: "qrc:/icons/chevron_right.svg"
@@ -173,8 +174,8 @@ MouseArea {
 
                 XsText{ id: groupNameDiv
                     Layout.fillWidth: true
-                    Layout.minimumWidth: 50
-                    Layout.preferredWidth: 100
+                    Layout.minimumWidth: 30
+                    // Layout.preferredWidth: 100
                     Layout.fillHeight: true
 
                     text: nameRole+"..."
@@ -194,10 +195,12 @@ MouseArea {
 
                 XsText{
                     Layout.fillWidth: true
+                    Layout.fillHeight: true
+
                     Layout.minimumWidth: 15
                     Layout.preferredWidth: 50
                     Layout.maximumWidth: 50
-                    Layout.fillHeight: true
+
                     visible: !isMouseHovered && !(addBtn.isActive || editBtn.isActive || moreBtn.isActive)
 
                     text: entityRole
@@ -205,7 +208,6 @@ MouseArea {
                     verticalAlignment: Text.AlignVCenter
                     color: Qt.lighter(XsStyleSheet.panelBgColor, 2.2)
                     elide: Text.ElideRight
-
                 }
 
                 Item{
@@ -216,8 +218,10 @@ MouseArea {
                 XsSecondaryButton{ id: addBtn
                     Layout.topMargin: presetItemSpacing
                     Layout.bottomMargin: presetItemSpacing
-                    Layout.preferredWidth: height
+                    Layout.minimumWidth: height
+                    Layout.maximumWidth: height
                     Layout.fillHeight: true
+
                     visible: isMouseHovered || addBtn.isActive
 
                     imgSrc: "qrc:/icons/add.svg"
@@ -233,7 +237,8 @@ MouseArea {
                 XsSecondaryButton{ id: editBtn
                     Layout.topMargin: presetItemSpacing
                     Layout.bottomMargin: presetItemSpacing
-                    Layout.preferredWidth: height
+                    Layout.minimumWidth: height
+                    Layout.maximumWidth: height
                     Layout.fillHeight: true
                     visible: isMouseHovered || editBtn.isActive
 
@@ -249,7 +254,8 @@ MouseArea {
                 XsSecondaryButton{ id: moreBtn
                     Layout.topMargin: presetItemSpacing
                     Layout.bottomMargin: presetItemSpacing
-                    Layout.preferredWidth: height
+                    Layout.minimumWidth: height
+                    Layout.maximumWidth: height
                     Layout.fillHeight: true
                     visible: isMouseHovered || moreBtn.isActive || editBtn.isActive
 
@@ -261,9 +267,25 @@ MouseArea {
                             groupMenu.visible = false
                         }
                         else{
-                            showGroupMenu(0, 0)
+                            showGroupMenu(moreBtn, width/2, height/2)
                         }
                     }
+                }
+                XsSecondaryButton{ id: favBtn
+                    Layout.topMargin: presetItemSpacing
+                    Layout.bottomMargin: presetItemSpacing
+                    Layout.minimumWidth: height
+                    Layout.maximumWidth: height
+                    Layout.fillHeight: true
+
+                    visible: isMouseHovered || favouriteRole
+
+                    showHoverOnActive: favouriteRole && !isMouseHovered
+                    isColoured: favouriteRole// && isMouseHovered
+                    imgSrc: "qrc:///shotbrowser_icons/favorite.svg"
+                    // isActive: favouriteRole
+                    scale: 0.95
+                    onClicked: favouriteRole = !favouriteRole
                 }
             }
         }
@@ -317,15 +339,15 @@ MouseArea {
     }
 
 
-    function showGroupMenu(xpos, ypos){
+    function showGroupMenu(refitem, xpos, ypos){
 
         groupMenu.presetModelIndex = presetModelIndex()
         groupMenu.filterModelIndex = filterModelIndex()
 
-        let p = mapToItem(groupMenu.parent, row.width, 0)
-        groupMenu.x = xpos==0? p.x : xpos
-        groupMenu.y = xpos==0 && ypos==0 ? p.y : ypos==0? (p.y + btnHeight/2) : ypos
-        groupMenu.visible = true
+        groupMenu.showMenu(
+            refitem,
+            xpos,
+            ypos);
 
     }
 

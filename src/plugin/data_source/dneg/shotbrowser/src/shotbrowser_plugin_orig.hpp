@@ -22,7 +22,10 @@ namespace shotbrowser {
             ) override;
 
         void register_hotkeys() override;
-        void hotkey_pressed(const utility::Uuid &uuid, const std::string &context) override;
+        void hotkey_pressed(
+            const utility::Uuid &uuid,
+            const std::string &context,
+            const std::string &window) override;
         void hotkey_released(const utility::Uuid &uuid, const std::string &context) override;
 
         void images_going_on_screen(

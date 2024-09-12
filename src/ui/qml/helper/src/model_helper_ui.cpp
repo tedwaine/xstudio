@@ -421,9 +421,9 @@ QVariant xstudio::ui::qml::mapFromValue(const nlohmann::json &value) {
     if (value.is_boolean())
         result = QVariant::fromValue(value.get<bool>());
     else if (value.is_number_integer())
-        result = QVariant::fromValue(value.get<int>());
+        result = QVariant::fromValue(value.get<long long>());
     else if (value.is_number_unsigned())
-        result = QVariant::fromValue(value.get<int>());
+        result = QVariant::fromValue(value.get<unsigned int>());
     else if (value.is_number_float())
         result = QVariant::fromValue(value.get<float>());
     else if (value.is_string())

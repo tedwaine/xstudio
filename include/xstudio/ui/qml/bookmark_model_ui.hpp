@@ -63,10 +63,17 @@ class BOOKMARK_QML_EXPORT BookmarkFilterModel : public QSortFilterProxyModel {
                    setIncludedCategories NOTIFY includedCategoriesChanged)
     Q_PROPERTY(bool sortbyCreated READ sortbyCreated WRITE setsortbyCreated NOTIFY
                    sortbyCreatedChanged)
+    Q_PROPERTY(int length READ length NOTIFY lengthChanged)
 
 
   public:
     BookmarkFilterModel(QObject *parent = nullptr);
+
+    Q_INVOKABLE [[nodiscard]] QModelIndex
+    nextBookmark(const int mediaFrame, const QUuid &ownerUuid) const;
+
+    Q_INVOKABLE [[nodiscard]] QModelIndex
+    previousBookmark(const int mediaFrame, const QUuid &ownerUuid) const;
 
     [[nodiscard]] QVariantMap mediaOrder() const { return media_order_; }
     [[nodiscard]] int depth() const { return depth_; }
@@ -75,6 +82,7 @@ class BOOKMARK_QML_EXPORT BookmarkFilterModel : public QSortFilterProxyModel {
     [[nodiscard]] QStringList excludedCategories() const { return excluded_categories_; }
     [[nodiscard]] QStringList includedCategories() const { return included_categories_; }
     [[nodiscard]] bool sortbyCreated() const { return sortbyCreated_; }
+    [[nodiscard]] int length() const { return rowCount(); }
 
     void setMediaOrder(const QVariantMap &mo);
     void setDepth(const int value);
@@ -103,6 +111,7 @@ class BOOKMARK_QML_EXPORT BookmarkFilterModel : public QSortFilterProxyModel {
   signals:
     void mediaOrderChanged();
     void depthChanged();
+    void lengthChanged();
     void currentMediaChanged();
     void showHiddenChanged();
     void excludedCategoriesChanged();

@@ -4,7 +4,7 @@ import QtQuick.Controls 2.14
 import QtQuick.Layouts 1.3
 import QtQuick.Dialogs 1.0
 
-import xStudioReskin 1.0
+import xStudio 1.0
 
 XsWindow {
 
@@ -29,6 +29,7 @@ XsWindow {
 
         onAccepted: {
             snapshot_folder.text = fileUrls[0]
+            snapshot_name.text = fileUrls[0].toString().split('/').pop()
         }
     }
 
@@ -46,8 +47,8 @@ XsWindow {
             Layout.fillWidth: true
             Layout.preferredHeight: 30
 
-            XsTextField{ 
-                
+            XsTextField{
+
                 id: snapshot_folder
                 Layout.fillWidth: true
                 Layout.fillHeight: true

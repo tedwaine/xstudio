@@ -71,7 +71,7 @@ GlobalMetadataManager::GlobalMetadataManager(caf::actor_config &cfg)
         infinite,
         ui::model_data::register_model_data_atom_v,
         "media metata exposure model",
-        "/ui/qml/media_list_column_configuration",
+        "/ui/qml/media_list_columns_config",
         caf::actor_cast<caf::actor>(this))
         .then(
             [=](const utility::JsonStore &data) {
@@ -207,6 +207,7 @@ GlobalMetadataManager::GlobalMetadataManager(caf::actor_config &cfg)
 
 void GlobalMetadataManager::config_updated() {
     utility::JsonStore extraction_dict = make_metadata_extraction_info_dict(metadata_config_);
+
     if (extraction_dict != metadata_extraction_config_) {
         metadata_extraction_config_ = extraction_dict;
         send(

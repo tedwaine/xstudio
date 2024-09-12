@@ -1,12 +1,13 @@
 # SPDX-License-Identifier: Apache-2.0
 from xstudio.core import UuidActor, Uuid, actor, item_atom, MediaType, ItemType, enable_atom, item_flag_atom
 from xstudio.core import active_range_atom, available_range_atom, undo_atom, redo_atom, history_atom, add_media_atom, item_name_atom
-from xstudio.core import URI
-from xstudio.core import import_atom
+from xstudio.core import URI, selection_actor_atom
+from xstudio.core import import_atom, erase_item_atom, get_playhead_atom
 from xstudio.api.session.container import Container
 from xstudio.api.intrinsic import History
 from xstudio.api.session.media.media import Media
 from xstudio.api.session.playlist.timeline.item import Item
+from xstudio.api.session.playhead import Playhead
 
 def create_gap(connection, name="Gap"):
     """Create Gap object.
@@ -203,6 +204,12 @@ class Timeline(Item):
     def redo(self):
         return self.connection.request_receive(self.remote, redo_atom())[0]
 
+    def clear(self):
+        """Clear all video and audio tracks in the stack"""
+        while len(self.tracks):
+            print (self.tracks)
+            self.stack.erase_child(0)
+
     def create_gap(self, name="Gap"):
         """Create Gap object.
 
@@ -289,7 +296,7 @@ class Timeline(Item):
 
         """
         if not isinstance(media, actor) and not isinstance(media, Uuid):
-            media = media.remote
+            media = media.uuid_actor()
 
         if not isinstance(before_uuid, Uuid):
             before_uuid = before_uuid.uuid
@@ -298,7 +305,7 @@ class Timeline(Item):
 
         return result
 
-    def load_otio(self, otio_body, path=""):
+    def load_otio(self, otio_body, path="", clear=False):
         """Load otio json data into the timeline. Replaces entire timeline
         with the incoming otio
 
@@ -307,13 +314,40 @@ class Timeline(Item):
 
         Kwargs:
             path(str): Path that otio_body was loaded from
+            clear(bool): Clear timeline completely before load
 
         Returns:
             seccess(bool): True on successful load from OTIO.
         """
-        result = self.connection.request_receive(self.remote, import_atom(), URI(path) if path else URI(), otio_body)[0]
+        return self.connection.request_receive(
+            self.remote,
+            import_atom(),
+            URI(path) if path else URI(),
+            otio_body,
+            clear)[0]
 
-        return result
+    @property
+    def playhead(self):
+        """Get playhead.
+
+        Returns:
+            playhead(Playhead): Playhead attached to timeline.
+        """
+        result = self.connection.request_receive(self.remote, get_playhead_atom())[0]
+
+        return Playhead(self.connection, result.actor, result.uuid)
+
+
+    @property
+    def playhead_selection(self):
+        """The actor that filters a selection of media from a playhead
+        and passes to a playhead for playback.
+
+        Returns:
+            source(PlayheadSelection): Currently playing this.
+        """
+        result =  self.connection.request_receive(self.remote, selection_actor_atom())[0]
+        return PlayheadSelection(self.connection, result)
 
     # @property
     # def audio_tracks(self):

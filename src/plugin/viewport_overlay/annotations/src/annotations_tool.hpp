@@ -27,7 +27,10 @@ namespace ui {
             void update_attrs_from_preferences(const utility::JsonStore &) override;
 
             void register_hotkeys() override;
-            void hotkey_pressed(const utility::Uuid &uuid, const std::string &context) override;
+            void hotkey_pressed(
+                const utility::Uuid &uuid,
+                const std::string &context,
+                const std::string &window) override;
             void
             hotkey_released(const utility::Uuid &uuid, const std::string &context) override;
             bool pointer_event(const ui::PointerEvent &e) override;
@@ -52,6 +55,8 @@ namespace ui {
             void viewport_dockable_widget_activated(std::string &widget_name) override;
 
             void viewport_dockable_widget_deactivated(std::string &widget_name) override;
+
+            void turn_off_overlay_interaction() override;
 
           private:
             bool is_laser_mode() const;

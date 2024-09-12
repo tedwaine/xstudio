@@ -751,13 +751,17 @@ void IvyMediaWorker::get_shotgun_shot(
                             .then(
                                 [=](const JsonStore &jsn) mutable {
                                     try {
-                                        anon_send(
-                                            media,
-                                            json_store::set_json_atom_v,
-                                            utility::Uuid(),
-                                            JsonStore(jsn.at("data")),
-                                            ShotgunMetadataPath + "/shot");
-                                        rp.deliver(true);
+                                        if (jsn.contains("data")) {
+                                            anon_send(
+                                                media,
+                                                json_store::set_json_atom_v,
+                                                utility::Uuid(),
+                                                JsonStore(jsn.at("data")),
+                                                ShotgunMetadataPath + "/shot");
+                                            rp.deliver(true);
+                                        } else {
+                                            rp.deliver(false);
+                                        }
                                     } catch (const std::exception &err) {
                                         rp.deliver(false);
                                         spdlog::warn("{} {}", __PRETTY_FUNCTION__, err.what());

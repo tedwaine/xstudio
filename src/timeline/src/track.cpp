@@ -13,6 +13,7 @@ using namespace xstudio::utility;
 
 Track::Track(
     const std::string &name,
+    const utility::FrameRate &rate,
     const media::MediaType media_type,
     const utility::Uuid &_uuid,
     const caf::actor &actor)
@@ -21,7 +22,9 @@ Track::Track(
       item_(
           media_type == MediaType::MT_IMAGE ? ItemType::IT_VIDEO_TRACK
                                             : ItemType::IT_AUDIO_TRACK,
-          utility::UuidActorAddr(uuid(), caf::actor_cast<caf::actor_addr>(actor))) {
+          utility::UuidActorAddr(uuid(), caf::actor_cast<caf::actor_addr>(actor)),
+          {},
+          utility::FrameRange(FrameRateDuration(0, rate))) {
     item_.set_name(name);
 }
 

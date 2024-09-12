@@ -128,7 +128,7 @@ namespace session {
         caf::actor bookmarks_;
         caf::actor tags_;
         std::map<utility::Uuid, caf::actor> playlists_;
-        caf::actor_addr current_playlist_;
+        caf::actor current_playlist_;
         std::map<caf::actor_addr, std::string> serialise_targets_;
         // std::map<utility::Uuid, caf::actor> players_;
 

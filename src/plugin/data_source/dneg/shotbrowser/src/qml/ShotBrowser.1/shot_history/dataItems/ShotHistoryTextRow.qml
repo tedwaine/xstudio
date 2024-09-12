@@ -3,7 +3,7 @@ import QtQuick 2.15
 import QtQuick.Controls 2.15
 import QtQuick.Layouts 1.15
 
-import xStudioReskin 1.0
+import xStudio 1.0
 
 Rectangle{
 
@@ -16,13 +16,9 @@ Rectangle{
     XsText{ id: textDiv
         text: ""
         color: XsStyleSheet.hintColor
-        height: parent.height
+        // height: parent.height
         anchors.verticalCenter: parent.verticalCenter
-
-        Component.onCompleted: {
-            if(width != parent.width){
-                leftPadding = panelPadding
-            }
-        }
+        anchors.fill: parent
+        elide: Text.ElideRight
     }
 }

@@ -44,6 +44,8 @@ namespace playhead {
             const bool active_in_ui,
             const bool scrubbing);
 
+        void on_exit() override;
+
         void init();
 
         caf::behavior make_behavior() override { return behavior_; }
@@ -77,7 +79,8 @@ namespace playhead {
             const media::AVFrameID mptr,
             const utility::time_point tp);
 
-        void get_full_timeline_frame_list(caf::typed_response_promise<caf::actor> rp);
+        void get_full_timeline_frame_list(
+            caf::typed_response_promise<caf::actor> rp, const bool retry = false);
 
         std::shared_ptr<const media::AVFrameID> get_frame(
             const timebase::flicks &time,
@@ -137,7 +140,7 @@ namespace playhead {
         timebase::flicks loop_out_point_;
         utility::TimeSourceMode time_source_mode_;
         utility::FrameRate override_frame_rate_;
-        const media::MediaType media_type_;
+        media::MediaType media_type_;
         std::shared_ptr<const media::AVFrameID> previous_frame_;
         utility::UuidSet all_media_uuids_;
 
@@ -145,6 +148,7 @@ namespace playhead {
         media::FrameTimeMap::iterator in_frame_, out_frame_, first_frame_, last_frame_;
         xstudio::bookmark::BookmarkAndAnnotations bookmarks_;
         BookmarkRanges bookmark_ranges_;
+        std::vector<int> media_ranges_;
 
         typedef std::pair<media_reader::ImageBufPtr, colour_pipeline::ColourPipelineDataPtr>
             ImageAndLut;

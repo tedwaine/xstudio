@@ -2,7 +2,7 @@ project(xstudio VERSION ${XSTUDIO_GLOBAL_VERSION} LANGUAGES CXX)
 
 set(SOURCES
 	xstudio.cpp
-	../../../../ui/qml/reskin/qml_reskin.qrc
+	../../../../ui/qml/xstudio/qml.qrc
 )
 
 if(WIN32)
@@ -15,6 +15,8 @@ find_package(GLEW REQUIRED)
 find_package(Qt5 COMPONENTS Core Quick Gui Widgets OpenGL REQUIRED)
 find_package(OpenSSL)
 find_package(ZLIB)
+find_package(fmt REQUIRED)
+
 if(WIN32)
 # TED - OTIO disabled for WINDOWS?
 #find_package(OpenTime REQUIRED)
@@ -43,6 +45,7 @@ target_link_libraries(${PROJECT_NAME}
 	PRIVATE
 		xstudio::caf_utility
 		xstudio::global
+		xstudio::ui::model_data
 		xstudio::ui::opengl::viewport
 		xstudio::ui::qml::bookmark
 		xstudio::ui::qml::conform
@@ -51,13 +54,12 @@ target_link_libraries(${PROJECT_NAME}
 		xstudio::ui::qml::global_store
 		xstudio::ui::qml::helper
 		xstudio::ui::qml::log
-		xstudio::ui::model_data
 		xstudio::ui::qml::session
 		xstudio::ui::qml::studio
 		xstudio::ui::qml::tag
 		xstudio::ui::qml::viewport
-		xstudio::ui::viewport
 		xstudio::ui::qt::viewport_widget
+		xstudio::ui::viewport
 		xstudio::utility
 		fmt::fmt
 	PUBLIC
@@ -65,11 +67,12 @@ target_link_libraries(${PROJECT_NAME}
 		spdlog::spdlog
 		caf::core
 		$<$<BOOL:${NVIDIA_HACK}>:GLdispatch>
+		# quickfuture
 		Qt5::Gui
 		Qt5::Quick
 		Qt5::Widgets
 		OpenSSL::SSL
-		ZLIB::ZLIB		
+		ZLIB::ZLIB
 )
 
 if(WIN32)
@@ -90,7 +93,7 @@ else()
 	set_target_properties(${PROJECT_NAME}
 		PROPERTIES
 		RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/bin"
-		OUTPUT_NAME "${PROJECT_NAME}.bin"	
+		OUTPUT_NAME "${PROJECT_NAME}.bin"
 		LINK_DEPENDS_NO_SHARED true
 	)
 endif()

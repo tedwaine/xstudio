@@ -27,7 +27,8 @@ namespace playhead {
             const std::string &name,
             caf::actor playlist_selection = caf::actor(),
             const utility::Uuid uuid      = utility::Uuid::generate());
-        ~PlayheadActor() override = default;
+
+        virtual ~PlayheadActor();
 
         const char *name() const override { return NAME.c_str(); }
 
@@ -89,10 +90,14 @@ namespace playhead {
         bool has_selection_changed();
         int previous_selected_sources_count_ = {-1};
 
+        void on_exit() override;
+
       protected:
         void attribute_changed(const utility::Uuid &attr_uuid, const int /*role*/) override;
-        void
-        hotkey_pressed(const utility::Uuid &hotkey_uuid, const std::string &context) override;
+        void hotkey_pressed(
+            const utility::Uuid &hotkey_uuid,
+            const std::string &context,
+            const std::string &window) override;
         void
         hotkey_released(const utility::Uuid &hotkey_uuid, const std::string &context) override;
 

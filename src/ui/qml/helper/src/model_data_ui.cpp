@@ -43,7 +43,7 @@ UIModelData::UIModelData(
             central_models_data_actor_,
             ui::model_data::register_model_data_atom_v,
             model_name,
-            data_preference_path,
+            data_preference_path_,
             as_actor());
 
         setModelData(data);
@@ -143,9 +143,7 @@ void UIModelData::init(caf::actor_system &system) {
                     if (filtered_path == "")
                         return;
                     QModelIndex idx = getPathIndex(nlohmann::json::json_pointer(filtered_path));
-                    nlohmann::json &j = indexToData(idx);
-                    j                 = data;
-                    emit dataChanged(idx, idx, QVector<int>());
+                    JSONTreeModel::setData(idx, QVariantMapFromJson(data), Roles::JSONRole);
                 } catch (std::exception &e) {
                     spdlog::debug(
                         "{} {} : {} {} {}",
@@ -575,21 +573,48 @@ QVariant ViewsModelData::view_qml_source(QString view_name) {
 PopoutWindowsData::PopoutWindowsData(QObject *parent) : UIModelData(parent) {
 
     setRoleNames(std::vector<std::string>{
-        "view_name", "view_qml_source", "icon_path", "button_position", "window_is_visible"});
+        "view_name",
+        "view_qml_source",
+        "icon_path",
+        "button_position",
+        "window_is_visible",
+        "user_data",
+        "hotkey_uuid"});
+
     setModelDataName("popout windows");
+
+    // make the rows in the model order by the 'button_position' role
+    anon_send(
+        central_models_data_actor_,
+        ui::model_data::set_row_ordering_role_atom_v,
+        "popout windows",
+        "button_position");
 }
 
 void PopoutWindowsData::register_popout_window(
     QString name, QString qml_path, QString icon_path, float button_position) {
 
-    auto rc = rowCount(index(-1, -1)); // QModelIndex());
-    insertRowsSync(rc, 1, index(-1, -1));
-    QModelIndex view_reg_index = index(rc, 0, index(-1, -1));
-    std::ignore                = set(view_reg_index, QVariant(name), QString("view_name"));
-    std::ignore                = set(view_reg_index, QVariant(icon_path), QString("icon_path"));
-    std::ignore = set(view_reg_index, QVariant(qml_path), QString("view_qml_source"));
-    std::ignore = set(view_reg_index, QVariant(button_position), QString("button_position"));
-    std::ignore = set(view_reg_index, QVariant(false), QString("window_is_visible"));
+    utility::JsonStore data;
+    data["view_name"]         = StdFromQString(name);
+    data["icon_path"]         = StdFromQString(icon_path);
+    data["view_qml_source"]   = StdFromQString(qml_path);
+    data["button_position"]   = button_position;
+    data["window_is_visible"] = false;
+
+    try {
+
+        anon_send(
+            central_models_data_actor_,
+            ui::model_data::insert_rows_atom_v,
+            "popout windows",
+            "", // (path) add to root
+            0,  // row
+            1,  // count
+            data);
+
+    } catch (std::exception &e) {
+        spdlog::warn("{} {}", __PRETTY_FUNCTION__, e.what());
+    }
 }
 
 
@@ -607,10 +632,10 @@ void SingletonsModelData::register_singleton_qml(const QString &qml_code) {
     std::ignore     = set(idx, qml_code, "source");
 }
 
-ReskinPanelsModel::ReskinPanelsModel(QObject *parent)
+PanelsModel::PanelsModel(QObject *parent)
     : UIModelData(
           parent,
-          std::string("reskin panels model"),
+          std::string("panels model"),
           std::string("/ui/qml/reskin_windows_and_panels_model"),
           std::vector<std::string>{
               "window_name",
@@ -630,7 +655,7 @@ ReskinPanelsModel::ReskinPanelsModel(QObject *parent)
               "user_data"}) {}
 
 
-void ReskinPanelsModel::close_panel(QModelIndex panel_index) {
+void PanelsModel::close_panel(QModelIndex panel_index) {
 
     // Logic for closing a 'panel' is not trivial. Panels are hosted in
     // 'splitters' which chop up the window area into resizable sections
@@ -676,7 +701,7 @@ void ReskinPanelsModel::close_panel(QModelIndex panel_index) {
     }
 }
 
-int ReskinPanelsModel::add_layout(QString layout_name, QModelIndex root, QString tabType) {
+int PanelsModel::add_layout(QString layout_name, QModelIndex root, QString tabType) {
 
     // make a node at the root which is the new layout. Note we always insert
     // at the end so it shows leftmost in the list of layouts in the UI
@@ -704,7 +729,7 @@ int ReskinPanelsModel::add_layout(QString layout_name, QModelIndex root, QString
     return rc;
 }
 
-void ReskinPanelsModel::split_panel(QModelIndex panel_index, bool horizontal_split) {
+void PanelsModel::split_panel(QModelIndex panel_index, bool horizontal_split) {
 
     QPersistentModelIndex parentNode(panel_index.parent());
     const int insertion_row = panel_index.row();
@@ -725,12 +750,12 @@ void ReskinPanelsModel::split_panel(QModelIndex panel_index, bool horizontal_spl
         std::ignore = set(parentNode, divider_positions, "child_dividers");
 
         // do the insertion of the new panel
-        insertRowsSync(insertion_row, 1, parentNode);
+        insertRowsSync(insertion_row + 1, 1, parentNode);
 
         // now make a node one layer deeper which is the tabs group for the
         // new panel
-        insertRowsSync(0, 1, index(insertion_row, 0, parentNode));
-        QModelIndex new_node_index = index(0, 0, index(insertion_row, 0, parentNode));
+        insertRowsSync(0, 1, index(insertion_row + 1, 0, parentNode));
+        QModelIndex new_node_index = index(0, 0, index(insertion_row + 1, 0, parentNode));
 
         // insert a defaul tab
         std::ignore = set(new_node_index, "Playlists", "tab_view");
@@ -756,10 +781,10 @@ void ReskinPanelsModel::split_panel(QModelIndex panel_index, bool horizontal_spl
                 "child_dividers");
 
         // now add another child which is our tabs group
-        insertRowsSync(0, 1, new_tabs_group_index);
+        insertRowsSync(1, 1, new_tabs_group_index);
 
         // and now add another child on level deeper which is our actual tab
-        QModelIndex new_sub_tabs_group_index = index(0, 0, new_tabs_group_index);
+        QModelIndex new_sub_tabs_group_index = index(1, 0, new_tabs_group_index);
         insertRowsSync(0, 1, new_sub_tabs_group_index);
 
         // set the 'view' that our tab contains
@@ -767,23 +792,10 @@ void ReskinPanelsModel::split_panel(QModelIndex panel_index, bool horizontal_spl
 
         // wet the index of the current tag
         std::ignore = set(new_sub_tabs_group_index, 0, "current_tab");
-
-        // now here's the annoying thing ... if I don't do a full 'force' update
-        // that completely rebuilds the model data in THIS instance, the UI
-        // does not rebuild itself according to our changed. So although the
-        // state of the model BEFORE we do this and AFTER we do this is exaclty
-        // the SAME our UI will not build correctly without this. Slow and horrible.
-        /*auto a = caf::actor_cast<caf::event_based_actor *>(self());
-        a->send(
-            central_models_data_actor_,
-            xstudio::ui::model_data::reset_model_atom_v,
-            model_name_,
-            utility::JsonStore(modelData()),
-            true);*/
     }
 }
 
-QModelIndex ReskinPanelsModel::duplicate_layout(QModelIndex layout_index) {
+QModelIndex PanelsModel::duplicate_layout(QModelIndex layout_index) {
 
     nlohmann::json layout_data = indexToFullData(layout_index);
     int rc                     = rowCount(layout_index.parent());
@@ -798,7 +810,7 @@ MediaListColumnsModel::MediaListColumnsModel(QObject *parent)
     : UIModelData(
           parent,
           "media metata exposure model",
-          std::string("/ui/qml/media_list_column_configuration")) {
+          std::string("/ui/qml/media_list_columns_config")) {
     setRoleNames(std::vector<std::string>{
         "title",
         "metadata_path",
@@ -812,47 +824,6 @@ MediaListColumnsModel::MediaListColumnsModel(QObject *parent)
         "info_key",
         "regex_match",
         "regex_format"});
-}
-
-QUuid MediaListColumnsModel::new_media_list() {
-
-    try {
-
-        // look up our preference that configures default media list columns.
-        auto prefs = global_store::GlobalStoreHelper(system());
-        auto new_row_data =
-            prefs.value<utility::JsonStore>("/ui/qml/media_list_columns_default_config");
-
-        auto uuid            = utility::Uuid::generate();
-        new_row_data["uuid"] = uuid;
-
-        int row = rowCount(index(-1, -1));
-
-        auto path = getIndexPath(index(-1, -1)).to_string();
-
-        // update the backend model, but don't broadcast the change back to
-        // this instance of UIModelData, because we are going to update our
-        // own local copy of the model data
-        auto a = caf::actor_cast<caf::event_based_actor *>(self());
-        a->send(
-            central_models_data_actor_,
-            xstudio::ui::model_data::insert_rows_atom_v,
-            model_name_,
-            path,
-            row,
-            1,
-            new_row_data,
-            false);
-
-        // here we update our own
-        JSONTreeModel::insertRows(row, 1, index(-1, -1), new_row_data);
-
-        return QUuidFromUuid(uuid);
-
-    } catch (const std::exception &err) {
-        spdlog::warn("{} {}", __PRETTY_FUNCTION__, err.what());
-    }
-    return QUuid();
 }
 
 MediaListFilterModel::MediaListFilterModel(QObject *parent) : super(parent) {
@@ -885,21 +856,17 @@ bool MediaListFilterModel::filterAcceptsRow(
 
 
     QList<QVariant> cols = v.toList();
-    if (cols.size() > columns_model_index_) {
-        // get to the correct inner list
-        QList<QVariant> c2 = cols[columns_model_index_].toList();
-        if (c2.size()) {
-            bool match = false;
-            // do a string match against any bit of data that can be converted
-            // to a string
-            for (const auto &col : c2) {
-                if (col.toString().contains(search_string_, Qt::CaseInsensitive)) {
-                    match = true;
-                    break;
-                }
+    if (cols.size()) {
+        bool match = false;
+        // do a string match against any bit of data that can be converted
+        // to a string
+        for (const auto &col : cols) {
+            if (col.toString().contains(search_string_, Qt::CaseInsensitive)) {
+                match = true;
+                break;
             }
-            return match;
         }
+        return match;
     }
     return true;
 }
@@ -925,9 +892,33 @@ int MediaListFilterModel::sourceIndexToRow(const QModelIndex &idx) const {
     }
     // now map from OUR sourceModel to our own index
     remapped = mapFromSource(remapped);
+    if (!remapped.isValid())
+        return -1;
     return remapped.row();
 }
 
+int MediaListFilterModel::getRowWithMatchingRoleData(
+    const QVariant &searchValue, const QString &searchRole) const {
+
+    QTreeModelToTableModel *mdl = dynamic_cast<QTreeModelToTableModel *>(sourceModel());
+    if (mdl) {
+        // map from SessionModelUI to OUR sourceModel
+        SessionModel *sessionModel = dynamic_cast<SessionModel *>(mdl->model());
+        if (sessionModel) {
+            // note - we use this for the auto-scroll in the media list. We have the uuid of the
+            // on-screen media, we need to find our row in the model. If we are looking at a
+            // playlist, we don't want to match to media in a subset or timeline that also
+            // contains the media. The depth=2 in this call means we only search the playlist
+            // not its children
+            QModelIndex r =
+                sessionModel->searchRecursive(searchValue, searchRole, mdl->rootIndex(), 0, 2);
+            if (r.isValid()) {
+                return sourceIndexToRow(r);
+            }
+        }
+    }
+    return -1;
+}
 
 MenuModelItem::MenuModelItem(QObject *parent) : super(parent) {
     init(CafSystemObject::get_actor_system());

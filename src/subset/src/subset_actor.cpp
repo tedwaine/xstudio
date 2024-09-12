@@ -381,6 +381,16 @@ void SubsetActor::init() {
             return rp;
         },
 
+        [=](playlist::add_media_atom, const std::vector<UuidActor> &media) -> bool {
+            for (const auto &m : media) {
+                add_media(m.actor(), m.uuid(), utility::Uuid());
+            }
+            base_.send_changed(event_group_, this);
+            send(event_group_, utility::event_atom_v, change_atom_v);
+            send(change_event_group_, utility::event_atom_v, utility::change_atom_v);
+            return true;
+        },
+
         [=](playlist::add_media_atom,
             const UuidVector &media_uuids,
             const utility::Uuid &uuid_before) -> result<bool> {
@@ -597,60 +607,124 @@ void SubsetActor::init() {
         [=](playlist::selection_actor_atom) -> caf::actor { return selection_actor_; },
 
         [=](playlist::sort_by_media_display_info_atom,
-            const int info_set_idx,
-            const int info_item_idx,
-            const bool ascending) {
-            sort_by_media_display_info(info_set_idx, info_item_idx, ascending);
+            const int sort_column_index,
+            const bool ascending) { sort_by_media_display_info(sort_column_index, ascending); },
+
+        [=](playlist::filter_media_atom,
+            const std::string &filter_string) -> result<utility::UuidList> {
+            // for each media item in the playlist, check if any fields in the
+            // 'media display info' for the media matches filter_string. If
+            // it does, include it in the result. We have to do some awkward
+            // shenanegans thanks to async requests ... the usual stuff!!
+
+            if (filter_string.empty())
+                return base_.media();
+
+            auto rp = make_response_promise<utility::UuidList>();
+            // share ptr to store result for each media piece (in order)
+            auto vv = std::make_shared<std::vector<Uuid>>(base_.media().size());
+            // keep count of responses with this
+            auto ct                        = std::make_shared<int>(base_.media().size());
+            const auto filter_string_lower = utility::to_lower(filter_string);
+            auto check_deliver             = [=]() mutable {
+                (*ct)--;
+                if (*ct == 0) {
+                    utility::UuidList r;
+                    for (const auto &v : *vv) {
+                        if (!v.is_null()) {
+                            r.push_back(v);
+                        }
+                    }
+                    rp.deliver(r);
+                }
+            };
+
+
+            int idx = 0;
+            for (const auto &uuid : base_.media()) {
+                if (!actors_.count(uuid)) {
+                    check_deliver();
+                    continue;
+                }
+                UuidActor media(uuid, actors_[uuid]);
+                request(media.actor(), infinite, media::media_display_info_atom_v)
+                    .then(
+                        [=](const utility::JsonStore &media_display_info) mutable {
+                            if (media_display_info.is_array()) {
+                                for (int i = 0; i < media_display_info.size(); ++i) {
+                                    std::string data = media_display_info[i].dump();
+                                    if (utility::to_lower(data).find(filter_string_lower) !=
+                                        std::string::npos) {
+                                        (*vv)[idx] = media.uuid();
+                                        break;
+                                    }
+                                }
+                            }
+                            check_deliver();
+                        },
+                        [=](caf::error &err) mutable { check_deliver(); });
+                idx++;
+            }
+            return rp;
         },
 
         [=](get_next_media_atom,
             const utility::Uuid &after_this_uuid,
-            int skip_by) -> result<UuidActor> {
-            const utility::UuidList media = base_.media();
-            if (skip_by > 0) {
-                auto i = std::find(media.begin(), media.end(), after_this_uuid);
-                if (i == media.end()) {
-                    // not found!
-                    return make_error(
-                        xstudio_error::error,
-                        "playlist::get_next_media_atom called with uuid that is not in "
-                        "subset");
-                }
-                while (skip_by--) {
-                    i++;
-                    if (i == media.end()) {
-                        i--;
-                        break;
-                    }
-                }
-                if (actors_.count(*i))
-                    return UuidActor(*i, actors_[*i]);
+            int skip_by,
+            const std::string &filter_string) -> result<UuidActor> {
+            auto rp = make_response_promise<UuidActor>();
 
-            } else {
-                auto i = std::find(media.rbegin(), media.rend(), after_this_uuid);
-                if (i == media.rend()) {
-                    // not found!
-                    return make_error(
-                        xstudio_error::error,
-                        "playlist::get_next_media_atom called with uuid that is not in "
-                        "playlist");
-                }
-                while (skip_by++) {
-                    i++;
-                    if (i == media.rend()) {
-                        i--;
-                        break;
-                    }
-                }
+            request(
+                caf::actor_cast<caf::actor>(this),
+                infinite,
+                playlist::filter_media_atom_v,
+                filter_string)
+                .then(
+                    [=](const utility::UuidList &media) mutable {
+                        if (skip_by > 0) {
+                            auto i = std::find(media.begin(), media.end(), after_this_uuid);
+                            if (i == media.end()) {
+                                // not found!
+                                rp.deliver(make_error(
+                                    xstudio_error::error,
+                                    "playlist::get_next_media_atom called with uuid that is "
+                                    "not in "
+                                    "subset"));
+                            }
+                            while (skip_by--) {
+                                i++;
+                                if (i == media.end()) {
+                                    i--;
+                                    break;
+                                }
+                            }
+                            if (actors_.count(*i))
+                                rp.deliver(UuidActor(*i, actors_[*i]));
 
-                if (actors_.count(*i))
-                    return UuidActor(*i, actors_[*i]);
-            }
+                        } else {
+                            auto i = std::find(media.rbegin(), media.rend(), after_this_uuid);
+                            if (i == media.rend()) {
+                                // not found!
+                                rp.deliver(make_error(
+                                    xstudio_error::error,
+                                    "playlist::get_next_media_atom called with uuid that is "
+                                    "not in "
+                                    "playlist"));
+                            }
+                            while (skip_by++) {
+                                i++;
+                                if (i == media.rend()) {
+                                    i--;
+                                    break;
+                                }
+                            }
 
-            return make_error(
-                xstudio_error::error,
-                "playlist::get_next_media_atom called with uuid for which no media actor "
-                "exists");
+                            if (actors_.count(*i))
+                                rp.deliver(UuidActor(*i, actors_[*i]));
+                        }
+                    },
+                    [=](caf::error &err) mutable { rp.deliver(err); });
+            return rp;
         },
 
         // [=](json_store::get_json_atom atom, const std::string &path) {
@@ -718,40 +792,55 @@ void SubsetActor::add_media(
 }
 
 void SubsetActor::sort_by_media_display_info(
-    const int info_set_idx, const int info_item_idx, const bool ascending) {
+    const int sort_column_index, const bool ascending) {
 
     using SourceAndUuid = std::pair<std::string, utility::Uuid>;
-    auto media_names_vs_uuids =
+    auto sort_keys_vs_uuids =
         std::make_shared<std::vector<std::pair<std::string, utility::Uuid>>>();
 
+    int idx = 0;
     for (const auto &i : base_.media()) {
 
         // Pro tip: because i is a reference, it's the reference that is captured in our lambda
         // below and therefore it is 'unstable' so we make a copy here and use that in the
         // lambda as this is object-copied in the capture instead.
         UuidActor media_actor(i, actors_[i]);
+        idx++;
 
-        request(media_actor.actor(), infinite, media::media_reference_atom_v, utility::Uuid())
+        request(media_actor.actor(), infinite, media::media_display_info_atom_v)
             .await(
 
-                [=](const std::pair<Uuid, MediaReference> &m_ref) mutable {
-                    std::string path = uri_to_posix_path(m_ref.second.uri());
-                    path             = std::string(path, path.rfind("/") + 1);
-                    path             = to_lower(path);
+                [=](const utility::JsonStore &media_display_info) mutable {
+                    // media_display_info should be an array of arrays. Each
+                    // array is the data shown in the media list columns.
+                    // So info_set_idx corresponds to the media list (in the UI)
+                    // from which the sort was requested. And the info_item_idx
+                    // corresponds to the column of that media list.
 
-                    (*media_names_vs_uuids).push_back(std::make_pair(path, media_actor.uuid()));
+                    // default sort key keeps current sorting but should always
+                    // put it after the last element that did have a sort key
+                    std::string sort_key = fmt::format("ZZZZZZ{}", idx);
 
-                    if (media_names_vs_uuids->size() == base_.media().size()) {
+                    if (media_display_info.is_array() &&
+                        sort_column_index < media_display_info.size()) {
+                        sort_key = media_display_info[sort_column_index].dump();
+                    }
+
+                    (*sort_keys_vs_uuids)
+                        .push_back(std::make_pair(sort_key, media_actor.uuid()));
+
+                    if (sort_keys_vs_uuids->size() == base_.media().size()) {
 
                         std::sort(
-                            media_names_vs_uuids->begin(),
-                            media_names_vs_uuids->end(),
-                            [](const SourceAndUuid &a, const SourceAndUuid &b) -> bool {
-                                return a.first < b.first;
+                            sort_keys_vs_uuids->begin(),
+                            sort_keys_vs_uuids->end(),
+                            [ascending](
+                                const SourceAndUuid &a, const SourceAndUuid &b) -> bool {
+                                return ascending ? a.first < b.first : a.first > b.first;
                             });
 
                         utility::UuidList ordered_uuids;
-                        for (const auto &p : (*media_names_vs_uuids)) {
+                        for (const auto &p : (*sort_keys_vs_uuids)) {
                             ordered_uuids.push_back(p.second);
                         }
 

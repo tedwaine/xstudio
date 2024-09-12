@@ -17,10 +17,11 @@ namespace timeline {
             const caf::actor &playlist = caf::actor());
         TimelineActor(
             caf::actor_config &cfg,
-            const std::string &name    = "Timeline",
-            const utility::Uuid &uuid  = utility::Uuid::generate(),
-            const caf::actor &playlist = caf::actor(),
-            const bool with_tracks     = false);
+            const std::string &name        = "Timeline",
+            const utility::FrameRate &rate = utility::FrameRate(),
+            const utility::Uuid &uuid      = utility::Uuid::generate(),
+            const caf::actor &playlist     = caf::actor(),
+            const bool with_tracks         = false);
         ~TimelineActor() override = default;
 
         const char *name() const override { return NAME.c_str(); }
@@ -66,8 +67,10 @@ namespace timeline {
             const int count,
             caf::typed_response_promise<utility::JsonStore> rp);
 
-        void sort_by_media_display_info(
-            const int info_set_idx, const int info_item_idx, const bool ascending);
+        std::pair<utility::JsonStore, std::vector<timeline::Item>>
+        remove_items(const int index, const int count);
+
+        void sort_by_media_display_info(const int sort_column_index, const bool ascending);
 
         void
         bake(caf::typed_response_promise<utility::UuidActor> rp, const utility::UuidSet &uuids);

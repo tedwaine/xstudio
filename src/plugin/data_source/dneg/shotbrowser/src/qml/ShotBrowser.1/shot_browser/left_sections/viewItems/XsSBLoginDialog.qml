@@ -5,7 +5,7 @@ import QtQuick.Controls 2.15
 import QtQuick.Layouts 1.15
 import QtQuick.Window 2.14
 
-import xStudioReskin 1.0
+import xStudio 1.0
 import ShotBrowser 1.0
 import xstudio.qml.helpers 1.0
 import xstudio.qml.models 1.0
@@ -76,7 +76,7 @@ XsWindow{
     }
     property alias session_token: __session_token.value
 
-    
+
     XsAttributeValue {
         id: __authentication_methods
         attributeTitle: "authentication_method"

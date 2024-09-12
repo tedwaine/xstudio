@@ -325,15 +325,15 @@ namespace ui {
             QFuture<QString> getPlaylistLinkMediaFuture(const QUuid &playlist);
 
             QString requestFileTransfer(
-                const QVariantList &uuids,
+                const QVariantList &items,
                 const QString &project,
                 const QString &src_location,
                 const QString &dest_location) {
-                return requestFileTransferFuture(uuids, project, src_location, dest_location)
+                return requestFileTransferFuture(items, project, src_location, dest_location)
                     .result();
             }
             QFuture<QString> requestFileTransferFuture(
-                const QVariantList &uuids,
+                const QVariantList &items,
                 const QString &project,
                 const QString &src_location,
                 const QString &dest_location);

@@ -9,9 +9,9 @@ import QtQml.Models 2.14
 import QtQuick.Dialogs 1.3
 import QtGraphicalEffects 1.15
 
-import xStudioReskin 1.0
+import xStudio 1.0
 
-Rectangle{ 
+Rectangle{
 
     color: "transparent"
 
@@ -23,20 +23,20 @@ Rectangle{
         height: buttonHeight
         anchors.verticalCenter: parent.verticalCenter
         spacing: (itemSpacing!==0)?itemSpacing/2: 0
-        clip: false 
+        clip: false
         interactive: false
         orientation: ListView.Horizontal
 
-        model: currentColorPresetModel 
+        model: currentColorPresetModel
         delegate:
         Item{
             property bool isMouseHovered: presetMArea.containsMouse
-            width: index == itemCount-1? presetColours.width/itemCount : presetColours.width/itemCount-presetColours.spacing; 
+            width: index == itemCount-1? presetColours.width/itemCount : presetColours.width/itemCount-presetColours.spacing;
             height: presetColours.height
             Rectangle {
                 anchors.centerIn: parent
-                width: parent.width 
-                height: parent.height 
+                width: parent.width
+                height: parent.height
                 radius: 0
                 color: preset
                 border.width: 1
@@ -64,7 +64,7 @@ Rectangle{
                         width: parent.width<16? parent.width:16
                         height: width
 
-                        source: parent.containsDrag? "qrc:///icons/add.svg" : "qrc:///anno_icons/draw_color_check.svg" 
+                        source: parent.containsDrag? "qrc:///icons/add.svg" : "qrc:///anno_icons/draw_color_check.svg"
                         layer {
                             enabled: (preset=="black" || preset=="#000000") || presetMArea.pressed
                             effect:
@@ -73,7 +73,7 @@ Rectangle{
                             }
                         }
                     }
-                    
+
                     onDropped: {
                         currentColorPresetModel.setProperty(index, "preset", currentToolColour.toString())
                     }
@@ -82,6 +82,6 @@ Rectangle{
         }
     }
 
-    
+
 }
 

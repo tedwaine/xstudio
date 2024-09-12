@@ -18,13 +18,15 @@ namespace playhead {
             caf::actor_config &cfg, const utility::JsonStore &jsn, caf::actor playlist);
         PlayheadSelectionActor(
             caf::actor_config &cfg, const std::string &name, caf::actor playlist);
-        ~PlayheadSelectionActor() override = default;
+        ~PlayheadSelectionActor();
 
         const char *name() const override { return NAME.c_str(); }
 
       private:
         inline static const std::string NAME = "PlayheadSelectionActor";
         void init();
+
+        void on_exit() override;
 
         caf::behavior make_behavior() override { return behavior_; }
 
@@ -47,6 +49,7 @@ namespace playhead {
         caf::actor event_group_;
         caf::actor playlist_;
         std::map<utility::Uuid, caf::actor> source_actors_;
+        std::string filter_string_;
     };
 } // namespace playhead
 } // namespace xstudio

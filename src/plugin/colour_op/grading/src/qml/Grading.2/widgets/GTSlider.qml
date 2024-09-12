@@ -10,7 +10,7 @@ import QtQml.Models 2.14
 import QtQuick.Dialogs 1.3 //for ColorDialog
 import QtGraphicalEffects 1.15 //for RadialGradient
 
-import xStudioReskin 1.0
+import xStudio 1.0
 
 Item {
 
@@ -91,7 +91,7 @@ Item {
         anchors.leftMargin: -5
         width: 10
         height: 2
-        color: palette.base //XsStyleSheet.hintColor
+        color: palette.base
     }
 
     XsSlider { id: slider

@@ -38,7 +38,7 @@ OCIOGlobalControls::OCIOGlobalControls(
     colour_bypass_ = add_boolean_attribute(ui_text_.CMS_OFF, ui_text_.CMS_OFF_SHORT, false);
     colour_bypass_->set_redraw_viewport_on_change(true);
     colour_bypass_->set_role_data(
-        module::Attribute::Groups, nlohmann::json{"colour_pipe_attributes"});
+        module::Attribute::UIDataModels, nlohmann::json{"colour_pipe_attributes"});
     colour_bypass_->set_role_data(module::Attribute::Enabled, false);
     colour_bypass_->set_role_data(module::Attribute::ToolTip, ui_text_.CS_BYPASS_TOOLTIP);
     // 'colour bypass' is a global setting.
@@ -47,10 +47,10 @@ OCIOGlobalControls::OCIOGlobalControls(
 
     // View mode
 
-    global_view_ = add_boolean_attribute(ui_text_.VIEW_MODE, ui_text_.GLOBAL_VIEW_SHORT, false);
+    global_view_ = add_boolean_attribute(ui_text_.VIEW_MODE, ui_text_.GLOBAL_VIEW_SHORT, true);
     global_view_->set_redraw_viewport_on_change(true);
     global_view_->set_role_data(
-        module::Attribute::Groups, nlohmann::json{"colour_pipe_attributes"});
+        module::Attribute::UIDataModels, nlohmann::json{"colour_pipe_attributes"});
     global_view_->set_role_data(module::Attribute::ToolTip, ui_text_.GLOBAL_VIEW_TOOLTIP);
     global_view_->set_preference_path("/plugin/colour_pipeline/o   ");
 
@@ -72,7 +72,7 @@ OCIOGlobalControls::OCIOGlobalControls(
         add_boolean_attribute(ui_text_.SOURCE_CS_MODE, ui_text_.SOURCE_CS_MODE_SHORT, true);
     adjust_source_->set_redraw_viewport_on_change(true);
     adjust_source_->set_role_data(
-        module::Attribute::Groups, nlohmann::json{"colour_pipe_attributes"});
+        module::Attribute::UIDataModels, nlohmann::json{"colour_pipe_attributes"});
     adjust_source_->set_role_data(module::Attribute::Enabled, false);
     adjust_source_->set_role_data(module::Attribute::ToolTip, ui_text_.SOURCE_CS_MODE_TOOLTIP);
     adjust_source_->set_preference_path("/plugin/colour_pipeline/ocio/user_source_mode");
@@ -145,20 +145,45 @@ caf::message_handler OCIOGlobalControls::message_handler_extensions() {
                 // Allow new viewport to query the last Display/View settings for
                 // a given config
                 [=](global_ocio_controls_atom atom,
-                    const std::string &ocio_config) -> utility::JsonStore {
+                    const std::string &ocio_config,
+                    const std::string &window_id) -> utility::JsonStore {
                     utility::JsonStore res;
+
                     if (user_view_display_settings_.contains(ocio_config)) {
-                        return user_view_display_settings_[ocio_config];
+
+                        const auto & ds = user_view_display_settings_[ocio_config];
+
+                        // N.B. View is the same for all viewers (for a given ocio_config)
+                        // but Display is independent per window_id
+                        if (ds.contains("View")) {
+                            res["View"] = ds["View"];
+                        }
+                        if (ds.contains(window_id) &&
+                            ds[window_id].contains("Display")) {
+                            res["Display"] = ds[window_id]["Display"];
+                        } else if (window_id == "xstudio_quickview_window") {
+
+                            // special case - a quickview window wants to set its
+                            // display but no quickview has been set-up before for
+                            // the current ocio_config so we fallback to the main window display
+                            if (ds.contains("xstudio_main_window") && ds["xstudio_main_window"].contains("Display")) {
+                                res["Display"] =
+                                    ds["xstudio_main_window"]["Display"];
+                            }
+
+                        }
+                        return res;
                     }
                     return utility::JsonStore();
                 },
                 [=](global_ocio_controls_atom atom,
                     const std::string &attr_title,
                     const int attr_role,
-                    const utility::JsonStore &attr_value) {
+                    const utility::JsonStore &attr_value,
+                    const std::string &window_id) {
                     for (auto &watcher : watchers_) {
                         if (watcher != current_sender()) {
-                            send(watcher, atom, attr_title, attr_role, attr_value);
+                            send(watcher, atom, attr_title, attr_role, attr_value, window_id);
                         }
                     }
                 },
@@ -166,11 +191,19 @@ caf::message_handler OCIOGlobalControls::message_handler_extensions() {
                     const std::string &ocio_config,
                     const std::string &attr_title,
                     const int attr_role,
-                    const utility::JsonStore &attr_value) {
-                    if (attr_title == "Display" || attr_title == "View") {
-                        // we need to store Display and View (per OCIO config) between
-                        // xstudio sessions. This attribute has a preference path so
-                        // it's value is written (and retrieved from) user prefs.
+                    const utility::JsonStore &attr_value,
+                    const std::string &window_id) {
+                    // we need to store Display and View (per OCIO config) between
+                    // xstudio sessions. This attribute has a preference path so
+                    // it's value is written (and retrieved from) user prefs.
+                    // Note Display is independent for xstudio window ids, but
+                    // View is the same across all windows
+                    if (attr_title == "Display") {
+                        user_view_display_settings_[ocio_config][window_id][attr_title] =
+                            attr_value;
+                        user_view_display_settings_attr_->set_role_data(
+                            module::Attribute::Value, user_view_display_settings_, false);
+                    } else if (attr_title == "View") {
                         user_view_display_settings_[ocio_config][attr_title] = attr_value;
                         user_view_display_settings_attr_->set_role_data(
                             module::Attribute::Value, user_view_display_settings_, false);
@@ -178,7 +211,14 @@ caf::message_handler OCIOGlobalControls::message_handler_extensions() {
 
                     for (auto &watcher : watchers_) {
                         if (watcher != current_sender()) {
-                            send(watcher, atom, ocio_config, attr_title, attr_role, attr_value);
+                            send(
+                                watcher,
+                                atom,
+                                ocio_config,
+                                attr_title,
+                                attr_role,
+                                attr_value,
+                                window_id);
                         }
                     }
                 }})

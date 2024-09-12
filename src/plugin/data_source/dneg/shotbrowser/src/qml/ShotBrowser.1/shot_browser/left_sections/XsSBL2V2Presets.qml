@@ -4,15 +4,12 @@ import QtQuick 2.15
 import QtQuick.Controls 2.15
 import QtQuick.Layouts 1.15
 
-import xStudioReskin 1.0
+import xStudio 1.0
 import ShotBrowser 1.0
 import xstudio.qml.models 1.0
 
-Item{ id: presetView
-
-    XsGradientRectangle{
-        anchors.fill: parent
-    }
+XsGradientRectangle{
+    id: presetView
 
     ColumnLayout {
         anchors.fill: parent
@@ -37,8 +34,10 @@ Item{ id: presetView
                 onClicked: {
                     if(addMenu.visible) addMenu.visible = false
                     else{
-                        addMenu.x = x + width
-                        addMenu.visible = true
+                        addMenu.showMenu(
+                            addBtn,
+                            width/2,
+                            height/2);
                     }
                 }
             }
@@ -55,8 +54,10 @@ Item{ id: presetView
                 onClicked:{
                     if(moreMenu.visible) moreMenu.visible = false
                     else{
-                        moreMenu.x = x + width
-                        moreMenu.visible = true
+                        moreMenu.showMenu(
+                            moreBtn,
+                            width/2,
+                            height/2);
                     }
                 }
             }
@@ -66,12 +67,11 @@ Item{ id: presetView
             Layout.fillWidth: true;
             Layout.fillHeight: true;
             color: panelColor
+            clip: true
 
             Flickable {
                 id:flick
                 anchors.fill: parent
-                clip: true
-
                 contentWidth: width
                 contentHeight: tree.height
 

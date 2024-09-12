@@ -40,6 +40,7 @@ namespace ui::qml {
             enabledRole = JSONTreeModel::Roles::LASTROLE,
             entityRole,
             favouriteRole,
+            groupFavouriteRole,
             groupIdRole,
             groupUserDataRole,
             hiddenRole,

@@ -99,6 +99,18 @@ void TrackActor::item_event_callback(const utility::JsonStore &event, Item &item
             // our child
             // spdlog::warn("RECREATE MATCH");
 
+            // if(child_item_it->item_type() == IT_CLIP) {
+            //     auto media_uuid = child_item_it->prop().value("media_uuid", Uuid());
+            //     if(media_uuid) {
+            //         // make sure media exists in timeline.
+
+            //     }
+            // }
+
+            // spdlog::warn("child_item_it {}", child_item_it->item_type());
+            // spdlog::warn("child_item_it {}", child_item_it->name());
+            // spdlog::warn("child_item_it {}", child_item_it->prop().dump(2));
+
             auto actor = deserialise(utility::JsonStore(event.at("blind")), false);
             add_item(UuidActor(cuuid, actor));
             // spdlog::warn("{}",to_string(caf::actor_cast<caf::actor_addr>(actor)));
@@ -191,9 +203,10 @@ TrackActor::TrackActor(caf::actor_config &cfg, const utility::JsonStore &jsn, It
 TrackActor::TrackActor(
     caf::actor_config &cfg,
     const std::string &name,
+    const utility::FrameRate &rate,
     const media::MediaType media_type,
     const utility::Uuid &uuid)
-    : caf::event_based_actor(cfg), base_(name, media_type, uuid, this) {
+    : caf::event_based_actor(cfg), base_(name, rate, media_type, uuid, this) {
     base_.item().set_system(&system());
     base_.item().set_name(name);
     base_.item().bind_item_post_event_func([this](const utility::JsonStore &event, Item &item) {
@@ -368,6 +381,8 @@ void TrackActor::init() {
         },
 
         [=](item_prop_atom) -> JsonStore { return base_.item().prop(); },
+
+        [=](utility::rate_atom) -> FrameRate { return base_.item().rate(); },
 
         [=](active_range_atom, const FrameRange &fr) -> JsonStore {
             auto jsn = base_.item().set_active_range(fr);
@@ -1053,18 +1068,13 @@ void TrackActor::remove_items_at_frame(
     }
 }
 
-void TrackActor::remove_items(
-    const int index,
-    const int count,
-    const bool add_gap,
-    caf::typed_response_promise<std::pair<utility::JsonStore, std::vector<timeline::Item>>>
-        rp) {
-
+std::pair<utility::JsonStore, std::vector<timeline::Item>>
+TrackActor::remove_items(const int index, const int count, const bool add_gap) {
     std::vector<Item> items;
     JsonStore changes(R"([])"_json);
 
     if (index < 0 or index + count - 1 >= static_cast<int>(base_.item().size()))
-        rp.deliver(make_error(xstudio_error::error, "Invalid index / count"));
+        throw std::runtime_error("Invalid index / count");
     else {
         scoped_actor sys{system()};
         auto gap_size = FrameRateDuration();
@@ -1092,47 +1102,168 @@ void TrackActor::remove_items(
             }
         }
 
-        // reverse order as we deleted back to front.
-        std::reverse(items.begin(), items.end());
-
-        {
-            auto more = base_.item().refresh();
-            if (not more.is_null())
-                changes.insert(changes.end(), more.begin(), more.end());
-        }
-
-        send(event_group_, event_atom_v, item_atom_v, changes, false);
-
-        // spdlog::warn("{}", changes.dump(2));
-
-        if (add_gap and gap_size.frames()) {
+        if (index < base_.item().size()) {
             try {
-                JsonStore gap_changes(R"([])"_json);
+                if (index - 1 >= 0 and
+                    std::next(base_.item().begin(), index - 1)->item_type() == IT_GAP) {
+                    auto it = std::next(base_.item().begin(), index - 1);
+                    // extend preceeding gap
+                    auto new_range = it->trimmed_range();
 
-                auto uuid = utility::Uuid::generate();
-                auto gap  = spawn<GapActor>("GAP", gap_size, uuid);
-                // take ownership
-                add_item(UuidActor(uuid, gap));
-                // where we're going to insert gap..
-                auto it    = std::next(base_.item().begin(), index);
-                auto item  = request_receive<Item>(*sys, gap, item_atom_v);
-                auto blind = request_receive<JsonStore>(*sys, gap, serialise_atom_v);
+                    if (gap_size.frames())
+                        new_range.set_duration(new_range.duration() + gap_size.duration());
 
-                auto tmp = base_.item().insert(it, item, blind);
-                gap_changes.insert(gap_changes.end(), tmp.begin(), tmp.end());
+                    // also check for trailing gap...
+                    if (index < base_.item().size() and
+                        std::next(base_.item().begin(), index)->item_type() == IT_GAP) {
+                        auto nit = std::next(base_.item().begin(), index);
+                        new_range.set_duration(
+                            new_range.duration() + nit->trimmed_range().duration());
+                        // remove trailing gap..
 
-                auto more = base_.item().refresh();
-                if (not more.is_null())
-                    gap_changes.insert(gap_changes.end(), more.begin(), more.end());
+                        // not sure this is safe..
 
-                send(event_group_, event_atom_v, item_atom_v, gap_changes, false);
+                        auto item = *nit;
+                        demonitor(item.actor());
+                        actors_.erase(item.uuid());
+
+                        // need to serialise actor..
+                        auto blind =
+                            request_receive<JsonStore>(*sys, item.actor(), serialise_atom_v);
+                        auto tmp = base_.item().erase(nit, blind);
+                        changes.insert(changes.end(), tmp.begin(), tmp.end());
+                        items.push_back(item);
+
+                        // anon_send(this, erase_item_atom_v, nit->uuid(), false);
+                    }
+
+                    it->set_range(new_range, new_range);
+
+                    // anon_send(it->actor(), trimmed_range_atom_v, new_range, new_range);
+
+                    auto gap_event = request_receive<JsonStore>(
+                        *sys, it->actor(), trimmed_range_atom_v, new_range, new_range, true);
+                    changes.insert(changes.begin(), gap_event.begin(), gap_event.end());
+                    // update
+                    {
+                        auto more = base_.item().refresh();
+                        if (not more.is_null())
+                            changes.insert(changes.end(), more.begin(), more.end());
+                        send(event_group_, event_atom_v, item_atom_v, changes, false);
+                    }
+
+                } else if (
+                    index < base_.item().size() and
+                    std::next(base_.item().begin(), index)->item_type() == IT_GAP) {
+                    auto it = std::next(base_.item().begin(), index);
+                    // extend following gap
+                    auto new_range = it->trimmed_range();
+                    if (gap_size.frames())
+                        new_range.set_duration(new_range.duration() + gap_size.duration());
+
+                    it->set_range(new_range, new_range);
+
+                    // anon_send(it->actor(), trimmed_range_atom_v, new_range, new_range);
+
+                    auto gap_event = request_receive<JsonStore>(
+                        *sys, it->actor(), trimmed_range_atom_v, new_range, new_range, true);
+                    changes.insert(changes.begin(), gap_event.begin(), gap_event.end());
+
+                    // update
+                    {
+                        auto more = base_.item().refresh();
+                        if (not more.is_null())
+                            changes.insert(changes.end(), more.begin(), more.end());
+                        send(event_group_, event_atom_v, item_atom_v, changes, false);
+                    }
+                } else {
+                    // update
+                    {
+                        auto more = base_.item().refresh();
+                        if (not more.is_null())
+                            changes.insert(changes.end(), more.begin(), more.end());
+                        send(event_group_, event_atom_v, item_atom_v, changes, false);
+                    }
+
+                    if (gap_size.frames()) {
+
+                        JsonStore gap_changes(R"([])"_json);
+
+                        auto uuid = utility::Uuid::generate();
+                        auto gap  = spawn<GapActor>("GAP", gap_size, uuid);
+                        // take ownership
+                        add_item(UuidActor(uuid, gap));
+                        // where we're going to insert gap..
+                        auto it    = std::next(base_.item().begin(), index);
+                        auto item  = request_receive<Item>(*sys, gap, item_atom_v);
+                        auto blind = request_receive<JsonStore>(*sys, gap, serialise_atom_v);
+
+                        auto tmp = base_.item().insert(it, item, blind);
+                        gap_changes.insert(gap_changes.end(), tmp.begin(), tmp.end());
+
+                        auto more = base_.item().refresh();
+                        if (not more.is_null())
+                            gap_changes.insert(gap_changes.end(), more.begin(), more.end());
+
+                        send(event_group_, event_atom_v, item_atom_v, gap_changes, false);
+                    }
+                }
 
             } catch (const std::exception &err) {
                 spdlog::warn("{} {}", __PRETTY_FUNCTION__, err.what());
             }
+        } else if (base_.item().size()) {
+            // was last item but preceeding item might be gap that'll need pruning as well.
+            auto nit = std::next(base_.item().begin(), base_.item().size() - 1);
+            if (nit->item_type() == IT_GAP) {
+                // anon_send(nit->actor(), trimmed_range_atom_v, utility::FrameRange(),
+                // utility::FrameRange());
+                auto item = *nit;
+                demonitor(item.actor());
+                actors_.erase(item.uuid());
+
+                // need to serialise actor..
+                auto blind = request_receive<JsonStore>(*sys, item.actor(), serialise_atom_v);
+                auto tmp   = base_.item().erase(nit, blind);
+                changes.insert(changes.end(), tmp.begin(), tmp.end());
+                items.push_back(item);
+
+                // anon_send(this, erase_item_atom_v, nit->uuid(), false);
+            }
+
+            // update
+            {
+                auto more = base_.item().refresh();
+                if (not more.is_null())
+                    changes.insert(changes.end(), more.begin(), more.end());
+                send(event_group_, event_atom_v, item_atom_v, changes, false);
+            }
+        } else {
+            // empty track..
+            auto more = base_.item().refresh();
+            if (not more.is_null())
+                changes.insert(changes.end(), more.begin(), more.end());
+            send(event_group_, event_atom_v, item_atom_v, changes, false);
         }
 
-        rp.deliver(std::make_pair(changes, items));
+        // reverse order as we deleted back to front.
+    }
+    std::reverse(items.begin(), items.end());
+    return std::make_pair(changes, items);
+}
+
+
+void TrackActor::remove_items(
+    const int index,
+    const int count,
+    const bool add_gap,
+    caf::typed_response_promise<std::pair<utility::JsonStore, std::vector<timeline::Item>>>
+        rp) {
+
+    try {
+        rp.deliver(remove_items(index, count, add_gap));
+    } catch (const std::exception &err) {
+        rp.deliver(make_error(xstudio_error::error, err.what()));
     }
 }
 
@@ -1160,15 +1291,15 @@ void TrackActor::erase_items(
     const bool add_gap,
     caf::typed_response_promise<JsonStore> rp) {
 
-    request(
-        caf::actor_cast<caf::actor>(this), infinite, remove_item_atom_v, index, count, add_gap)
-        .then(
-            [=](const std::pair<JsonStore, std::vector<Item>> &hist_item) mutable {
-                for (const auto &i : hist_item.second)
-                    send_exit(i.actor(), caf::exit_reason::user_shutdown);
-                rp.deliver(hist_item.first);
-            },
-            [=](error &err) mutable { rp.deliver(std::move(err)); });
+    try {
+        auto result = remove_items(index, count, add_gap);
+        for (const auto &i : result.second)
+            send_exit(i.actor(), caf::exit_reason::user_shutdown);
+        rp.deliver(result.first);
+
+    } catch (const std::exception &err) {
+        rp.deliver(make_error(xstudio_error::error, err.what()));
+    }
 }
 
 

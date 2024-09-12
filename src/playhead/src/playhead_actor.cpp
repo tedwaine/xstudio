@@ -117,6 +117,10 @@ PlayheadActor::PlayheadActor(
     make_source_menu_model();
 }
 
+PlayheadActor::~PlayheadActor() {}
+
+void PlayheadActor::on_exit() { parent_actor_exiting(); }
+
 void PlayheadActor::init() {
     // get global reader and steal mrm..
     spdlog::debug("Created PlayheadActor {}", name());
@@ -129,52 +133,17 @@ void PlayheadActor::init() {
         image_cache_        = caf::actor();
         key_playhead_       = caf::actor();
         pre_reader_         = caf::actor();
+
+        for (auto &i : sub_playheads_) {
+            unlink_from(i);
+            send_exit(i, caf::exit_reason::user_shutdown);
+        }
         sub_playheads_.clear();
         source_wrappers_.clear();
         source_actors_.clear();
         default_exit_handler(a, m);
     });
 
-    // Make hotkeys for switching the on-screen (primary) source (e.g. for A/B compare)
-    for (int i = 0; i < 9; ++i) {
-
-        // numeric keys on a querty keyboard start with key '1' having a keyboard
-        // key id of 0x31
-        auto hotkey_id = register_hotkey(
-            0x31 + i,
-            ui::NoModifier,
-            fmt::format("View source {}", i + 1),
-            "When comparing multiple selected items hit the hotkey to switch the corresponding "
-            "item to show in the viewport.");
-        switch_key_playhead_hotkeys_[hotkey_id] = i;
-    }
-
-    move_selection_up_hotkey_ = register_hotkey(
-        "Up",
-        "Move backwards through selection",
-        "When comparing multiple selected items hit the hotkey to cycle back through the "
-        "selection. If only one item is selected then select the previous item in the "
-        "playlist.",
-        true);
-
-    move_selection_down_hotkey_ = register_hotkey(
-        "Down",
-        "Move forwards through selection",
-        "When comparing multiple selected items hit the hotkey to cycle forward through the "
-        "selection. If only one item is selected then select the next item in the playlist.",
-        true);
-
-    jump_to_previous_note_hotkey_ = register_hotkey(
-        ",",
-        "Move backwards to previous note",
-        "Jump the playhead backwards to the next note.",
-        true);
-
-    jump_to_next_note_hotkey_ = register_hotkey(
-        ".",
-        "Move forwards to next note",
-        "Jump the playhead forwards to the next note ",
-        true);
 
     set_down_handler([=](down_msg &msg) {
         /*if (msg.source == playlist_selection_) {
@@ -300,6 +269,10 @@ void PlayheadActor::init() {
             }
         },
 
+        [=](jump_atom, const int64_t frame) {
+            delegate(caf::actor_cast<caf::actor>(this), jump_atom_v, (int)frame);
+        },
+
         [=](jump_atom, const int frame) -> result<bool> {
             auto rp = make_response_promise<bool>();
             // by requesting duration from self we ensure that we have updated
@@ -310,7 +283,11 @@ void PlayheadActor::init() {
                     [=](const timebase::flicks duration) mutable {
                         if (duration != timebase::k_flicks_zero_seconds) {
                             request(
-                                key_playhead_, infinite, logical_frame_to_flicks_atom_v, frame)
+                                key_playhead_,
+                                infinite,
+                                logical_frame_to_flicks_atom_v,
+                                frame,
+                                true)
                                 .then(
 
                                     [=](const timebase::flicks flicks) mutable {
@@ -404,16 +381,12 @@ void PlayheadActor::init() {
         [=](media::source_offset_frames_atom atom, caf::actor sub_playhead, const int offset) {
             // pass up to the main playhead that the offset has changed
             if (sub_playhead == key_playhead_) {
-                send(event_group_, utility::event_atom_v, atom, offset);
+
+                source_offset_frames_->set_value(offset, false);
 
                 // the cached frames display might need updating
                 rebuild_cached_frames_status();
             }
-        },
-
-        [=](media::source_offset_frames_atom atom, const int offset) {
-            send(key_playhead_, atom, offset);
-            update_child_playhead_positions(true);
         },
 
         [=](media_events_group_atom) -> caf::actor { return playhead_media_events_group_; },
@@ -610,6 +583,7 @@ void PlayheadActor::init() {
 
                 playhead_logical_frame_->set_value(logical_frame, false);
                 playhead_position_seconds_->set_value(timebase::to_seconds(position()));
+                playhead_position_flicks_->set_value(position().count());
                 playhead_media_logical_frame_->set_value(media_logical_frame, false);
                 current_frame_timecode_->set_value(to_string(tc), false);
                 current_frame_timecode_as_frame_->set_value(tc.total_frames(), false);
@@ -626,6 +600,7 @@ void PlayheadActor::init() {
                     tc);
 
                 media_frame_per_media_uuid_[source_uuid] = media_logical_frame;
+
                 send(
                     event_group_,
                     utility::event_atom_v,
@@ -633,6 +608,7 @@ void PlayheadActor::init() {
                     logical_frame,
                     media_frame,
                     media_logical_frame,
+                    user_is_frame_scrubbing_->value(),
                     media_rate,
                     min(position(), duration() - playhead_rate()),
                     tc);
@@ -651,14 +627,16 @@ void PlayheadActor::init() {
         [=](sound_audio_atom,
             const Uuid &child_playhead_uuid,
             const std::vector<AudioBufPtr> &audio_buffers) {
-            anon_send(
-                audio_output_actor_,
-                sound_audio_atom_v,
-                audio_buffers,
-                child_playhead_uuid,
-                playing(),
-                forward(),
-                velocity());
+            if (caf::actor_cast<caf::actor>(current_sender()) == audio_playhead_) {
+                anon_send(
+                    audio_output_actor_,
+                    sound_audio_atom_v,
+                    audio_buffers,
+                    child_playhead_uuid,
+                    playing(),
+                    forward(),
+                    velocity());
+            }
         },
 
         // child playhead is broadcasting a new buffer
@@ -892,6 +870,14 @@ void PlayheadActor::init() {
             }
         },
 
+        [=](utility::event_atom,
+            playhead::media_frame_ranges_atom,
+            const std::vector<int> &ranges) {
+            if (current_sender() == key_playhead_) {
+                media_transition_frames_->set_value(ranges);
+            }
+        },
+
         [=](utility::event_atom, timeline::item_atom, const utility::JsonStore &, bool) {
             // timeline change event ... ignore as its taken care of by sub playhead
         },
@@ -1030,6 +1016,11 @@ void PlayheadActor::init() {
             const thumbnail::ThumbnailBufferPtr &buf) {},
 
         [=](utility::event_atom, media::media_status_atom, const media::MediaStatus ms) {},
+
+        [=](utility::event_atom,
+            media::media_display_info_atom,
+            const utility::JsonStore &,
+            caf::actor_addr &) {},
 
         [=](utility::event_atom, media::media_display_info_atom, const utility::JsonStore &) {},
 
@@ -1297,18 +1288,6 @@ void PlayheadActor::rebuild() {
         for (auto source : source_actors_) {
 
             make_child_playhead(source);
-
-            // in grid, A/B compare modes etc we must limit the number of child playheads
-            // in the case that the user has, say, selected 100 clips as it's too many for
-            // the UI to cope with.
-            if (compare_mode() != CM_OFF && count++ > max_compare_sources_->value()) {
-                spdlog::warn(
-                    "{} {} {}",
-                    __PRETTY_FUNCTION__,
-                    "Trying to compare too many things, limiting to first ",
-                    max_compare_sources_->value());
-                break;
-            }
         }
         // passing a -1 as the index forces a search for a child playhead that
         // is showing the current on-screen source
@@ -1348,6 +1327,8 @@ void PlayheadActor::rebuild() {
         // is showing the current on-screen source
         switch_key_playhead(-1);
     }
+
+    num_sub_playheads_->set_value(sub_playheads_.size());
 
     if (!(compare_mode() == CM_OFF || compare_mode() == CM_STRING)) {
 
@@ -1450,6 +1431,15 @@ void PlayheadActor::switch_key_playhead(int idx) {
                         update_playback_rate();
                         rebuild_cached_frames_status();
                         restart_readahead_cacheing(compare_mode() != CM_OFF);
+                    },
+                    [=](const caf::error &err) {
+                        spdlog::warn("{} {}", __PRETTY_FUNCTION__, to_string(err));
+                    });
+
+            request(key_playhead_, infinite, media_frame_ranges_atom_v)
+                .then(
+                    [=](const std::vector<int> &media_frame_ranges) {
+                        media_transition_frames_->set_value(media_frame_ranges);
                     },
                     [=](const caf::error &err) {
                         spdlog::warn("{} {}", __PRETTY_FUNCTION__, to_string(err));
@@ -1572,14 +1562,7 @@ void PlayheadActor::notify_offset_changed() {
 
     request(key_playhead_, infinite, media::source_offset_frames_atom_v)
         .then(
-
-            [=](const int offset) {
-                send(
-                    event_group_,
-                    utility::event_atom_v,
-                    media::source_offset_frames_atom_v,
-                    offset);
-            },
+            [=](const int offset) { source_offset_frames_->set_value(offset, false); },
             [=](const error &err) {
                 spdlog::warn("{} {}", __PRETTY_FUNCTION__, to_string(err));
             });
@@ -1843,7 +1826,7 @@ void PlayheadActor::align_clip_frame_numbers() {
 
             // reset the offset to zero so we get the 'true' media first & last frame
             request_receive_wait<bool>(
-                *sys, sub_playhead, timeout, media::source_offset_frames_atom_v, 0);
+                *sys, sub_playhead, timeout, media::source_offset_frames_atom_v, int64_t(0));
 
             // reset the duration to cancel any retiming already done on the source
             request_receive_wait<bool>(
@@ -1896,7 +1879,8 @@ void PlayheadActor::align_clip_frame_numbers() {
                 const auto source_first_frame = request_receive_wait<media::AVFrameID>(
                     *sys, sub_playhead, timeout, first_frame_media_pointer_atom_v);
 
-                int frames_shift = source_first_frame.timecode_.total_frames() - first_frame;
+                int64_t frames_shift =
+                    source_first_frame.timecode_.total_frames() - first_frame;
 
                 // apply the time offset
                 request_receive_wait<bool>(
@@ -1921,7 +1905,6 @@ void PlayheadActor::align_clip_frame_numbers() {
 }
 
 void PlayheadActor::move_playhead_to_last_viewed_frame_of_current_source() {
-
 
     try {
 
@@ -1951,7 +1934,7 @@ void PlayheadActor::move_playhead_to_last_viewed_frame_of_current_source() {
 
         // supressing errors as 'No Frames' is thrown when the source is empty,
         // which isn't really an error
-        spdlog::debug("{} {}", __PRETTY_FUNCTION__, e.what());
+        spdlog::warn("{} {}", __PRETTY_FUNCTION__, e.what());
     }
 }
 
@@ -2087,13 +2070,16 @@ void PlayheadActor::attribute_changed(const utility::Uuid &attr_uuid, const int 
     } else if (attr_uuid == loop_range_enabled_->uuid()) {
         notify_loop_start_changed();
         notify_loop_end_changed();
+    } else if (attr_uuid == source_offset_frames_->uuid()) {
+        anon_send(
+            key_playhead_, media::source_offset_frames_atom_v, source_offset_frames_->value());
     } else {
         PlayheadBase::attribute_changed(attr_uuid, role);
     }
 }
 
 void PlayheadActor::hotkey_pressed(
-    const utility::Uuid &hotkey_uuid, const std::string &context) {
+    const utility::Uuid &hotkey_uuid, const std::string &context, const std::string &window) {
 
     // If the context starts with 'viewport' the hotkey was hit while a viewport
     // had mouse focus. If that viewport is NOT attached to this playhead we
@@ -2204,7 +2190,7 @@ void PlayheadActor::hotkey_pressed(
         delayed_anon_send(
             this, std::chrono::milliseconds(500), play_atom_v, step_keypress_event_id_);
     } else {
-        PlayheadBase::hotkey_pressed(hotkey_uuid, context);
+        PlayheadBase::hotkey_pressed(hotkey_uuid, context, window);
     }
 }
 
@@ -2572,6 +2558,53 @@ bool PlayheadActor::has_selection_changed() {
 }
 
 void PlayheadActor::make_source_menu_model() {
+
+    // Make hotkeys for switching the on-screen (primary) source (e.g. for A/B compare)
+    for (int i = 0; i < 9; ++i) {
+
+        // numeric keys on a querty keyboard start with key '1' having a keyboard
+        // key id of 0x31
+        auto hotkey_id = register_hotkey(
+            0x31 + i,
+            ui::NoModifier,
+            fmt::format("View source {}", i + 1),
+            "When comparing multiple selected items hit the hotkey to switch the corresponding "
+            "item to show in the viewport.",
+            false,
+            "Playback");
+        switch_key_playhead_hotkeys_[hotkey_id] = i;
+    }
+
+    move_selection_up_hotkey_ = register_hotkey(
+        "Up",
+        "Move backwards through selection",
+        "When comparing multiple selected items hit the hotkey to cycle back through the "
+        "selection. If only one item is selected then select the previous item in the "
+        "playlist.",
+        true,
+        "Playback");
+
+    move_selection_down_hotkey_ = register_hotkey(
+        "Down",
+        "Move forwards through selection",
+        "When comparing multiple selected items hit the hotkey to cycle forward through the "
+        "selection. If only one item is selected then select the next item in the playlist.",
+        true,
+        "Playback");
+
+    jump_to_previous_note_hotkey_ = register_hotkey(
+        ",",
+        "Move backwards to previous note",
+        "Jump the playhead backwards to the next note.",
+        true,
+        "Playback");
+
+    jump_to_next_note_hotkey_ = register_hotkey(
+        ".",
+        "Move forwards to next note",
+        "Jump the playhead forwards to the next note ",
+        true,
+        "Playback");
 
     // here we make a menu model unique to each instance of the playheadactor.
     // We use the uuid of the playhead to construct the unique menu model name.

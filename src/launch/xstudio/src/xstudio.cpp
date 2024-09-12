@@ -89,6 +89,11 @@ using namespace xstudio;
 
 bool shutdown_xstudio = false;
 
+
+// #include "QuickFuture"
+
+// Q_DECLARE_METATYPE(QFuture<QList<QPersistentModelIndex>)
+
 struct ExitTimeoutKiller {
 
     void start() {
@@ -255,7 +260,6 @@ struct CLIArguments {
         misc, "PATH", "Write session log to file", {"log-file"}};
     args::Flag disable_vsync = {
         misc, "disable-vsync", "Disable sync to video refresh", {"disable-vsync"}};
-    args::Flag oldskin = {misc, "oldskin", "Launch with the old user interface", {"oldskin"}};
     args::Flag share_opengl_contexts = {
         misc,
         "share-gl-context",
@@ -306,7 +310,6 @@ struct Launcher {
         actions["player"]                = cli_args.player.Matched();
         actions["quick_view"]            = cli_args.quick_view.Matched();
         actions["disable_vsync"]         = cli_args.disable_vsync.Matched();
-        actions["oldskin"]               = cli_args.oldskin.Matched();
         actions["share_opengl_contexts"] = cli_args.share_opengl_contexts.Matched();
         actions["compare"] = static_cast<std::string>(args::get(cli_args.compare));
 
@@ -369,9 +372,10 @@ struct Launcher {
                 actions["open_session_path"] = args::get(cli_args.media_paths)[0];
             } else {
                 // check for media.
-                auto playlist_name                  = args::get(cli_args.playlist_name).empty()
-                                                          ? "Untitled Playlist"
-                                                          : args::get(cli_args.playlist_name);
+                auto playlist_name =
+                    args::get(cli_args.playlist_name).empty()
+                        ? (actions["quick_view"] ? "QuickView Media" : "Untitled Playlist")
+                        : args::get(cli_args.playlist_name);
                 actions["playlists"][playlist_name] = nlohmann::json::array();
                 if (not args::get(cli_args.media_paths).empty())
                     actions["playlists"][playlist_name] = args::get(cli_args.media_paths);
@@ -709,8 +713,16 @@ struct Launcher {
 
                     // add to scan list..
                     FrameList fl;
-                    caf::uri uri = parse_cli_posix_path(p, fl, true);
-                    uri_fl.emplace_back(std::make_pair(uri, fl));
+                    if (p.find("http") == 0) {
+                        // TODO: extend parse_cli_posix_path to handle http protocol.
+                        auto uri = caf::make_uri(p);
+                        if (uri) {
+                            uri_fl.emplace_back(std::make_pair(*uri, fl));
+                        }
+                    } else {
+                        caf::uri uri = parse_cli_posix_path(p, fl, true);
+                        uri_fl.emplace_back(std::make_pair(uri, fl));
+                    }
 
                 } catch (const std::exception &e) {
                     spdlog::error("Failed to load media '{}'", e.what());
@@ -889,6 +901,14 @@ int main(int argc, char **argv) {
     core::init_global_meta_objects();
     io::middleman::init_global_meta_objects();
 
+    // The Buffer class uses a singleton instance of ImageBufferRecyclerCache
+    // which is held as a static shared ptr. Buffers access this when they are
+    // destroyed. This static shared ptr is part of the media_reader component
+    // but buffers might be cleaned up (destroyed) after the media_reader component
+    // is cleaned up on exit. So we make a copy here to ensure the ImageBufferRecyclerCache
+    // instance outlives any Buffer objects.
+    auto buffer_cache_handle = media_reader::Buffer::s_buf_cache;
+
     // As far as I can tell caf only allows config to be modified
     // through cli args. We prefer the 'sharing' policy rather than
     // 'stealing'. The latter results in multiple threads spinning
@@ -1057,8 +1077,7 @@ int main(int argc, char **argv) {
 
                 qmlRegisterType<MenusModelData>("xstudio.qml.models", 1, 0, "XsMenusModel");
                 qmlRegisterType<ModulesModelData>("xstudio.qml.models", 1, 0, "XsModuleData");
-                qmlRegisterType<ReskinPanelsModel>(
-                    "xstudio.qml.models", 1, 0, "XsReskinPanelsLayoutModel");
+                qmlRegisterType<PanelsModel>("xstudio.qml.models", 1, 0, "XsPanelsLayoutModel");
                 qmlRegisterType<MediaListColumnsModel>(
                     "xstudio.qml.models", 1, 0, "XsMediaListColumnsModel");
                 qmlRegisterType<MediaListFilterModel>(
@@ -1076,14 +1095,14 @@ int main(int argc, char **argv) {
 
                 qRegisterMetaType<QQmlPropertyMap *>("QQmlPropertyMap*");
 
+                // QuickFuture::registerType<QList<QPersistentModelIndex>>();
+
                 // Add a CafSystemObject to the application - this is QObject that simply
                 // holds a reference to the actor system so that we can access the system
                 // in Qt main loop
                 new CafSystemObject(&app, system);
 
-                const QUrl url(
-                    l.actions["oldskin"] ? QStringLiteral("qrc:/main.qml")
-                                         : QStringLiteral("qrc:/main_reskin.qml"));
+                const QUrl url(QStringLiteral("qrc:/main.qml"));
 
                 QQmlApplicationEngine engine;
                 engine.addImageProvider(QLatin1String("thumbnail"), new ThumbnailProvider);

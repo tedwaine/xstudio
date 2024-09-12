@@ -339,9 +339,8 @@ void MediaSourceActor::init() {
     event_group_ = spawn<broadcast::BroadcastActor>(this);
     link_to(event_group_);
 
-// set an empty dict for colour_pipeline, as we request this at various
-// times and need a placeholder or we get warnings if it's not there
-#pragma message "This should not be here, this is plugin specific."
+    // set an empty dict for colour_pipeline, as we request this at various
+    // times and need a placeholder or we get warnings if it's not there
     request(json_store_, infinite, json_store::get_json_atom_v, "/colour_pipeline")
         .then(
             [=](const JsonStore &) {},
@@ -599,6 +598,7 @@ void MediaSourceActor::init() {
                                                     meta,
                                                     base_.uuid(),
                                                     parent_uuid_,
+                                                    utility::Uuid(), // clip id
                                                     media_type));
                                                 results.back().timecode_ = timecode;
                                                 timecode                 = timecode + 1;
@@ -635,6 +635,7 @@ void MediaSourceActor::init() {
                                                     utility::JsonStore(),
                                                     utility::Uuid(),
                                                     parent_uuid_,
+                                                    utility::Uuid(), // clip id
                                                     media_type));
                                                 results.back().timecode_ = timecode;
                                                 timecode                 = timecode + 1;
@@ -665,6 +666,7 @@ void MediaSourceActor::init() {
                                     utility::JsonStore(),
                                     base_.uuid(),
                                     parent_uuid_,
+                                    utility::Uuid(), // clip uuid
                                     media_type));
                                 results.back().timecode_ = timecode;
                                 timecode                 = timecode + 1;
@@ -726,6 +728,7 @@ void MediaSourceActor::init() {
                                                 meta,
                                                 base_.uuid(),
                                                 parent_uuid_,
+                                                utility::Uuid(), // clip uuid
                                                 media_type));
                                         },
                                         [=](error &) mutable {
@@ -745,6 +748,7 @@ void MediaSourceActor::init() {
                                                 utility::JsonStore(),
                                                 utility::Uuid(),
                                                 parent_uuid_,
+                                                utility::Uuid(),
                                                 media_type));
                                         });
                             } else {
@@ -762,6 +766,7 @@ void MediaSourceActor::init() {
                                     utility::JsonStore(),
                                     base_.uuid(),
                                     parent_uuid_,
+                                    utility::Uuid(), // clip uuid
                                     media_type));
                             }
                         } catch (const std::exception &e) {
@@ -775,7 +780,8 @@ void MediaSourceActor::init() {
 
         [=](get_media_pointers_atom,
             const MediaType media_type,
-            const LogicalFrameRanges &ranges) -> caf::result<media::AVFrameIDs> {
+            const LogicalFrameRanges &ranges,
+            const utility::Uuid clip_uuid) -> caf::result<media::AVFrameIDs> {
             // before we can deliver frame pointers to allow playback, ensure
             // that we have completed the aquisition of the media detail to
             // inspect the source, get duration, assign default Image/Audio
@@ -784,14 +790,25 @@ void MediaSourceActor::init() {
             request(caf::actor_cast<caf::actor>(this), infinite, acquire_media_detail_atom_v)
                 .then(
                     [=](bool) mutable {
-                        get_media_pointers_for_frames(media_type, ranges, rp);
+                        get_media_pointers_for_frames(media_type, ranges, rp, clip_uuid);
                     },
                     [=](const error &err) mutable {
-                        get_media_pointers_for_frames(media_type, ranges, rp);
+                        get_media_pointers_for_frames(media_type, ranges, rp, clip_uuid);
                     });
 
 
             return rp;
+        },
+
+        [=](get_media_pointers_atom,
+            const MediaType media_type,
+            const LogicalFrameRanges &ranges) {
+            delegate(
+                caf::actor_cast<caf::actor>(this),
+                get_media_pointers_atom_v,
+                media_type,
+                ranges,
+                utility::Uuid());
         },
 
         [=](media_reader::get_thumbnail_atom,
@@ -1410,7 +1427,8 @@ void MediaSourceActor::init() {
 void MediaSourceActor::get_media_pointers_for_frames(
     const MediaType media_type,
     const LogicalFrameRanges &ranges,
-    caf::typed_response_promise<media::AVFrameIDs> rp) {
+    caf::typed_response_promise<media::AVFrameIDs> rp,
+    const utility::Uuid clip_uuid) {
 
     // make a blank frame id that nevertheless includes media source actor uuid
     // and address - we use this if we are trying to resolve a frame ID
@@ -1421,14 +1439,8 @@ void MediaSourceActor::get_media_pointers_for_frames(
     media::AVFrameID blank = *(media::make_blank_frame(media_type));
     blank.media_uuid_      = parent_uuid_;
     blank.source_uuid_     = base_.uuid();
-
-    // IMPORTANT - we don't set the actor address here. This is because in the
-    // media reader it uses the actor addr to lookup what reader to use. If we
-    // temporarily had blank frames before media detail is found then the global
-    // reader will 'cache' the blank reader against the actor address and we are
-    // stuck with blanks even after we have the detail needed for loading the
-    // media.
-    // blank.actor_addr_      = caf::actor_cast<caf::actor_addr>(this);
+    blank.clip_uuid_       = clip_uuid;
+    blank.actor_addr_      = caf::actor_cast<caf::actor_addr>(this);
 
     if (base_.current(media_type).is_null()) {
 
@@ -1507,6 +1519,7 @@ void MediaSourceActor::get_media_pointers_for_frames(
                                                 meta,
                                                 base_.uuid(),
                                                 parent_uuid_,
+                                                clip_uuid,
                                                 media_type);
                                         } else {
                                             mptr.uri_   = *_uri;

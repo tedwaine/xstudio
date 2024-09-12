@@ -352,7 +352,8 @@ void QMLViewport::keyPressEvent(QKeyEvent *key_event) {
         keypress_monitor_,
         ui::keypress_monitor::text_entry_atom_v,
         StdFromQString(key_event->text()),
-        renderer_actor->std_name());
+        renderer_actor->std_name(),
+        StdFromQString(m_window->objectName()));
 }
 
 void QMLViewport::keyReleaseEvent(QKeyEvent *key_event) {
@@ -362,7 +363,8 @@ void QMLViewport::keyReleaseEvent(QKeyEvent *key_event) {
             keypress_monitor_,
             ui::keypress_monitor::key_up_atom_v,
             key_event->key(),
-            renderer_actor->std_name());
+            renderer_actor->std_name(),
+            StdFromQString(m_window->objectName()));
     }
 }
 
@@ -378,6 +380,7 @@ bool QMLViewport::event(QEvent *event) {
                 ui::keypress_monitor::key_down_atom_v,
                 key_event->key(),
                 renderer_actor->std_name(),
+                StdFromQString(m_window->objectName()),
                 key_event->isAutoRepeat());
         }
     } else if (event->type() == QEvent::KeyRelease) {
@@ -388,7 +391,8 @@ bool QMLViewport::event(QEvent *event) {
                 keypress_monitor_,
                 ui::keypress_monitor::key_up_atom_v,
                 key_event->key(),
-                renderer_actor->std_name());
+                renderer_actor->std_name(),
+                StdFromQString(m_window->objectName()));
         }
     } else if (
         event->type() == QEvent::Leave || event->type() == QEvent::HoverLeave ||

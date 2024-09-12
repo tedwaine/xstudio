@@ -81,6 +81,11 @@ RetimeActor::RetimeActor(
 
         [=](utility::event_atom, media::media_status_atom, const media::MediaStatus ms) {},
 
+        [=](utility::event_atom,
+            media::media_display_info_atom,
+            const utility::JsonStore &,
+            caf::actor_addr &) {},
+
         [=](utility::event_atom, media::media_display_info_atom, const utility::JsonStore &) {},
 
         [=](utility::event_atom,

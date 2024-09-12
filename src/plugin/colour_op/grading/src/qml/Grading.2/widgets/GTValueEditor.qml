@@ -10,7 +10,7 @@ import QtQml.Models 2.14
 import QtQuick.Dialogs 1.3 //for ColorDialog
 import QtGraphicalEffects 1.15 //for RadialGradient
 
-import xStudioReskin 1.0
+import xStudio 1.0
 import xstudio.qml.bookmarks 1.0
 
 Item { id: widget
@@ -28,9 +28,9 @@ Item { id: widget
     property color borderColorNormal: "transparent"
 
     signal edited()
-    
+
     XsGradientRectangle { id: bgDiv
-        
+
         anchors.fill: parent
         border.color: widget.down || widget.isHovered ? borderColorHovered: borderColorNormal
         border.width: borderWidth
@@ -39,10 +39,10 @@ Item { id: widget
         flatColor: topColor
         topColor: isPressed? bgColorPressed: bgColorNormal
         bottomColor: isPressed? bgColorPressed: bgColorNormal
-    
+
         Rectangle{ id: activeIndicator
             anchors.bottom: parent.bottom
-            width: borderWidth*6
+            width: borderWidth*5
             height: parent.height
             color: indicatorColor
         }
@@ -58,7 +58,7 @@ Item { id: widget
         height: parent.height
         anchors.right: parent.right
         anchors.verticalCenter: parent.verticalCenter
-        
+
         text: valueText
         font.bold: true
 

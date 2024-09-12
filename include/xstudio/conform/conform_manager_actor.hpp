@@ -90,6 +90,13 @@ class ConformWorkerActor : public caf::event_based_actor {
     void conform_chain(
         caf::typed_response_promise<ConformReply> rp, ConformRequest &conform_request);
 
+
+    void find_matched(
+        caf::typed_response_promise<utility::UuidActorVector> rp,
+        const std::string &key,
+        const utility::UuidActor &clip,
+        const utility::UuidActor &timeline);
+
     inline static const std::string NAME = "ConformWorkerActor";
     caf::behavior behavior_;
     std::vector<caf::actor> conformers_;

@@ -151,12 +151,12 @@ class HELPER_QML_EXPORT SingletonsModelData : public UIModelData {
     void register_singleton_qml(const QString &qml_code);
 };
 
-class HELPER_QML_EXPORT ReskinPanelsModel : public UIModelData {
+class HELPER_QML_EXPORT PanelsModel : public UIModelData {
 
     Q_OBJECT
 
   public:
-    explicit ReskinPanelsModel(QObject *parent = nullptr);
+    explicit PanelsModel(QObject *parent = nullptr);
 
     Q_INVOKABLE void close_panel(QModelIndex panel_index);
     Q_INVOKABLE void split_panel(QModelIndex panel_index, bool horizontal_split);
@@ -170,8 +170,6 @@ class HELPER_QML_EXPORT MediaListColumnsModel : public UIModelData {
 
   public:
     explicit MediaListColumnsModel(QObject *parent = nullptr);
-
-    Q_INVOKABLE QUuid new_media_list();
 };
 
 class HELPER_QML_EXPORT MediaListFilterModel : public QSortFilterProxyModel {
@@ -180,8 +178,6 @@ class HELPER_QML_EXPORT MediaListFilterModel : public QSortFilterProxyModel {
 
     Q_PROPERTY(
         QString searchString READ searchString WRITE setSearchString NOTIFY searchStringChanged)
-    Q_PROPERTY(int columnsModelIndex READ columnsModelIndex WRITE setColumnsModelIndex NOTIFY
-                   columnsModelIndexChanged)
 
   public:
     using super = QSortFilterProxyModel;
@@ -189,20 +185,11 @@ class HELPER_QML_EXPORT MediaListFilterModel : public QSortFilterProxyModel {
     MediaListFilterModel(QObject *parent = nullptr);
 
     const QString &searchString() const { return search_string_; }
-    int columnsModelIndex() const { return columns_model_index_; }
 
     void setSearchString(const QString &ss) {
         if (ss != search_string_) {
             search_string_ = ss;
             emit searchStringChanged();
-            invalidateFilter();
-        }
-    }
-
-    void setColumnsModelIndex(const int &c) {
-        if (c != columns_model_index_) {
-            columns_model_index_ = c;
-            emit columnsModelIndexChanged();
             invalidateFilter();
         }
     }
@@ -217,17 +204,18 @@ class HELPER_QML_EXPORT MediaListFilterModel : public QSortFilterProxyModel {
 
     Q_INVOKABLE [[nodiscard]] int sourceIndexToRow(const QModelIndex &) const;
 
+    Q_INVOKABLE [[nodiscard]] int
+    getRowWithMatchingRoleData(const QVariant &searchValue, const QString &searchRole) const;
+
   protected:
     [[nodiscard]] bool
     filterAcceptsRow(int source_row, const QModelIndex &source_parent) const override;
 
   signals:
     void searchStringChanged();
-    void columnsModelIndexChanged();
 
   private:
     QString search_string_;
-    int columns_model_index_ = 0;
 };
 
 class HELPER_QML_EXPORT MenuModelItem : public caf::mixin::actor_object<QObject> {

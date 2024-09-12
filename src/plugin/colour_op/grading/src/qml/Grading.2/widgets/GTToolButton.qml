@@ -10,15 +10,14 @@ import QtQml.Models 2.14
 import QtQuick.Dialogs 1.3 //for ColorDialog
 import QtGraphicalEffects 1.15 //for RadialGradient
 
-import xStudioReskin 1.0
+import xStudio 1.0
 
 XsPrimaryButton{ id: widget
 
     property alias src: imgDiv.source
-        
+
     text: ""
     imgSrc: ""
-    clip: true
     textDiv.visible: false
     imageDiv.visible: false
     isToolTipEnabled: false
@@ -45,5 +44,5 @@ XsPrimaryButton{ id: widget
 
     onClicked:{
     }
-    
+
 }

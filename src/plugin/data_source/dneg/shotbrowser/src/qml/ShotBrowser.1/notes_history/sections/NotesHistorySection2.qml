@@ -3,14 +3,13 @@ import QtQuick 2.15
 import QtQuick.Controls 2.15
 import QtQuick.Layouts 1.15
 
-import xStudioReskin 1.0
+import xStudio 1.0
 import ShotBrowser 1.0
 
 Rectangle{
     color: "transparent"
 
     property bool isHovered: notesDiv.isHovered || toolTipMArea.containsMouse
-    // property  alias toolTipMArea: toolTipMArea
 
     ColumnLayout {
         anchors.fill: parent
@@ -34,30 +33,20 @@ Rectangle{
             Layout.fillHeight: true
             color: XsStyleSheet.widgetBgNormalColor
 
-            property bool isHovered: mArea.containsMouse || notesEdit.hovered || scrollView.hovered
+            property bool isHovered: notesEdit.hovered || scrollView.hovered
 
             ScrollView{ id: scrollView
                 anchors.fill: parent
-                // ScrollBar.vertical.policy: ScrollBar.AsNeeded
-                // ScrollBar.vertical.interactive: contentHeight > height
-                // wheelEnabled: contentHeight > height
                 hoverEnabled: contentHeight > height || contentWidth > width
-                // Rectangle{anchors.fill: parent; color: "yellow"; opacity: 0.3; visible: parent.hovered}
                 focusPolicy: Qt.ClickFocus
                 enabled: false
 
-                TextArea{ id: notesEdit // XsTextEdit{ id: notesEdit
-                    // anchors.margins: itemSpacing*2
-                    // anchors.fill: parent
+                TextArea{ id: notesEdit
                     enabled: false
                     readOnly: true
-                    clip: true
-                    // hoverEnabled: contentHeight > height || contentWidth > width
-                    // Rectangle{anchors.fill: parent; color: "red"; opacity: 0.3; visible: parent.hovered}
 
                     text: contentRole
                     padding: panelPadding
-                    // textFormat: parent.lineCount>25 && toolTip.visible? TextEdit.PlainText : TextEdit.AutoText
                     wrapMode: TextEdit.Wrap
 
                     XsToolTip{
@@ -86,7 +75,7 @@ Rectangle{
                 anchors.rightMargin: 2
                 anchors.bottom: parent.bottom
                 anchors.bottomMargin: 7
-                imgOverlayColor: toolTipMArea.containsMouse? palette.highlight : XsStyleSheet.secondaryTextColor //scrollView.ScrollBar.vertical.active?
+                imgOverlayColor: toolTipMArea.containsMouse? palette.highlight : XsStyleSheet.secondaryTextColor
                 source: "qrc:///shotbrowser_icons/arrow_right.svg"
                 visible: scrollView.contentWidth > scrollView.width
             }
@@ -99,7 +88,7 @@ Rectangle{
                 anchors.bottomMargin: 2
                 imgOverlayColor: toolTipMArea.containsMouse? palette.highlight : XsStyleSheet.secondaryTextColor
                 source: "qrc:///shotbrowser_icons/arrow_right.svg"
-                visible: scrollView.contentHeight > scrollView.height //notesEdit.lineCount > 8
+                visible: scrollView.contentHeight > scrollView.height
                 rotation: 90
             }
 

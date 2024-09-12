@@ -4,7 +4,7 @@ import QtQuick.Controls 2.15
 import QtGraphicalEffects 1.15
 import QtQuick.Layouts 1.15
 
-import xStudioReskin 1.0
+import xStudio 1.0
 
 
 Rectangle { id: widget
@@ -25,6 +25,5 @@ Rectangle { id: widget
         text: filteredCount + " / " +  totalCount
         width: parent.width
         anchors.centerIn: parent
-        clip: true
     }
 }

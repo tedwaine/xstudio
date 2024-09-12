@@ -48,7 +48,10 @@ namespace media {
             const bool set_as_current_source);
 
         void clone_bookmarks_to(
-            const utility::UuidActor &ua, caf::actor src_bookmark, caf::actor dst_bookmark);
+            caf::typed_response_promise<utility::UuidUuidActor> rp,
+            const utility::UuidUuidActor &uua,
+            caf::actor src_bookmark,
+            caf::actor dst_bookmark);
 
         void switch_current_source_to_named_source(
             caf::typed_response_promise<bool> rp,
@@ -61,7 +64,7 @@ namespace media {
 
         void update_human_readable_details(caf::typed_response_promise<utility::JsonStore> rp);
 
-        void build_display_info(caf::typed_response_promise<utility::JsonStore> rp);
+        void build_media_list_info(caf::typed_response_promise<utility::JsonStore> rp);
 
         void display_info_item(
             const utility::JsonStore item_query_info,
@@ -79,10 +82,9 @@ namespace media {
         std::map<utility::Uuid, caf::actor> media_sources_;
         utility::UuidList bookmark_uuids_;
         bool pending_change_{false};
-        utility::JsonTree metadata_filter_sets_;
-        int num_metadata_filter_results_ = 0;
+        utility::JsonTree media_list_columns_config_;
         utility::JsonStore human_readable_info_;
-        utility::JsonStore filtered_metadata_;
+        utility::JsonStore media_list_columns_info_;
     };
 
     class MediaSourceActor : public caf::event_based_actor {
@@ -130,7 +132,8 @@ namespace media {
         void get_media_pointers_for_frames(
             const MediaType media_type,
             const LogicalFrameRanges &ranges,
-            caf::typed_response_promise<media::AVFrameIDs> rp);
+            caf::typed_response_promise<media::AVFrameIDs> rp,
+            const utility::Uuid clip_uuid);
 
         void update_stream_media_reference(
             StreamDetail &stream_detail,

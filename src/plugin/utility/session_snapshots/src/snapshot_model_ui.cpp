@@ -173,13 +173,20 @@ utility::JsonStore SnapshotMenuModel::toMenuModelItemData(FileSystemItem *item) 
             menu_item_data["children"].push_back(save_snapshot_item);
 
             utility::JsonStore save_selected_snapshot_item;
-            save_selected_snapshot_item["name"]              = "Save Selected Snapshot ...";
+            save_selected_snapshot_item["name"]              = "Save Selected As Snapshot ...";
             save_selected_snapshot_item["menu_item_type"]    = "button";
             save_selected_snapshot_item["menu_item_enabled"] = true;
             save_selected_snapshot_item["snapshot_filesystem_path"] = snapshot_filesystem_path;
             save_selected_snapshot_item["watch_visibility"]         = false;
             save_selected_snapshot_item["user_data"]                = "SNAPSHOT_SELECTED_SAVE";
             menu_item_data["children"].push_back(save_selected_snapshot_item);
+
+
+            utility::JsonStore options_menu_item;
+            options_menu_item["name"]             = "Options";
+            options_menu_item["menu_item_type"]   = "menu";
+            options_menu_item["children"]         = nlohmann::json::array();
+            options_menu_item["watch_visibility"] = false;
 
             utility::JsonStore create_folder_item;
             create_folder_item["name"]                     = "Create New Folder ...";
@@ -188,7 +195,18 @@ utility::JsonStore SnapshotMenuModel::toMenuModelItemData(FileSystemItem *item) 
             create_folder_item["snapshot_filesystem_path"] = snapshot_filesystem_path;
             create_folder_item["watch_visibility"]         = false;
             create_folder_item["user_data"]                = "SNAPSHOT_NEW_FOLDER";
-            menu_item_data["children"].push_back(create_folder_item);
+            options_menu_item["children"].push_back(create_folder_item);
+
+            utility::JsonStore reveal_folder_item;
+            reveal_folder_item["name"]                     = "Reveal On Disk ...";
+            reveal_folder_item["menu_item_type"]           = "button";
+            reveal_folder_item["menu_item_enabled"]        = true;
+            reveal_folder_item["snapshot_filesystem_path"] = snapshot_filesystem_path;
+            reveal_folder_item["watch_visibility"]         = false;
+            reveal_folder_item["user_data"]                = "SNAPSHOT_REVEAL";
+            options_menu_item["children"].push_back(reveal_folder_item);
+
+            menu_item_data["children"].push_back(options_menu_item);
         }
 
         // the first snapshot menus have a 'remove' option. We know we are
@@ -202,6 +220,12 @@ utility::JsonStore SnapshotMenuModel::toMenuModelItemData(FileSystemItem *item) 
         }
 
         if (top_level) {
+            utility::JsonStore divider;
+            divider["name"]              = "";
+            divider["menu_item_type"]    = "divider";
+            divider["menu_item_enabled"] = true;
+            menu_item_data["children"].push_back(divider);
+
             utility::JsonStore remove_menu_item;
             remove_menu_item["name"]                     = "Remove " + item->name() + " Menu";
             remove_menu_item["menu_item_type"]           = "button";
@@ -259,21 +283,27 @@ bool SnapshotMenuModel::createFolder(const QModelIndex &index, const QString &na
 
     // get path..
     if (index.isValid()) {
-
-        auto url = UriFromQUrl(get(index, "snapshot_filesystem_path").toUrl());
-
         auto uri =
             caf::make_uri(StdFromQString(get(index, "snapshot_filesystem_path").toString()));
+
         if (uri) {
             auto path     = uri_to_posix_path(*uri);
             auto new_path = fs::path(path) / StdFromQString(name);
             try {
                 fs::create_directory(new_path);
-                rescan(index);
+                rescan(index.parent().parent());
             } catch (const std::exception &err) {
                 spdlog::warn("{} {}", __PRETTY_FUNCTION__, err.what());
             }
+        } else {
+            spdlog::warn(
+                "{} {} {}",
+                __PRETTY_FUNCTION__,
+                "failed to create uri",
+                StdFromQString(get(index, "snapshot_filesystem_path").toString()));
         }
+    } else {
+        spdlog::warn("{} {}", __PRETTY_FUNCTION__, "Invalid index");
     }
 
     return result;

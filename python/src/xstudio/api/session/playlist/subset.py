@@ -1,5 +1,5 @@
 # SPDX-License-Identifier: Apache-2.0
-from xstudio.core import Uuid, add_media_atom, actor
+from xstudio.core import Uuid, add_media_atom, actor, selection_actor_atom
 from xstudio.api.session.container import Container
 from xstudio.api.session.media.media import Media
 
@@ -34,7 +34,7 @@ class Subset(Container):
 
         """
         if not isinstance(media, actor) and not isinstance(media, Uuid):
-            media = media.remote
+            media = media.uuid_actor()
 
         if not isinstance(before_uuid, Uuid):
             before_uuid = before_uuid.uuid
@@ -42,3 +42,15 @@ class Subset(Container):
         result = self.connection.request_receive(self.remote, add_media_atom(), media, before_uuid)[0]
 
         return Media(self.connection, result.actor, result.uuid)
+
+    @property
+    def playhead_selection(self):
+        """The actor that filters a selection of media from a playhead
+        and passes to a playhead for playback.
+
+        Returns:
+            source(PlayheadSelection): Currently playing this.
+        """
+        result =  self.connection.request_receive(self.remote, selection_actor_atom())[0]
+        return PlayheadSelection(self.connection, result)
+

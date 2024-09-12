@@ -273,6 +273,10 @@ ImageBufPtr FFMpegStream::get_ffmpeg_frame_as_xstudio_image() {
     if (shader_supported_pix_formats.find(ffmpeg_pixel_format) ==
         shader_supported_pix_formats.end()) {
 
+        if (ffmpeg_pixel_format == -1) {
+            throw media_corrupt_error("FFMPEG could not decode the image.");
+        }
+
         if (!format_conversion_warning_issued) {
             format_conversion_warning_issued = true;
             spdlog::warn(
@@ -285,6 +289,7 @@ ImageBufPtr FFMpegStream::get_ffmpeg_frame_as_xstudio_image() {
         image_buffer.reset(new ImageBuffer());
         auto buffer = (uint8_t *)image_buffer->allocate(4 * frame->width * frame->height);
         // not one of the ffmpeg pixel formats that our shader can deal with, so convert to
+
         // something we can
         sws_context_ = sws_getCachedContext(
             sws_context_,

@@ -8,11 +8,11 @@ import QtQml 2.15
 import xstudio.qml.bookmarks 1.0
 import QtQml.Models 2.14
 
-import xStudioReskin 1.0
+import xStudio 1.0
 import xstudio.qml.models 1.0
 
-Item{ 
-                    
+Item{
+
     id: shapeCategories
 
     property alias shapesModel: shapesModel
@@ -49,7 +49,7 @@ Item{
             }
         }
 
-        delegate: XsPrimaryButton{ 
+        delegate: XsPrimaryButton{
             id: shapeBtn
             text: shapeHint
             isToolTipEnabled: showButtonHints

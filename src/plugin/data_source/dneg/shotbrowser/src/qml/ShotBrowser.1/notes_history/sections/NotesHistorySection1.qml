@@ -3,15 +3,19 @@
 import QtQuick 2.15
 import QtQuick.Controls 2.15
 import QtQuick.Layouts 1.15
+import QtGraphicalEffects 1.15
+import QuickFuture 1.0
 
-import xStudioReskin 1.0
+import xStudio 1.0
 import ShotBrowser 1.0
+import xstudio.qml.helpers 1.0
 
 Rectangle{
     color: XsStyleSheet.widgetBgNormalColor
 
     property bool isHovered: thumbMArea.containsMouse ||
-            dateToolTip.containsMouse ||
+            dateDiv.toolTipMArea.containsMouse ||
+            artistDiv.toolTipMArea.containsMouse ||
             timeDiv.toolTipMArea.containsMouse ||
             typeDiv.toolTipMArea.containsMouse ||
             fromDiv.toolTipMArea.containsMouse ||
@@ -22,6 +26,7 @@ Rectangle{
         anchors.fill: parent
         acceptedButtons: Qt.NoButton
         hoverEnabled: true
+        propagateComposedEvents: true
     }
 
     ColumnLayout {
@@ -81,7 +86,6 @@ Rectangle{
                 source: parent.failed || thumbRole==undefined? "" : thumbRole
                 fillMode: Image.PreserveAspectFit
                 anchors.centerIn: parent
-                clip: true
                 cache: true
                 asynchronous: true
                 sourceSize.height: height
@@ -98,6 +102,39 @@ Rectangle{
                     else opacity=0
                 }
             }
+
+
+
+            XsPrimaryButton {
+                imgSrc: "qrc:///shotbrowser_icons/attach_file.svg"
+                height: 20
+                width: 20
+                anchors.left: parent.left
+                anchors.top: parent.top
+                anchors.topMargin: 6
+                background: Item{}
+                visible: attachmentsRole && attachmentsRole.length
+                imgOverlayColor: isHovered ? (pressed ? palette.highlight : palette.text) : XsStyleSheet.hintColor
+                onClicked: {
+                    attachmentsRole.forEach(function (item, index) {
+                        Future.promise(
+                                helpers.openURLFuture("http://shotgun.dneg.com/thumbnail/full/"+item.type+"/"+item.id)
+                        ).then(function(result) {
+                        })
+                    })
+                }
+
+                layer.enabled: true
+                layer.effect: DropShadow{
+                    verticalOffset: 1
+                    horizontalOffset: 1
+                    color: "#010101"
+                    radius: 1
+                    samples: 3
+                    spread: 0.5
+                }
+
+            }
         }
         Item{ id: emptyDiv
             Layout.fillWidth: true
@@ -113,16 +150,7 @@ Rectangle{
             property var dateFormatted: createdDateRole.toLocaleString().split(" ")
             valueText: typeof dateFormatted !== 'undefined'? dateFormatted[1].substr(0,3)+" "+dateFormatted[2]+" "+dateFormatted[3] : ""
 
-            ToolTip.text: dateFormatted[0].substr(0,dateFormatted[0].length-1)
-            ToolTip.visible: dateToolTip.containsMouse
-            MouseArea {
-                id: dateToolTip
-                width: parent.valueDiv.width
-                height: parent.valueDiv.height
-                anchors.right: parent.right
-                hoverEnabled: true
-                acceptedButtons: Qt.NoButton
-            }
+            toolTip: dateFormatted[0].substr(0,dateFormatted[0].length-1)
         }
 
         NotesHistoryDetailRow{ id: timeDiv

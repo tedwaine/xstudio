@@ -40,7 +40,8 @@ namespace module {
             _any_to_json{
                 to_any_to_json<nlohmann::json>(
                     [](nlohmann::json x) -> nlohmann::json { return x; }),
-                to_any_to_json<int>([](int x) -> nlohmann::json { return nlohmann::json(x); }),
+                to_any_to_json<int64_t>(
+                    [](int64_t x) -> nlohmann::json { return nlohmann::json(x); }),
                 to_any_to_json<float>(
                     [](float x) -> nlohmann::json { return nlohmann::json(x); }),
                 to_any_to_json<double>(
@@ -194,7 +195,7 @@ namespace module {
             } else if (data.is_boolean()) {
                 rt = set(data.get<bool>());
             } else if (data.is_number_integer()) {
-                rt = set(data.get<int>());
+                rt = set(data.get<int64_t>());
             } else if (data.is_number_float()) {
                 rt = set(data.get<float>());
             } else if (
@@ -210,17 +211,18 @@ namespace module {
             return rt;
         }
 
-        // not pretty, must be a better way of letting an int set a float and vice versa
+        // not pretty, must be a better way of letting an int64_t set a float and vice versa
         // without violating type checking
         bool set(const float &v) {
             if (data_.has_value()) {
                 if (data_.type() == typeid(float) && get<float>() != v) {
                     data_ = v;
                     return true;
-                } else if (data_.type() == typeid(int) && get<int>() != (int)v) {
-                    data_ = (int)v;
+                } else if (data_.type() == typeid(int64_t) && get<int64_t>() != (int64_t)v) {
+                    data_ = (int64_t)v;
                     return true;
-                } else if (!(data_.type() == typeid(int) || data_.type() == typeid(float))) {
+                } else if (!(data_.type() == typeid(int64_t) ||
+                             data_.type() == typeid(float))) {
                     spdlog::warn(
                         "{} Attempt to set AttributeData with type {} with data of type {} "
                         "and "
@@ -235,15 +237,18 @@ namespace module {
             return true;
         }
 
-        bool set(const int &v) {
+        bool set(const int v) { return set(int64_t(v)); }
+
+        bool set(const int64_t &v) {
             if (data_.has_value()) {
                 if (data_.type() == typeid(float) && get<float>() != (float)v) {
                     data_ = (float)v;
                     return true;
-                } else if (data_.type() == typeid(int) && get<int>() != v) {
+                } else if (data_.type() == typeid(int64_t) && get<int64_t>() != v) {
                     data_ = v;
                     return true;
-                } else if (!(data_.type() == typeid(int) || data_.type() == typeid(float))) {
+                } else if (!(data_.type() == typeid(int64_t) ||
+                             data_.type() == typeid(float))) {
                     spdlog::warn(
                         "{} Attempt to set AttributeData with type {} with data of type {} "
                         "and "

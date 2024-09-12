@@ -286,7 +286,9 @@ void BasicViewportMasking::register_hotkeys() {
         int('M'),
         ui::NoModifier,
         "Toggle Mask",
-        "Toggles viewport masking. Find mask settings in the toolbar under the 'Mask' button");
+        "Toggles viewport masking. Find mask settings in the toolbar under the 'Mask' button",
+        false,
+        "Viewer");
 }
 
 utility::BlindDataObjectPtr BasicViewportMasking::prepare_overlay_data(
@@ -343,7 +345,7 @@ void BasicViewportMasking::attribute_changed(
 }
 
 void BasicViewportMasking::hotkey_pressed(
-    const utility::Uuid &hotkey_uuid, const std::string &) {
+    const utility::Uuid &hotkey_uuid, const std::string &, const std::string &) {
     if (hotkey_uuid == mask_hotkey_) {
         hud_data_->set_value(!hud_data_->value());
     }

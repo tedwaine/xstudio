@@ -317,12 +317,26 @@ QVariant ShotBrowserSequenceModel::data(const QModelIndex &index, int role) cons
     return result;
 }
 
-void ShotBrowserSequenceFilterModel::setShowOmit(const bool value) {
-    if (value != show_omit_) {
-        show_omit_ = value;
-        emit showOmitChanged();
+void ShotBrowserSequenceFilterModel::setHideStatus(const QStringList &value) {
+    std::set<QString> new_value;
+
+    for (const auto &i : value)
+        new_value.insert(i);
+
+    if (new_value != hide_status_) {
+        hide_status_ = new_value;
+        emit hideStatusChanged();
         invalidateFilter();
     }
+}
+
+QStringList ShotBrowserSequenceFilterModel::hideStatus() const {
+    auto result = QStringList();
+
+    for (const auto &i : hide_status_)
+        result.push_back(i);
+
+    return result;
 }
 
 
@@ -331,13 +345,10 @@ bool ShotBrowserSequenceFilterModel::filterAcceptsRow(
     auto result       = true;
     auto source_index = sourceModel()->index(source_row, 0, source_parent);
 
-    const static std::set<std::string> omit_set = {"omt", "na", "del"};
-
-    if (not show_omit_ and source_index.isValid()) {
-        if (omit_set.count(StdFromQString(
-                source_index.data(ShotBrowserSequenceModel::Roles::statusRole).toString())))
-            result = false;
-    }
+    if (not hide_status_.empty() and source_index.isValid() and
+        hide_status_.count(
+            source_index.data(ShotBrowserSequenceModel::Roles::statusRole).toString()))
+        result = false;
 
     return result;
 }

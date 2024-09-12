@@ -6,7 +6,7 @@ import QtQuick.Layouts 1.15
 import QtQml.Models 2.14
 import Qt.labs.qmlmodels 1.0
 
-import xStudioReskin 1.0
+import xStudio 1.0
 import xstudio.qml.models 1.0
 import ShotBrowser 1.0
 import xstudio.qml.helpers 1.0
@@ -19,6 +19,8 @@ XsPopupMenu {
 
     property var popupSelectionModel
     property var popupDelegateModel
+
+    menu_model_name: "notehistory_menu_"+rightClickMenu
 
     Clipboard {
        id: clipboard

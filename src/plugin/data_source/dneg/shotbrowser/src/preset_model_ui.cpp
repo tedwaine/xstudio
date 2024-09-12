@@ -25,6 +25,7 @@ ShotBrowserPresetModel::ShotBrowserPresetModel(QueryEngine &query_engine, QObjec
         {"enabledRole",
          "entityRole",
          "favouriteRole",
+         "groupFavouriteRole",
          "groupIdRole",
          "groupUserDataRole",
          "hiddenRole",
@@ -236,8 +237,13 @@ QVariant ShotBrowserPresetModel::data(const QModelIndex &index, int role) const 
                 break;
 
             case Roles::favouriteRole:
-                if (j.count("favourite"))
+                if (j.count("favourite") and not j.at("favourite").is_null())
                     result = j.at("favourite").get<bool>();
+                break;
+
+            case Roles::groupFavouriteRole:
+                if (j.value("type", "") == "preset")
+                    result = index.parent().parent().data(Roles::favouriteRole).toBool();
                 break;
 
             case Roles::hiddenRole:
@@ -377,6 +383,15 @@ bool ShotBrowserPresetModel::setData(
 
         case Roles::favouriteRole:
             result = baseSetData(index, value, "favourite", QVector<int>({role}), true);
+            if (result) {
+                if (index.data(typeRole).toString() == "group") {
+                    auto presets = ShotBrowserPresetModel::index(1, 0, index);
+                    emit dataChanged(
+                        ShotBrowserPresetModel::index(0, 0, presets),
+                        ShotBrowserPresetModel::index(rowCount(presets) - 1, 0, presets),
+                        QVector<int>({groupFavouriteRole}));
+                }
+            }
             break;
 
         case Roles::hiddenRole:
@@ -636,9 +651,13 @@ QObject *ShotBrowserPresetModel::termModel(
                     auto data = R"([])"_json;
 
                     for (const auto i : cache->items()) {
-                        auto item    = R"({"name": null, "id":null})"_json;
+                        auto item = R"({"name": null, "id":null})"_json;
+                        // don't expose ids if they are numbers
+                        if (not i.value().at("id").is_string() and
+                            std::to_string(i.value().at("id").get<long>()) == i.key())
+                            continue;
                         item["name"] = i.key();
-                        item["id"]   = i.value();
+                        item["id"]   = i.value().at("id");
                         data.push_back(item);
                     }
                     model->setModelData(data);
@@ -659,9 +678,13 @@ QObject *ShotBrowserPresetModel::termModel(
                     auto data = R"([])"_json;
 
                     for (const auto i : cache->items()) {
-                        auto item    = R"({"name": null, "id":null})"_json;
+                        auto item = R"({"name": null, "id":null})"_json;
+                        // don't expose ids if they are numbers
+                        if (not i.value().at("id").is_string() and
+                            std::to_string(i.value().at("id").get<long>()) == i.key())
+                            continue;
                         item["name"] = i.key();
-                        item["id"]   = i.value();
+                        item["id"]   = i.value().at("id");
                         data.push_back(item);
                     }
                     model->setModelData(data);
@@ -704,7 +727,7 @@ void ShotBrowserPresetModel::updateTermModel(const std::string &key, const bool 
                 for (const auto i : data->items()) {
                     auto item    = R"({"name": null, "id":null})"_json;
                     item["name"] = i.key();
-                    item["id"]   = i.value();
+                    item["id"]   = i.value().at("id");
                     tmp.push_back(item);
                 }
                 model->setModelData(tmp);
@@ -775,10 +798,14 @@ bool ShotBrowserPresetFilterModel::filterAcceptsRow(
     auto source_index = sourceModel()->index(source_row, 0, source_parent);
 
     if (source_index.isValid()) {
-        auto type     = source_index.data(ShotBrowserPresetModel::Roles::typeRole);
-        auto favoured = QVariant();
-        if (only_show_favourite_)
+        auto type           = source_index.data(ShotBrowserPresetModel::Roles::typeRole);
+        auto favoured       = QVariant();
+        auto group_favoured = QVariant();
+        if (only_show_favourite_) {
             favoured = source_index.data(ShotBrowserPresetModel::Roles::favouriteRole);
+            group_favoured =
+                source_index.data(ShotBrowserPresetModel::Roles::groupFavouriteRole);
+        }
 
         if (only_show_presets_ and type != preset)
             accept = false;
@@ -792,7 +819,9 @@ bool ShotBrowserPresetFilterModel::filterAcceptsRow(
             not show_hidden_ and
             source_index.data(ShotBrowserPresetModel::Roles::hiddenRole) == hidden)
             accept = false;
-        else if (only_show_favourite_ and not favoured.isNull() and favoured == not_favourite)
+        else if (
+            only_show_favourite_ and type == preset and not favoured.isNull() and
+            (favoured == not_favourite or group_favoured == not_favourite))
             accept = false;
         else if (
             not filter_user_data_.isNull() and type == preset and

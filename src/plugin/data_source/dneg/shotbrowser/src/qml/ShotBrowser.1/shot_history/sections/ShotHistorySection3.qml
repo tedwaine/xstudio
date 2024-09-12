@@ -3,13 +3,11 @@ import QtQuick 2.15
 import QtQuick.Controls 2.15
 import QtQuick.Layouts 1.15
 
-import xStudioReskin 1.0
+import xStudio 1.0
 import ShotBrowser 1.0
 
 Rectangle{
     color: "transparent"
-
-    property bool isHovered: false
 
     ColumnLayout {
         anchors.fill: parent

@@ -3,7 +3,7 @@ from xstudio.core import get_playlists_atom, get_playlist_atom, add_playlist_ato
 from xstudio.core import get_container_atom, create_group_atom, remove_container_atom, path_atom, get_media_atom
 from xstudio.core import rename_container_atom, create_divider_atom, media_rate_atom, playhead_rate_atom
 from xstudio.core import reflag_container_atom, merge_playlist_atom, copy_container_to_atom
-from xstudio.core import get_bookmark_atom, save_atom, current_playlist_atom, current_media_atom
+from xstudio.core import get_bookmark_atom, save_atom, current_playlist_atom, current_media_atom, name_atom
 from xstudio.core import URI, Uuid, UuidVec
 
 from xstudio.api.session.container import Container, PlaylistTree, PlaylistItem
@@ -69,14 +69,16 @@ class Session(Container):
 
         result = self.connection.request_receive(self.remote, current_playlist_atom(), True)[0]
 
-        if result[1][0] == "Timeline":
-            return Timeline(self.connection, result[1][1].actor, result[1][1].uuid)
-        elif result[1][0] == "Subset":
-            return Subset(self.connection, result[1][1].actor, result[1][1].uuid)
-        elif result[1][0] == "ContactSheet":
-            return ContactSheet(self.connection, result[1][1].actor, result[1][1].uuid)
+        container = Container(self.connection, result)
 
-        return Playlist(self.connection, result[1][1].actor, result[1][1].uuid)
+        if container.type == "Timeline":
+            return Timeline(self.connection, result)
+        elif container.type == "Subset":
+            return Subset(self.connection, result)
+        elif container.type == "ContactSheet":
+            return ContactSheet(self.connection, result)
+
+        return Playlist(self.connection, result)
 
     @property
     def inspected_playlist(self):
@@ -86,7 +88,7 @@ class Session(Container):
             Playlist(Playlist): Playlist.
         """
 
-        result = self.connection.request_receive(self.remote, current_playlist_atom(), False)[0]
+        result = self.connection.request_receive(self.remote, current_playlist_atom())[0]
 
         return Playlist(self.connection, result[0].actor, result[0].uuid)
 
@@ -98,16 +100,18 @@ class Session(Container):
             container(Playlist,Subset,Timelime,ContactSheet): Container.
         """
 
-        result = self.connection.request_receive(self.remote, current_playlist_atom(), False)[0]
+        result = self.connection.request_receive(self.remote, current_playlist_atom())[0]
 
-        if result[1][0] == "Timeline":
-            return Timeline(self.connection, result[1][1].actor, result[1][1].uuid)
-        elif result[1][0] == "Subset":
-            return Subset(self.connection, result[1][1].actor, result[1][1].uuid)
-        elif result[1][0] == "ContactSheet":
-            return ContactSheet(self.connection, result[1][1].actor, result[1][1].uuid)
+        container = Container(self.connection, result)
 
-        return Playlist(self.connection, result[1][1].actor, result[1][1].uuid)
+        if container.type == "Timeline":
+            return Timeline(self.connection, result)
+        elif container.type == "Subset":
+            return Subset(self.connection, result)
+        elif container.type == "ContactSheet":
+            return ContactSheet(self.connection, result)
+
+        return Playlist(self.connection, result)
 
     @property
     def path(self):
@@ -414,3 +418,24 @@ class Session(Container):
             path = URI(path)
 
         return self.connection.request_receive(self.remote, save_atom(), path)[0]
+
+    @property
+    def current_playlist(self):
+        """Current playlist uuid
+
+        Returns:
+           uuid(Uuid): Uuid of current (active, on-screen) playlist, timeline or subset.
+        """
+        actor = self.connection.request_receive(self.remote, current_playlist_atom())[0]
+        return self.connection.request_receive(actor, uuid_atom())[0]
+
+
+    @current_playlist.setter
+    def current_playlist(self, playlist_uuid):
+        """Set the current, on-screen playlist
+
+        Args:
+            playlist_uuid(Uuid): Uuid of playlist, subset or timeline(sequence)
+        """
+        print ("SETTING PLAYLIST", playlist_uuid)
+        self.connection.send(self.remote, current_playlist_atom(), playlist_uuid)

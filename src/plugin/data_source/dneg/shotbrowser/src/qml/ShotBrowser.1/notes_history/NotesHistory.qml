@@ -12,7 +12,7 @@ import Qt.labs.qmlmodels 1.0
 import QuickFuture 1.0
 import QuickPromise 1.0
 
-import xStudioReskin 1.0
+import xStudio 1.0
 import xstudio.qml.models 1.0
 import xstudio.qml.helpers 1.0
 import ShotBrowser 1.0
@@ -35,12 +35,16 @@ Item{
 
     readonly property string panelType: "NotesHistory"
 
+    property bool isPopout: typeof panels_layout_model_index == "undefined"
+
     property int queryCounter: 0
     property int queryRunning: 0
 
     property bool isPaused: false
 
     onOnScreenMediaUuidChanged: {if(visible) updateTimer.start()}
+
+    property real panelPadding: XsStyleSheet.panelPadding
 
     onOnScreenLogicalFrameChanged: {
         if(updateTimer.running) {
@@ -83,8 +87,7 @@ Item{
     }
 
     function setIndexesFromPreferences() {
-        if(ShotBrowserEngine.ready) {
-            prefs.updateFromValue()
+        if(ShotBrowserEngine.ready && prefs.initialised) {
             if(! activeScopeIndex.valid && (noteScopePref.value || prefs.scope)) {
                 if(prefs.scope) {
                     let i = getScopeIndex(prefs.scope)
@@ -118,56 +121,18 @@ Item{
     function getScopeIndex(scope_name) {
         let m = ShotBrowserEngine.presetsModel
         let p = m.searchRecursive("aac8207e-129d-4988-9e05-b59f75ae2f75", "idRole", ShotBrowserEngine.presetsModel.index(-1, -1), 0, 1)
-        return m.searchRecursive(scope_name, "nameRole", p, 0, 1)
+        return m.searchRecursive(scope_name, "nameRole", p, 0, 0)
     }
 
     function getTypeIndex(type_name) {
         let m = ShotBrowserEngine.presetsModel
         let p = m.searchRecursive("aac8207e-129d-4988-9e05-b59f75ae2f75", "idRole", ShotBrowserEngine.presetsModel.index(-1, -1), 0, 1)
-        return m.searchRecursive(type_name, "nameRole", p, 0, 1)
+        return m.searchRecursive(type_name, "nameRole", p, 0, 0)
     }
 
-    XsModelProperty {
-        id: prefs
-        index: panels_layout_model_index
-        role: "user_data"
-
-        property string scope: ""
-        property string type: ""
-
-        onTypeChanged: {
-            let i = createDefaults()
-            if(i["type"] != type) {
-                i["type"] = type
-                value = i
-            }
-        }
-
-        onScopeChanged: {
-            let i = createDefaults()
-            if(i["scope"] != scope) {
-                i["scope"] = scope
-                value = i
-            }
-        }
-
-        onValueChanged: updateFromValue()
-
-        function createDefaults() {
-            let i = {}
-            i["type"] = value != undefined && value.hasOwnProperty("type") ? value["type"] : ""
-            i["scope"] = value != undefined && value.hasOwnProperty("scope") ? value["scope"] : ""
-            return i
-        }
-
-        function updateFromValue() {
-            if(value) {
-                if(value["scope"] && scope != value["scope"])
-                    scope = value["scope"]
-                if(value["type"] && type != value["type"])
-                    type = value["type"]
-            }
-        }
+    XsPreference {
+        id: popoutPref
+        path: "/plugin/data_source/shotbrowser/note_history/popout"
     }
 
     XsPreference {
@@ -178,6 +143,46 @@ Item{
     XsPreference {
         id: noteTypePref
         path: "/plugin/data_source/shotbrowser/note_history/type"
+    }
+
+    Item {
+        // Hold properties that we want to persist between sessions.
+        // The 'user_data' property is provided by the model data that
+        // instantiates this item and we can access directly
+        id: prefs
+        property string type: ""
+        property string scope: ""
+        property bool initialised: false
+
+        property var store: {
+            "type": type,
+            "scope": scope
+        }
+
+        onStoreChanged: {
+            // push these prefs values to user_data so they get stored
+            // in the user's preference files for next time
+            if (initialised) {
+                if(isPopout) {
+                    popoutPref.value = store
+                } else {
+                    user_data = store
+                }
+            }
+        }
+
+        Component.onCompleted: {
+            // one time initialise from user_data if it is not empty
+            if (typeof user_data == "object") {
+                if (user_data.type) type = user_data.type
+                if (user_data.scope) scope = user_data.scope
+            } else if(isPopout) {
+                if (popoutPref.value.type) type = popoutPref.value.type
+                if (popoutPref.value.scope) scope = popoutPref.value.scope
+            }
+            initialised = true
+            setIndexesFromPreferences()
+        }
     }
 
     onActiveScopeIndexChanged: {
@@ -219,37 +224,41 @@ Item{
     function runQuery() {
         if(isPanelEnabled && !isPaused && activeScopeIndex.valid && activeTypeIndex.valid) {
 
-            // make sure the results appear in sync.
-            queryCounter += 1
-            queryRunning += 1
-            let i = queryCounter
+            if(onScreenMediaUuid == "{00000000-0000-0000-0000-000000000000}") {
+                results.setResultData([])
+            } else {
+                // make sure the results appear in sync.
+                queryCounter += 1
+                queryRunning += 1
+                let i = queryCounter
 
-            Future.promise(
-                ShotBrowserEngine.executeQuery(
-                        [
-                            ShotBrowserEngine.presetsModel.get(
-                                activeScopeIndex,
-                                "jsonPathRole"
-                            ),
-                            ShotBrowserEngine.presetsModel.get(
-                                activeTypeIndex,
-                                "jsonPathRole"
-                            )
-                        ]
-                    )
-                ).then(function(json_string) {
-                    if(queryCounter == i) {
+                Future.promise(
+                    ShotBrowserEngine.executeQuery(
+                            [
+                                ShotBrowserEngine.presetsModel.get(
+                                    activeScopeIndex,
+                                    "jsonPathRole"
+                                ),
+                                ShotBrowserEngine.presetsModel.get(
+                                    activeTypeIndex,
+                                    "jsonPathRole"
+                                )
+                            ]
+                        )
+                    ).then(function(json_string) {
+                        if(queryCounter == i) {
+                            resultsSelectionModel.clear()
+                            results.setResultData([json_string])
+                        }
+                        queryRunning -= 1
+
+                    },
+                    function() {
                         resultsSelectionModel.clear()
-                        results.setResultData([json_string])
-                    }
-                    queryRunning -= 1
-
-                },
-                function() {
-                    resultsSelectionModel.clear()
-                    results.setResultData([])
-                    queryRunning -= 1
-                })
+                        results.setResultData([])
+                        queryRunning -= 1
+                    })
+            }
         }
     }
 
@@ -290,7 +299,7 @@ Item{
 
     NotesHistoryResultPopup {
         id: resultPopup
-        menu_model_name: "note_history_popup"
+        menu_model_name: "note_history_popup"+resultPopup
         popupSelectionModel: resultsSelectionModel
     }
 
@@ -299,13 +308,12 @@ Item{
         anchors.fill: parent
         anchors.margins: 4
         spacing: 4
-        // clip: true
 
         NotesHistoryTitleDiv{
             titleButtonHeight: (XsStyleSheet.widgetStdHeight + 4)
             Layout.fillWidth: true
-            Layout.minimumHeight: titleButtonHeight*2
-            Layout.maximumHeight: titleButtonHeight*2
+            Layout.minimumHeight: (titleButtonHeight * 2) + 1
+            Layout.maximumHeight: (titleButtonHeight * 2) + 1
         }
 
         Rectangle{

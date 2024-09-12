@@ -47,7 +47,7 @@ namespace ui {
             void set_scale(const float scale);
             void set_size(const float w, const float h, const float devicePixelRatio);
             void set_pan(const float x_pan, const float y_pan);
-            void set_fit_mode(const FitMode md);
+            void set_fit_mode(const FitMode md, const bool sync = true);
             void set_mirror_mode(const MirrorMode md);
             void set_pixel_zoom(const float zoom);
             void set_screen_infos(
@@ -56,15 +56,6 @@ namespace ui {
                 const std::string &manufacturer,
                 const std::string &serialNumber,
                 const double refresh_rate);
-
-            /**
-             *  @brief Link to another viewport so the zoom, scale and colour
-             *  management settings are shared between the two viewports
-             *
-             *  @details This allows the pop-out viewer to track the primary
-             *  viewer in the main interface, for example
-             */
-            void link_to_viewport(caf::actor other_viewport);
 
             /**
              *  @brief Switch the fit mode and zoom to it's previous state (usually before
@@ -349,6 +340,8 @@ namespace ui {
 
             utility::JsonStore settings_;
 
+            std::string window_id_;
+
             typedef std::function<bool(const PointerEvent &pointer_event)> PointerInteractFunc;
             std::map<Signature, PointerInteractFunc> pointer_event_handlers_;
 
@@ -364,10 +357,10 @@ namespace ui {
             caf::actor fps_monitor_;
             caf::actor keypress_monitor_;
             caf::actor viewport_events_actor_;
-            std::vector<caf::actor> other_viewports_;
             caf::actor colour_pipeline_;
             caf::actor keyboard_events_actor_;
             caf::actor quickview_playhead_;
+            caf::actor global_playhead_events_group_;
 
             caf::actor_addr playhead_addr_;
             utility::Uuid playhead_uuid_;
@@ -398,6 +391,7 @@ namespace ui {
             module::BooleanAttribute *hud_toggle_;
             module::StringChoiceAttribute *hud_elements_;
             module::StringAttribute *frame_rate_expr_;
+            module::StringAttribute *custom_cursor_name_;
 
             utility::Uuid zoom_hotkey_;
             utility::Uuid pan_hotkey_;
@@ -410,7 +404,9 @@ namespace ui {
             utility::time_point t1_;
 
             void hotkey_pressed(
-                const utility::Uuid &hotkey_uuid, const std::string &context) override;
+                const utility::Uuid &hotkey_uuid,
+                const std::string &context,
+                const std::string &window) override;
             void hotkey_released(
                 const utility::Uuid &hotkey_uuid, const std::string &context) override;
             void update_attrs_from_preferences(const utility::JsonStore &) override;

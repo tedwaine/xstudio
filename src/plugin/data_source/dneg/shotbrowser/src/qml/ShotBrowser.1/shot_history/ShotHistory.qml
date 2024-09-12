@@ -12,10 +12,9 @@ import Qt.labs.qmlmodels 1.0
 import QuickFuture 1.0
 import QuickPromise 1.0
 
-import xStudioReskin 1.0
+import xStudio 1.0
 import xstudio.qml.models 1.0
 import xstudio.qml.helpers 1.0
-
 import ShotBrowser 1.0
 
 Item{
@@ -40,6 +39,8 @@ Item{
 
     property alias nameFilter: results.filterName
     property string sentTo: ""
+
+    property bool isPopout: typeof panels_layout_model_index == "undefined"
 
     // used ?
     property real btnHeight: XsStyleSheet.widgetStdHeight + 4
@@ -69,6 +70,9 @@ Item{
         onTriggered: {
             isPaused = false
             ShotBrowserHelpers.updateMetadata(isPanelEnabled, onScreenMediaUuid)
+            // if(onScreenMediaUuid == "{00000000-0000-0000-0000-000000000000}") {
+            //     results.setResultData([])
+            // }
         }
     }
 
@@ -80,10 +84,10 @@ Item{
     }
 
     function setIndexFromPreference() {
-        if(ShotBrowserEngine.ready && !activeScopeIndex.valid && (shotScopePref.value || prefs.value)) {
+        if(ShotBrowserEngine.ready  && prefs.initialised && !activeScopeIndex.valid && (shotScopePref.value || prefs.scope)) {
             // from panel.
-            if(prefs.value != undefined) {
-                let i = getScopeIndex(prefs.value)
+            if(prefs.scope != undefined) {
+                let i = getScopeIndex(prefs.scope)
                 if(i.valid && activeScopeIndex != i)
                     activeScopeIndex = i
             }
@@ -107,12 +111,17 @@ Item{
         path: "/plugin/data_source/shotbrowser/shot_history/scope"
     }
 
+    XsPreference {
+        id: popoutPref
+        path: "/plugin/data_source/shotbrowser/shot_history/popout"
+    }
+
     onActiveScopeIndexChanged: {
         if(activeScopeIndex && activeScopeIndex.valid) {
             let m = activeScopeIndex.model
             let i = m.get(activeScopeIndex, "nameRole")
             shotScopePref.value = i
-            prefs.value = i
+            prefs.scope = i
         }
     }
 
@@ -150,19 +159,46 @@ Item{
         }
     }
 
-    XsModelProperty {
+    Item {
+        // Hold properties that we want to persist between sessions.
+        // The 'user_data' property is provided by the model data that
+        // instantiates this item and we can access directly
         id: prefs
-        index: panels_layout_model_index
-        role: "user_data"
+        property string scope: ""
+        property bool initialised: false
+
+        property var store: {
+            "scope": scope
+        }
+
+        onStoreChanged: {
+            // push these prefs values to user_data so they get stored
+            // in the user's preference files for next time
+            if (initialised) {
+                if(isPopout) {
+                    popoutPref.value = store
+                } else {
+                    user_data = store
+                }
+            }
+        }
+
+        Component.onCompleted: {
+            // one time initialise from user_data if it is not empty
+            if (typeof user_data == "object") {
+                if (user_data.scope) scope = user_data.scope
+            } else if(isPopout) {
+                if (popoutPref.value.scope) scope = popoutPref.value.scope
+            }
+            initialised = true
+            setIndexFromPreference()
+        }
     }
 
     function runQuery() {
         if(isPanelEnabled && activeScopeIndex.valid) {
             // make sure the results appear in sync.
-            queryCounter += 1
-            queryRunning += 1
             let custom = []
-
             if(sentTo != "" && sentTo != "Ignore")
                 custom.push({
                     "enabled": true,
@@ -171,27 +207,33 @@ Item{
                     "value": sentTo
                 })
 
-            let i = queryCounter
-            Future.promise(
-                ShotBrowserEngine.executeQuery(
-                    [ShotBrowserEngine.presetsModel.get(activeScopeIndex, "jsonPathRole")],
-                    {},
-                    custom
-                )
-            ).then(
-                function(json_string) {
-                    if(queryCounter == i) {
+            if(onScreenMediaUuid == "{00000000-0000-0000-0000-000000000000}") {
+                resultsBaseModel.setResultData([])
+            } else {
+                queryCounter += 1
+                queryRunning += 1
+                let i = queryCounter
+                Future.promise(
+                    ShotBrowserEngine.executeQuery(
+                        [ShotBrowserEngine.presetsModel.get(activeScopeIndex, "jsonPathRole")],
+                        {},
+                        custom
+                    )
+                ).then(
+                    function(json_string) {
+                        if(queryCounter == i) {
+                            resultsSelectionModel.clear()
+                            resultsBaseModel.setResultData([json_string])
+                        }
+                        queryRunning -= 1
+                    },
+                    function() {
                         resultsSelectionModel.clear()
-                        resultsBaseModel.setResultData([json_string])
+                        resultsBaseModel.setResultData([])
+                        queryRunning -= 1
                     }
-                    queryRunning -= 1
-                },
-                function() {
-                    resultsSelectionModel.clear()
-                    resultsBaseModel.setResultData([])
-                    queryRunning -= 1
-                }
-            )
+                )
+            }
         }
     }
 
@@ -208,7 +250,7 @@ Item{
 
     ShotHistoryResultPopup {
         id: resultPopup
-        menu_model_name: "shot_history_popup"
+        menu_model_name: "shot_history_popup"+resultPopup
         popupSelectionModel: resultsSelectionModel
     }
 

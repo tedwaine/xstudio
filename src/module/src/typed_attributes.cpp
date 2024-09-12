@@ -50,10 +50,10 @@ QmlCodeAttribute::QmlCodeAttribute(const std::string &title, const std::string &
 IntegerAttribute::IntegerAttribute(
     const std::string &title,
     const std::string &abbr_title,
-    const int value,
-    const int int_min,
-    const int int_max)
-    : TypeAttribute<int>(title, abbr_title, value, type_name(Attribute::IntegerAttribute)) {
+    const int64_t value,
+    const int64_t int_min,
+    const int64_t int_max)
+    : TypeAttribute<int64_t>(title, abbr_title, value, type_name(Attribute::IntegerAttribute)) {
     role_data_[IntegerMin] = int_min;
     role_data_[IntegerMax] = int_max;
 }

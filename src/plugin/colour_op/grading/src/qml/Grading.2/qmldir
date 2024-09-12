@@ -11,16 +11,18 @@ L0MaskPopup         2.0 leftSection/L0MaskPopup.qml
 L1Header            2.0 leftSection/L1Header.qml
 L2LayerList         2.0 leftSection/L2LayerList.qml
 
-R1Header            2.0 rightSection/R1Header.qml
 R1MaskTools         2.0 rightSection/R1MaskTools.qml
 R2Controls          2.0 rightSection/R2Controls.qml
 
 GTSliderDiv         2.0 delegates/GTSliderDiv.qml
 GTSliderItem        2.0 delegates/GTSliderItem.qml
 GTWheelItem         2.0 delegates/GTWheelItem.qml
+GTWheelDivHorz      2.0 delegates/GTWheelDivHorz.qml
+GTWheelDivVert      2.0 delegates/GTWheelDivVert.qml
 
 GTSlider            2.0 widgets/GTSlider.qml
 GTToolButton        2.0 widgets/GTToolButton.qml
+GTToolButtonHorz    2.0 widgets/GTToolButtonHorz.qml
 GTValueEditor       2.0 widgets/GTValueEditor.qml
 GTWheel             2.0 widgets/GTWheel.qml
 

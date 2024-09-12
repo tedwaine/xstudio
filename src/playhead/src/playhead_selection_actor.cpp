@@ -60,6 +60,9 @@ PlayheadSelectionActor::PlayheadSelectionActor(
     init();
 }
 
+PlayheadSelectionActor::~PlayheadSelectionActor() {}
+
+void PlayheadSelectionActor::on_exit() { playlist_ = caf::actor(); }
 
 void PlayheadSelectionActor::init() {
 
@@ -183,6 +186,12 @@ void PlayheadSelectionActor::init() {
             }
             return true;
         },
+
+        [=](playlist::media_filter_string, const std::string &filter_string) {
+            filter_string_ = filter_string;
+        },
+
+        [=](playlist::media_filter_string) -> std::string { return filter_string_; },
 
         [=](playlist::select_media_atom) -> bool {
             // clears the selection
@@ -346,7 +355,8 @@ void PlayheadSelectionActor::select_next_media_item(const int skip_by) {
         infinite,
         playlist::get_next_media_atom_v,
         current_media_source_uuid,
-        skip_by)
+        skip_by,
+        filter_string_)
         .then(
             [=](UuidActor media_actor) mutable {
                 UuidList l({media_actor.uuid()});

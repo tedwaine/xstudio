@@ -36,14 +36,24 @@ void PlayheadGlobalEventsActor::init() {
     set_down_handler([=](down_msg &msg) {
         // a playhead OR a viewport has gone offline
         auto q = viewports_.begin();
+        if (msg.source == global_active_playhead_) {
+            global_active_playhead_ = caf::actor();
+        }
         while (q != viewports_.end()) {
             if (msg.source == q->second.viewport) {
                 demonitor(q->second.viewport);
                 q = viewports_.erase(q);
             } else {
                 if (msg.source == q->second.playhead) {
+                    anon_send(
+                        q->second.viewport,
+                        ui::viewport::viewport_playhead_atom_v,
+                        caf::actor());
                     demonitor(q->second.playhead);
                     q->second.playhead = caf::actor();
+                }
+                if (msg.source == global_active_playhead_) {
+                    global_active_playhead_ = caf::actor();
                 }
                 q++;
             }
@@ -75,6 +85,12 @@ void PlayheadGlobalEventsActor::init() {
                 }
             }
             return r;
+        },
+        [=](ui::viewport::viewport_cursor_atom,
+            const std::string &cursor_name) {
+            for (auto &p : viewports_) {
+                anon_send(p.second.viewport, ui::viewport::viewport_cursor_atom_v, cursor_name);
+            }
         },
         [=](ui::viewport::viewport_playhead_atom, caf::actor playhead) {
             // something can send us this message in order to set the 'global'
@@ -183,11 +199,20 @@ void PlayheadGlobalEventsActor::init() {
             }
         },
         [=](ui::viewport::viewport_playhead_atom,
-            const std::string viewport_name) -> caf::actor {
+            const std::string viewport_name) -> result <caf::actor> {
+            if (viewport_name.empty()) return global_active_playhead_;
             if (viewports_.find(viewport_name) != viewports_.end()) {
                 return viewports_[viewport_name].playhead;
             }
-            return caf::actor();
+            return make_error(
+                    xstudio_error::error, fmt::format("No viewport named {}", viewport_name));
+        },
+        [=](ui::viewport::viewport_atom) -> std::vector<caf::actor> {
+            std::vector<caf::actor> result;
+            for (const auto &p : viewports_) {
+                result.push_back(p.second.viewport);
+            }
+            return result;
         },
         [=](ui::viewport::viewport_atom, const std::string viewport_name, caf::actor viewport) {
             monitor(viewport);
@@ -212,5 +237,62 @@ void PlayheadGlobalEventsActor::init() {
                 return make_error(
                     xstudio_error::error, fmt::format("No viewport named {}", viewport_name));
             return r;
+        },
+        [=](ui::viewport::viewport_pan_atom atom,
+            float tx,
+            float ty,
+            const std::string &viewport_name,
+            const std::string &window_id) {
+            // forward pan changed to all other viewports in case they want to sync
+            for (const auto &p : viewports_) {
+                if (p.first != viewport_name) {
+                    send(p.second.viewport, atom, tx, ty, viewport_name, window_id);
+                }
+            }
+        },
+        [=](ui::viewport::viewport_scale_atom atom,
+            float scale,
+            const std::string &viewport_name,
+            const std::string &window_id) {
+            // forward scale changed to all other viewports in case they want to sync
+            for (const auto &p : viewports_) {
+                if (p.first != viewport_name) {
+                    send(p.second.viewport, atom, scale, viewport_name, window_id);
+                }
+            }
+        },
+        [=](ui::viewport::fit_mode_atom atom,
+            const ui::viewport::FitMode mode,
+            const std::string &viewport_name,
+            const std::string &window_id) {
+            // forward fitmode changes to all other viewports in case they want to sync
+            for (const auto &p : viewports_) {
+                if (p.first != viewport_name) {
+                    send(p.second.viewport, atom, mode, viewport_name, window_id);
+                }
+            }
+        },
+        [=](ui::viewport::fit_mode_atom atom,
+            const std::string action,
+            const std::string &viewport_name,
+            const std::string &window_id) {
+            // forward fitmode changes to all other viewports in case they want to sync
+            for (const auto &p : viewports_) {
+                if (p.first != viewport_name) {
+                    send(p.second.viewport, atom, action, viewport_name, window_id);
+                }
+            }
+        },
+        [=](ui::viewport::fit_mode_atom atom,
+            const bool /*mirror*/,
+            const std::string action,
+            const std::string &viewport_name,
+            const std::string &window_id) {
+            // using the fit_mode_atom to transmit change in mirror mode
+            for (const auto &p : viewports_) {
+                if (p.first != viewport_name) {
+                    send(p.second.viewport, atom, true, action, viewport_name, window_id);
+                }
+            }
         });
 }

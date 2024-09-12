@@ -4,18 +4,13 @@ import QtQuick 2.15
 import QtQuick.Controls 2.15
 import QtQuick.Layouts 1.15
 
-import xStudioReskin 1.0
+import xStudio 1.0
 import ShotBrowser 1.0
 
 Rectangle{
     color: XsStyleSheet.widgetBgNormalColor
 
-    property bool isHovered: thumbMArea.containsMouse ||
-            notesIndicatorDisplay.hovered ||
-            dailiesIndicatorDisplay.hovered ||
-            clientIndicatorDisplay.hovered
-
-    RowLayout {
+     RowLayout {
         anchors.fill: parent
         spacing: itemSpacing
 
@@ -85,7 +80,7 @@ Rectangle{
 
             Rectangle{
                 width: parent.width
-                height: width / (16/9) - 10
+                height: Math.min(width / (16/9), thumbImage.height) - 10
                 color: Qt.lighter(panelColor, 1.1)
                 visible: parent.failed
                 anchors.verticalCenter: parent.verticalCenter
@@ -104,7 +99,7 @@ Rectangle{
             XsImage{ id: thumbnail
                 visible: !parent.failed
                 width: parent.width
-                height: width / (16/9)
+                height: Math.min(width / (16/9), thumbImage.height)
                 sourceSize.height: height
                 sourceSize.width:  width
                 source: parent.failed || thumbRole==undefined? "": thumbRole
@@ -123,12 +118,6 @@ Rectangle{
                     else if (status == Image.Error) { parent.failed=true; opacity=0; noThumbnailDisplay.text= "Thumbnail\nError" }
                     else if (status == Image.Ready) opacity=1
                     else opacity=0
-                }
-
-                MouseArea { id: thumbMArea
-                    anchors.fill: parent
-                    acceptedButtons: Qt.NoButton
-                    hoverEnabled: true
                 }
             }
         }

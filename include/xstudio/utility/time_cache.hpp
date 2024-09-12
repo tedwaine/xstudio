@@ -34,6 +34,7 @@
 #include "xstudio/utility/helpers.hpp"
 #include "xstudio/utility/logging.hpp"
 #include "xstudio/utility/uuid.hpp"
+#include "xstudio/media/media.hpp"
 
 namespace xstudio {
 namespace utility {

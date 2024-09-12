@@ -12,21 +12,22 @@ Hotkey::Hotkey(
     const std::string name,
     const std::string component,
     const std::string description,
-    const std::string context,
+    const std::string window_name,
     const bool auto_repeat,
     caf::actor_addr watcher,
     const utility::Uuid uuid)
     : key_(k),
       modifiers_(mod),
-      uuid_(uuid.is_null() ? utility::Uuid::generate() : uuid),
+      uuid_(
+          uuid.is_null() ? utility::Uuid::generate_from_name((name + component).c_str())
+                         : uuid),
       name_(name),
       component_(component),
       description_(description),
-      context_(context),
       auto_repeat_(auto_repeat) {
 
     if (watcher)
-        watchers_.emplace_back(watcher, context);
+        watchers_.emplace_back(watcher);
 }
 
 bool Hotkey::update(const Hotkey &o) {
@@ -34,13 +35,11 @@ bool Hotkey::update(const Hotkey &o) {
     key_         = o.key_;
     modifiers_   = o.modifiers_;
     auto_repeat_ = o.auto_repeat_;
-    context_     = o.context_;
     for (const auto &p : o.watchers_) {
         bool match = false;
         for (auto &q : watchers_) {
-            if (q.first == p.first) {
-                q.second = p.second;
-                match    = true;
+            if (q == p) {
+                match = true;
                 break;
             }
         }
@@ -54,16 +53,13 @@ bool Hotkey::update(const Hotkey &o) {
 void Hotkey::update_state(
     const std::set<int> &current_keys,
     const std::string &context,
+    const std::string &window,
     const bool auto_repeat,
     caf::actor keypress_monitor) {
 
     // context tells us where the hotkey interaction happened (e.g. 'main_viewport')
     // If this hotkey has a context specifier that doesn't match then we don't
     // update the hotkey state.
-
-    if (!(context.empty() || context == "any" || context_.empty() || context_ == "any" ||
-          context_ == context))
-        return;
 
     int mod = 0;
     bool kp = false;
@@ -83,41 +79,47 @@ void Hotkey::update_state(
         if (!pressed_) {
 
             pressed_ = true;
-            notifty_watchers(context);
+            notify_watchers(context, window);
             anon_send(
                 keypress_monitor,
                 keypress_monitor::hotkey_event_atom_v,
                 uuid_,
                 pressed_,
-                context);
+                context,
+                window);
 
         } else if (auto_repeat && auto_repeat_) {
-            notifty_watchers(context);
+            notify_watchers(context, window);
             anon_send(
                 keypress_monitor,
                 keypress_monitor::hotkey_event_atom_v,
                 uuid_,
                 pressed_,
-                context);
+                context,
+                window);
         }
     } else if (pressed_) {
         pressed_ = false;
-        notifty_watchers(context);
+        notify_watchers(context, window);
         anon_send(
-            keypress_monitor, keypress_monitor::hotkey_event_atom_v, uuid_, pressed_, context);
+            keypress_monitor,
+            keypress_monitor::hotkey_event_atom_v,
+            uuid_,
+            pressed_,
+            context,
+            window);
     }
 }
 
-void Hotkey::notifty_watchers(const std::string &context) {
+void Hotkey::notify_watchers(const std::string &context, const std::string &window) {
     auto p = watchers_.begin();
     while (p != watchers_.end()) {
-        auto a = caf::actor_cast<caf::actor>((*p).first);
+        auto a = caf::actor_cast<caf::actor>(*p);
         if (!a) {
             p = watchers_.erase(p); // the 'watcher' must have closed down - let's remove it
-        } else if (context == (*p).second || (*p).second == "any" || (*p).second.empty()) {
-            anon_send(a, keypress_monitor::hotkey_event_atom_v, uuid_, pressed_, context);
-            p++;
         } else {
+            anon_send(
+                a, keypress_monitor::hotkey_event_atom_v, uuid_, pressed_, context, window);
             p++;
         }
     }
@@ -127,10 +129,6 @@ const std::string Hotkey::key() const {
     std::array<char, 2> k{(char)key_, 0};
     return std::string(k.data());
 }
-
-
-void Hotkey::add_watcher(caf::actor_addr watcher) { watchers_.emplace_back(watcher, context_); }
-
 
 std::string Hotkey::hotkey_sequence() const {
 

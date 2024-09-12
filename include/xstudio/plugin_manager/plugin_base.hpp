@@ -156,6 +156,15 @@ namespace plugin {
             const bookmark::BookmarkDetail &detail,
             const bool bookmark_entire_duratio = false);
 
+        /* Call this function to turn off any other tools that have direct, interactive
+        drawing in the viewport. This will allow your drawing plugin to exclusively
+        do interactive drawing. */
+        void cancel_other_drawing_tools();
+
+        /* Override this function and take necessary action to disable any interactive
+        (e.g.) drawing state of your plugin. */
+        virtual void turn_off_overlay_interaction() {}
+
         utility::UuidList get_bookmarks_on_current_media(const std::string &viewport_name);
         bookmark::BookmarkDetail get_bookmark_detail(const utility::Uuid &bookmark_id);
         bookmark::AnnotationBasePtr get_bookmark_annotation(const utility::Uuid &bookmark_id);
@@ -172,6 +181,17 @@ namespace plugin {
 
         void remove_bookmark(const utility::Uuid &bookmark_id);
 
+        /* set playback state for playhead attached to the named viewport */
+        void start_stop_playback(const std::string viewport_name, bool play);
+
+        /* set the cursor (mouse pointer) shape for all viewports. An empty
+        string will return to defaul (arrow) pointer. See XsViewport.qml
+        for possible cursor names - the are simply stringified versions of the
+        Qt cursorshape enumerator. For example "Qt.WaitCursor" would be a 
+        valid cursor name. If you have an image resource declared in a qrc
+        file this can also be used for fully custom cursor. To see an example
+        string-search for 'magnifier_cursor' in the xstudio code base.*/
+        void set_viewport_cursor(const std::string cusor_name);
 
       private:
         // re-implement to receive callback when the on-screen media changes. To
@@ -188,6 +208,7 @@ namespace plugin {
         caf::actor_addr active_viewport_playhead_;
         caf::actor_addr playhead_media_events_group_;
         caf::actor bookmark_manager_;
+        caf::actor playhead_events_actor_;
 
         module::BooleanAttribute *viewport_overlay_qml_code_ = nullptr;
     };

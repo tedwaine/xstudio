@@ -28,8 +28,7 @@ namespace contact_sheet {
             const utility::Uuid &before_uuid = utility::Uuid());
         bool remove_media(caf::actor actor, const utility::Uuid &uuid);
         caf::behavior make_behavior() override { return behavior_; }
-        void sort_by_media_display_info(
-            const int info_set_idx, const int info_item_idx, const bool ascending);
+        void sort_by_media_display_info(const int sort_column_index, const bool ascending);
 
       private:
         caf::behavior behavior_;

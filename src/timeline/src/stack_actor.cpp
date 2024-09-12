@@ -122,8 +122,11 @@ StackActor::StackActor(caf::actor_config &cfg, const utility::JsonStore &jsn, It
 }
 
 StackActor::StackActor(
-    caf::actor_config &cfg, const std::string &name, const utility::Uuid &uuid)
-    : caf::event_based_actor(cfg), base_(name, uuid, this) {
+    caf::actor_config &cfg,
+    const std::string &name,
+    const utility::FrameRate &rate,
+    const utility::Uuid &uuid)
+    : caf::event_based_actor(cfg), base_(name, rate, uuid, this) {
 
     base_.item().set_system(&system());
     base_.item().set_name(name);
@@ -308,6 +311,8 @@ void StackActor::init() {
 
             return jsn;
         },
+
+        [=](utility::rate_atom) -> FrameRate { return base_.item().rate(); },
 
         [=](item_marker_atom) -> std::vector<Marker> {
             std::vector<Marker> result(
@@ -526,6 +531,23 @@ void StackActor::init() {
             return rp;
         },
 
+        [=](utility::clear_atom) -> result<bool> {
+            auto rp = make_response_promise<bool>();
+            request(
+                caf::actor_cast<caf::actor>(this),
+                infinite,
+                remove_item_atom_v,
+                0,
+                (int)base_.item().size(),
+                true)
+                .then(
+                    [=](const std::pair<JsonStore, std::vector<Item>> &) mutable {
+                        rp.deliver(true);
+                    },
+                    [=](caf::error &err) mutable { rp.deliver(err); });
+            return rp;
+        },
+
         [=](remove_item_atom,
             const int index,
             const bool) -> result<std::pair<JsonStore, std::vector<Item>>> {
@@ -708,14 +730,14 @@ void StackActor::insert_items(
                 // insert items..
                 // our list will be out of order..
                 auto changes = JsonStore(R"([])"_json);
-                for (const auto &ua : uav) {
+                for (auto uit = uav.rbegin(); uit != uav.rend(); ++uit) {
                     // find item..
                     auto found = false;
                     for (const auto &i : items) {
-                        if (ua.uuid() == i.uuid()) {
+                        if (uit->uuid() == i.uuid()) {
                             auto tmp = base_.item().insert(it, i);
                             it       = std::next(base_.item().begin(), index);
-                            changes.insert(changes.begin(), tmp.begin(), tmp.end());
+                            changes.insert(changes.end(), tmp.begin(), tmp.end());
                             found = true;
                             break;
                         }
@@ -729,7 +751,7 @@ void StackActor::insert_items(
                 // add changes to stack
                 auto more = base_.item().refresh();
                 if (not more.is_null())
-                    changes.insert(changes.begin(), more.begin(), more.end());
+                    changes.insert(changes.end(), more.begin(), more.end());
 
                 send(event_group_, event_atom_v, item_atom_v, changes, false);
                 rp.deliver(changes);
@@ -743,11 +765,34 @@ void StackActor::remove_items(
     caf::typed_response_promise<std::pair<utility::JsonStore, std::vector<timeline::Item>>>
         rp) {
 
+    try {
+        rp.deliver(remove_items(index, count));
+    } catch (const std::exception &err) {
+        rp.deliver(make_error(xstudio_error::error, err.what()));
+    }
+}
+
+void StackActor::erase_items(
+    const int index, const int count, caf::typed_response_promise<JsonStore> rp) {
+
+    try {
+        auto result = remove_items(index, count);
+        for (const auto &i : result.second)
+            send_exit(i.actor(), caf::exit_reason::user_shutdown);
+        rp.deliver(result.first);
+
+    } catch (const std::exception &err) {
+        rp.deliver(make_error(xstudio_error::error, err.what()));
+    }
+}
+
+std::pair<utility::JsonStore, std::vector<timeline::Item>>
+StackActor::remove_items(const int index, const int count) {
     std::vector<Item> items;
     JsonStore changes(R"([])"_json);
 
     if (index < 0 or index + count - 1 >= static_cast<int>(base_.item().size()))
-        rp.deliver(make_error(xstudio_error::error, "Invalid index / count"));
+        throw std::runtime_error("Invalid index / count");
     else {
         scoped_actor sys{system()};
 
@@ -771,24 +816,11 @@ void StackActor::remove_items(
             changes.insert(changes.begin(), more.begin(), more.end());
 
         send(event_group_, event_atom_v, item_atom_v, changes, false);
-
-        rp.deliver(std::make_pair(changes, items));
     }
+
+    return std::make_pair(changes, items);
 }
 
-void StackActor::erase_items(
-    const int index, const int count, caf::typed_response_promise<JsonStore> rp) {
-
-    request(
-        caf::actor_cast<caf::actor>(this), infinite, remove_item_atom_v, index, count, false)
-        .then(
-            [=](const std::pair<JsonStore, std::vector<Item>> &hist_item) mutable {
-                for (const auto &i : hist_item.second)
-                    send_exit(i.actor(), caf::exit_reason::user_shutdown);
-                rp.deliver(hist_item.first);
-            },
-            [=](error &err) mutable { rp.deliver(std::move(err)); });
-}
 
 void StackActor::move_items(
     const int src_index,

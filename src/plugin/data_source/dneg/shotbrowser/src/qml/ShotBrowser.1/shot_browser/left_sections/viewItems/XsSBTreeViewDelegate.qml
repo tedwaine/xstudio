@@ -6,7 +6,7 @@ import QtQuick.Layouts 1.15
 import QtQml.Models 2.14
 import Qt.labs.qmlmodels 1.0
 
-import xStudioReskin 1.0
+import xStudio 1.0
 import ShotBrowser 1.0
 import xstudio.qml.helpers 1.0
 
@@ -144,7 +144,9 @@ MouseArea {
                     Layout.preferredHeight: parent.height
                     Layout.alignment: Qt.AlignLeft | Qt.AlignVCenter
 
-                    opacity: ["na","del","omt"].includes(statusRole) ? 0.5 : 1.0
+                    opacity: ["na", "del", "omt", "omtnto", "omtnwd"].includes(statusRole) ? 0.5 : 1.0
+
+                    color: "hld" == statusRole ? "red" : palette.text
 
                     text: nameRole
                     horizontalAlignment: Text.AlignLeft

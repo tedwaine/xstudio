@@ -9,12 +9,11 @@ import QtQml.Models 2.14
 import QtQuick.Dialogs 1.3 //for ColorDialog
 import QtGraphicalEffects 1.15 //for RadialGradient
 
-import xStudioReskin 1.0
+import xStudio 1.0
 import xstudio.qml.bookmarks 1.0
 import Grading 2.0
 
-Item { 
-    clip: true
+Item { id: wheelItem
     property real dividerWidth: 2
 
     Rectangle{ id: bg
@@ -30,142 +29,116 @@ Item {
 
     ColumnLayout { id: col
         anchors.fill: bg
-        anchors.margins: 2
+        anchors.margins: 1
         spacing: 1
 
-        Item{ id: titleDiv
+        Item{
             Layout.fillWidth: true
-            Layout.preferredHeight: XsStyleSheet.widgetStdHeight 
-            Layout.maximumHeight: XsStyleSheet.widgetStdHeight
-
-            // XsGradientRectangle{
-            //     width: parent.width+2
-            //     height: parent.height
-            //     // bottomColor: XsStyleSheet.panelTitleBarColor
-            //     bottomColor: "transparent"
-            //     bottomPosition: 2
-            // }
-            XsText {
-                text: abbr_title
-                font.pixelSize: XsStyleSheet.fontSize*1.2
-                font.bold: true
-                anchors.centerIn: parent
-            }
+            Layout.preferredHeight: 2
+            Layout.maximumHeight: 2
         }
-        
-        RowLayout{ id: controlsDiv
-            Layout.fillWidth: true 
-            Layout.fillHeight: true
+        RowLayout{ id: titleDiv
+            Layout.fillWidth: true
+            Layout.preferredHeight: XsStyleSheet.secondaryButtonStdWidth + 2
+            Layout.maximumHeight: XsStyleSheet.secondaryButtonStdWidth + 2
             spacing: 1
 
             Item{
                 Layout.fillWidth: true
-                Layout.minimumWidth: 4
                 Layout.fillHeight: true
             }
-    
-            ColumnLayout { id: wheelDiv
+            XsText { id: textDiv
+                Layout.preferredWidth: textWidth
+                Layout.fillHeight: true
+                text: abbr_title
+                elide: Text.ElideRight
+                font.pixelSize: XsStyleSheet.fontSize*1.2
+                font.bold: true
+
+                MouseArea{ id: textMA
+                    anchors.fill: parent
+                    hoverEnabled: true
+                    onClicked:{
+                        resetButton.clicked()
+                    }
+                    onPressed: resetButton.down = true
+                    onReleased: resetButton.down = undefined
+                }
+            }
+            Item{
                 Layout.fillWidth: true
-                Layout.minimumWidth: defaultWheelSize/2
-                Layout.preferredWidth: defaultWheelSize
-                Layout.maximumWidth: defaultWheelSize 
-                Layout.preferredHeight: parent.height
-                spacing: 1
+                Layout.minimumWidth: 0
+                Layout.maximumWidth: 4
+                Layout.fillHeight: true
+            }
+            XsSecondaryButton {  id: resetButton
+                Layout.preferredWidth: XsStyleSheet.secondaryButtonStdWidth
+                Layout.fillHeight: true
+                imgSrc: "qrc:/icons/rotate-ccw.svg"
+                imageDiv.sourceSize.width: 14
+                imageDiv.sourceSize.height: 14
+                forcedHover: textMA.containsMouse
 
+                onClicked: {
+                    // 'value' and 'default_value' exposed from the model used
+                    // to instantiate the wheel
+                    var _value = value
+                    _value[0] = default_value[0]
+                    _value[1] = default_value[1]
+                    _value[2] = default_value[2]
+                    _value[3] = default_value[3]
+                    value = _value
+                }
+            }
+            Item{
+                Layout.fillWidth: true
+                Layout.fillHeight: true
+            }
+        }
+
+        RowLayout{ id: controlsDiv
+            Layout.fillWidth: true
+            Layout.fillHeight: true
+            spacing: 1
+
+            property real sideMargin: [ (wheelItem.width - (2*2)) / 3 + 2 ] /8
+
+            Item{
+                Layout.fillWidth: true
+                Layout.minimumWidth: 1
+                Layout.maximumWidth: controlsDiv.sideMargin
+                Layout.fillHeight: true
+            }
+
+            Loader{ id: wheelDiv
                 property int defaultWheelSize: 135
-    
-                Item{
-                    Layout.fillWidth: true
-                    Layout.minimumHeight: wheelDiv.defaultWheelSize/2 
-                    Layout.preferredHeight: wheelDiv.defaultWheelSize 
-                    Layout.fillHeight: true
 
-                    onWidthChanged:{
-                        wheel.scale = Math.min(width, height) < wheelDiv.defaultWheelSize ? 
-                            Math.min(width, height)/wheelDiv.defaultWheelSize : 1
-                    }
-                    onHeightChanged:{
-                        wheel.scale = Math.min(width, height) < wheelDiv.defaultWheelSize ? 
-                            Math.min(width, height)/wheelDiv.defaultWheelSize : 1
-                    }
-                    
-                    GTWheel { 
-                        id: wheel
-                        x: dividerWidth*6
-                        backend_color: value
-                        anchors.centerIn: parent
-                    }
+                Layout.fillWidth: true
+                Layout.fillHeight: true
+
+                onWidthChanged: {
+                    updateTile(width, height)
                 }
-    
-                Item{
-                    Layout.fillWidth: true
-                    Layout.minimumHeight: 4
-                    Layout.fillHeight: true
+                onHeightChanged: {
+                    updateTile(width, height)
                 }
-                
-                Repeater {
-                    model: 3
-    
-                    Item{
-                        Layout.fillWidth: true
-                        Layout.preferredHeight: XsStyleSheet.widgetStdHeight
-                        
-                        GTValueEditor{
-                            width: 40+10
-                            height: parent.height
-                            anchors.horizontalCenter: parent.horizontalCenter
-                            valueText: value[index].toFixed(4)
-                            indicatorColor: index==0?"red":index==1?"green":"blue"
-    
-                            onEdited:{
-                                var _value = value
-                                _value[index] = parseFloat(currentText)
-                                value = _value
-                            }
-                        }
-                    }
-                }
-    
-                Item{
-                    Layout.fillWidth: true
-                    Layout.minimumHeight: XsStyleSheet.widgetStdHeight + 4
-    
-                    XsPrimaryButton { 
-                        id: resetWheelButton
-                        width: 40+10
-                        height: XsStyleSheet.widgetStdHeight
-                        anchors.horizontalCenter: parent.horizontalCenter
-                        
-                        imgSrc: "qrc:/icons/rotate-ccw.svg"
-                        imageDiv.width: 16
-                        imageDiv.height: 16
-                        onClicked: {
-                            // 'value' and 'default_value' exposed from the model used
-                            // to instantiate the wheel
-                            var _value = value
-                            _value[0] = default_value[0]
-                            _value[1] = default_value[1]
-                            _value[2] = default_value[2]
-                            value = _value
-                        }
-                    }
-                }
-                
             }
 
             Item{
                 Layout.fillWidth: true
-                Layout.minimumWidth: 0
+                Layout.minimumWidth: 1
+                Layout.preferredWidth: 2
+                Layout.maximumWidth: 4
                 Layout.fillHeight: true
             }
-    
+
             ColumnLayout { id: sliderDiv
-                Layout.minimumWidth: 45 
-                Layout.preferredWidth: 45 
-                Layout.maximumWidth: 45 
+                Layout.minimumWidth: 45
+                Layout.preferredWidth: 45
+                Layout.maximumWidth: 45
                 Layout.preferredHeight: parent.height
                 spacing: 1
-                
+
                 Item{
                     Layout.fillWidth: true
                     Layout.minimumHeight: 2
@@ -175,7 +148,7 @@ Item {
                     Layout.fillWidth: true
                     Layout.fillHeight: true
 
-                    GTSlider{ 
+                    GTSlider{
                         id: slider
                         height: parent.height
                         anchors.horizontalCenter: parent.horizontalCenter
@@ -184,7 +157,7 @@ Item {
                         from: float_scrub_min[3]
                         to: float_scrub_max[3]
                         step: float_scrub_step[3]
-        
+
                         onSetValue: {
                             var _value = value
                             _value[3] = newVal
@@ -192,17 +165,17 @@ Item {
                         }
                     }
                 }
-    
+
                 Item{
                     Layout.fillWidth: true
                     Layout.minimumHeight: XsStyleSheet.widgetStdHeight
-                    
+
                     GTValueEditor{
-                        width: parent.width 
+                        width: parent.width
                         height: parent.height
                         valueText: value[3].toFixed(3)
                         indicatorColor: "transparent"
-    
+
                         onEdited:{
                             var _value = value
                             _value[3] = parseFloat(currentText)
@@ -211,36 +184,39 @@ Item {
                     }
                 }
 
-                Item{
-                    Layout.fillWidth: true
-                    Layout.minimumHeight: XsStyleSheet.widgetStdHeight + 4
-                    
-                    XsPrimaryButton { 
-                        id: resetSliderButton
-                        width: parent.width
-                        height: XsStyleSheet.widgetStdHeight
-        
-                        imgSrc: "qrc:/icons/rotate-ccw.svg"
-                        imageDiv.width: 16
-                        imageDiv.height: 16
-                        onClicked: {
-                            var _value = value
-                            _value[3] = default_value[3]
-                            value = _value
-                        }
-                    }
-                }
-    
             }
 
             Item{
                 Layout.fillWidth: true
-                Layout.minimumWidth: 4
+                Layout.minimumWidth: 1
+                Layout.maximumWidth: controlsDiv.sideMargin
                 Layout.fillHeight: true
             }
 
         }
-        
+
     }
-    
+
+
+
+
+    function updateTile(w, h){
+        var minW = 142
+        var minH = 187
+
+        if(w > minW) wheelDiv.sourceComponent = wheelHor
+        else if(h < minH) wheelDiv.sourceComponent = wheelHor
+        else wheelDiv.sourceComponent = wheelVer
+
+    }
+
+    Component{
+        id: wheelHor
+        GTWheelDivHorz{anchors.fill: wheelDiv}
+    }
+    Component{
+        id: wheelVer
+        GTWheelDivVert{anchors.fill: wheelDiv}
+    }
+
 }

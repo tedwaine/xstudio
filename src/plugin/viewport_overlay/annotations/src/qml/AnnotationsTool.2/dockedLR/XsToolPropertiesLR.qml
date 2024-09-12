@@ -9,7 +9,7 @@ import QtQml.Models 2.14
 import QtQuick.Dialogs 1.3
 import QtGraphicalEffects 1.15
 
-import xStudioReskin 1.0
+import xStudio 1.0
 import xstudio.qml.models 1.0
 import xstudio.qml.helpers 1.0
 
@@ -22,20 +22,20 @@ Item{
         visible: isAnyToolSelected
         width: parent.width -framePadding*2
         height: parent.height + framePadding*2 + colSpacing//*2
-        
+
         anchors.bottom: parent.bottom
         anchors.bottomMargin: -framePadding
         // anchors.verticalCenter: parent.verticalCenter
         anchors.horizontalCenter: parent.horizontalCenter
-        
+
         color: XsStyleSheet.baseColor
     }
 
     Rectangle{ id: row1_categories
         x: framePadding
         width: (toolProperties.width - framePadding*2) - framePadding*2
-        height: visible? currentTool == "Shapes"? buttonHeight*2 + itemSpacing/2 : 
-                                                buttonHeight + itemSpacing/2 : 0
+        height: visible? currentTool == "Shapes"? buttonHeight*2 + itemSpacing :
+                                                buttonHeight + itemSpacing : 0
 
         color: "transparent";
         visible: (currentTool == "Shapes" || currentTool == "Text")
@@ -111,6 +111,16 @@ Item{
             enabled: isAnyToolSelected && currentTool != "Erase"
         }
 
+        XsIntegerAttrControl {
+            id: bgOpacityProp
+            visible: currentTool === "Text"
+            width: row2_controls.gridItemWidth
+            height: visible? buttonHeight : 0
+            text: "BG Opa."
+            attr_group_model: annotations_model_data
+            attr_title: "Text Background Opacity"
+        }
+
         XsViewerMenuButton{ id: colorProp
             visible: enabled
             width: row2_controls.gridItemWidth
@@ -118,7 +128,7 @@ Item{
             text: "Colour    "
             shortText: "Col    "
             enabled: (isAnyToolSelected && currentTool !== "Erase")
-            //forceHover: isMouseHovered
+            showBorder: isMouseHovered
             isActive: isPressed
 
             property bool isPressed: false
@@ -199,62 +209,6 @@ Item{
                     }
                 }
             }
-        }
-
-        XsIntegerAttrControl {
-            id: bgOpacityProp
-            visible: currentTool === "Text"
-            width: row2_controls.gridItemWidth
-            height: visible? buttonHeight : 0
-            text: "BG Opa."
-            attr_group_model: annotations_model_data
-            attr_title: "Text Background Opacity"
-        }
-
-        XsViewerMenuButton{ id: bgColorProp
-            visible: currentTool === "Text"
-            width: row2_controls.gridItemWidth
-            height: visible? buttonHeight : 0
-
-            text: "BG Col.      "
-            shortText: "BG Col.      "
-            enabled: (isAnyToolSelected && currentTool !== "Erase")
-            //forceHover: isMouseHovered
-
-            isActive: isPressed
-            property bool isPressed: false
-            property bool isMouseHovered: bgColorMArea.containsMouse
-
-            Rectangle{ id: bgColorPreview
-                anchors.verticalCenter: parent.verticalCenter
-                anchors.left: parent.horizontalCenter
-                anchors.leftMargin: parent.width/7
-                anchors.right: parent.right
-                anchors.rightMargin: 5
-                height: parent.height/1.4;
-                color: backgroundColor ? backgroundColor : "grey"
-                border.width: 1
-                border.color: "black"
-            }
-
-            MouseArea{
-                id: bgColorMArea
-                propagateComposedEvents: true
-                hoverEnabled: true
-                anchors.fill: parent
-                onClicked: {
-                        parent.isPressed = false
-                        colorDialog.title = "Please pick a colour"
-                        bgColorDialog.open()
-                }
-                onPressed: {
-                        parent.isPressed = true
-                }
-                onReleased: {
-                        parent.isPressed = false
-                }
-            }
-
         }
 
     }

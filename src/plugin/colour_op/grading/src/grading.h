@@ -50,15 +50,18 @@ class GradingTool : public plugin::StandardPlugin {
         const utility::Uuid &attribute_uuid, const int role) override;
 
     void register_hotkeys() override;
-    void hotkey_pressed(const utility::Uuid &hotkey_uuid, const std::string &context) override;
+    void hotkey_pressed(const utility::Uuid &hotkey_uuid, const std::string &context, const std::string &window) override;
 
     bool pointer_event(const ui::PointerEvent &e) override;
+
+    void turn_off_overlay_interaction() override;
 
   protected:
       caf::message_handler message_handler_extensions() override;
 
   private:
     bool grading_tools_active() const;
+
     void start_stroke(const Imath::V2f &point);
     void update_stroke(const Imath::V2f &point);
 
@@ -79,6 +82,7 @@ class GradingTool : public plugin::StandardPlugin {
     void save_cdl(const std::string &filepath) const;
 
     utility::Uuid current_bookmark() const;
+    utility::UuidList current_clip_bookmarks();
     void create_bookmark_if_empty();
     void create_bookmark();
     void select_bookmark(const utility::Uuid &uuid);
@@ -114,6 +118,8 @@ class GradingTool : public plugin::StandardPlugin {
     // Drawing Mask
     enum class DrawingTool { Draw, Erase, Shape, None };
     const std::map<DrawingTool, std::string> drawing_tool_names_ = {
+        {DrawingTool::Shape, "Shape"},
+        {DrawingTool::None, "None"},
         {DrawingTool::Draw, "Draw"},
         {DrawingTool::Erase, "Erase"}
     };

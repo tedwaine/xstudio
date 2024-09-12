@@ -8,11 +8,17 @@ using namespace xstudio;
 using namespace xstudio::timeline;
 using namespace xstudio::utility;
 
-Stack::Stack(const std::string &name, const utility::Uuid &uuid_, const caf::actor &actor)
+Stack::Stack(
+    const std::string &name,
+    const utility::FrameRate &rate,
+    const utility::Uuid &uuid_,
+    const caf::actor &actor)
     : Container(name, "Stack", uuid_),
       item_(
           ItemType::IT_STACK,
-          utility::UuidActorAddr(uuid(), caf::actor_cast<caf::actor_addr>(actor))) {
+          utility::UuidActorAddr(uuid(), caf::actor_cast<caf::actor_addr>(actor)),
+          {},
+          utility::FrameRange(FrameRateDuration(0, rate))) {
     item_.set_name(name);
 }
 

@@ -5,7 +5,7 @@ import QtQuick.Shapes 1.6
 import xstudio.qml.models 1.0
 import xstudio.qml.viewport 1.0
 
-import xStudioReskin 1.0
+import xStudio 1.0
 
 Item {
     id: root

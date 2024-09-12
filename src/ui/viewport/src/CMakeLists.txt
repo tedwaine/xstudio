@@ -8,6 +8,7 @@ set(SOURCES
 	viewport_frame_queue_actor.cpp
 	fps_monitor.cpp
 	keypress_monitor.cpp
+	video_output_plugin.cpp
 )
 
 add_library(${PROJECT_NAME} SHARED ${SOURCES})

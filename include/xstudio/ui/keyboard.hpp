@@ -35,15 +35,13 @@ namespace ui {
             const std::string name,
             const std::string component,
             const std::string description,
-            const std::string context,
+            const std::string window_name,
             const bool auto_repeat,
             caf::actor_addr watcher,
             const utility::Uuid uuid = utility::Uuid());
 
         Hotkey(const Hotkey &o) = default;
         Hotkey()                = default;
-
-        void add_watcher(caf::actor_addr);
 
         [[nodiscard]] const std::string &hotkey_name() const { return name_; }
         [[nodiscard]] const std::string &hotkey_origin() const { return component_; }
@@ -58,6 +56,7 @@ namespace ui {
         void update_state(
             const std::set<int> &current_keys,
             const std::string &context,
+            const std::string &window,
             const bool auto_repeat,
             caf::actor keypress_monitor);
 
@@ -65,7 +64,7 @@ namespace ui {
         sequence_to_key_and_modifier(const std::string &sequence, int &keycode, int &modifier);
 
       private:
-        void notifty_watchers(const std::string &context);
+        void notify_watchers(const std::string &context, const std::string &window);
 
         int key_       = 0;
         int modifiers_ = 0;
@@ -74,9 +73,8 @@ namespace ui {
         std::string name_;
         std::string component_;
         std::string description_;
-        std::string context_;
         bool auto_repeat_;
-        std::vector<std::pair<caf::actor_addr, std::string>> watchers_;
+        std::vector<caf::actor_addr> watchers_;
 
       public:
         // This is a straight clone of the Qt::Key enums but instead we provide string

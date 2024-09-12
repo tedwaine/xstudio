@@ -49,14 +49,18 @@ const auto GroupTemplate = R"({
 	"type": "group",
 	"name": "GROUP",
     "hidden": false,
+    "favourite": true,
 	"entity": "",
     "userdata": "",
     "children": [
         {
             "id": null,
             "type": "preset",
-            "name": "PRESET",
+            "name": "OVERRIDE",
             "update": null,
+            "hidden": false,
+            "favourite": false,
+            "userdata": "",
             "children": []
         },
     	{
@@ -110,6 +114,7 @@ const auto ValidTerms = R"({
         "Exclude Shot Status",
         "Filter",
         "Flag Media",
+        "Has Attachments",
         "Lookback",
         "Newer Version",
         "Note Type",
@@ -267,6 +272,7 @@ const auto TermProperties = R"({
     "Exclude Shot Status": { "negated": null, "livelink": null },
     "Filter": { "negated": false, "livelink": null },
     "Flag Media": { "negated": null, "livelink": null },
+    "Has Attachments": { "negated": null, "livelink": null },
     "Has Contents": { "negated": null, "livelink": null },
     "Has Notes": { "negated": null, "livelink": null },
     "Is Hero": { "negated": null, "livelink": null },
@@ -381,6 +387,19 @@ class QueryEngine {
         const int project_id,
         const utility::JsonStore &lookup);
 
+    static utility::JsonStore resolve_attribute_value(
+        const std::string &type,
+        const utility::JsonStore &value,
+        const int project_id,
+        const utility::JsonStore &lookup);
+
+    static utility::JsonStore resolve_attribute_value(
+        const std::string &type,
+        const utility::JsonStore &value,
+        const utility::JsonStore &lookup) {
+        return resolve_attribute_value(type, value, -1, lookup);
+    }
+
 
     static std::string cache_name(const std::string &type, const int project_id = -1) {
         auto _type = type;
@@ -391,7 +410,10 @@ class QueryEngine {
         return _type;
     }
 
-    static utility::JsonStore validate_presets(const utility::JsonStore &data);
+    static utility::JsonStore validate_presets(
+        const utility::JsonStore &data,
+        const utility::JsonStore &parent = utility::JsonStore(),
+        const size_t index               = 0);
 
 
     static std::string cache_name_auto(const std::string &type, const int project_id);

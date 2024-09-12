@@ -20,6 +20,7 @@ QueryEngine::QueryEngine() {
     set_cache(cache_name("Client Note"), BoolTermValues);
     set_cache(cache_name("Completion Location"), locationsJSON);
     set_cache(cache_name("Flag Media"), FlagTermValues);
+    set_cache(cache_name("Has Attachments"), BoolTermValues);
     set_cache(cache_name("Has Contents"), BoolTermValues);
     set_cache(cache_name("Has Notes"), BoolTermValues);
     set_cache(cache_name("Is Hero"), BoolTermValues);
@@ -99,33 +100,123 @@ void QueryEngine::initialise_presets() {
     system_presets_  = JsonStoreSync(system_tmp);
 }
 
-utility::JsonStore QueryEngine::validate_presets(const utility::JsonStore &data) {
+utility::JsonStore QueryEngine::validate_presets(
+    const utility::JsonStore &data, const utility::JsonStore &parent, const size_t index) {
     auto result = R"({})"_json;
 
-    auto type = data.value("type", std::string());
+    auto type  = data.value("type", std::string());
+    auto ptype = parent.is_null() ? std::string() : parent.value("type", std::string());
     if (type == "root") {
         result = RootTemplate;
         result.update(data);
 
+        if (not parent.is_null()) {
+            spdlog::warn("{} parent of root should be null", __PRETTY_FUNCTION__);
+        }
+
         for (size_t i = 0; i < result["children"].size(); i++)
-            result["children"][i] = validate_presets(result["children"][i]);
+            result["children"][i] = validate_presets(result["children"][i], data, i);
     } else if (type == "group") {
         result = GroupTemplate;
         result.update(data);
+
+        if (ptype != "root") {
+            spdlog::warn(
+                "{} parent of group should be root {} {}",
+                __PRETTY_FUNCTION__,
+                data.value("id", ""),
+                ptype);
+        }
+
+        if (result["children"].size() != 2) {
+            spdlog::warn(
+                "{} groups must have 2 children {} {}",
+                __PRETTY_FUNCTION__,
+                data.value("id", ""),
+                result["children"].size());
+        }
+
+        auto userdata = data.value("userdata", std::string());
+        if (userdata != "recent" and userdata != "menus" and userdata != "tree")
+            spdlog::warn(
+                "{} invalid group userdata {} {}",
+                __PRETTY_FUNCTION__,
+                data.value("id", ""),
+                userdata);
+
         for (size_t i = 0; i < result["children"].size(); i++)
-            result["children"][i] = validate_presets(result["children"][i]);
+            result["children"][i] = validate_presets(result["children"][i], data, i);
     } else if (type == "presets") {
         result = data;
+
+        if (ptype != "group") {
+            spdlog::warn(
+                "{} parent of presets should be group {} {}",
+                __PRETTY_FUNCTION__,
+                data.value("id", ""),
+                ptype);
+        }
+
+        if (index != 1) {
+            spdlog::warn(
+                "{} index of presets must be 1 {} {} {}",
+                __PRETTY_FUNCTION__,
+                data.value("id", ""),
+                index,
+                ptype);
+        }
+
         for (size_t i = 0; i < result["children"].size(); i++)
-            result["children"][i] = validate_presets(result["children"][i]);
+            result["children"][i] = validate_presets(result["children"][i], data, i);
     } else if (type == "term") {
         result = TermTemplate;
         result.update(data);
+
+        if (ptype == "term" and parent.value("term", "") != "Operator") {
+            spdlog::warn(
+                "{} parent of term invalid {} {}",
+                __PRETTY_FUNCTION__,
+                data.value("id", ""),
+                ptype);
+        } else if (ptype != "preset" and ptype != "term") {
+            spdlog::warn(
+                "{} parent of term should be preset {} {}",
+                __PRETTY_FUNCTION__,
+                data.value("id", ""),
+                ptype);
+        }
+
         for (size_t i = 0; i < result["children"].size(); i++)
-            result["children"][i] = validate_presets(result["children"][i]);
+            result["children"][i] = validate_presets(result["children"][i], data, i);
     } else if (type == "preset") {
         result = PresetTemplate;
         result.update(data);
+
+        if (ptype != "presets" and ptype != "group") {
+            spdlog::warn(
+                "{} parent of preset should be presets or group {} {}",
+                __PRETTY_FUNCTION__,
+                data.value("id", ""),
+                ptype);
+        }
+
+        if (ptype == "group" and index != 0) {
+            spdlog::warn(
+                "{} index of group override must be 0 {} {} {}",
+                __PRETTY_FUNCTION__,
+                data.value("id", ""),
+                index,
+                ptype);
+        }
+
+        if (ptype == "group") {
+            result.update(R"({"hidden": false, "favourite": false})"_json);
+        }
+
+
+        for (size_t i = 0; i < result["children"].size(); i++)
+            result["children"][i] = validate_presets(result["children"][i], data, i);
+
     } else {
         result = data;
     }
@@ -975,7 +1066,8 @@ void QueryEngine::add_version_term_to_filter(
             try {
                 seq["id"] =
                     resolve_query_value(term, JsonStore(value), project_id, lookup).get<int>();
-            } catch (...) {
+            } catch (const std::exception &err) {
+                spdlog::warn("{} {}", __PRETTY_FUNCTION__, err.what());
             }
             qry->push_back(RelationType("entity").in(std::vector<JsonStore>({JsonStore(seq)})));
         } catch (const std::exception &err) {
@@ -1167,6 +1259,13 @@ void QueryEngine::add_note_term_to_filter(
         qry->push_back(QueryEngine::add_text_value("note_links.Version.code", value, negated));
     } else if (term == "Tag") {
         qry->push_back(QueryEngine::add_text_value("tags.Tag.name", value, negated));
+    } else if (term == "Has Attachments") {
+        if (value == "False")
+            qry->push_back(Text("attachments").is_null());
+        else if (value == "True")
+            qry->push_back(Text("attachments").is_not_null());
+        else
+            throw XStudioError("Invalid query term " + term + " " + value);
     } else if (term == "Twig Type") {
         if (negated)
             qry->push_back(Text("note_links.Version.sg_twig_type_code")
@@ -1242,6 +1341,34 @@ void QueryEngine::add_term_to_filter(
 }
 
 
+utility::JsonStore QueryEngine::resolve_attribute_value(
+    const std::string &type,
+    const utility::JsonStore &value,
+    const int project_id,
+    const utility::JsonStore &lookup) {
+    auto _type      = type;
+    auto attr_value = utility::JsonStore();
+
+    if (_type == "Author" || _type == "Recipient")
+        _type = "User";
+
+    if (project_id != -1)
+        _type += "-" + std::to_string(project_id);
+
+    try {
+        auto val = value.get<std::string>();
+        if (lookup.count(_type)) {
+            if (lookup.at(_type).count(val)) {
+                attr_value = lookup.at(_type).at(val);
+            }
+        }
+    } catch (const std::exception &err) {
+        spdlog::warn("{} {} {} {}", _type, __PRETTY_FUNCTION__, err.what(), value.dump(2));
+    }
+
+    return attr_value;
+}
+
 // resolve value from look up
 utility::JsonStore QueryEngine::resolve_query_value(
     const std::string &type,
@@ -1261,15 +1388,27 @@ utility::JsonStore QueryEngine::resolve_query_value(
         auto val = value.get<std::string>();
         if (lookup.count(_type)) {
             if (lookup.at(_type).count(val)) {
-                mapped_value = lookup.at(_type).at(val);
+                mapped_value = lookup.at(_type).at(val).at("id");
             }
         }
     } catch (const std::exception &err) {
         spdlog::warn("{} {} {} {}", _type, __PRETTY_FUNCTION__, err.what(), value.dump(2));
     }
 
-    if (mapped_value.is_null())
-        throw XStudioError("Invalid term value " + value.dump());
+    if (mapped_value.is_null()) {
+        if (type == "User" || type == "Author" || type == "Recipient") {
+            // usually because user if not assigned to project.
+            // force no match.
+            mapped_value = JsonStore(R"(0)"_json);
+            spdlog::warn(
+                "{} {} {} {}",
+                "QueryEngine",
+                type,
+                "not enabled for this Project",
+                value.dump(2));
+        } else
+            throw XStudioError("Invalid term value " + value.dump());
+    }
 
     return mapped_value;
 }
@@ -1312,20 +1451,23 @@ void QueryEngine::set_shot_sequence_lookup(
 
 void QueryEngine::set_shot_sequence_lookup(
     const std::string &key, const utility::JsonStore &data, utility::JsonStore &lookup) {
-    auto cache = R"({})"_json;
+    auto tmp = R"({})"_json;
 
     try {
         for (const auto &i : data) {
-            auto seq = i.at(json::json_pointer("/attributes/code")).get<std::string>();
+            auto value       = R"({"id": null, "name": null})"_json;
+            value.at("name") = i.at(json::json_pointer("/attributes/code"));
+            value.at("id")   = i.at("id");
+
             for (const auto &s : i.at(json::json_pointer("/relationships/shots/data"))) {
-                cache[std::to_string(s.at("id").get<long>())] = seq;
+                tmp[std::to_string(s.at("id").get<long>())] = value;
             }
         }
     } catch (const std::exception &err) {
         spdlog::warn("{} {}", __PRETTY_FUNCTION__, err.what());
     }
 
-    lookup[key] = cache;
+    lookup[key] = tmp;
 }
 
 void QueryEngine::set_lookup(const std::string &key, const utility::JsonStore &data) {
@@ -1336,35 +1478,34 @@ void QueryEngine::set_lookup(const std::string &key, const utility::JsonStore &d
 
 void QueryEngine::set_lookup(
     const std::string &key, const utility::JsonStore &data, utility::JsonStore &lookup) {
-    auto cache = R"({})"_json;
+    auto tmp = R"({})"_json;
 
-    // load map..
+    auto entries = R"([])"_json;
     try {
+        auto value = R"({"id": null, "name": null})"_json;
         for (const auto &i : data) {
             if (i.count("name"))
-                cache[i.at("name").get<std::string>()] = i.at("id");
+                value.at("name") = i.at("name");
             else if (i.at("attributes").count("name"))
-                cache[i.at("attributes").at("name").get<std::string>()] = i.at("id");
+                value.at("name") = i.at("attributes").at("name");
             else if (i.at("attributes").count("code"))
-                cache[i.at("attributes").at("code").get<std::string>()] = i.at("id");
+                value.at("name") = i.at("attributes").at("code");
+            else
+                continue;
+
+            value.at("id") = i.at("id");
+
+            tmp[value.at("name")] = value;
+            if (value.at("id").is_string())
+                tmp[value.at("id").get<std::string>()] = value;
+            else
+                tmp[std::to_string(value.at("id").get<long>())] = value;
         }
-    } catch (...) {
+    } catch (const std::exception &err) {
+        spdlog::warn("{} {} {} {}", __PRETTY_FUNCTION__, err.what(), key, data.dump(2));
     }
 
-    // add reverse map
-    try {
-        for (const auto &i : data) {
-            if (i.count("name"))
-                cache[i.at("id").get<std::string>()] = i.at("name");
-            else if (i.at("attributes").count("name"))
-                cache[i.at("id").get<std::string>()] = i.at("attributes").at("name");
-            else if (i.at("attributes").count("code"))
-                cache[i.at("id").get<std::string>()] = i.at("attributes").at("code");
-        }
-    } catch (...) {
-    }
-
-    lookup[key] = cache;
+    lookup[key] = tmp;
 }
 
 
@@ -1405,7 +1546,7 @@ std::optional<std::string> QueryEngine::get_sequence_name(
 
     if (lookup.count(key)) {
         if (lookup.at(key).count(shot))
-            return lookup.at(key).at(shot);
+            return lookup.at(key).at(shot).at("name");
     }
 
     return {};
@@ -1548,9 +1689,13 @@ void QueryEngine::regenerate_ids(nlohmann::json &data) {
             regenerate_ids(data.at(i));
 
     } else if (data.is_object()) {
-        if (data.count("id")) {
+        if (data.count("id"))
             data["id"] = Uuid::generate();
-        }
+
+        // duplicates are not system presets.
+        if (data.count("update"))
+            data["update"] = nullptr;
+
         if (data.count("children"))
             regenerate_ids(data.at("children"));
     }

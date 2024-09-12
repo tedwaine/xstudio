@@ -242,6 +242,7 @@ void ClipActor::init() {
                 send(event_group_, event_atom_v, item_atom_v, jsn, false);
             return jsn;
         },
+        [=](utility::rate_atom) -> FrameRate { return base_.item().rate(); },
 
         [=](item_prop_atom, const utility::JsonStore &value) -> JsonStore {
             auto jsn = base_.item().set_prop(value);
@@ -385,13 +386,15 @@ void ClipActor::init() {
         // re-evaluate media reference.., needed for lazy loading
         // [=](media_reference_atom atom,
         //     const Uuid &uuid) -> caf::result<std::pair<Uuid, MediaReference>> {
-
-        [=](media::acquire_media_detail_atom) {
+        [=](media::acquire_media_detail_atom, const utility::Uuid &uuid) {
             auto actor = caf::actor_cast<caf::actor>(media_);
+            // spdlog::warn("acquire_media_detail_atom {} {}", to_string(uuid),
+            // to_string(actor));
             if (actor) {
-                request(actor, infinite, media::media_reference_atom_v, utility::Uuid())
+                request(actor, infinite, media::media_reference_atom_v, uuid)
                     .then(
                         [=](const std::pair<Uuid, MediaReference> &ref) {
+                            // spdlog::warn("{}",ref.second.frame_count());
                             if (ref.second.frame_count()) {
                                 // clear ptr cache
                                 auto tc_start =
@@ -440,17 +443,24 @@ void ClipActor::init() {
                                 delayed_send(
                                     caf::actor_cast<caf::actor>(this),
                                     std::chrono::seconds(1),
-                                    media::acquire_media_detail_atom_v);
+                                    media::acquire_media_detail_atom_v,
+                                    uuid);
                             }
                         },
                         [=](const error &err) {
+                            // spdlog::warn("errored get detail");
                             // retry not ready ? Or no sources?
                             delayed_send(
                                 caf::actor_cast<caf::actor>(this),
                                 std::chrono::seconds(1),
-                                media::acquire_media_detail_atom_v);
+                                media::acquire_media_detail_atom_v,
+                                uuid);
                         });
             }
+        },
+
+        [=](media::acquire_media_detail_atom atom) {
+            delegate(caf::actor_cast<caf::actor>(this), atom, Uuid());
         },
 
         // [=](media::acquire_media_detail_atom) {
@@ -509,6 +519,11 @@ void ClipActor::init() {
 
         [=](utility::event_atom, media::media_status_atom, const media::MediaStatus ms) {},
 
+        [=](utility::event_atom,
+            media::media_display_info_atom,
+            const utility::JsonStore &,
+            caf::actor_addr &) {},
+
         [=](utility::event_atom, media::media_display_info_atom, const utility::JsonStore &) {},
 
         // ak this need's to know if the clip uses audio or video SOB.
@@ -518,11 +533,15 @@ void ClipActor::init() {
             const UuidActor &ua,
             const media::MediaType mt) {
             // media source has changed, we need to acquire the new available range...
+
+            // spdlog::warn("media::current_media_source_atom {}", to_string(ua.uuid()));
+
             if (mt == media::MediaType::MT_IMAGE) {
                 delayed_send(
                     caf::actor_cast<caf::actor>(this),
                     std::chrono::milliseconds(100),
-                    media::acquire_media_detail_atom_v);
+                    media::acquire_media_detail_atom_v,
+                    ua.uuid());
             }
 
             image_ptr_cache_.clear();
@@ -587,6 +606,7 @@ void ClipActor::init() {
                 // the logic below will fill in actual frames where possible
                 media::AVFrameID blank = *(media::make_blank_frame(media_type));
                 blank.media_uuid_      = base_.media_uuid();
+                blank.clip_uuid_       = base_.uuid();
                 auto blank_ptr         = std::make_shared<const media::AVFrameID>(blank);
 
                 // the result data
@@ -675,7 +695,8 @@ void ClipActor::init() {
                         media::get_media_pointers_atom_v,
                         media_type,
                         ranges,
-                        FrameRate())
+                        FrameRate(),
+                        base_.uuid())
                         .then(
                             [=](const media::AVFrameIDs &mps) mutable {
                                 // spdlog::warn("const media::AVFrameIDs &mps {} {}",

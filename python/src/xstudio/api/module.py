@@ -8,7 +8,7 @@ from xstudio.core import viewport_playhead_atom, hotkey_event_atom
 from xstudio.core import attribute_uuids_atom
 from xstudio.core import AttributeRole, get_event_group_atom
 from xstudio.core import event_atom, show_atom, module_add_menu_item_atom
-from xstudio.core import module_remove_menu_item_atom
+from xstudio.core import module_remove_menu_item_atom, uuid_atom
 from xstudio.core import menu_node_activated_atom, set_node_data_atom
 from xstudio.api.auxiliary import ActorConnection
 from xstudio.core import JsonStore, Uuid
@@ -205,6 +205,11 @@ class ModuleBase(ActorConnection):
         self.__attribute_changed = None
         self.__playhead_event_callback = None
 
+    def get_uuid(self):
+        return self.connection.request_receive(
+            self.remote,
+            uuid_atom())[0]
+
     def connect_to_ui(self):
         """Call this method to 'activate' the plugin and forward live data about
         the attributes to the UI layer. QML code that builds widgets and so-on
@@ -339,6 +344,40 @@ class ModuleBase(ActorConnection):
                 (gphev, self.__playhead_events)
                 )
 
+    def __caf_message_to_tuple(self, caf_message):
+
+        return self.connection.link.tuple_from_message(caf_message[0])
+
+    def subscribe_to_event_group(self, event_source, callback_method):
+        """Set the callback function for receiving events specific to
+        the playhead and subscrive to the playheads events broadcast
+        group.
+
+        Args:
+            event_source(ActorConnection): The actor whose event group
+            we want to join.
+            callback_method(Callable): The function which will be called
+            with event. Must take a single argument (a tuple of the event
+            data)
+        """
+
+        event_group = self.connection.request_receive(
+            event_source.remote,
+            get_event_group_atom())[0]
+
+        if not event_group:
+            raise Exception("Actor has no event group.")
+
+        if XStudioExtensions:
+
+            XStudioExtensions.add_message_callback(
+                (event_group, callback_method, event_source.remote, self.__caf_message_to_tuple)
+                )
+
+        else:
+            self.connection.link.add_message_callback(
+                (event_group, callback_method, event_source.remote, self.__caf_message_to_tuple)
+                )
 
     def menu_item_activated(self, menu_item_data, user_data):
         pass
@@ -398,8 +437,7 @@ class ModuleBase(ActorConnection):
             hotkey_name,
             description,
             auto_repeat,
-            component,
-            context)[0]
+            component)[0]
 
         self.hotkey_callbacks[str(hotkey_uuid)] = hotkey_callback
         return hotkey_uuid
@@ -515,10 +553,38 @@ class ModuleBase(ActorConnection):
         self,
         menu_uuid
     ):
+        """Remove a menu item from the xSTUDIO menu models
+
+        Args:
+            menu_uuid(Uuid): Id of menu item
+
+        Returns:
+            None
+        """
+
         self.connection.request_receive(
             self.remote,
             module_remove_menu_item_atom(),
             menu_uuid)
+
+    def remove_menu_items(
+        self,
+        menu_uuids
+    ):
+        """Remove menu items from the xSTUDIO menu models
+
+        Args:
+            menu_uuid(list(Uuid)): list of ids of menu items
+
+        Returns:
+            None
+        """
+
+        for menu_uuid in menu_uuids:
+            self.connection.request_receive(
+                self.remote,
+                module_remove_menu_item_atom(),
+                menu_uuid)
 
     def message_handler(self, sender, req_id, message_content):
 

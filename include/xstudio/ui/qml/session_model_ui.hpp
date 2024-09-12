@@ -141,7 +141,9 @@ class SESSION_QML_EXPORT SessionModel : public caf::mixin::actor_object<JSONTree
     mergeRows(const QModelIndexList &indexes, const QString &name = "Combined Playlist");
 
     // timeline operations
-    Q_INVOKABLE bool removeTimelineItems(const QModelIndexList &indexes);
+    // Q_INVOKABLE bool removeTimelineItems(const QList<QUuid> &uuids);
+    Q_INVOKABLE bool
+    removeTimelineItems(const QModelIndexList &indexes, const bool ripple = false);
     Q_INVOKABLE bool
     removeTimelineItems(const QModelIndex &track_index, const int frame, const int duration);
 
@@ -319,10 +321,18 @@ class SESSION_QML_EXPORT SessionModel : public caf::mixin::actor_object<JSONTree
     Q_INVOKABLE void moveSelectionByIndex(const QModelIndex &index, const int offset);
     Q_INVOKABLE void
     updateSelection(const QModelIndex &index, const QModelIndexList &selection);
+    Q_INVOKABLE void
+    updateMediaListFilterString(const QModelIndex &index, const QString &filter_string);
     Q_INVOKABLE void gatherMediaFor(const QModelIndex &index, const QModelIndexList &selection);
     Q_INVOKABLE QString getJSON(const QModelIndex &index, const QString &path) {
         return getJSONFuture(index, path).result();
     }
+
+    Q_INVOKABLE QStringList
+    getMediaSourceNames(const QModelIndex &media_index, bool image_sources);
+    Q_INVOKABLE QStringList setMediaSource(
+        const QModelIndex &media_index, const QString &mediaSourceName, bool image_source);
+
     Q_INVOKABLE QFuture<QString> getJSONFuture(
         const QModelIndex &index, const QString &path, const bool includeSource = false);
 
@@ -334,10 +344,7 @@ class SESSION_QML_EXPORT SessionModel : public caf::mixin::actor_object<JSONTree
     setJSONFuture(const QModelIndex &index, const QString &json, const QString &path = "");
 
     Q_INVOKABLE void sortByMediaDisplayInfo(
-        const QModelIndex &index,
-        const int info_set_idx,
-        const int info_item_idx,
-        const bool ascending);
+        const QModelIndex &index, const int sort_column_idx, const bool ascending);
 
     Q_INVOKABLE void setPlayheadTo(const QModelIndex &index, const bool aux_playhead = false);
     Q_INVOKABLE void setCurrentPlaylist(const QModelIndex &index);
@@ -360,13 +367,6 @@ class SESSION_QML_EXPORT SessionModel : public caf::mixin::actor_object<JSONTree
 
     Q_INVOKABLE bool undo(const QModelIndex &index) { return undoFuture(index).result(); }
     Q_INVOKABLE bool redo(const QModelIndex &index) { return redoFuture(index).result(); }
-
-    // Q_INVOKABLE QFuture<QModelIndexList>
-    // conformInsertFuture(const QString &task, const QModelIndexList &indexes);
-    // Q_INVOKABLE QModelIndexList
-    // conformInsert(const QString &task, const QModelIndexList &indexes) {
-    //     return conformInsertFuture(task, indexes).result();
-    // }
 
   public slots:
     void updateMedia();

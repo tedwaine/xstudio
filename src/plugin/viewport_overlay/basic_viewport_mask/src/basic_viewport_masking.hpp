@@ -55,7 +55,9 @@ namespace ui {
                 ) override;
 
             void hotkey_pressed(
-                const utility::Uuid &hotkey_uuid, const std::string &context) override;
+                const utility::Uuid &hotkey_uuid,
+                const std::string &context,
+                const std::string &window) override;
 
           protected:
             void register_hotkeys() override;

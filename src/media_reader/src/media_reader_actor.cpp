@@ -603,6 +603,16 @@ caf::actor GlobalMediaReaderActor::get_reader(
 
 std::string
 GlobalMediaReaderActor::reader_key(const caf::uri &_uri, const caf::actor_addr &_key) const {
+
+    // if _uri is for a 'blank' frame, we don't want to use the media source
+    // actor address as a key to cache the reader. The reason is that we might
+    // get blank frames for a media source that is still building itself and
+    // later we get non-blank frames from it. In other words, if uri is for
+    // a blank frame, the uri for the given _key may change later.
+    static const auto blank_uri = *caf::make_uri("xstudio://blank/?colour=gray");
+    if (_uri == blank_uri)
+        return to_string(_uri);
+
     if (_key) {
         return to_string(_key);
     }

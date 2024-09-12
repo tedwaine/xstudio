@@ -126,7 +126,10 @@ namespace ui {
 
             void update_hotkeys_model_data(const Hotkey &hotkey);
 
-            void hotkey_pressed(const utility::Uuid &hotkey_uuid, const std::string &context);
+            void hotkey_pressed(
+                const utility::Uuid &hotkey_uuid,
+                const std::string &context,
+                const std::string &window);
 
             void
             reset_model(const std::string &model_name, const std::string &preferences_path);

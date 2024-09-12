@@ -26,7 +26,8 @@ namespace playlist {
             const std::string &name,
             const utility::Uuid &uuid = utility::Uuid(),
             const caf::actor &session = caf::actor());
-        ~PlaylistActor() override = default;
+
+        ~PlaylistActor();
 
         void on_exit() override;
         const char *name() const override { return NAME.c_str(); }
@@ -45,6 +46,11 @@ namespace playlist {
             const utility::Uuid &uuid_before,
             const bool delayed,
             caf::typed_response_promise<utility::UuidActor> rp);
+
+        void recursive_add_media_with_subsets(
+            caf::typed_response_promise<std::vector<utility::UuidActor>> rp,
+            const caf::uri &path,
+            const utility::Uuid &uuid_before);
 
         void create_container(
             caf::actor actor,
@@ -72,8 +78,7 @@ namespace playlist {
         void open_media_readers();
         void open_media_reader(caf::actor media_actor);
         void send_content_changed_event(const bool queue = true);
-        void sort_by_media_display_info(
-            const int info_set_idx, const int info_item_idx, const bool ascending);
+        void sort_by_media_display_info(const int sort_column_index, const bool ascending);
 
         void duplicate(
             caf::typed_response_promise<utility::UuidActor> rp,

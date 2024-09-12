@@ -10,7 +10,7 @@ import QuickFuture 1.0
 import ShotBrowser 1.0
 import xstudio.qml.helpers 1.0
 
-import xStudioReskin 1.0
+import xStudio 1.0
 import xstudio.qml.models 1.0
 
 
@@ -59,11 +59,7 @@ Rectangle{ id: frame
 
     property bool isPlaylist: false
 
-    property bool isHovered: mArea.containsMouse ||
-        sec1.isHovered ||
-        sec2.isHovered ||
-        sec3.isHovered ||
-        versionArrowBtn.hovered
+    property bool isHovered: mArea.containsMouse || versionArrowBtn.hovered
 
     Connections {
         target: resultsSelectionModel
@@ -198,21 +194,18 @@ Rectangle{ id: frame
                     Layout.minimumWidth: 154
                     Layout.preferredWidth: 154
                     Layout.fillHeight: true
-                    clip: true
                 }
 
                 ShotHistorySection2{ id: sec2
                     Layout.fillWidth: true
                     Layout.minimumWidth: 115
                     Layout.fillHeight: true
-                    clip: true
                 }
 
                 ShotHistorySection3{ id: sec3
                     Layout.minimumWidth: 157
                     Layout.preferredWidth: 157
                     Layout.fillHeight: true
-                    clip: true
                 }
             }
         }

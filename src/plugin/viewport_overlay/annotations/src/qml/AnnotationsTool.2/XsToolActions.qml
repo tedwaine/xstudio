@@ -9,7 +9,7 @@ import QtQml.Models 2.14
 import QtQuick.Dialogs 1.3
 import QtGraphicalEffects 1.15
 
-import xStudioReskin 1.0
+import xStudio 1.0
 import xstudio.qml.models 1.0
 
 Item{
@@ -146,8 +146,8 @@ Item{
         property var displayModeValue: display_mode
         onDisplayModeValueChanged: {
 
-            if (displayModeOptions.indexOf(display_mode) != -1) {
-                currentIndex = displayModeOptions.indexOf(display_mode)
+            if (display_mode_options.indexOf(display_mode) != -1) {
+                currentIndex = display_mode_options.indexOf(display_mode)
             }
         }
 

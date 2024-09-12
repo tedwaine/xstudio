@@ -6,7 +6,7 @@ import QtQuick.Layouts 1.15
 import QtQml.Models 2.14
 import Qt.labs.qmlmodels 1.0
 
-import xStudioReskin 1.0
+import xStudio 1.0
 import ShotBrowser 1.0
 import xstudio.qml.helpers 1.0
 
@@ -113,6 +113,7 @@ RowLayout {id: titleDiv
                 enabled: isPanelEnabled && !isPaused
 
                 onTextChanged: nameFilter = text
+                onEditingCompleted: forceActiveFocus(panel)
 
                 Connections {
                     target: panel

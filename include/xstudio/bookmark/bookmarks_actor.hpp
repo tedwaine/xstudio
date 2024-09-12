@@ -22,6 +22,8 @@ namespace bookmark {
 
         static caf::message_handler default_event_handler();
 
+        void on_exit() override;
+
       private:
         inline static const std::string NAME = "BookmarksActor";
         void init();

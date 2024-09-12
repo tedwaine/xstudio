@@ -507,7 +507,7 @@ QModelIndexList SessionModel::duplicateTimelineClips(
 }
 
 
-bool SessionModel::removeTimelineItems(const QModelIndexList &indexes) {
+bool SessionModel::removeTimelineItems(const QModelIndexList &indexes, const bool ripple) {
     auto result = false;
     try {
 
@@ -521,8 +521,12 @@ bool SessionModel::removeTimelineItems(const QModelIndexList &indexes) {
         auto sorted_indexes = std::vector<QModelIndex>(indexes.begin(), indexes.end());
         std::sort(
             sorted_indexes.begin(), sorted_indexes.end(), [](QModelIndex &a, QModelIndex &b) {
-                return a.row() > b.row();
+                return a.parent().row() > b.parent().row() or
+                       (a.parent().row() == b.parent().row() and a.row() > b.row());
             });
+
+        // for(const auto &i: sorted_indexes)
+        //     spdlog::warn("{} {}", i.row(), i.parent().row());
 
         for (const auto &i : sorted_indexes) {
             if (i.isValid()) {
@@ -544,32 +548,30 @@ bool SessionModel::removeTimelineItems(const QModelIndexList &indexes) {
                     caf::scoped_actor sys(system());
                     auto pactor =
                         actorFromQString(system(), parent_index.data(actorRole).toString());
-                    auto row = i.row();
+                    auto uuid = UuidFromQUuid(i.data(JSONTreeModel::Roles::idRole).toUuid());
 
-                    if (type == "Clip") {
-                        // replace with gap
-                        // get parent, and index.
-                        // find parent timeline.
-                        auto range = request_receive<utility::FrameRange>(
-                            *sys, actor, timeline::trimmed_range_atom_v);
+                    if (pactor) {
+                        if (type == "Clip") {
+                            // replace with gap
+                            // get parent, and index.
+                            // // find parent timeline.
+                            // auto range = request_receive<utility::FrameRange>(
+                            //     *sys, actor, timeline::trimmed_range_atom_v);
 
-                        if (pactor) {
-                            auto uuid = Uuid::generate();
-                            auto gap  = self()->spawn<timeline::GapActor>(
-                                "Gap", range.frame_duration(), uuid);
+                            // auto uuid = Uuid::generate();
+                            // auto gap  = self()->spawn<timeline::GapActor>(
+                            //     "Gap", range.frame_duration(), uuid);
+                            // request_receive<JsonStore>(
+                            //     *sys,
+                            //     pactor,
+                            //     timeline::insert_item_atom_v,
+                            //     row,
+                            //     UuidActorVector({UuidActor(uuid, gap)}));
                             request_receive<JsonStore>(
-                                *sys,
-                                pactor,
-                                timeline::insert_item_atom_v,
-                                row,
-                                UuidActorVector({UuidActor(uuid, gap)}));
+                                *sys, pactor, timeline::erase_item_atom_v, uuid, not ripple);
+                        } else {
                             request_receive<JsonStore>(
-                                *sys, pactor, timeline::erase_item_atom_v, row + 1, false);
-                        }
-                    } else {
-                        if (pactor) {
-                            request_receive<JsonStore>(
-                                *sys, pactor, timeline::erase_item_atom_v, row, false);
+                                *sys, pactor, timeline::erase_item_atom_v, uuid, false);
                         }
                     }
                 }
@@ -973,7 +975,8 @@ QModelIndex SessionModel::insertTimelineGap(
 
 
                 auto new_uuid = utility::Uuid::generate();
-                auto duration = utility::FrameRateDuration(frames, FrameRate(1.0 / rate));
+                auto duration =
+                    utility::FrameRateDuration(frames, FrameRate(fps_to_flicks(rate)));
                 auto new_item = self()->spawn<timeline::GapActor>(name, duration, new_uuid);
 
                 insertion_json["actor"]           = actorToString(system(), new_item);

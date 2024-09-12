@@ -1,5 +1,6 @@
 project(global VERSION ${XSTUDIO_GLOBAL_VERSION} LANGUAGES CXX)
 find_package(pybind11 REQUIRED)  # or `add_subdirectory(pybind11)`
+find_package(fmt REQUIRED)
 
 set(SOURCES
 	global_actor.cpp

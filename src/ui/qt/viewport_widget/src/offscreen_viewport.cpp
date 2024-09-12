@@ -520,10 +520,10 @@ void OffscreenViewport::renderToImageBuffer(
         throw std::runtime_error("OffscreenrenderToImageBuffer - GL Context is not valid.");
     }
 
-    setupTextureAndFrameBuffer(w, h, format);
-
     // intialises shaders and textures where necessary
     viewport_renderer_->init();
+
+    setupTextureAndFrameBuffer(w, h, format);
 
     auto t1 = utility::clock::now();
 

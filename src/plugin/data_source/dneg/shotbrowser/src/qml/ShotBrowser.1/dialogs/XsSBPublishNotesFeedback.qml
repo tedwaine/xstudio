@@ -9,7 +9,7 @@ import Qt.labs.qmlmodels 1.0
 
 import QuickFuture 1.0
 
-import xStudioReskin 1.0
+import xStudio 1.0
 import ShotBrowser 1.0
 import xstudio.qml.helpers 1.0
 

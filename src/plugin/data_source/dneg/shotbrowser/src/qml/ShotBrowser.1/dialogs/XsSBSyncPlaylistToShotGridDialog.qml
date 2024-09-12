@@ -8,7 +8,7 @@ import Qt.labs.qmlmodels 1.0
 
 import QuickFuture 1.0
 
-import xStudioReskin 1.0
+import xStudio 1.0
 import ShotBrowser 1.0
 import xstudio.qml.helpers 1.0
 
@@ -114,7 +114,25 @@ XsWindow {
                 Layout.fillHeight: true
                 Layout.bottomMargin: 10
 
-                onClicked: ShotBrowserHelpers.syncPlaylistToShotGrid(helpers.QVariantFromUuidString(playlistProperties.values.actorUuidRole))
+                function onSyncCallback(json) {
+                    try {
+                        var data = JSON.parse(json)
+                        if(data["data"]["id"]){
+                            ShotBrowserHelpers.loadShotGridPlaylist(data["data"]["id"], data["data"]["attributes"]["code"])
+                        } else {
+                            console.log(err)
+                            dialogHelpers.errorDialogFunc("Sync Playlist To ShotGrid", "Sync of Playlist to ShotGrid failed.\n\n" + data)
+                        }
+                    } catch(err) {
+                        console.log(err)
+                        dialogHelpers.errorDialogFunc("Sync Playlist To ShotGrid", "Sync of Playlist to ShotGrid failed.\n\n" + json)
+                    }
+                }
+
+                onClicked: {
+                    ShotBrowserHelpers.syncPlaylistToShotGrid(helpers.QVariantFromUuidString(playlistProperties.values.actorUuidRole), onSyncCallback)
+                    close()
+                }
             }
         }
     }

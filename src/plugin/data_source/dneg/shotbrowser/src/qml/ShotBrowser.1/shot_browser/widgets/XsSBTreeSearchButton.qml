@@ -9,18 +9,15 @@ import Qt.labs.qmlmodels 1.0
 import QuickFuture 1.0
 import QuickPromise 1.0
 
-import xStudioReskin 1.0
+import xStudio 1.0
 import ShotBrowser 1.0
 import xstudio.qml.helpers 1.0
 
 Item{
     id: button
-    width: isExpanded ? expandedWidth : searchBtn.width
-    height: XsStyleSheet.widgetStdHeight + 4
 
     property bool isExpanded: false
     property var model: null
-    property real expandedWidth: XsStyleSheet.primaryButtonStdWidth * 5
 
     property color textColorActive: "white"
     property color textColorNormal: "light grey"
@@ -59,7 +56,7 @@ Item{
     Item{
         id: widget
         visible: isExpanded
-        width: expandedWidth - searchBtn.width
+        width: parent.width - searchBtn.width
         height: parent.height // + combo.popupOptions.height
         anchors.left: searchBtn.right
 
@@ -73,6 +70,8 @@ Item{
             onAccepted: {
                 if(searchList.currentIndex!==-1) {
                     selectionMade(sequenceModelDelegate.modelIndex(searchList.currentIndex))
+                    model.setFilterWildcard("")
+                    text = ""
                 }
             }
 
@@ -149,14 +148,14 @@ Item{
     Popup {
         id: searchPop
 
-        width: searchField.width * 3
-        height: sequenceModelDelegate.count>=16? searchItemHeight*16 : searchItemHeight*sequenceModelDelegate.count
+        width: Math.max(searchField.width, 250)
+        height: Math.min(16, Math.max(5, sequenceModelDelegate.count+2)) * searchItemHeight
         x: widget.x + searchField.x
         y: widget.y + searchField.y + searchField.height
 
         property real searchItemHeight: btnHeight/1.3
 
-        closePolicy: Popup.CloseOnEscape | Popup.CloseOnPressOutside
+        closePolicy: searchBtn.hovered ? Popup.CloseOnEscape :  Popup.CloseOnEscape | Popup.CloseOnPressOutside
 
         onClosed: button.isExpanded = false
 

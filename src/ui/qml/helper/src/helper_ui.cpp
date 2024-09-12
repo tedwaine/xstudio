@@ -116,6 +116,7 @@ QString xstudio::ui::qml::getThumbnailURL(
 }
 
 nlohmann::json xstudio::ui::qml::qvariant_to_json(const QVariant &var) {
+
     switch (QMetaType::Type(var.type())) {
     case QMetaType::Bool:
         return nlohmann::json(var.toBool());
@@ -140,6 +141,9 @@ nlohmann::json xstudio::ui::qml::qvariant_to_json(const QVariant &var) {
         break;
     case QMetaType::QString:
         return nlohmann::json(var.toString().toStdString());
+        break;
+    case QMetaType::QUuid:
+        return nlohmann::json(UuidFromQUuid(var.toUuid()));
         break;
     case QMetaType::QUrl:
         return nlohmann::json(StdFromQString(var.toUrl().toString()));
@@ -247,6 +251,9 @@ bool KeyEventsItem::event(QEvent *event) {
     // property so we have an idea WHERE (i.e. what UI element) the hotkey was
     // pressed
 
+    if (window_name_.empty())
+        window_name_ = StdFromQString(item_window_name(parent()));
+
     /* This is where keyboard events are captured and sent to the backend!! */
     if (event->type() == QEvent::KeyPress) {
 
@@ -257,6 +264,7 @@ bool KeyEventsItem::event(QEvent *event) {
                 ui::keypress_monitor::key_down_atom_v,
                 key_event->key(),
                 context_,
+                window_name_,
                 key_event->isAutoRepeat());
         }
     } else if (event->type() == QEvent::KeyRelease) {
@@ -267,7 +275,8 @@ bool KeyEventsItem::event(QEvent *event) {
                 keypress_monitor_,
                 ui::keypress_monitor::key_up_atom_v,
                 key_event->key(),
-                context_);
+                context_,
+                window_name_);
         }
     } else if (
         event->type() == QEvent::Leave || event->type() == QEvent::HoverLeave ||
@@ -282,16 +291,28 @@ bool KeyEventsItem::event(QEvent *event) {
 
 void KeyEventsItem::keyPressEvent(QKeyEvent *event) {
 
+    if (window_name_.empty())
+        window_name_ = StdFromQString(item_window_name(parent()));
+
     anon_send(
         keypress_monitor_,
         ui::keypress_monitor::text_entry_atom_v,
         StdFromQString(event->text()),
-        context_);
+        context_,
+        window_name_);
 }
 void KeyEventsItem::keyReleaseEvent(QKeyEvent *event) {
+
+    if (window_name_.empty())
+        window_name_ = StdFromQString(item_window_name(parent()));
+
     if (!event->isAutoRepeat()) {
         anon_send(
-            keypress_monitor_, ui::keypress_monitor::key_up_atom_v, event->key(), context_);
+            keypress_monitor_,
+            ui::keypress_monitor::key_up_atom_v,
+            event->key(),
+            context_,
+            window_name_);
     }
 }
 
@@ -441,12 +462,18 @@ void ImagePainter::paint(QPainter *painter) {
     const float image_aspect  = float(image_.width()) / float(image_.height());
     const float canvas_aspect = float(width()) / float(height());
 
-    if (image_aspect > canvas_aspect) {
-        float bottom = float(height()) * 0.5f * (image_aspect - canvas_aspect) / image_aspect;
-        painter->drawImage(QRectF(0.0f, bottom, width(), height() - (bottom * 2.0f)), image_);
+    if (!fill_) {
+        if (image_aspect > canvas_aspect) {
+            float bottom =
+                float(height()) * 0.5f * (image_aspect - canvas_aspect) / image_aspect;
+            painter->drawImage(
+                QRectF(0.0f, bottom, width(), height() - (bottom * 2.0f)), image_);
+        } else {
+            float left = float(width()) * 0.5f * (canvas_aspect - image_aspect) / canvas_aspect;
+            painter->drawImage(QRectF(left, 0.0f, width() - (left * 2.0f), height()), image_);
+        }
     } else {
-        float left = float(width()) * 0.5f * (canvas_aspect - image_aspect) / canvas_aspect;
-        painter->drawImage(QRectF(left, 0.0f, width() - (left * 2.0f), height()), image_);
+        painter->drawImage(QRectF(0.0f, -5.0f, width(), height() + 5.0f), image_);
     }
 }
 
@@ -455,6 +482,7 @@ MarkerModel::MarkerModel(QObject *parent) : JSONTreeModel(parent) {
         {{"commentRole"},
          {"durationRole"},
          {"flagRole"},
+         {"layerRole"},
          {"nameRole"},
          {"rateRole"},
          {"startRole"}});
@@ -513,6 +541,17 @@ QVariant MarkerModel::data(const QModelIndex &index, int role) const {
             break;
         case Roles::rateRole:
             result = QVariant::fromValue(j.at("range").value("rate", 0l));
+            break;
+        case Roles::layerRole: {
+                auto layer = 0;
+
+                for(auto i = 0; i < index.row(); i++) {
+                    auto previ = MarkerModel::index(i, 0, index.parent());
+                    if(previ.data(startRole) == index.data(startRole))
+                        layer ++;
+                }
+                result = layer;
+            }
             break;
         default:
             result = JSONTreeModel::data(index, role);

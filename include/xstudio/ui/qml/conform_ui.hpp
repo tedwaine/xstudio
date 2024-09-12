@@ -9,6 +9,7 @@ CAF_PUSH_WARNINGS
 #include <QList>
 #include <QUuid>
 #include <QtConcurrent>
+#include <QVariantList>
 CAF_POP_WARNINGS
 
 #include "xstudio/ui/qml/helper_ui.hpp"
@@ -61,6 +62,11 @@ namespace ui {
 
             Q_INVOKABLE QFuture<QList<QUuid>> conformTracksToSequenceFuture(
                 const QModelIndexList &trackIndexes, const QModelIndex &sequenceIndex) const;
+
+            Q_INVOKABLE QFuture<QList<QUuid>> conformFindRelatedFuture(
+                const QString &key,
+                const QModelIndex &clipIndex,
+                const QModelIndex &sequenceIndex) const;
 
           signals:
 

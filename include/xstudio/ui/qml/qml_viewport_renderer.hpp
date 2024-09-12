@@ -97,10 +97,10 @@ namespace ui {
             void quickViewBackendRequestWithSize(
                 QStringList mediaActors, QString compareMode, QPoint position, QSize size);
             void snapshotRequestResult(QString resultMessage);
-            void isQuickviewerChanged(bool);
 
           private:
             void receive_change_notification(viewport::Viewport::ChangeCallbackId id);
+            void make_xstudio_viewport();
 
             QQuickWindow *m_window;
             ui::viewport::Viewport *viewport_renderer_ = nullptr;

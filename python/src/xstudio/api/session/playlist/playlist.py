@@ -6,7 +6,7 @@ from xstudio.core import move_container_atom, remove_container_atom, type_atom, 
 from xstudio.core import create_divider_atom, media_rate_atom, playhead_rate_atom, URI, FrameRate
 from xstudio.core import remove_media_atom, UuidVec, move_media_atom, create_playhead_atom, selection_actor_atom
 from xstudio.core import convert_to_timeline_atom, convert_to_subset_atom, convert_to_contact_sheet_atom
-from xstudio.core import reflag_container_atom
+from xstudio.core import reflag_container_atom, expanded_atom
 from xstudio.core import FrameList, FrameRate, MediaType
 from xstudio.core import get_json_atom, set_json_atom, JsonStore
 
@@ -575,5 +575,30 @@ class Playlist(Container):
         """
 
         return self.connection.request_receive(self.remote, set_json_atom(), JsonStore(data), path)[0]
+
+    @property
+    def expanded(self):
+        """Expanded.
+
+        Returns:
+            expanded(bool): Playlist expanded state (whether it's subsets, timelines are visible
+            in the playlists panel)
+        """
+
+        return self.connection.request_receive(self.remote, expanded_atom())[0]
+
+    @expanded.setter
+    def expanded(self, is_expanded):
+        """Set playlist expanded state
+
+        Args:
+            is_expanded(bool): Expanded state
+
+        Returns:
+            None
+
+        """
+        self.connection.request_receive(self.remote, expanded_atom(), is_expanded)
+
 
 from xstudio.api.auxiliary.otio import import_timeline_from_file

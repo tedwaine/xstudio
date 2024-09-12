@@ -9,7 +9,7 @@ import Qt.labs.qmlmodels 1.0
 
 import QuickFuture 1.0
 
-import xStudioReskin 1.0
+import xStudio 1.0
 import ShotBrowser 1.0
 import xstudio.qml.helpers 1.0
 
@@ -25,6 +25,8 @@ XsWindow{
 
     property int projectId: -1
 
+    property bool invalidPublish: false
+
     property alias notifyOwner: notifyCreatorCB.checked
     property alias combineNotes: combineNotesCB.checked
     property alias addFrameTimeCode: addFrameTimeCodeCB.checked
@@ -32,7 +34,7 @@ XsWindow{
     property alias addNoteType: addNoteTypeCB.checked
     property alias ignoreWithOnlyDrawing: ignoreWithOnlyDrawingCB.checked
     property alias skipAlreadyPublished: skipAlreadyPublishedCB.checked
-    property string defaultType: typeRenameDiv.checked ? prefs.values.defaultType : ""
+    property string defaultType: typeRenameDiv.checked ? prefs.value.defaultType : ""
     property var playlistUuid: null
     property var mediaUuids: []
 
@@ -45,16 +47,25 @@ XsWindow{
     onNotesCountChanged:{
         if(notesCount===1) message = "Ready to publish " +notesCount+" note."
         else if(notesCount>1) message = "Ready to publish " +notesCount+" notes."
-        else message = "No notes to publish."
+        else message = "No notes to publish." + projectId
     }
 
     onPayloadChanged: {
-        payload_obj = JSON.parse(payload)
+        try {
+            payload_obj = JSON.parse(payload)
 
-        // find project id..
-        if(payload_obj && payload_obj["payload"].length) {
-            let id = payload_obj["payload"][0]["payload"]["project"]["id"]
-            projectDiv.currentIndex = projectDiv.model.search(id, "idRole").row
+            // find project id..
+            if(payload_obj && payload_obj["payload"].length) {
+                let id = payload_obj["payload"][0]["payload"]["project"]["id"]
+                projectDiv.currentIndex = projectDiv.model.search(id, "idRole").row
+            }
+            invalidPublish = false
+        } catch(err) {
+            if(isPlaylistNotes) {
+                message = "Invalid Playlist, must have ShotGrid Metadata."
+            }
+            invalidPublish = true
+            console.log(err)
         }
     }
 
@@ -74,7 +85,7 @@ XsWindow{
 
 
     width: 400
-    height: 620
+    height: 660
     minimumWidth: 400
     // maximumWidth: width
     minimumHeight: height
@@ -86,6 +97,14 @@ XsWindow{
         property real btnHeight: XsStyleSheet.widgetStdHeight + 4
     }
 
+
+    Connections {
+        target: ShotBrowserEngine
+        function onReadyChanged() {
+            updatePublish()
+            prefs.updateWidgets()
+        }
+    }
 
     function updatePublish() {
         if(visible) {
@@ -181,24 +200,120 @@ XsWindow{
         }
     }
 
-
-    XsModelNestedPropertyMap {
+    XsPreference {
         id: prefs
-        index: globalStoreModel.searchRecursive("/plugin/data_source/shotbrowser/note_publishing/note_publish_settings", "pathRole")
-        property alias properties: prefs.values
+        path: "/plugin/data_source/shotbrowser/note_publishing/note_publish_settings"
+
+        property string currentSetting: "Default Profile"
+        property var settings: Object.keys(value.settings)
+        onValueChanged: updateWidgets()
+
+        function storePreference(key="", new_value="") {
+            const omit = (data , ids) => {
+                const idsSet = new Set(ids);
+                const newObj = {};
+                for (const [key, val] of Object.entries(data)) {
+                    if (!idsSet.has(key)) {
+                       newObj[key] = val;
+                    }
+                }
+                return newObj;
+            };
+
+            let tmp = JSON.parse(JSON.stringify(value))
+            if(key != "")
+                tmp[key] = new_value
+
+            if(!("settings" in tmp))
+                tmp["settings"] = {}
+
+            if(!("Default Profile" in tmp["settings"]))
+                tmp["settings"]["Default Profile"] = omit(tmp, ["settings","__ignore__"])
+
+            tmp["settings"][currentSetting] = omit(tmp, ["settings","__ignore__"])
+            value = tmp
+        }
+
+        function addSetting(name) {
+            currentSetting = name
+            storePreference()
+        }
+
+        function createDefaultProfile() {
+            const omit = (data , ids) => {
+                const idsSet = new Set(ids);
+                const newObj = {};
+                for (const [key, val] of Object.entries(data)) {
+                    if (!idsSet.has(key)) {
+                       newObj[key] = val;
+                    }
+                }
+                return newObj;
+            };
+
+            let tmp = JSON.parse(JSON.stringify(value))
+            let changed = false
+            if(!("settings" in tmp)) {
+                tmp["settings"] = {}
+                changed = true
+            }
+
+            if(!("Default Profile" in tmp["settings"])) {
+                tmp["settings"]["Default Profile"] = omit(tmp, ["settings","__ignore__"])
+                changed = true
+            }
+
+            if(changed)
+                value = tmp
+        }
+
+        function changeCurrentSetting(name) {
+            currentSetting = name
+            let tmp = JSON.parse(JSON.stringify(value))
+
+            for (const [key, val] of Object.entries(tmp["settings"][name])) {
+                tmp[key] = val
+            }
+
+            value = tmp
+            updateWidgets()
+        }
+
+        function removeSetting(name) {
+            changeCurrentSetting("Default Profile")
+
+            let tmp = JSON.parse(JSON.stringify(value))
+            delete tmp["settings"][name]
+            value = tmp
+
+            storePreference()
+        }
+
+        function updateWidgets() {
+            createDefaultProfile()
+
+            typeRenameDiv.checked = value.defaultType != ""
+            typeRenameDiv.currentIndex = typeRenameDiv.valueDiv.find(value.defaultType)
+
+            // select indexes..
+            let hasGroups = (value.notifyGroups !== undefined && value.notifyGroups.length ? true : false)
+            if(hasGroups)
+                notifyGroupCB.valueDiv.selectFromNames(value.notifyGroups)
+
+            notifyGroupCB.checked = hasGroups
+        }
     }
 
     ColumnLayout {
         anchors.fill: parent
         spacing: itemSpacing
+        anchors.leftMargin: 20
+        anchors.rightMargin: 20
 
-        Item{
-            Layout.fillWidth: true
-            Layout.preferredHeight: itemHeight/2
-        }
         XsTextWithComboBoxFullSize{ id: projectDiv
             Layout.fillWidth: true
             Layout.preferredHeight: itemHeight*1.5
+            Layout.topMargin: itemHeight/2
 
             enabled: false
 
@@ -213,13 +328,11 @@ XsWindow{
                 }
             }
         }
-        Item{
-            Layout.fillWidth: true
-            Layout.preferredHeight: itemHeight/4
-        }
+
         XsTextWithComboBoxFullSize{ id: playlistDiv
             Layout.fillWidth: true
             Layout.preferredHeight: itemHeight*1.5
+            Layout.topMargin: itemHeight/4
 
             enabled: isPlaylistNotes
 
@@ -236,14 +349,65 @@ XsWindow{
             }
         }
 
-        Item{
+        RowLayout {
             Layout.fillWidth: true
-            Layout.preferredHeight: itemHeight
+            Layout.preferredHeight: itemHeight*1.5
+            Layout.topMargin: itemHeight/2
+            Layout.bottomMargin: itemHeight/2
+            spacing: 1
+
+            XsTextWithComboBoxFullSize{ id: settingsDiv
+                Layout.fillWidth: true
+                Layout.preferredHeight: itemHeight*1.5
+
+                valueDiv.textColorNormal: model[currentIndex] == "Default Profile" ? XsStyleSheet.secondaryTextColor : palette.text
+
+                text: "Profiles :"
+                model: prefs.settings
+                onActivated: prefs.changeCurrentSetting(model[currentIndex])
+            }
+
+            XsPrimaryButton {
+                Layout.topMargin: itemHeight-2
+                Layout.bottomMargin: 2
+                Layout.preferredWidth: itemHeight
+                Layout.preferredHeight: itemHeight
+                imgSrc: "qrc:/icons/add.svg"
+
+                function addSettingCallback(name, button) {
+                    if(button == "Add Profile") {
+                        prefs.addSetting(name)
+                        settingsDiv.currentIndex = settingsDiv.model.length-1
+                    }
+                }
+
+                onClicked: dialogHelpers.textInputDialog(
+                        addSettingCallback,
+                        "Add Profile",
+                        "Enter a name for your profile.",
+                        "",
+                        ["Cancel", "Add Profile"])
+
+            }
+
+            XsPrimaryButton {
+                Layout.topMargin: itemHeight-2
+                Layout.bottomMargin: 2
+                Layout.preferredWidth: itemHeight
+                Layout.preferredHeight: itemHeight
+
+                imgSrc: "qrc:/icons/delete.svg"
+                enabled: prefs.currentSetting != "Default Profile"
+                onClicked: prefs.removeSetting(prefs.currentSetting)
+            }
         }
+
 
         XsTextWithCheckAndComboBoxes { id: typeRenameDiv
             Layout.fillWidth: true
             Layout.preferredHeight: itemHeight
+            Layout.topMargin: itemHeight
+
 
             valueDiv.textRole: "nameRole"
             text: "Rename all note types :"
@@ -260,38 +424,31 @@ XsWindow{
             onActivated: {
                 if(index != -1) {
                     let dt = model.get(model.index(index, 0), "nameRole")
-                    if(dt != prefs.values.defaultType)
-                        prefs.values.defaultType = dt
+                    if(dt != prefs.value.defaultType)
+                        prefs.storePreference("defaultType", dt)
                 }
             }
 
             onCheckedChanged: {
-                if(checked) {
-                    if(prefs.values.defaultType == "")
-                        currentIndex = -1
-                    else
-                        currentIndex = model.search(prefs.values.defaultType).row
-                }
-                else {
+                if(!checked) {
+                    prefs.storePreference("defaultType", "")
                     currentIndex = -1
                 }
             }
         }
 
-        Item{
-            Layout.fillWidth: true
-            Layout.preferredHeight: itemHeight
-        }
         XsTextWithCheckBox { id: notifyCreatorCB
             Layout.fillWidth: true
             Layout.preferredHeight: itemHeight
+            Layout.topMargin: itemHeight
+
 
             text: "Notify version creator"
-            checked: prefs.values.notifyCreator
+            checked: prefs.value.notifyCreator
             onCheckedChanged: {
-                if(prefs.values.notifyCreator != checked) {
+                if(prefs.value.notifyCreator != checked) {
                     updatePublish()
-                    prefs.values.notifyCreator = checked
+                    prefs.storePreference("notifyCreator", checked)
                 }
             }
         }
@@ -306,25 +463,35 @@ XsWindow{
             model: ShotBrowserFilterModel {
                 sourceModel: ShotBrowserEngine.ready ? ShotBrowserEngine.presetsModel.termModel("Group", "", projectId) : null
             }
-        }
 
-        Item{
-            Layout.fillWidth: true
-            Layout.preferredHeight: itemHeight
+            onCheckedChanged: {
+                if(!checked) {
+                    valueDiv.theSelectionModel.clearSelection()
+                }
+            }
+
+            onCheckedIndexesChanged: {
+                let values = []
+                for(let i =0;i<checkedIndexes.length;i++) {
+                    values.push(model.sourceModel.get(checkedIndexes[i], "nameRole"))
+                }
+                prefs.storePreference("notifyGroups", values)
+            }
         }
 
         XsTextWithCheckBox {
             id: combineNotesCB
             Layout.fillWidth: true
             Layout.preferredHeight: itemHeight
+            Layout.topMargin: itemHeight
 
             text: "Combine multiple notes"
-            checked: prefs.values.combine
+            checked: prefs.value.combine
 
             onCheckedChanged: {
-                if(prefs.values.combine != checked) {
+                if(prefs.value.combine != checked) {
                     updatePublish()
-                    prefs.values.combine = checked
+                    prefs.storePreference("combine", checked)
                 }
             }
         }
@@ -335,11 +502,11 @@ XsWindow{
             Layout.preferredHeight: itemHeight
 
             text: "Add 'Frame/Timecode Number' to notes"
-            checked: prefs.values.addFrame
+            checked: prefs.value.addFrame
             onCheckedChanged: {
-                if(prefs.values.addFrame != checked) {
+                if(prefs.value.addFrame != checked) {
                     updatePublish()
-                    prefs.values.addFrame = checked
+                    prefs.storePreference("addFrame", checked)
                 }
             }
         }
@@ -349,11 +516,11 @@ XsWindow{
             Layout.preferredHeight: itemHeight
 
             text: "Add 'Playlist Name' to notes"
-            checked: prefs.values.addPlaylistName
+            checked: prefs.value.addPlaylistName
             onCheckedChanged: {
-                if(prefs.values.addPlaylistName != checked) {
+                if(prefs.value.addPlaylistName != checked) {
                     updatePublish()
-                    prefs.values.addPlaylistName = checked
+                    prefs.storePreference("addPlaylistName", checked)
                 }
             }
         }
@@ -363,30 +530,27 @@ XsWindow{
             Layout.preferredHeight: itemHeight
 
             text: "Add 'Note Type' to notes"
-            checked: prefs.values.addType
+            checked: prefs.value.addType
             onCheckedChanged: {
-                if(prefs.values.addType != checked) {
+                if(prefs.value.addType != checked) {
                     updatePublish()
-                    prefs.values.addType = checked
+                    prefs.storePreference("addType", checked)
                 }
             }
         }
 
-        Item{
-            Layout.fillWidth: true
-            Layout.preferredHeight: itemHeight
-        }
         XsTextWithCheckBox {
             id: ignoreWithOnlyDrawingCB
             Layout.fillWidth: true
             Layout.preferredHeight: itemHeight
+            Layout.topMargin: itemHeight
 
             text: "Ignore notes with only drawings"
-            checked: prefs.values.ignoreEmpty
+            checked: prefs.value.ignoreEmpty
             onCheckedChanged: {
-                if(prefs.values.ignoreEmpty != checked) {
+                if(prefs.value.ignoreEmpty != checked) {
                     updatePublish()
-                    prefs.values.ignoreEmpty = checked
+                    prefs.storePreference("ignoreEmpty", checked)
                 }
             }
         }
@@ -396,11 +560,11 @@ XsWindow{
             Layout.preferredHeight: itemHeight
 
             text: "Skip notes already published"
-            checked: prefs.values.skipAlreadyPublished
+            checked: prefs.value.skipAlreadyPublished
             onCheckedChanged: {
-                if(prefs.values.skipAlreadyPublished != checked) {
+                if(prefs.value.skipAlreadyPublished != checked) {
                     updatePublish()
-                    prefs.values.skipAlreadyPublished = checked
+                    prefs.storePreference("skipAlreadyPublished", checked)
                 }
             }
         }
@@ -449,6 +613,7 @@ XsWindow{
                     Layout.preferredWidth: parent.width/2
                     Layout.fillHeight: true
                     text: "Publish Notes To SG"
+                    enabled: !invalidPublish
                     onClicked: {
                         forceActiveFocus()
                         publishNotes()
@@ -461,6 +626,8 @@ XsWindow{
         Item{ id: infoDiv
             Layout.fillWidth: true
             Layout.preferredHeight: itemHeight
+            Layout.bottomMargin: itemHeight/3
+
 
             XsText{
                 x: 20
@@ -472,15 +639,6 @@ XsWindow{
                 text: "(Only notes attached to ShotGrid Media are currently supported.)"
             }
         }
-
-        Item{
-            Layout.fillWidth: true
-            Layout.preferredHeight: itemHeight/3
-        }
-
     }
-
-
-
 }
 

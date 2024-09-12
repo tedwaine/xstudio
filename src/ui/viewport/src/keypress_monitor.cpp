@@ -43,7 +43,11 @@ KeypressMonitor::KeypressMonitor(caf::actor_config &cfg) : caf::event_based_acto
             held_keys_.clear();
             held_keys_changed(context);
         },
-        [=](key_down_atom, int key, const std::string &context, const bool auto_repeat) {
+        [=](key_down_atom,
+            int key,
+            const std::string &context,
+            const std::string &window,
+            const bool auto_repeat) {
             if (actor_grabbing_all_keyboard_input_) {
                 anon_send(
                     actor_grabbing_all_keyboard_input_,
@@ -53,16 +57,19 @@ KeypressMonitor::KeypressMonitor(caf::actor_config &cfg) : caf::event_based_acto
                     auto_repeat);
             } else {
                 held_keys_.insert(key);
-                held_keys_changed(context, auto_repeat);
+                held_keys_changed(context, auto_repeat, window);
             }
         },
-        [=](key_up_atom, int key, const std::string &context) {
+        [=](key_up_atom, int key, const std::string &context, const std::string &window) {
             if (held_keys_.find(key) != held_keys_.end()) {
                 held_keys_.erase(held_keys_.find(key));
                 held_keys_changed(context);
             }
         },
-        [=](text_entry_atom, const std::string &text, const std::string &context) {
+        [=](text_entry_atom,
+            const std::string &text,
+            const std::string &context,
+            const std::string &window) {
             if (actor_grabbing_all_keyboard_input_) {
                 anon_send(actor_grabbing_all_keyboard_input_, text_entry_atom_v, text, context);
             } else {
@@ -135,13 +142,15 @@ KeypressMonitor::KeypressMonitor(caf::actor_config &cfg) : caf::event_based_acto
         [=](keypress_monitor::hotkey_event_atom,
             const utility::Uuid kotkey_uuid,
             const bool pressed,
-            const std::string &context) {
+            const std::string &context,
+            const std::string &window) {
             send(
                 hotkey_config_events_group_,
                 hotkey_event_atom_v,
                 kotkey_uuid,
                 pressed,
-                context);
+                context,
+                window);
         },
 
         [=](xstudio::broadcast::broadcast_down_atom, const caf::actor_addr &) {},
@@ -154,7 +163,8 @@ void KeypressMonitor::on_exit() {
     actor_grabbing_all_mouse_input_.clear();
 }
 
-void KeypressMonitor::held_keys_changed(const std::string &context, const bool auto_repeat) {
+void KeypressMonitor::held_keys_changed(
+    const std::string &context, const bool auto_repeat, const std::string &window) {
 
     if (actor_grabbing_all_keyboard_input_) {
         /*auto addr = caf::actor_cast<caf::actor_addr>(actor_grabbing_all_keyboard_input_);
@@ -166,7 +176,7 @@ void KeypressMonitor::held_keys_changed(const std::string &context, const bool a
     } else {
         for (auto &p : active_hotkeys_) {
             p.second.update_state(
-                held_keys_, context, auto_repeat, caf::actor_cast<caf::actor>(this));
+                held_keys_, context, window, auto_repeat, caf::actor_cast<caf::actor>(this));
         }
     }
 }

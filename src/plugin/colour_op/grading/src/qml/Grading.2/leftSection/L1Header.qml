@@ -4,12 +4,11 @@ import QtQuick 2.15
 import QtQuick.Controls 2.15
 import QtQuick.Layouts 1.15
 
-import xStudioReskin 1.0
+import xStudio 1.0
 
 Item{ id: toolDiv
 
     property real categoryBtnWidth: btnWidth * 1.3
-    clip: true
 
     RowLayout{
         spacing: buttonSpacing
@@ -41,6 +40,31 @@ Item{ id: toolDiv
             Layout.fillWidth: true
             Layout.minimumWidth: 0//btnWidth
             Layout.preferredHeight: btnHeight
+        }
+        XsPrimaryButton{ id: hideBtn
+            Layout.preferredWidth: btnWidth*2
+            Layout.preferredHeight: btnHeight
+            text: "Hide Shapes"
+            imgSrc: ""
+            font.pixelSize: XsStyleSheet.fontSize
+            font.family: XsStyleSheet.fontFamily
+            isActive: !mask_attrs.mask_shapes_visible
+            onClicked:{
+                mask_attrs.mask_shapes_visible = !mask_attrs.mask_shapes_visible;
+            }
+        }
+        XsPrimaryButton{ id: bypassBtn
+            Layout.preferredWidth: btnWidth*1.5
+            Layout.preferredHeight: btnHeight
+            text: "Bypass"
+            imgSrc: ""
+            font.pixelSize: XsStyleSheet.fontSize
+            font.family: XsStyleSheet.fontFamily
+            //tooltip: "Bypass all CDLs or not"
+            isActive: attrs.grading_bypass
+            onClicked: {
+                attrs.grading_bypass = !attrs.grading_bypass
+            }
         }
         XsPrimaryButton{ id: moreBtn
             Layout.preferredWidth: btnWidth

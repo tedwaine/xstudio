@@ -145,6 +145,8 @@ void ShotBrowserEngine::createSequenceModels(const int project_id) {
         sequences_tree_map_[project_id] = new ShotBrowserSequenceModel(this);
         auto fmodel                     = new ShotBrowserSequenceFilterModel(this);
         fmodel->setSourceModel(sequences_tree_map_[project_id]);
+        fmodel->setHideStatus(QStringList({"omt", "na", "del", "omtnto", "omtnwd"}));
+
         sequences_tree_filter_map_[project_id] = fmodel;
 
         getSequencesFuture(project_id);
@@ -239,34 +241,28 @@ void ShotBrowserEngine::setLiveLinkKey(const QVariant &key) {
 }
 
 void ShotBrowserEngine::setLiveLinkMetadata(QString &data) {
-    if (data == "null")
+    if (data == "null" or data == "")
         data = "{}";
 
-    // spdlog::warn("{} {}", __PRETTY_FUNCTION__, StdFromQString(data));
+    if (data != live_link_metadata_string_) {
+        try {
+            live_link_metadata_        = JsonStore(nlohmann::json::parse(StdFromQString(data)));
+            live_link_metadata_string_ = data;
 
-    try {
-        if (data != live_link_metadata_string_) {
-            try {
-                live_link_metadata_ = JsonStore(nlohmann::json::parse(StdFromQString(data)));
+            auto project    = query_engine_.get_project_name(live_link_metadata_);
+            auto project_id = query_engine_.get_project_id(live_link_metadata_);
 
-                // spdlog::warn("{}", live_link_metadata_.dump(2));
-                live_link_metadata_string_ = data;
+            // update model caches.
+            cacheProject(project_id);
 
-                auto project    = query_engine_.get_project_name(live_link_metadata_);
-                auto project_id = query_engine_.get_project_id(live_link_metadata_);
-
-                // update model caches.
-                cacheProject(project_id);
-
-                emit projectChanged(project_id, QStringFromStd(project));
-            } catch (const std::exception &err) {
-                spdlog::warn("{} {}", __PRETTY_FUNCTION__, err.what());
-            }
-
-            emit liveLinkMetadataChanged();
+            emit projectChanged(project_id, QStringFromStd(project));
+        } catch (const std::exception &err) {
+            spdlog::warn("{} {} {}", __PRETTY_FUNCTION__, err.what(), StdFromQString(data));
+            live_link_metadata_        = JsonStore(R"({})"_json);
+            live_link_metadata_string_ = "{}";
         }
-    } catch (const std::exception &err) {
-        spdlog::warn("{} {}", __PRETTY_FUNCTION__, err.what());
+
+        emit liveLinkMetadataChanged();
     }
 }
 
@@ -526,13 +522,14 @@ void ShotBrowserEngine::populateCaches() {
 
 
 QFuture<QString> ShotBrowserEngine::requestFileTransferFuture(
-    const QVariantList &uuids,
+    const QVariantList &qitems,
     const QString &project,
     const QString &src_location,
     const QString &dest_location) {
     return QtConcurrent::run([=]() {
         QString program = "dnenv-do";
         QString result;
+
         auto show_env = utility::get_env("SHOW");
         auto shot_env = utility::get_env("SHOT");
 
@@ -554,11 +551,19 @@ QFuture<QString> ShotBrowserEngine::requestFileTransferFuture(
             "-description",
             "File transfer requested by xStudio"};
 
-        std::vector<std::string> dnuuids;
-        for (const auto &i : uuids) {
-            dnuuids.emplace_back(to_string(UuidFromQUuid(i.toUuid())));
+        std::vector<std::string> items;
+        for (const auto &i : qitems) {
+            if (i.userType() == QMetaType::QUrl)
+                items.emplace_back(uri_to_posix_path(UriFromQUrl(i.toUrl())));
+            else
+                items.emplace_back(to_string(UuidFromQUuid(i.toUuid())));
         }
-        args.push_back(src_location + ":" + QStringFromStd(join_as_string(dnuuids, ",")));
+
+        if (src_location.isEmpty())
+            args.push_back(QStringFromStd(join_as_string(items, ",")));
+        else
+            args.push_back(src_location + ":" + QStringFromStd(join_as_string(items, ",")));
+
         args.push_back(dest_location);
 
         qint64 pid;

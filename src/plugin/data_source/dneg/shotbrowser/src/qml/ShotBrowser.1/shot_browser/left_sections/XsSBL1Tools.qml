@@ -4,7 +4,7 @@ import QtQuick 2.15
 import QtQuick.Controls 2.15
 import QtQuick.Layouts 1.15
 
-import xStudioReskin 1.0
+import xStudio 1.0
 import ShotBrowser 1.0
 
 
@@ -30,49 +30,57 @@ RowLayout{
     }
 
     XsPrimaryButton{
-        Layout.minimumWidth: butWidth
-        Layout.maximumWidth: butWidth
+        id: firstButton
+        Layout.minimumWidth: butWidth * 1.5
+        Layout.maximumWidth: butWidth * 1.5
         Layout.fillHeight: true
         imgSrc: "qrc:///shotbrowser_icons/nature.svg"
-        text: "Tree"
-        isActive: currentCategory == text && !sequenceTreeShowPresets
+        text: "Tree View"
+        isActive: currentCategory == "Tree" && !sequenceTreeShowPresets
         onClicked: {
-            currentCategory = text
+            if(currentCategory != "Tree")
+                resultsBaseModel.setResultData([])
+
+            currentCategory = "Tree"
             sequenceTreeShowPresets = false
         }
     }
     XsPrimaryButton{
-        Layout.minimumWidth: butWidth
-        Layout.maximumWidth: butWidth
+        Layout.minimumWidth: firstButton.width
+        Layout.maximumWidth: firstButton.width
         Layout.fillHeight: true
         imgSrc: "qrc:///shotbrowser_icons/tree_plus.svg"
-        text: "Tree Plus Presets"
+        text: "Tree Plus"
         isActive: currentCategory == "Tree" && sequenceTreeShowPresets
         onClicked: {
+            if(currentCategory != "Tree")
+                resultsBaseModel.setResultData([])
             currentCategory = "Tree"
             sequenceTreeShowPresets = true
         }
     }
     XsPrimaryButton{
-        Layout.minimumWidth: butWidth
-        Layout.maximumWidth: butWidth
+        Layout.minimumWidth: firstButton.width
+        Layout.maximumWidth: firstButton.width
         Layout.fillHeight: true
         imgSrc: "qrc:///shotbrowser_icons/globe.svg"
-        text: "Presets"
+        text: "Global View"
         isActive: currentCategory == "Recent"
         onClicked: {
+            resultsBaseModel.setResultData([])
             currentCategory = "Recent"
         }
     }
     XsPrimaryButton{
-        Layout.minimumWidth: butWidth
-        Layout.maximumWidth: butWidth
+        Layout.minimumWidth: firstButton.width
+        Layout.maximumWidth: firstButton.width
         Layout.fillHeight: true
         imgSrc: "qrc:///shotbrowser_icons/settings.svg"
-        text: "Menus"
-        isActive: currentCategory == text
+        text: "Setup View"
+        isActive: currentCategory == "Menus"
         onClicked: {
-            currentCategory = text
+            resultsBaseModel.setResultData([])
+            currentCategory = "Menus"
         }
     }
 

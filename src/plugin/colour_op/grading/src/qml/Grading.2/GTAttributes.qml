@@ -3,7 +3,7 @@ import QtQuick 2.15
 
 import xstudio.qml.models 1.0
 
-import xStudioReskin 1.0
+import xStudio 1.0
 
 Item {
 
@@ -16,10 +16,10 @@ Item {
     property alias grading_settings: grading_tool_attrs_data
 
     ///////////////////////////////////////////////////////////////////////
-    // to DIRECTLY expose attribute role data we use XsAttributeValue and 
-    // give it the title (name) of the attribute. By default it will expose 
-    // the 'value' role data of the attribute but you can override this to 
-    // get to other role datas such as 'combo_box_options' (the string 
+    // to DIRECTLY expose attribute role data we use XsAttributeValue and
+    // give it the title (name) of the attribute. By default it will expose
+    // the 'value' role data of the attribute but you can override this to
+    // get to other role datas such as 'combo_box_options' (the string
     // choices in a StringChoiceAttribute) or 'default_value' etc.
 
     XsAttributeValue {

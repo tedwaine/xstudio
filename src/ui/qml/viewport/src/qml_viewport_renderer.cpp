@@ -49,7 +49,7 @@ void QMLViewportRenderer::init_renderer() {
 
 void QMLViewportRenderer::paint() {
 
-    if (viewport_qml_item_ && viewport_qml_item_->isVisible()) {
+    if (viewport_qml_item_ && viewport_qml_item_->isVisible() && viewport_renderer_) {
 
         // TODO: again, this init call probably shouldn't happen in the main
         // draw call. see above.
@@ -78,10 +78,19 @@ void QMLViewportRenderer::paint() {
 }
 
 void QMLViewportRenderer::frameSwapped() {
-    viewport_renderer_->framebuffer_swapped(utility::clock::now());
+    if (viewport_renderer_)
+        viewport_renderer_->framebuffer_swapped(utility::clock::now());
 }
 
-void QMLViewportRenderer::setWindow(QQuickWindow *window) { m_window = window; }
+void QMLViewportRenderer::setWindow(QQuickWindow *window) {
+
+    if (window && m_window != window) {
+        m_window = window;
+
+        // window has changed - we need a new xstudio viewport
+        make_xstudio_viewport();
+    }
+}
 
 void QMLViewportRenderer::setSceneCoordinates(
     const QPointF topleft,
@@ -116,16 +125,36 @@ void QMLViewportRenderer::init_system() {
     spdlog::debug("QMLViewportRenderer init");
 
     self()->set_default_handler(caf::drop);
+}
+
+void QMLViewportRenderer::make_xstudio_viewport() {
+
+    if (viewport_renderer_)
+        delete viewport_renderer_;
+
+    ui::viewport::ViewportRendererPtr gl_renderer;
+    {
+        // we need one OpenGLViewportRenderer per QWindow - xstudio viewports within
+        // the same window can share the OpenGLViewportRenderer instance. This saves
+        // texture/video resources and allows viewports to be created a lot quicker as
+        // resources like shader objects only need to be created once etc.
+        static std::unordered_map<QWindow *, ui::viewport::ViewportRendererPtr> gl_renderers;
+        if (gl_renderers.find(m_window) != gl_renderers.end()) {
+            gl_renderer = gl_renderers[m_window];
+        } else {
+            gl_renderer =
+                ui::viewport::ViewportRendererPtr(new opengl::OpenGLViewportRenderer(false));
+            gl_renderers[m_window] = gl_renderer;
+        }
+    }
 
     utility::JsonStore jsn;
-    jsn["base"] = utility::JsonStore();
+    jsn["base"]      = utility::JsonStore();
+    jsn["window_id"] = StdFromQString(m_window->objectName());
 
     /* Here we create the all important Viewport class that actually draws images to the screen
      */
-    viewport_renderer_ = new ui::viewport::Viewport(
-        jsn,
-        as_actor(),
-        ui::viewport::ViewportRendererPtr(new opengl::OpenGLViewportRenderer(false)));
+    viewport_renderer_ = new ui::viewport::Viewport(jsn, as_actor(), gl_renderer);
 
     /* Provide a callback so the Viewport can tell this class when some property of the viewport
     has changed and such events can be propagated to other QT components, for example */
@@ -198,17 +227,21 @@ void QMLViewportRenderer::init_system() {
     viewport_renderer_->auto_connect_to_global_selected_playhead();
 }
 void QMLViewportRenderer::set_playhead(caf::actor playhead) {
-    viewport_renderer_->set_playhead(playhead);
+    if (viewport_renderer_)
+        viewport_renderer_->set_playhead(playhead);
 }
 
-void QMLViewportRenderer::reset() { viewport_renderer_->reset(); }
+void QMLViewportRenderer::reset() {
+    if (viewport_renderer_)
+        viewport_renderer_->reset();
+}
 
 bool QMLViewportRenderer::pointerEvent(const PointerEvent &e) {
 
     // make a mutable copy, so we can add more coordinate info in
     // 'process_pointer_event'
     PointerEvent _e = e;
-    if (viewport_renderer_->process_pointer_event(_e)) {
+    if (viewport_renderer_ && viewport_renderer_->process_pointer_event(_e)) {
         // pointer event will be consumed if the user is doing interactive
         // pan/zoom, for example. Force a redraw.
         if (m_window)
@@ -223,16 +256,20 @@ bool QMLViewportRenderer::pointerEvent(const PointerEvent &e) {
 }
 
 Imath::V2i QMLViewportRenderer::imageResolutionCoords() {
-    return viewport_renderer_->image_resolution();
+    return viewport_renderer_ ? viewport_renderer_->image_resolution() : Imath::V2i();
 }
 
 QRectF QMLViewportRenderer::imageBoundsInViewportPixels() const {
-    Imath::Box2f box = viewport_renderer_->image_bounds_in_viewport_pixels();
+    Imath::Box2f box = viewport_renderer_
+                           ? viewport_renderer_->image_bounds_in_viewport_pixels()
+                           : Imath::Box2f();
     return QRectF(box.min.x, box.min.y, box.max.x - box.min.x, box.max.y - box.min.y);
 }
 
 Imath::V2f QMLViewportRenderer::imageCoordsToViewport(const int x, const int y) {
-    return viewport_renderer_->image_coordinate_to_viewport_coordinate(x, y);
+    return viewport_renderer_
+               ? viewport_renderer_->image_coordinate_to_viewport_coordinate(x, y)
+               : Imath::V2f();
 }
 
 bool QMLViewportRenderer::ViewportCoords::set(
@@ -274,7 +311,7 @@ void QMLViewportRenderer::receive_change_notification(Viewport::ChangeCallbackId
     } else if (id == Viewport::ChangeCallbackId::TranslationChanged) {
         emit translationChanged();
     } else if (id == Viewport::ChangeCallbackId::PlayheadChanged) {
-        if (viewport_qml_item_) {
+        if (viewport_qml_item_ && viewport_renderer_) {
             viewport_qml_item_->setPlayheadUuid(
                 QUuidFromUuid(viewport_renderer_->playhead_uuid()));
         }
@@ -287,12 +324,13 @@ void QMLViewportRenderer::setScreenInfos(
     QString manufacturer,
     QString serialNumber,
     double refresh_rate) {
-    viewport_renderer_->set_screen_infos(
-        name.toStdString(),
-        model.toStdString(),
-        manufacturer.toStdString(),
-        serialNumber.toStdString(),
-        refresh_rate);
+    if (viewport_renderer_)
+        viewport_renderer_->set_screen_infos(
+            name.toStdString(),
+            model.toStdString(),
+            manufacturer.toStdString(),
+            serialNumber.toStdString(),
+            refresh_rate);
 }
 
 void QMLViewportRenderer::setIsQuickViewer(const bool is_quick_viewer) {}

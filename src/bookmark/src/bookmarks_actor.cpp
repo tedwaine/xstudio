@@ -54,6 +54,11 @@ caf::message_handler BookmarksActor::default_event_handler() {
         [=](utility::event_atom, bookmark_change_atom, const utility::UuidActor &) {}};
 }
 
+void BookmarksActor::on_exit() {
+    for (auto &it : bookmarks_) {
+        send_exit(it.second, caf::exit_reason::user_shutdown);
+    }
+}
 
 void BookmarksActor::init() {
     print_on_create(this, base_);
@@ -317,13 +322,6 @@ void BookmarksActor::init() {
                             BookmarkDetail bd;
                             bd.owner_ = src;
                             anon_send(ua.actor(), bookmark_detail_atom_v, bd);
-                            // add to manager.
-                            bookmarks_[ua.uuid()] = ua.actor();
-                            monitor(ua.actor());
-                            join_event_group(this, ua.actor());
-                            base_.send_changed(event_group_, this);
-                            send(event_group_, utility::event_atom_v, add_bookmark_atom_v, ua);
-
                             rp.deliver(ua);
                         },
                         [=](const caf::error &err) mutable { rp.deliver(err); });

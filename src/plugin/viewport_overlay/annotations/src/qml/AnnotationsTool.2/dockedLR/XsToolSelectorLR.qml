@@ -9,7 +9,7 @@ import QtQml.Models 2.14
 import QtQuick.Dialogs 1.3
 import QtGraphicalEffects 1.15
 
-import xStudioReskin 1.0
+import xStudio 1.0
 import xstudio.qml.models 1.0
 import xstudio.qml.helpers 1.0
 
@@ -20,7 +20,7 @@ Item{
     property int rowItemCount: 2
 
     property alias toolSet: toolSet
-    
+
     property real itemWidth: (width-framePadding*2)/rowItemCount
     onItemWidthChanged: {
         buttonWidth = itemWidth
@@ -96,7 +96,7 @@ Item{
                     // x: index>=rowItemCount? width/2:0
                     width: index == toolImages.length-1? parent.width*2 : parent.width - itemSpacing
                     height: parent.height - itemSpacing
-            
+
                     clip: true
                     isToolTipEnabled: showButtonHints
 

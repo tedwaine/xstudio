@@ -9,12 +9,12 @@ if (USE_VCPKG)
   include(${CMAKE_CURRENT_SOURCE_DIR}/cmake/modules/vcpkg.cmake)
 endif()
 
-set(XSTUDIO_GLOBAL_VERSION "0.11.2" CACHE STRING "Version string")
+set(XSTUDIO_GLOBAL_VERSION "1.0.0" CACHE STRING "Version string")
 set(XSTUDIO_GLOBAL_NAME xStudio)
 
 project(${XSTUDIO_GLOBAL_NAME} VERSION ${XSTUDIO_GLOBAL_VERSION} LANGUAGES CXX)
 
-cmake_policy(VERSION 3.20)
+cmake_policy(VERSION 3.26)
 
 option(BUILD_TESTING "Build tests" OFF)
 option(INSTALL_PYTHON_MODULE "Install python module" ON)

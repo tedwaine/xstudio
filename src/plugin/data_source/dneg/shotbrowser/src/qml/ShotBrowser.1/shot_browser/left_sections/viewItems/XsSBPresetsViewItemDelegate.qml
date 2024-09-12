@@ -6,7 +6,7 @@ import QtQuick.Layouts 1.15
 import QtQml.Models 2.14
 import Qt.labs.qmlmodels 1.0
 
-import xStudioReskin 1.0
+import xStudio 1.0
 import ShotBrowser 1.0
 import xstudio.qml.helpers 1.0
 import xstudio.qml.models 1.0
@@ -38,6 +38,7 @@ XsPrimaryButton{ id: thisItem
     }
 
     MouseArea {
+        id: ma
         anchors.fill: parent
         acceptedButtons: Qt.LeftButton | Qt.RightButton
 
@@ -53,7 +54,7 @@ XsPrimaryButton{ id: thisItem
             }
 
             if (mouse.button == Qt.RightButton) {
-                showPresetMenu(mouseX+btnHeight, 0) //btnHeight - is the spacing at left for Presets apart from Groups
+                showPresetMenu(ma, mouseX, mouseY) //btnHeight - is the spacing at left for Presets apart from UIDataModels
             }
         }
     }
@@ -137,7 +138,7 @@ XsPrimaryButton{ id: thisItem
                     presetMenu.visible = false
                 }
                 else{
-                    showPresetMenu(0,0)
+                    showPresetMenu(moreBtn, width/2, height/2)
                 }
             }
         }
@@ -151,10 +152,11 @@ XsPrimaryButton{ id: thisItem
             visible: thisItem.hovered || favouriteRole
 
             showHoverOnActive: favouriteRole && !thisItem.hovered
-            isColoured: favouriteRole && thisItem.hovered
+            isColoured: favouriteRole// && thisItem.hovered
             imgSrc: "qrc:///shotbrowser_icons/favorite.svg"
             // isActive: favouriteRole
             scale: 0.95
+            opacity: groupFavouriteRole ? 1.0 : 0.5
             onClicked: favouriteRole = !favouriteRole
         }
 
@@ -182,16 +184,16 @@ XsPrimaryButton{ id: thisItem
         presetEditPopup.entityType = entityType()
     }
 
-    function showPresetMenu(xpos, ypos){
+    function showPresetMenu(refItem, xpos, ypos){
 
         presetMenu.presetModelIndex = presetModelIndex()
         presetMenu.filterModelIndex = filterModelIndex()
 
-        let p = mapToItem(presetMenu.parent, moreBtn.width, 0)
+        presetMenu.showMenu(
+            refItem,
+            xpos,
+            ypos);
 
-        presetMenu.x = xpos==0? (p.x + thisItem.width - btnHeight) : xpos
-        presetMenu.y = xpos==0 && ypos==0 ? p.y : ypos==0? (p.y + btnHeight/2) : ypos
-        presetMenu.visible = true
     }
 
     XsBusyIndicator{ id: busyIndicator

@@ -18,6 +18,7 @@ namespace timeline {
         TrackActor(
             caf::actor_config &cfg,
             const std::string &name           = "Track",
+            const utility::FrameRate &rate    = utility::FrameRate(),
             const media::MediaType media_type = media::MediaType::MT_IMAGE,
             const utility::Uuid &uuid         = utility::Uuid::generate());
         TrackActor(caf::actor_config &cfg, const Item &item);
@@ -92,6 +93,11 @@ namespace timeline {
             const int dest_frame,
             const bool insert,
             caf::typed_response_promise<utility::JsonStore> rp);
+
+        std::pair<utility::JsonStore, std::vector<timeline::Item>>
+        remove_items(const int index, const int count, const bool add_gap);
+
+        // void merge_gaps(caf::typed_response_promise<utility::JsonStore> rp);
 
       private:
         caf::behavior behavior_;

@@ -191,6 +191,71 @@ Q_INVOKABLE void SessionModel::relinkMedia(const QModelIndexList &indexes, const
     }
 }
 
+QStringList
+SessionModel::getMediaSourceNames(const QModelIndex &media_index, const bool image_source) {
+
+    QStringList rt;
+    try {
+
+        scoped_actor sys{system()};
+
+        if (media_index.isValid()) {
+            nlohmann::json &j = indexToData(media_index);
+            if (j.at("actor").is_string()) {
+                auto actor = actorFromString(system(), j.at("actor"));
+                if (actor) {
+                    auto media_source_names =
+                        request_receive<std::vector<std::pair<utility::Uuid, std::string>>>(
+                            *sys,
+                            actor,
+                            media::get_media_source_names_atom_v,
+                            image_source ? media::MT_IMAGE : media::MT_AUDIO);
+                    for (const auto &n : media_source_names) {
+                        rt.append(QStringFromStd(n.second));
+                    }
+                }
+            }
+        }
+    } catch (const std::exception &err) {
+        spdlog::warn("{} {}", __PRETTY_FUNCTION__, err.what());
+        /*if (index.isValid()) {
+            nlohmann::json &j = indexToData(index);
+            spdlog::warn("{}", j.dump(2));
+        }*/
+    }
+    return rt;
+}
+
+QStringList SessionModel::setMediaSource(
+    const QModelIndex &media_index, const QString &mediaSourceName, const bool image_source) {
+
+    QStringList rt;
+    try {
+
+        scoped_actor sys{system()};
+
+        if (media_index.isValid()) {
+            nlohmann::json &j = indexToData(media_index);
+            if (j.at("actor").is_string()) {
+                auto actor = actorFromString(system(), j.at("actor"));
+                if (actor) {
+                    anon_send(
+                        actor,
+                        playhead::media_source_atom_v,
+                        StdFromQString(mediaSourceName),
+                        image_source ? media::MT_IMAGE : media::MT_AUDIO);
+                }
+            }
+        }
+    } catch (const std::exception &err) {
+        spdlog::warn("{} {}", __PRETTY_FUNCTION__, err.what());
+        /*if (index.isValid()) {
+            nlohmann::json &j = indexToData(index);
+            spdlog::warn("{}", j.dump(2));
+        }*/
+    }
+    return rt;
+}
 
 void SessionModel::setSessionActorAddr(const QString &addr) {
     try {
@@ -237,6 +302,7 @@ void SessionModel::setSessionActorAddr(const QString &addr) {
             setModelData(data);
             add_lookup(*indexToTree(index(0, 0)), index(0, 0));
             emit playlistsChanged();
+            emit currentPlaylistChanged();
 
             // if (backend_events_) {
             //     try {
@@ -297,6 +363,12 @@ QFuture<QString> SessionModel::saveFuture(const QUrl &path, const QModelIndexLis
             for (const auto &i : selection) {
                 if (i.data(typeRole) == "Playlist")
                     playlists.emplace_back(UuidFromQUuid(i.data(containerUuidRole).toUuid()));
+                else {
+                    auto tmp = getPlaylistIndex(i);
+                    if (tmp.isValid())
+                        playlists.emplace_back(
+                            UuidFromQUuid(tmp.data(containerUuidRole).toUuid()));
+                }
             }
 
             if (playlists.empty()) {
@@ -536,12 +608,15 @@ QFuture<QList<QUuid>> SessionModel::handleMediaIdDropFuture(
                         }
                     }
                 } else {
-                    // Moving or copying Media to new playlist
 
-                    if (media_owner_name.empty())
-                        media_owner_name = "Untitled Playlist";
-                    else
+                    if (media_owner_name.empty()) {
+
+                        // session will assign a new name
+                        media_owner_name = "";
+
+                    } else {
                         media_owner_name += " - copy";
+                    }
 
                     auto uua = request_receive<UuidUuidActor>(
                         *sys,
@@ -609,6 +684,7 @@ QFuture<QList<QUuid>> SessionModel::handleContainerIdDropFuture(
             for (const auto &i : jdrop.at("xstudio/container-ids")) {
                 // spdlog::warn("MOVE CONTAINER {}", to_string(i));
                 // find container index
+
                 auto cind = searchRecursive(QUuid::fromString(QStringFromStd(i)), idRole);
                 if (cind.isValid()) {
                     const auto &cij = indexToData(cind);
@@ -842,7 +918,7 @@ QFuture<QList<QUuid>> SessionModel::handleUriListDropFuture(
                     if (uri)
                         uris.emplace_back(*uri);
                 }
-                anon_send(session_actor_, session::load_uris_atom_v, uris, false);
+                anon_send(session_actor_, session::load_uris_atom_v, uris, false, true);
             }
 
             for (const auto &i : new_media)
@@ -1032,7 +1108,6 @@ QFuture<bool> SessionModel::importFuture(const QUrl &path, const QVariant &json)
     return QtConcurrent::run([=]() {
         bool result = false;
         JsonStore js;
-        scoped_actor sys{system()};
 
         if (json.isNull()) {
             try {
@@ -1052,6 +1127,7 @@ QFuture<bool> SessionModel::importFuture(const QUrl &path, const QVariant &json)
 
         try {
             spdlog::stopwatch sw;
+            scoped_actor sys{system()};
 
             auto session = sys->spawn<session::SessionActor>(js, UriFromQUrl(path));
 
@@ -1281,10 +1357,7 @@ QFuture<bool> SessionModel::setJSONFuture(
 }
 
 void SessionModel::sortByMediaDisplayInfo(
-    const QModelIndex &index,
-    const int info_set_idx,
-    const int info_item_idx,
-    const bool ascending) {
+    const QModelIndex &index, const int sort_column_idx, const bool ascending) {
     try {
 
         if (index.isValid()) {
@@ -1295,8 +1368,7 @@ void SessionModel::sortByMediaDisplayInfo(
                 anon_send(
                     actor,
                     playlist::sort_by_media_display_info_atom_v,
-                    info_set_idx,
-                    info_item_idx,
+                    sort_column_idx,
                     ascending);
             }
         }
@@ -1357,67 +1429,11 @@ void SessionModel::setPlayheadTo(const QModelIndex &index, const bool aux_playhe
                 }
             }
         } else {
-            spdlog::warn("{} {}", __PRETTY_FUNCTION__, "Invalid index.");
+            // let listeners know we have been set an invalid playhead index
+            emit playheadChanged(index, false);
+            // spdlog::warn("{} {}", __PRETTY_FUNCTION__, "Invalid index.");
         }
     } catch (const std::exception &err) {
         spdlog::warn("{} {}", __PRETTY_FUNCTION__, err.what());
     }
 }
-
-// QFuture<QModelIndexList>
-// SessionModel::conformInsertFuture(const QString &task, const QModelIndexList &indexes) {
-//     auto playlist_ua = UuidActor();
-//     auto media_uas   = UuidActorVector();
-
-//     try {
-//         if (not indexes.empty()) {
-//             // populate playlist
-//             auto playlist_index = getPlaylistIndex(indexes[0]);
-
-//             if (playlist_index.isValid()) {
-//                 // get uuid and actor
-//                 playlist_ua.uuid_ =
-//                 UuidFromQUuid(playlist_index.data(actorUuidRole).toUuid());
-//                 playlist_ua.actor_ =
-//                     actorFromQString(system(), playlist_index.data(actorRole).toString());
-//             }
-
-//             for (const auto &i : indexes) {
-//                 if (i.data(typeRole) == QString("Media")) {
-//                     media_uas.emplace_back(UuidActor(
-//                         UuidFromQUuid(i.data(actorUuidRole).toUuid()),
-//                         actorFromQString(system(), i.data(actorRole).toString())));
-//                 }
-//             }
-//         }
-//     } catch (const std::exception &err) {
-//         spdlog::warn("{} {}", __PRETTY_FUNCTION__, err.what());
-//     }
-
-//     return QtConcurrent::run([=]() {
-//         QModelIndexList result;
-//         try {
-
-//             scoped_actor sys{system()};
-
-//             if (conform_actor_ and playlist_ua.actor() and not media_uas.empty()) {
-//                 auto response = request_receive<conform::ConformReply>(
-//                     *sys,
-//                     conform_actor_,
-//                     conform::conform_atom_v,
-//                     StdFromQString(task),
-//                     utility::JsonStore(), // conform detail
-//                     playlist_ua,
-//                     media_uas);
-
-//                 // we've got come new stuff, we maybe to contruct them,
-//                 // or they may already exist of have been created for us.
-//             }
-//         } catch (const std::exception &err) {
-//             spdlog::warn("{} {}", __PRETTY_FUNCTION__, err.what());
-//         }
-
-
-//         return result;
-//     });
-// }

@@ -8,7 +8,6 @@
 
 
 #include "xstudio/atoms.hpp"
-#include "xstudio/audio/audio_output_actor.hpp"
 #include "xstudio/broadcast/broadcast_actor.hpp"
 #include "xstudio/colour_pipeline/colour_cache_actor.hpp"
 #include "xstudio/colour_pipeline/colour_pipeline_actor.hpp"
@@ -135,12 +134,12 @@ void GlobalActor::init(const utility::JsonStore &prefs) {
 
     // Make default audio output
 #ifdef __linux__
-    auto audio_out = spawn<audio::AudioOutputActor<audio::LinuxAudioOutputDevice>>();
+    auto audio_out = spawn_audio_output_actor<audio::LinuxAudioOutputDevice>(prefs);
     link_to(audio_out);
 #elif __APPLE__
     // TO DO
 #elif _WIN32
-    auto audio_out = spawn<audio::AudioOutputActor<audio::WindowsAudioOutputDevice>>();
+    auto audio_out = spawn_audio_output_actor<audio::WindowsAudioOutputDevice>(prefs);
     link_to(audio_out);
 #endif
 

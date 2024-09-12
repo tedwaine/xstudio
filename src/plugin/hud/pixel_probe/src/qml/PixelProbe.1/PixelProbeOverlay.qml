@@ -4,7 +4,7 @@ import QtQuick.Layouts 1.3
 import QtQuick 2.14
 import QuickFuture 1.0
 import QuickPromise 1.0
-import xStudioReskin 1.0
+import xStudio 1.0
 import xstudio.qml.models 1.0
 
 Rectangle {
@@ -62,7 +62,7 @@ Rectangle {
         color: "black"
         opacity: bg_opacity
         border.color: "white"
-        border.width: 2        
+        border.width: 2
     }
 
     Column {
@@ -78,7 +78,7 @@ Rectangle {
             color: "white"
             font.pixelSize: font_size
             font.family: XsStyleSheet.fixedWidthFontFamily
-            opacity: font_opacity 
+            opacity: font_opacity
         }
 
         Rectangle {
@@ -93,7 +93,7 @@ Rectangle {
             color: "white"
             font.pixelSize: font_size
             font.family: XsStyleSheet.fixedWidthFontFamily
-            opacity: font_opacity 
+            opacity: font_opacity
         }
     }
 

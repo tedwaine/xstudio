@@ -4,7 +4,7 @@ import QtQuick 2.15
 import QtQuick.Controls 2.15
 import QtQuick.Layouts 1.15
 
-import xStudioReskin 1.0
+import xStudio 1.0
 import Grading 2.0
 
 Item{ id: listDiv
@@ -23,19 +23,40 @@ Item{ id: listDiv
             model: bookmarkFilterModel
             spacing: itemSpacing
 
+            property bool userSelect: false
+            property var lastSelected: (new Map())
+
             ScrollBar.vertical: XsScrollBar {
                 visible: bookmarkList.height < bookmarkList.contentHeight
             }
 
             onCurrentIndexChanged: {
-                if (currentIndex < 0) {
+                if(userSelect) {
+                    userSelect = false
+                } else if (currentIndex < 0) {
                     attrs.grading_bookmark = helpers.QUuidToQString("00000000-0000-0000-0000-000000000000")
+                } else if (currentIndex == 0 && bookmarkFilterModel.length) {
+                    if(currentIndex != bookmarkFilterModel.length) {
+                        userSelect = true
+                        if(lastSelected.get(bookmarkFilterModel.currentMedia)  != undefined) {
+                            var index = bookmarkFilterModel.sourceModel.search(
+                                helpers.QVariantFromUuidString(lastSelected.get(bookmarkFilterModel.currentMedia)), "uuidRole")
+                            if (index.valid) {
+                                var row = bookmarkFilterModel.mapFromSource(index).row
+                                if (row >= 0 && row < bookmarkList.count && row != currentIndex) {
+                                    currentIndex = row
+                                }
+                            }
+                        }
+                    }
                 }
             }
+
             onCurrentItemChanged: {
                 if (currentItem) {
                     var backendUuid = helpers.QVariantFromUuidString(attrs.grading_bookmark)
                     var selectedUuid = currentItem.uuid
+                    lastSelected.set(bookmarkFilterModel.currentMedia, selectedUuid)
 
                     if (backendUuid != selectedUuid && selectedUuid) {
                         attrs.grading_bookmark = helpers.QUuidToQString(selectedUuid)
@@ -72,6 +93,7 @@ Item{ id: listDiv
 
                     onClicked: (mouse) => {
                         if (mouse.button == Qt.LeftButton){
+                            bookmarkList.userSelect = true
                             bookmarkList.currentIndex = index
                         }
                         else if(mouse.button == Qt.RightButton){
@@ -94,7 +116,7 @@ Item{ id: listDiv
                         Layout.minimumWidth: 50
                         Layout.preferredWidth: 100
                         Layout.fillHeight: true
-                    
+
                         text: userDataRole.layer_name ? userDataRole.layer_name : "Grade Layer " + (index+1)
                         font.weight: isSelected? Font.Bold : Font.Normal
                         horizontalAlignment: Text.AlignLeft
@@ -102,7 +124,7 @@ Item{ id: listDiv
                         elide: Text.ElideRight
                     }
                     Item{ id: maskDiv
-                        Layout.preferredWidth: height * 1.2 //1.42
+                        Layout.preferredWidth: height * 1.2
                         Layout.fillHeight: true
 
                         XsPrimaryButton{ id: maskBtn
@@ -119,7 +141,7 @@ Item{ id: listDiv
                         }
                     }
                     Item{ id: visibilityDiv
-                        Layout.preferredWidth: height * 1.2 //1.42
+                        Layout.preferredWidth: height * 1.2
                         Layout.fillHeight: true
 
                         XsPrimaryButton{ id: visibilityBtn

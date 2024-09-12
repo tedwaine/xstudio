@@ -342,38 +342,40 @@ QFuture<QString> ShotBrowserEngine::preparePlaylistNotesFuture(
     const QString &defaultType) {
 
     return QtConcurrent::run([=]() {
-        if (backend_) {
-            try {
-                scoped_actor sys{system()};
-                auto req = JsonStore(GetPrepareNotes);
+        try {
+            if (backend_) {
+                try {
+                    scoped_actor sys{system()};
+                    auto req = JsonStore(GetPrepareNotes);
 
-                for (const auto &i : media)
-                    req["media_uuids"].push_back(to_string(UuidFromQUuid(i)));
+                    for (const auto &i : media)
+                        req["media_uuids"].push_back(to_string(UuidFromQUuid(i)));
 
-                req["playlist_uuid"]          = to_string(UuidFromQUuid(playlist));
-                req["notify_owner"]           = notify_owner;
-                req["notify_group_ids"]       = notify_group_ids;
-                req["combine"]                = combine;
-                req["add_time"]               = add_time;
-                req["add_playlist_name"]      = add_playlist_name;
-                req["add_type"]               = add_type;
-                req["anno_requires_note"]     = anno_requires_note;
-                req["skip_already_published"] = skip_already_published;
-                req["default_type"]           = StdFromQString(defaultType);
+                    req["playlist_uuid"]          = to_string(UuidFromQUuid(playlist));
+                    req["notify_owner"]           = notify_owner;
+                    req["notify_group_ids"]       = notify_group_ids;
+                    req["combine"]                = combine;
+                    req["add_time"]               = add_time;
+                    req["add_playlist_name"]      = add_playlist_name;
+                    req["add_type"]               = add_type;
+                    req["anno_requires_note"]     = anno_requires_note;
+                    req["skip_already_published"] = skip_already_published;
+                    req["default_type"]           = StdFromQString(defaultType);
 
-                auto js = request_receive_wait<JsonStore>(
-                    *sys, backend_, SHOTGRID_TIMEOUT, data_source::get_data_atom_v, req);
-                return QStringFromStd(js.dump());
-            } catch (const XStudioError &err) {
-                spdlog::warn("{} {}", __PRETTY_FUNCTION__, err.what());
-                auto error = R"({'error':{})"_json;
-                // error["error"]["source"] = to_string(err.type());
-                // error["error"]["message"] = err.what();
-                return QStringFromStd(JsonStore(error).dump());
-            } catch (const std::exception &err) {
-                spdlog::warn("{} {}", __PRETTY_FUNCTION__, err.what());
-                return QStringFromStd(err.what());
+                    auto js = request_receive_wait<JsonStore>(
+                        *sys, backend_, SHOTGRID_TIMEOUT, data_source::get_data_atom_v, req);
+                    return QStringFromStd(js.dump());
+                } catch (const XStudioError &err) {
+                    spdlog::warn("{} {}", __PRETTY_FUNCTION__, err.what());
+                    return QStringFromStd(err.what());
+                } catch (const std::exception &err) {
+                    spdlog::warn("{} {}", __PRETTY_FUNCTION__, err.what());
+                    return QStringFromStd(err.what());
+                }
             }
+        } catch (const std::exception &err) {
+            spdlog::warn("erm {} {}", __PRETTY_FUNCTION__, err.what());
+            return QStringFromStd(err.what());
         }
         return QString();
     });

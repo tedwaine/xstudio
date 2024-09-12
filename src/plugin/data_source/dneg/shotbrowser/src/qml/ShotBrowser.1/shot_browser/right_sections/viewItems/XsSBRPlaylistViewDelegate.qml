@@ -6,7 +6,7 @@ import QtQml.Models 2.14
 import Qt.labs.qmlmodels 1.0
 import QuickFuture 1.0
 
-import xStudioReskin 1.0
+import xStudio 1.0
 import ShotBrowser 1.0
 import xstudio.qml.helpers 1.0
 
@@ -93,217 +93,215 @@ Rectangle {
             }
         }
 
-    }
+        GridLayout {
+            anchors.fill: parent
+            anchors.margins: panelPadding
+            rows: 2
+            columns: 7
+            rowSpacing: itemSpacing
+            columnSpacing: itemSpacing*3
 
+            XsPrimaryButton{ id: versionArrowBtn
+                Layout.preferredWidth: visible? 20 : 0
+                Layout.fillHeight: true
+                Layout.rowSpan: 2
 
-    GridLayout {
-        anchors.fill: parent
-        anchors.margins: panelPadding
-        rows: 2
-        columns: 7
-        rowSpacing: itemSpacing
-        columnSpacing: itemSpacing*3
+                // height: visible? parent.itemHeight-listItemSpacing : 0
+                imgSrc: "qrc:/icons/chevron_right.svg"
 
-        XsPrimaryButton{ id: versionArrowBtn
-            Layout.preferredWidth: visible? 20 : 0
-            Layout.fillHeight: true
-            Layout.rowSpan: 2
+                imageDiv.rotation: isActive ? 90 : 0
 
-            // height: visible? parent.itemHeight-listItemSpacing : 0
-            imgSrc: "qrc:/icons/chevron_right.svg"
+                property bool hasVersions: versionCountRole == 0 ? false : true
 
-            imageDiv.rotation: isActive ? 90 : 0
+                visible: true
 
-            property bool hasVersions: versionCountRole == 0 ? false : true
-
-            visible: true
-
-            enabled: hasVersions
-            isActiveViaIndicator: false
-            isActive: delegateModel.notifyModel.isExpanded(index)
-            onClicked: {
-                if(!isActive) {
-                    delegateModel.notifyModel.expandRow(index)
-                    isActive = delegateModel.notifyModel.isExpanded(index)
-                } else {
-                    delegateModel.notifyModel.collapseRow(index)
-                    isActive = delegateModel.notifyModel.isExpanded(index)
+                enabled: hasVersions
+                isActiveViaIndicator: false
+                isActive: delegateModel.notifyModel.isExpanded(index)
+                onClicked: {
+                    if(!isActive) {
+                        delegateModel.notifyModel.expandRow(index)
+                        isActive = delegateModel.notifyModel.isExpanded(index)
+                    } else {
+                        delegateModel.notifyModel.collapseRow(index)
+                        isActive = delegateModel.notifyModel.isExpanded(index)
+                    }
                 }
             }
-        }
 
 
-        XsPrimaryButton{ id: notesBtn
-            Layout.preferredWidth: 20
-            Layout.fillHeight: true
-            Layout.rowSpan: 2
-            property bool hasNotes: noteCountRole <= 0 ? false : true
+            XsPrimaryButton{ id: notesBtn
+                Layout.preferredWidth: 20
+                Layout.fillHeight: true
+                Layout.rowSpan: 2
+                property bool hasNotes: noteCountRole <= 0 ? false : true
 
-            text: "N"
-            font.weight: hasNotes? Font.Bold:Font.Normal
-            font.pixelSize: XsStyleSheet.fontSize*1.2
-            // bgColorPressed: Qt.darker(palette.highlight, 2)
-            forcedBgColorNormal: hasNotes? palette.highlight : bgColorNormal
-            textDiv.color: hasNotes? palette.text : XsStyleSheet.hintColor
-            enabled: false //hasNotes
-            bgDiv.opacity: enabled? 1.0 : 0.5
-            isActive: hasNotes
-            isActiveViaIndicator: false
-            isUnClickable: true
-            // onClicked:
-        }
-
-        XsText{
-            Layout.preferredWidth: parent.height //* 1.5
-            Layout.fillHeight: true
-            Layout.rowSpan: 2
-            text: versionCountRole == -1 ? "-" : versionCountRole
-            wrapMode: Text.WordWrap
-            elide: Text.ElideRight
-            // font.weight: text=="0"? Font.Normal : Font.Black
-            color: text=="0"? XsStyleSheet.hintColor : XsStyleSheet.secondaryTextColor
-            font.pixelSize: XsStyleSheet.fontSize*1.2
-            horizontalAlignment: Text.AlignHCenter
-        }
-
-        XsText{ id: nameDisplay
-            Layout.columnSpan: 3
-            Layout.alignment: Qt.AlignLeft
-            Layout.fillWidth: true
-            Layout.fillHeight: true
-
-            text: nameRole
-            elide: Text.ElideRight
-            horizontalAlignment: Text.AlignLeft
-            verticalAlignment: Text.AlignTop
-            topPadding: 2
-
-            isHovered: nameTooltip.containsMouse
-
-            MouseArea { id: nameTooltip
-                anchors.fill: parent
-                hoverEnabled: true
-                acceptedButtons: Qt.NoButton
+                text: "N"
+                font.weight: hasNotes? Font.Bold:Font.Normal
+                font.pixelSize: XsStyleSheet.fontSize*1.2
+                // bgColorPressed: Qt.darker(palette.highlight, 2)
+                forcedBgColorNormal: hasNotes? palette.highlight : bgColorNormal
+                textDiv.color: hasNotes? palette.text : XsStyleSheet.hintColor
+                enabled: false //hasNotes
+                bgDiv.opacity: enabled? 1.0 : 0.5
+                isActive: hasNotes
+                isActiveViaIndicator: false
+                isUnClickable: true
+                // onClicked:
             }
-        }
-        XsText{ id: deptDisplay
-            Layout.fillWidth: true
-            Layout.minimumWidth: 20
-            Layout.preferredWidth: 60
-            Layout.maximumWidth: 190
-            Layout.fillHeight: true
-            Layout.columnSpan: 1
-            Layout.alignment: Qt.AlignRight
 
-            text: departmentRole ? departmentRole : "-"
-            elide: Text.ElideRight
-            horizontalAlignment: Text.AlignRight
-            verticalAlignment: Text.AlignTop
-            topPadding: 2
-            rightPadding: 2
-
-            isHovered: deptTooltip.containsMouse
-
-            MouseArea { id: deptTooltip
-                anchors.fill: parent
-                hoverEnabled: true
-                acceptedButtons: Qt.NoButton
+            XsText{
+                Layout.preferredWidth: parent.height //* 1.5
+                Layout.fillHeight: true
+                Layout.rowSpan: 2
+                text: versionCountRole == -1 ? "-" : versionCountRole
+                wrapMode: Text.WordWrap
+                elide: Text.ElideRight
+                // font.weight: text=="0"? Font.Normal : Font.Black
+                color: text=="0"? XsStyleSheet.hintColor : XsStyleSheet.secondaryTextColor
+                font.pixelSize: XsStyleSheet.fontSize*1.2
+                horizontalAlignment: Text.AlignHCenter
             }
-        }
-        XsText{ id: dateDisplay
-            Layout.columnSpan: 1
-            Layout.fillWidth: true
-            Layout.minimumWidth: 40
-            Layout.preferredWidth: 60
-            Layout.maximumWidth: 92
-            Layout.alignment: Qt.AlignHCenter
 
-            property var dateFormatted: createdDateRole.toLocaleString().split(" ")
-            text: typeof dateFormatted !== 'undefined'? dateFormatted[1].substr(0,3)+" "+dateFormatted[2]+" "+dateFormatted[3] : ""
+            XsText{ id: nameDisplay
+                Layout.columnSpan: 3
+                Layout.alignment: Qt.AlignLeft
+                Layout.fillWidth: true
+                Layout.fillHeight: true
 
-            elide: Text.ElideRight
-            color: XsStyleSheet.hintColor
-            horizontalAlignment: Text.AlignLeft
-            verticalAlignment: Text.AlignBottom
-            bottomPadding: 2
+                text: nameRole
+                elide: Text.ElideRight
+                horizontalAlignment: Text.AlignLeft
+                verticalAlignment: Text.AlignTop
+                topPadding: 2
 
-            isHovered: dateTooltip.containsMouse
+                isHovered: nameTooltip.containsMouse
 
-            MouseArea { id: dateTooltip
-                anchors.fill: parent
-                hoverEnabled: true
-                acceptedButtons: Qt.NoButton
+                MouseArea { id: nameTooltip
+                    anchors.fill: parent
+                    hoverEnabled: true
+                    acceptedButtons: Qt.NoButton
+                }
             }
-        }
-        XsText{ id: timeDisplay
-            Layout.columnSpan: 1
-            Layout.fillWidth: true
-            Layout.minimumWidth: 40
-            Layout.preferredWidth: 60
-            Layout.maximumWidth: 85
-            Layout.alignment: Qt.AlignHCenter | Qt.AlignBottom
+            XsText{ id: deptDisplay
+                Layout.fillWidth: true
+                Layout.minimumWidth: 20
+                Layout.preferredWidth: 60
+                Layout.maximumWidth: 190
+                Layout.fillHeight: true
+                Layout.columnSpan: 1
+                Layout.alignment: Qt.AlignRight
 
-            property var dateFormatted: createdDateRole.toLocaleString().split(" ")
-            property var timeFormatted: dateFormatted[4].split(":")
-            text: typeof timeFormatted !== 'undefined'?
-                typeof dateFormatted[6] !== 'undefined'?
-                    timeFormatted[0]+":"+timeFormatted[1]+" "+dateFormatted[5]+" "+dateFormatted[6] :
-                    timeFormatted[0]+":"+timeFormatted[1]+" "+dateFormatted[5] : ""
+                text: departmentRole ? departmentRole : "-"
+                elide: Text.ElideRight
+                horizontalAlignment: Text.AlignRight
+                verticalAlignment: Text.AlignTop
+                topPadding: 2
+                rightPadding: 2
 
+                isHovered: deptTooltip.containsMouse
 
-            elide: Text.ElideRight
-            color: XsStyleSheet.hintColor
-            horizontalAlignment: Text.AlignLeft
-            verticalAlignment: Text.AlignBottom
-            bottomPadding: 2
-
-            isHovered: timeTooltip.containsMouse
-
-            MouseArea { id: timeTooltip
-                anchors.fill: parent
-                hoverEnabled: true
-                acceptedButtons: Qt.NoButton
+                MouseArea { id: deptTooltip
+                    anchors.fill: parent
+                    hoverEnabled: true
+                    acceptedButtons: Qt.NoButton
+                }
             }
-        }
-        XsText{ id: typeDisplay
-            Layout.fillWidth: true
-            Layout.minimumWidth: text? 60 : 0
-            // Layout.maximumWidth: 110
-            Layout.alignment: Qt.AlignLeft
+            XsText{ id: dateDisplay
+                Layout.columnSpan: 1
+                Layout.fillWidth: true
+                Layout.minimumWidth: 40
+                Layout.preferredWidth: 60
+                Layout.maximumWidth: 92
+                Layout.alignment: Qt.AlignHCenter
 
-            text: playlistTypeRole ? playlistTypeRole : "-"
-            elide: Text.ElideRight
-            color: XsStyleSheet.hintColor
-            horizontalAlignment: Text.AlignLeft
-            verticalAlignment: Text.AlignBottom
-            bottomPadding: 2
+                property var dateFormatted: createdDateRole.toLocaleString().split(" ")
+                text: typeof dateFormatted !== 'undefined'? dateFormatted[1].substr(0,3)+" "+dateFormatted[2]+" "+dateFormatted[3] : ""
 
-            isHovered: typeTooltip.containsMouse
+                elide: Text.ElideRight
+                color: XsStyleSheet.hintColor
+                horizontalAlignment: Text.AlignLeft
+                verticalAlignment: Text.AlignBottom
+                bottomPadding: 2
 
-            MouseArea { id: typeTooltip
-                anchors.fill: parent
-                hoverEnabled: true
-                acceptedButtons: Qt.NoButton
+                isHovered: dateTooltip.containsMouse
+
+                MouseArea { id: dateTooltip
+                    anchors.fill: parent
+                    hoverEnabled: true
+                    acceptedButtons: Qt.NoButton
+                }
             }
-        }
-        XsText{ id: authorDisplay
-            Layout.fillWidth: true
-            Layout.alignment: Qt.AlignRight
+            XsText{ id: timeDisplay
+                Layout.columnSpan: 1
+                Layout.fillWidth: true
+                Layout.minimumWidth: 40
+                Layout.preferredWidth: 60
+                Layout.maximumWidth: 85
+                Layout.alignment: Qt.AlignHCenter | Qt.AlignBottom
 
-            text: authorRole ? authorRole : "-" //createdByRole
-            elide: Text.ElideRight
-            color: XsStyleSheet.hintColor
-            horizontalAlignment: Text.AlignRight
-            verticalAlignment: Text.AlignBottom
-            bottomPadding: 2
-            rightPadding: 2
+                property var dateFormatted: createdDateRole.toLocaleString().split(" ")
+                property var timeFormatted: dateFormatted[4].split(":")
+                text: typeof timeFormatted !== 'undefined'?
+                    typeof dateFormatted[6] !== 'undefined'?
+                        timeFormatted[0]+":"+timeFormatted[1]+" "+dateFormatted[5]+" "+dateFormatted[6] :
+                        timeFormatted[0]+":"+timeFormatted[1]+" "+dateFormatted[5] : ""
 
-            isHovered: authorTooltip.containsMouse
 
-            MouseArea { id: authorTooltip
-                anchors.fill: parent
-                hoverEnabled: true
-                acceptedButtons: Qt.NoButton
+                elide: Text.ElideRight
+                color: XsStyleSheet.hintColor
+                horizontalAlignment: Text.AlignLeft
+                verticalAlignment: Text.AlignBottom
+                bottomPadding: 2
+
+                isHovered: timeTooltip.containsMouse
+
+                MouseArea { id: timeTooltip
+                    anchors.fill: parent
+                    hoverEnabled: true
+                    acceptedButtons: Qt.NoButton
+                }
+            }
+            XsText{ id: typeDisplay
+                Layout.fillWidth: true
+                Layout.minimumWidth: text? 60 : 0
+                // Layout.maximumWidth: 110
+                Layout.alignment: Qt.AlignLeft
+
+                text: playlistTypeRole ? playlistTypeRole : "-"
+                elide: Text.ElideRight
+                color: XsStyleSheet.hintColor
+                horizontalAlignment: Text.AlignLeft
+                verticalAlignment: Text.AlignBottom
+                bottomPadding: 2
+
+                isHovered: typeTooltip.containsMouse
+
+                MouseArea { id: typeTooltip
+                    anchors.fill: parent
+                    hoverEnabled: true
+                    acceptedButtons: Qt.NoButton
+                }
+            }
+            XsText{ id: authorDisplay
+                Layout.fillWidth: true
+                Layout.alignment: Qt.AlignRight
+
+                text: authorRole ? authorRole : "-" //createdByRole
+                elide: Text.ElideRight
+                color: XsStyleSheet.hintColor
+                horizontalAlignment: Text.AlignRight
+                verticalAlignment: Text.AlignBottom
+                bottomPadding: 2
+                rightPadding: 2
+
+                isHovered: authorTooltip.containsMouse
+
+                MouseArea { id: authorTooltip
+                    anchors.fill: parent
+                    hoverEnabled: true
+                    acceptedButtons: Qt.NoButton
+                }
             }
         }
     }

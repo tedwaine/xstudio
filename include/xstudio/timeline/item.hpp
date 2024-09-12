@@ -54,6 +54,15 @@ namespace timeline {
               uuid_addr_(utility::UuidActorAddr(utility::Uuid::generate(), caf::actor_addr())) {
         }
 
+        Item(const ItemType item_type, const std::string name, const utility::FrameRate &rate)
+            : Items(),
+              item_type_(item_type),
+              name_(std::move(name)),
+              uuid_addr_(utility::UuidActorAddr(utility::Uuid::generate(), caf::actor_addr())) {
+            has_available_range_ = true;
+            active_range_        = utility::FrameRange(utility::FrameRateDuration(0, rate));
+        }
+
         Item(
             const ItemType item_type,
             const utility::Uuid uuid,

@@ -468,15 +468,13 @@ void ContactSheetActor::init() {
         },
 
         [=](playlist::sort_by_media_display_info_atom,
-            const int info_set_idx,
-            const int info_item_idx,
-            const bool ascending) {
-            sort_by_media_display_info(info_set_idx, info_item_idx, ascending);
-        },
+            const int sort_column_index,
+            const bool ascending) { sort_by_media_display_info(sort_column_index, ascending); },
 
         [=](get_next_media_atom,
             const utility::Uuid &after_this_uuid,
-            int skip_by) -> result<UuidActor> {
+            int skip_by,
+            const std::string &filter_string_) -> result<UuidActor> {
             const utility::UuidList media = base_.media();
             if (skip_by > 0) {
                 auto i = std::find(media.begin(), media.end(), after_this_uuid);
@@ -536,7 +534,7 @@ void ContactSheetActor::init() {
 }
 
 void ContactSheetActor::sort_by_media_display_info(
-    const int info_set_idx, const int info_item_idx, const bool ascending) {
+    const int sort_column_index, const bool ascending) {
 
     using SourceAndUuid = std::pair<std::string, utility::Uuid>;
     auto media_names_vs_uuids =

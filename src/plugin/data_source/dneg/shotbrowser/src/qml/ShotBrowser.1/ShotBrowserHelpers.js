@@ -28,7 +28,10 @@ function revealMediaInShotgrid(indexes=[]) {
 	            mindex.model.getJSONFuture(mindex, "/metadata/shotgun/version/id")
 	        ).then(function(json_string) {
 	            json_string = json_string.replace(/^"|"$/g, '')
-	            helpers.openURL("http://shotgun/detail/Version/"+json_string)
+		        Future.promise(
+			            helpers.openURLFuture("http://shotgun/detail/Version/"+json_string)
+			        ).then(function(result) {
+		        })
 	        })
 		}
 	}
@@ -44,7 +47,10 @@ function revealInShotgrid(indexes=[]) {
 
 			if(["Version", "Note", "Playlist"].includes(t)) {
 				let id = m.get(indexes[i], "idRole")
-	            helpers.openURL("http://shotgun/detail/"+t+"/"+id)
+		        Future.promise(
+		            helpers.openURLFuture("http://shotgun/detail/"+t+"/"+id)
+		        ).then(function(result) {
+		        })
 			}
 		}
 	}
@@ -77,6 +83,10 @@ function revealMediaInIvy(indexes=[]) {
 
 function revealInIvy(indexes=[]) {
 	indexes = mapIndexesToResultModel(indexes)
+	let project = helpers.getEnv("SHOW")
+	let shot = helpers.getEnv("SHOT")
+	let uuids = []
+
 	if(indexes.length) {
 		let m = indexes[0].model
 
@@ -84,10 +94,14 @@ function revealInIvy(indexes=[]) {
 			let t = m.get(indexes[i], "typeRole")
 
 			if(["Version"].includes(t)) {
-				let id = m.get(indexes[i], "stalkUuidRole")
-	            helpers.startDetachedProcess("dnenv-do", [helpers.getEnv("SHOW"), helpers.getEnv("SHOT"), "--", "ivybrowser", id])
+				uuids.push(helpers.QUuidToQString(m.get(indexes[i], "stalkUuidRole")))
+				project = m.get(indexes[i], "projectRole")
+				shot = m.get(indexes[i], "shotRole")
+
 			}
 		}
+		if(uuids.length)
+            helpers.startDetachedProcess("dnenv-do", [project, shot, "--", "ivybrowser"].concat(uuids))
 	}
 }
 
@@ -228,7 +242,7 @@ function compareMediaCallback(playlist_uuid, uuids) {
 function conformToNewSequenceCallback(playlist_uuid, uuids) {
    if(uuids.length) {
         let plindex = theSessionData.searchRecursive(playlist_uuid,"actorUuidRole")
-		console.log(plindex)
+		// console.log(plindex)
 		let indexes = []
 		for(let i=0;i<uuids.length;i++) {
 			indexes.push(theSessionData.searchRecursive(uuids[i],"actorUuidRole", plindex))
@@ -260,17 +274,12 @@ function compareSelectedResults(indexes=[]) {
 	}
 }
 
-
-
 function replaceMediaCallback(playlist_uuid, uuids) {
 	// find selected media.
     if(uuids.length && mediaSelectionModel.selectedIndexes.length) {
-        let plindex =  theSessionData.searchRecursive(playlist_uuid,"actorUuidRole")
-    	mediaSelectionModel.selectFirstNewMedia(plindex, uuids)
-
-		// delete media..
-    	let mi = mediaSelectionModel.selectedIndexes[0]
+        let mi = mediaSelectionModel.selectedIndexes[0]
     	mediaSelectionModel.model.removeRows(mi.row, 1, mi.parent)
+		selectFirstMediaCallback(playlist_uuid, uuids)
     }
 }
 
@@ -492,10 +501,8 @@ function loadShotGridPlaylist(shotgrid_playlist_id, name, context={}) {
             }
 	        } catch(err) {
 			    plindex.model.set(plindex, false, "busyRole")
-    		// error.title = "Load ShotGrid Playlist " + name
-    		// error.text = err + "\n" + json_string
-    		// error.open()
     			console.log("loadShotgridPlaylist", err, json_string)
+		    	dialogHelpers.errorDialogFunc("Load Shotgrid Playlist", err + "\n" + json_string)
 		}
 	})
 }
@@ -564,6 +571,7 @@ function addSequencesToPlaylist(indexes, playlist_index=null, playlist_name ="Sh
 		        )
 		    } else {
 		    	console.log("Path doesn't exist ", path)
+		    	dialogHelpers.errorDialogFunc("Add Sequence", "Path doesn't exist " + path)
 		    }
 		}
 	}
@@ -630,7 +638,7 @@ function addToPlaylist(indexes=[], playlist_uuid=null, before_uuid=null, playlis
 
 	                } catch(err) {
 	                    console.log(err)
-	                    // ShotgunHelpers.handle_response(json_string)
+				    	dialogHelpers.errorDialogFunc("Add To Playlist", err + "\n" + json_string)
 	                }
 		        },
 		        function() {
@@ -747,6 +755,48 @@ function transfer(destination, indexes) {
 	    if(project && source && destination && uuids.length) {
 	    	// console.log(project,source,destination,uuids)
 		    var fa = ShotBrowserEngine.requestFileTransferFuture(uuids, project, source, destination)
+
+		    Future.promise(fa).then(
+		        function(result) {}
+		    )
+	    }
+	}
+}
+
+function transferMedia(source, destination, indexes) {
+    let project = null
+    let items = []
+
+    if(indexes.length) {
+    	let model = indexes[0].model
+
+	    for(let i=0; i < indexes.length; i++) {
+	    	try {
+		    	let dnuuid = JSON.parse(theSessionData.getJSON(indexes[i], "/metadata/shotgun/version/attributes/sg_ivy_dnuuid"))
+
+		        if(project == null) {
+		            project = JSON.parse(theSessionData.getJSON(indexes[i], "/metadata/shotgun/version/relationships/project/data/name"))
+		        }
+
+		        items.push(helpers.QVariantFromUuidString(dnuuid))
+	    	} catch (err) {
+	    		// failed try uri
+                let ms = theSessionData.searchRecursive(theSessionData.get(indexes[i], "imageActorUuidRole"), "actorUuidRole", indexes[i])
+
+                if(ms.valid) {
+                    let v = theSessionData.get(ms, "pathRole")
+                    if(v != undefined)
+                        items.push(v)
+                }
+	    	}
+	    }
+
+	    if(project == null)
+	    	project = helpers.getEnv("SHOW")
+
+	    if(project && destination && items.length) {
+	    	// console.log(project,source,destination,items)
+		    var fa = ShotBrowserEngine.requestFileTransferFuture(items, project, source, destination)
 
 		    Future.promise(fa).then(
 		        function(result) {}

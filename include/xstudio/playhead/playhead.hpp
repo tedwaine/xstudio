@@ -29,7 +29,7 @@ namespace playhead {
             const utility::Uuid uuid = utility::Uuid::generate());
         PlayheadBase(const utility::JsonStore &jsn);
 
-        ~PlayheadBase() override = default;
+        virtual ~PlayheadBase();
 
         [[nodiscard]] utility::JsonStore serialise() const override;
 
@@ -113,8 +113,10 @@ namespace playhead {
         void disconnect_from_ui() override;
 
         bool pointer_event(const ui::PointerEvent &) override;
-        void
-        hotkey_pressed(const utility::Uuid &hotkey_uuid, const std::string &context) override;
+        void hotkey_pressed(
+            const utility::Uuid &hotkey_uuid,
+            const std::string &context,
+            const std::string &window) override;
 
         void connect_to_viewport(
             const std::string &viewport_name,
@@ -138,6 +140,8 @@ namespace playhead {
                 {CM_OFF, "Off", "Off", true}};
 
         void reset() override;
+
+        void register_hotkeys() override;
 
       protected:
         void play_faster(const bool forwards);
@@ -189,22 +193,26 @@ namespace playhead {
         module::IntegerAttribute *audio_delay_millisecs_;
         module::IntegerVecAttribute *cached_frames_;
         module::IntegerVecAttribute *bookmarked_frames_;
+        module::IntegerVecAttribute *media_transition_frames_;
 
         module::IntegerAttribute *max_compare_sources_;
         module::BooleanAttribute *restore_play_state_after_scrub_;
         module::BooleanAttribute *click_to_toggle_play_;
         module::IntegerAttribute *viewport_scrub_sensitivity_;
+        module::IntegerAttribute *source_offset_frames_;
 
         module::StringChoiceAttribute *loop_mode_;
         module::IntegerAttribute *loop_start_frame_;
         module::IntegerAttribute *loop_end_frame_;
         module::IntegerAttribute *playhead_logical_frame_;
         module::FloatAttribute *playhead_position_seconds_;
+        module::IntegerAttribute *playhead_position_flicks_;
         module::FloatAttribute *playhead_rate_attr_;
         module::IntegerAttribute *playhead_media_logical_frame_;
         module::IntegerAttribute *playhead_media_frame_;
         module::IntegerAttribute *duration_frames_;
         module::IntegerAttribute *key_playhead_index_;
+        module::IntegerAttribute *num_sub_playheads_;
         module::FloatAttribute *duration_seconds_;
         module::StringAttribute *current_frame_timecode_;
         module::IntegerAttribute *current_frame_timecode_as_frame_;
@@ -212,6 +220,7 @@ namespace playhead {
         module::StringAttribute *current_media_source_uuid_;
         module::BooleanAttribute *loop_range_enabled_;
         module::BooleanAttribute *user_is_frame_scrubbing_;
+
 
         bool was_playing_when_scrub_started_ = {false};
         std::set<std::string> active_viewports_;

@@ -15,8 +15,9 @@ namespace timeline {
         StackActor(caf::actor_config &cfg, const utility::JsonStore &jsn, Item &item);
         StackActor(
             caf::actor_config &cfg,
-            const std::string &name   = "Stack",
-            const utility::Uuid &uuid = utility::Uuid::generate());
+            const std::string &name        = "Stack",
+            const utility::FrameRate &rate = utility::FrameRate(),
+            const utility::Uuid &uuid      = utility::Uuid::generate());
 
         StackActor(caf::actor_config &cfg, const Item &item);
         StackActor(caf::actor_config &cfg, const Item &item, Item &nitem);
@@ -51,6 +52,9 @@ namespace timeline {
             const int index,
             const int count,
             caf::typed_response_promise<utility::JsonStore> rp);
+
+        std::pair<utility::JsonStore, std::vector<timeline::Item>>
+        remove_items(const int index, const int count);
 
         void move_items(
             const int src_index,

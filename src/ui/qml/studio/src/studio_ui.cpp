@@ -341,7 +341,6 @@ void StudioUI::updateDataSources() {
 
 void StudioUI::loadVideoOutputPlugins() {
 
-    return;
     try {
         scoped_actor sys{system()};
         bool changed = false;

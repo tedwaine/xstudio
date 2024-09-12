@@ -24,6 +24,8 @@ using namespace xstudio::media_reader;
 using namespace xstudio::colour_pipeline;
 using namespace caf;
 
+static int II = 0;
+
 SubPlayhead::SubPlayhead(
     caf::actor_config &cfg,
     const std::string &name,
@@ -48,6 +50,12 @@ SubPlayhead::SubPlayhead(
 }
 
 SubPlayhead::~SubPlayhead() {}
+
+void SubPlayhead::on_exit() {
+    parent_              = caf::actor();
+    source_              = caf::actor();
+    current_media_actor_ = caf::actor();
+}
 
 void SubPlayhead::init() {
 
@@ -174,8 +182,9 @@ void SubPlayhead::init() {
 
         [=](utility::event_atom,
             media::current_media_source_atom,
-            UuidActor &,
+            UuidActor &a,
             const media::MediaType) {
+            up_to_date_ = false;
             anon_send(this, source_atom_v); // triggers refresh of frames_time_list_
         },
 
@@ -218,7 +227,10 @@ void SubPlayhead::init() {
                                 full_timeline_frames_.begin()->first));
                         }
                     },
-                    [=](const error &err) mutable { rp.deliver(err); });
+                    [=](const error &err) mutable {
+                        spdlog::warn("{} {}", __PRETTY_FUNCTION__, to_string(err));
+                        rp.deliver(timebase::flicks(0));
+                    });
             return rp;
         },
 
@@ -286,7 +298,24 @@ void SubPlayhead::init() {
 
         [=](logical_frame_atom) -> int { return logical_frame_; },
 
-        [=](logical_frame_to_flicks_atom, int logical_frame) -> result<timebase::flicks> {
+        [=](logical_frame_to_flicks_atom, int64_t logical_frame) {
+            delegate(
+                caf::actor_cast<caf::actor>(this),
+                logical_frame_to_flicks_atom_v,
+                int(logical_frame));
+        },
+
+        [=](logical_frame_to_flicks_atom, int logical_frame) {
+            delegate(
+                caf::actor_cast<caf::actor>(this),
+                logical_frame_to_flicks_atom_v,
+                logical_frame,
+                false);
+        },
+
+        [=](logical_frame_to_flicks_atom,
+            int logical_frame,
+            const bool clamp_to_range) -> result<timebase::flicks> {
             if (full_timeline_frames_.size() < 2) {
                 return make_error(xstudio_error::error, "No Frames");
             }
@@ -304,7 +333,7 @@ void SubPlayhead::init() {
             }
 
             auto tp = frame->first;
-            if (logical_frame) {
+            if (logical_frame && !clamp_to_range) {
                 // if logical_frame goes beyond our last frame then use the
                 // duration of the final last frame to extend the result
                 auto dummy_last = full_timeline_frames_.end();
@@ -317,14 +346,14 @@ void SubPlayhead::init() {
         },
 
         [=](media_frame_to_flicks_atom,
-            const utility::Uuid &media_uuid,
+            const utility::Uuid &media_source_uuid,
             int logical_media_frame) -> result<timebase::flicks> {
             if (logical_media_frame < 0)
                 return make_error(xstudio_error::error, "Out of range");
             // loop over frames until we hit the media item
             auto frame = full_timeline_frames_.begin();
             while (frame != full_timeline_frames_.end()) {
-                if (frame->second && frame->second->media_uuid_ == media_uuid) {
+                if (frame->second && frame->second->source_uuid_ == media_source_uuid) {
                     break;
                 }
                 frame++;
@@ -339,7 +368,7 @@ void SubPlayhead::init() {
 
             // now loop over frames for the media item until we match to the logical_media_frame
             while (frame != full_timeline_frames_.end()) {
-                if (frame->second && frame->second->media_uuid_ != media_uuid) {
+                if (frame->second && frame->second->source_uuid_ != media_source_uuid) {
                     return make_error(xstudio_error::error, "Out of range");
                 } else if (frame->second && frame->second->frame_ >= logical_media_frame) {
                     // note the >= .... if logical_media_frame is *less* than
@@ -361,12 +390,12 @@ void SubPlayhead::init() {
 
         [=](media::source_offset_frames_atom atom) { delegate(source_, atom); },
 
-        [=](media::source_offset_frames_atom atom, const int offset) -> result<bool> {
+        [=](media::source_offset_frames_atom atom, const int64_t offset) -> result<bool> {
             // change the time offset on the source ... this means we have
             // to rebuild full_timeline_frames_ too - so we don't respond until
             // that has been done
             auto rp = make_response_promise<bool>();
-            request(source_, infinite, atom, offset)
+            request(source_, infinite, atom, (int)offset)
                 .then(
                     [=](bool) mutable {
                         request(caf::actor_cast<caf::actor>(this), infinite, source_atom_v)
@@ -538,6 +567,11 @@ void SubPlayhead::init() {
             // this can come from a MediActor that is our source_
         },
 
+        [=](utility::event_atom,
+            media::media_display_info_atom,
+            const utility::JsonStore &,
+            caf::actor_addr &) {},
+
         [=](utility::event_atom, media::media_display_info_atom, const utility::JsonStore &) {},
 
         [=](media_cache::keys_atom) -> media::MediaKeyVector {
@@ -639,6 +673,18 @@ void SubPlayhead::init() {
                 .then(
                     [=](const media::AVFrameID &frameid) mutable { rp.deliver(frameid.rate_); },
                     [=](const caf::error &err) mutable { rp.deliver(err); });
+            return rp;
+        },
+
+        [=](playhead::media_frame_ranges_atom) -> result<std::vector<int>> {
+            auto rp = make_response_promise<std::vector<int>>();
+            // we have to have run the 'source_atom' handler first (to have
+            // built full_timeline_frames_) before we know the list of frames
+            // where media changes in the timeline
+            request(caf::actor_cast<caf::actor>(this), infinite, source_atom_v)
+                .then(
+                    [=](caf::actor) mutable { rp.deliver(media_ranges_); },
+                    [=](const error &err) mutable { rp.deliver(err); });
             return rp;
         },
 
@@ -793,8 +839,6 @@ void SubPlayhead::set_position(
     int logical_frame                             = frame ? frame->playhead_logical_frame_ : 0;
 
     if (logical_frame_ != logical_frame || force_updates) {
-
-        // std::cerr << "POSITION " << timebase::to_seconds(position_flicks_) << "\n";
 
         logical_frame_ = logical_frame;
 
@@ -1002,6 +1046,7 @@ void SubPlayhead::broadcast_audio_frame(
     // some audio output might need a substantial number of samples to be
     // buffered up.
     media::AVFrameIDsAndTimePoints future_frames;
+
     if (scrubbing) {
 
         // pick the next 1 or two frames in the timeline to send audio
@@ -1277,19 +1322,22 @@ void SubPlayhead::receive_image_from_cache(
     }
 }
 
-void SubPlayhead::get_full_timeline_frame_list(caf::typed_response_promise<caf::actor> rp) {
+void SubPlayhead::get_full_timeline_frame_list(
+    caf::typed_response_promise<caf::actor> rp, const bool retry) {
 
     if (up_to_date_) {
         rp.deliver(source_);
         return;
     }
 
-    inflight_update_requests_.push_back(rp);
+    if (!retry) {
+        inflight_update_requests_.push_back(rp);
+    }
 
     // check if we've already requested an update (in the request immediately
     // below here) that hasn't come baack yet. If so, don't make the request
     // again
-    if (inflight_update_requests_.size() > 1)
+    if (inflight_update_requests_.size() > 1 && !retry)
         return;
 
     const auto request_update_timepoint = utility::clock::now();
@@ -1305,7 +1353,10 @@ void SubPlayhead::get_full_timeline_frame_list(caf::typed_response_promise<caf::
             [=](const media::FrameTimeMap &mpts) mutable {
                 full_timeline_frames_ = mpts;
 
+                int last_logical = -1;
                 if (full_timeline_frames_.size() && full_timeline_frames_.rbegin()->second) {
+                    last_logical =
+                        full_timeline_frames_.rbegin()->second->playhead_logical_frame_;
                     // the logic here is crucial ... full_timeline_frames_ is used to
                     // evaluate the full duration of what's being played. We need to drop
                     // in an empty frame at the end, with a timestamp that matches the
@@ -1324,13 +1375,31 @@ void SubPlayhead::get_full_timeline_frame_list(caf::typed_response_promise<caf::
                 }
 
                 all_media_uuids_.clear();
+                media_ranges_.clear();
+
                 utility::Uuid media_uuid;
+                utility::Uuid clip_uuid;
                 for (const auto &f : full_timeline_frames_) {
                     if (f.second && f.second->media_uuid_ != media_uuid) {
                         media_uuid = f.second->media_uuid_;
                         all_media_uuids_.insert(media_uuid);
+                        media_ranges_.push_back(f.second->playhead_logical_frame_);
                     } else if (!f.second)
                         media_uuid = utility::Uuid();
+
+                    // we want the media_ranges_ to give frames where a new clip
+                    // OR new media starts. We only get clip IDs with Timelines.
+                    if (f.second && f.second->clip_uuid_ != clip_uuid) {
+                        clip_uuid = f.second->clip_uuid_;
+                        if (media_ranges_.back() != f.second->playhead_logical_frame_) {
+                            media_ranges_.push_back(f.second->playhead_logical_frame_);
+                        }
+                    } else if (!f.second)
+                        clip_uuid = utility::Uuid();
+                }
+
+                if (last_logical != -1) {
+                    media_ranges_.push_back(last_logical);
                 }
 
                 set_in_and_out_frames();
@@ -1356,6 +1425,12 @@ void SubPlayhead::get_full_timeline_frame_list(caf::typed_response_promise<caf::
                                 rprm.deliver(source_);
                             }
 
+                            send(
+                                parent_,
+                                utility::event_atom_v,
+                                playhead::media_frame_ranges_atom_v,
+                                media_ranges_);
+
                             inflight_update_requests_.clear();
 
                             if (request_update_timepoint < last_change_timepoint_) {
@@ -1380,11 +1455,26 @@ void SubPlayhead::get_full_timeline_frame_list(caf::typed_response_promise<caf::
                         });
             },
             [=](const error &err) mutable {
-                // rp.deliver(err);
-                for (auto &rprm : inflight_update_requests_) {
-                    rprm.deliver(err);
+                if (to_string(err) == "error(\"No streams\")" &&
+                    media_type_ == media::MT_IMAGE) {
+                    // We're here because the source has no IMAGE streams ... we therefore
+                    // switch ourselves to playing audio instead. The reason is that the
+                    // PlayheadActor always creates a master IMAGE type SubPlayhead to drive the
+                    // duration & frame rate of the timeline. If we have an audio only source,
+                    // though, this fails as the duration would be nil, so we can legitimately
+                    // switch ourselves here to try and play audio instead of video so that the
+                    // parent PlayheadActor is returned a finite duration and frame rate etc
+                    // when it asks the SubPlayhead for that info.
+                    media_type_ = media::MT_AUDIO;
+                    get_full_timeline_frame_list(rp, true);
+
+                } else {
+                    // rp.deliver(err);
+                    for (auto &rprm : inflight_update_requests_) {
+                        rprm.deliver(err);
+                    }
+                    inflight_update_requests_.clear();
                 }
-                inflight_update_requests_.clear();
             });
 }
 

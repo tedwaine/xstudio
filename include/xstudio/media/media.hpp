@@ -215,6 +215,7 @@ namespace media {
             const utility::JsonStore &params  = utility::JsonStore(),
             const utility::Uuid &source_uuid  = utility::Uuid(),
             const utility::Uuid &media_uuid   = utility::Uuid(),
+            const utility::Uuid &clip_uuid    = utility::Uuid(),
             const MediaType media_type        = MT_IMAGE,
             const int playhead_logical_frame  = 0,
             const utility::Timecode time_code = utility::Timecode())
@@ -229,6 +230,7 @@ namespace media {
               params_(params),
               source_uuid_(source_uuid),
               media_uuid_(media_uuid),
+              clip_uuid_(clip_uuid),
               media_type_(media_type),
               playhead_logical_frame_(playhead_logical_frame),
               timecode_(time_code) {}
@@ -263,6 +265,7 @@ namespace media {
                 f.field("prms", x.params_),
                 f.field("suuid", x.source_uuid_),
                 f.field("skpky", x.media_uuid_),
+                f.field("clpid", x.clip_uuid_),
                 f.field("mt", x.media_type_),
                 f.field("plc", x.playhead_logical_frame_),
                 f.field("tc", x.timecode_),
@@ -280,6 +283,7 @@ namespace media {
         utility::JsonStore params_;
         utility::Uuid source_uuid_;
         utility::Uuid media_uuid_;
+        utility::Uuid clip_uuid_;
         MediaType media_type_;
         int playhead_logical_frame_;
         utility::Timecode timecode_;
@@ -446,6 +450,7 @@ namespace media {
             "Blank",
             actor_addr(),
             js,
+            utility::Uuid(),
             utility::Uuid(),
             utility::Uuid(),
             media_type));

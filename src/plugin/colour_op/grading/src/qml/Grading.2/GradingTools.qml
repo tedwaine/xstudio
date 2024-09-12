@@ -10,7 +10,7 @@ import QtQuick.Dialogs 1.3 //for ColorDialog
 import QtGraphicalEffects 1.15 //for RadialGradient
 import Qt.labs.qmlmodels 1.0 //for RadialGradient
 
-import xStudioReskin 1.0
+import xStudio 1.0
 import xstudio.qml.bookmarks 1.0
 import xstudio.qml.helpers 1.0
 import xstudio.qml.models 1.0
@@ -65,13 +65,15 @@ Item { id: dialog
         currentMedia: currentPlayhead.mediaUuid
         showHidden: true
         sortbyCreated: true
+        includedCategories: ["Grading"]
     }
 
     XsSplitView {
         anchors.fill: parent
 
         GTLeftSection{ id: leftSection
-            SplitView.preferredWidth: 300
+            SplitView.minimumWidth: 280
+            SplitView.preferredWidth: 280
             SplitView.fillHeight: true
         }
         GTRightSection{

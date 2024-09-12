@@ -5,13 +5,15 @@ import QtQuick.Controls 2.15
 import QtQuick.Layouts 1.15
 import Qt.labs.qmlmodels 1.0
 
-import xStudioReskin 1.0
+import xStudio 1.0
 import ShotBrowser 1.0
 import xstudio.qml.helpers 1.0
 import xstudio.qml.models 1.0
 
-Item{
+Rectangle{
     id: thisItem
+
+    color: XsStyleSheet.widgetBgNormalColor
 
     property var delegateModel: null
     property var termModel: []
@@ -31,16 +33,8 @@ Item{
         valueRole = value
     }
 
-
-    Rectangle{ id: bgDiv
-        anchors.fill: parent
-        color: XsStyleSheet.widgetBgNormalColor
-        opacity: 0.5
-    }
-
     Item{ id: rowItems
-        width: parent.width
-        height: parent.height
+        anchors.fill: parent
 
         DropArea {
             Rectangle{id: rect; anchors.fill: parent; color: "yellow"; opacity: parent.containsDrag?1:0.3; visible: dragBtn.enabled}
@@ -81,15 +75,13 @@ Item{
         // }
 
         RowLayout {
-            anchors.left: parent.left
+            anchors.fill: parent
             anchors.leftMargin: 10 * delegateModel.notifyModel.depthAtRow(index)
-            width: parent.width
-            height: parent.height -1
             spacing: 1
 
             XsPrimaryButton{ id: dragBtn
                 enabled: false //#TODO
-                Layout.preferredWidth: btnWidth/3
+                Layout.preferredWidth: dragWidth
                 Layout.fillHeight: true
                 imgSrc: "qrc:///shotbrowser_icons/drag_indicator.svg"
                 isActiveViaIndicator: false
@@ -111,14 +103,16 @@ Item{
                     onReleased: held = false
                 }
             }
+
             XsCheckBox { id: checkBox
-                Layout.preferredWidth: height
+                Layout.preferredWidth: enableWidth
                 Layout.fillHeight: true
                 checked: enabledRole
                 onClicked: enabledRole = !enabledRole
             }
+
             XsPrimaryButton{ id: insertButton
-                Layout.preferredWidth: btnWidth/3
+                Layout.preferredWidth: btnWidth/2
                 Layout.fillHeight: true
                 imgSrc: "qrc:///shotbrowser_icons/arrow_right.svg"
                 isActiveViaIndicator: true
@@ -133,9 +127,10 @@ Item{
                     }
                 }
             }
+
             XsComboBox {
                 // Layout.fillWidth: true
-                Layout.preferredWidth: (btnWidth*4.2) - (termRole == "Operator" ? btnWidth/3 : 0)
+                Layout.preferredWidth: termWidth - (termRole == "Operator" ? btnWidth/2 : 0)
                 Layout.fillHeight: true
                 model: termModel
                 enabled: enabledRole
@@ -153,7 +148,7 @@ Item{
                 }
             }
             Item{ id: equationDiv
-                Layout.preferredWidth: height
+                Layout.preferredWidth: modeWidth
                 Layout.fillHeight: true
 
                 XsPrimaryButton{ id: equationBtn
@@ -174,8 +169,10 @@ Item{
                         if(equationMenu.visible)
                             equationMenu.visible = false
                         else {
-                            equationMenu.x = equationDiv.x + equationDiv.width
-                            equationMenu.visible = true
+                            equationMenu.showMenu(
+                                equationBtn,
+                                width/2,
+                                height/2);
                         }
                     }
                 }
@@ -185,7 +182,7 @@ Item{
                 Layout.fillWidth: true
                 Layout.preferredWidth: btnWidth*4.2
                 Layout.fillHeight: true
-                model: ShotBrowserEngine.presetsModel.termModel(termRole, entityType, projectPref.value)
+                model: ShotBrowserEngine.presetsModel.termModel(termRole, entityType, projectId)
                 enabled: enabledRole && !livelinkRole
                 textRole: "nameRole"
                 currentIndex: -1
@@ -221,7 +218,7 @@ Item{
                 }
             }
             XsPrimaryButton{
-                Layout.preferredWidth: btnWidth
+                Layout.preferredWidth: closeWidth
                 Layout.fillHeight: true
                 imgSrc: "qrc:/icons/close.svg"
                 onClicked: {

@@ -2,7 +2,7 @@
 from xstudio.core import play_atom, loop_atom, compare_mode_atom, play_forward_atom
 from xstudio.core import logical_frame_atom, play_rate_mode_atom, source_atom, media_atom
 from xstudio.core import simple_loop_start_atom, simple_loop_end_atom, use_loop_range_atom
-from xstudio.core import viewport_playhead_atom, media_logical_frame_atom
+from xstudio.core import viewport_playhead_atom, media_logical_frame_atom, playhead_rate_atom
 from xstudio.core import JsonStore, change_attribute_value_atom, jump_atom
 
 from xstudio.api.module import ModuleBase
@@ -216,3 +216,12 @@ class Playhead(ModuleBase):
             new_source(actor): Set playable source to this.
         """
         self.connection.send(self.remote, source_atom(), new_source)
+
+    @property
+    def frame_rate(self):
+        """Get playhead rate.
+
+        Returns:
+            playhead_rate(core.FrameRate): Rate for new playheads.
+        """
+        return self.connection.request_receive(self.remote, playhead_rate_atom())[0]

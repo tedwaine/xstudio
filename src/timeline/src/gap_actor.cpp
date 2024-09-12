@@ -136,6 +136,7 @@ void GapActor::init() {
                 send(event_group_, event_atom_v, item_atom_v, jsn, false);
             return jsn;
         },
+        [=](utility::rate_atom) -> FrameRate { return base_.item().rate(); },
 
         [=](item_prop_atom) -> JsonStore { return base_.item().prop(); },
 
@@ -148,6 +149,20 @@ void GapActor::init() {
         },
 
         [=](trimmed_range_atom) -> utility::FrameRange { return base_.item().trimmed_range(); },
+
+        [=](trimmed_range_atom,
+            const FrameRange &avail,
+            const FrameRange &active) -> JsonStore {
+            auto jsn = base_.item().set_range(avail, active);
+            if (not jsn.is_null())
+                send(event_group_, event_atom_v, item_atom_v, jsn, false);
+            return jsn;
+        },
+
+        [=](trimmed_range_atom,
+            const FrameRange &avail,
+            const FrameRange &active,
+            const bool silent) -> JsonStore { return base_.item().set_range(avail, active); },
 
         [=](link_media_atom, const UuidActorMap &, const bool) -> bool { return true; },
 

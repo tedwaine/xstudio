@@ -963,7 +963,9 @@ bool SessionModel::setData(const QModelIndex &index, const QVariant &qvalue, int
             auto type  = j.count("type") ? j.at("type").get<std::string>() : std::string();
             auto actor = j.count("actor") and not j.at("actor").is_null()
                              ? actorFromString(system(), j.at("actor"))
-                             : caf::actor();
+                             : (j.count("actor_owner") and not j.at("actor_owner").is_null()
+                                    ? actorFromString(system(), j.at("actor_owner"))
+                                    : caf::actor());
 
             switch (role) {
 

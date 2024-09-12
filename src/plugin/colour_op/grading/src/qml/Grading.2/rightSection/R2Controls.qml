@@ -6,25 +6,23 @@ import QtQuick.Layouts 1.15
 import QtQml.Models 2.14
 import Qt.labs.qmlmodels 1.0 //for RadialGradient
 
-import xStudioReskin 1.0
+import xStudio 1.0
 import Grading 2.0
 
 Item{ id: presetView
 
     property real flickageMminimumWidth: 160 + (206*3) + 2
-    
+
 
     XsGradientRectangle{
         anchors.fill: parent
     }
 
-    Flickable{ 
+    Flickable{
         id: flickable
         anchors.fill: parent
-
         contentWidth: layout.width
         contentHeight: layout.height
-        clip: true
 
         ScrollBar.horizontal: XsScrollBar {
             visible: flickable.width < flickable.contentWidth
@@ -36,16 +34,14 @@ Item{ id: presetView
 
 
         RowLayout {
-
             id: layout
             width: presetView.width
             height: presetView.height
             spacing: 0
-            
 
             GTSliderItem {
                 Layout.fillWidth: true
-                Layout.minimumWidth: 160
+                Layout.minimumWidth: 165
                 Layout.fillHeight: true
             }
 
@@ -54,8 +50,8 @@ Item{ id: presetView
 
                 GTWheelItem {
                     Layout.fillWidth: true
-                    Layout.minimumWidth: 128
-                    Layout.preferredWidth: 188 
+                    Layout.minimumWidth: 138
+                    Layout.preferredWidth: 188
                     Layout.fillHeight: true
                 }
             }

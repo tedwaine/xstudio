@@ -47,7 +47,8 @@ void blocking_loader(
     const utility::Uuid &before) {
     std::vector<UuidActor> result;
     std::vector<UuidActor> batched_media_to_add;
-    // spdlog::error("blocking_loader uri {}", to_string(path));
+
+    spdlog::error("blocking_loader uri {}", to_string(path));
     // spdlog::error("blocking_loader posix {}", uri_to_posix_path(path));
 
     self->anon_send(dst.actor(), playlist::loading_media_atom_v, true);
@@ -56,7 +57,9 @@ void blocking_loader(
 
     event::send_event(self, event_msg);
 
-    auto items = utility::scan_posix_path(uri_to_posix_path(path), recursive ? -1 : 0);
+    auto items = utility::scan_posix_path(
+        to_string(path).find("http") == 0 ? to_string(path) : uri_to_posix_path(path),
+        recursive ? -1 : 0);
     std::sort(
         std::begin(items),
         std::end(items),
@@ -278,6 +281,7 @@ PlaylistActor::PlaylistActor(
     init();
 }
 
+PlaylistActor::~PlaylistActor() {}
 
 caf::message_handler PlaylistActor::default_event_handler() {
     return {
@@ -436,7 +440,6 @@ void PlaylistActor::init() {
                 uuid_before);
         },
 
-
         // this should not be required... we should be able to delegate, but it doesn't work..
         [=](add_media_atom atom,
             const std::string &name,
@@ -496,6 +499,14 @@ void PlaylistActor::init() {
                 recursive,
                 base_.media_rate(),
                 uuid_before);
+        },
+
+        [=](add_media_with_subsets_atom,
+            const caf::uri &path,
+            const utility::Uuid &uuid_before) -> result<std::vector<UuidActor>> {
+            auto rp = make_response_promise<std::vector<utility::UuidActor>>();
+            recursive_add_media_with_subsets(rp, path, uuid_before);
+            return rp;
         },
 
         [=](add_media_atom atom,
@@ -659,10 +670,15 @@ void PlaylistActor::init() {
             // so that the duration of the media is known. This is because the playhead will
             // update and build a timeline as soon as the playlist notifies of change, so the
             // duration and frame rate must be known up-front
-            std::vector<UuidActor> media_actors = ma;
-            auto source_count                   = std::make_shared<int>();
-            (*source_count)                     = media_actors.size();
-            auto rp                             = make_response_promise<bool>();
+            std::vector<UuidActor> media_actors;
+            for (const auto &media : ma) {
+                if (!media_.count(media.uuid())) {
+                    media_actors.push_back(media);
+                }
+            }
+            auto source_count = std::make_shared<int>();
+            (*source_count)   = media_actors.size();
+            auto rp           = make_response_promise<bool>();
 
             // add to lis first, then lazy update..
 
@@ -816,7 +832,8 @@ void PlaylistActor::init() {
                 create_timeline_atom_v,
                 name,
                 uuid_before,
-                false)
+                false,
+                true)
                 .then(
                     [=](const utility::UuidUuidActor &result) mutable {
                         rp.deliver(result);
@@ -969,11 +986,16 @@ void PlaylistActor::init() {
         [=](create_timeline_atom,
             const std::string &name,
             const utility::Uuid &uuid_before,
-            const bool into) -> result<utility::UuidUuidActor> {
+            const bool into,
+            const bool with_tracks) -> result<utility::UuidUuidActor> {
             // try insert as requested, but add to end if it fails.
             auto rp    = make_response_promise<utility::UuidUuidActor>();
             auto actor = spawn<timeline::TimelineActor>(
-                name, utility::Uuid::generate(), actor_cast<caf::actor>(this), true);
+                name,
+                base_.media_rate(),
+                utility::Uuid::generate(),
+                actor_cast<caf::actor>(this),
+                with_tracks);
             // anon_send(actor, playhead::playhead_rate_atom_v, base_.playhead_rate());
             create_container(actor, rp, uuid_before, into);
             return rp;
@@ -1059,7 +1081,18 @@ void PlaylistActor::init() {
             const utility::UuidList &) {},
         [=](utility::event_atom, media::media_status_atom, const media::MediaStatus ms) {},
 
+        [=](utility::event_atom,
+            media::media_display_info_atom,
+            const utility::JsonStore &,
+            caf::actor_addr &) {},
+
         [=](utility::event_atom, media::media_display_info_atom, const utility::JsonStore &a) {
+            send(
+                event_group_,
+                utility::event_atom_v,
+                media::media_display_info_atom_v,
+                a,
+                caf::actor_cast<caf::actor_addr>(current_sender()));
         },
 
         [=](utility::event_atom,
@@ -1205,55 +1238,120 @@ void PlaylistActor::init() {
             return rp;
         },
 
+        [=](filter_media_atom, const std::string &filter_string) -> result<utility::UuidList> {
+            // for each media item in the playlist, check if any fields in the
+            // 'media display info' for the media matches filter_string. If
+            // it does, include it in the result. We have to do some awkward
+            // shenanegans thanks to async requests ... the usual stuff!!
+
+            if (filter_string.empty())
+                return base_.media();
+
+            auto rp = make_response_promise<utility::UuidList>();
+            // share ptr to store result for each media piece (in order)
+            auto vv = std::make_shared<std::vector<Uuid>>(base_.media().size());
+            // keep count of responses with this
+            auto ct                        = std::make_shared<int>(base_.media().size());
+            const auto filter_string_lower = utility::to_lower(filter_string);
+
+            int idx = 0;
+            for (const auto &uuid : base_.media()) {
+                UuidActor media(uuid, media_.at(uuid));
+                request(media.actor(), infinite, media::media_display_info_atom_v)
+                    .then(
+                        [=](const utility::JsonStore &media_display_info) mutable {
+                            if (media_display_info.is_array()) {
+                                for (int i = 0; i < media_display_info.size(); ++i) {
+                                    std::string data = media_display_info[i].dump();
+                                    if (utility::to_lower(data).find(filter_string_lower) !=
+                                        std::string::npos) {
+                                        (*vv)[idx] = media.uuid();
+                                        break;
+                                    }
+                                }
+                            }
+                            (*ct)--;
+                            if (*ct == 0) {
+                                utility::UuidList r;
+                                for (const auto &v : *vv) {
+                                    if (!v.is_null()) {
+                                        r.push_back(v);
+                                    }
+                                }
+                                rp.deliver(r);
+                            }
+                        },
+                        [=](caf::error &err) mutable {
+                            (*ct)--;
+                            if (*ct == 0) {
+                                utility::UuidList r;
+                                for (const auto &v : *vv) {
+                                    if (!v.is_null()) {
+                                        r.push_back(v);
+                                    }
+                                }
+                                rp.deliver(r);
+                            }
+                        });
+                idx++;
+            }
+            return rp;
+        },
 
         [=](get_next_media_atom,
             const utility::Uuid &after_this_uuid,
-            int skip_by) -> result<UuidActor> {
-            const utility::UuidList media = base_.media();
-            if (skip_by > 0) {
-                auto i = std::find(media.begin(), media.end(), after_this_uuid);
-                if (i == media.end()) {
-                    // not found!
-                    return make_error(
-                        xstudio_error::error,
-                        "playlist::get_next_media_atom called with uuid that is not in "
-                        "playlist");
-                }
-                while (skip_by--) {
-                    i++;
-                    if (i == media.end()) {
-                        i--;
-                        break;
-                    }
-                }
-                if (media_.count(*i))
-                    return UuidActor(*i, media_.at(*i));
+            int skip_by,
+            const std::string &filter_string) -> result<UuidActor> {
+            auto rp = make_response_promise<UuidActor>();
 
-            } else {
-                auto i = std::find(media.rbegin(), media.rend(), after_this_uuid);
-                if (i == media.rend()) {
-                    // not found!
-                    return make_error(
-                        xstudio_error::error,
-                        "playlist::get_next_media_atom called with uuid that is not in "
-                        "playlist");
-                }
-                while (skip_by++) {
-                    i++;
-                    if (i == media.rend()) {
-                        i--;
-                        break;
-                    }
-                }
+            request(
+                caf::actor_cast<caf::actor>(this), infinite, filter_media_atom_v, filter_string)
+                .then(
+                    [=](const utility::UuidList &media) mutable {
+                        if (skip_by > 0) {
+                            auto i = std::find(media.begin(), media.end(), after_this_uuid);
+                            if (i == media.end()) {
+                                // not found!
+                                rp.deliver(make_error(
+                                    xstudio_error::error,
+                                    "playlist::get_next_media_atom called with uuid that is "
+                                    "not in "
+                                    "playlist"));
+                            }
+                            while (skip_by--) {
+                                i++;
+                                if (i == media.end()) {
+                                    i--;
+                                    break;
+                                }
+                            }
+                            if (media_.count(*i))
+                                rp.deliver(UuidActor(*i, media_.at(*i)));
 
-                if (media_.count(*i))
-                    return UuidActor(*i, media_.at(*i));
-            }
+                        } else {
+                            auto i = std::find(media.rbegin(), media.rend(), after_this_uuid);
+                            if (i == media.rend()) {
+                                // not found!
+                                rp.deliver(make_error(
+                                    xstudio_error::error,
+                                    "playlist::get_next_media_atom called with uuid that is "
+                                    "not in "
+                                    "playlist"));
+                            }
+                            while (skip_by++) {
+                                i++;
+                                if (i == media.rend()) {
+                                    i--;
+                                    break;
+                                }
+                            }
 
-            return make_error(
-                xstudio_error::error,
-                "playlist::get_next_media_atom called with uuid for which no media actor "
-                "exists");
+                            if (media_.count(*i))
+                                rp.deliver(UuidActor(*i, media_.at(*i)));
+                        }
+                    },
+                    [=](caf::error &err) mutable { rp.deliver(err); });
+            return rp;
         },
 
         [=](insert_container_atom,
@@ -1429,6 +1527,7 @@ void PlaylistActor::init() {
             auto actor = spawn<playhead::PlayheadActor>(ss.str(), selection_actor_, uuid);
             anon_send(actor, playhead::playhead_rate_atom_v, base_.playhead_rate());
             playhead_ = UuidActor(uuid, actor);
+
             monitor(actor);
             base_.send_changed(event_group_, this);
 
@@ -1765,11 +1864,8 @@ void PlaylistActor::init() {
         },
 
         [=](sort_by_media_display_info_atom,
-            const int info_set_idx,
-            const int info_item_idx,
-            const bool ascending) {
-            sort_by_media_display_info(info_set_idx, info_item_idx, ascending);
-        },
+            const int sort_column_index,
+            const bool ascending) { sort_by_media_display_info(sort_column_index, ascending); },
 
         [=](utility::event_atom, playlist::remove_media_atom, const UuidVector &) {},
 
@@ -1833,6 +1929,7 @@ void PlaylistActor::init() {
                                 create_timeline_atom_v,
                                 name,
                                 uuid_before,
+                                false,
                                 false)
                                 .then(
                                     [=](const utility::UuidUuidActor &uua) mutable {
@@ -2401,7 +2498,7 @@ PlaylistActor::get_containers(utility::UuidTree<utility::PlaylistItem> &tree) co
 }
 
 void PlaylistActor::sort_by_media_display_info(
-    const int info_set_idx, const int info_item_idx, const bool ascending) {
+    const int sort_column_index, const bool ascending) {
 
     using SourceAndUuid = std::pair<std::string, utility::Uuid>;
     auto sort_keys_vs_uuids =
@@ -2430,10 +2527,8 @@ void PlaylistActor::sort_by_media_display_info(
                     std::string sort_key = fmt::format("ZZZZZZ{}", idx);
 
                     if (media_display_info.is_array() &&
-                        info_set_idx < media_display_info.size() &&
-                        media_display_info[info_set_idx].is_array() &&
-                        info_item_idx < media_display_info[info_set_idx].size()) {
-                        sort_key = media_display_info[info_set_idx][info_item_idx].dump();
+                        sort_column_index < media_display_info.size()) {
+                        sort_key = media_display_info[sort_column_index].dump();
                     }
 
                     (*sort_keys_vs_uuids)
@@ -2481,9 +2576,11 @@ void PlaylistActor::duplicate(
     anon_send(actor, session::media_rate_atom_v, base_.media_rate());
     anon_send(actor, playhead::playhead_rate_atom_v, base_.playhead_rate());
 
-    caf::scoped_actor sys(system());
-    auto json = request_receive<JsonStore>(*sys, json_store_, json_store::get_json_atom_v);
-    anon_send(actor, json_store::set_json_atom_v, json, "");
+    {
+        caf::scoped_actor sys(system());
+        auto json = request_receive<JsonStore>(*sys, json_store_, json_store::get_json_atom_v);
+        anon_send(actor, json_store::set_json_atom_v, json, "");
+    }
 
     // clone media into new playlist
     // store mapping from old to new uuids
@@ -2503,7 +2600,6 @@ void PlaylistActor::duplicate(
 
                     // spdlog::info("cloned media {:.3} seconds.", sw);
 
-
                     for (const auto &i : dmedia)
                         dmedia_map[i.first] = i.second;
 
@@ -2515,8 +2611,10 @@ void PlaylistActor::duplicate(
                         new_media.push_back(dmedia_map[i]);
                     }
 
-                    caf::scoped_actor sys(system());
-                    request_receive<bool>(*sys, actor, add_media_atom_v, new_media, Uuid());
+                    {
+                        caf::scoped_actor sys(system());
+                        request_receive<bool>(*sys, actor, add_media_atom_v, new_media, Uuid());
+                    }
 
                     // spdlog::info("added media {:.3} seconds.", sw);
 
@@ -2602,4 +2700,108 @@ void PlaylistActor::duplicate_containers(
         spdlog::warn("{} {}", __PRETTY_FUNCTION__, err.what());
         rp.deliver(make_error(xstudio_error::error, err.what()));
     }
+}
+
+void PlaylistActor::recursive_add_media_with_subsets(
+    caf::typed_response_promise<std::vector<utility::UuidActor>> rp,
+    const caf::uri &path,
+    const utility::Uuid &uuid_before) {
+
+    // 'path' should be a directory. Media directly within the directory
+    // will be added to this playlsit only.
+    // Any subdirectories in path will create a named subset, and the media
+    // within that subdirectory will be added to this subset
+
+    auto result = std::make_shared<std::vector<UuidActor>>();
+
+    // First add media items that are directly inside 'path'
+    request(
+        caf::actor_cast<caf::actor>(this),
+        infinite,
+        add_media_atom_v,
+        path,
+        false, // not recursive
+        uuid_before)
+        .then(
+            [=](const std::vector<UuidActor> &media) mutable {
+                result->insert(result->end(), media.begin(), media.end());
+
+                // find child folders
+                std::vector<caf::uri> subfolders = utility::uri_subfolders(path);
+                if (!subfolders.size()) {
+                    rp.deliver(*result);
+                }
+
+                auto result_counter = std::make_shared<int>(subfolders.size());
+
+                // func to decrement result_counter and deliver on the RP when
+                // we've finished
+                auto check_deliver = [result_counter, result, rp]() mutable {
+                    (*result_counter)--;
+                    if (!(*result_counter)) {
+                        rp.deliver(*result);
+                    }
+                };
+
+                for (auto subfolder : subfolders) {
+
+                    // now add the media from the subfolders
+                    request(
+                        caf::actor_cast<caf::actor>(this),
+                        infinite,
+                        add_media_atom_v,
+                        subfolder,
+                        true, // recursive yes!
+                        uuid_before)
+                        .then(
+                            [=](const std::vector<UuidActor> &media) mutable {
+                                result->insert(result->end(), media.begin(), media.end());
+                                if (media.size()) {
+
+                                    // make the subset and add the media into that.
+                                    fs::path p(uri_to_posix_path(subfolder));
+                                    const auto subset_name = std::string(p.filename().string());
+                                    request(
+                                        caf::actor_cast<caf::actor>(this),
+                                        infinite,
+                                        create_subset_atom_v,
+                                        subset_name,
+                                        utility::Uuid(),
+                                        false)
+                                        .then(
+                                            [=](utility::UuidUuidActor subset) mutable {
+                                                request(
+                                                    subset.second.actor(),
+                                                    infinite,
+                                                    add_media_atom_v,
+                                                    media,
+                                                    utility::Uuid())
+                                                    .then(
+                                                        [=](bool) mutable { check_deliver(); },
+                                                        [=](caf::error &err) mutable {
+                                                            spdlog::warn(
+                                                                "{} {}",
+                                                                __PRETTY_FUNCTION__,
+                                                                to_string(err));
+                                                            check_deliver();
+                                                        });
+                                            },
+                                            [=](caf::error &err) mutable {
+                                                spdlog::warn(
+                                                    "{} {}",
+                                                    __PRETTY_FUNCTION__,
+                                                    to_string(err));
+                                                check_deliver();
+                                            });
+                                }
+                            },
+                            [=](caf::error &err) mutable {
+                                spdlog::warn("{} {}", __PRETTY_FUNCTION__, to_string(err));
+                                check_deliver();
+                            });
+                }
+            },
+            [=](caf::error &err) mutable { rp.deliver(err); });
+
+    send(event_group_, utility::event_atom_v, loading_media_atom_v, true);
 }

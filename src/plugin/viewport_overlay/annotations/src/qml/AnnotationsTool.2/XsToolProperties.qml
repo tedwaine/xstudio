@@ -9,7 +9,7 @@ import QtQml.Models 2.14
 import QtQuick.Dialogs 1.3
 import QtGraphicalEffects 1.15
 
-import xStudioReskin 1.0
+import xStudio 1.0
 import xstudio.qml.models 1.0
 import xstudio.qml.helpers 1.0
 
@@ -19,7 +19,7 @@ Item{
 
     Rectangle{ id: row1_categories
         width: (toolProperties.width - framePadding*2)
-        height: visible? buttonHeight + itemSpacing/2 : 0
+        height: visible? buttonHeight + itemSpacing : 0
 
         color: "transparent";
         visible: (currentTool == "Shapes" || currentTool == "Text")
@@ -95,6 +95,16 @@ Item{
             enabled: isAnyToolSelected && currentTool != "Erase"
         }
 
+        XsIntegerAttrControl {
+            id: bgOpacityProp
+            visible: currentTool === "Text"
+            width: row2_controls.gridItemWidth
+            height: visible? buttonHeight : 0
+            text: "BG Opacity"
+            attr_group_model: annotations_model_data
+            attr_title: "Text Background Opacity"
+        }
+
         XsViewerMenuButton{ id: colorProp
             visible: enabled
             width: row2_controls.gridItemWidth
@@ -102,7 +112,7 @@ Item{
             text: "Colour    "
             shortText: "Col    "
             enabled: (isAnyToolSelected && currentTool !== "Erase")
-            //forceHover: isMouseHovered
+            showBorder: isMouseHovered
             isActive: isPressed
 
             property bool isPressed: false
@@ -185,61 +195,52 @@ Item{
             }
         }
 
-        XsIntegerAttrControl {
-            id: bgOpacityProp
-            visible: currentTool === "Text"
-            width: row2_controls.gridItemWidth
-            height: visible? buttonHeight : 0
-            text: "BG Opacity"
-            attr_group_model: annotations_model_data
-            attr_title: "Text Background Opacity"
-        }
 
-        XsViewerMenuButton{ id: bgColorProp
-            visible: currentTool === "Text"
-            width: row2_controls.gridItemWidth
-            height: visible? buttonHeight : 0
+        // XsViewerMenuButton{ id: bgColorProp
+        //     visible: currentTool === "Text"
+        //     width: row2_controls.gridItemWidth
+        //     height: visible? buttonHeight : 0
 
-            text: "BG Colour      "
-            shortText: "BG Col.      "
-            enabled: (isAnyToolSelected && currentTool !== "Erase")
-            //forceHover: isMouseHovered
+        //     text: "BG Colour      "
+        //     shortText: "BG Col.      "
+        //     enabled: (isAnyToolSelected && currentTool !== "Erase")
+        //     //forceHover: isMouseHovered
 
-            isActive: isPressed
-            property bool isPressed: false
-            property bool isMouseHovered: bgColorMArea.containsMouse
+        //     isActive: isPressed
+        //     property bool isPressed: false
+        //     property bool isMouseHovered: bgColorMArea.containsMouse
 
-            Rectangle{ id: bgColorPreview
-                anchors.verticalCenter: parent.verticalCenter
-                anchors.left: parent.horizontalCenter
-                anchors.leftMargin: parent.width/8
-                anchors.right: parent.right
-                anchors.rightMargin: parent.width/10
-                height: parent.height/1.4;
-                color: backgroundColor ? backgroundColor : "grey"
-                border.width: 1
-                border.color: "black"
-            }
+        //     Rectangle{ id: bgColorPreview
+        //         anchors.verticalCenter: parent.verticalCenter
+        //         anchors.left: parent.horizontalCenter
+        //         anchors.leftMargin: parent.width/8
+        //         anchors.right: parent.right
+        //         anchors.rightMargin: parent.width/10
+        //         height: parent.height/1.4;
+        //         color: backgroundColor ? backgroundColor : "grey"
+        //         border.width: 1
+        //         border.color: "black"
+        //     }
 
-            MouseArea{
-                id: bgColorMArea
-                propagateComposedEvents: true
-                hoverEnabled: true
-                anchors.fill: parent
-                onClicked: {
-                        parent.isPressed = false
-                        colorDialog.title = "Please pick a colour"
-                        bgColorDialog.open()
-                }
-                onPressed: {
-                        parent.isPressed = true
-                }
-                onReleased: {
-                        parent.isPressed = false
-                }
-            }
+        //     MouseArea{
+        //         id: bgColorMArea
+        //         propagateComposedEvents: true
+        //         hoverEnabled: true
+        //         anchors.fill: parent
+        //         onClicked: {
+        //                 parent.isPressed = false
+        //                 colorDialog.title = "Please pick a colour"
+        //                 bgColorDialog.open()
+        //         }
+        //         onPressed: {
+        //                 parent.isPressed = true
+        //         }
+        //         onReleased: {
+        //                 parent.isPressed = false
+        //         }
+        //     }
 
-        }
+        // }
 
     }
 

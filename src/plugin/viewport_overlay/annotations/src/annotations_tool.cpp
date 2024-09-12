@@ -1,5 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
+#include <filesystem>
+
 #include "xstudio/plugin_manager/plugin_base.hpp"
 #include "xstudio/media_reader/image_buffer.hpp"
 #include "xstudio/global_store/global_store.hpp"
@@ -16,6 +18,8 @@ using namespace xstudio;
 using namespace xstudio::bookmark;
 using namespace xstudio::ui::canvas;
 using namespace xstudio::ui::viewport;
+
+namespace fs = std::filesystem;
 
 namespace {
 
@@ -147,7 +151,7 @@ AnnotationsTool::AnnotationsTool(
             import QtGraphicalEffects 1.15
             import QtQuick 2.15
             Rectangle {
-                anchors.fill: parent 
+                anchors.fill: parent
                 XsDrawingTools {
                     anchors.top: parent.top
                     anchors.topMargin: 20
@@ -163,8 +167,8 @@ AnnotationsTool::AnnotationsTool(
         )");
 
     dockable_widget_attr_ = register_viewport_dockable_widget(
-        "Annotations Toolbox",
-        "qrc:/icons/brush.svg",         // icon for the button to activate the tool
+        "Annotate",
+        "qrc:/icons/stylus_note.svg",   // icon for the button to activate the tool
         "Show/Hide Annotation Toolbox", // tooltip for the button,
         3.0f,                           // button position in the buttons bar
         true,
@@ -177,7 +181,12 @@ AnnotationsTool::AnnotationsTool(
             )",
         // qml code to create the top/bottom dockable widget (left empty here as we don't have
         // one)
-        "",
+        R"(
+            import AnnotationsTool 2.0
+            import QtQuick 2.15
+            XsDrawingToolsTB {
+            }
+            )",
         toggle_active_hotkey_);
 }
 
@@ -218,13 +227,18 @@ void AnnotationsTool::attribute_changed(const utility::Uuid &attribute_uuid, con
             release_keyboard_focus();
             end_drawing();
             clear_caption_handle();
+            set_viewport_cursor("");
+
         } else {
             last_tool_ = active_tool;
             grab_mouse_focus();
             if (active_tool != "Text") {
+                set_viewport_cursor("Qt.CrossCursor");
                 end_drawing();
                 release_keyboard_focus();
                 clear_caption_handle();
+            } else {
+                set_viewport_cursor("Qt.IBeamCursor");
             }
         }
 
@@ -338,24 +352,32 @@ void AnnotationsTool::register_hotkeys() {
         int('D'),
         ui::NoModifier,
         "Toggle Annotations Tool",
-        "Show or hide the annotations toolbox. You can start drawing annotations immediately "
-        "whenever the toolbox is visible.");
+        "Show or hide the Annotate toolbox. You can start drawing annotations immediately "
+        "whenever the toolbox is visible.",
+        false,
+        "Drawing Tools");
 
     undo_hotkey_ = register_hotkey(
         int('Z'),
         ui::ControlModifier,
         "Undo (Annotation edit)",
-        "Undoes your last edits to an annotation");
+        "Undoes your last edits to an annotation",
+        false,
+        "Drawing Tools");
 
     redo_hotkey_ = register_hotkey(
         int('Z'),
         ui::ControlModifier | ui::ShiftModifier,
         "Redo (Annotation edit)",
-        "Redoes your last undone edit on an annotation");
+        "Redoes your last undone edit on an annotation",
+        false,
+        "Drawing Tools");
 }
 
 void AnnotationsTool::hotkey_pressed(
-    const utility::Uuid &hotkey_uuid, const std::string & /*context*/) {
+    const utility::Uuid &hotkey_uuid,
+    const std::string & /*context*/,
+    const std::string & /*window*/) {
     if (hotkey_uuid == toggle_active_hotkey_) {
 
         // tool_is_active_->set_value(!tool_is_active_->value());
@@ -564,18 +586,24 @@ bool AnnotationsTool::is_laser_mode() const { return active_tool_->value() == "L
 
 void AnnotationsTool::viewport_dockable_widget_activated(std::string &widget_name) {
 
-    if (widget_name == "Annotations Toolbox") {
+    if (widget_name == "Annotate") {
         active_tool_->set_value(last_tool_);
     }
 }
 
 void AnnotationsTool::viewport_dockable_widget_deactivated(std::string &widget_name) {
-    if (widget_name == "Annotations Toolbox") {
+
+    if (widget_name == "Annotate") {
         active_tool_->set_value("None");
     }
 }
 
+void AnnotationsTool::turn_off_overlay_interaction() { active_tool_->set_value("None"); }
+
 void AnnotationsTool::start_editing(const std::string &viewport_name) {
+
+    // ensure playback is stopped
+    start_stop_playback(viewport_name, false);
 
     if (is_laser_mode())
         return;
@@ -876,11 +904,19 @@ void AnnotationsTool::update_bookmark_annotation_data() {
         // there is no bookmark, meaning the user started annotating a frame
         // with no bookmark. Here the base class creates a new bookmark on the
         // current frame for us
+
+        std::string note_name = "Annotated Frame";
+        auto p = viewport_current_images_.find(current_interaction_viewport_name_);
+        if (p != viewport_current_images_.end() && p->second.size()) {
+            const media::AVFrameID &id = p->second.front().frame_id();
+            note_name = fs::path(utility::uri_to_posix_path(id.uri_)).stem().string();
+            if (note_name.find(".") != std::string::npos) {
+                note_name = std::string(note_name, 0, note_name.find("."));
+            }
+        }
+
         current_bookmark_uuid_ = StandardPlugin::create_bookmark_on_current_media(
-            current_interaction_viewport_name_,
-            "Annotated Frame",
-            bookmark::BookmarkDetail(),
-            false);
+            current_interaction_viewport_name_, note_name, bookmark::BookmarkDetail(), false);
         if (!current_bookmark_uuid_.is_null())
             update_bookmark_annotation_data();
     }

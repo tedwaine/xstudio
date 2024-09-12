@@ -192,6 +192,11 @@ namespace conform {
             const std::vector<std::pair<utility::UuidActor, utility::JsonStore>> &media);
 
         virtual std::vector<std::string> conform_tasks();
+
+        virtual utility::UuidActorVector find_matching(
+            const std::string &key,
+            const std::pair<utility::UuidActor, utility::JsonStore> &needle,
+            const std::vector<std::pair<utility::UuidActor, utility::JsonStore>> &haystack);
     };
 
     template <typename T>
@@ -240,6 +245,7 @@ namespace conform {
                     return conform_.conform_request(conform_task, request);
                 },
 
+                // find sequence related to media.
                 [=](conform_atom,
                     const std::vector<std::pair<utility::UuidActor, utility::JsonStore>> &media)
                     -> std::vector<std::optional<std::pair<std::string, caf::uri>>> {
@@ -248,6 +254,14 @@ namespace conform {
 
                 [=](conform_atom, const ConformRequest &request) -> ConformReply {
                     return conform_.conform_request(request);
+                },
+
+                [=](conform_atom,
+                    const std::string &key,
+                    const std::pair<utility::UuidActor, utility::JsonStore> &needle,
+                    const std::vector<std::pair<utility::UuidActor, utility::JsonStore>>
+                        &haystack) -> utility::UuidActorVector {
+                    return conform_.find_matching(key, needle, haystack);
                 },
 
                 [=](conform_atom,

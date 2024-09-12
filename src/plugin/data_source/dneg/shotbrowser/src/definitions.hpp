@@ -207,18 +207,15 @@ const auto NoteFields = std::vector<std::string>(
      "addressings_cc",
      "attachments"});
 
-const auto PlaylistFields = std::vector<std::string>({
-    "code",
-    // "versions",
-    "sg_location",
-    "updated_at",
-    "created_at",
-    "sg_date_and_time",
-    "sg_type",
-    "created_by",
-    "sg_department_unit"
-    // "notes"
-});
+const auto PlaylistFields = std::vector<std::string>(
+    {"code",
+     "sg_location",
+     "updated_at",
+     "created_at",
+     "sg_date_and_time",
+     "sg_type",
+     "created_by",
+     "sg_department_unit"});
 
 const auto ShotFields =
     std::vector<std::string>({"id", "code", "sg_comp_range", "sg_cut_range", "project"});

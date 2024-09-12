@@ -536,8 +536,10 @@ QFuture<QList<QUuid>> ConformEngineUI::conformItemsFuture(
 
 QFuture<QList<QUuid>> ConformEngineUI::conformToNewSequenceFuture(
     const QModelIndexList &mediaIndexes, const QModelIndex &playlistIndex) const {
+
     auto media = UuidActorVector();
 
+    // get media uuidactors
     for (const auto &i : mediaIndexes) {
         if (i.data(SessionModel::Roles::typeRole) != "Media")
             continue;
@@ -551,10 +553,7 @@ QFuture<QList<QUuid>> ConformEngineUI::conformToNewSequenceFuture(
         }
     }
 
-    // auto smodel =
-    //     qobject_cast<SessionModel *>(const_cast<QAbstractItemModel
-    //     *>(mediaIndexes[0].model()));
-
+    // get target playlist
     auto target_playlist = UuidActor();
     if (playlistIndex.isValid()) {
         auto playlist_actor = actorFromString(
@@ -614,13 +613,14 @@ QFuture<QList<QUuid>> ConformEngineUI::conformToNewSequenceFuture(
 
 
                     for (const auto &i : seq_to_media) {
-                        auto playlist = target_playlist;
+                        auto playlist       = target_playlist;
+                        auto playlist_media = i.second;
 
                         // we've got a path for a timeline and a list of media actors.
                         // spdlog::warn("{} {}", to_string(i.first), i.second.size());
 
                         // create new playlist
-                        if (not playlist.actor())
+                        if (not playlist.actor()) {
                             playlist = request_receive<std::pair<utility::Uuid, UuidActor>>(
                                            *sys,
                                            session,
@@ -629,6 +629,21 @@ QFuture<QList<QUuid>> ConformEngineUI::conformToNewSequenceFuture(
                                            Uuid(),
                                            false)
                                            .second;
+
+                            // clone media in to new playlist
+                            request_receive<UuidVector>(
+                                *sys,
+                                session,
+                                playlist::copy_media_atom_v,
+                                playlist.uuid(),
+                                vector_to_uuid_vector(playlist_media),
+                                false,
+                                Uuid(),
+                                false);
+                            // as playlist will only contain this media just get it all..
+                            playlist_media = request_receive<UuidActorVector>(
+                                *sys, playlist.actor(), playlist::get_media_atom_v);
+                        }
 
                         auto timeline = request_receive<UuidActor>(
                             *sys,
@@ -660,14 +675,17 @@ QFuture<QList<QUuid>> ConformEngineUI::conformToNewSequenceFuture(
                             playlist,
                             timeline,
                             UuidActor(),
-                            i.second);
+                            playlist_media);
                     }
-                }
+                } else
+                    throw std::runtime_error("No sequence found for media");
+
+
             } catch (const std::exception &err) {
                 spdlog::warn("{} {}", __PRETTY_FUNCTION__, err.what());
+                throw;
             }
         }
-
 
         // return uuid of each timeline containing copied media ?
 
@@ -794,6 +812,70 @@ QFuture<QList<QUuid>> ConformEngineUI::conformTracksToSequenceFuture(
 
             return result;
         });
+
+    } catch (const std::exception &err) {
+        spdlog::warn("{} {}", __PRETTY_FUNCTION__, err.what());
+    }
+
+    return QtConcurrent::run([=]() {
+        auto result = QList<QUuid>();
+        return result;
+    });
+}
+
+QFuture<QList<QUuid>> ConformEngineUI::conformFindRelatedFuture(
+    const QString &key, const QModelIndex &clipIndex, const QModelIndex &sequenceIndex) const {
+
+    try {
+        if (not clipIndex.isValid() or
+            clipIndex.data(SessionModel::Roles::typeRole).toString() != "Clip")
+            throw std::runtime_error("Invalid clip");
+        if (not sequenceIndex.isValid() or
+            sequenceIndex.data(SessionModel::Roles::typeRole).toString() != "Timeline")
+            throw std::runtime_error("Invalid sequence");
+
+        return QtConcurrent::run([=]() {
+            auto result = QList<QUuid>();
+            auto conform_manager =
+                system().registry().template get<caf::actor>(conform_registry);
+            scoped_actor sys{system()};
+
+            auto clip_ua = UuidActor(
+                UuidFromQUuid(clipIndex.data(JSONTreeModel::Roles::idRole).toUuid()),
+                actorFromString(
+                    system(),
+                    StdFromQString(clipIndex.data(SessionModel::Roles::actorRole).toString())));
+
+            auto sequence_ua = UuidActor(
+                UuidFromQUuid(sequenceIndex.data(SessionModel::Roles::actorUuidRole).toUuid()),
+                actorFromString(
+                    system(),
+                    StdFromQString(
+                        sequenceIndex.data(SessionModel::Roles::actorRole).toString())));
+
+            try {
+                auto reply = request_receive<UuidActorVector>(
+                    *sys,
+                    conform_manager,
+                    conform::conform_atom_v,
+                    StdFromQString(key),
+                    clip_ua,
+                    sequence_ua);
+
+                auto sessionModel = qobject_cast<SessionModel *>(
+                    const_cast<QAbstractItemModel *>(sequenceIndex.model()));
+
+                for (const auto &i : reply)
+                    result.push_back(QUuidFromUuid(i.uuid()));
+
+
+            } catch (const std::exception &err) {
+                spdlog::warn("{} {}", __PRETTY_FUNCTION__, err.what());
+            }
+
+            return result;
+        });
+
 
     } catch (const std::exception &err) {
         spdlog::warn("{} {}", __PRETTY_FUNCTION__, err.what());

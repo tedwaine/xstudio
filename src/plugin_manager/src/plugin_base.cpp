@@ -118,6 +118,11 @@ StandardPlugin::StandardPlugin(
             const std::string &viewport_name) {
             // the onscreen media for the given viewport has changed
             on_screen_media_changed(media);
+        },
+        [=](ui::viewport::turn_off_overlay_interaction_atom, const utility::Uuid requester_id) {
+            if (requester_id != uuid()) {
+                turn_off_overlay_interaction();
+            }
         }};
 }
 
@@ -206,13 +211,13 @@ void StandardPlugin::join_studio_events() {
 
         // fetch the current viewed playhead from the viewport so we can 'listen' to it
         // for position changes, current media changes etc.
-        auto playhead_events_actor =
+        playhead_events_actor_ =
             system().registry().template get<caf::actor>(global_playhead_events_actor);
-        if (playhead_events_actor) {
+        if (playhead_events_actor_) {
             // this call means we get event messages when the on-screen media
             // changes
             anon_send(
-                playhead_events_actor,
+                playhead_events_actor_,
                 broadcast::join_broadcast_atom_v,
                 caf::actor_cast<caf::actor>(this));
         }
@@ -220,6 +225,36 @@ void StandardPlugin::join_studio_events() {
     } catch (const std::exception &err) {
         spdlog::warn("{} {}", __PRETTY_FUNCTION__, err.what());
     }
+}
+
+void StandardPlugin::start_stop_playback(const std::string viewport_name, bool play) {
+
+    scoped_actor sys{system()};
+    try {
+
+        auto playhead = utility::request_receive<caf::actor>(
+                *sys,
+                playhead_events_actor_,
+                ui::viewport::viewport_playhead_atom_v,
+                viewport_name);
+        if (playhead) {
+            utility::request_receive<unit_t>(
+                *sys,
+                playhead,
+                playhead::play_atom_v,
+                play);
+        }
+    } catch (std::exception & e) {
+        spdlog::warn("{} {}", __PRETTY_FUNCTION__, e.what());
+    }
+
+}
+
+void StandardPlugin::set_viewport_cursor(const std::string cursor_name) {
+
+    anon_send(playhead_events_actor_,
+                ui::viewport::viewport_cursor_atom_v,
+                cursor_name);
 }
 
 
@@ -373,6 +408,22 @@ utility::Uuid StandardPlugin::create_bookmark_on_current_media(
         spdlog::warn("{} {}", __PRETTY_FUNCTION__, e.what());
     }
     return result;
+}
+
+void StandardPlugin::cancel_other_drawing_tools() {
+
+    auto ph_events = system().registry().template get<caf::actor>(global_playhead_events_actor);
+    // get all viewports
+    request(ph_events, infinite, ui::viewport::viewport_atom_v)
+        .then(
+            [=](const std::vector<caf::actor> &viewports) {
+                for (auto &vp : viewports) {
+                    send(vp, ui::viewport::turn_off_overlay_interaction_atom_v, uuid());
+                }
+            },
+            [=](error &err) mutable {
+                spdlog::warn("{} {}", __PRETTY_FUNCTION__, to_string(err));
+            });
 }
 
 utility::UuidList

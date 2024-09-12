@@ -30,7 +30,7 @@ void ShotBrowser::find_ivy_version(
         shotgun_entity_search_atom_v,
         "Version",
         JsonStore(version_filter),
-        VersionFields,
+        concatenate_vector(VersionFields, version_fields_),
         std::vector<std::string>(),
         1,
         1)
@@ -81,7 +81,7 @@ void ShotBrowser::find_shot(
             shotgun_entity_atom_v,
             "Shot",
             shot_id,
-            ShotFields)
+            extend_fields("Shots", ShotFields))
             .then(
                 [=](const JsonStore &jsn) mutable {
                     shot_cache_[shot_id] = jsn;
@@ -737,6 +737,7 @@ void ShotBrowser::prepare_playlist_notes(
                                         if (merged.is_null()) {
                                             merged       = notepayload;
                                             auto content = std::string();
+
                                             if (add_playlist_name and
                                                 not merged["playlist_name"]
                                                         .get<std::string>()
@@ -744,6 +745,7 @@ void ShotBrowser::prepare_playlist_notes(
                                                 content +=
                                                     "Playlist : " +
                                                     std::string(merged["playlist_name"]) + "\n";
+
                                             if (add_type)
                                                 content += "Note Type : " +
                                                            merged["payload"]["sg_note_type"]
@@ -809,7 +811,9 @@ void ShotBrowser::execute_query(
         shotgun_entity_search_atom_v,
         action.at("entity").get<std::string>(),
         JsonStore(action.at("query")),
-        action.at("fields").get<std::vector<std::string>>(),
+        extend_fields(
+            action.at("entity").get<std::string>(),
+            action.at("fields").get<std::vector<std::string>>()),
         action.at("order").get<std::vector<std::string>>(),
         action.at("page").get<int>(),
         action.at("max_result").get<int>())
@@ -1264,7 +1268,7 @@ void ShotBrowser::get_data_shot(
         shotgun_entity_search_atom_v,
         "Shots",
         JsonStore(filter),
-        ShotFields,
+        extend_fields("Shots", ShotFields),
         std::vector<std::string>({"code"}),
         page,
         4999)
@@ -1665,7 +1669,7 @@ void ShotBrowser::execute_preset(
                 env,
                 engine().lookup());
 
-            // spdlog::warn("{}\n", request.dump(2));
+            // spdlog::error("{}\n", request.dump(2));
 
             execute_query(rp, request);
         }

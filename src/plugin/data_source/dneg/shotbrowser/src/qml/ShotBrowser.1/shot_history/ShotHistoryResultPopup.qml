@@ -6,7 +6,7 @@ import QtQuick.Layouts 1.15
 import QtQml.Models 2.14
 import Qt.labs.qmlmodels 1.0
 
-import xStudioReskin 1.0
+import xStudio 1.0
 import xstudio.qml.models 1.0
 import ShotBrowser 1.0
 import xstudio.qml.helpers 1.0
@@ -21,6 +21,8 @@ XsPopupMenu {
 
     property var popupSelectionModel
     property var popupDelegateModel
+
+    menu_model_name: "shothistory_menu_"+rightClickMenu
 
     Clipboard {
        id: clipboard
@@ -168,7 +170,7 @@ XsPopupMenu {
         onActivated: helpers.startDetachedProcess("dnenv-do", [helpers.getEnv("SHOW"), helpers.getEnv("SHOT"), "--", "maketransfer"])
 
         Component.onCompleted: {
-            // we need this so the menu model knows where to insert the 
+            // we need this so the menu model knows where to insert the
             // "Transfer Selected" sub menu in the top level menu
             setMenuPathPosition("Transfer Selected", 8.0)
         }

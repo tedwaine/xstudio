@@ -9,7 +9,7 @@ import QtQml.Models 2.14
 import QtQuick.Dialogs 1.3
 import QtGraphicalEffects 1.15
 
-import xStudioReskin 1.0
+import xStudio 1.0
 import xstudio.qml.models 1.0
 import xstudio.qml.helpers 1.0
 import xstudio.qml.bookmarks 1.0
@@ -27,7 +27,7 @@ Item{
     property real toolPropertiesWidthThreshold: 200
 
     property real colSpacing: buttonHeight
-    property real itemSpacing: 1 
+    property real itemSpacing: 1
     property real framePadding: XsStyleSheet.panelPadding/2
     property color toolInactiveTextColor: XsStyleSheet.secondaryTextColor
 
@@ -104,11 +104,11 @@ Item{
     property alias currentTool: active_tool.value
     property alias backgroundColor: text_background_colour.value
     property alias backgroundOpacity: text_background_opacity.value
-    
+
     property var toolSizeAttrName: "Draw Pen Size"
 
     onCurrentToolChanged: {
-        if(currentTool === "Draw")
+        if(currentTool === "Draw" || currentTool === "Laser")
         {
             currentColorPresetModel = drawColourPresetsModel
             toolSizeAttrName = "Draw Pen Size"
@@ -135,7 +135,7 @@ Item{
 
 
     function setPenSize(penSize) {
-        if(currentTool === "Draw")
+        if(currentTool === "Draw" || currentTool === "Laser")
         {
             currentDrawPenSize = penSize
         }
@@ -162,7 +162,7 @@ Item{
     XsGradientRectangle{
         anchors.fill: parent
     }
-    
+
     // We wrap all the widgets in a top level Item that can forward keyboard
     // events back to the viewport for consistent
     Item {
@@ -183,12 +183,11 @@ Item{
             x: toolSelector.x
             y: toolSelector.y + toolSelector.height + colSpacing
 
-            sourceComponent: XsToolProperties{ 
+            sourceComponent: XsToolProperties{
                 root: drawDialog
             }
 
-
-            ColorDialog { 
+            ColorDialog {
                 id: colorDialog
                 title: "Please pick a colour"
                 onAccepted: {
@@ -204,7 +203,7 @@ Item{
                     }
                 }
             }
-            ColorDialog { 
+            ColorDialog {
                 id: bgColorDialog
                 title: "Please pick a BG-Colour"
                 onAccepted: {
@@ -317,7 +316,7 @@ Item{
             y: !isAnyToolSelected?
                 toolProperties.y :
                 toolProperties.y + toolProperties.height + colSpacing
-            
+
             width: parent.width - framePadding
         }
 

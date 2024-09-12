@@ -19,6 +19,7 @@ OCIOColourPipeline::OCIOColourPipeline(
     : ColourPipeline(cfg, init_settings) {
 
     viewport_name_ = init_settings["viewport_name"];
+    window_id_     = init_settings.value("window_id", std::string());
 
     global_controls_ = system().registry().template get<caf::actor>(OCIOGlobalControls::NAME());
     if (!global_controls_) {
@@ -84,18 +85,36 @@ caf::message_handler OCIOColourPipeline::message_handler_extensions() {
                    [=](global_ocio_controls_atom atom,
                        const std::string &attr_title,
                        const int attr_role,
-                       const utility::JsonStore &attr_value) {
+                       const utility::JsonStore &attr_value,
+                       const std::string &window_id) {
+                       // quickview windows DON'T sync OCIO settings
+                       if (window_id_ == "xstudio_quickview_window" ||
+                           window_id == "xstudio_quickview_window")
+                           return;
+
                        auto attr = get_attribute(attr_title);
                        if (attr) {
                            attr->update_role_data_from_json(attr_role, attr_value, false);
+                           redraw_viewport();
                        }
                    },
                    [=](global_ocio_controls_atom atom,
                        const std::string &ocio_config,
                        const std::string &attr_title,
                        const int attr_role,
-                       const utility::JsonStore &attr_value) {
+                       const utility::JsonStore &attr_value,
+                       const std::string &window_id) {
+                       // quickview windows DON'T sync OCIO settings
+                       if (window_id_ == "xstudio_quickview_window" ||
+                           window_id == "xstudio_quickview_window")
+                           return;
+
                        if (ocio_config == current_config_name_) {
+
+                           // we don't sync OCIO Display if it's coming from a different window
+                           if (attr_title == "Display" && window_id != window_id_)
+                               return;
+
                            auto attr = get_attribute(attr_title);
                            if (attr) {
                                attr->update_role_data_from_json(attr_role, attr_value, false);
@@ -223,7 +242,9 @@ void OCIOColourPipeline::register_hotkeys() {
             hotkey_props.key,
             hotkey_props.modifier,
             hotkey_props.name,
-            hotkey_props.description);
+            hotkey_props.description,
+            false,
+            "Viewer");
 
         channel_hotkeys_[hotkey_id] = hotkey_props.channel_name;
     }
@@ -232,32 +253,40 @@ void OCIOColourPipeline::register_hotkeys() {
         int('R'),
         ui::ControlModifier,
         "Reset Colour Viewing Setting",
-        "Resets viewer exposure and channel mode");
+        "Resets viewer exposure and channel mode",
+        false,
+        "Viewer");
 
     exposure_hotkey_ = register_hotkey(
         int('E'),
         ui::NoModifier,
         "Exposure Scrubbing",
         "Hold this key down and click-scrub the mouse pointer left/right in the viewport to "
-        "adjust viewer exposure");
+        "adjust viewer exposure",
+        false,
+        "Viewer");
 
     gamma_hotkey_ = register_hotkey(
         int('Y'),
         ui::NoModifier,
         "Gamma Scrubbing",
         "Hold this key down and click-scrub the mouse pointer left/right in the viewport to "
-        "adjust viewer gamma");
+        "adjust viewer gamma",
+        false,
+        "Viewer");
 
     saturation_hotkey_ = register_hotkey(
         int('S'),
         ui::AltModifier,
         "Saturation Scrubbing",
         "Hold this key down and click-scrub the mouse pointer left/right in the viewport to "
-        "adjust viewer saturation");
+        "adjust viewer saturation",
+        false,
+        "Viewer");
 }
 
 void OCIOColourPipeline::hotkey_pressed(
-    const utility::Uuid &hotkey_uuid, const std::string &context) {
+    const utility::Uuid &hotkey_uuid, const std::string &context, const std::string &window) {
 
     // Ignore hotkey events that have not come from the viewport that this
     // OCIOColourPipeline is connected to.
@@ -531,7 +560,7 @@ void OCIOColourPipeline::setup_ui() {
     display_ = add_string_choice_attribute(ui_text_.DISPLAY, ui_text_.DISPLAY_SHORT);
     display_->set_redraw_viewport_on_change(true);
     display_->set_role_data(
-        module::Attribute::Groups, nlohmann::json{"colour_pipe_attributes"});
+        module::Attribute::UIDataModels, nlohmann::json{"colour_pipe_attributes"});
     display_->set_role_data(module::Attribute::Enabled, true);
     display_->set_role_data(module::Attribute::ToolbarPosition, 10.0f);
     display_->set_role_data(module::Attribute::ToolTip, ui_text_.DISPLAY_TOOLTIP);
@@ -642,7 +671,11 @@ void OCIOColourPipeline::populate_ui(const utility::JsonStore &src_colour_mgmt_m
             scoped_actor sys{system()};
 
             auto stored_config_settings = utility::request_receive<utility::JsonStore>(
-                *sys, global_controls_, global_ocio_controls_atom_v, current_config_name_);
+                *sys,
+                global_controls_,
+                global_ocio_controls_atom_v,
+                current_config_name_,
+                window_id_);
 
             if (stored_config_settings.contains("Display")) {
                 display = stored_config_settings["Display"];
@@ -759,9 +792,10 @@ void OCIOColourPipeline::synchronize_attribute(const utility::Uuid &uuid, int ro
             current_config_name_,
             title,
             role,
-            value);
+            value,
+            window_id_);
     } else {
-        send(global_controls_, global_ocio_controls_atom_v, title, role, value);
+        send(global_controls_, global_ocio_controls_atom_v, title, role, value, window_id_);
     }
 }
 

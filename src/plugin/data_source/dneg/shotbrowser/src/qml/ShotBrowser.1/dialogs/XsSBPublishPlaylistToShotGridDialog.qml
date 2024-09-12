@@ -8,7 +8,7 @@ import Qt.labs.qmlmodels 1.0
 
 import QuickFuture 1.0
 
-import xStudioReskin 1.0
+import xStudio 1.0
 import ShotBrowser 1.0
 import xstudio.qml.helpers 1.0
 
@@ -50,7 +50,7 @@ XsWindow {
 
     XsPreference {
         id: projectPref
-        path: "/plugin/data_source/shotbrowser/browser/project_id"
+        path: "/plugin/data_source/shotbrowser/browser/project"
     }
 
     function updateValidMediaCount(json) {
@@ -89,9 +89,13 @@ XsWindow {
             var data = JSON.parse(json)
             if(data["data"]["id"]){
             	ShotBrowserHelpers.loadShotGridPlaylist(data["data"]["id"], data["data"]["attributes"]["code"])
+            } else {
+                console.log(err)
+                dialogHelpers.errorDialogFunc("Publish Playlist To ShotGrid", "Publishing of Playlist to ShotGrid failed.\n\n" + data)
             }
         } catch(err) {
         	console.log(err)
+            dialogHelpers.errorDialogFunc("Publish Playlist To ShotGrid", "Publishing of Playlist to ShotGrid failed.\n\n" + json)
         }
     }
 
@@ -124,8 +128,9 @@ XsWindow {
 
                 onModelChanged: {
                 	if(model.length) {
-                		project_id = projectPref.value
-					    currentIndex = model.searchRecursive(projectPref.value, "idRole").row
+					    let pid = model.searchRecursive(projectPref.value, "nameRole")
+                        currentIndex = pid.row
+                		project_id = model.get(pid, "idRole")
                 	}
 				}
 

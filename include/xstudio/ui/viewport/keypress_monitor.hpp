@@ -24,7 +24,10 @@ namespace ui {
 
           private:
             caf::behavior make_behavior() override { return behavior_; }
-            void held_keys_changed(const std::string &context, const bool auto_repeat = false);
+            void held_keys_changed(
+                const std::string &context,
+                const bool auto_repeat    = false,
+                const std::string &window = std::string());
 
           protected:
             caf::actor keyboard_events_group_, hotkey_config_events_group_;

@@ -8,7 +8,7 @@ import QtQml 2.15
 import xstudio.qml.bookmarks 1.0
 import QtQml.Models 2.14
 
-import xStudioReskin 1.0
+import xStudio 1.0
 import xstudio.qml.models 1.0
 
 Item{ id: textCategory
@@ -25,10 +25,10 @@ Item{ id: textCategory
         // data are all visible in the XsComboBox instance.
         model: anno_font_options
 
-        XsComboBox { 
-        
+        XsComboBox {
+
             id: dropdownFonts
-    
+
             x: itemSpacing*2
             width: parent.width
             height: buttonHeight
@@ -47,6 +47,6 @@ Item{ id: textCategory
             Component.onCompleted: currentIndex = indexOfValue(value_)
         }
     }
-   
+
 
 }

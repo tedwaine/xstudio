@@ -42,6 +42,8 @@ PlayheadBase::PlayheadBase(const JsonStore &jsn)
     // set_loop(jsn["loop"]);
 }
 
+PlayheadBase::~PlayheadBase() {}
+
 void PlayheadBase::add_attributes() {
 
     compare_mode_ = add_string_choice_attribute("Compare", "Cpm", compare_mode_names);
@@ -92,7 +94,7 @@ void PlayheadBase::add_attributes() {
         module::Attribute::PreferencePath, "/ui/viewport/viewport_scrub_sensitivity");
 
     auto_align_mode_->set_role_data(
-        module::Attribute::Groups, nlohmann::json{"playhead_align_mode"});
+        module::Attribute::UIDataModels, nlohmann::json{"playhead_align_mode"});
 
     velocity_->set_role_data(module::Attribute::ToolbarPosition, 3.0f);
     compare_mode_->set_role_data(module::Attribute::ToolbarPosition, 9.0f);
@@ -103,51 +105,6 @@ void PlayheadBase::add_attributes() {
         module::Attribute::ToolTip,
         "Select viewer Compare Mode. Shift-select multiple Media items to compare them.");
 
-    play_hotkey_ = register_hotkey(
-        int(' '), ui::NoModifier, "Start/Stop Playback", "This hotkey will toggle playback");
-
-    play_forwards_hotkey_ = register_hotkey(
-        int('L'),
-        ui::NoModifier,
-        "Play Forwards, Accellerate",
-        "This hotkey starts forward playback, repeated presses thereon increase the playback "
-        "speed");
-
-    play_backwards_hotkey_ = register_hotkey(
-        int('J'),
-        ui::NoModifier,
-        "Play Backwards, Accellerate",
-        "This hotkey starts backward playback, repeated presses thereon increase the playback "
-        "speed");
-
-    stop_play_hotkey_ =
-        register_hotkey(int('K'), ui::NoModifier, "Stop Playback", "Stops Playback");
-
-    toggle_loop_range_ = register_hotkey(
-        int('P'),
-        ui::NoModifier,
-        "Toggle Loop Range",
-        "Use this hotkey to turn on/off the loop range in/out points that let you loop on a "
-        "specified range in the timeline.");
-
-    set_loop_in_ = register_hotkey(
-        int('I'),
-        ui::NoModifier,
-        "Set Loop In",
-        "Hit this hotkey to set the 'in' point of the loop range.");
-
-    set_loop_out_ = register_hotkey(
-        int('O'),
-        ui::NoModifier,
-        "Set Loop Out",
-        "Hit this hotkey to set the 'out' point of the loop range.");
-
-    step_forward_ = register_hotkey(
-        "Right", "Step Forward", "Steps the playhead forward by one frame.", false);
-
-    step_backward_ = register_hotkey(
-        "Left", "Step Forward", "Steps the playhead forward by one frame.", false);
-
     loop_mode_ = add_string_choice_attribute(
         "Loop Mode", "Loop Mode", "Loop", utility::map_key_to_vec(loop_modes_));
 
@@ -156,6 +113,8 @@ void PlayheadBase::add_attributes() {
     playhead_logical_frame_ = add_integer_attribute("Logical Frame", "Logical Frame", 0);
     playhead_position_seconds_ =
         add_float_attribute("Position Seconds", "Position Seconds", 0.0);
+    playhead_position_flicks_ = add_integer_attribute("Position Flicks", "Position Flicks", 0);
+
     playhead_rate_attr_ = add_float_attribute("Frame Rate", "Frame Rate", 24.0);
     playhead_media_logical_frame_ =
         add_integer_attribute("Media Logical Frame", "Media Logical Frame", 0);
@@ -165,6 +124,8 @@ void PlayheadBase::add_attributes() {
     cached_frames_        = add_int_vec_attribute("Cached Frames");
     bookmarked_frames_    = add_int_vec_attribute("Bookmarked Frames");
 
+    media_transition_frames_ = add_int_vec_attribute("Media Transition Frames");
+
     current_frame_timecode_ = add_string_attribute("Timecode", "Timecode", "");
 
     current_frame_timecode_as_frame_ =
@@ -173,7 +134,8 @@ void PlayheadBase::add_attributes() {
     current_media_uuid_ = add_string_attribute("Current Media Uuid", "Current Media Uuid", "");
     current_media_source_uuid_ =
         add_string_attribute("Current Media Source Uuid", "Current Media Source Uuid", "");
-    loop_range_enabled_ = add_boolean_attribute("Enable Loop Range", "Enable Loop Range", true);
+    loop_range_enabled_ =
+        add_boolean_attribute("Enable Loop Range", "Enable Loop Range", false);
 
     user_is_frame_scrubbing_ =
         add_boolean_attribute("User Is Frame Scrubbing", "User Is Frame Scrubbing", false);
@@ -186,11 +148,14 @@ void PlayheadBase::add_attributes() {
     audio_delay_millisecs_->set_role_data(module::Attribute::ToolbarPosition, 20.0f);
     audio_delay_millisecs_->set_role_data(module::Attribute::DefaultValue, 0);
     key_playhead_index_ = add_integer_attribute("Key Playhead Index", "Key Playhead Index", 0);
-
+    num_sub_playheads_  = add_integer_attribute("Num Sub Playheads", "Num Sub Playheads", 0);
     click_to_toggle_play_ =
         add_boolean_attribute("Click to Toggle Play", "Play on Click", false);
     click_to_toggle_play_->set_role_data(
         module::Attribute::PreferencePath, "/ui/qml/click_to_toggle_play");
+
+    source_offset_frames_ =
+        add_integer_attribute("Source Offset Frames", "Source Offset Frames", 0);
 }
 
 
@@ -280,6 +245,74 @@ PlayheadBase::OptionalTimePoint PlayheadBase::play_step() {
     return {};
 }
 
+void PlayheadBase::register_hotkeys() {
+
+    play_hotkey_ = register_hotkey(
+        int(' '),
+        ui::NoModifier,
+        "Start/Stop Playback",
+        "This hotkey will toggle playback",
+        false,
+        "Playback");
+
+    play_forwards_hotkey_ = register_hotkey(
+        int('L'),
+        ui::NoModifier,
+        "Play Forwards, Accellerate",
+        "This hotkey starts forward playback, repeated presses thereon increase the playback "
+        "speed",
+        false,
+        "Playback");
+
+    play_backwards_hotkey_ = register_hotkey(
+        int('J'),
+        ui::NoModifier,
+        "Play Backwards, Accellerate",
+        "This hotkey starts backward playback, repeated presses thereon increase the playback "
+        "speed",
+        false,
+        "Playback");
+
+    stop_play_hotkey_ = register_hotkey(
+        int('K'), ui::NoModifier, "Stop Playback", "Stops Playback", false, "Playback");
+
+    toggle_loop_range_ = register_hotkey(
+        int('P'),
+        ui::NoModifier,
+        "Toggle Loop Range",
+        "Use this hotkey to turn on/off the loop range in/out points that let you loop on a "
+        "specified range in the timeline.",
+        false,
+        "Playback");
+
+    set_loop_in_ = register_hotkey(
+        int('I'),
+        ui::NoModifier,
+        "Set Loop to In Frame",
+        "Hit this hotkey to set the 'in' frame of the loop range.",
+        false,
+        "Playback");
+
+    set_loop_out_ = register_hotkey(
+        int('O'),
+        ui::NoModifier,
+        "Set Loop to Out Frame",
+        "Hit this hotkey to set the 'out' frame of the loop range.",
+        false,
+        "Playback");
+
+    step_forward_ = register_hotkey(
+        "Right", "Step Forward", "Steps the playhead forward by one frame.", false, "Playback");
+
+    step_backward_ = register_hotkey(
+        "Left",
+        "Step Backward",
+        "Steps the playhead backward by one frame.",
+        false,
+        "Playback");
+}
+
+
 timebase::flicks PlayheadBase::adjusted_position() const {
     if (!playing())
         return position_;
@@ -292,6 +325,10 @@ timebase::flicks PlayheadBase::adjusted_position() const {
                                     : timebase::flicks(0);
     const timebase::flicks out =
         use_loop_range() and loop_end_ != timebase::k_flicks_max ? loop_end_ : duration_;
+
+    if (out <= in) {
+        return in;
+    }
 
     // somewhat fiddly - we are advancing the position by 'delta' but what if
     // this wraps through the in/out points ... and what if it wraps more than
@@ -532,7 +569,10 @@ bool PlayheadBase::set_loop_start(const timebase::flicks loop_start) {
         set_position(loop_start_);
         position_changed = true;
     }
-    set_use_loop_range(true);
+
+    if (loop_start_ != timebase::k_flicks_low) {
+        set_use_loop_range(true);
+    }
 
     return position_changed;
 }
@@ -550,7 +590,10 @@ bool PlayheadBase::set_loop_end(const timebase::flicks loop_end) {
         set_position(loop_end_);
         position_changed = true;
     }
-    set_use_loop_range(true);
+
+    if (loop_end_ != timebase::k_flicks_max) {
+        set_use_loop_range(true);
+    }
 
     return position_changed;
 }
@@ -686,7 +729,7 @@ void PlayheadBase::play_faster(const bool forwards) {
 }
 
 void PlayheadBase::hotkey_pressed(
-    const utility::Uuid &hotkey_uuid, const std::string &context) {
+    const utility::Uuid &hotkey_uuid, const std::string &context, const std::string &window) {
 
     // If the context starts with 'viewport' the hotkey was hit while a viewport
     // had mouse focus. If that viewport is NOT attached to this playhead we
@@ -746,19 +789,31 @@ void PlayheadBase::connect_to_viewport(
         // multiple viewports, there can be multiple menu items active in the UI.
         // We get a callback
 
+        // Divider
+        insert_menu_item(viewport_context_menu_model_name, "", "", 4.5f, nullptr, true);
+
         insert_menu_item(
             viewport_context_menu_model_name,
-            "Set Loop In",
+            "Set Loop",
             "",
-            4.0f,
+            5.0f,
+            nullptr,
+            false);
+
+        insert_menu_item(
+            viewport_context_menu_model_name,
+            "In Frame",
+            "Set Loop",
+            1.0f,
             nullptr,
             false,
             set_loop_in_);
+
         insert_menu_item(
             viewport_context_menu_model_name,
-            "Set Loop Out",
-            "",
-            4.0f,
+            "Out Frame",
+            "Set Loop",
+            2.0f,
             nullptr,
             false,
             set_loop_out_);
@@ -767,11 +822,10 @@ void PlayheadBase::connect_to_viewport(
             viewport_context_menu_model_name,
             "Enable Loop",
             "",
-            6.0f,
+            7.0f,
             loop_range_enabled_,
             false,
             toggle_loop_range_);
-        insert_menu_item(viewport_context_menu_model_name, "", "", 6.5f, nullptr, true);
 
 
     } else {
@@ -795,12 +849,12 @@ void PlayheadBase::menu_item_activated(
     const utility::JsonStore &menu_item_data, const std::string &user_data) {
     // use the hotkey handling that's set-up in PlayheadActor
 
-    if (menu_item_data["name"] == "Set Loop In") {
+    if (menu_item_data["name"] == "In Frame") {
 
-        hotkey_pressed(set_loop_in_, "");
+        hotkey_pressed(set_loop_in_, "", "");
 
-    } else if (menu_item_data["name"] == "Set Loop Out") {
+    } else if (menu_item_data["name"] == "Out Frame") {
 
-        hotkey_pressed(set_loop_out_, "");
+        hotkey_pressed(set_loop_out_, "", "");
     }
 }

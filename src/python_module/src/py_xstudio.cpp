@@ -119,7 +119,7 @@ PYBIND11_MODULE(__pybind_xstudio, m) {
         .value("DefaultValue", module::Attribute::Role::DefaultValue)
         .value("AbbrValue", module::Attribute::Role::AbbrValue)
         .value("UuidRole", module::Attribute::Role::UuidRole)
-        .value("Groups", module::Attribute::Role::Groups)
+        .value("UIDataModels", module::Attribute::Role::UIDataModels)
         .value("MenuPaths", module::Attribute::Role::MenuPaths)
         .value("ToolbarPosition", module::Attribute::Role::ToolbarPosition)
         .value("OverrideValue", module::Attribute::Role::OverrideValue)

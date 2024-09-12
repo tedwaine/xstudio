@@ -127,23 +127,12 @@ ShotBrowser::ShotBrowser(caf::actor_config &cfg, const utility::JsonStore &init_
     // here's the code where we register our interface as an xSTUDIO 'panel'
     // that can be selected in the UI
 
-    register_ui_panel_qml(
-        "Shot History",
-        R"(
-            import ShotBrowser 1.0
-            ShotHistory {
-                anchors.fill: parent
-            }
-        )");
 
-    register_ui_panel_qml(
-        "Notes History",
-        R"(
-            import ShotBrowser 1.0
-            NotesHistory {
-                anchors.fill: parent
-            }
-        )");
+    auto show_shotbrowser = register_hotkey(
+        int('S'),
+        ui::NoModifier,
+        "Show ShotBrowser panel",
+        "Shows or hides the pop-out Shotbrowser Plugin Panel");
 
     register_ui_panel_qml(
         "Shot Browser",
@@ -152,7 +141,32 @@ ShotBrowser::ShotBrowser(caf::actor_config &cfg, const utility::JsonStore &init_
             ShotBrowserRoot {
                 anchors.fill: parent
             }
-        )");
+        )",
+        "qrc:/icons/cloud-download.svg",
+        5.0f,
+        show_shotbrowser);
+
+    register_ui_panel_qml(
+        "Notes History",
+        R"(
+            import ShotBrowser 1.0
+            NotesHistory {
+                anchors.fill: parent
+            }
+        )",
+        "qrc:/shotbrowser_icons/note_history.svg",
+        6.0f);
+
+    register_ui_panel_qml(
+        "Shot History",
+        R"(
+            import ShotBrowser 1.0
+            ShotHistory {
+                anchors.fill: parent
+            }
+        )",
+        "qrc:/shotbrowser_icons/shot_history.svg",
+        7.0f);
 
     // new method for instantiating a 'singleton' qml item which can
     // do a one-time insertion of menu items into any menu model
@@ -275,7 +289,7 @@ void ShotBrowser::add_attributes() {
     // playlist_notes_action_->set_role_data(
     //     module::Attribute::Title, "Publish Playlist Notes...");
     // playlist_notes_action_->set_role_data(
-    //     module::Attribute::Groups, nlohmann::json{"shotgun_datasource_menu"});
+    //     module::Attribute::UIDataModels, nlohmann::json{"shotgun_datasource_menu"});
     // playlist_notes_action_->set_role_data(
     //     module::Attribute::MenuPaths, std::vector<std::string>({"publish_menu|ShotGrid"}));
 
@@ -284,7 +298,7 @@ void ShotBrowser::add_attributes() {
     // selected_notes_action_->set_role_data(
     //     module::Attribute::Title, "Publish Selected Notes...");
     // selected_notes_action_->set_role_data(
-    //     module::Attribute::Groups, nlohmann::json{"shotgun_datasource_menu"});
+    //     module::Attribute::UIDataModels, nlohmann::json{"shotgun_datasource_menu"});
     // selected_notes_action_->set_role_data(
     //     module::Attribute::MenuPaths, std::vector<std::string>({"publish_menu|ShotGrid"}));
 
@@ -306,21 +320,21 @@ void ShotBrowser::add_attributes() {
         module::Attribute::UuidRole, "fff5d3e7-06c1-432b-b89d-f78f695f84e7");
 
     authentication_method_->set_role_data(
-        module::Attribute::Groups, nlohmann::json{"shotbrowser_datasource_preference"});
+        module::Attribute::UIDataModels, nlohmann::json{"shotbrowser_datasource_preference"});
     client_id_->set_role_data(
-        module::Attribute::Groups, nlohmann::json{"shotbrowser_datasource_preference"});
+        module::Attribute::UIDataModels, nlohmann::json{"shotbrowser_datasource_preference"});
     client_secret_->set_role_data(
-        module::Attribute::Groups, nlohmann::json{"shotbrowser_datasource_preference"});
+        module::Attribute::UIDataModels, nlohmann::json{"shotbrowser_datasource_preference"});
     username_->set_role_data(
-        module::Attribute::Groups, nlohmann::json{"shotbrowser_datasource_preference"});
+        module::Attribute::UIDataModels, nlohmann::json{"shotbrowser_datasource_preference"});
     password_->set_role_data(
-        module::Attribute::Groups, nlohmann::json{"shotbrowser_datasource_preference"});
+        module::Attribute::UIDataModels, nlohmann::json{"shotbrowser_datasource_preference"});
     session_token_->set_role_data(
-        module::Attribute::Groups, nlohmann::json{"shotbrowser_datasource_preference"});
+        module::Attribute::UIDataModels, nlohmann::json{"shotbrowser_datasource_preference"});
     authenticated_->set_role_data(
-        module::Attribute::Groups, nlohmann::json{"shotbrowser_datasource_preference"});
+        module::Attribute::UIDataModels, nlohmann::json{"shotbrowser_datasource_preference"});
     timeout_->set_role_data(
-        module::Attribute::Groups, nlohmann::json{"shotbrowser_datasource_preference"});
+        module::Attribute::UIDataModels, nlohmann::json{"shotbrowser_datasource_preference"});
 
     authentication_method_->set_role_data(
         module::Attribute::ToolTip, "ShotGrid authentication method.");
@@ -500,7 +514,7 @@ caf::message_handler ShotBrowser::message_handler_extensions() {
              const std::string &entity,
              const int record_id,
              const std::vector<std::string> &fields) {
-             delegate(shotgun_, atom, entity, record_id, fields);
+             delegate(shotgun_, atom, entity, record_id, extend_fields(entity, fields));
          },
 
          [=](shotgun_entity_filter_atom atom,
@@ -508,7 +522,7 @@ caf::message_handler ShotBrowser::message_handler_extensions() {
              const JsonStore &filter,
              const std::vector<std::string> &fields,
              const std::vector<std::string> &sort) {
-             delegate(shotgun_, atom, entity, filter, fields, sort);
+             delegate(shotgun_, atom, entity, filter, extend_fields(entity, fields), sort);
          },
 
          [=](shotgun_entity_filter_atom atom,
@@ -518,7 +532,15 @@ caf::message_handler ShotBrowser::message_handler_extensions() {
              const std::vector<std::string> &sort,
              const int page,
              const int page_size) {
-             delegate(shotgun_, atom, entity, filter, fields, sort, page, page_size);
+             delegate(
+                 shotgun_,
+                 atom,
+                 entity,
+                 filter,
+                 extend_fields(entity, fields),
+                 sort,
+                 page,
+                 page_size);
          },
 
          [=](shotgun_schema_entity_fields_atom atom,
@@ -533,7 +555,15 @@ caf::message_handler ShotBrowser::message_handler_extensions() {
              const std::vector<std::string> &sort,
              const int page,
              const int page_size) {
-             delegate(shotgun_, atom, entity, conditions, fields, sort, page, page_size);
+             delegate(
+                 shotgun_,
+                 atom,
+                 entity,
+                 conditions,
+                 extend_fields(entity, fields),
+                 sort,
+                 page,
+                 page_size);
          },
 
          [=](shotgun_text_search_atom atom,
@@ -908,7 +938,6 @@ void ShotBrowser::update_preferences(const JsonStore &js) {
         auto timeout =
             preference_value<int>(js, "/plugin/data_source/shotbrowser/server/timeout");
 
-
         auto cache_dir = expand_envvars(
             preference_value<std::string>(js, "/plugin/data_source/shotbrowser/download/path"));
         auto cache_size =
@@ -917,6 +946,27 @@ void ShotBrowser::update_preferences(const JsonStore &js) {
         download_cache_.prune_on_exit(true);
         download_cache_.target(cache_dir, true);
         download_cache_.max_size(cache_size * 1024 * 1024 * 1024);
+
+        auto version_fields =
+            preference_value<JsonStore>(js, "/plugin/data_source/shotbrowser/fields/version");
+        auto note_fields =
+            preference_value<JsonStore>(js, "/plugin/data_source/shotbrowser/fields/note");
+        auto shot_fields =
+            preference_value<JsonStore>(js, "/plugin/data_source/shotbrowser/fields/shot");
+        auto playlist_fields =
+            preference_value<JsonStore>(js, "/plugin/data_source/shotbrowser/fields/playlist");
+
+        version_fields_.clear();
+        note_fields_.clear();
+        shot_fields_.clear();
+        playlist_fields_.clear();
+
+        version_fields_.insert(
+            version_fields_.end(), version_fields.begin(), version_fields.end());
+        note_fields_.insert(note_fields_.end(), note_fields.begin(), note_fields.end());
+        shot_fields_.insert(shot_fields_.end(), shot_fields.begin(), shot_fields.end());
+        playlist_fields_.insert(
+            playlist_fields_.end(), playlist_fields.begin(), playlist_fields.end());
 
         auto category = preference_value<JsonStore>(js, "/core/bookmark/category");
         category_colours_.clear();
@@ -1154,7 +1204,8 @@ void ShotBrowser::add_media_to_playlist(
                 request_receive<utility::Uuid>(*sys, playlist, utility::uuid_atom_v);
         } catch (const std::exception &err) {
             spdlog::warn("{} {}", __PRETTY_FUNCTION__, err.what());
-            playlist = caf::actor();
+            playlist      = caf::actor();
+            playlist_uuid = Uuid();
         }
     }
 
@@ -1183,8 +1234,11 @@ void ShotBrowser::add_media_to_playlist(
                 system().registry().template get<caf::actor>(global_registry),
                 session::session_atom_v);
 
-            playlist_uuid = utility::Uuid::generate();
-            playlist = spawn<playlist::PlaylistActor>("ShotGrid Media", playlist_uuid, session);
+            auto tmp = request_receive<std::pair<utility::Uuid, UuidActor>>(
+                *sys, session, session::add_playlist_atom_v, "ShotGrid Media");
+
+            playlist_uuid = tmp.second.uuid();
+            playlist      = tmp.second.actor();
         } catch (const std::exception &err) {
             spdlog::error("{} {}", __PRETTY_FUNCTION__, err.what());
         }
@@ -1579,18 +1633,41 @@ void ShotBrowser::do_add_media_sources_from_ivy(
                         .then(
                             [=](const std::vector<std::pair<utility::Uuid, std::string>>
                                     &names) {
-                                auto name = std::string("movie_dneg");
+                                auto name = std::string();
+
                                 for (const auto &i : names) {
                                     if (i.second ==
-                                        ivy_media_task_data->preferred_visual_source_)
+                                        ivy_media_task_data->preferred_visual_source_) {
                                         name = i.second;
+                                        break;
+                                    }
                                 }
-                                anon_send(
-                                    ivy_media_task_data->media_actor_,
-                                    playhead::media_source_atom_v,
-                                    name,
-                                    media::MT_IMAGE,
-                                    true);
+
+                                if (name.empty()) {
+                                    for (const auto &i : names) {
+                                        if (i.second == "movie_dneg") {
+                                            name = i.second;
+                                            break;
+                                        }
+                                    }
+                                }
+
+                                if (name.empty()) {
+                                    for (const auto &i : names) {
+                                        if (i.second == "SG Movie") {
+                                            name = i.second;
+                                            break;
+                                        }
+                                    }
+                                }
+
+                                if (not name.empty())
+                                    anon_send(
+                                        ivy_media_task_data->media_actor_,
+                                        playhead::media_source_atom_v,
+                                        name,
+                                        media::MT_IMAGE,
+                                        true);
                             },
                             [=](error &err) {
                                 spdlog::warn("{} {}", __PRETTY_FUNCTION__, to_string(err));
@@ -1604,18 +1681,41 @@ void ShotBrowser::do_add_media_sources_from_ivy(
                         .then(
                             [=](const std::vector<std::pair<utility::Uuid, std::string>>
                                     &names) {
-                                auto name = std::string("movie_dneg");
+                                auto name = std::string();
+
                                 for (const auto &i : names) {
                                     if (i.second ==
-                                        ivy_media_task_data->preferred_audio_source_)
+                                        ivy_media_task_data->preferred_audio_source_) {
                                         name = i.second;
+                                        break;
+                                    }
                                 }
-                                anon_send(
-                                    ivy_media_task_data->media_actor_,
-                                    playhead::media_source_atom_v,
-                                    name,
-                                    media::MT_AUDIO,
-                                    true);
+
+                                if (name.empty()) {
+                                    for (const auto &i : names) {
+                                        if (i.second == "movie_dneg") {
+                                            name = i.second;
+                                            break;
+                                        }
+                                    }
+                                }
+
+                                if (name.empty()) {
+                                    for (const auto &i : names) {
+                                        if (i.second == "SG Movie") {
+                                            name = i.second;
+                                            break;
+                                        }
+                                    }
+                                }
+
+                                if (not name.empty())
+                                    anon_send(
+                                        ivy_media_task_data->media_actor_,
+                                        playhead::media_source_atom_v,
+                                        name,
+                                        media::MT_AUDIO,
+                                        true);
                             },
                             [=](error &err) {
                                 spdlog::warn("{} {}", __PRETTY_FUNCTION__, to_string(err));
@@ -1698,6 +1798,21 @@ void ShotBrowser::do_add_media_sources_from_ivy(
         spdlog::warn("{} {}", __PRETTY_FUNCTION__, err.what());
         continue_processing_job_queue();
     }
+}
+
+std::vector<std::string> ShotBrowser::extend_fields(
+    const std::string &entity, const std::vector<std::string> &fields) const {
+
+    if (entity == "Notes" and fields == NoteFields)
+        return concatenate_vector(fields, note_fields_);
+    else if (entity == "Versions" and fields == VersionFields)
+        return concatenate_vector(fields, version_fields_);
+    else if (entity == "Shots" and fields == ShotFields)
+        return concatenate_vector(fields, shot_fields_);
+    else if (entity == "Playlists" and fields == PlaylistFields)
+        return concatenate_vector(fields, playlist_fields_);
+
+    return fields;
 }
 
 
