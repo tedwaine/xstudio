@@ -92,6 +92,13 @@ namespace ui::qml {
 
         Q_INVOKABLE QModelIndex getPresetGroup(const QModelIndex &index) const;
 
+        Q_INVOKABLE QFuture<QString> exportAsSystemPresetsFuture(
+            const QUrl &path, const QModelIndex &index = QModelIndex()) const;
+        Q_INVOKABLE QString exportAsSystemPresets(
+            const QUrl &path, const QModelIndex &index = QModelIndex()) const {
+            return exportAsSystemPresetsFuture(path, index).result();
+        }
+
         void updateTermModel(const std::string &key, const bool cache);
 
       signals:

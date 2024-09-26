@@ -35,14 +35,15 @@ RowLayout {
 
 	property bool isBothHovered: false
 
-    property bool isAdjustingStart: false
-    property int adjustStart: 0
-	property int startFrame: isAdjustingStart ? trimmedStartRole + adjustStart : trimmedStartRole
+	property int adjustDuration: "adjust_duration" in userDataRole ? userDataRole.adjust_duration : 0
+	property bool isAdjustingDuration: "is_adjusting_duration" in userDataRole ? userDataRole.is_adjusting_duration : false
+	property int adjustStart: "adjust_start" in userDataRole ? userDataRole.adjust_start : 0
+	property bool isAdjustingStart: "is_adjusting_start" in userDataRole ? userDataRole.is_adjusting_start : false
 
-    property bool isAdjustingDuration: false
-    property int adjustDuration: 0
+	property int startFrame: isAdjustingStart ? trimmedStartRole + adjustStart : trimmedStartRole
 	property int durationFrame: isAdjustingDuration ? trimmedDurationRole + adjustDuration : trimmedDurationRole
-	property int currentStartRole: trimmedStartRole
+
+	property int currentDurationFrame: trimmedDurationRole
 	property real fps: rateFPSRole
 
 	property var timelineSelection: config.timelineSelection
@@ -117,12 +118,19 @@ RowLayout {
 
 	function adjust(offset) {
 		let doffset = offset
+		let tmp = userDataRole
+
 		if(isAdjustingStart) {
-			adjustStart = offset
+			tmp.adjust_start = offset
 			doffset = -doffset
 		}
+
 		if(isAdjustingDuration) {
-			adjustDuration = doffset
+			tmp.adjust_duration = doffset
+		}
+
+		if(isAdjustingDuration || isAdjustingStart) {
+			userDataRole = tmp
 		}
 	}
 
@@ -166,10 +174,14 @@ RowLayout {
 
 
     function updateStart(change) {
-		adjustStart = Math.floor(Math.min(
+		let tmp = userDataRole
+
+		tmp.adjust_start = Math.floor(Math.min(
 			Math.max(trimmedStartRole + change, availableStartRole),
 			availableStartRole + availableDurationRole - trimmedDurationRole
 		) - trimmedStartRole)
+
+		userDataRole = tmp
     }
 
 	XsGapItem {
@@ -210,7 +222,6 @@ RowLayout {
 		// }
 		// fps: control.fps
 		name: !isDragging ? nameRole : isAdjustingStart ? (adjustStart > 0 ? "+" + adjustStart : adjustStart) : (adjustDuration > 0 ? "+" + adjustDuration : adjustDuration)
-		// parentStart: parentStartRole
 		availableStart: availableStartRole
 		availableDuration: availableDurationRole
 		primaryColor: itemFlag != "" ?  itemFlag : defaultClip
@@ -230,13 +241,13 @@ RowLayout {
 	    }
 
 	    onDraggingStarted: {
-	    	control.draggingStarted(control, mode)
+	    	control.draggingStarted(modelIndex(), control, mode)
 	    	isDragging = true
 	    }
-		onDragging: control.dragging(control, mode, x / scaleX)
+		onDragging: control.dragging(modelIndex(), control, mode, x / scaleX)
 		onDoubleTapped: control.doubleTapped(control, mode)
 		onDraggingStopped: {
-			control.draggingStopped(control, mode)
+			control.draggingStopped(modelIndex(), control, mode)
 	    	isDragging = false
 		}
 

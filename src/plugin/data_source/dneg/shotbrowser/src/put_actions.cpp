@@ -137,12 +137,19 @@ void ShotBrowser::update_playlist_versions(
                     }
 
 
-                    if (pl_id != playlist_id)
+                    if (pl_id != playlist_id) {
                         anon_send(
                             playlist,
                             json_store::set_json_atom_v,
                             JsonStore(result["data"]),
                             ShotgunMetadataPath + "/playlist");
+
+                        anon_send(
+                            playlist,
+                            json_store::set_json_atom_v,
+                            JsonStore(nlohmann::json("qrc:/shotbrowser_icons/shot_grid.svg")),
+                            "/ui/decorators/shotgrid");
+                    }
                     rp.deliver(result);
                 },
                 [=](error &err) mutable {

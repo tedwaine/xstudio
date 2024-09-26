@@ -31,10 +31,18 @@ ApplicationWindow {
 
     property var mediaSourceUuid: appWindow.viewport.viewportPlayhead.mediaSourceUuid
     onMediaSourceUuidChanged: {
-        media_source_data.index = theSessionData.searchRecursive(mediaSourceUuid, "actorUuidRole")
+        set_index(0)
     }
     XsModelPropertyMap {
         id: media_source_data
+    }
+    function set_index(retry) {
+        media_source_data.index = theSessionData.searchRecursive(mediaSourceUuid, "actorUuidRole")
+        if (!media_source_data.index.valid && retry < 4) {
+            callbackTimer.setTimeout(function(r) { return function() {
+                set_index(r+1)
+            }}(retry), 200);
+        }
     }
 
     onClosing: {
@@ -59,7 +67,10 @@ ApplicationWindow {
     // child items might expect a user_data property to be in context - normally
     // it comes from the panels layout model so panels can store persistent
     // data, but for quickwindows we don't need to store anything.
-    property var user_data
+    property var user_data: uiLayoutsModel.retrieveFloatingWindowData("quickview_window")
+    onUser_dataChanged: {
+        uiLayoutsModel.storeFloatingWindowData("quickview_window", user_data)
+    }
 
     function checkMenuYPosition(refItem, h, refX, refY) {
         var ypos = refItem.mapToItem(
@@ -127,6 +138,7 @@ ApplicationWindow {
 
     property bool popoutIsOpen: false
     property bool isPopoutViewer: true
+    property bool isQuickview: true
 
     XsViewportPanel {
         id: viewportPanel

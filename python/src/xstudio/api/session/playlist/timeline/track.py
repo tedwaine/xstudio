@@ -102,20 +102,6 @@ class Track(Item):
         """
         return self.connection.request_receive(self.remote, move_item_atom(), start, count, dest)[0]
 
-    @property
-    def children(self):
-        """Get children.
-
-        Returns:
-            children([Gap/Track/Clip/Stack]): Children.
-        """
-        children = []
-
-        for i in self.item.children():
-            children.append(create_item_container(self.connection, i))
-
-        return children
-
     def children_of_type(self, types):
         """Get children matching types.
 

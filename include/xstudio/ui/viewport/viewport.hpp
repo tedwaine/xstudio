@@ -90,6 +90,26 @@ namespace ui {
             }
 
             /**
+             *  @brief Render the viewport, for a specific display time measured as a system
+             *  clock timepoint.
+             *
+             *  @details Renders the image data into some initialised graphics resource (e.g.
+             *  an active OpenGL context), allowing an adjustment to the playhead position to
+             *  account for a display pipeline delay. For example, if this viewport is an
+             *  offscreen viewport that delivers an image to be displayed on an SDI device
+             *  like a projector, and the buffering in the SDI card results in a 250ms delay
+             *  then 'when_going_on_screen' should be clock::now() + milliseconds(250)
+             */
+            void render(const utility::time_point &when_going_on_screen) {
+                std::vector<media_reader::ImageBufPtr> next_images;
+                get_frames_for_display(next_images, false, when_going_on_screen);
+                if (!next_images.empty())
+                    update_onscreen_frame_info(next_images[0]);
+                the_renderer_->render(
+                    next_images, to_scene_matrix(), projection_matrix(), fit_mode_matrix());
+            }
+
+            /**
              *  @brief Render the viewport with a given image
              *
              *  @details Render the image data into some initialised graphics resource (e.g.
@@ -257,6 +277,8 @@ namespace ui {
             void set_aux_shader_uniforms(
                 const utility::JsonStore &j, const bool clear_and_overwrite = false);
 
+            void set_visibility(bool is_visible) { is_visible_ = is_visible; }
+
           protected:
             void register_hotkeys() override;
 
@@ -289,7 +311,8 @@ namespace ui {
              */
             void get_frames_for_display(
                 std::vector<media_reader::ImageBufPtr> &next_images,
-                const bool force_playhead_sync = false);
+                const bool force_playhead_sync                  = false,
+                const utility::time_point &when_being_displayed = utility::time_point());
 
             void instance_overlay_plugins();
 
@@ -371,9 +394,10 @@ namespace ui {
             ChangeCallback event_callback_;
 
           protected:
-            utility::Uuid current_playhead_, new_playhead_;
-            bool done_init_ = {false};
-            bool playing_   = {false};
+            utility::Uuid current_key_sub_playhead_id_, new_playhead_;
+            bool done_init_  = {false};
+            bool playing_    = {false};
+            bool is_visible_ = {false};
             std::set<int> held_keys_;
             Imath::Box2f image_bounds_in_viewport_pixels_;
 
@@ -392,6 +416,7 @@ namespace ui {
             module::StringChoiceAttribute *hud_elements_;
             module::StringAttribute *frame_rate_expr_;
             module::StringAttribute *custom_cursor_name_;
+            module::IntegerAttribute *sync_to_main_viewport_;
 
             utility::Uuid zoom_hotkey_;
             utility::Uuid pan_hotkey_;

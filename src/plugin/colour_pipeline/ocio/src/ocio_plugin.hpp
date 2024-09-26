@@ -46,7 +46,7 @@ class OCIOColourPipeline : public ColourPipeline {
 
     virtual ~OCIOColourPipeline() override;
 
-    std::string fast_display_transform_hash(const media::AVFrameID &media_ptr) override;
+    size_t fast_display_transform_hash(const media::AVFrameID &media_ptr) override;
 
     /* Create the ColourOperationDataPtr containing the necessary LUT and
     shader data for linearising the source colourspace RGB data from the

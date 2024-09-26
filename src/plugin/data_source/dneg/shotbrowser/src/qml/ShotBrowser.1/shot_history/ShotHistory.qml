@@ -84,21 +84,15 @@ Item{
     }
 
     function setIndexFromPreference() {
-        if(ShotBrowserEngine.ready  && prefs.initialised && !activeScopeIndex.valid && (shotScopePref.value || prefs.scope)) {
+        if(ShotBrowserEngine.ready  && !activeScopeIndex.valid && prefs.scope) {
             // from panel.
             if(prefs.scope != undefined) {
                 let i = getScopeIndex(prefs.scope)
                 if(i.valid && activeScopeIndex != i)
                     activeScopeIndex = i
             }
-
-            // from settings.
-            if(!activeScopeIndex.valid) {
-                let i = getScopeIndex(shotScopePref.value)
-                if(i.valid && activeScopeIndex != i)
-                    activeScopeIndex = i
-            }
         }
+        runQuery()
     }
     function getScopeIndex(scope_name) {
         let m = ShotBrowserEngine.presetsModel
@@ -106,21 +100,10 @@ Item{
         return m.searchRecursive(scope_name, "nameRole", p, 0, 0)
     }
 
-    XsPreference {
-        id: shotScopePref
-        path: "/plugin/data_source/shotbrowser/shot_history/scope"
-    }
-
-    XsPreference {
-        id: popoutPref
-        path: "/plugin/data_source/shotbrowser/shot_history/popout"
-    }
-
     onActiveScopeIndexChanged: {
         if(activeScopeIndex && activeScopeIndex.valid) {
             let m = activeScopeIndex.model
             let i = m.get(activeScopeIndex, "nameRole")
-            shotScopePref.value = i
             prefs.scope = i
         }
     }
@@ -161,38 +144,18 @@ Item{
 
     Item {
         // Hold properties that we want to persist between sessions.
-        // The 'user_data' property is provided by the model data that
-        // instantiates this item and we can access directly
         id: prefs
         property string scope: ""
+
+        XsStoredPanelProperties {
+            propertyNames: ["scope"]
+            onPropertiesInitialised: {
+                prefs.initialised = true
+                setIndexFromPreference()
+            }
+        }
         property bool initialised: false
 
-        property var store: {
-            "scope": scope
-        }
-
-        onStoreChanged: {
-            // push these prefs values to user_data so they get stored
-            // in the user's preference files for next time
-            if (initialised) {
-                if(isPopout) {
-                    popoutPref.value = store
-                } else {
-                    user_data = store
-                }
-            }
-        }
-
-        Component.onCompleted: {
-            // one time initialise from user_data if it is not empty
-            if (typeof user_data == "object") {
-                if (user_data.scope) scope = user_data.scope
-            } else if(isPopout) {
-                if (popoutPref.value.scope) scope = popoutPref.value.scope
-            }
-            initialised = true
-            setIndexFromPreference()
-        }
     }
 
     function runQuery() {

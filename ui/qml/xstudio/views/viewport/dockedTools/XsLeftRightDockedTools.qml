@@ -10,9 +10,11 @@ XsListView {
 
     id: row
     orientation: ListView.Horizontal
+    interactive: false
+
     property string placement: "left"
     property var dockedWidgetsModel
-    interactive: false
+    property real framePadding: XsStyleSheet.panelPadding/2
 
     model: delegate_model
 
@@ -84,11 +86,19 @@ XsListView {
             height: row.height
             property var widgetName: widget_name
             property var dynamic_widget
-            onWidthChanged: {
-                console.log("FOOP", widgetName, width)
-            }
-            onWidgetNameChanged: {
-                var idx = dockables.searchRecursive(widgetName, "title")
+            onWidgetNameChanged: load_widget(0)
+            
+            function load_widget(attempt) {
+                var idx = dockables.searchRecursive(widgetName, "title")                
+                if (!idx.valid && attempt < 10) {
+                    callbackTimer.setTimeout(function() { return function() {
+                        load_widget(attempt+1)
+                    }}(), 500);
+                    return
+                } else if (!idx.valid) {
+                    console.log("Unable to create dockable widget: ", widgetName)
+                    return;
+                }
                 var source = dockables.get(idx, "left_right_dock_widget_qml_code")
                 if (source != undefined && source != "") {
                     dynamic_widget = Qt.createQmlObject(source, container)
@@ -102,7 +112,7 @@ XsListView {
                 State {
                     name: "showing"
                     when: showing
-                    PropertyChanges { target: container; implicitWidth: dynamic_widget.dockWidgetSize}
+                    PropertyChanges { target: container; implicitWidth: dynamic_widget ? dynamic_widget.dockWidgetSize : 0}
                 },
                 State {
                     name: "hiding"
@@ -115,16 +125,19 @@ XsListView {
                 NumberAnimation { properties: "implicitWidth"; duration: 150 }
             }
 
-            XsSecondaryButton {
+            XsButtonWithImageAndText{ id: groupBtn
+                iconText: "Position"
                 anchors.bottom: parent.bottom
-                anchors.left: placement == "left"? undefined : parent.left
-                anchors.right: placement == "left"? parent.right : undefined
-                anchors.margins: 8
-                width: 16
-                height: 16
+                width: parent.width - framePadding*2
+                height: XsStyleSheet.primaryButtonStdHeight
+                anchors.horizontalCenter: parent.horizontalCenter
                 z: 100
-                imgSrc: "qrc:/icons/dock_left.svg"
-                imageDiv.rotation: placement == "left" ? 0 : 180
+                iconSrc: "qrc:/icons/dock_left.svg"
+                iconRotation: placement == "left" ? 0 : 180
+                textDiv.visible: true
+                textDiv.font.bold: false
+                textDiv.font.pixelSize: XsStyleSheet.fontSize
+                paddingSpace: 4
 
                 onClicked:{
                     if(dockPositionMenu.visible) dockPositionMenu.visible = false
@@ -134,7 +147,7 @@ XsListView {
                         dockPositionMenu.visible = true
                     }
                 }
-
+                forcedBgColorNormal: XsStyleSheet.panelBgGradTopColor
             }
 
         }
@@ -169,32 +182,32 @@ XsListView {
             move_dockable_widget(widgetNameForMenu, "right")
         }
     }
-    // XsMenuModelItem {
-    //     menuItemType: "divider"
-    //     menuItemPosition: 3
-    //     menuPath: ""
-    //     menuModelName: dockPositionMenu.menu_model_name
-    // }
-    // XsMenuModelItem {
-    //     text: "Top"
-    //     menuPath: ""
-    //     menuCustomIcon: "qrc:/icons/dock_bottom.svg"
-    //     menuItemPosition: 4
-    //     menuModelName: dockPositionMenu.menu_model_name
-    //     onActivated: {
-    //         move_dockable_widget(widgetNameForMenu, "top")
-    //     }
-    // }
-    // XsMenuModelItem {
-    //     text: "Bottom"
-    //     menuPath: ""
-    //     menuCustomIcon: "qrc:/icons/dock_bottom.svg"
-    //     menuItemPosition: 5
-    //     menuModelName: dockPositionMenu.menu_model_name
-    //     onActivated: {
-    //         move_dockable_widget(widgetNameForMenu, "bottom")
-    //     }
-    // }
+    XsMenuModelItem {
+        menuItemType: "divider"
+        menuItemPosition: 3
+        menuPath: ""
+        menuModelName: dockPositionMenu.menu_model_name
+    }
+    XsMenuModelItem {
+        text: "Top"
+        menuPath: ""
+        menuCustomIcon: "qrc:/icons/dock_bottom_flipped.png"
+        menuItemPosition: 4
+        menuModelName: dockPositionMenu.menu_model_name
+        onActivated: {
+            move_dockable_widget(widgetNameForMenu, "top")
+        }
+    }
+    XsMenuModelItem {
+        text: "Bottom"
+        menuPath: ""
+        menuCustomIcon: "qrc:/icons/dock_bottom.svg"
+        menuItemPosition: 5
+        menuModelName: dockPositionMenu.menu_model_name
+        onActivated: {
+            move_dockable_widget(widgetNameForMenu, "bottom")
+        }
+    }
 
 
 }

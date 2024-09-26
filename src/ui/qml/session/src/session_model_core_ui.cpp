@@ -41,6 +41,7 @@ SessionModel::SessionModel(QObject *parent) : super(parent) {
          {"containerUuidRole"},
          {"enabledRole"},
          {"errorRole"},
+         {"expandedRole"},
          {"flagColourRole"},
          {"flagTextRole"},
          {"formatRole"},
@@ -51,9 +52,9 @@ SessionModel::SessionModel(QObject *parent) : super(parent) {
          {"mediaCountRole"},
          {"mediaDisplayInfoRole"},
          {"mediaStatusRole"},
+         {"metadataChangedRole"},
          {"mtimeRole"},
          {"nameRole"},
-         {"parentStartRole"},
          {"pathRole"},
          {"pathShakeRole"},
          {"pixelAspectRole"},
@@ -70,7 +71,7 @@ SessionModel::SessionModel(QObject *parent) : super(parent) {
          {"trimmedStartRole"},
          {"typeRole"},
          {"uuidRole"},
-         {"expandedRole"}});
+         {"userDataRole"}});
 
     setRoleNames(role_names);
     request_handler_ = new QThreadPool(this);
@@ -321,6 +322,12 @@ QVariant SessionModel::data(const QModelIndex &index, int role) const {
                     }
                 }
                 break;
+
+                // case Roles::metadataChangedRole: {
+                //         auto tmp = Uuid::generate();
+                //         result = QVariant::fromValue(QUuidFromUuid(tmp));
+                //     }
+                //     break;
 
             case Roles::pathShakeRole:
                 if (j.count("path_shake")) {
@@ -798,6 +805,13 @@ QVariant SessionModel::data(const QModelIndex &index, int role) const {
                 }
                 break;
 
+            case Roles::userDataRole:
+                if (j.count("user_data"))
+                    result = mapFromValue(j.at("user_data"));
+                else
+                    result = mapFromValue(R"({})"_json);
+                break;
+
             case Roles::trimmedStartRole:
                 if (j.count("placeholder")) {
                     result = QVariant::fromValue(0);
@@ -812,29 +826,30 @@ QVariant SessionModel::data(const QModelIndex &index, int role) const {
                 }
                 break;
 
-            case Roles::parentStartRole:
-                // requires access to parent item.
-                if (j.count("placeholder")) {
-                    result = QVariant::fromValue(0);
-                } else if (j.count("active_range")) {
-                    auto p = index.parent();
-                    auto t = getTimelineIndex(index);
+                // case Roles::parentStartRole:
+                //     // requires access to parent item.
+                //     if (j.count("placeholder")) {
+                //         result = QVariant::fromValue(0);
+                //     } else if (j.count("active_range")) {
+                //         spdlog::warn("PARENTSTARTROLE {}", index.row());
+                //         auto p = index.parent();
+                //         auto t = getTimelineIndex(index);
 
-                    if (p.isValid() and t.isValid()) {
-                        auto tactor = actorFromIndex(t);
-                        auto puuid  = UuidFromQUuid(p.data(idRole).toUuid());
+                //         if (p.isValid() and t.isValid()) {
+                //             auto tactor = actorFromIndex(t);
+                //             auto puuid  = UuidFromQUuid(p.data(idRole).toUuid());
 
-                        if (timeline_lookup_.count(tactor)) {
-                            auto pitem = timeline::find_item(
-                                timeline_lookup_.at(tactor).children(), puuid);
-                            if (pitem)
-                                result =
-                                    QVariant::fromValue((*pitem)->frame_at_index(index.row()));
-                        }
-                    } else
-                        result = QVariant::fromValue(0);
-                }
-                break;
+                //             if (timeline_lookup_.count(tactor)) {
+                //                 auto pitem = timeline::find_item(
+                //                     timeline_lookup_.at(tactor).children(), puuid);
+                //                 if (pitem)
+                //                     result =
+                //                         QVariant::fromValue((*pitem)->frame_at_index(index.row()));
+                //             }
+                //         } else
+                //             result = QVariant::fromValue(0);
+                //     }
+                //     break;
 
             case Roles::trimmedDurationRole:
                 if (j.count("placeholder")) {
@@ -976,6 +991,10 @@ bool SessionModel::setData(const QModelIndex &index, const QVariant &qvalue, int
                 }
                 break;
 
+            case metadataChangedRole:
+                result = true;
+                break;
+
             case errorRole:
                 if (j.count("error_count") and j["error_count"] != value) {
                     j["error_count"] = value;
@@ -988,6 +1007,12 @@ bool SessionModel::setData(const QModelIndex &index, const QVariant &qvalue, int
                     j["id"] = value;
                     result  = true;
                 }
+                break;
+
+
+            case Roles::userDataRole:
+                j["user_data"] = value;
+                result         = true;
                 break;
 
             case activeStartRole:
@@ -1393,9 +1418,9 @@ bool SessionModel::setData(const QModelIndex &index, const QVariant &qvalue, int
             mapFromValue(qvalue).dump());
     }
 
-    if (result) {
+    if (result)
         emit dataChanged(index, index, roles);
-    }
+
     CHECK_SLOW_WATCHER_FAST()
 
     return result;

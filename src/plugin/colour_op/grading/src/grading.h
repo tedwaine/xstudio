@@ -145,6 +145,7 @@ class GradingTool : public plugin::StandardPlugin {
     module::StringChoiceAttribute *display_mode_attribute_  {nullptr};
 
     // Shortcuts
+    utility::Uuid bypass_hotkey_;
     utility::Uuid undo_hotkey_;
     utility::Uuid redo_hotkey_;
 

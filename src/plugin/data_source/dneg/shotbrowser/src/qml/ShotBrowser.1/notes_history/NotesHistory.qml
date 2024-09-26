@@ -115,6 +115,7 @@ Item{
                 }
             }
         }
+        if (visible) runQuery()
     }
 
     // get presets node under group
@@ -131,11 +132,6 @@ Item{
     }
 
     XsPreference {
-        id: popoutPref
-        path: "/plugin/data_source/shotbrowser/note_history/popout"
-    }
-
-    XsPreference {
         id: noteScopePref
         path: "/plugin/data_source/shotbrowser/note_history/scope"
     }
@@ -147,42 +143,19 @@ Item{
 
     Item {
         // Hold properties that we want to persist between sessions.
-        // The 'user_data' property is provided by the model data that
-        // instantiates this item and we can access directly
         id: prefs
         property string type: ""
         property string scope: ""
         property bool initialised: false
 
-        property var store: {
-            "type": type,
-            "scope": scope
-        }
-
-        onStoreChanged: {
-            // push these prefs values to user_data so they get stored
-            // in the user's preference files for next time
-            if (initialised) {
-                if(isPopout) {
-                    popoutPref.value = store
-                } else {
-                    user_data = store
-                }
+        XsStoredPanelProperties {
+            propertyNames: ["type", "scope"]
+            onPropertiesInitialised: {
+                prefs.initialised = true
+                setIndexesFromPreferences()
             }
         }
-
-        Component.onCompleted: {
-            // one time initialise from user_data if it is not empty
-            if (typeof user_data == "object") {
-                if (user_data.type) type = user_data.type
-                if (user_data.scope) scope = user_data.scope
-            } else if(isPopout) {
-                if (popoutPref.value.type) type = popoutPref.value.type
-                if (popoutPref.value.scope) scope = popoutPref.value.scope
-            }
-            initialised = true
-            setIndexesFromPreferences()
-        }
+    
     }
 
     onActiveScopeIndexChanged: {

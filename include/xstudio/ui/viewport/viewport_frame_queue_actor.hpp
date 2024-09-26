@@ -33,7 +33,7 @@ namespace ui {
 
             caf::actor playhead_broadcast_group_;
             caf::actor playhead_;
-            utility::Uuid current_playhead_;
+            utility::Uuid current_key_sub_playhead_id_;
 
             /**
              *  @brief Receive frame buffer and colour pipeline data for drawing to screen.
@@ -59,17 +59,10 @@ namespace ui {
              */
             void get_frames_for_display(
                 const utility::Uuid &playhead_id,
-                std::vector<media_reader::ImageBufPtr> &next_images);
+                std::vector<media_reader::ImageBufPtr> &next_images,
+                const utility::time_point &when_going_on_screen = utility::time_point());
 
-            /**
-             *  @brief Tell the viewport that certain playheads are defunct.
-             *
-             *  @details The viewport can remove any images that came from these
-             *  playheads that are in the display queue
-             */
-            void
-            child_playheads_deleted(const std::vector<utility::Uuid> &child_playhead_uuids);
-
+            void clear_images_from_old_playheads();
 
             void add_blind_data_to_image_in_queue(
                 const media_reader::ImageBufPtr &image,
@@ -97,6 +90,8 @@ namespace ui {
 
             timebase::flicks predicted_playhead_position_at_next_video_refresh();
 
+            timebase::flicks predicted_playhead_position(const utility::time_point &when);
+
             double average_video_refresh_period() const;
 
             bool playing_          = {false};
@@ -115,6 +110,9 @@ namespace ui {
             } video_refresh_data_;
 
             timebase::flicks playhead_vid_sync_phase_adjust_ = timebase::k_flicks_zero_seconds;
+            utility::time_point last_playhead_switch_tp_;
+            utility::time_point last_playhead_set_tp_;
+            std::set<utility::Uuid> deleted_playheads_;
         };
 
     } // namespace viewport

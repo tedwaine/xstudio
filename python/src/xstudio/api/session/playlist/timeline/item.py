@@ -4,6 +4,8 @@ from xstudio.core import Uuid, actor, item_atom, enable_atom, item_prop_atom, it
 from xstudio.core import active_range_atom, available_range_atom, item_name_atom, item_flag_atom
 from xstudio.api.session.container import Container
 
+import json
+
 class Item(Container):
     """Timeline object."""
 
@@ -73,7 +75,7 @@ class Item(Container):
         Returns:
             item(Item): Item for timeline.
         """
-        return self.connection.request_receive(self.remote, item_prop_atom())[0]
+        return json.loads(self.connection.request_receive(self.remote, item_prop_atom())[0].dump())
 
     @item_prop.setter
     def item_prop(self, x):
@@ -144,7 +146,18 @@ class Item(Container):
 
     @property
     def children(self):
-        return []
+        """Get children.
+
+        Returns:
+            children([Gap/Track/Clip/Stack]): Children.
+        """
+        from xstudio.api.session.playlist.timeline import create_item_container
+        children = []
+
+        for i in self.item.children():
+            children.append(create_item_container(self.connection, i))
+
+        return children
 
     @property
     def trimmed_range(self):
@@ -153,6 +166,15 @@ class Item(Container):
     @property
     def available_range(self):
         return self.item.available_range()
+
+    def range_at_index(self, index):
+        return self.item.range_at_index(index)
+
+    def item_at_frame(self, frame):
+        return self.item.item_at_frame(frame)
+
+    def frame_at_index(self, index):
+        return self.item.frame_at_index(index)
 
     @available_range.setter
     def available_range(self, x):
@@ -175,3 +197,20 @@ class Item(Container):
             x(FrameRange): Set active_range.
         """
         self.connection.request_receive(self.remote, active_range_atom(), x)
+
+    def index_of_child(self, child):
+        """Get index of child.""
+
+        Args child([Gap/Track/Clip/Stack]): Child.
+
+        Returns:
+            index(int): Index.
+        """
+
+        index = -1
+        children = self.children
+        for i in range(len(children)):
+            if children[i].uuid == child.uuid:
+                index = i
+                break
+        return index

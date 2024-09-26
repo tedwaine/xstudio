@@ -65,6 +65,7 @@ void AudioOutputActor::init() {
             }
             return samples;
         },
+        [=](set_override_volume_atom, const float volume) { set_override_volume(volume); },
         [=](utility::event_atom,
             module::change_attribute_event_atom,
             const float volume,
@@ -127,6 +128,8 @@ GlobalAudioOutputActor::GlobalAudioOutputActor(caf::actor_config &cfg)
 
     set_parent_actor_addr(actor_cast<caf::actor_addr>(this));
 
+    mute_hotkey_ = register_hotkey("/", "Mute Audio", "Mute/Un-mute audio.", true, "Playback");
+
     behavior_.assign(
 
         [=](utility::get_event_group_atom) -> caf::actor { return event_group_; },
@@ -183,4 +186,12 @@ void GlobalAudioOutputActor::attribute_changed(const utility::Uuid &attr_uuid, c
         audio_scrubbing_->value());
 
     Module::attribute_changed(attr_uuid, role);
+}
+
+void GlobalAudioOutputActor::hotkey_pressed(
+    const utility::Uuid &hotkey_uuid, const std::string &context, const std::string &window) {
+
+    if (hotkey_uuid == mute_hotkey_) {
+        muted_->set_value(!muted_->value());
+    }
 }

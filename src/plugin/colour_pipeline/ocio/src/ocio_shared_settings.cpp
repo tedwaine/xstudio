@@ -39,7 +39,7 @@ OCIOGlobalControls::OCIOGlobalControls(
     colour_bypass_->set_redraw_viewport_on_change(true);
     colour_bypass_->set_role_data(
         module::Attribute::UIDataModels, nlohmann::json{"colour_pipe_attributes"});
-    colour_bypass_->set_role_data(module::Attribute::Enabled, false);
+    // colour_bypass_->set_role_data(module::Attribute::Enabled, false);
     colour_bypass_->set_role_data(module::Attribute::ToolTip, ui_text_.CS_BYPASS_TOOLTIP);
     // 'colour bypass' is a global setting.
     colour_bypass_->set_role_data(
@@ -52,7 +52,7 @@ OCIOGlobalControls::OCIOGlobalControls(
     global_view_->set_role_data(
         module::Attribute::UIDataModels, nlohmann::json{"colour_pipe_attributes"});
     global_view_->set_role_data(module::Attribute::ToolTip, ui_text_.GLOBAL_VIEW_TOOLTIP);
-    global_view_->set_preference_path("/plugin/colour_pipeline/o   ");
+    global_view_->set_preference_path("/plugin/colour_pipeline/global_view");
 
     // Preferred view
 
@@ -73,7 +73,7 @@ OCIOGlobalControls::OCIOGlobalControls(
     adjust_source_->set_redraw_viewport_on_change(true);
     adjust_source_->set_role_data(
         module::Attribute::UIDataModels, nlohmann::json{"colour_pipe_attributes"});
-    adjust_source_->set_role_data(module::Attribute::Enabled, false);
+    // adjust_source_->set_role_data(module::Attribute::Enabled, false);
     adjust_source_->set_role_data(module::Attribute::ToolTip, ui_text_.SOURCE_CS_MODE_TOOLTIP);
     adjust_source_->set_preference_path("/plugin/colour_pipeline/ocio/user_source_mode");
 
@@ -151,26 +151,24 @@ caf::message_handler OCIOGlobalControls::message_handler_extensions() {
 
                     if (user_view_display_settings_.contains(ocio_config)) {
 
-                        const auto & ds = user_view_display_settings_[ocio_config];
+                        const auto &ds = user_view_display_settings_[ocio_config];
 
                         // N.B. View is the same for all viewers (for a given ocio_config)
                         // but Display is independent per window_id
                         if (ds.contains("View")) {
                             res["View"] = ds["View"];
                         }
-                        if (ds.contains(window_id) &&
-                            ds[window_id].contains("Display")) {
+                        if (ds.contains(window_id) && ds[window_id].contains("Display")) {
                             res["Display"] = ds[window_id]["Display"];
                         } else if (window_id == "xstudio_quickview_window") {
 
                             // special case - a quickview window wants to set its
                             // display but no quickview has been set-up before for
                             // the current ocio_config so we fallback to the main window display
-                            if (ds.contains("xstudio_main_window") && ds["xstudio_main_window"].contains("Display")) {
-                                res["Display"] =
-                                    ds["xstudio_main_window"]["Display"];
+                            if (ds.contains("xstudio_main_window") &&
+                                ds["xstudio_main_window"].contains("Display")) {
+                                res["Display"] = ds["xstudio_main_window"]["Display"];
                             }
-
                         }
                         return res;
                     }

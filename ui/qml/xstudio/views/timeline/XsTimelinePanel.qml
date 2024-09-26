@@ -44,21 +44,11 @@ XsGradientRectangle{
     property alias theTimeline: theTimeline
 
     property bool hideMarkers: false
+    property real verticalScale: 1.0
 
-    property var userData: user_data
-
-    onUserDataChanged:{
-        if(user_data == undefined){
-            user_data = {"hideMarkers": false}
-        }
-
-        if(user_data.hideMarkers && hideMarkers != user_data.hideMarkers)
-            hideMarkers = user_data.hideMarkers
-    }
-
-    onHideMarkersChanged: {
-        if(user_data.hideMarkers != hideMarkers)
-            user_data.hideMarkers = hideMarkers
+    // persist these properties between sessions
+    XsStoredPanelProperties {
+        propertyNames: ["hideMarkers", "verticalScale"]
     }
 
     XsModelPropertyMap {
@@ -69,7 +59,7 @@ XsGradientRectangle{
     }
 
     function nTimer() {
-         return Qt.createQmlObject("import QtQuick 2.0; Timer {}", root);
+         return Qt.createQmlObject("import QtQuick 2.0; Timer {}", appWindow);
     }
 
     function delay(delayTime, cb) {
@@ -177,6 +167,20 @@ XsGradientRectangle{
         context: "timeline"
         focus: true
     }
+
+    MouseArea {
+        anchors.fill: parent
+        hoverEnabled: true
+        onExited: {
+            if(theTimeline.scrollingModeActive || theTimeline.scalingModeActive)
+                helpers.restoreOverrideCursor()
+        }
+        onEntered: {
+            if(theTimeline.scrollingModeActive)
+                helpers.setOverrideCursor("Qt.OpenHandCursor")
+            else if(theTimeline.scalingModeActive)
+                helpers.setOverrideCursor("://cursors/magnifier_cursor.svg")
+        }
 
     ColumnLayout {
         anchors.fill: parent
@@ -339,6 +343,18 @@ XsGradientRectangle{
                 font.pixelSize: XsStyleSheet.fontSize
                 isActive: theTimeline.rippleMode
                 onClicked: theTimeline.rippleMode = !theTimeline.rippleMode
+            }
+            XsPrimaryButton{
+                Layout.preferredWidth: iconTextBtnWidth
+                Layout.preferredHeight: parent.height
+                imgSrc: "qrc:/icons/vertical_align_center.svg"
+                imageDiv.rotation: 90
+                text: "Snap"
+                toolTip: "Snap"
+                showBoth: true
+                font.pixelSize: XsStyleSheet.fontSize
+                isActive: theTimeline.snapMode
+                onClicked: theTimeline.snapMode = !theTimeline.snapMode
             }
             Item{
                 Layout.fillWidth: true
@@ -503,6 +519,32 @@ XsGradientRectangle{
                             onClicked: theTimeline.splitClips(theTimeline.timelineSelection.selectedIndexes)
                         }
 
+                        XsPrimaryButton{
+                            // Layout.topMargin: 8
+                            Layout.minimumHeight: btnHeight
+                            Layout.maximumHeight: btnHeight
+                            Layout.fillWidth: true
+                            text: "Zoom"
+                            // isActiveIndicatorAtLeft: true
+                            imgSrc: "qrc:/icons/zoom_in.svg"
+                            onClicked: theTimeline.scalingModeActive = !theTimeline.scalingModeActive
+                            isActive: theTimeline.scalingModeActive
+                            hotkeyNameForTooltip: "Timeline Zoom"
+                        }
+
+                        XsPrimaryButton{
+                            // Layout.topMargin: 8
+                            Layout.minimumHeight: btnHeight
+                            Layout.maximumHeight: btnHeight
+                            Layout.fillWidth: true
+                            text: "Pan"
+                            // isActiveIndicatorAtLeft: true
+                            imgSrc: "qrc:/icons/pan.svg"
+                            onClicked: theTimeline.scrollingModeActive = !theTimeline.scrollingModeActive
+                            isActive: theTimeline.scrollingModeActive
+                            hotkeyNameForTooltip: "Timeline Scroll"
+                        }
+
                         Item {
                             Layout.fillHeight: true
                         }
@@ -527,4 +569,5 @@ XsGradientRectangle{
             }
         }
     }
+}
 }

@@ -743,6 +743,9 @@ nlohmann::json EmbeddedPythonActor::refresh_snippet(
     const std::filesystem::path &path, const std::string &menu_path) {
     auto result = R"([])"_json;
 
+    if (!fs::is_directory(path))
+        return result;
+
     try {
         for (const auto &entry : fs::directory_iterator(path)) {
             if (fs::is_regular_file(entry.status()) and entry.path().extension() == ".py") {

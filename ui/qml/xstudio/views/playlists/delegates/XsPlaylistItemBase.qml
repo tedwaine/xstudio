@@ -39,6 +39,24 @@ Item {
 
     property var incomingDragSource
 
+    property var metadataChanged: metadataChangedRole
+    property var placeHolder: placeHolderRole
+    property var decoratorModel: []
+
+    function updateDecorations() {
+        if(typeRole == "Playlist" && !placeHolder) {
+            let meta = theSessionData.getJSONObject(modelIndex, "/ui/decorators")
+            let tmp = []
+            for (const [key, value] of Object.entries(meta)) {
+              tmp.push([key, value])
+            }
+            decoratorModel = tmp
+        }
+    }
+
+    onMetadataChangedChanged: updateDecorations()
+    onPlaceHolderChanged: updateDecorations()
+
     Rectangle {
         id: drag_target_indicator
         width: parent.width
@@ -102,6 +120,7 @@ Item {
         } else {
             lineVisible = true
         }
+        updateDecorations()
     }
 
     /* first index in playlist is media ... */
@@ -148,23 +167,23 @@ Item {
 
         onReleased: {
 
-            if (mouse.button == Qt.RightButton || 
-                mouse.modifiers == Qt.ControlModifier || 
+            if (mouse.button == Qt.RightButton ||
+                mouse.modifiers == Qt.ControlModifier ||
                 mouse.modifiers == Qt.ShiftModifier) return;
-    
+
             // If there is a multiselection, and the user has clicked on
             // something in the selection and then released the mouse without
             // holding shift or ctrl, we want to exclusively select the
             // item under the mouse (unless its the end of a drag/drop)
             interactive = true
-            if (!drag_drop_handler.dragging) {                
+            if (!drag_drop_handler.dragging) {
                 sessionSelectionModel.setCurrentIndex(
                     modelIndex,
                     ItemSelectionModel.ClearAndSelect
                     )
             }
             drag_drop_handler.endDrag(mouse.x, mouse.y)
-    
+
         }
 
         onPressed: {
@@ -320,6 +339,18 @@ Item {
             tooltipText: text
             tooltipVisibility: hovered && truncated
             toolTipWidth: contentDiv.width*2
+        }
+
+        Repeater {
+            Layout.fillHeight: true
+            model: decoratorModel
+
+            XsImage {
+                source: modelData[1]
+                imgOverlayColor: hintColor
+                height: parent.height-8
+                width: height
+            }
         }
 
         /*Item {

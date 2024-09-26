@@ -32,12 +32,10 @@ Button {
     signal shortened()
     onShortened:{
         isShort = true
-        console.log("NAV_btn_",text,": shortened")
     }
     signal expanded()
     onExpanded:{
         isShort = false
-        console.log("NAV_btn_",text,": expanded")
     }
 
     contentItem:

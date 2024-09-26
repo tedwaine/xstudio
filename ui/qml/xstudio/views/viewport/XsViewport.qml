@@ -49,6 +49,8 @@ Viewport {
 
     XsViewportOverlays {}
 
+    XsViewportFrameErrorIndicator {}
+
     Loader {
         id: menu_loader
     }
@@ -63,9 +65,9 @@ Viewport {
         }
     }
 
-    onMouseButtonsChanged: {
-        if (mouseButtons == Qt.RightButton) {
-            showContextMenu(mouse.x, mouse.y)
+    onMousePress: {
+        if (buttons == Qt.RightButton) {
+            showContextMenu(mousePosition.x, mousePosition.y)
         }
     }
 
@@ -99,6 +101,13 @@ Viewport {
         model: viewport_attrs
     }
     property alias custom_cursor: __custom_cursor.value
+
+    XsAttributeValue {
+        id: __frame_error
+        attributeTitle: "frame_error"
+        model: viewport_attrs
+    }
+    property alias frame_error_message: __frame_error.value
 
     property var cursor_name_dict: {
         "Qt.ArrowCursor" : Qt.ArrowCursor,

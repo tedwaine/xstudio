@@ -161,6 +161,13 @@ namespace timeline {
         [[nodiscard]] utility::FrameRateDuration trimmed_frame_duration() const {
             return trimmed_range().frame_duration();
         }
+
+        [[nodiscard]] std::optional<utility::FrameRateDuration> available_frame_start() const {
+            if (has_available_range_)
+                return available_range()->frame_start();
+            return {};
+        }
+
         [[nodiscard]] std::optional<utility::FrameRateDuration> active_frame_duration() const;
         [[nodiscard]] std::optional<utility::FrameRateDuration>
         available_frame_duration() const;

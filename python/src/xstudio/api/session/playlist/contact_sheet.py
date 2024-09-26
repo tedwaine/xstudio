@@ -1,6 +1,7 @@
 # SPDX-License-Identifier: Apache-2.0
 from xstudio.api.session.playlist.subset import Subset
 from xstudio.core import URI, selection_actor_atom
+from xstudio.api.session.playhead import Playhead, PlayheadSelection
 
 class ContactSheet(Subset):
     """ContactSheet object."""

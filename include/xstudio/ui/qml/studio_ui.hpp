@@ -64,6 +64,8 @@ namespace ui {
 
             Q_INVOKABLE void setupSnapshotViewport(const QString &playhead_addr);
 
+            Q_INVOKABLE void loadVideoOutputPlugins();
+
           signals:
 
             void newSessionCreated(const QString &session_addr);
@@ -81,7 +83,6 @@ namespace ui {
           private:
             void init(caf::actor_system &system) override;
             void updateDataSources();
-            void loadVideoOutputPlugins();
             xstudio::ui::qt::OffscreenViewport *offscreen_snapshot_viewport();
 
             QList<QObject *> data_sources_;

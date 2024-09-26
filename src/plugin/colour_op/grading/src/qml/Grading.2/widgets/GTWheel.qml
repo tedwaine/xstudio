@@ -10,12 +10,15 @@ import xStudio 1.0
 
 Control { id: wheel
 
-    property real wheelSize: 135
+    property real wheelSize: 0 //135
+    onWheelSizeChanged:{
+        update_frontend()
+    }
 
     property int radius: wheelSize / 2
     property int center: wheelSize / 2
     property real ring_rel_size: 0.1
-    property real cursor_width: 17
+    property real cursor_width: 17 //wheelSize/8
     property bool interacting: cArea.pressed || mArea.pressed
 
     property real local_value: 1.0
@@ -367,6 +370,10 @@ Control { id: wheel
                     update_backend_from_cursor()
                 }
             }
+        }
+
+        Component.onCompleted: {
+            update_frontend()
         }
     }
 }

@@ -182,6 +182,7 @@ ColumnLayout{
             Layout.preferredHeight: parent.height
             iconSrc: "qrc:///shotbrowser_icons/account_tree.svg"
             iconText: "Group"
+            textDiv.visible: true
             isActive: resultsBaseModel.isGrouped
             visible: resultsBaseModel.canBeGrouped
             onClicked: resultsBaseModel.isGrouped = !resultsBaseModel.isGrouped

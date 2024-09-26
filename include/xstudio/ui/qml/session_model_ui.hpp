@@ -53,6 +53,7 @@ class SESSION_QML_EXPORT SessionModel : public caf::mixin::actor_object<JSONTree
         containerUuidRole,
         enabledRole,
         errorRole,
+        expandedRole,
         flagColourRole,
         flagTextRole,
         formatRole,
@@ -63,9 +64,9 @@ class SESSION_QML_EXPORT SessionModel : public caf::mixin::actor_object<JSONTree
         mediaCountRole,
         mediaDisplayInfoRole,
         mediaStatusRole,
+        metadataChangedRole,
         mtimeRole,
         nameRole,
-        parentStartRole,
         pathRole,
         pathShakeRole,
         pixelAspectRole,
@@ -82,7 +83,7 @@ class SESSION_QML_EXPORT SessionModel : public caf::mixin::actor_object<JSONTree
         trimmedStartRole,
         typeRole,
         uuidRole,
-        expandedRole,
+        userDataRole,
     };
 
     using super = caf::mixin::actor_object<JSONTreeModel>;
@@ -171,6 +172,8 @@ class SESSION_QML_EXPORT SessionModel : public caf::mixin::actor_object<JSONTree
     Q_INVOKABLE QModelIndexList
     getTimelineClipIndexes(const QModelIndex &timelineIndex, const QModelIndex &mediaIndex);
 
+    Q_INVOKABLE int startFrameInParent(const QModelIndex &timelineItemIndex);
+
     Q_INVOKABLE QModelIndexList getIndexesByName(
         const QModelIndex &idx, const QString &name, const QString &type = "") const;
 
@@ -231,6 +234,9 @@ class SESSION_QML_EXPORT SessionModel : public caf::mixin::actor_object<JSONTree
         const bool insert);
     Q_INVOKABLE bool
     alignTimelineItems(const QModelIndexList &indexes, const bool align_right = true);
+
+    Q_INVOKABLE QFuture<bool>
+    exportOTIO(const QModelIndex &timeline, const QUrl &path, const QString &type = "otio");
 
     [[nodiscard]] QString sessionActorAddr() const { return session_actor_addr_; };
     void setSessionActorAddr(const QString &addr);
@@ -324,17 +330,24 @@ class SESSION_QML_EXPORT SessionModel : public caf::mixin::actor_object<JSONTree
     Q_INVOKABLE void
     updateMediaListFilterString(const QModelIndex &index, const QString &filter_string);
     Q_INVOKABLE void gatherMediaFor(const QModelIndex &index, const QModelIndexList &selection);
+
+    Q_INVOKABLE QVariant getJSONObject(const QModelIndex &index, const QString &path) {
+        return getJSONObjectFuture(index, path).result();
+    }
+    Q_INVOKABLE QFuture<QVariant> getJSONObjectFuture(
+        const QModelIndex &index, const QString &path, const bool includeSource = false);
+
     Q_INVOKABLE QString getJSON(const QModelIndex &index, const QString &path) {
         return getJSONFuture(index, path).result();
     }
+    Q_INVOKABLE QFuture<QString> getJSONFuture(
+        const QModelIndex &index, const QString &path, const bool includeSource = false);
 
     Q_INVOKABLE QStringList
     getMediaSourceNames(const QModelIndex &media_index, bool image_sources);
     Q_INVOKABLE QStringList setMediaSource(
         const QModelIndex &media_index, const QString &mediaSourceName, bool image_source);
 
-    Q_INVOKABLE QFuture<QString> getJSONFuture(
-        const QModelIndex &index, const QString &path, const bool includeSource = false);
 
     Q_INVOKABLE bool
     setJSON(const QModelIndex &index, const QString &json, const QString &path = "") {

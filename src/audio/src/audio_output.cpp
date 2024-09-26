@@ -215,14 +215,13 @@ void AudioOutputControl::prepare_samples_for_soundcard(
             }
         }
 
-        const float vol       = volume();
-        static float last_vol = vol;
-        if (last_vol != vol) {
-            changing_volume_adjust(v, vol / 100.0f, last_vol / 100.0f);
+        const float vol = volume();
+        if (last_volume_ != vol) {
+            changing_volume_adjust(v, vol / 100.0f, last_volume_ / 100.0f);
         } else if (vol != 100.0f) {
             static_volume_adjust(v, vol / 100.0f);
         }
-        last_vol = vol;
+        last_volume_ = vol;
 
     } catch (std::exception &e) {
         spdlog::debug("{} {}", __PRETTY_FUNCTION__, e.what());

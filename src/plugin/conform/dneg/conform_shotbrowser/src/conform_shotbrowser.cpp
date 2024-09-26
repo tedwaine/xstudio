@@ -258,8 +258,8 @@ template <typename T> class ShotbrowserConformActor : public caf::event_based_ac
                             auto tmp               = crequest.metadata_.at(media_uuid);
                             auto sg_twig_type_code = nlohmann::json::json_pointer(
                                 "/metadata/shotgun/version/attributes/sg_twig_type_code");
-                            if (not tmp.contains(sg_twig_type_code) or
-                                tmp.value(sg_twig_type_code, "") != "cut") {
+                            if (tmp.value(sg_twig_type_code, "") != "cut" and
+                                tmp.value(sg_twig_type_code, "") != "edl") {
                                 tmp.update(metadata, true);
                                 metadata = tmp;
                                 // spdlog::warn("{}", metadata.dump(2));
@@ -636,11 +636,12 @@ template <typename T> class ShotbrowserConformActor : public caf::event_based_ac
                         }
                     }
 
-                    // from check clip metadata
+                    // from check clip metadata (FEAT ANIM)
                     if (not is_valid and not found_project.empty()) {
                         auto cm = i.prop();
                         if (cm.contains("media_stalk_dnuuid")) {
-                            project   = found_project;
+                            project = found_project;
+
                             cut_start = i.trimmed_frame_start().frames();
                             cut_end   = i.trimmed_frame_start().frames() +
                                       i.trimmed_frame_duration().frames() - 1;
@@ -780,6 +781,12 @@ template <typename T> class ShotbrowserConformActor : public caf::event_based_ac
                             }
                         }
                     }
+
+                    // validate shot name ?
+                    const static std::regex valid_shot_re(R"(^[a-zA-Z0-9_]+$)");
+                    if (not shot.is_null() and
+                        not std::regex_match(shot.get<std::string>(), valid_shot_re))
+                        is_valid = false;
 
                     // update clips with results
                     if (not is_valid) {

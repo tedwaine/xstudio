@@ -68,17 +68,16 @@ class Session(Container):
         """
 
         result = self.connection.request_receive(self.remote, current_playlist_atom(), True)[0]
+        ctype = result[1][0]
 
-        container = Container(self.connection, result)
+        if ctype == "Timeline":
+            return Timeline(self.connection, result[1][1].actor, result[1][1].uuid)
+        elif ctype == "Subset":
+            return Subset(self.connection, result[1][1].actor, result[1][1].uuid)
+        elif ctype == "ContactSheet":
+            return ContactSheet(self.connection, result[1][1].actor, result[1][1].uuid)
 
-        if container.type == "Timeline":
-            return Timeline(self.connection, result)
-        elif container.type == "Subset":
-            return Subset(self.connection, result)
-        elif container.type == "ContactSheet":
-            return ContactSheet(self.connection, result)
-
-        return Playlist(self.connection, result)
+        return Playlist(self.connection, result[1][1].actor, result[1][1].uuid)
 
     @property
     def inspected_playlist(self):
@@ -88,7 +87,7 @@ class Session(Container):
             Playlist(Playlist): Playlist.
         """
 
-        result = self.connection.request_receive(self.remote, current_playlist_atom())[0]
+        result = self.connection.request_receive(self.remote, current_playlist_atom(), False)[0]
 
         return Playlist(self.connection, result[0].actor, result[0].uuid)
 
@@ -100,18 +99,18 @@ class Session(Container):
             container(Playlist,Subset,Timelime,ContactSheet): Container.
         """
 
-        result = self.connection.request_receive(self.remote, current_playlist_atom())[0]
+        result = self.connection.request_receive(self.remote, current_playlist_atom(), False)[0]
 
-        container = Container(self.connection, result)
+        ctype = result[1][0]
 
-        if container.type == "Timeline":
-            return Timeline(self.connection, result)
-        elif container.type == "Subset":
-            return Subset(self.connection, result)
-        elif container.type == "ContactSheet":
-            return ContactSheet(self.connection, result)
+        if ctype == "Timeline":
+            return Timeline(self.connection, result[1][1].actor, result[1][1].uuid)
+        elif ctype == "Subset":
+            return Subset(self.connection, result[1][1].actor, result[1][1].uuid)
+        elif ctype == "ContactSheet":
+            return ContactSheet(self.connection, result[1][1].actor, result[1][1].uuid)
 
-        return Playlist(self.connection, result)
+        return Playlist(self.connection, result[1][1].actor, result[1][1].uuid)
 
     @property
     def path(self):

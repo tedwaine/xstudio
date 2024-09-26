@@ -533,6 +533,7 @@ MenusModelData::MenusModelData(QObject *parent) : UIModelData(parent) {
         "name",
         "is_checked",
         "choices",
+        "choices_ids",
         "current_choice",
         "hotkey_uuid",
         "menu_icon",
@@ -547,18 +548,40 @@ MenusModelData::MenusModelData(QObject *parent) : UIModelData(parent) {
 
 ViewsModelData::ViewsModelData(QObject *parent) : UIModelData(parent) {
 
-    setRoleNames(
-        std::vector<std::string>{"view_name", "view_qml_source", "singleton_qml_source"});
+    setRoleNames(std::vector<std::string>{
+        "view_name", "position", "view_qml_source", "singleton_qml_source"});
     setModelDataName("view widgets");
+
+    // make the rows in the model order by the 'button_position' role
+    anon_send(
+        central_models_data_actor_,
+        ui::model_data::set_row_ordering_role_atom_v,
+        "view widgets",
+        "position");
 }
 
-void ViewsModelData::register_view(QString qml_path, QString view_name) {
+void ViewsModelData::register_view(QString qml_path, QString view_name, const float position) {
 
-    auto rc = rowCount(index(-1, -1)); // QModelIndex());
+    /*auto rc = rowCount(index(-1, -1)); // QModelIndex());
     insertRowsSync(rc, 1, index(-1, -1));
     QModelIndex view_reg_index = index(rc, 0, index(-1, -1));
     std::ignore                = set(view_reg_index, QVariant(view_name), QString("view_name"));
     std::ignore = set(view_reg_index, QVariant(qml_path), QString("view_qml_source"));
+    std::ignore = set(view_reg_index, QVariant(position), QString("position"));*/
+
+    utility::JsonStore data;
+    data["view_name"]       = StdFromQString(view_name);
+    data["view_qml_source"] = StdFromQString(qml_path);
+    data["position"]        = position;
+    anon_send(
+        central_models_data_actor_,
+        ui::model_data::insert_rows_atom_v,
+        "view widgets", // the model called 'view widgets' is what's used to build the
+                        // panels menu
+        "",             // (path) add to root
+        0,              // row
+        1,              // count
+        data);
 }
 
 QVariant ViewsModelData::view_qml_source(QString view_name) {
@@ -592,7 +615,11 @@ PopoutWindowsData::PopoutWindowsData(QObject *parent) : UIModelData(parent) {
 }
 
 void PopoutWindowsData::register_popout_window(
-    QString name, QString qml_path, QString icon_path, float button_position) {
+    QString name,
+    QString qml_path,
+    QString icon_path,
+    float button_position,
+    const QUuid hotkey) {
 
     utility::JsonStore data;
     data["view_name"]         = StdFromQString(name);
@@ -600,6 +627,9 @@ void PopoutWindowsData::register_popout_window(
     data["view_qml_source"]   = StdFromQString(qml_path);
     data["button_position"]   = button_position;
     data["window_is_visible"] = false;
+    if (!hotkey.isNull()) {
+        data["hotkey_uuid"] = UuidFromQUuid(hotkey);
+    }
 
     try {
 
@@ -805,6 +835,26 @@ QModelIndex PanelsModel::duplicate_layout(QModelIndex layout_index) {
     return idx;
 }
 
+void PanelsModel::storeFloatingWindowData(QString window_name, QVariant data) {
+
+    QModelIndex idx = searchRecursive(window_name, QString("window_name"));
+    if (!idx.isValid()) {
+        int rc = rowCount();
+        insertRowsSync(rc, 1);
+        idx = index(rc, 0);
+        set(idx, window_name, "window_name");
+    }
+    set(idx, data, "user_data");
+}
+
+QVariant PanelsModel::retrieveFloatingWindowData(QString window_name) {
+    QVariant result;
+    QModelIndex idx = searchRecursive(window_name, QString("window_name"));
+    if (idx.isValid()) {
+        result = get(idx, "user_data");
+    }
+    return result;
+}
 
 MediaListColumnsModel::MediaListColumnsModel(QObject *parent)
     : UIModelData(

@@ -46,11 +46,18 @@ Column {
         menu_model_name: "presetMenu"+control
 
         XsMenuModelItem {
-            text: "Duplicate Preset"
+            text: "Duplicate Presets"
             menuItemPosition: 1
             menuPath: ""
             menuModelName: presetMenu.menu_model_name
-            onActivated: ShotBrowserEngine.presetsModel.duplicate(presetMenu.presetModelIndex)
+            onActivated: {
+                let indexs = []
+                for(let i=0;i<treeSequenceSelectionModel.selectedIndexes.length; i++)
+                    indexs.push(helpers.makePersistent(treeSequenceSelectionModel.selectedIndexes[i]))
+
+                for(let i=0;i<indexs.length; i++)
+                    ShotBrowserEngine.presetsModel.duplicate(indexs[i])
+            }
         }
 
         XsMenuModelItem {
@@ -73,17 +80,23 @@ Column {
             )
         }
         XsMenuModelItem {
-            text: "Remove Preset"
+            text: "Remove Presets"
             menuItemPosition: 4
             menuPath: ""
             menuModelName: presetMenu.menu_model_name
             onActivated: {
-                let m = presetMenu.presetModelIndex.model
-                let sys = m.get(presetMenu.presetModelIndex, "updateRole")
-                if(sys != undefined) {
-                    m.set(presetMenu.presetModelIndex, true, "hiddenRole")
-                } else {
-                    ShotBrowserEngine.presetsModel.removeRows(presetMenu.presetModelIndex.row, 1, presetMenu.presetModelIndex.parent)
+                let indexs = []
+                for(let i=0;i<treeSequenceSelectionModel.selectedIndexes.length; i++)
+                    indexs.push(helpers.makePersistent(treeSequenceSelectionModel.selectedIndexes[i]))
+
+                for(let i=0;i<indexs.length; i++) {
+                    let m = indexs[i].model
+                    let sys = m.get(indexs[i], "updateRole")
+                    if(sys != undefined) {
+                        m.set(indexs[i], true, "hiddenRole")
+                    } else {
+                        ShotBrowserEngine.presetsModel.removeRows(indexs[i].row, 1, indexs[i].parent)
+                    }
                 }
             }
         }
@@ -102,16 +115,22 @@ Column {
             menuModelName: presetMenu.menu_model_name
             enabled: presetMenu.filterModelIndex && presetMenu.filterModelIndex.row
             onActivated: {
-
-                // argh this is horridly complex..
                 // because we use a view, the previous item in the base model isn't
                 // the previous in the view..
-                let p = presetMenu.presetModelIndex.parent
-                let rpi = presetMenu.filterModelIndex.model.mapToSource(
-                	presetMenu.filterModelIndex.model.index(presetMenu.filterModelIndex.row-1,0,presetMenu.filterModelIndex.parent)
-                )
-                	// delegateModel.modelIndex(index-1)
-                ShotBrowserEngine.presetsModel.moveRows(p, presetMenu.presetModelIndex.row, 1, p, rpi.row)
+                let indexs = []
+                for(let i=0;i<treeSequenceSelectionModel.selectedIndexes.length; i++)
+                    indexs.push(helpers.makePersistent(presetMenu.filterModelIndex.model.mapFromSource(treeSequenceSelectionModel.selectedIndexes[i])))
+
+                indexs.sort((a, b) =>  a.row - b.row)
+
+                for(let i=0; i < indexs.length; i++) {
+                    let mi = indexs[i].model.mapToSource(indexs[i])
+                    let p = mi.parent
+                    let rpi = indexs[i].model.mapToSource(
+                    	indexs[i].model.index(indexs[i].row-1, 0, indexs[i].parent)
+                    )
+                    ShotBrowserEngine.presetsModel.moveRows(p, mi.row, 1, p, rpi.row)
+                }
             }
         }
 
@@ -123,11 +142,22 @@ Column {
             menuModelName: presetMenu.menu_model_name
             enabled: presetMenu.filterModelIndex && presetMenu.filterModelIndex ? presetMenu.filterModelIndex.row != presetMenu.filterModelIndex.model.rowCount(presetMenu.filterModelIndex.parent) - 1 : false
             onActivated: {
-                let p = presetMenu.presetModelIndex.parent
-                let rpi = presetMenu.filterModelIndex.model.mapToSource(
-                	presetMenu.filterModelIndex.model.index(presetMenu.filterModelIndex.row+1,0,presetMenu.filterModelIndex.parent)
-                )
-                ShotBrowserEngine.presetsModel.moveRows(p, presetMenu.presetModelIndex.row, 1, p, rpi.row+1)
+                // because we use a view, the previous item in the base model isn't
+                // the previous in the view..
+                let indexs = []
+                for(let i=0;i<treeSequenceSelectionModel.selectedIndexes.length; i++)
+                    indexs.push(helpers.makePersistent(presetMenu.filterModelIndex.model.mapFromSource(treeSequenceSelectionModel.selectedIndexes[i])))
+
+                indexs.sort((a, b) =>  b.row - a.row)
+
+                for(let i=0; i < indexs.length; i++) {
+                    let mi = indexs[i].model.mapToSource(indexs[i])
+                    let p = mi.parent
+                    let rpi = indexs[i].model.mapToSource(
+                        indexs[i].model.index(indexs[i].row+1, 0, indexs[i].parent)
+                    )
+                    ShotBrowserEngine.presetsModel.moveRows(p, mi.row, 1, p, rpi.row+1)
+                }
             }
         }
 

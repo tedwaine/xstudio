@@ -120,7 +120,7 @@ namespace plugin {
         }
 
         /* Function signature for on screen frame change callback - reimplement to
-        receive this event */
+        receive this event. Call join_playhead_events() to activate. */
         virtual void on_screen_frame_changed(
             const timebase::flicks,   // playhead position
             const int,                // playhead logical frame
@@ -130,7 +130,7 @@ namespace plugin {
         ) {}
 
         /* Function signature for on screen annotation change - reimplement to
-        receive this event */
+        receive this event. Call join_playhead_events() to activate. */
         virtual void on_screen_media_changed(
             caf::actor,                      // media item actor
             const utility::MediaReference &, // media reference
@@ -187,11 +187,17 @@ namespace plugin {
         /* set the cursor (mouse pointer) shape for all viewports. An empty
         string will return to defaul (arrow) pointer. See XsViewport.qml
         for possible cursor names - the are simply stringified versions of the
-        Qt cursorshape enumerator. For example "Qt.WaitCursor" would be a 
+        Qt cursorshape enumerator. For example "Qt.WaitCursor" would be a
         valid cursor name. If you have an image resource declared in a qrc
         file this can also be used for fully custom cursor. To see an example
         string-search for 'magnifier_cursor' in the xstudio code base.*/
         void set_viewport_cursor(const std::string cusor_name);
+
+        /* Call this function to start listening to events related to the
+        current global (active) playhead. This must be called if you want to
+        make use of the on_screen_frame_changed, on_screen_media_changed and
+        on_playhead_playing_changed callbacks. */
+        void listen_to_playhead_events(const bool listen = true);
 
       private:
         // re-implement to receive callback when the on-screen media changes. To
@@ -199,7 +205,7 @@ namespace plugin {
 
         void session_changed(caf::actor session);
 
-        void current_viewed_playhead_changed(caf::actor_addr playhead_addr);
+        void current_viewed_playhead_changed(caf::actor playhead);
 
         void join_studio_events();
 
@@ -209,6 +215,7 @@ namespace plugin {
         caf::actor_addr playhead_media_events_group_;
         caf::actor bookmark_manager_;
         caf::actor playhead_events_actor_;
+        bool joined_playhead_events_ = {false};
 
         module::BooleanAttribute *viewport_overlay_qml_code_ = nullptr;
     };

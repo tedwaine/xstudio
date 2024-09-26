@@ -111,7 +111,7 @@ Item { id: wheelItem
             }
 
             Loader{ id: wheelDiv
-                property int defaultWheelSize: 135
+                property int defaultWheelSize: width //135
 
                 Layout.fillWidth: true
                 Layout.fillHeight: true

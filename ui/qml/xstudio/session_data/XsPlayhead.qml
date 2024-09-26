@@ -133,7 +133,7 @@ Item {
 
     XsAttributeValue {
         id: __playheadImageSourceName
-        attributeTitle: "Source"
+        attributeTitle: "Source Name"
         model: playhead_attrs_model
     }
 

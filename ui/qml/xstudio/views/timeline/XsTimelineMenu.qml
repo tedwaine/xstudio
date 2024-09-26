@@ -1,6 +1,7 @@
 import xstudio.qml.models 1.0
 import xStudio 1.0
 import QtQml.Models 2.14
+import xstudio.qml.helpers 1.0
 
 XsPopupMenu {
 
@@ -42,7 +43,7 @@ XsPopupMenu {
         text: qsTr("Hide Markers")
         menuItemType: "toggle"
         menuPath: ""
-        menuItemPosition: 2
+        menuItemPosition: 1.5
         menuModelName: timelineMenu.menu_model_name
         panelContext: timelineMenu.panelContext
         isChecked: hideMarkers
@@ -55,10 +56,6 @@ XsPopupMenu {
         menuItemPosition: 99
         menuModelName: timelineMenu.menu_model_name
     }
-
-      // Component.onCompleted: {
-      //   timelineMenu.setMenuPathPosition("Debug", 100)
-      // }
 
     XsMenuModelItem {
         text: qsTr("Dump JSON")

@@ -54,7 +54,7 @@ Item{
         delegate: XsPrimaryButton{
             id: shapeBtn
             text: shapeHint
-            isToolTipEnabled: showButtonHints
+            isToolTipEnabled: false
 
             imgSrc: shapeImage
             imageDiv.height: 16

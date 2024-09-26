@@ -164,7 +164,8 @@ AnnotationsTool::AnnotationsTool(
                     GradientStop { position: 1.0; color: "#474747" }
                 }
             }
-        )");
+        )",
+        7.0f);
 
     dockable_widget_attr_ = register_viewport_dockable_widget(
         "Annotate",

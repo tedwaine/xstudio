@@ -39,9 +39,10 @@ ColumnLayout { id: wheelDiv
 
         GTWheel {
             id: wheel
-            x: dividerWidth*6
-            backend_color: value
             anchors.centerIn: parent
+
+            backend_color: value
+            wheelSize: defaultWheelSize
         }
     }
 

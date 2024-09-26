@@ -153,6 +153,7 @@ namespace playhead {
         typedef std::pair<media_reader::ImageBufPtr, colour_pipeline::ColourPipelineDataPtr>
             ImageAndLut;
         bool up_to_date_{false};
+        bool full_precache_activated_{false};
         utility::time_point last_change_timepoint_;
         std::vector<caf::typed_response_promise<caf::actor>> inflight_update_requests_;
     };

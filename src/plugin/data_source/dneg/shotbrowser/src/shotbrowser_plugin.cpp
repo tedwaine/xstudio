@@ -142,6 +142,7 @@ ShotBrowser::ShotBrowser(caf::actor_config &cfg, const utility::JsonStore &init_
                 anchors.fill: parent
             }
         )",
+        9.1f, // position in panels drop-down menu
         "qrc:/icons/cloud-download.svg",
         5.0f,
         show_shotbrowser);
@@ -154,6 +155,7 @@ ShotBrowser::ShotBrowser(caf::actor_config &cfg, const utility::JsonStore &init_
                 anchors.fill: parent
             }
         )",
+        9.2f, // position in panels drop-down menu
         "qrc:/shotbrowser_icons/note_history.svg",
         6.0f);
 
@@ -165,8 +167,12 @@ ShotBrowser::ShotBrowser(caf::actor_config &cfg, const utility::JsonStore &init_
                 anchors.fill: parent
             }
         )",
+        9.3f, // position in panels drop-down menu
         "qrc:/shotbrowser_icons/shot_history.svg",
         7.0f);
+
+    // this causes a divider to be inserted in the panels drop down menu
+    register_ui_panel_qml("divider", "divider", 9.4f);
 
     // new method for instantiating a 'singleton' qml item which can
     // do a one-time insertion of menu items into any menu model
@@ -773,7 +779,7 @@ caf::message_handler ShotBrowser::message_handler_extensions() {
          [=](history::undo_atom, const JsonStore &hist) -> result<bool> {
              auto rp = make_response_promise<bool>();
 
-             spdlog::warn("undo {}", hist.dump(2));
+             // spdlog::warn("undo {}", hist.dump(2));
 
              // apply undo to state.
              // don't store state change in undo redo...
@@ -818,7 +824,7 @@ caf::message_handler ShotBrowser::message_handler_extensions() {
 
          [=](history::redo_atom, const JsonStore &hist) -> result<bool> {
              auto rp = make_response_promise<bool>();
-             spdlog::warn("redo {}", hist.dump(2));
+             // spdlog::warn("redo {}", hist.dump(2));
 
 
              engine().user_presets().process_event(hist, true, true, true);
@@ -1453,6 +1459,13 @@ void ShotBrowser::load_playlist(
                                             json_store::set_json_atom_v,
                                             JsonStore(pljs["data"]),
                                             ShotgunMetadataPath + "/playlist");
+
+                                        anon_send(
+                                            playlist.actor(),
+                                            json_store::set_json_atom_v,
+                                            JsonStore(nlohmann::json(
+                                                "qrc:/shotbrowser_icons/shot_grid.svg")),
+                                            "/ui/decorators/shotgrid");
 
                                         // addDecorator(playlist.uuid)
                                         // addMenusFull(playlist.uuid)

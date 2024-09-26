@@ -52,6 +52,7 @@ JsonStoreActor::JsonStoreActor(
     link_to(broadcast_);
 
     behavior_.assign(
+        make_get_event_group_handler(broadcast_),
         [=](xstudio::broadcast::broadcast_down_atom, const caf::actor_addr &) {},
         [=](get_json_atom) -> JsonStore { return json_store_; },
 
@@ -168,8 +169,8 @@ JsonStoreActor::JsonStoreActor(
             this->request(_actor, caf::infinite, utility::get_group_atom_v)
                 .then(
                     [&, path, _actor, rp](
-                        const std::pair<caf::actor, JsonStore> &data) mutable {
-                        const auto [grp, json]                       = data;
+                        const std::tuple<caf::actor, caf::actor, JsonStore> &data) mutable {
+                        const auto [jsa, grp, json]                  = data;
                         actor_group_[actor_cast<actor_addr>(_actor)] = grp;
                         group_path_[grp]                             = path;
 
@@ -214,8 +215,8 @@ JsonStoreActor::JsonStoreActor(
             broadcast_change();
         },
 
-        [=](utility::get_group_atom) -> std::pair<caf::actor, JsonStore> {
-            return std::make_pair(broadcast_, json_store_);
+        [=](utility::get_group_atom) -> std::tuple<caf::actor, caf::actor, JsonStore> {
+            return std::make_tuple(caf::actor_cast<caf::actor>(this), broadcast_, json_store_);
         },
 
         [=](utility::uuid_atom) -> Uuid { return uuid_; });

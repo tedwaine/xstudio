@@ -188,6 +188,8 @@ QModelIndex ShotBrowserPresetModel::duplicate(const QModelIndex &index) {
         result = ShotBrowserPresetModel::index(index.row() + 1, 0, index.parent());
     }
 
+    setData(result, result.data(nameRole).toString() + " - Copy", nameRole);
+
     return result;
 }
 
@@ -734,6 +736,47 @@ void ShotBrowserPresetModel::updateTermModel(const std::string &key, const bool 
             }
         }
     }
+}
+
+QFuture<QString> ShotBrowserPresetModel::exportAsSystemPresetsFuture(
+    const QUrl &qpath, const QModelIndex &index) const {
+    return QtConcurrent::run([=]() {
+        auto path = uri_to_posix_path(UriFromQUrl(qpath));
+        if (fs::path(path).extension() != ".json")
+            path += ".json";
+
+        try {
+            // get json from index or the lot
+            auto data = R"({"type": "root", "children": []})"_json;
+
+            if (not index.isValid()) {
+                data = modelData();
+            } else {
+                data["children"].push_back(indexToFullData(index));
+            }
+
+            data = QueryEngine::validate_presets(data, false, JsonStore(), 0, true);
+
+            std::ofstream myfile;
+            myfile.open(path);
+            myfile << data.at("children").dump(2) << std::endl;
+            myfile.close();
+        } catch (const std::exception &err) {
+            spdlog::warn("{} {}", __PRETTY_FUNCTION__, err.what());
+            throw;
+        }
+
+        return QStringFromStd(std::string("Presets exported to ") + path);
+    });
+}
+
+nlohmann::json JSONTreeModel::modelData() const {
+    // build json from tree..
+    return tree_to_json(data_, children_);
+}
+
+nlohmann::json JSONTreeModel::indexToFullData(const QModelIndex &index, const int depth) const {
+    return tree_to_json(*indexToTree(index), children_, depth);
 }
 
 

@@ -95,6 +95,7 @@ void OpenGLViewportRenderer::upload_image_and_colour_data(
     if (onscreen_frame_) {
         if (onscreen_frame_->error_state() == BufferErrorState::HAS_ERROR) {
             // the frame contains errors, no need to continue from that point
+            active_shader_program_ = no_image_shader_program_;
             return;
         }
 

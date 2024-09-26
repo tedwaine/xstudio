@@ -12,6 +12,21 @@ using namespace xstudio;
 using namespace xstudio::shotgun_client;
 using namespace xstudio::utility;
 
+namespace {
+std::chrono::system_clock::duration duration_since_midnight() {
+    auto now = std::chrono::system_clock::now();
+
+    time_t tnow   = std::chrono::system_clock::to_time_t(now);
+    tm *date      = std::localtime(&tnow);
+    date->tm_hour = 0;
+    date->tm_min  = 0;
+    date->tm_sec  = 0;
+    auto midnight = std::chrono::system_clock::from_time_t(std::mktime(date));
+
+    return now - midnight;
+}
+}; // namespace
+
 QueryEngine::QueryEngine() {
     set_lookup(cache_name("Completion Location"), utility::JsonStore(locationsJSON), lookup_);
     set_lookup(cache_name("Twig Type"), TwigTypeCodes, lookup_);
@@ -101,7 +116,11 @@ void QueryEngine::initialise_presets() {
 }
 
 utility::JsonStore QueryEngine::validate_presets(
-    const utility::JsonStore &data, const utility::JsonStore &parent, const size_t index) {
+    const utility::JsonStore &data,
+    const bool is_user,
+    const utility::JsonStore &parent,
+    const size_t index,
+    const bool export_as_system) {
     auto result = R"({})"_json;
 
     auto type  = data.value("type", std::string());
@@ -110,17 +129,23 @@ utility::JsonStore QueryEngine::validate_presets(
         result = RootTemplate;
         result.update(data);
 
-        if (not parent.is_null()) {
+        if (not parent.is_null() and not export_as_system) {
             spdlog::warn("{} parent of root should be null", __PRETTY_FUNCTION__);
         }
 
-        for (size_t i = 0; i < result["children"].size(); i++)
-            result["children"][i] = validate_presets(result["children"][i], data, i);
+        auto new_children = json::array();
+        for (size_t i = 0; i < result["children"].size(); i++) {
+            auto child =
+                validate_presets(result["children"][i], is_user, data, i, export_as_system);
+            if (not child.is_null())
+                new_children.push_back(child);
+        }
+        result["children"] = new_children;
     } else if (type == "group") {
         result = GroupTemplate;
         result.update(data);
 
-        if (ptype != "root") {
+        if (ptype != "root" and not export_as_system) {
             spdlog::warn(
                 "{} parent of group should be root {} {}",
                 __PRETTY_FUNCTION__,
@@ -128,7 +153,7 @@ utility::JsonStore QueryEngine::validate_presets(
                 ptype);
         }
 
-        if (result["children"].size() != 2) {
+        if (result["children"].size() != 2 and not export_as_system) {
             spdlog::warn(
                 "{} groups must have 2 children {} {}",
                 __PRETTY_FUNCTION__,
@@ -136,20 +161,33 @@ utility::JsonStore QueryEngine::validate_presets(
                 result["children"].size());
         }
 
+        if (not is_user and (result["update"].is_null() or result["update"] != false)) {
+            if (not export_as_system)
+                spdlog::warn("Fix group update flag {}", result["name"].get<std::string>());
+            result["update"] = false;
+        }
+
         auto userdata = data.value("userdata", std::string());
-        if (userdata != "recent" and userdata != "menus" and userdata != "tree")
+        if (userdata != "recent" and userdata != "menus" and userdata != "tree" and
+            not export_as_system)
             spdlog::warn(
                 "{} invalid group userdata {} {}",
                 __PRETTY_FUNCTION__,
                 data.value("id", ""),
                 userdata);
 
-        for (size_t i = 0; i < result["children"].size(); i++)
-            result["children"][i] = validate_presets(result["children"][i], data, i);
+        // check for hidden systen preset == purge when export as system
+        if (export_as_system and not is_user and result["hidden"] == true)
+            result = JsonStore();
+        else {
+            for (size_t i = 0; i < result["children"].size(); i++)
+                result["children"][i] =
+                    validate_presets(result["children"][i], is_user, data, i, export_as_system);
+        }
     } else if (type == "presets") {
         result = data;
 
-        if (ptype != "group") {
+        if (ptype != "group" and not export_as_system) {
             spdlog::warn(
                 "{} parent of presets should be group {} {}",
                 __PRETTY_FUNCTION__,
@@ -157,7 +195,7 @@ utility::JsonStore QueryEngine::validate_presets(
                 ptype);
         }
 
-        if (index != 1) {
+        if (index != 1 and not export_as_system) {
             spdlog::warn(
                 "{} index of presets must be 1 {} {} {}",
                 __PRETTY_FUNCTION__,
@@ -166,56 +204,84 @@ utility::JsonStore QueryEngine::validate_presets(
                 ptype);
         }
 
-        for (size_t i = 0; i < result["children"].size(); i++)
-            result["children"][i] = validate_presets(result["children"][i], data, i);
+        auto new_children = json::array();
+        for (size_t i = 0; i < result["children"].size(); i++) {
+            auto child =
+                validate_presets(result["children"][i], is_user, data, i, export_as_system);
+            if (not child.is_null())
+                new_children.push_back(child);
+        }
+        result["children"] = new_children;
     } else if (type == "term") {
         result = TermTemplate;
         result.update(data);
 
         if (ptype == "term" and parent.value("term", "") != "Operator") {
-            spdlog::warn(
-                "{} parent of term invalid {} {}",
-                __PRETTY_FUNCTION__,
-                data.value("id", ""),
-                ptype);
+            if (not export_as_system)
+                spdlog::warn(
+                    "{} parent of term invalid {} {}",
+                    __PRETTY_FUNCTION__,
+                    data.value("id", ""),
+                    ptype);
         } else if (ptype != "preset" and ptype != "term") {
-            spdlog::warn(
-                "{} parent of term should be preset {} {}",
-                __PRETTY_FUNCTION__,
-                data.value("id", ""),
-                ptype);
+            if (not export_as_system)
+                spdlog::warn(
+                    "{} parent of term should be preset {} {}",
+                    __PRETTY_FUNCTION__,
+                    data.value("id", ""),
+                    ptype);
         }
 
-        for (size_t i = 0; i < result["children"].size(); i++)
-            result["children"][i] = validate_presets(result["children"][i], data, i);
+        if (result.value("term", "") != "Operator") {
+            if (result.contains("children"))
+                result.erase("children");
+        } else {
+            for (size_t i = 0; i < result["children"].size(); i++)
+                result["children"][i] =
+                    validate_presets(result["children"][i], is_user, data, i, export_as_system);
+        }
+
     } else if (type == "preset") {
         result = PresetTemplate;
         result.update(data);
 
         if (ptype != "presets" and ptype != "group") {
-            spdlog::warn(
-                "{} parent of preset should be presets or group {} {}",
-                __PRETTY_FUNCTION__,
-                data.value("id", ""),
-                ptype);
+            if (not export_as_system)
+                spdlog::warn(
+                    "{} parent of preset should be presets or group {} {}",
+                    __PRETTY_FUNCTION__,
+                    data.value("id", ""),
+                    ptype);
         }
 
         if (ptype == "group" and index != 0) {
-            spdlog::warn(
-                "{} index of group override must be 0 {} {} {}",
-                __PRETTY_FUNCTION__,
-                data.value("id", ""),
-                index,
-                ptype);
+            if (not export_as_system)
+                spdlog::warn(
+                    "{} index of group override must be 0 {} {} {}",
+                    __PRETTY_FUNCTION__,
+                    data.value("id", ""),
+                    index,
+                    ptype);
         }
 
+        // fix overrides.
         if (ptype == "group") {
             result.update(R"({"hidden": false, "favourite": false})"_json);
         }
 
+        if (not is_user and (result["update"].is_null() or result["update"] != false)) {
+            if (not export_as_system)
+                spdlog::warn("Fix preset update flag {}", result["name"].get<std::string>());
+            result["update"] = false;
+        }
 
-        for (size_t i = 0; i < result["children"].size(); i++)
-            result["children"][i] = validate_presets(result["children"][i], data, i);
+        if (export_as_system and not is_user and result["hidden"] == true)
+            result = JsonStore();
+        else {
+            for (size_t i = 0; i < result["children"].size(); i++)
+                result["children"][i] =
+                    validate_presets(result["children"][i], is_user, data, i, export_as_system);
+        }
 
     } else {
         result = data;
@@ -240,7 +306,7 @@ void QueryEngine::set_presets(
     system_presets_.reset_data(system_tmp);
 
     // fix presets..
-    user_tmp = validate_presets(user_tmp);
+    user_tmp = validate_presets(user_tmp, true);
 
     // we need to merge system presets into user
     merge_presets(user_tmp["children"], system_tmp["children"]);
@@ -846,9 +912,11 @@ void QueryEngine::add_playlist_term_to_filter(
     const JsonStore &lookup,
     FilterBy *qry) {
     if (term == "Lookback") {
-        if (value == "Today")
-            qry->push_back(DateTime("updated_at").in_calendar_day(0));
-        else if (value == "1 Day")
+        if (value == "Today") {
+            auto since_midnight = duration_since_midnight();
+            auto hours = std::chrono::duration_cast<std::chrono::hours>(since_midnight).count();
+            qry->push_back(DateTime("updated_at").in_last(hours, Period::HOUR));
+        } else if (value == "1 Day")
             qry->push_back(DateTime("updated_at").in_last(1, Period::DAY));
         else if (value == "3 Days")
             qry->push_back(DateTime("updated_at").in_last(3, Period::DAY));
@@ -938,9 +1006,11 @@ void QueryEngine::add_version_term_to_filter(
     const JsonStore &lookup,
     FilterBy *qry) {
     if (term == "Lookback") {
-        if (value == "Today")
-            qry->push_back(DateTime("created_at").in_calendar_day(0));
-        else if (value == "1 Day")
+        if (value == "Today") {
+            auto since_midnight = duration_since_midnight();
+            auto hours = std::chrono::duration_cast<std::chrono::hours>(since_midnight).count();
+            qry->push_back(DateTime("created_at").in_last(hours, Period::HOUR));
+        } else if (value == "1 Day")
             qry->push_back(DateTime("created_at").in_last(1, Period::DAY));
         else if (value == "3 Days")
             qry->push_back(DateTime("created_at").in_last(3, Period::DAY));
@@ -1188,9 +1258,11 @@ void QueryEngine::add_note_term_to_filter(
     const JsonStore &lookup,
     FilterBy *qry) {
     if (term == "Lookback") {
-        if (value == "Today")
-            qry->push_back(DateTime("created_at").in_calendar_day(0));
-        else if (value == "1 Day")
+        if (value == "Today") {
+            auto since_midnight = duration_since_midnight();
+            auto hours = std::chrono::duration_cast<std::chrono::hours>(since_midnight).count();
+            qry->push_back(DateTime("created_at").in_last(hours, Period::HOUR));
+        } else if (value == "1 Day")
             qry->push_back(DateTime("created_at").in_last(1, Period::DAY));
         else if (value == "3 Days")
             qry->push_back(DateTime("created_at").in_last(3, Period::DAY));

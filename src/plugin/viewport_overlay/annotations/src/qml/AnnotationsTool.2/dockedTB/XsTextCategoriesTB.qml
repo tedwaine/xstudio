@@ -29,11 +29,10 @@ Item{ id: textCategory
 
             id: dropdownFonts
 
-            x: itemSpacing*2
-            width: parent.width
-            height: buttonHeight
+            width: parent.width - itemSpacing
+            height: parent.height 
+
             model: combo_box_options
-            anchors.verticalCenter: parent.verticalCenter
 
             property var value_: value ? value : null
             onValue_Changed: {

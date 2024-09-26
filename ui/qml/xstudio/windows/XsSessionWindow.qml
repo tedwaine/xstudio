@@ -65,7 +65,7 @@ ApplicationWindow {
 
     property alias tabsVisibility: __tabsVisibility.value
     property var layoutName: layoutBar.current_layout_index.valid ? ui_layouts_model.get(layoutBar.current_layout_index, "layout_name") : ""
-    property var lastNonPresentLayout
+    property var lastNonPresentLayout: "Review"
     onLayoutNameChanged: {
         if (layoutName != "Present") {
             lastNonPresentLayout = layoutName
@@ -213,6 +213,19 @@ ApplicationWindow {
         anchors.fill: parent
         context: "applicationWindow"
         focus: true
+    }
+
+    XsHotkeysInfo {
+        id: hotkeysModel
+    }
+    property alias hotkeysModel: hotkeysModel
+
+    XsHotkey {
+        id: notes_panel_hotkey
+        sequence: "N"
+        name: "Show/Hide Notes Panel"
+        description: "Makes the Notes pop-out panel show/hide itself"
+        context: "any"
     }
 
     XsHotkey {
@@ -404,21 +417,29 @@ ApplicationWindow {
 
     Component.onCompleted: {
 
-        viewsModel.register_view("qrc:/views/playlists/XsPlaylists.qml", "Playlists")
-        viewsModel.register_view("qrc:/views/media/XsMediaPanel.qml", "Media")
-        viewsModel.register_view("qrc:/views/viewport/XsViewportPanel.qml", "Viewport")
-        viewsModel.register_view("qrc:/views/timeline/XsTimelinePanel.qml", "Timeline")
-        viewsModel.register_view("qrc:/views/notes/XsNotesView.qml", "Notes")
-        viewsModel.register_view("qrc:/views/python/XsPythonPanel.qml", "Python")
-        viewsModel.register_view("qrc:/views/log/XsLogPanel.qml", "Log")
+        viewsModel.register_view("qrc:/views/playlists/XsPlaylists.qml", "Playlists", 1.0)
+        viewsModel.register_view("qrc:/views/media/XsMediaPanel.qml", "Media", 2.0)
+        viewsModel.register_view("qrc:/views/viewport/XsViewportPanel.qml", "Viewport", 3.0)
+        viewsModel.register_view("qrc:/views/timeline/XsTimelinePanel.qml", "Timeline", 4.0)
+        viewsModel.register_view("divider", "divider", 5.0)
+        // grading = 6.0
+        // annotation = 7.0
+        viewsModel.register_view("qrc:/views/notes/XsNotesView.qml", "Notes", 8.0)
+        viewsModel.register_view("divider", "divider", 9.0)
+        viewsModel.register_view("qrc:/views/python/XsPythonPanel.qml", "Python", 10.0)
+        viewsModel.register_view("qrc:/views/log/XsLogPanel.qml", "Log", 11.0)
 
         popoutWindowsModel.register_popout_window(
             "Notes",
             "qrc:/views/notes/XsNotesView.qml",
             "qrc:/icons/sticky_note.svg",
-            1.0)
+            1.0,
+            notes_panel_hotkey.uuid)
 
         singletonsModel.register_singleton_qml("qrc:/views/notes/XsNotesSingleton.qml")
+
+        // Now the main window is complete, we can load video output plugins
+        studio.loadVideoOutputPlugins()
 
     }
 
@@ -532,6 +553,7 @@ ApplicationWindow {
 
     property bool popoutIsOpen: popout_loader.item ? popout_loader.item.visible : false
     property bool isPopoutViewer: false
+    property bool isQuickview: false
 
     // to manage quickview windows
     XsQuickViewLauncher {

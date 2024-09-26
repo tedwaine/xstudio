@@ -99,61 +99,48 @@ Rectangle{
     */
 
     property var visible_doc_widgets: []
-    property var userData: user_data
-    onUserDataChanged: {
-        // update list of all visible docakble widgets
-        if (userData == undefined) return
+    
+    property var dock_widgets_model: []
+
+    onDock_widgets_modelChanged: {
+
+        if (dock_widgets_model.length == 0) return
+        // update the list of all docked widgets which are visible
         var v = []
-        for (var i = 0; i < userData.length; ++i) {
-            if (userData[i][1]) {
-                v.push(userData[i][0])
+        for (var i = 0; i < dock_widgets_model.length; ++i) {
+            if (dock_widgets_model[i][1]) {
+                v.push(dock_widgets_model[i][0])
             }
         }
         visible_doc_widgets = v
     }
 
-    // onUserDataChanged:{
-    //     if(user_data == undefined){
-    //         user_data = {"tabBar": true, "actionBar": true, "infoBar": true, "toolBar": true, "transportBar"; true}
-    //     }
-    // }
-
     function toggle_dockable_widget(widget_name) {
 
-        // 'user_data' is model data attached to the panel instance. We can
-        // put an array of data into user_data that tells us which dockable
-        // toolbars are visible and where they are (left, right, top bottom.)
-        if (user_data == undefined || typeof user_data == "string") {
-            user_data = []
-        }
-
-        var u = user_data
+        var u = dock_widgets_model
         for (var i = 0; i < u.length; ++i) {
-            var w = u[i]
             if (u[i][0] == widget_name) {
                 // found a match. toggle visibility
                 u[i][1] = !u[i][1]
-                user_data = u
+                dock_widgets_model = u
                 return
             }
         }
         var new_entry = [widget_name, true, "left"]
         u.push(new_entry)
-        // on setting user_data with the changes, we then rebuild the arrays
-        // that drive the creation of the docking toolbars
-        user_data = u
+        dock_widgets_model = u
 
     }
 
     function move_dockable_widget(widget_name, placement) {
 
-        var u = user_data
+        var u = dock_widgets_model
         for (var i = 0; i < u.length; ++i) {
             var w = u[i]
             if (u[i][0] == widget_name) {
                 // found a match. toggle visibility
                 u[i][2] = placement
-                user_data = u
+                dock_widgets_model = u
                 return
             }
         }
@@ -180,7 +167,7 @@ Rectangle{
 
         XsLeftRightDockedTools {
             Layout.fillHeight: true
-            dockedWidgetsModel: user_data
+            dockedWidgetsModel: dock_widgets_model
             Layout.preferredWidth: contentItem.childrenRect.width
         }
 
@@ -190,7 +177,7 @@ Rectangle{
 
             XsTopBottomDockedTools {
                 Layout.fillWidth: true
-                dockedWidgetsModel: user_data
+                dockedWidgetsModel: dock_widgets_model
                 Layout.preferredHeight: contentItem.childrenRect.height
                 placement: "top"
             }
@@ -207,7 +194,7 @@ Rectangle{
 
             XsTopBottomDockedTools {
                 Layout.fillWidth: true
-                dockedWidgetsModel: user_data
+                dockedWidgetsModel: dock_widgets_model
                 Layout.preferredHeight: contentItem.childrenRect.height
                 placement: "bottom"
             }
@@ -215,7 +202,7 @@ Rectangle{
 
         XsLeftRightDockedTools {
             Layout.fillHeight: true
-            dockedWidgetsModel: user_data
+            dockedWidgetsModel: dock_widgets_model
             placement: "right"
             Layout.preferredWidth: contentItem.childrenRect.width
         }
@@ -247,14 +234,7 @@ Rectangle{
         Behavior on opacity {NumberAnimation{ duration: 150 }}
     }
 
-    property bool elementsVisible: true
-    onElementsVisibleChanged: {
-        if(currentLayout == "Present") {
-            menuBarVisible = elementsVisible
-        }
 
-        tabBarVisible = elementsVisible
-    }
     property var currentLayout: isPopoutViewer? "popout" : appWindow.layoutName
     onCurrentLayoutChanged:{
         if (currentLayout !== "Present") {
@@ -264,10 +244,24 @@ Rectangle{
         //     menuBarVisible = elementsVisible
         // }
     }
-    
+
+    property bool elementsVisible: true
+    onElementsVisibleChanged: {
+        if(currentLayout == "Present") {
+            menuBarVisible = elementsVisible
+        }
+
+        if (typeof forceHideTabs !== "undefined") {
+            if(elementsVisible && tabBarVisible){
+                forceHideTabs = false
+            } else if(!elementsVisible){
+                forceHideTabs = true
+            }
+        }
+    }
     property bool menuBarVisible: true
     onMenuBarVisibleChanged:{
-        appWindow.set_menu_bar_visibility(viewportWidget.menuBarVisible)
+        appWindow.set_menu_bar_visibility(menuBarVisible)
     }
     property bool tabBarVisible: true
     onTabBarVisibleChanged:{
@@ -275,9 +269,14 @@ Rectangle{
             forceHideTabs = !tabBarVisible
         }
     }
-    property bool actionBarVisible: true
-    property bool infoBarVisible: true
-    property bool toolBarVisible: true
+    property bool actionBarVisible: isQuickview? false : true
+    property bool infoBarVisible: isQuickview? false : true
+    property bool toolBarVisible: isQuickview? false : true
     property bool transportBarVisible: true
 
+    XsStoredPanelProperties {
+        propertyNames: ["dock_widgets_model", "tabBarVisible", "transportBarVisible", "toolBarVisible", "infoBarVisible", "actionBarVisible"]
+    }
+
+    
 }

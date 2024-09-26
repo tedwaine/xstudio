@@ -261,6 +261,9 @@ Viewport::Viewport(
         {"Mirror Horizontally", "Mirror Vertically", "Mirror Both", "Off"},
         {"Mirror Horizontally", "Mirror Vertically", "Mirror Both", "Off"});
 
+    sync_to_main_viewport_ =
+        add_integer_attribute("Sync To Main Viewport", "Sync To Main Viewport", 0);
+
     filter_mode_preference_ = add_string_choice_attribute(
         "Viewport Filter Mode", "Vp. Filtering", ViewportRenderer::pixel_filter_mode_names);
     filter_mode_preference_->set_preference_path("/ui/viewport/filter_mode");
@@ -315,7 +318,7 @@ Viewport::Viewport(
     fit_mode_->set_role_data(module::Attribute::ToolbarPosition, 7.0f);
     mirror_mode_->set_role_data(module::Attribute::ToolbarPosition, 8.0f);
 
-    frame_rate_expr_ = add_string_attribute("Frame Rate", "Frame Rate", "--/--");
+    frame_rate_expr_    = add_string_attribute("Frame Rate", "Frame Rate", "--/--");
     custom_cursor_name_ = add_string_attribute("Custom Cursor Name", "Custom Cursor Name", "");
 
     frame_error_message_ = add_string_attribute("frame_error", "frame_error", "");
@@ -390,6 +393,7 @@ Viewport::Viewport(
     expose_attribute_in_model_data(pan_mode_toggle_, other_attrs_model);
     expose_attribute_in_model_data(frame_rate_expr_, other_attrs_model);
     expose_attribute_in_model_data(custom_cursor_name_, other_attrs_model);
+    expose_attribute_in_model_data(frame_error_message_, other_attrs_model);
 
     // we call this base-class method to set-up our attributes so that they
     // show up in our toolbar
@@ -470,6 +474,9 @@ void Viewport::register_hotkeys() {
         "Toggles the mirror mode from Flip / Flop / Both / Off ",
         false,
         "Viewer");
+
+    zoom_mode_toggle_->set_role_data(module::Attribute::HotkeyUuid, zoom_hotkey_);
+    pan_mode_toggle_->set_role_data(module::Attribute::HotkeyUuid, pan_hotkey_);
 
     setup_menus();
 }
@@ -677,8 +684,8 @@ void Viewport::update_fit_mode_matrix(
         const float aspect = float(image_width * pixel_aspect) / float(image_height);
         const Imath::V2i size(image_width, image_height);
         if (aspect != state_.image_aspect_ || size != state_.image_size_) {
-            state_.image_aspect_ = aspect;
-            state_.image_size_   = size;
+            state_.image_aspect_       = aspect;
+            state_.image_size_         = size;
             force_matrix_update_notify = true;
         }
     }
@@ -1019,21 +1026,14 @@ caf::message_handler Viewport::message_handler() {
 
                 [=](fit_mode_atom) -> FitMode { return fit_mode(); },
 
+                [=](fit_mode_atom, const FitMode mode) { set_fit_mode(mode, false); },
+
                 [=](fit_mode_atom,
                     const FitMode mode,
                     const std::string &viewport_name,
                     const std::string &window_id) {
-
-                    // Note: Currently this isn't called, as 'sync' arg for
-                    // set_fit_mode is always false. We don't want fit synced
-                    // between main and popout viewport.
-
-                    // we only sync changes in main window to popout and vice versa. Two
-                    // viewport in the same window do not sync. quickview windows do not sync
-                    if ((window_id_ == "xstudio_popout_window" &&
-                         window_id == "xstudio_main_window") ||
-                        (window_id == "xstudio_popout_window" &&
-                         window_id_ == "xstudio_main_window")) {
+                    if (sync_to_main_viewport_->value() &
+                        ViewportSyncMode::ViewportSyncFitMode) {
                         set_fit_mode(mode, false);
                     }
                 },
@@ -1046,7 +1046,9 @@ caf::message_handler Viewport::message_handler() {
                     if ((window_id_ == "xstudio_popout_window" &&
                          window_id == "xstudio_main_window") ||
                         (window_id == "xstudio_popout_window" &&
-                         window_id_ == "xstudio_main_window")) {
+                         window_id_ == "xstudio_main_window") ||
+                        (sync_to_main_viewport_->value() &
+                         ViewportSyncMode::ViewportSyncZoomAndPan)) {
                         if (action == "revert") {
                             revert_fit_zoom_to_previous(true);
                         }
@@ -1062,7 +1064,9 @@ caf::message_handler Viewport::message_handler() {
                     if ((window_id_ == "xstudio_popout_window" &&
                          window_id == "xstudio_main_window") ||
                         (window_id == "xstudio_popout_window" &&
-                         window_id_ == "xstudio_main_window")) {
+                         window_id_ == "xstudio_main_window") ||
+                        (sync_to_main_viewport_->value() &
+                         ViewportSyncMode::ViewportSyncMirrorMode)) {
                         mirror_mode_->set_value(mirror_mode);
                     }
                 },
@@ -1090,6 +1094,11 @@ caf::message_handler Viewport::message_handler() {
 
                 [=](viewport_pan_atom) -> Imath::V2f { return pan(); },
 
+                [=](viewport_pan_atom, const Imath::V2f pan) {
+                    set_pan(pan.x, pan.y);
+                    event_callback_(Redraw);
+                },
+
                 [=](viewport_pan_atom,
                     const float xpan,
                     const float ypan,
@@ -1101,7 +1110,9 @@ caf::message_handler Viewport::message_handler() {
                     if ((window_id_ == "xstudio_popout_window" &&
                          window_id == "xstudio_main_window") ||
                         (window_id == "xstudio_popout_window" &&
-                         window_id_ == "xstudio_main_window")) {
+                         window_id_ == "xstudio_main_window") ||
+                        (sync_to_main_viewport_->value() &
+                         ViewportSyncMode::ViewportSyncZoomAndPan)) {
 
                         set_pan(xpan, ypan);
                         event_callback_(Redraw);
@@ -1123,7 +1134,12 @@ caf::message_handler Viewport::message_handler() {
                     set_pixel_zoom(zoom);
                 },
 
-                [=](viewport_scale_atom) -> float { return pixel_zoom(); },
+                [=](viewport_scale_atom) -> float { return state_.scale_; },
+
+                [=](viewport_scale_atom, float scale) {
+                    set_scale(scale);
+                    event_callback_(Redraw);
+                },
 
                 [=](viewport_scale_atom,
                     const float scale,
@@ -1134,7 +1150,9 @@ caf::message_handler Viewport::message_handler() {
                     if ((window_id_ == "xstudio_popout_window" &&
                          window_id == "xstudio_main_window") ||
                         (window_id == "xstudio_popout_window" &&
-                         window_id_ == "xstudio_main_window")) {
+                         window_id_ == "xstudio_main_window") ||
+                        (sync_to_main_viewport_->value() &
+                         ViewportSyncMode::ViewportSyncZoomAndPan)) {
 
                         set_scale(scale);
                         event_callback_(Redraw);
@@ -1178,8 +1196,28 @@ caf::message_handler Viewport::message_handler() {
                     }
                 },
 
-                [=](ui::viewport::viewport_cursor_atom, const std::string & cursor_name) {
+                [=](ui::viewport::viewport_cursor_atom, const std::string &cursor_name) {
                     custom_cursor_name_->set_value(cursor_name);
+                },
+
+                [=](ui::viewport::viewport_visibility_atom) -> bool { return is_visible_; },
+
+                [=](utility::name_atom, const bool /*window name*/) -> std::string {
+                    return window_id_;
+                },
+
+                [=](screen_info_atom,
+                    const std::string &name,
+                    const std::string &model,
+                    const std::string &manufacturer,
+                    const std::string &serialNumber) {
+                    anon_send(
+                        colour_pipeline_,
+                        screen_info_atom_v,
+                        name,
+                        model,
+                        manufacturer,
+                        serialNumber);
                 },
 
                 [=](const error &err) mutable { std::cerr << "ERR " << to_string(err) << "\n"; }
@@ -1335,17 +1373,17 @@ void Viewport::attribute_changed(const utility::Uuid &attr_uuid, const int role)
 
         const std::string mode = fit_mode_->value();
         if (mode == "1:1")
-            set_fit_mode(FitMode::One2One, false);
+            set_fit_mode(FitMode::One2One, is_visible_);
         else if (mode == "Best")
-            set_fit_mode(FitMode::Best, false);
+            set_fit_mode(FitMode::Best, is_visible_);
         else if (mode == "Width")
-            set_fit_mode(FitMode::Width, false);
+            set_fit_mode(FitMode::Width, is_visible_);
         else if (mode == "Height")
-            set_fit_mode(FitMode::Height, false);
+            set_fit_mode(FitMode::Height, is_visible_);
         else if (mode == "Fill")
-            set_fit_mode(FitMode::Fill, false);
+            set_fit_mode(FitMode::Fill, is_visible_);
         else
-            set_fit_mode(FitMode::Free, false);
+            set_fit_mode(FitMode::Free, is_visible_);
 
     } else if (attr_uuid == zoom_mode_toggle_->uuid() && role == module::Attribute::Value) {
 
@@ -1594,7 +1632,9 @@ void Viewport::framebuffer_swapped(const utility::time_point swap_time) {
 }
 
 void Viewport::get_frames_for_display(
-    std::vector<media_reader::ImageBufPtr> &next_images, const bool force_playhead_sync) {
+    std::vector<media_reader::ImageBufPtr> &next_images,
+    const bool force_playhead_sync,
+    const utility::time_point &when_being_displayed) {
 
     if (!parent_actor_)
         return;
@@ -1606,12 +1646,20 @@ void Viewport::get_frames_for_display(
         auto t0 = utility::clock::now();
 
         // try {
-        next_images = request_receive_wait<std::vector<media_reader::ImageBufPtr>>(
-            *sys,
-            display_frames_queue_actor_,
-            std::chrono::milliseconds(1000),
-            viewport_get_next_frames_for_display_atom_v,
-            force_playhead_sync);
+        next_images = when_being_displayed == utility::time_point()
+                          ? request_receive_wait<std::vector<media_reader::ImageBufPtr>>(
+                                *sys,
+                                display_frames_queue_actor_,
+                                std::chrono::milliseconds(1000),
+                                viewport_get_next_frames_for_display_atom_v,
+                                force_playhead_sync)
+                          : request_receive_wait<std::vector<media_reader::ImageBufPtr>>(
+                                *sys,
+                                display_frames_queue_actor_,
+                                std::chrono::milliseconds(1000),
+                                viewport_get_next_frames_for_display_atom_v,
+                                when_being_displayed);
+
         // } catch (const std::exception &e) {
         //     spdlog::warn("viewport_get_next_frames_for_display_atom_v failed");
         //     throw;
@@ -1639,6 +1687,8 @@ void Viewport::get_frames_for_display(
                 std::chrono::milliseconds(1000),
                 colour_pipeline::colour_operation_uniforms_atom_v,
                 image);
+
+
             // } catch (const std::exception &e) {
             //     spdlog::warn("colour_pipeline::colour_operation_uniforms_atom_v failed");
             //     throw;
@@ -1685,7 +1735,19 @@ void Viewport::get_frames_for_display(
         }
 
     } catch (const std::exception &e) {
-        spdlog::warn("{} : {} {}", name(), __PRETTY_FUNCTION__, e.what());
+
+        // on start-up, we might get a timeout error here occasionally while
+        // playhead and colourpipeline are getting themselves set-up. For now,
+        // supressing the warnings unless there are a lot of them (suggesting
+        // something is properly broken)
+        static thread_local int error_count = 0;
+        error_count++;
+        if (error_count == 10) {
+            spdlog::warn("{} : {} {}", name(), __PRETTY_FUNCTION__, e.what());
+            error_count = 0;
+        } else {
+            spdlog::debug("{} : {} {}", name(), __PRETTY_FUNCTION__, e.what());
+        }
     }
     t1_ = utility::clock::now();
 }

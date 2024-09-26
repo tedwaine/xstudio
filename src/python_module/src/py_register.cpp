@@ -434,7 +434,18 @@ void register_item_class(py::module &m, const std::string &name) {
         .def("trimmed_range", &timeline::Item::trimmed_range)
         .def("trimmed_duration", &timeline::Item::trimmed_duration)
         .def("trimmed_start", &timeline::Item::trimmed_start)
-
+        .def(
+            "frame_at_index",
+            [](timeline::Item &v, const int frame) { return v.frame_at_index(frame); })
+        .def("range_at_index", &timeline::Item::range_at_index)
+        .def(
+            "item_at_frame",
+            [](timeline::Item &v, const int frame) {
+                auto tmp = v.item_at_frame(frame);
+                if (tmp)
+                    return std::optional<timeline::Item>(*(tmp->first));
+                return std::optional<timeline::Item>();
+            })
         .def(
             "resolve_time",
             &timeline::Item::resolve_time,

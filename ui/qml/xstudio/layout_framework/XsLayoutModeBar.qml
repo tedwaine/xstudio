@@ -280,6 +280,7 @@ Item { id: modeBar
                 text: layout_name
                 width: btnView.width>(btnWidth*btnView.model.count)? btnWidth : btnView.width/btnView.model.count
                 height: buttonHeight
+                font.bold: true
 
                 isActive: index==selected_layout
                 onClicked:{

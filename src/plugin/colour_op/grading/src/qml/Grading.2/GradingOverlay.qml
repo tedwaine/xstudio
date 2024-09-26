@@ -121,7 +121,22 @@ Item {
         }
     }
 
-    MouseArea {
+    // If we use a MouseArea in the overlay, it stops the Viewport having 
+    // full control over the pointer (like setting the Cursor shape). It's
+    // better to listen to mouse events coming from the Viewport itself.
+    Connections {
+        target: view
+        function onMousePress(buttons) {
+            if (polygon_init) {
+                genPolygonPoint(view.mousePosition.x, view.mousePosition.y);
+            }
+        }
+        function onMouseDoubleClick(buttons) {
+            root.handleDoubleClick(view.mousePosition);
+        }
+    }
+
+    /*MouseArea {
         anchors.fill: root
         propagateComposedEvents: true
 
@@ -134,7 +149,7 @@ Item {
             }
             mouse.accepted = false;
         }
-    }
+    }*/
 
     // Overlay shapes
 
@@ -144,11 +159,23 @@ Item {
 
         onItemAdded: {
             activeShape = index;
+
+            // First time a shape is added to a layer activate single frame mode
+            if (count == 1) {
+                grd_attrs.grade_in = currentPlayhead.mediaFrame
+                grd_attrs.grade_out = currentPlayhead.mediaFrame
+            }
         }
 
         onItemRemoved: {
             if (activeShape >= count) {
                 activeShape = count - 1;
+            }
+
+            // Last shape removed from the layer disable single frame mode
+            if (count == 0) {
+                grd_attrs.grade_in = -1
+                grd_attrs.grade_out = -1
             }
         }
 

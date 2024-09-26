@@ -210,11 +210,20 @@ XsPopupMenu {
     }
 
     XsMenuModelItem {
+        text: qsTr("Set As Conform Track")
+        menuPath: ""
+        menuItemPosition: 26
+        menuModelName: timelineMenu.menu_model_name
+        onActivated: theTimeline.conformSourceIndex = helpers.makePersistent(currentTrackIndex)
+        panelContext: timelineMenu.panelContext
+    }
+
+    XsMenuModelItem {
         id: disabledTrack
         text: qsTr("Disable Tracks")
         menuItemType: "toggle"
         menuPath: ""
-        menuItemPosition: 26
+        menuItemPosition: 26.5
         menuModelName: timelineMenu.menu_model_name
         onActivated: {
             theTimeline.enableItems(timelineSelection.selectedIndexes, isChecked)

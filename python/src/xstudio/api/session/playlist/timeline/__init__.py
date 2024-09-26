@@ -7,7 +7,7 @@ from xstudio.api.session.container import Container
 from xstudio.api.intrinsic import History
 from xstudio.api.session.media.media import Media
 from xstudio.api.session.playlist.timeline.item import Item
-from xstudio.api.session.playhead import Playhead
+from xstudio.api.session.playhead import Playhead, PlayheadSelection
 
 def create_gap(connection, name="Gap"):
     """Create Gap object.

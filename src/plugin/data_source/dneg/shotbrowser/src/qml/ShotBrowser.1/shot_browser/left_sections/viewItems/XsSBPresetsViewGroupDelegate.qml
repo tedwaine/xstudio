@@ -222,7 +222,7 @@ MouseArea {
                     Layout.maximumWidth: height
                     Layout.fillHeight: true
 
-                    visible: isMouseHovered || addBtn.isActive
+                    visible: isMouseHovered || addBtn.isActive || editBtn.isActive
 
                     imgSrc: "qrc:/icons/add.svg"
                     scale: 0.95
@@ -278,7 +278,7 @@ MouseArea {
                     Layout.maximumWidth: height
                     Layout.fillHeight: true
 
-                    visible: isMouseHovered || favouriteRole
+                    visible: isMouseHovered || favouriteRole || editBtn.isActive
 
                     showHoverOnActive: favouriteRole && !isMouseHovered
                     isColoured: favouriteRole// && isMouseHovered

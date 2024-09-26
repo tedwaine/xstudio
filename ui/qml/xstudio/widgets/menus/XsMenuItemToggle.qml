@@ -21,7 +21,7 @@ Item {
 
     property real leftIconSize: menuIcon? indentSpacer.width + checkDiv.width + iconDiv.width : indentSpacer.width + checkDiv.width
 
-    property bool isChecked: isRadioButton? radioSelectedChoice==label : is_checked
+    property bool isChecked: isRadioButton? radioSelectedChoice==actualValue : is_checked
     property bool isRadioButton: false
     property var radioSelectedChoice: ""
     property var label: name ? name : ""
@@ -33,15 +33,18 @@ Item {
     property var menu_model_index
     property var parent_menu
     property alias icon: checkDiv.source
+    property var actualValue
 
     property bool isHovered: menuMouseArea.containsMouse
     property bool isActive: menuMouseArea.pressed
+    property var is_enabled: typeof menu_item_enabled !== 'undefined' ? menu_item_enabled : true
 
-    property color hotKeyColor: palette.text
+    property color textColor: palette.text
+    property color hotKeyColor: XsStyleSheet.secondaryTextColor
+    
     property real borderWidth: XsStyleSheet.widgetBorderWidth
 
-    enabled: typeof menu_item_enabled !== 'undefined' ? menu_item_enabled : true
-
+    enabled: is_enabled
     opacity: enabled ? 1 : 0.5
 
     function hideSubMenus() {}
@@ -90,7 +93,7 @@ Item {
                 Layout.alignment: Qt.AlignLeft | Qt.AlignVCenter
                 layer {
                     enabled: true
-                    effect: ColorOverlay { color: hotKeyColor }
+                    effect: ColorOverlay { color: textColor }
                 }
             }
         }
@@ -106,7 +109,7 @@ Item {
             Layout.alignment: Qt.AlignLeft | Qt.AlignVCenter
             layer {
                 enabled: true
-                effect: ColorOverlay { color: hotKeyColor }
+                effect: ColorOverlay { color: textColor }
             }
         }
 
@@ -121,7 +124,7 @@ Item {
             text: label ? label : "Unknown" //+ (sub_menu && !is_in_bar ? "   >>" : "")
             font.pixelSize: XsStyleSheet.fontSize
             font.family: XsStyleSheet.fontFamily
-            color: palette.text
+            color: textColor
             horizontalAlignment: Text.AlignLeft
             verticalAlignment: Text.AlignVCenter
             Layout.alignment: Qt.AlignLeft | Qt.AlignVCenter

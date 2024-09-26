@@ -74,6 +74,10 @@ namespace module {
                     [](std::vector<std::string> x) -> nlohmann::json {
                         return nlohmann::json(x);
                     }),
+                to_any_to_json<std::vector<utility::Uuid>>(
+                    [](std::vector<utility::Uuid> x) -> nlohmann::json {
+                        return nlohmann::json(x);
+                    }),
             };
         return _any_to_json;
     }

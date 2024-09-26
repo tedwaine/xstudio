@@ -4,9 +4,13 @@ import QtQuick 2.15
 import QtQuick.Controls 2.15
 import QtQuick.Layouts 1.15
 
+import QuickFuture 1.0
+import QuickPromise 1.0
+
 import xStudio 1.0
 import ShotBrowser 1.0
 import xstudio.qml.models 1.0
+import xstudio.qml.helpers 1.0
 
 XsGradientRectangle{
     id: presetView
@@ -198,17 +202,46 @@ XsGradientRectangle{
         menuModelName: moreMenu.menu_model_name
     }
 
+    // XsMenuModelItem {
+    //     menuItemType: "divider"
+    //     menuPath: ""
+    //     menuItemPosition: 3
+    //     menuModelName: moreMenu.menu_model_name
+    // }
+
     XsMenuModelItem {
-        menuItemType: "divider"
+        text: "Export As System Presets..."
         menuPath: ""
-        menuItemPosition: 3
+        menuItemPosition: 4
         menuModelName: moreMenu.menu_model_name
+        onActivated: dialogHelpers.showFileDialog(
+                function(fileUrl, undefined, func) {
+                    Future.promise(
+                        ShotBrowserEngine.presetsModel.exportAsSystemPresetsFuture(
+                            fileUrl
+                        )
+                    ).then(function(string) {
+                            dialogHelpers.errorDialogFunc("Export As System Presets", "Export As System Presets complete.\n\n" + string)
+                        },
+                        function(err) {
+                            dialogHelpers.errorDialogFunc("Export As System Presets", "Export As System Presets failed.\n\n" + err)
+                        }
+                    )
+                },
+                file_functions.defaultSessionFolder(),
+                "Export Presets",
+                "json",
+                ["JSON (*.json)"],
+                false,
+                false
+            )
     }
+
 
     XsMenuModelItem {
         text: "Reload All System Presets"
         menuPath: ""
-        menuItemPosition: 4
+        menuItemPosition: 5
         menuModelName: moreMenu.menu_model_name
         onActivated: {
             // set all indexs to visible.

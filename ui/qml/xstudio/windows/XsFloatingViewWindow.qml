@@ -19,6 +19,16 @@ XsWindow {
     property var content_qml: view_qml_source // 'view_qml_source' provided by model
     property var content_item
 
+    // we need this to wipe hotkey_uuid property that might be visible in the
+    // context that created the floating window (and will pollute all buttons
+    // with an incorrect hotkey in the tooltip!)
+    property var hotkey_uuid 
+
+    property var user_data: uiLayoutsModel.retrieveFloatingWindowData(name)
+    onUser_dataChanged: {
+        uiLayoutsModel.storeFloatingWindowData(name, user_data)
+    }
+
     onClosing: {
         window_is_visible = false
     }
@@ -38,11 +48,11 @@ XsWindow {
 
     onVisibleChanged: {
         // use last positin/size numbers if we have any
-        if (visible && floating_window_positions.hasOwnProperty(view_name)) {
-            x = floating_window_positions[view_name].x
-            y = floating_window_positions[view_name].y
-            width = floating_window_positions[view_name].width
-            height = floating_window_positions[view_name].height
+        if (visible && user_data && user_data.hasOwnProperty("window_geometry")) {
+            x = user_data.window_geometry.x
+            y = user_data.window_geometry.y
+            width = user_data.window_geometry.width
+            height = user_data.window_geometry.height
         } else if (visible) {
             // for now, hardcode panel size
             x = 200
@@ -72,19 +82,19 @@ XsWindow {
             // window gets re-positioned by QML when it is hidden, so don't
             // store if not visible
             if (!floatingWindow.visible) return
-            // store window position and size - floating_window_positions
-            // SHOULD be a JSON object.
+            // store window position and size in 'user_data' which gets stored
+            // in the uiPanelsModelData model
             var p = {}
             p.x = x
             p.y = y
             p.width = width
             p.height = height
-            var v = floating_window_positions
+            var v = user_data
             if (typeof v != "object") {
                 v = {}
             }
-            v[view_name] = p
-            floating_window_positions = v
+            v["window_geometry"] = p
+            user_data = v
         }
     }
 

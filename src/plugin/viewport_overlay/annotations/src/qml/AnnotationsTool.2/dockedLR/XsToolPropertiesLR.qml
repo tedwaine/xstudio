@@ -17,25 +17,10 @@ Item{
     id: toolProperties
     property var root
 
-
-    Rectangle{
-        visible: isAnyToolSelected
-        width: parent.width -framePadding*2
-        height: parent.height + framePadding*2 + colSpacing//*2
-
-        anchors.bottom: parent.bottom
-        anchors.bottomMargin: -framePadding
-        // anchors.verticalCenter: parent.verticalCenter
-        anchors.horizontalCenter: parent.horizontalCenter
-
-        color: XsStyleSheet.baseColor
-    }
-
     Rectangle{ id: row1_categories
-        x: framePadding
-        width: (toolProperties.width - framePadding*2) - framePadding*2
+        width: toolProperties.width - framePadding*2 
         height: visible? currentTool == "Shapes"? buttonHeight*2 + itemSpacing :
-                                                buttonHeight + itemSpacing : 0
+                                                buttonHeight + itemSpacing*2 : 0
 
         color: "transparent";
         visible: (currentTool == "Shapes" || currentTool == "Text")
@@ -77,14 +62,14 @@ Item{
     property alias drawPenSize: draw_pen_size.value
 
     Grid{id: row2_controls
-        x: framePadding*2
-        y: row1_categories.visible? row1_categories.y + row1_categories.height + colSpacing : row1_categories.y
+        x: framePadding
+        y: row1_categories.visible? row1_categories.y + row1_categories.height : row1_categories.y
         z: 1
 
         columns: isDividedToCols? 2 : 1
         spacing: itemSpacing
         flow: Grid.TopToBottom
-        width: (toolProperties.width - framePadding*2) - framePadding*2
+        width: (toolProperties.width - x*2) 
 
         property bool isDividedToCols: width>toolPropertiesWidthThreshold
         property real gridItemWidth: isDividedToCols? width/2 : width
@@ -157,9 +142,9 @@ Item{
                 border.width: 1
                 border.color: parent.enabled? "black" : "dark grey"
                 anchors.left: centerItem.horizontalCenter
-                anchors.leftMargin: parent.width/7
+                anchors.leftMargin: 18
                 anchors.right: parent.right
-                anchors.rightMargin: 5
+                anchors.rightMargin: 3
                 height: buttonHeight/1.4;
                 anchors.verticalCenter: centerItem.verticalCenter
                 onYChanged: {
@@ -222,7 +207,7 @@ Item{
 
         visible: (isAnyToolSelected && currentTool !== "Erase")
         width: toolProperties.width- framePadding*2
-        height: visible? buttonHeight*2 : 0
+        height: visible? buttonHeight*2 + framePadding : 0
         onHeightChanged: {
             toolPropLoaderHeight = row3_colourpresets.y + row3_colourpresets.height
         }

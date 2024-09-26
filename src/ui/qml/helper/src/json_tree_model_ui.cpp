@@ -544,7 +544,7 @@ bool JSONTreeModel::setData(const QModelIndex &index, const QVariant &value, int
 
             // old_node->data() = new_node.data();
 
-            if (not jval.at(children_).empty())
+            if (jval.contains(children_) and not jval.at(children_).empty())
                 insertRowsData(
                     0, jval.at(children_).size(), index, mapFromValue(jval.at(children_)));
 

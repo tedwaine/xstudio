@@ -33,6 +33,8 @@ void MediaActor::deserialise(const JsonStore &jsn) {
     }
 
     link_to(json_store_);
+    // join out metadata handler. propagate events from it.
+    join_event_group(this, json_store_);
 
     for (const auto &[key, value] : jsn.at("actors").items()) {
         if (value.at("base").at("container").at("type") == "MediaSource") {
@@ -66,9 +68,7 @@ void MediaActor::deserialise(const JsonStore &jsn) {
 MediaActor::MediaActor(caf::actor_config &cfg, const JsonStore &jsn, const bool async)
     : caf::event_based_actor(cfg), base_(JsonStore(jsn.at("base"))) {
 
-
     init();
-
 
     if (async)
         anon_send(this, module::deserialise_atom_v, jsn);
@@ -89,6 +89,9 @@ MediaActor::MediaActor(
     json_store_ = spawn<json_store::JsonStoreActor>(
         utility::Uuid::generate(), utility::JsonStore(), std::chrono::milliseconds(50));
     link_to(json_store_);
+
+    // join out metadata handler. propagate events from it.
+    join_event_group(this, json_store_);
 
     init();
 
@@ -120,6 +123,11 @@ caf::message_handler MediaActor::default_event_handler() {
         [=](utility::event_atom, add_media_source_atom, const utility::UuidActorVector &) {},
         [=](utility::event_atom, media_status_atom, const MediaStatus ms) {},
         [=](utility::event_atom, media_status_atom, const MediaStatus ms) {},
+        [=](json_store::update_atom,
+            const JsonStore &,
+            const std::string &,
+            const JsonStore &) {},
+        [=](json_store::update_atom, const JsonStore &) {},
         [=](utility::event_atom, media::media_display_info_atom, const utility::JsonStore &) {
         }};
 }
@@ -847,6 +855,20 @@ void MediaActor::init() {
                 utility::Uuid());
         },
 
+        [=](media_reference_atom atom,
+            const media::MediaType media_type,
+            const Uuid &uuid) -> caf::result<std::pair<Uuid, MediaReference>> {
+            if (base_.empty() or not media_sources_.count(base_.current(media_type)))
+                return make_error(xstudio_error::error, "No MediaSources");
+
+            auto rp = make_response_promise<std::pair<Uuid, MediaReference>>();
+            rp.delegate(
+                media_sources_.at(base_.current(media_type)),
+                atom,
+                (uuid.is_null() ? base_.uuid() : uuid));
+            return rp;
+        },
+
         [=](media_reference_atom) -> caf::result<std::vector<MediaReference>> {
             if (base_.empty())
                 return make_error(xstudio_error::error, "No MediaSources");
@@ -1526,16 +1548,17 @@ void MediaActor::init() {
             return rp;
         },
 
-
         [=](json_store::update_atom,
-            const JsonStore & /*change*/,
-            const std::string & /*path*/,
-            const JsonStore & /*full*/) {
-            // here we watch for changes to preferences in the global store
+            const JsonStore &change,
+            const std::string &path,
+            const JsonStore &full) {
+            if (current_sender() == json_store_)
+                send(event_group_, json_store::update_atom_v, change, path, full);
         },
 
-        [=](json_store::update_atom, const JsonStore & /*j*/) mutable {
-            // from global store
+        [=](json_store::update_atom, const JsonStore &full) mutable {
+            if (current_sender() == json_store_)
+                send(event_group_, json_store::update_atom_v, full);
         },
 
         [=](media_display_info_atom,
@@ -1707,6 +1730,9 @@ void MediaActor::switch_current_source_to_named_source(
         scoped_actor sys{system()};
         auto sources     = utility::map_value_to_vec(media_sources_);
         auto source_uuid = utility::Uuid();
+
+        const utility::Uuid current_source_id = base_.current(media_type);
+
         for (auto &source : sources) {
             auto source_container_detail =
                 utility::request_receive<ContainerDetail>(*sys, source, detail_atom_v);
@@ -1716,8 +1742,16 @@ void MediaActor::switch_current_source_to_named_source(
             if (source_container_detail.name_ == source_name &&
                 !source_stream_details.empty()) {
                 // name matches and the source has a stream of type media_type
-                source_uuid = source_container_detail.uuid_;
-                break;
+                if (source_uuid.is_null()) {
+                    source_uuid = source_container_detail.uuid_;
+                }
+
+                // the name of the current source id matches 'source_name'.
+                // Nothing to do!
+                if (current_source_id == source_container_detail.uuid_) {
+                    rp.deliver(true);
+                    return;
+                }
             }
         }
 

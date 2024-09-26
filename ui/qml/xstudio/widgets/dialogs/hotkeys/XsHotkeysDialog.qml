@@ -28,11 +28,6 @@ XsWindow {
 
     title: "xSTUDIO Hotkeys"
 
-    XsHotkeysInfo {
-        id: hotkeysModel
-    }
-    property alias hotkeysModel: hotkeysModel
-
     ColumnLayout {
 
         anchors.fill: parent

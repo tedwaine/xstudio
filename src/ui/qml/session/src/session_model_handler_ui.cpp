@@ -86,10 +86,52 @@ void SessionModel::init(caf::actor_system &_system) {
                 }
             },
 
+            [=](json_store::update_atom, const utility::JsonStore &) {
+                try {
+                    auto src     = caf::actor_cast<caf::actor>(self()->current_sender());
+                    auto src_str = actorToString(system(), src);
+
+                    auto indexes = searchRecursiveList(
+                        QVariant::fromValue(QStringFromStd(src_str)),
+                        actorRole,
+                        QModelIndex(),
+                        0,
+                        -1);
+
+                    for (const auto index : indexes) {
+                        if (index.isValid())
+                            emit dataChanged(index, index, QVector<int>({metadataChangedRole}));
+                        // setData(index, QVariant(), metadataChangedRole);
+                    }
+                } catch (...) {
+                }
+            },
+
             [=](json_store::update_atom,
-                const utility::JsonStore & /*change*/,
-                const std::string & /*path*/,
-                const utility::JsonStore &full) {},
+                const utility::JsonStore &,
+                const std::string &path,
+                const utility::JsonStore &) {
+                try {
+                    auto src     = caf::actor_cast<caf::actor>(self()->current_sender());
+                    auto src_str = actorToString(system(), src);
+
+                    auto indexes = searchRecursiveList(
+                        QVariant::fromValue(QStringFromStd(src_str)),
+                        actorRole,
+                        QModelIndex(),
+                        0,
+                        -1);
+
+
+                    for (const auto index : indexes) {
+                        if (index.isValid())
+                            emit dataChanged(index, index, QVector<int>({metadataChangedRole}));
+                        //         setData(index, QVariant(), metadataChangedRole);
+                    }
+
+                } catch (...) {
+                }
+            },
 
             [=](utility::event_atom,
                 media_metadata::get_metadata_atom,
@@ -107,8 +149,6 @@ void SessionModel::init(caf::actor_system &_system) {
                 } catch (...) {
                 }
             },
-
-            [=](json_store::update_atom, const utility::JsonStore &js) {},
 
             [=](utility::event_atom, utility::name_atom, const std::string &name) {
                 // find this actor... in our data..

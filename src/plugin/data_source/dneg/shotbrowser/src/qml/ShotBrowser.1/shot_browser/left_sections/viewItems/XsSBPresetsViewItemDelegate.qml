@@ -43,18 +43,22 @@ XsPrimaryButton{ id: thisItem
         acceptedButtons: Qt.LeftButton | Qt.RightButton
 
         onClicked: (mouse) => {
-            if(mouse.modifiers == Qt.NoModifier) {
-                resultViewTitle = groupName+" : "+nameRole
-                selectionModel.select(presetModelIndex(), ItemSelectionModel.ClearAndSelect)
-                activatePreset(presetModelIndex())
-            } else if(mouse.modifiers == Qt.ShiftModifier){
-                ShotBrowserHelpers.shiftSelectItem(selectionModel, presetModelIndex())
-            } else if(mouse.modifiers == Qt.ControlModifier) {
-                ShotBrowserHelpers.ctrlSelectItem(selectionModel, presetModelIndex())
-            }
-
-            if (mouse.button == Qt.RightButton) {
+            if (mouse.button == Qt.RightButton && selectionModel.isSelected(presetModelIndex())) {
                 showPresetMenu(ma, mouseX, mouseY) //btnHeight - is the spacing at left for Presets apart from UIDataModels
+            } else {
+                if(mouse.modifiers == Qt.NoModifier) {
+                    resultViewTitle = groupName+" : "+nameRole
+                    selectionModel.select(presetModelIndex(), ItemSelectionModel.ClearAndSelect)
+                    activatePreset(presetModelIndex())
+                } else if(mouse.modifiers == Qt.ShiftModifier){
+                    ShotBrowserHelpers.shiftSelectItem(selectionModel, presetModelIndex())
+                } else if(mouse.modifiers == Qt.ControlModifier) {
+                    ShotBrowserHelpers.ctrlSelectItem(selectionModel, presetModelIndex())
+                }
+
+                if (mouse.button == Qt.RightButton) {
+                    showPresetMenu(ma, mouseX, mouseY) //btnHeight - is the spacing at left for Presets apart from UIDataModels
+                }
             }
         }
     }
@@ -149,7 +153,7 @@ XsPrimaryButton{ id: thisItem
             Layout.preferredWidth: height
             Layout.fillHeight: true
 
-            visible: thisItem.hovered || favouriteRole
+            visible: thisItem.hovered || favouriteRole || editBtn.isActive
 
             showHoverOnActive: favouriteRole && !thisItem.hovered
             isColoured: favouriteRole// && thisItem.hovered

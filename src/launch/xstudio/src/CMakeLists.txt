@@ -68,6 +68,7 @@ target_link_libraries(${PROJECT_NAME}
 		caf::core
 		$<$<BOOL:${NVIDIA_HACK}>:GLdispatch>
 		# quickfuture
+		Qt5::Core
 		Qt5::Gui
 		Qt5::Quick
 		Qt5::Widgets

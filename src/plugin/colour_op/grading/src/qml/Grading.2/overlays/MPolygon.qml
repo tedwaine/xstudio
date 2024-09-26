@@ -10,6 +10,7 @@ Item {
     property var canvas
     property real viewScale: 1
     property real strokeWidth: 2 / viewScale
+    property real handleDetectSize: 32 / viewScale
     property real handleSize: 8 / viewScale
     property real handleRadius: 5 / viewScale
     property var handleColor: isSelected() ? "lime" : "red"
@@ -114,7 +115,7 @@ Item {
             property var hovering: false
             property var interacting: false
 
-            Rectangle {
+            Item {
                 id: rr
 
                 property var modelIndex: index
@@ -132,10 +133,17 @@ Item {
                 x: sp.points[modelIndex].x - width / 2
                 y: sp.points[modelIndex].y - height / 2
 
-                width: root.handleSize
-                height: root.handleSize
-                radius: root.handleRadius
-                color: hovering || interacting ? "yellow" : root.handleColor
+                width: root.handleDetectSize
+                height: root.handleDetectSize
+
+                Rectangle {
+                    anchors.centerIn: parent
+                    radius: root.handleRadius
+                    color: hovering || interacting ? "yellow" : root.handleColor
+                    width: root.handleSize
+                    height: root.handleSize
+            
+                }
 
                 MouseArea {
                     anchors.fill: parent
@@ -189,7 +197,7 @@ Item {
         }
 
         // Center
-        Rectangle {
+        Item {
             id: rr_center
 
             property bool hovering: false
@@ -200,10 +208,17 @@ Item {
 
             property point center: VL.centerOfPoints(sp.points)
 
-            width: root.handleSize
-            height: root.handleSize
-            radius: root.handleRadius
-            color: hovering || interacting ? "yellow" : root.handleColor
+            width: root.handleDetectSize
+            height: root.handleDetectSize
+
+            Rectangle {
+                anchors.centerIn: parent
+                radius: root.handleRadius
+                color: hovering || interacting ? "yellow" : root.handleColor
+                width: root.handleSize
+                height: root.handleSize
+        
+            }
 
             MouseArea {
                 anchors.fill: parent

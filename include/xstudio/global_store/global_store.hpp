@@ -84,7 +84,7 @@ namespace global_store {
     void from_json(const nlohmann::json &j, GlobalStoreDef &gsd);
 
     static const std::vector<std::string> PreferenceContexts{
-        "NEW_SESSION", "APPLICATION", "QML_UI"};
+        "NEW_SESSION", "APPLICATION", "QML_UI", "PLUGIN"};
     static const GlobalStoreDef gsd_hello{"/hello", "goodbye", "string", "Says goodbye"};
     // static const GlobalStoreDef gsd_beast{"/beast", 666, "Number of the beast"};
     // static const GlobalStoreDef gsd_happy{"/happy", true, "Am I happy"};

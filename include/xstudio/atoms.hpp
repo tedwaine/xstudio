@@ -47,6 +47,7 @@ const std::string sync_gateway_registry{"SYNCGATE"};
 const std::string thumbnail_manager_registry{"THUMBNAIL"};
 const std::string global_ui_model_data_registry{"GLOBALUIMODELDATA"};
 const std::string global_media_metadata_manager_registry{"MEDIAMETADATAMANAGER"};
+const std::string pc_audio_output_registry{"PC_AUDIO_OUTPUT"};
 
 namespace bookmark {
     class AnnotationBase;
@@ -277,7 +278,7 @@ CAF_BEGIN_TYPE_ID_BLOCK(xstudio_complex_types, FIRST_CUSTOM_ID + 200)
     CAF_ADD_TYPE_ID(xstudio_complex_types, (std::map<xstudio::utility::Uuid, xstudio::utility::Uuid>))
     CAF_ADD_TYPE_ID(xstudio_complex_types, (std::optional<xstudio::utility::FrameRange>))
     CAF_ADD_TYPE_ID(xstudio_complex_types, (std::optional<xstudio::utility::time_point>))
-    CAF_ADD_TYPE_ID(xstudio_complex_types, (std::pair<caf::actor, xstudio::utility::JsonStore>))
+    CAF_ADD_TYPE_ID(xstudio_complex_types, (std::tuple<caf::actor, caf::actor, xstudio::utility::JsonStore>))
     CAF_ADD_TYPE_ID(xstudio_complex_types, (std::pair<caf::uri, std::filesystem::file_time_type>))
     CAF_ADD_TYPE_ID(xstudio_complex_types, (std::pair<int, xstudio::utility::time_point>))
     CAF_ADD_TYPE_ID(xstudio_complex_types, (std::pair<int, xstudio::utility::UuidActor>))
@@ -430,7 +431,7 @@ CAF_BEGIN_TYPE_ID_BLOCK(xstudio_framework_atoms, FIRST_CUSTOM_ID + (200 * 2))
     CAF_ADD_ATOM(xstudio_framework_atoms, xstudio::module, redraw_viewport_group_atom)
     CAF_ADD_ATOM(xstudio_framework_atoms, xstudio::module, release_ui_focus_atom)
     CAF_ADD_ATOM(xstudio_framework_atoms, xstudio::module, update_attribute_in_preferences_atom)
-    
+
     CAF_ADD_ATOM(xstudio_framework_atoms, xstudio::sync, authorise_connection_atom)
     CAF_ADD_ATOM(xstudio_framework_atoms, xstudio::sync, get_sync_atom)
     CAF_ADD_ATOM(xstudio_framework_atoms, xstudio::sync, request_connection_atom)
@@ -567,7 +568,7 @@ CAF_BEGIN_TYPE_ID_BLOCK(xstudio_session_atoms, FIRST_CUSTOM_ID + (200 * 4))
     CAF_ADD_ATOM(xstudio_session_atoms, xstudio::media, source_offset_frames_atom)
     CAF_ADD_ATOM(xstudio_session_atoms, xstudio::media_metadata, get_metadata_atom)
     CAF_ADD_ATOM(xstudio_session_atoms, xstudio::playlist, add_media_atom)
-    CAF_ADD_ATOM(xstudio_session_atoms, xstudio::playlist, add_media_with_subsets_atom)    
+    CAF_ADD_ATOM(xstudio_session_atoms, xstudio::playlist, add_media_with_subsets_atom)
     CAF_ADD_ATOM(xstudio_session_atoms, xstudio::playlist, convert_to_contact_sheet_atom)
     CAF_ADD_ATOM(xstudio_session_atoms, xstudio::playlist, convert_to_subset_atom)
     CAF_ADD_ATOM(xstudio_session_atoms, xstudio::playlist, convert_to_timeline_atom)
@@ -664,6 +665,7 @@ CAF_BEGIN_TYPE_ID_BLOCK(xstudio_playback_atoms, FIRST_CUSTOM_ID + (200 * 5))
 
     CAF_ADD_ATOM(xstudio_playback_atoms, xstudio::audio, get_samples_for_soundcard_atom)
     CAF_ADD_ATOM(xstudio_playback_atoms, xstudio::audio, push_samples_atom)
+    CAF_ADD_ATOM(xstudio_playback_atoms, xstudio::audio, set_override_volume_atom)
     CAF_ADD_ATOM(xstudio_playback_atoms, xstudio::colour_pipeline, colour_operation_uniforms_atom)
     CAF_ADD_ATOM(xstudio_playback_atoms, xstudio::colour_pipeline, colour_pipeline_atom)
     CAF_ADD_ATOM(xstudio_playback_atoms, xstudio::colour_pipeline, connect_to_viewport_atom)
@@ -794,6 +796,7 @@ CAF_BEGIN_TYPE_ID_BLOCK(xstudio_ui_atoms,  FIRST_CUSTOM_ID + (200 * 6))
     CAF_ADD_ATOM(xstudio_ui_atoms, xstudio::ui::viewport, hud_settings_atom)
     CAF_ADD_ATOM(xstudio_ui_atoms, xstudio::ui::viewport, fit_mode_atom)
     CAF_ADD_ATOM(xstudio_ui_atoms, xstudio::ui::viewport, other_viewport_atom)
+    CAF_ADD_ATOM(xstudio_ui_atoms, xstudio::ui::viewport, active_viewport_atom)
     CAF_ADD_ATOM(xstudio_ui_atoms, xstudio::ui::viewport, overlay_render_function_atom)
     CAF_ADD_ATOM(xstudio_ui_atoms, xstudio::ui::viewport, prepare_overlay_render_data_atom)
     CAF_ADD_ATOM(xstudio_ui_atoms, xstudio::ui::viewport, render_viewport_to_image_atom)
@@ -807,6 +810,7 @@ CAF_BEGIN_TYPE_ID_BLOCK(xstudio_ui_atoms,  FIRST_CUSTOM_ID + (200 * 6))
     CAF_ADD_ATOM(xstudio_ui_atoms, xstudio::ui::viewport, viewport_set_scene_coordinates_atom)
     CAF_ADD_ATOM(xstudio_ui_atoms, xstudio::ui::viewport, quickview_media_atom)
     CAF_ADD_ATOM(xstudio_ui_atoms, xstudio::ui::viewport, connect_to_viewport_toolbar_atom)
+    CAF_ADD_ATOM(xstudio_ui_atoms, xstudio::ui::viewport, viewport_visibility_atom)
 
     CAF_ADD_ATOM(xstudio_ui_atoms, xstudio::ui, open_quickview_window_atom)
     CAF_ADD_ATOM(xstudio_ui_atoms, xstudio::ui, show_message_box_atom)

@@ -66,7 +66,6 @@ size_t PluginManager::load_plugins() {
                     continue;
                 }
 
-
                 plugin_factory_collection_ptr pfcp;
                 *(void **)(&pfcp) = dlsym(hndl, "plugin_factory_collection_ptr");
                 if (pfcp == nullptr) {

@@ -53,13 +53,13 @@ Item {
         }
     }
 
-    XsMenuModelItem {
-        text: "Download Missing SG Previews"
-        menuPath: ""
-        menuItemPosition: 26.1
-        menuModelName: "media_list_menu_"
-        onActivated: ShotBrowserHelpers.downloadMissingMovies(menuContext.mediaSelection)
-    }
+    // XsMenuModelItem {
+    //     text: "Download Missing SG Previews"
+    //     menuPath: ""
+    //     menuItemPosition: 26.1
+    //     menuModelName: "media_list_menu_"
+    //     onActivated: ShotBrowserHelpers.downloadMissingMovies(menuContext.mediaSelection)
+    // }
 
     XsMenuModelItem {
         text: "Download SG Movie"
@@ -315,8 +315,42 @@ Item {
     }
 
     XsMenuModelItem {
-        text: "Publish SG Playlist Notes"
-        menuPath: "Pipeline"
+        text: "Create SG Playlist..."
+        menuPath: "Pipeline|Playlists"
+        menuItemPosition: 1
+        menuModelName: "main menu bar"
+        onActivated: {
+            ShotBrowserEngine.connected = true
+            publish_to_dialog.show()
+            publish_to_dialog.playlistProperties = viewedMediaSetProperties
+        }
+    }
+
+    XsMenuModelItem {
+        text: "Reload SG Playlist"
+        menuPath: "Pipeline|Playlists"
+        menuItemPosition: 2
+        menuModelName: "main menu bar"
+        onActivated: ShotBrowserHelpers.syncPlaylistFromShotGrid(
+            helpers.QVariantFromUuidString(viewedMediaSetProperties.values.actorUuidRole)
+        )
+    }
+
+    XsMenuModelItem {
+        text: "Push Media To SG Playlist"
+        menuPath: "Pipeline|Playlists"
+        menuItemPosition: 3
+        menuModelName: "main menu bar"
+        onActivated: {
+            ShotBrowserEngine.connected = true
+            sync_to_dialog.show()
+            sync_to_dialog.playlistProperties = viewedMediaSetProperties
+        }
+    }
+
+    XsMenuModelItem {
+        text: "Publish Playlist Notes"
+        menuPath: "Pipeline|Notes"
         menuItemPosition: 1
         menuModelName: "main menu bar"
         onActivated: {
@@ -327,38 +361,17 @@ Item {
     }
 
     XsMenuModelItem {
-        text: "Reload Selected SG Playlists"
-        menuPath: "Pipeline"
-        menuItemPosition: 2
-        menuModelName: "main menu bar"
-        onActivated: ShotBrowserHelpers.syncPlaylistFromShotGrid(
-            helpers.QVariantFromUuidString(viewedMediaSetProperties.values.actorUuidRole)
-        )
-    }
-
-    XsMenuModelItem {
-        text: "Push Media To Selected SG Playlists"
-        menuPath: "Pipeline"
+        text: "Publish Selected Media Notes"
+        menuPath: "Pipeline|Notes"
         menuItemPosition: 2
         menuModelName: "main menu bar"
         onActivated: {
             ShotBrowserEngine.connected = true
-            sync_to_dialog.show()
-            sync_to_dialog.playlistProperties = viewedMediaSetProperties
+            publish_notes.show()
+            publish_notes.publishFromMedia(mediaSelectionModel.selectedIndexes)
         }
     }
 
-    XsMenuModelItem {
-        text: "Publish New SG Playlist"
-        menuPath: "Pipeline"
-        menuItemPosition: 2
-        menuModelName: "main menu bar"
-        onActivated: {
-            ShotBrowserEngine.connected = true
-            publish_to_dialog.show()
-            publish_to_dialog.playlistProperties = viewedMediaSetProperties
-        }
-    }
 
     XsMenuModelItem {
         menuItemType: "divider"
@@ -368,10 +381,26 @@ Item {
         menuModelName: "playlist_context_menu"
     }
 
+
     XsMenuModelItem {
-        text: "Reload Selected SG Playlists"
-        menuPath: ""
-        menuItemPosition: 11
+        text: "Create SG Playlist..."
+        menuPath: "Playlists"
+        menuItemPosition: 1
+        menuModelName: "playlist_context_menu"
+        onActivated: {
+            ShotBrowserEngine.connected = true
+            publish_to_dialog.show()
+            publish_to_dialog.playlistProperties = inspectedMediaSetProperties
+        }
+        Component.onCompleted: {
+            setMenuPathPosition("Playlists", 10.1)
+        }
+    }
+
+    XsMenuModelItem {
+        text: "Reload SG Playlist"
+        menuPath: "Playlists"
+        menuItemPosition: 2
         menuModelName: "playlist_context_menu"
         onActivated: ShotBrowserHelpers.syncPlaylistFromShotGrid(
             helpers.QVariantFromUuidString(inspectedMediaSetProperties.values.actorUuidRole)
@@ -379,9 +408,9 @@ Item {
     }
 
     XsMenuModelItem {
-        text: "Push Media To Selected SG Playlists"
-        menuPath: ""
-        menuItemPosition: 12
+        text: "Push Media To SG Playlist"
+        menuPath: "Playlists"
+        menuItemPosition: 3
         menuModelName: "playlist_context_menu"
         onActivated: {
             ShotBrowserEngine.connected = true
@@ -390,27 +419,34 @@ Item {
         }
     }
 
-    XsMenuModelItem {
-        text: "Publish New SG Playlist"
-        menuPath: ""
-        menuItemPosition: 13
-        menuModelName: "playlist_context_menu"
-        onActivated: {
-            ShotBrowserEngine.connected = true
-            publish_to_dialog.show()
-            publish_to_dialog.playlistProperties = inspectedMediaSetProperties
-        }
-    }
 
     XsMenuModelItem {
-        text: "Publish SG Playlist Notes"
-        menuPath: ""
-        menuItemPosition: 14
+        text: "Publish Playlist Notes"
+        menuPath: "Notes"
+        menuItemPosition: 1
         menuModelName: "playlist_context_menu"
         onActivated: {
             ShotBrowserEngine.connected = true
             publish_notes.show()
             publish_notes.publishFromPlaylist(helpers.QVariantFromUuidString(inspectedMediaSetProperties.values.actorUuidRole))
+        }
+        Component.onCompleted: {
+            setMenuPathPosition("Notes", 10.2)
+        }
+    }
+
+    XsMenuModelItem {
+        text: "Publish Selected Media Notes"
+        menuPath: "Notes"
+        menuItemPosition: 2
+        menuModelName: "playlist_context_menu"
+        onActivated: {
+            ShotBrowserEngine.connected = true
+            publish_notes.show()
+            publish_notes.publishFromMedia(mediaSelectionModel.selectedIndexes)
+        }
+        Component.onCompleted: {
+            setMenuPathPosition("Notes", 10.2)
         }
     }
 

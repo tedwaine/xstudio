@@ -97,13 +97,28 @@ Item {
 		    	Layout.fillHeight: true
 		    	Layout.alignment: Qt.AlignRight
 
-				XsPrimaryButton{
+				// XsPrimaryButton{
+			 //    	Layout.fillHeight: true
+				// 	Layout.preferredWidth: height
+				// 	isActiveViaIndicator: false
+    // 	            isActive: isConformSource
+    // 	            text: "C"
+    // 	            enabled: false
+				// 	onClicked: control.conformSourceClicked()
+				// }
+
+				Rectangle {
 			    	Layout.fillHeight: true
 					Layout.preferredWidth: height
-					isActiveViaIndicator: false
-    	            isActive: isConformSource
-    	            text: "C"
-					onClicked: control.conformSourceClicked()
+					visible: isConformSource
+					color: "transparent"
+					border.width: 2
+					border.color: XsStyleSheet.widgetBgNormalColor
+
+					XsLabel {
+						anchors.fill: parent
+	    	            text: "C"
+					}
 				}
 
 				XsPrimaryButton{

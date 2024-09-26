@@ -57,7 +57,7 @@ Item {
                 }
 
             } else if (retry) {
-                // backend actor may have told us the current playlist has 
+                // backend actor may have told us the current playlist has
                 // changed, but the playlist hasn't been added to the UI model
                 // yet. Check back in 200 ms.
                 callbackTimer.setTimeout(function() { return function() {
@@ -386,7 +386,7 @@ Item {
         onImageActorUuidChanged: {
             current_onscreen_media_source_data.index = session.searchRecursive(imageActorUuid, "actorUuidRole", index)
             if (!current_onscreen_media_source_data.index.valid) {
-                // oh dear ... model data behind sessionData hasn't been filled 
+                // oh dear ... model data behind sessionData hasn't been filled
                 // in for the media sources of the on-screen media item.
                 // Let's fetch them
                 session.fetchMore(index)
@@ -522,7 +522,12 @@ Item {
             )
 
             updateBackend = true
+        }
 
+        function getSourceIndex(mediaIndex) {
+            let m = mediaIndex.model
+            let ms = m.searchRecursive(m.get(mediaIndex, "imageActorUuidRole"), "actorUuidRole", mediaIndex)
+            return ms
         }
 
         function getSelectedMediaUrl(role="pathRole") {
@@ -543,7 +548,7 @@ Item {
     }
 
     // mediaListModelData will give us the filtered media list that is used
-    // to drive the "media list" widgets    
+    // to drive the "media list" widgets
     property string mediaListSearchString
     XsMediaListModelData {
         id: filteredMediaListData
@@ -553,7 +558,7 @@ Item {
     onMediaListSearchStringChanged: {
         session.updateMediaListFilterString(playheadSelectionIndex, mediaListSearchString)
     }
-    
+
     property alias mediaSelectionModel: mediaSelectionModel
 
     /* This model gives us access to the playlists */

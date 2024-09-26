@@ -93,6 +93,12 @@ Rectangle{
                         noteRole = text
                     }
 
+                    onTextChanged: {
+                        if (noteRole != text) {
+                            noteRole = text
+                        }
+                    }
+
                 }
             }
 

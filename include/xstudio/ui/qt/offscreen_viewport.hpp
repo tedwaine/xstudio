@@ -65,7 +65,8 @@ namespace ui {
                 const int h,
                 media_reader::ImageBufPtr &image,
                 const viewport::ImageFormat format,
-                const bool force_sync);
+                const bool force_sync,
+                const utility::time_point &tp = utility::time_point());
 
             void initGL();
 
@@ -121,6 +122,7 @@ namespace ui {
             viewport::ImageFormat vid_out_format_ = viewport::ImageFormat::RGBA_16;
             caf::actor video_output_actor_;
             std::vector<media_reader::ImageBufPtr> output_buffers_;
+            media_reader::ImageBufPtr last_rendered_frame_;
             std::vector<uint32_t> half_to_int_32_lut_;
 
             caf::actor local_playhead_;

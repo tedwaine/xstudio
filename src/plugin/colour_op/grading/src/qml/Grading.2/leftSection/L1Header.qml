@@ -65,6 +65,9 @@ Item{ id: toolDiv
             onClicked: {
                 attrs.grading_bypass = !attrs.grading_bypass
             }
+            toolTip: "Bypass all grades applied on all media "
+            hotkeyNameForTooltip: "Bypass all grades"
+            
         }
         XsPrimaryButton{ id: moreBtn
             Layout.preferredWidth: btnWidth

@@ -30,6 +30,7 @@
 	    <file alias="up_arrow.svg">icons/up_arrow.svg</file>
         <file alias="note_history.svg">icons/note_history.svg</file>
         <file alias="shot_history.svg">icons/shot_history.svg</file>
+        <file alias="shot_grid.svg">icons/shot_grid.svg</file>
         <file alias="shotgun.png">icons/shotgun.png</file>
 	</qresource>
 </RCC>

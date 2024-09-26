@@ -124,13 +124,13 @@ caf::message_handler OCIOColourPipeline::message_handler_extensions() {
         .or_else(ColourPipeline::message_handler_extensions());
 }
 
-std::string OCIOColourPipeline::fast_display_transform_hash(const media::AVFrameID &media_ptr) {
+size_t OCIOColourPipeline::fast_display_transform_hash(const media::AVFrameID &media_ptr) {
 
-    std::string hash = "null";
+    size_t hash = 0;
 
     if (!global_settings_.colour_bypass) {
-        utility::JsonStore media_metadata = patch_media_metadata(media_ptr);
-        hash = m_engine_.compute_hash(media_metadata) + display_->value() + view_->value();
+        // utility::JsonStore media_metadata = patch_media_metadata(media_ptr);
+        hash = m_engine_.compute_hash(media_ptr.params_, display_->value() + view_->value());
     }
 
     return hash;
@@ -140,12 +140,12 @@ void OCIOColourPipeline::linearise_op_data(
     caf::typed_response_promise<ColourOperationDataPtr> &rp,
     const media::AVFrameID &media_ptr) {
 
-    utility::JsonStore media_metadata = patch_media_metadata(media_ptr);
+    // utility::JsonStore media_metadata = patch_media_metadata(media_ptr);
 
     rp.delegate(
         worker_pool_,
         colour_pipe_linearise_data_atom_v,
-        media_metadata,
+        media_ptr.params_, // media_metadata
         global_settings_.colour_bypass);
 }
 
@@ -157,12 +157,12 @@ void OCIOColourPipeline::linear_to_display_op_data(
     // If global_view ON, use the plugin view_
     // If gobal_view OFF, use the media detected view (or user overrided)
 
-    utility::JsonStore media_metadata = patch_media_metadata(media_ptr);
+    // utility::JsonStore media_metadata = patch_media_metadata(media_ptr);
 
     rp.delegate(
         worker_pool_,
         colour_pipe_display_data_atom_v,
-        media_metadata,
+        media_ptr.params_, // media_metadata
         display_->value(),
         view_->value(),
         global_settings_.colour_bypass);
@@ -204,12 +204,12 @@ void OCIOColourPipeline::process_thumbnail(
     // If global_view ON, use the plugin view_
     // If gobal_view OFF, use the media detected view (or user overrided)
 
-    utility::JsonStore media_metadata = patch_media_metadata(media_ptr);
+    // utility::JsonStore media_metadata = patch_media_metadata(media_ptr);
 
     rp.delegate(
         worker_pool_,
         media_reader::process_thumbnail_atom_v,
-        media_metadata,
+        media_ptr.params_, // media_metadata
         buf,
         display_->value(),
         view_->value());
@@ -497,6 +497,7 @@ void OCIOColourPipeline::screen_changed(
 
         const std::string detected_display = detect_display(
             name, model, manufacturer, serialNumber, current_source_colour_mgmt_metadata_);
+
         display_->set_value(detected_display);
     }
 
@@ -520,17 +521,14 @@ void OCIOColourPipeline::connect_to_viewport(
     std::string viewport_context_menu_model_name = viewport_name + "_context_menu";
 
     insert_menu_item(
-        viewport_context_menu_model_name,
-        "OCIO Source",
-        "",
-        19.0f,
-        source_colour_space_,
-        false);
+        viewport_context_menu_model_name, "Source", "OCIO", 1.0f, source_colour_space_, false);
     insert_menu_item(
-        viewport_context_menu_model_name, "OCIO Display", "", 20.0f, display_, false);
-    insert_menu_item(viewport_context_menu_model_name, "OCIO View", "", 21.0f, view_, false);
+        viewport_context_menu_model_name, "Display", "OCIO", 2.0f, display_, false);
+    insert_menu_item(viewport_context_menu_model_name, "View", "OCIO", 3.0f, view_, false);
     insert_menu_item(viewport_context_menu_model_name, "Channel", "", 21.5f, channel_, false);
     insert_menu_item(viewport_context_menu_model_name, "", "", 22.0f, nullptr, true); // divider
+
+    set_submenu_position_in_parent(viewport_context_menu_model_name, "OCIO", 19.0f);
 
     make_attribute_visible_in_viewport_toolbar(view_);
     make_attribute_visible_in_viewport_toolbar(display_);
@@ -752,6 +750,15 @@ void OCIOColourPipeline::update_media_metadata(
 }
 
 utility::JsonStore OCIOColourPipeline::patch_media_metadata(const media::AVFrameID &media_ptr) {
+
+    // N.B. Ted Sept 2024 - I'm removing the use of this function as it breaks
+    // the colour pipeline data read-ahead cacheing, which relies on the
+    // fast_display_transform_hash returning a consisten hash for a given piece
+    // of media. At viewport draw time, we evaluate fast_display_transform_hash
+    // again to retrieve pre-computed colour data for the media that is on-screen
+    // but this function will give a different result for media when it is
+    // on screen (when we retrieve from the cache) to when it is off screen (
+    // when we pre-compute and store in the cache).
 
     utility::JsonStore res = media_ptr.params_;
 

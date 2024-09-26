@@ -19,6 +19,7 @@ Button {
     property bool isHovered: false
 
     property string toolTip: widget.text
+    property string hotkeyNameForTooltip
 
     property alias textDiv: textDiv
     property alias imageDiv: imageDiv
@@ -99,6 +100,21 @@ Button {
     XsToolTip{
         text: toolTip
         visible: textDiv.visible && isToolTipEnabled? widget.isHovered && (textDiv.truncated || toolTip!= widget.text) : widget.isHovered && toolTip!=""
+        onVisibleChanged: {
+            if (visible) {
+                // evaluate hotkey sequence when shown, as it may have been changed
+                // by the user via their hotkey prefs
+                var hk = ""
+                if (hotkeyNameForTooltip != "") {
+                    hk = hotkeysModel.hotkey_sequence_from_hotkey_name(hotkeyNameForTooltip)
+                } else if (typeof hotkey_uuid !== "undefined" && hotkey_uuid) {
+                    hk = hotkeysModel.hotkey_sequence(hotkey_uuid)
+                }
+                if (hk != "") {
+                    text = toolTip + " (Hotkey = '" + hk + "' )"
+                }
+            }
+        }
         // width: metricsDiv.width == 0? 0 : textDiv.textWidth +15
         // height: widget.height
         x: widget.width //#TODO: flex/pointer
@@ -114,7 +130,7 @@ Button {
         border.width: borderWidth
 
         flatColor: topColor
-        topColor: widget.down || (isActive && !isActiveViaIndicator)? bgColorPressed: forcedBgColorNormal==bgColorNormal?XsStyleSheet.controlColour:forcedBgColorNormal
+        topColor: widget.down || (isActive && !isActiveViaIndicator)? bgColorPressed: forcedBgColorNormal==bgColorNormal? XsStyleSheet.controlColour:forcedBgColorNormal
         bottomColor: widget.down || (isActive && !isActiveViaIndicator)? bgColorPressed: forcedBgColorNormal
 
         Rectangle {

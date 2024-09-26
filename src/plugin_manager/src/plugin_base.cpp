@@ -69,10 +69,7 @@ StandardPlugin::StandardPlugin(
         [=](module::current_viewport_playhead_atom,
             const std::string &viewport_name,
             caf::actor live_playhead) -> bool {
-            if (viewport_name == "viewport0") {
-                current_viewed_playhead_changed(
-                    caf::actor_cast<caf::actor_addr>(live_playhead));
-            }
+            // this comes from a viewport, if we are an overlay actor
             return true;
         },
 
@@ -97,7 +94,6 @@ StandardPlugin::StandardPlugin(
                 media_frame,
                 media_logical_frame,
                 timecode);
-
             playhead_logical_frame_ = playhead_logical_frame;
         },
 
@@ -111,6 +107,21 @@ StandardPlugin::StandardPlugin(
             caf::actor playhead) {
             // the playhead of the given viewport has changed
         },
+        [=](utility::event_atom,
+            ui::viewport::viewport_playhead_atom,
+            const std::string &viewport_name,
+            caf::actor playhead) {
+            // the playhead of the given viewport has changed
+        },
+
+        [=](utility::event_atom,
+            ui::viewport::viewport_playhead_atom,
+            caf::actor live_playhead) {
+            // this comes from 'global_playhead_events_actor' when the main
+            // playhead driving viewports changes
+            current_viewed_playhead_changed(live_playhead);
+        },
+
         [=](utility::event_atom,
             playhead::show_atom,
             caf::actor media,
@@ -209,23 +220,55 @@ void StandardPlugin::join_studio_events() {
             system().registry().template get<caf::actor>(studio_registry),
             session::session_atom_v));
 
-        // fetch the current viewed playhead from the viewport so we can 'listen' to it
-        // for position changes, current media changes etc.
         playhead_events_actor_ =
             system().registry().template get<caf::actor>(global_playhead_events_actor);
-        if (playhead_events_actor_) {
-            // this call means we get event messages when the on-screen media
-            // changes
-            anon_send(
-                playhead_events_actor_,
-                broadcast::join_broadcast_atom_v,
-                caf::actor_cast<caf::actor>(this));
-        }
+
+        anon_send(
+            playhead_events_actor_,
+            broadcast::join_broadcast_atom_v,
+            caf::actor_cast<caf::actor>(this));
 
     } catch (const std::exception &err) {
         spdlog::warn("{} {}", __PRETTY_FUNCTION__, err.what());
     }
 }
+
+void StandardPlugin::listen_to_playhead_events(const bool listen) {
+
+    // fetch the current viewed playhead from the viewport so we can 'listen' to it
+    // for position changes, current media changes etc.
+
+    // join the global playhead events group - this tells us when the playhead that should
+    // be on screen changes, among other things
+    playhead_events_actor_ =
+        self()->home_system().registry().template get<caf::actor>(global_playhead_events_actor);
+    joined_playhead_events_ = listen;
+    if (listen) {
+
+        anon_send(
+            playhead_events_actor_,
+            broadcast::join_broadcast_atom_v,
+            caf::actor_cast<caf::actor>(this));
+
+        // this call means we get event messages when the on-screen media
+        // changes
+        request(playhead_events_actor_, infinite, ui::viewport::viewport_playhead_atom_v)
+            .then(
+                [=](caf::actor ph) { current_viewed_playhead_changed(ph); },
+                [=](caf::error &err) {
+
+                });
+    } else {
+
+        anon_send(
+            playhead_events_actor_,
+            broadcast::leave_broadcast_atom_v,
+            caf::actor_cast<caf::actor>(this));
+        joined_playhead_events_ = false;
+        current_viewed_playhead_changed(caf::actor());
+    }
+}
+
 
 void StandardPlugin::start_stop_playback(const std::string viewport_name, bool play) {
 
@@ -233,38 +276,28 @@ void StandardPlugin::start_stop_playback(const std::string viewport_name, bool p
     try {
 
         auto playhead = utility::request_receive<caf::actor>(
-                *sys,
-                playhead_events_actor_,
-                ui::viewport::viewport_playhead_atom_v,
-                viewport_name);
+            *sys,
+            playhead_events_actor_,
+            ui::viewport::viewport_playhead_atom_v,
+            viewport_name);
         if (playhead) {
-            utility::request_receive<unit_t>(
-                *sys,
-                playhead,
-                playhead::play_atom_v,
-                play);
+            utility::request_receive<unit_t>(*sys, playhead, playhead::play_atom_v, play);
         }
-    } catch (std::exception & e) {
+    } catch (std::exception &e) {
         spdlog::warn("{} {}", __PRETTY_FUNCTION__, e.what());
     }
-
 }
 
 void StandardPlugin::set_viewport_cursor(const std::string cursor_name) {
 
-    anon_send(playhead_events_actor_,
-                ui::viewport::viewport_cursor_atom_v,
-                cursor_name);
+    anon_send(playhead_events_actor_, ui::viewport::viewport_cursor_atom_v, cursor_name);
 }
 
 
-void StandardPlugin::current_viewed_playhead_changed(caf::actor_addr viewed_playhead_addr) {
+void StandardPlugin::current_viewed_playhead_changed(caf::actor viewed_playhead) {
 
     // here we join the playhead events group of the new playhead that is
     // attached to the viewport
-
-    auto viewed_playhead      = caf::actor_cast<caf::actor>(viewed_playhead_addr);
-    active_viewport_playhead_ = viewed_playhead_addr;
 
     auto self = caf::actor_cast<caf::actor>(this);
     if (caf::actor_cast<caf::actor>(playhead_media_events_group_)) {

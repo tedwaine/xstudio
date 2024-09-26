@@ -40,6 +40,14 @@ RowLayout {id: titleDiv
         }
     }
 
+    // make sure index is updated
+    XsModelProperty {
+        index: groupModel.rootIndex
+        onIndexChanged: {
+            populateModels()
+        }
+    }
+
     function populateModels() {
         groupModel.rootIndex = helpers.makePersistent(filterModel.mapFromSource(ShotBrowserEngine.presetsModel.searchRecursive(
             "c5ce1db6-dac0-4481-a42b-202e637ac819", "idRole", ShotBrowserEngine.presetsModel.index(-1, -1), 0, 1
@@ -67,9 +75,7 @@ RowLayout {id: titleDiv
         imgSrc: isPanelEnabled && !isPaused ? "qrc:///shotbrowser_icons/lock_open.svg" : "qrc:///shotbrowser_icons/lock.svg"
         // text: isPanelEnabled? "ON" : "OFF"
         isActive: !isPanelEnabled || isPaused
-        onClicked: {
-            isPanelEnabled = !isPanelEnabled
-        }
+        onClicked: isPanelEnabled = !isPanelEnabled
     }
 
     ColumnLayout{ id: col

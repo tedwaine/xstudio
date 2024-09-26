@@ -14,7 +14,7 @@ Item{id: actionDiv
     visible: opacity != 0.0
     Behavior on opacity {NumberAnimation{ duration: 150 }}
 
-    property real btnHeight: XsStyleSheet.widgetStdHeight+4
+    property real btnHeight: XsStyleSheet.primaryButtonStdHeight
     property real panelPadding: XsStyleSheet.panelPadding
 
     property string actionbar_model_data_name
@@ -70,7 +70,7 @@ Item{id: actionDiv
                         activated = 0;
                     }
                 }
-
+            
                 // in the backend, if a hotkey was provided when the dockable
                 // widget was declared, the hotkey press is signalled to us
                 // by setting the user_data role data on the attribute - it
@@ -105,6 +105,7 @@ Item{id: actionDiv
                 onClicked: {
                     window_is_visible = !window_is_visible
                 }
+
             }
         }
 
@@ -155,6 +156,10 @@ Item{id: actionDiv
             onClicked:{
                 view.reset()
             }
+
+            toolTip: "Reset Display"
+            hotkeyNameForTooltip: "Reset Viewport"
+
         }
 
         XsModuleData {
@@ -177,6 +182,7 @@ Item{id: actionDiv
                 onClicked:{
                     value = !value
                 }
+    
             }
         }
 

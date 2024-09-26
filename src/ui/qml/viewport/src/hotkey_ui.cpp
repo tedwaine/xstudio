@@ -152,6 +152,34 @@ bool HotkeysUI::setData(const QModelIndex &index, const QVariant &value, int rol
     return false;
 }
 
+QString HotkeysUI::hotkey_sequence(const QVariant &hotkey_uuid) {
+    QString result;
+    utility::Uuid hk_uuid;
+    if (hotkey_uuid.canConvert<QUuid>()) {
+        hk_uuid = UuidFromQUuid(hotkey_uuid.value<QUuid>());
+    } else {
+        hk_uuid.from_string(StdFromQString(hotkey_uuid.toString()));
+    }
+    for (const auto &hk : hotkeys_data_) {
+        if (hk.uuid() == hk_uuid) {
+            result = QStringFromStd(hk.hotkey_sequence());
+            break;
+        }
+    }
+    return result;
+}
+
+QString HotkeysUI::hotkey_sequence_from_hotkey_name(const QString &hotkey_name) {
+    QString result;
+    const std::string nm(StdFromQString(hotkey_name));
+    for (const auto &hk : hotkeys_data_) {
+        if (hk.hotkey_name() == nm) {
+            result = QStringFromStd(hk.hotkey_sequence());
+            break;
+        }
+    }
+    return result;
+}
 
 HotkeyUI::HotkeyUI(QObject *parent) : QMLActor(parent) {
     init(CafSystemObject::get_actor_system());

@@ -28,6 +28,7 @@ MediaStreamActor::MediaStreamActor(caf::actor_config &cfg, const JsonStore &jsn)
             utility::Uuid::generate(), static_cast<JsonStore>(jsn["store"]));
     }
     link_to(json_store_);
+    join_event_group(this, json_store_);
 
     init();
 }
@@ -40,6 +41,7 @@ MediaStreamActor::MediaStreamActor(
 
     json_store_ = spawn<json_store::JsonStoreActor>(utility::Uuid::generate());
     link_to(json_store_);
+    join_event_group(this, json_store_);
 
     init();
 }
@@ -106,6 +108,19 @@ void MediaStreamActor::init() {
 
         [=](utility::get_group_atom _get_group_atom) {
             return delegate(json_store_, _get_group_atom);
+        },
+
+        [=](json_store::update_atom,
+            const JsonStore &change,
+            const std::string &path,
+            const JsonStore &full) {
+            if (current_sender() == json_store_)
+                send(event_group_, json_store::update_atom_v, change, path, full);
+        },
+
+        [=](json_store::update_atom, const JsonStore &full) mutable {
+            if (current_sender() == json_store_)
+                send(event_group_, json_store::update_atom_v, full);
         },
 
         [=](utility::serialise_atom) -> result<JsonStore> {

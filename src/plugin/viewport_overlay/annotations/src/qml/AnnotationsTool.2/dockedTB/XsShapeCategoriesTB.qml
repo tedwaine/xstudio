@@ -34,11 +34,10 @@ Item{
     GridView{ id: shapesList
 
         width: parent.width
-        height: buttonHeight*2
-        x: framePadding + itemSpacing/2
+        height: parent.height
 
-        cellWidth: width/2
-        cellHeight: buttonHeight
+        cellWidth: width/4
+        cellHeight: parent.height
         // spacing: itemSpacing
         interactive: false
         flow: GridView.FlowLeftToRight
@@ -54,13 +53,13 @@ Item{
         delegate: XsPrimaryButton{
             id: shapeBtn
             text: shapeHint
-            isToolTipEnabled: showButtonHints
+            isToolTipEnabled: false
 
             imgSrc: shapeImage
             imageDiv.height: 16
             imageDiv.width: 16
 
-            width: index%2==0? shapesList.cellWidth - itemSpacing : shapesList.cellWidth
+            width: shapesList.cellWidth - itemSpacing
             height: shapesList.cellHeight - itemSpacing
 
             isActive: shapesList.currentIndex===index

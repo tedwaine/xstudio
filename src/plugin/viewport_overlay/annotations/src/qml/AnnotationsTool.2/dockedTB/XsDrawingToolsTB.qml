@@ -19,21 +19,19 @@ Item {
     id: drawDialog
 
     objectName: "XStudioPanel"
+    anchors.fill: parent
 
     // this var is REQUIRED to set the vertical size of the widget
-    property var dockWidgetSize: 90
-
-    anchors.fill: parent
+    property var dockWidgetSize: XsStyleSheet.primaryButtonStdHeight + framePadding*2 
+    
 
     XsGradientRectangle{
         anchors.fill: parent
     }
 
-    property real buttonWidth: 0
     property real buttonHeight: 20
-    property real toolPropLoaderHeight: 0
+    property real toolPropLoaderWidth: 0
     property real defaultHeight: toolSelector.height + toolProperties.height + toolActionSection.height + framePadding*3
-    property bool showButtonHints: false //#TODO: for testing
     property real toolPropertiesWidthThreshold: 200
 
     property real colSpacing: buttonHeight
@@ -172,39 +170,37 @@ Item {
     XsGradientRectangle{
         anchors.fill: parent
     }
-    Rectangle{ //TEST
-        anchors.fill: parent
-        color:"transparent"
-        border.width: 1
-        border.color: "red"
-    }
 
     // We wrap all the widgets in a top level Item that can forward keyboard
     // events back to the viewport for consistent
-    Item {
+    RowLayout {
         anchors.fill: parent
-        focus: true
-        // Keys.forwardTo: [sessionWidget] //#TODO - backend
+        spacing: 0
 
         XsToolSelectorTB {
             id: toolSelector
-            x: framePadding
-            width: parent.height
-            height: parent.height
+            Layout.preferredWidth: toolSet.width + framePadding
+            Layout.maximumWidth: toolSet.width + framePadding
+            Layout.preferredHeight: parent.height
         }
 
-        Loader {
+        Item{ id: toolProperties
+            y: framePadding
+            Layout.fillWidth: true
+            Layout.minimumWidth: !isAnyToolSelected? 0 : toolPropLoaderWidth
+            Layout.preferredHeight: parent.height - y*2
 
-            id: toolProperties
-            width: toolPropLoaderHeight //toolSelector.width
-            height: parent.height //toolPropLoaderHeight
-            x: toolSelector.x + toolSelector.width
-            y: 0
+            Loader{
+                width: !isAnyToolSelected? 0 : toolPropLoaderWidth 
+                height: parent.height 
+                anchors.centerIn: parent
+                clip: true
 
-            sourceComponent: XsToolPropertiesTB{
-                root: drawDialog
+                sourceComponent: XsToolPropertiesTB{
+                    root: drawDialog
+                }
+
             }
-
 
             ColorDialog {
                 id: colorDialog
@@ -222,24 +218,6 @@ Item {
                     }
                 }
             }
-            ColorDialog {
-                id: bgColorDialog
-                title: "Please pick a BG-Colour"
-                onAccepted: {
-                    backgroundColor = color
-                    close()
-                }
-                onRejected: {
-                    close()
-                }
-                onVisibleChanged: {
-                    if (visible) {
-                        color = backgroundColor
-                    }
-                }
-
-            }
-
 
             ListModel{ id: eraseColorPresetModel
                 ListElement{
@@ -262,9 +240,9 @@ Item {
                 ListElement{
                     preset: "#0050ff" //- "blue"
                 }
-                // ListElement{
-                //     preset: "#8c00ff" //- "violet"
-                // }
+                ListElement{
+                    preset: "#8c00ff" //- "violet"
+                }
                 // ListElement{
                 //     preset: "#ff64ff" //- "pink"
                 // }
@@ -273,9 +251,6 @@ Item {
                 }
                 ListElement{
                     preset: "#000000" //- "black"
-                }
-                ListElement{
-                    preset: "transparent" //for colour-picker
                 }
             }
             ListModel{ id: textColourPresetsModel
@@ -294,17 +269,14 @@ Item {
                 ListElement{
                     preset: "#0050ff" //- "blue"
                 }
-                // ListElement{
-                //     preset: "#8c00ff" //- "violet"
-                // }
+                ListElement{
+                    preset: "#8c00ff" //- "violet"
+                }
                 ListElement{
                     preset: "#ffffff" //- "white"
                 }
                 ListElement{
                     preset: "#000000" //- "black"
-                }
-                ListElement{
-                    preset: "transparent" //for colour-picker
                 }
             }
             ListModel{ id: shapesColourPresetsModel
@@ -323,35 +295,33 @@ Item {
                 ListElement{
                     preset: "#0050ff" //- "blue"
                 }
-                // ListElement{
-                //     preset: "#8c00ff" //- "violet"
-                // }
+                ListElement{
+                    preset: "#8c00ff" //- "violet"
+                }
                 ListElement{
                     preset: "#ffffff" //- "white"
                 }
                 ListElement{
                     preset: "#000000" //- "black"
                 }
-                ListElement{
-                    preset: "transparent" //for colour-picker
-                }
             }
-
         }
 
         XsToolActionsTB{
             id: toolActionSection
+            Layout.fillWidth: true
+            Layout.minimumWidth: displayBtn.x + displayBtn.width/2.2 + framePadding/2
+            Layout.preferredWidth: displayBtn.x + displayBtn.width + framePadding/2
+            Layout.maximumWidth: displayBtn.x + displayBtn.width + framePadding/2
+            Layout.fillHeight: true
+        }
 
-            // x: !isAnyToolSelected?
-            //     toolProperties.x :
-            //     toolProperties.x + toolProperties.width + colSpacing
-            // y: framePadding
-
-            anchors.right: parent.right
-            anchors.top: parent.top
-
-            width: parent.height * 2 + framePadding
-            height: parent.height
+        Item{
+            Layout.fillWidth: true
+            Layout.minimumWidth: XsStyleSheet.primaryButtonStdHeight
+            Layout.preferredWidth: XsStyleSheet.primaryButtonStdHeight
+            Layout.maximumWidth: XsStyleSheet.primaryButtonStdHeight
+            Layout.fillHeight: true
         }
 
     }

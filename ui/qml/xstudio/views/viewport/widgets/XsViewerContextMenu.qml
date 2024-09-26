@@ -24,20 +24,20 @@ XsPopupMenu {
 
     ****************************************************************/
 
-    XsMenuModelItem {
-        text: isPopoutViewer ? "" : "Presentation Mode"
-        menuItemType: "toggle"
-        menuPath: ""
-        menuItemPosition: 1
-        menuModelName: btnMenu.menu_model_name
-        hotkeyUuid: presentation_mode_hotkey.uuid
-        // awkward two way binding!
-        isChecked: appWindow.layoutName == "Present"
-        onActivated: {
-            appWindow.togglePresentationMode()
-        }
-        panelContext: btnMenu.panelContext
-    }
+    // XsMenuModelItem {
+    //     text: isPopoutViewer ? "" : "Presentation Mode"
+    //     menuItemType: "toggle"
+    //     menuPath: ""
+    //     menuItemPosition: 1
+    //     menuModelName: btnMenu.menu_model_name
+    //     hotkeyUuid: presentation_mode_hotkey.uuid
+    //     // awkward two way binding!
+    //     isChecked: appWindow.layoutName == "Present"
+    //     onActivated: {
+    //         appWindow.togglePresentationMode()
+    //     }
+    //     panelContext: btnMenu.panelContext
+    // }
 
     XsMenuModelItem {
         text: "Full Screen"
@@ -51,11 +51,10 @@ XsPopupMenu {
             appWindow.fullscreen = !appWindow.fullscreen
         }
         panelContext: btnMenu.panelContext
-        enabled: false
     }
 
     XsMenuModelItem {
-        text: "Hide UI Items"
+        text: "Hide UI"
         menuPath: ""
         menuItemType: "toggle"
         menuItemPosition: 2.5
@@ -72,11 +71,10 @@ XsPopupMenu {
     XsMenuModelItem {
         text: isPopoutViewer ? "" : "Menu Bar"
         enabled: viewportWidget.elementsVisible
-        menuPath: "UI Items"
+        menuPath: "UI Elements"
         menuItemType: "toggle"
         menuItemPosition: 1
         menuModelName: btnMenu.menu_model_name
-        // hotkeyUuid: hide_ui_hotkey.uuid
         isChecked: viewportWidget.menuBarVisible
         onActivated: {
             viewportWidget.menuBarVisible = !viewportWidget.menuBarVisible
@@ -84,43 +82,33 @@ XsPopupMenu {
         panelContext: btnMenu.panelContext
     }
     XsMenuModelItem {
-        menuPath: "UI Items"
+        menuPath: "UI Elements"
         menuItemType: "divider"
         menuItemPosition: 2
         menuModelName: isPopoutViewer? "" : btnMenu.menu_model_name
     }
     XsMenuModelItem {
-        text: isPopoutViewer ? "" : "Tab Bar"
-        menuPath: "UI Items"
+        text: isPopoutViewer ? "" : layoutName != "Present" ? "Tab Bar" : ""
+        menuPath: "UI Elements"
         menuItemType: "toggle"
         menuItemPosition: 3
         menuModelName: btnMenu.menu_model_name
-        enabled: viewportWidget.elementsVisible
-        // hotkeyUuid: hide_ui_hotkey.uuid
+        enabled: viewportWidget.elementsVisible && 
+            (appWindow.tabsVisibility == 2 || 
+                (appWindow.tabsVisibility == 1 && container.tabCount > 1))
         isChecked: viewportWidget.tabBarVisible
         onActivated: {
             viewportWidget.tabBarVisible = !viewportWidget.tabBarVisible
-
-            // appWindow.set_menu_bar_visibility(viewportWidget.tabBarVisible)
-            if (typeof forceHideTabs !== "undefined") {
-                forceHideTabs = !viewportWidget.tabBarVisible
-            }
-
-            // //setting current visibility to user-preferences:
-            // let ud = user_data
-            // ud["tabBar"] = tabBarVisible
-            // user_data = ud
         }
         panelContext: btnMenu.panelContext
     }
     XsMenuModelItem {
         text: "Action Bar"
-        menuPath: "UI Items"
+        menuPath: "UI Elements"
         menuItemType: "toggle"
         menuItemPosition: 4
         menuModelName: btnMenu.menu_model_name
         enabled: viewportWidget.elementsVisible
-        // hotkeyUuid: hide_ui_hotkey.uuid
         isChecked: viewportWidget.actionBarVisible
         onActivated: {
             viewportWidget.actionBarVisible = !viewportWidget.actionBarVisible
@@ -129,12 +117,11 @@ XsPopupMenu {
     }
     XsMenuModelItem {
         text: "Info Bar"
-        menuPath: "UI Items"
+        menuPath: "UI Elements"
         menuItemType: "toggle"
         menuItemPosition: 5
         menuModelName: btnMenu.menu_model_name
         enabled: viewportWidget.elementsVisible
-        // hotkeyUuid: hide_ui_hotkey.uuid
         isChecked: viewportWidget.infoBarVisible
         onActivated: {
             viewportWidget.infoBarVisible = !viewportWidget.infoBarVisible
@@ -143,12 +130,11 @@ XsPopupMenu {
     }
     XsMenuModelItem {
         text: "Tool Bar"
-        menuPath: "UI Items"
+        menuPath: "UI Elements"
         menuItemType: "toggle"
         menuItemPosition: 6
         menuModelName: btnMenu.menu_model_name
         enabled: viewportWidget.elementsVisible
-        // hotkeyUuid: hide_ui_hotkey.uuid
         isChecked: viewportWidget.toolBarVisible
         onActivated: {
             viewportWidget.toolBarVisible = !viewportWidget.toolBarVisible
@@ -157,12 +143,11 @@ XsPopupMenu {
     }
     XsMenuModelItem {
         text: "Transport Bar"
-        menuPath: "UI Items"
+        menuPath: "UI Elements"
         menuItemType: "toggle"
         menuItemPosition: 7
         menuModelName: btnMenu.menu_model_name
         enabled: viewportWidget.elementsVisible
-        // hotkeyUuid: hide_ui_hotkey.uuid
         isChecked: viewportWidget.transportBarVisible
         onActivated: {
             viewportWidget.transportBarVisible = !viewportWidget.transportBarVisible
@@ -224,7 +209,7 @@ XsPopupMenu {
         }
         panelContext: btnMenu.panelContext
         Component.onCompleted: {
-            setMenuPathPosition("UI Items", 3.0)
+            setMenuPathPosition("UI Elements", 3.0)
             setMenuPathPosition("Toolbar", 4.0)
         }
     }

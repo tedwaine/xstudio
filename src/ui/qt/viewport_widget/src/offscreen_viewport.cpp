@@ -91,6 +91,7 @@ OffscreenViewport::OffscreenViewport(const std::string name) : super() {
     // to render the viewport into our GLContext
     utility::JsonStore jsn;
     jsn["base"]        = utility::JsonStore();
+    jsn["window_id"]   = name;
     viewport_renderer_ = new Viewport(
         jsn, as_actor(), ViewportRendererPtr(new opengl::OpenGLViewportRenderer(false)), name);
 
@@ -202,9 +203,54 @@ OffscreenViewport::OffscreenViewport(const std::string name) : super() {
                 video_output_actor_ = video_output_actor;
             },
 
-            [=](render_viewport_to_image_atom) {
+            [=](render_viewport_to_image_atom, const utility::time_point &tp) {
                 // force a redraw
-                receive_change_notification(Viewport::ChangeCallbackId::Redraw);
+                if (video_output_actor_) {
+
+                    if (last_rendered_frame_ && !viewport_renderer_->playing()) {
+                        // no need to re-render if Redraw callback hasn't
+                        // arrived since we last rendered
+                        anon_send(video_output_actor_, last_rendered_frame_);
+
+                    } else {
+
+                        // we store the image buffers that we have rendered into. WHy?
+                        // Because we can re-use them and since vid_out_width_ and
+                        // vid_out_height_ don't change (much) we don't need to re-allocate
+                        // image buffers.
+                        //
+                        // We use the use_count() to check if a buffer can be re-used.
+                        //
+                        // Note - last_rendered_frame_ might be reset again (via
+                        // recieve_change_callback) during call to renderToImageBuffer so I
+                        // don't use it directly here
+                        media_reader::ImageBufPtr new_frame;
+                        for (auto &buf : output_buffers_) {
+                            if (buf.use_count() == 1) {
+                                new_frame = buf;
+                                break;
+                            }
+                        }
+                        if (!new_frame) {
+                            new_frame.reset(new media_reader::ImageBuffer());
+                            output_buffers_.push_back(new_frame);
+                        }
+
+                        try {
+                            renderToImageBuffer(
+                                vid_out_width_,
+                                vid_out_height_,
+                                new_frame,
+                                vid_out_format_,
+                                false,
+                                tp);
+                        } catch (std::exception &e) {
+                            spdlog::warn("{} {}", __PRETTY_FUNCTION__, e.what());
+                        }
+                        anon_send(video_output_actor_, new_frame);
+                        last_rendered_frame_ = new_frame;
+                    }
+                }
             }
 
         });
@@ -512,7 +558,8 @@ void OffscreenViewport::renderToImageBuffer(
     const int h,
     media_reader::ImageBufPtr &image,
     const ImageFormat format,
-    const bool sync_fetch_playhead_image) {
+    const bool sync_fetch_playhead_image,
+    const utility::time_point &tp) {
     auto t0 = utility::clock::now();
 
     // ensure our GLContext is current
@@ -546,6 +593,8 @@ void OffscreenViewport::renderToImageBuffer(
     if (sync_fetch_playhead_image) {
         media_reader::ImageBufPtr image = viewport_renderer_->get_onscreen_image(true);
         viewport_renderer_->render(image);
+    } else if (tp != utility::time_point()) {
+        viewport_renderer_->render(tp);
     } else {
         viewport_renderer_->render();
     }
@@ -617,27 +666,9 @@ void OffscreenViewport::renderToImageBuffer(
 
 void OffscreenViewport::receive_change_notification(Viewport::ChangeCallbackId id) {
 
-    if (id == Viewport::ChangeCallbackId::Redraw) {
-        if (video_output_actor_) {
-
-            std::vector<media_reader::ImageBufPtr> output_buffers_;
-            media_reader::ImageBufPtr ready_buf;
-            for (auto &buf : output_buffers_) {
-                if (buf.use_count() == 1) {
-                    ready_buf = buf;
-                    break;
-                }
-            }
-            if (!ready_buf) {
-                ready_buf.reset(new media_reader::ImageBuffer());
-                output_buffers_.push_back(ready_buf);
-            }
-
-            renderToImageBuffer(
-                vid_out_width_, vid_out_height_, ready_buf, vid_out_format_, false);
-            anon_send(video_output_actor_, ready_buf);
-        }
-    }
+    // something has changed that will affect the rendered output. clear
+    // last_rendered_frame_
+    last_rendered_frame_.reset();
 }
 
 void OffscreenViewport::make_conversion_lut() {

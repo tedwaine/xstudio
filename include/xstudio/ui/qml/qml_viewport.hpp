@@ -34,8 +34,7 @@ namespace ui {
         class VIEWPORT_QML_EXPORT QMLViewport : public QQuickItem {
             Q_OBJECT
 
-            Q_PROPERTY(int mouseButtons READ mouseButtons NOTIFY mouseButtonsChanged)
-            Q_PROPERTY(QPoint mouse READ mouse NOTIFY mouseChanged)
+            Q_PROPERTY(QPoint mousePosition READ mousePosition NOTIFY mousePositionChanged)
             Q_PROPERTY(QRectF imageBoundaryInViewport READ imageBoundaryInViewport NOTIFY
                            imageBoundaryInViewportChanged)
             Q_PROPERTY(QSize imageResolution READ imageResolution NOTIFY imageResolutionChanged)
@@ -48,8 +47,7 @@ namespace ui {
 
             [[nodiscard]] QUuid playheadUuid() const { return playhead_uuid_; }
             [[nodiscard]] QString name() const;
-            [[nodiscard]] int mouseButtons() const { return mouse_buttons; }
-            [[nodiscard]] QPoint mouse() const { return mouse_position; }
+            [[nodiscard]] QPoint mousePosition() const { return mouse_position; }
 
             QMLViewportRenderer *viewportActor() { return renderer_actor; }
             void deleteRendererActor();
@@ -99,8 +97,11 @@ namespace ui {
 
           signals:
 
-            void mouseButtonsChanged();
-            void mouseChanged();
+            void mouseRelease(Qt::MouseButtons buttons);
+            void mouseDoubleClick(Qt::MouseButtons buttons);
+            void mousePress(Qt::MouseButtons buttons);
+            void mousePositionChanged(QPoint position);
+
             void imageBoundaryInViewportChanged();
             void imageResolutionChanged();
             void doSnapshot(QString, QString, int, int, bool);
@@ -128,7 +129,6 @@ namespace ui {
             bool connected_{false};
             QCursor cursor_;
             bool cursor_hidden{false};
-            int mouse_buttons = {0};
             QPoint mouse_position;
             bool is_quick_viewer_ = {false};
             QUuid playhead_uuid_;

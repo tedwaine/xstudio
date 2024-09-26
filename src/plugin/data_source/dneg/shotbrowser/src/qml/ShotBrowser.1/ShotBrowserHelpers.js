@@ -373,7 +373,7 @@ function replaceConformMediaCallback(playlist_uuid, uuids) {
 }
 
 function _Timer() {
-     return Qt.createQmlObject("import QtQuick 2.0; Timer {}", root);
+     return Qt.createQmlObject("import QtQuick 2.0; Timer {}", appWindow);
 }
 
 function delayCallback(delayTime, cb) {
@@ -462,8 +462,12 @@ function loadShotGridPlaylist(shotgrid_playlist_id, name, context={}) {
             	// inject shotgrid json into playlist
                 Future.promise(plindex.model.setJSONFuture(plindex, JSON.stringify(data['data']), "/metadata/shotgun/playlist")).then(
                     function(result) {
-                        // addDecorator(pl_actor_uuid)
-                        // addMenusFull(pl_actor_uuid)
+                    },
+                    function() {
+                    }
+                )
+                Future.promise(plindex.model.setJSONFuture(plindex, JSON.stringify("qrc:/shotbrowser_icons/shot_grid.svg"), "/ui/decorators/shotgrid")).then(
+                    function(result) {
                     },
                     function() {
                     }
@@ -497,7 +501,7 @@ function loadShotGridPlaylist(shotgrid_playlist_id, name, context={}) {
                 )
             } else {
                 plindex.model.set(plindex, false, "busyRole")
-                console.log("loadShotgridPlaylist", json_string)
+                //console.log("loadShotgridPlaylist", json_string)
             }
 	        } catch(err) {
 			    plindex.model.set(plindex, false, "busyRole")

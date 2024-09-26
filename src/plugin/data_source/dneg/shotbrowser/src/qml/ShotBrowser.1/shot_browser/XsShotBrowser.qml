@@ -42,6 +42,8 @@ Item{
     property var sequenceModel: null
     property var currentPresetIndex: ShotBrowserEngine.presetsModel.index(-1,-1)
 
+    property var categoryPreset: (new Map())
+
     property bool sequenceTreeLiveLink: false
     property bool sequenceTreeShowPresets: false
 
@@ -65,6 +67,17 @@ Item{
 
     onOnScreenMediaUuidChanged: {if(visible) updateTimer.start()}
 
+    onCurrentPresetIndexChanged: {
+        if(currentPresetIndex.valid)
+            categoryPreset[currentCategory] = helpers.makePersistent(currentPresetIndex)
+    }
+
+    onCurrentCategoryChanged: {
+        if(currentCategory in categoryPreset && categoryPreset[currentCategory].valid) {
+            activatePreset(categoryPreset[currentCategory])
+            presetsSelectionModel.select(categoryPreset[currentCategory], ItemSelectionModel.ClearAndSelect)
+        }
+    }
 
     onOnScreenLogicalFrameChanged: {
         if(updateTimer.running)
@@ -77,6 +90,12 @@ Item{
             // ShotBrowserEngine.liveLinkMetadata = "null"
         }
     }
+
+    // XsHotkeyArea {
+    //     anchors.fill: parent
+    //     context: "shotbrowser"
+    //     focus: true
+    // }
 
     /*MouseArea {
         anchors.fill: parent
@@ -183,60 +202,26 @@ Item{
         onValueChanged: setProjectIndex(true)
     }
 
-    XsPreference {
-        id: popoutPref
-        path: "/plugin/data_source/shotbrowser/browser/popout"
-    }
-
     Item {
         // Hold properties that we want to persist between sessions.
-        // The 'user_data' property is provided by the model data that
-        // instantiates this item and we can access directly
         id: prefs
         property int resultPanelWidth: 600
         property int treePlusResultPanelWidth: 600
         property int treePanelWidth: 200
         property string category: "Tree"
         property string quickLoad: ""
-        property bool initialised: false
 
-        property var store: {
-            "resultPanelWidth": resultPanelWidth,
-            "treePlusResultPanelWidth": treePlusResultPanelWidth,
-            "treePanelWidth": treePanelWidth,
-            "category": category,
-            "quickLoad": quickLoad,
+        XsStoredPanelProperties {
+
+            propertyNames: [
+                "resultPanelWidth",
+                "treePlusResultPanelWidth",
+                "treePanelWidth",
+                "category",
+                "quickLoad"]
+
         }
 
-        onStoreChanged: {
-            // push these prefs values to user_data so they get stored
-            // in the user's preference files for next time
-            if (initialised) {
-                if(isPopout) {
-                    popoutPref.value = store
-                } else {
-                    user_data = store
-                }
-            }
-        }
-
-        Component.onCompleted: {
-            // one time initialise from user_data if it is not empty
-            if (typeof user_data == "object") {
-                if (user_data.resultPanelWidth) resultPanelWidth = Math.max(user_data.resultPanelWidth, 600)
-                if (user_data.treePlusResultPanelWidth) treePlusResultPanelWidth = Math.max(user_data.treePlusResultPanelWidth, 600)
-                if (user_data.treePanelWidth) treePanelWidth = Math.max(user_data.treePanelWidth, 200)
-                if (user_data.category) category = user_data.category
-                if (user_data.quickLoad) quickLoad = user_data.quickLoad
-            } else if(isPopout) {
-                if (popoutPref.value.resultPanelWidth) resultPanelWidth = Math.max(popoutPref.value.resultPanelWidth, 600)
-                if (popoutPref.value.treePlusResultPanelWidth) treePlusResultPanelWidth = Math.max(popoutPref.value.treePlusResultPanelWidth, 600)
-                if (popoutPref.value.treePanelWidth) treePanelWidth = Math.max(popoutPref.value.treePanelWidth, 200)
-                if (popoutPref.value.category) category = popoutPref.value.category
-                if (popoutPref.value.quickLoad) quickLoad = popoutPref.value.quickLoad
-            }
-            initialised = true
-        }
     }
 
     ItemSelectionModel {
@@ -425,13 +410,6 @@ Item{
                 main_split.minimumPresetWidth
             )
             SplitView.preferredWidth: (main_split.treePlusActive ? main_split.width - prefs.treePlusResultPanelWidth : main_split.width -prefs.resultPanelWidth)
-
-            /*XsHotkeyArea {
-                anchors.fill: parent
-                context: "shotbrowser"
-                focus: true
-            }*/
-
         }
 
         XsGradientRectangle{
@@ -457,13 +435,6 @@ Item{
                 id: right_section
 
             }
-
-            /*XsHotkeyArea {
-                anchors.fill: right_section
-                context: "shotbrowser"
-                focus: true
-            }*/
-
         }
     }
 
@@ -479,8 +450,8 @@ Item{
     function executeQuery() {
         if(currentPresetIndex && currentPresetIndex.valid) {
 
-            nameFilter = ""
-            pipeStep = ""
+            // nameFilter = ""
+            // pipeStep = ""
             // onDisk = ""
 
             resultsSelectionModel.clear()

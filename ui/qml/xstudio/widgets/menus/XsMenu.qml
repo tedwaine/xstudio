@@ -218,8 +218,13 @@ XsPopup {
                         property var idx: index
                         Repeater {
 
-                            model: choices
+                            // we can optionally drive the menu selection with
+                            // 'choice_ids' - this allows us to handle the case
+                            // where there are duplicate names in 'choices' but
+                            // they really mean different
+                            model: choices_ids ? choices_ids : choices
                             XsMenuItemToggle {
+                                actualValue: choices_ids ? choices_ids[index] : choices[index]
                                 label: choices[index]
                                 isRadioButton: true
                                 radioSelectedChoice: current_choice
@@ -227,7 +232,7 @@ XsPopup {
                                 menu_model_index: the_popup.menu_model.index(layout.idx, 0, the_popup.menu_model_index)
                                 parent_menu: the_popup
                                 onClicked: {
-                                    current_choice = choices[index]
+                                    current_choice = actualValue
                                     the_popup.closeAll()
                                 }
                                 width: view.width

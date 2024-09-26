@@ -9,6 +9,8 @@
 #include <opentimelineio/marker.h>
 #include <opentimelineio/track.h>
 #include <opentimelineio/externalReference.h>
+#include <opentimelineio/imageSequenceReference.h>
+#include <opentimelineio/deserialization.h>
 #endif
 
 #include <cpp-colors/colors.h>
@@ -46,6 +48,9 @@ auto __sysclock_now() {
 #endif
 }
 
+const static auto COLOUR_JPOINTER  = nlohmann::json::json_pointer("/xstudio/colour");
+const static auto LOCKED_JPOINTER  = nlohmann::json::json_pointer("/xstudio/locked");
+const static auto ENABLED_JPOINTER = nlohmann::json::json_pointer("/xstudio/enabled");
 
 } // namespace
 
@@ -252,7 +257,6 @@ void TimelineActor::item_pre_event_callback(const utility::JsonStore &event, Ite
 
 namespace otio = opentimelineio::OPENTIMELINEIO_VERSION;
 
-
 // std::vector<Retainer<Composable>> const& children() const noexcept
 // {
 //     return _children;
@@ -289,19 +293,24 @@ std::vector<timeline::Marker> process_markers(
     for (const auto &om : markers) {
         auto m = Marker(om->name());
 
+        if (colors::wpf_named_color_converter::is_named(om->color()))
+            m.set_flag(colors::to_ahex_str<char>(colors::color(
+                colors::value_of(colors::wpf_named_color_converter::value(om->color())))));
+
         auto marker_metadata = JsonStore();
         try {
             otio::ErrorStatus err;
             auto marker_metadata = nlohmann::json::parse(om->to_json_string(&err, {}, 0));
-            if (marker_metadata.count("metadata"))
+            if (marker_metadata.count("metadata")) {
                 m.set_prop(JsonStore(marker_metadata.at("metadata")));
+                if (m.prop().contains(COLOUR_JPOINTER)) {
+                    m.set_flag(m.prop().at(COLOUR_JPOINTER).get<std::string>());
+                }
+            }
         } catch (const std::exception &err) {
             spdlog::warn("{} {}", __PRETTY_FUNCTION__, err.what());
         }
 
-        if (colors::wpf_named_color_converter::is_named(om->color()))
-            m.set_flag(colors::to_ahex_str<char>(colors::color(
-                colors::value_of(colors::wpf_named_color_converter::value(om->color())))));
 
         auto marked_range = om->marked_range();
         m.set_range(FrameRange(
@@ -325,9 +334,9 @@ void process_item(
     const std::map<std::string, UuidActor> &media_lookup,
     const FrameRate &timeline_rate) {
 
-    auto fcp_locked_path     = nlohmann::json::json_pointer("/metadata/fcp_xml/locked");
-    auto fcp_enabled_path    = nlohmann::json::json_pointer("/metadata/fcp_xml/enabled");
-    auto fcp_track_name_path = nlohmann::json::json_pointer("/metadata/fcp_xml/@MZ.TrackName");
+    auto fcp_locked_path     = nlohmann::json::json_pointer("/fcp_xml/locked");
+    auto fcp_enabled_path    = nlohmann::json::json_pointer("/fcp_xml/enabled");
+    auto fcp_track_name_path = nlohmann::json::json_pointer("/fcp_xml/@MZ.TrackName");
 
     // let the fun begin..
     for (auto i : items) {
@@ -338,9 +347,11 @@ void process_item(
                 media_type = media::MediaType::MT_AUDIO;
 
             auto locked   = false;
-            auto enabled  = true;
+            auto enabled  = ii->enabled();
             auto name     = ii->name();
             auto metadata = JsonStore();
+            auto flag     = std::string();
+
             try {
                 // "fcp_xml": {
                 //     "@MZ.TrackName": "Cut Ref QT",
@@ -354,24 +365,29 @@ void process_item(
                 otio::ErrorStatus err;
                 auto track_metadata = nlohmann::json::parse(ii->to_json_string(&err, {}, 0));
 
-                // if(track_metadata.count("metadata")) {
-                //     spdlog::warn("{}", track_metadata.at("metadata").dump(2));
-                // }
-
-                if (track_metadata.contains(fcp_locked_path) and
-                    track_metadata.at(fcp_locked_path).get<std::string>() == "TRUE")
-                    locked = true;
-
-                if (track_metadata.contains(fcp_enabled_path) and
-                    track_metadata.at(fcp_enabled_path).get<std::string>() == "FALSE")
-                    enabled = false;
-
-                if (track_metadata.contains(fcp_track_name_path) and
-                    track_metadata.at(fcp_track_name_path).get<std::string>() != "")
-                    name = track_metadata.at(fcp_track_name_path).get<std::string>();
-
                 if (track_metadata.count("metadata"))
                     metadata = JsonStore(track_metadata.at("metadata"));
+
+                if (metadata.contains(fcp_locked_path) and
+                    metadata.at(fcp_locked_path).get<std::string>() == "TRUE")
+                    locked = true;
+
+                if (metadata.contains(fcp_enabled_path) and
+                    metadata.at(fcp_enabled_path).get<std::string>() == "FALSE")
+                    enabled = false;
+
+                if (metadata.contains(fcp_track_name_path) and
+                    metadata.at(fcp_track_name_path).get<std::string>() != "")
+                    name = metadata.at(fcp_track_name_path).get<std::string>();
+
+                if (metadata.contains(COLOUR_JPOINTER))
+                    flag = metadata.at(COLOUR_JPOINTER).get<std::string>();
+
+                if (metadata.contains(LOCKED_JPOINTER))
+                    locked = metadata.at(LOCKED_JPOINTER).get<bool>();
+
+                if (metadata.contains(ENABLED_JPOINTER))
+                    enabled = metadata.at(ENABLED_JPOINTER).get<bool>();
 
             } catch (const std::exception &err) {
                 spdlog::warn("{} {}", __PRETTY_FUNCTION__, err.what());
@@ -386,6 +402,10 @@ void process_item(
 
             if (not enabled)
                 self->request(actor, infinite, plugin_manager::enable_atom_v, enabled)
+                    .receive([=](const JsonStore &) {}, [=](const error &err) {});
+
+            if (not flag.empty())
+                self->request(actor, infinite, item_flag_atom_v, flag)
                     .receive([=](const JsonStore &) {}, [=](const error &err) {});
 
             anon_send(actor, item_prop_atom_v, metadata, "");
@@ -444,6 +464,51 @@ void process_item(
                 ii->name(), utility::FrameRateDuration(0, timeline_rate), uuid);
             auto source_range = ii->source_range();
 
+            try {
+                auto locked   = false;
+                auto enabled  = ii->enabled();
+                auto metadata = JsonStore();
+                auto flag     = std::string();
+                otio::ErrorStatus err;
+                auto ometadata = nlohmann::json::parse(ii->to_json_string(&err, {}, 0));
+
+                if (ometadata.count("metadata"))
+                    metadata = JsonStore(ometadata.at("metadata"));
+
+                if (metadata.contains(fcp_locked_path) and
+                    metadata.at(fcp_locked_path).get<std::string>() == "TRUE")
+                    locked = true;
+
+                if (metadata.contains(fcp_enabled_path) and
+                    metadata.at(fcp_enabled_path).get<std::string>() == "FALSE")
+                    enabled = false;
+
+                if (metadata.contains(COLOUR_JPOINTER))
+                    flag = metadata.at(COLOUR_JPOINTER).get<std::string>();
+
+                if (metadata.contains(LOCKED_JPOINTER))
+                    locked = metadata.at(LOCKED_JPOINTER).get<bool>();
+
+                if (metadata.contains(ENABLED_JPOINTER))
+                    enabled = metadata.at(ENABLED_JPOINTER).get<bool>();
+
+                if (locked)
+                    self->request(actor, infinite, item_lock_atom_v, locked)
+                        .receive([=](const JsonStore &) {}, [=](const error &err) {});
+
+                if (not enabled)
+                    self->request(actor, infinite, plugin_manager::enable_atom_v, enabled)
+                        .receive([=](const JsonStore &) {}, [=](const error &err) {});
+
+                if (not flag.empty())
+                    self->request(actor, infinite, item_flag_atom_v, flag)
+                        .receive([=](const JsonStore &) {}, [=](const error &err) {});
+
+                anon_send(actor, item_prop_atom_v, metadata, "");
+            } catch (const std::exception &err) {
+                spdlog::warn("{} {}", __PRETTY_FUNCTION__, err.what());
+            }
+
             if (source_range)
                 self->request(
                         actor,
@@ -465,9 +530,8 @@ void process_item(
         } else if (auto ii = dynamic_cast<otio::Clip *>(&(*i))) {
             // spdlog::warn("Clip");
             // what does it contain ?
-            auto uuid    = Uuid::generate();
-            auto actor   = caf::actor();
-            auto enabled = true;
+            auto uuid  = Uuid::generate();
+            auto actor = caf::actor();
 
             const auto active_key = ii->active_media_reference_key();
             auto active_path      = std::string();
@@ -475,49 +539,66 @@ void process_item(
             if (auto active = otio::SerializableObject::Retainer<otio::ExternalReference>(
                     dynamic_cast<otio::ExternalReference *>(ii->media_reference()))) {
                 active_path = active->target_url();
+            } else if (
+                auto active = otio::SerializableObject::Retainer<otio::ImageSequenceReference>(
+                    dynamic_cast<otio::ImageSequenceReference *>(ii->media_reference()))) {
+                active_path = active->target_url_base() + active->name_prefix() + "{:0" +
+                              std::to_string(active->frame_zero_padding()) + "d}" +
+                              active->name_suffix();
             }
 
             if (active_path.empty() or not media_lookup.count(active_path)) {
-                // spdlog::warn("ERRRR {}", active_path);
                 // missing media..
                 actor = self->spawn<ClipActor>(UuidActor(), ii->name(), uuid);
             } else {
                 actor = self->spawn<ClipActor>(media_lookup.at(active_path), ii->name(), uuid);
-
-                // should come from media...
-
-                // self->request(
-                //         actor,
-                //         infinite,
-                //         available_range_atom_v,
-                //         FrameRange(
-                //             FrameRateDuration(
-                //                 static_cast<int>(ii->available_range().start_time().value()),
-                //                 ii->available_range().start_time().rate()),
-                //             FrameRateDuration(
-                //                 static_cast<int>(ii->available_range().duration().value()),
-                //                 ii->available_range().duration().rate())))
-                //     .receive([=](const JsonStore &) {}, [=](const error &err) {});
             }
 
-            auto metadata = JsonStore();
             try {
+                auto locked   = false;
+                auto enabled  = ii->enabled();
+                auto metadata = JsonStore();
+                auto flag     = std::string();
                 otio::ErrorStatus err;
-                auto metadata = nlohmann::json::parse(ii->to_json_string(&err, {}, 0));
+                auto ometadata = nlohmann::json::parse(ii->to_json_string(&err, {}, 0));
+                if (ometadata.count("metadata"))
+                    metadata = JsonStore(ometadata.at("metadata"));
+
+                if (metadata.contains(fcp_locked_path) and
+                    metadata.at(fcp_locked_path).get<std::string>() == "TRUE")
+                    locked = true;
 
                 if (metadata.contains(fcp_enabled_path) and
                     metadata.at(fcp_enabled_path).get<std::string>() == "FALSE")
                     enabled = false;
 
-                if (metadata.count("metadata"))
-                    anon_send(actor, item_prop_atom_v, JsonStore(metadata.at("metadata")), "");
+                if (metadata.contains(COLOUR_JPOINTER))
+                    flag = metadata.at(COLOUR_JPOINTER).get<std::string>();
+
+                if (metadata.contains(LOCKED_JPOINTER))
+                    locked = metadata.at(LOCKED_JPOINTER).get<bool>();
+
+                if (metadata.contains(ENABLED_JPOINTER))
+                    enabled = metadata.at(ENABLED_JPOINTER).get<bool>();
+
+                if (locked)
+                    self->request(actor, infinite, item_lock_atom_v, locked)
+                        .receive([=](const JsonStore &) {}, [=](const error &err) {});
+
+                if (not enabled)
+                    self->request(actor, infinite, plugin_manager::enable_atom_v, enabled)
+                        .receive([=](const JsonStore &) {}, [=](const error &err) {});
+
+                if (not flag.empty())
+                    self->request(actor, infinite, item_flag_atom_v, flag)
+                        .receive([=](const JsonStore &) {}, [=](const error &err) {});
+
+                if (not metadata.is_null())
+                    anon_send(actor, item_prop_atom_v, metadata, "");
+
             } catch (const std::exception &err) {
                 spdlog::warn("{} {}", __PRETTY_FUNCTION__, err.what());
             }
-
-            if (not enabled)
-                self->request(actor, infinite, plugin_manager::enable_atom_v, enabled)
-                    .receive([=](const JsonStore &) {}, [=](const error &err) {});
 
             auto source_range = ii->source_range();
             if (source_range) {
@@ -550,18 +631,55 @@ void process_item(
             // spdlog::warn("SPAWN stack {}", timeline_rate.to_fps());
             auto actor = self->spawn<StackActor>(ii->name(), timeline_rate, uuid);
 
+            if (not ii->enabled())
+                self->request(actor, infinite, plugin_manager::enable_atom_v, false)
+                    .receive([=](const JsonStore &) {}, [=](const error &err) {});
+
             auto markers = process_markers(ii->markers(), timeline_rate);
 
             if (not markers.empty())
                 anon_send(actor, item_marker_atom_v, insert_item_atom_v, markers);
 
-
-            auto metadata = JsonStore();
             try {
+                auto locked   = false;
+                auto enabled  = ii->enabled();
+                auto metadata = JsonStore();
+                auto flag     = std::string();
                 otio::ErrorStatus err;
-                auto metadata = nlohmann::json::parse(ii->to_json_string(&err, {}, 0));
-                if (metadata.count("metadata"))
-                    anon_send(actor, item_prop_atom_v, JsonStore(metadata.at("metadata")), "");
+                auto ometadata = nlohmann::json::parse(ii->to_json_string(&err, {}, 0));
+                if (ometadata.count("metadata"))
+                    metadata = JsonStore(ometadata.at("metadata"));
+
+                if (metadata.contains(fcp_locked_path) and
+                    metadata.at(fcp_locked_path).get<std::string>() == "TRUE")
+                    locked = true;
+
+                if (metadata.contains(fcp_enabled_path) and
+                    metadata.at(fcp_enabled_path).get<std::string>() == "FALSE")
+                    enabled = false;
+
+                if (metadata.contains(COLOUR_JPOINTER))
+                    flag = metadata.at(COLOUR_JPOINTER).get<std::string>();
+
+                if (metadata.contains(LOCKED_JPOINTER))
+                    locked = metadata.at(LOCKED_JPOINTER).get<bool>();
+
+                if (metadata.contains(ENABLED_JPOINTER))
+                    enabled = metadata.at(ENABLED_JPOINTER).get<bool>();
+
+                if (locked)
+                    self->request(actor, infinite, item_lock_atom_v, locked)
+                        .receive([=](const JsonStore &) {}, [=](const error &err) {});
+
+                if (not enabled)
+                    self->request(actor, infinite, plugin_manager::enable_atom_v, enabled)
+                        .receive([=](const JsonStore &) {}, [=](const error &err) {});
+
+                if (not flag.empty())
+                    self->request(actor, infinite, item_flag_atom_v, flag)
+                        .receive([=](const JsonStore &) {}, [=](const error &err) {});
+
+                anon_send(actor, item_prop_atom_v, metadata, "");
             } catch (const std::exception &err) {
                 spdlog::warn("{} {}", __PRETTY_FUNCTION__, err.what());
             }
@@ -609,21 +727,37 @@ void timeline_importer(
         return rp.deliver(false);
     }
 
-    auto global_start_time = timeline->global_start_time();
-    auto timeline_rate     = FrameRate();
+    // timeline loaded, convert to native timeline.
+    //  iterate over media, and add to playlist.
+    const std::vector<otio::SerializableObject::Retainer<otio::Clip>> clips =
+        (timeline->find_clips());
 
-    if (global_start_time) {
-        timeline_rate = FrameRate(fps_to_flicks(global_start_time->rate()));
-        self->request(
-                dst.actor(),
-                infinite,
-                available_range_atom_v,
-                FrameRange(
-                    FrameRateDuration(
-                        static_cast<int>(global_start_time->value()), timeline_rate),
-                    FrameRateDuration(0, timeline_rate)))
-            .receive([=](const JsonStore &) {}, [=](const error &err) {});
+    auto timeline_rate        = FrameRate();
+    auto timeline_start_frame = 0;
+
+    if (timeline->global_start_time()) {
+        timeline_rate        = FrameRate(fps_to_flicks(timeline->global_start_time()->rate()));
+        timeline_start_frame = static_cast<int>(timeline->global_start_time()->value());
+    } else {
+        // need to determine timeline rate somehow..
+        // rate of first clip ?
+        for (const auto &cl : clips) {
+            auto source_range = cl->source_range();
+            if (source_range) {
+                timeline_rate = FrameRate(fps_to_flicks(source_range->start_time().rate()));
+                break;
+            }
+        }
     }
+
+    self->request(
+            dst.actor(),
+            infinite,
+            available_range_atom_v,
+            FrameRange(
+                FrameRateDuration(timeline_start_frame, timeline_rate),
+                FrameRateDuration(0, timeline_rate)))
+        .receive([=](const JsonStore &) {}, [=](const error &err) {});
 
     auto timeline_metadata = JsonStore(R"({})"_json);
     try {
@@ -637,11 +771,6 @@ void timeline_importer(
     timeline_metadata["path"] = to_string(path);
 
     anon_send(dst.actor(), item_prop_atom_v, timeline_metadata);
-
-    // timeline loaded, convert to native timeline.
-    //  iterate over media, and add to playlist.
-    const std::vector<otio::SerializableObject::Retainer<otio::Clip>> clips =
-        (timeline->find_clips());
 
     // this maps Media actors to the url for the active media ref. We use this
     // to check if a clip can re-use Media that we already have, or whether we
@@ -682,15 +811,21 @@ void timeline_importer(
         if (auto active = otio::SerializableObject::Retainer<otio::ExternalReference>(
                 dynamic_cast<otio::ExternalReference *>(cl->media_reference()))) {
             active_path = active->target_url();
-        }
+        } else if (
+            auto active = otio::SerializableObject::Retainer<otio::ImageSequenceReference>(
+                dynamic_cast<otio::ImageSequenceReference *>(cl->media_reference()))) {
 
-        // spdlog::warn("BLAGH {} {}", active_key, active_path);
+            active_path = active->target_url_base() + active->name_prefix() + "{:0" +
+                          std::to_string(active->frame_zero_padding()) + "d}" +
+                          active->name_suffix();
+        }
 
         // WARNING this may inadvertantly skip auxiliary sources we want..
         if (active_path.empty() or target_url_map.count(active_path)) {
-            // spdlog::warn("SKIP");
+            // spdlog::warn("SKIP {}", active_path);
             continue;
         } else if (existing_media_url_map.count(active_path)) {
+            // spdlog::warn("SKIP EXISTING {}", active_path);
             target_url_map[active_path] = existing_media_url_map[active_path];
             continue;
         }
@@ -699,9 +834,9 @@ void timeline_importer(
         try {
             otio::ErrorStatus err;
             auto clip_meta = nlohmann::json::parse(cl->to_json_string(&err, {}, 0));
-            if (clip_meta.count("metadata")) {
+            if (clip_meta.count("metadata"))
                 clip_metadata = JsonStore(clip_meta.at("metadata"));
-            }
+
         } catch (const std::exception &err) {
             spdlog::warn("{} {}", __PRETTY_FUNCTION__, err.what());
         }
@@ -742,6 +877,56 @@ void timeline_importer(
                     auto source = self->spawn<media::MediaSourceActor>(
                         extname.empty() ? std::string("ExternalReference") : extname,
                         *uri,
+                        rate,
+                        source_uuid);
+
+                    if (not source_metadata.is_null())
+                        anon_send(
+                            source,
+                            json_store::set_json_atom_v,
+                            source_metadata,
+                            "/metadata/timeline");
+
+                    sources.emplace_back(UuidActor(source_uuid, source));
+                }
+            } else if (
+                auto ext = otio::SerializableObject::Retainer<otio::ImageSequenceReference>(
+                    dynamic_cast<otio::ImageSequenceReference *>(mr.second))) {
+
+                auto uri = caf::make_uri(
+                    ext->target_url_base() + ext->name_prefix() + "{:0" +
+                    std::to_string(ext->frame_zero_padding()) + "d}" + ext->name_suffix());
+                if (!uri) {
+                    uri = posix_path_to_uri(
+                        ext->target_url_base() + ext->name_prefix() + "{:0" +
+                        std::to_string(ext->frame_zero_padding()) + "d}" + ext->name_suffix());
+                }
+                if (uri) {
+                    auto extname     = ext->name();
+                    auto source_uuid = utility::Uuid::generate();
+                    auto rate        = FrameRate();
+                    auto ar          = ext->available_range();
+                    if (ar) {
+                        rate = FrameRate(fps_to_flicks(ar->start_time().rate()));
+                    }
+
+                    auto source_metadata = JsonStore();
+                    try {
+                        otio::ErrorStatus err;
+                        auto ext_meta = nlohmann::json::parse(ext->to_json_string(&err, {}, 0));
+                        if (ext_meta.count("metadata")) {
+                            source_metadata = JsonStore(ext_meta.at("metadata"));
+                        }
+                    } catch (const std::exception &err) {
+                        spdlog::warn("{} {}", __PRETTY_FUNCTION__, err.what());
+                    }
+
+                    auto source = self->spawn<media::MediaSourceActor>(
+                        extname.empty() ? std::string("ImageSequenceReference") : extname,
+                        *uri,
+                        FrameList(
+                            std::to_string(ext->start_frame()) + "-" +
+                            std::to_string(ext->end_frame())),
                         rate,
                         source_uuid);
 
@@ -1644,8 +1829,47 @@ void TimelineActor::init() {
             return result<media::AVFrameID>(make_error(xstudio_error::error, "No media"));
         },
 
+        // [=](json_store::get_json_atom atom, const std::string &path) {
+        //     delegate(json_store_, atom, path);
+        // },
+
+        // [=](json_store::set_json_atom atom, const JsonStore &json, const std::string &path) {
+        //     delegate(json_store_, atom, json, path);
+        // },
 
         [=](playlist::get_media_uuid_atom) -> UuidVector { return base_.media_vector(); },
+
+        [=](playlist::add_media_atom atom,
+            const caf::uri &path,
+            const bool recursive,
+            const utility::Uuid &uuid_before) -> result<std::vector<UuidActor>> {
+            auto rp = make_response_promise<std::vector<UuidActor>>();
+            request(
+                caf::actor_cast<caf::actor>(playlist_),
+                infinite,
+                atom,
+                path,
+                recursive,
+                uuid_before)
+                .then(
+                    [=](const std::vector<UuidActor> new_media) mutable {
+                        for (const auto &m : new_media) {
+                            add_media(m.actor(), m.uuid(), uuid_before);
+                        }
+                        send(
+                            event_group_,
+                            utility::event_atom_v,
+                            playlist::add_media_atom_v,
+                            new_media);
+                        base_.send_changed(event_group_, this);
+                        send(event_group_, utility::event_atom_v, change_atom_v);
+                        send(
+                            change_event_group_, utility::event_atom_v, utility::change_atom_v);
+                        rp.deliver(new_media);
+                    },
+                    [=](caf::error &err) mutable { rp.deliver(err); });
+            return rp;
+        },
 
         [=](playlist::add_media_atom,
             const UuidActorVector &uav,
@@ -1967,6 +2191,14 @@ void TimelineActor::init() {
             return rp;
         },
 
+        [=](global_store::save_atom,
+            const caf::uri &path,
+            const std::string &type) -> result<bool> {
+            auto rp = make_response_promise<bool>();
+            export_otio(rp, path, type);
+            return rp;
+        },
+
         [=](playlist::create_playhead_atom, const int index) -> result<UuidActor> {
             // aux playheads where index >= 0
 
@@ -2006,7 +2238,7 @@ void TimelineActor::init() {
                 std::string("Timeline Playhead"), selection_actor_, uuid);*/
 
             // N.B. for now we're not using the 'selection_actor_' as this
-            // feeds the playhead a list of selected media which the playhead
+            // drives the playhead a list of selected media which the playhead
             // will play. It will ignore this timeline completely if we do that.
             // We want to play this timeline, not the media in the timeline
             // that is selected.
@@ -2016,6 +2248,10 @@ void TimelineActor::init() {
             link_to(playhead_actor);
 
             anon_send(playhead_actor, playhead::playhead_rate_atom_v, base_.rate());
+
+            // this lets the playhead talk to the selection actor whilst not being
+            // driven by the selection actor
+            anon_send(playhead_actor, playlist::selection_actor_atom_v, selection_actor_);
 
             // now make this timeline the (only) source for the playhead
             anon_send(
@@ -2877,6 +3113,7 @@ void TimelineActor::add_item(const utility::UuidActor &ua) {
 
 void TimelineActor::add_media(
     caf::actor actor, const utility::Uuid &uuid, const utility::Uuid &before_uuid) {
+
     if (actor) {
         if (not base_.contains_media(uuid)) {
             base_.insert_media(uuid, before_uuid);
@@ -3302,4 +3539,267 @@ void TimelineActor::bake(
     auto track_actor = spawn<TrackActor>(track.item());
 
     rp.deliver(UuidActor(track_uuid, track_actor));
+}
+
+void TimelineActor::export_otio(
+    caf::typed_response_promise<bool> rp, const caf::uri &path, const std::string &type) {
+    // build timeline from model..
+    // we need clips to return information on current media source..
+    otio::ErrorStatus err;
+    auto jany = std::any();
+    auto meta = base_.item().prop();
+
+    try {
+        if (not meta.is_object())
+            meta = R"({})"_json;
+
+        meta.erase("conform_track_uuid");
+
+        auto xstudio_meta =
+            R"({"xstudio": {"colour": "", "enabled": true, "locked": false}})"_json;
+        xstudio_meta[COLOUR_JPOINTER]  = base_.item().flag();
+        xstudio_meta[ENABLED_JPOINTER] = base_.item().enabled();
+        xstudio_meta[LOCKED_JPOINTER]  = base_.item().locked();
+        meta.update(xstudio_meta, true);
+        deserialize_json_from_string(meta.dump(), &jany, &err);
+        // if(is_error(err)) {
+        //     spdlog::warn("Failed {}", err.full_description);
+        // }
+
+        otio::SerializableObject::Retainer<otio::Timeline> otimeline(new otio::Timeline(
+            base_.item().name(),
+            otio::RationalTime::from_frames(
+                base_.item().trimmed_frame_start().frames(), base_.item().rate().to_fps()),
+            std::any_cast<otio::AnyDictionary>(jany)));
+
+        auto to_marker = [=](const Marker &item) mutable {
+            if (meta = item.prop(); not meta.is_object())
+                meta = R"({})"_json;
+
+            xstudio_meta                  = R"({"xstudio": {"colour": ""}})"_json;
+            xstudio_meta[COLOUR_JPOINTER] = item.flag();
+            meta.update(xstudio_meta, true);
+            deserialize_json_from_string(meta.dump(), &jany, &err);
+
+            return otio::SerializableObject::Retainer<otio::Marker>(new otio::Marker(
+                item.name(),
+                otio::TimeRange(
+                    otio::RationalTime::from_frames(
+                        item.frame_start().frames(), item.rate().to_fps()),
+                    otio::RationalTime::from_frames(
+                        item.frame_duration().frames(), item.rate().to_fps())),
+                "GREEN",
+                std::any_cast<otio::AnyDictionary>(jany)));
+        };
+
+        auto to_composition = [=](const Item &item) mutable {
+            otio::Composition *result = nullptr;
+
+            if (item.item_type() == IT_VIDEO_TRACK or item.item_type() == IT_AUDIO_TRACK) {
+                if (meta = item.prop(); not meta.is_object())
+                    meta = R"({})"_json;
+
+                xstudio_meta =
+                    R"({"xstudio": {"colour": "", "enabled": true, "locked": false}})"_json;
+                xstudio_meta[COLOUR_JPOINTER]  = item.flag();
+                xstudio_meta[ENABLED_JPOINTER] = item.enabled();
+                xstudio_meta[LOCKED_JPOINTER]  = item.locked();
+                meta.update(xstudio_meta, true);
+                deserialize_json_from_string(meta.dump(), &jany, &err);
+
+                result = new otio::Track(
+                    item.name(),
+                    otio::TimeRange(
+                        otio::RationalTime::from_frames(
+                            item.trimmed_frame_start().frames(), item.rate().to_fps()),
+                        otio::RationalTime::from_frames(
+                            item.trimmed_frame_duration().frames(), item.rate().to_fps())),
+                    item.item_type() == IT_VIDEO_TRACK ? otio::Track::Kind::video
+                                                       : otio::Track::Kind::audio,
+                    std::any_cast<otio::AnyDictionary>(jany));
+                result->set_enabled(item.enabled());
+
+                for (const auto &citem : item.children()) {
+                    if (meta = citem.prop(); not meta.is_object())
+                        meta = R"({})"_json;
+
+                    meta.erase("media_uuid");
+
+                    xstudio_meta =
+                        R"({"xstudio": {"colour": "", "enabled": true, "locked": false}})"_json;
+                    xstudio_meta[COLOUR_JPOINTER]  = citem.flag();
+                    xstudio_meta[ENABLED_JPOINTER] = citem.enabled();
+                    xstudio_meta[LOCKED_JPOINTER]  = citem.locked();
+                    meta.update(xstudio_meta, true);
+                    deserialize_json_from_string(meta.dump(), &jany, &err);
+
+                    if (citem.item_type() == IT_GAP) {
+                        auto gap = new otio::Gap(
+                            otio::RationalTime::from_frames(
+                                citem.trimmed_frame_duration().frames(), citem.rate().to_fps()),
+                            citem.name(),
+                            std::vector<otio::Effect *>(),
+                            std::vector<otio::Marker *>(),
+                            std::any_cast<otio::AnyDictionary>(jany));
+
+                        gap->set_enabled(citem.enabled());
+
+                        result->append_child(gap);
+                    } else if (citem.item_type() == IT_CLIP) {
+                        auto clip = new otio::Clip(
+                            citem.name(),
+                            nullptr,
+                            otio::TimeRange(
+                                otio::RationalTime::from_frames(
+                                    citem.trimmed_frame_start().frames(),
+                                    citem.rate().to_fps()),
+                                otio::RationalTime::from_frames(
+                                    citem.trimmed_frame_duration().frames(),
+                                    citem.rate().to_fps())),
+                            std::any_cast<otio::AnyDictionary>(jany));
+
+                        clip->set_enabled(citem.enabled());
+
+                        try {
+                            if (citem.actor()) {
+                                caf::scoped_actor sys(system());
+                                auto mr =
+                                    request_receive<std::pair<Uuid, MediaReference>>(
+                                        *sys,
+                                        citem.actor(),
+                                        media::media_reference_atom_v,
+                                        item.item_type() == IT_VIDEO_TRACK ? media::MT_IMAGE
+                                                                           : media::MT_AUDIO)
+                                        .second;
+
+                                auto msua = request_receive<UuidActor>(
+                                    *sys,
+                                    citem.actor(),
+                                    media::current_media_source_atom_v,
+                                    item.item_type() == IT_VIDEO_TRACK ? media::MT_IMAGE
+                                                                       : media::MT_AUDIO);
+                                auto name = request_receive<std::string>(
+                                    *sys, msua.actor(), name_atom_v);
+
+                                if (mr.container()) {
+                                    auto extref = new otio::ExternalReference(
+                                        "file://" + uri_to_posix_path(mr.uri()));
+                                    if (citem.available_range()) {
+                                        extref->set_available_range(otio::TimeRange(
+                                            otio::RationalTime::from_frames(
+                                                citem.available_frame_start()->frames(),
+                                                citem.rate().to_fps()),
+                                            otio::RationalTime::from_frames(
+                                                citem.available_frame_duration()->frames(),
+                                                citem.rate().to_fps())));
+                                    }
+                                    extref->set_name(name);
+                                    clip->set_media_reference(extref);
+                                } else {
+                                    auto path = uri_to_posix_path(mr.uri());
+                                    const static std::regex path_re(
+                                        R"(^(.+?\/)([^/]+\.)\{:(\d+)d\}(\..+?)$)");
+                                    std::cmatch m;
+                                    if (std::regex_match(path.c_str(), m, path_re)) {
+                                        auto base   = m[1].str();
+                                        auto prefix = m[2].str();
+                                        auto pad    = std::stoi(m[3].str());
+                                        auto suffix = m[4].str();
+
+                                        // spdlog::warn("base {}", base);
+                                        // spdlog::warn("prefix {}", prefix);
+                                        // spdlog::warn("pad {}", pad);
+                                        // spdlog::warn("sufix {}", suffix);
+
+                                        auto extref = new otio::ImageSequenceReference(
+                                            "file://" + base,
+                                            prefix,
+                                            suffix,
+                                            citem.available_frame_start()->frames(),
+                                            1,
+                                            citem.rate().to_fps(),
+                                            pad);
+                                        extref->set_name(name);
+
+                                        if (citem.available_range()) {
+                                            extref->set_available_range(otio::TimeRange(
+                                                otio::RationalTime::from_frames(
+                                                    citem.available_frame_start()->frames(),
+                                                    citem.rate().to_fps()),
+                                                otio::RationalTime::from_frames(
+                                                    citem.available_frame_duration()->frames(),
+                                                    citem.rate().to_fps())));
+                                        }
+                                        clip->set_media_reference(extref);
+                                    }
+
+                                    // ImageSequenceReference(
+                                    //       std::string const&       target_url_base    =
+                                    //       std::string(), std::string const&       name_prefix
+                                    //       = std::string(), std::string const& name_suffix =
+                                    //       std::string(), int                      start_frame
+                                    //       = 1, int                      frame_step         =
+                                    //       1, double                   rate               = 1,
+                                    //       int                      frame_zero_padding = 0,
+                                    //       MissingFramePolicy const missing_frame_policy =
+                                    //           MissingFramePolicy::error,
+                                    //       optional<TimeRange> const&    available_range =
+                                    //       nullopt, AnyDictionary const&          metadata =
+                                    //       AnyDictionary(), optional<Imath::Box2d> const&
+                                    //       available_image_bounds = nullopt);
+                                }
+                            }
+                        } catch (const std::exception &err) {
+                            spdlog::warn("{} {}", __PRETTY_FUNCTION__, err.what());
+                        }
+
+                        result->append_child(clip);
+                    }
+                }
+            }
+
+            return result;
+        };
+
+        // add tracks.. / etc..
+        auto ostack = otimeline->tracks();
+
+        auto stack = base_.item().front();
+        for (const auto &marker : stack.markers()) {
+            ostack->markers().push_back(to_marker(marker));
+        }
+
+        if (meta = base_.item().front().prop(); not meta.is_object())
+            meta = R"({})"_json;
+
+        xstudio_meta = R"({"xstudio": {"colour": "", "enabled": true, "locked": false}})"_json;
+        xstudio_meta[COLOUR_JPOINTER]  = base_.item().front().flag();
+        xstudio_meta[ENABLED_JPOINTER] = base_.item().front().enabled();
+        xstudio_meta[LOCKED_JPOINTER]  = base_.item().front().locked();
+        meta.update(xstudio_meta, true);
+        deserialize_json_from_string(meta.dump(), &jany, &err);
+        ostack->metadata() = std::any_cast<otio::AnyDictionary>(jany);
+
+        for (const auto &track : stack.children()) {
+            if (track.item_type() == IT_VIDEO_TRACK)
+                ostack->insert_child(0, to_composition(track));
+            else
+                ostack->append_child(to_composition(track));
+        }
+
+        otimeline->to_json_file(uri_to_posix_path(path), &err);
+
+        if (not otio::is_error(err)) {
+            rp.deliver(true);
+        } else {
+            rp.deliver(false);
+        }
+
+        // and crash..
+        otimeline->possibly_delete();
+    } catch (const std::exception &err) {
+        spdlog::warn(
+            "{} {} {} {}", __PRETTY_FUNCTION__, err.what(), meta.dump(2), jany.type().name());
+        rp.deliver(make_error(xstudio_error::error, err.what()));
+    }
 }

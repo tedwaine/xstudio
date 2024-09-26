@@ -16,28 +16,15 @@ import xstudio.qml.helpers 1.0
 Item{
     id: toolProperties
     property var root
+        
+    Rectangle{ id: row1_categories 
+        width: visible? currentTool == "Shapes"? 
+                    row2_controls.gridItemWidth*1.5 :
+                    row2_controls.gridItemWidth*1 : 0
+        height: XsStyleSheet.primaryButtonStdHeight
+        anchors.verticalCenter: parent.verticalCenter
 
-
-    Rectangle{
-        visible: isAnyToolSelected
-        width: parent.width -framePadding*2
-        height: parent.height + framePadding*2 + colSpacing//*2
-
-        anchors.bottom: parent.bottom
-        anchors.bottomMargin: -framePadding
-        // anchors.verticalCenter: parent.verticalCenter
-        anchors.horizontalCenter: parent.horizontalCenter
-
-        color: XsStyleSheet.baseColor
-    }
-
-    Rectangle{ id: row1_categories
-        x: framePadding
-        width: (toolProperties.width - framePadding*2) - framePadding*2
-        height: visible? currentTool == "Shapes"? buttonHeight*2 + itemSpacing :
-                                                buttonHeight + itemSpacing : 0
-
-        color: "transparent";
+        color: "transparent"
         visible: (currentTool == "Shapes" || currentTool == "Text")
 
         XsShapeCategoriesTB {
@@ -77,23 +64,23 @@ Item{
     property alias drawPenSize: draw_pen_size.value
 
     Grid{id: row2_controls
-        x: framePadding
-        y: row1_categories.visible? row1_categories.y + row1_categories.height + colSpacing : row1_categories.y
+        x: row1_categories.visible? row1_categories.x + row1_categories.width : row1_categories.x
         z: 1
 
-        columns: isDividedToCols? 2 : 1
+        columns: currentTool === "Text"? 4 : currentTool === "Erase"? 2 : 3
         spacing: itemSpacing
         flow: Grid.TopToBottom
-        width: (toolProperties.width - framePadding*2) - framePadding*2
+        width: gridItemWidth*columns
+        height: XsStyleSheet.primaryButtonStdHeight
+        anchors.verticalCenter: parent.verticalCenter
 
-        property bool isDividedToCols: width>toolPropertiesWidthThreshold
-        property real gridItemWidth: isDividedToCols? width/2 : width
+        property real gridItemWidth: 80 //toolPropLoaderWidth/(columns+1) > 80 ? 80 : toolPropLoaderWidth/(columns+1)
 
         XsIntegerAttrControl {
             id: sizeProp
             visible: enabled
             width: row2_controls.gridItemWidth
-            height: visible? buttonHeight : 0
+            height: visible? XsStyleSheet.primaryButtonStdHeight : 0
             text: (currentTool=="Shapes")? "Width" : "Size"
             enabled: isAnyToolSelected
             attr_group_model: annotations_model_data
@@ -104,7 +91,7 @@ Item{
             id: opacityProp
             visible: isAnyToolSelected
             width: row2_controls.gridItemWidth
-            height: visible? buttonHeight : 0
+            height: visible? XsStyleSheet.primaryButtonStdHeight : 0
             text: "Opacity"
             attr_group_model: annotations_model_data
             attr_title: "Pen Opacity"
@@ -114,16 +101,16 @@ Item{
             id: bgOpacityProp
             visible: currentTool === "Text"
             width: row2_controls.gridItemWidth
-            height: visible? buttonHeight : 0
+            height: visible? XsStyleSheet.primaryButtonStdHeight : 0
             text: "BG Opa."
             attr_group_model: annotations_model_data
             attr_title: "Text Background Opacity"
         }
 
         XsViewerMenuButton{ id: colorProp
-            visible: enabled
-            width: row2_controls.gridItemWidth
-            height: visible? buttonHeight : 0
+            visible: isAnyToolSelected && currentTool !== "Erase"
+            width: visible? row2_controls.gridItemWidth : 0
+            height: XsStyleSheet.primaryButtonStdHeight
             text: "Colour    "
             shortText: "Col    "
             enabled: (isAnyToolSelected && currentTool !== "Erase")
@@ -155,13 +142,13 @@ Item{
                 color: currentTool === "Erase" ? "white" : parent.enabled ? currentToolColour ? currentToolColour : "grey" : "grey"
                 border.width: 1
                 border.color: parent.enabled? "black" : "dark grey"
-                anchors.left: centerItem.horizontalCenter
-                anchors.leftMargin: parent.width/7
+                anchors.left: centerItem.right
+                anchors.leftMargin: 15
                 anchors.right: parent.right
-                anchors.rightMargin: 5
-                height: buttonHeight/1.4;
+                anchors.rightMargin: 4
+                height: XsStyleSheet.primaryButtonStdHeight/1.6;
                 anchors.verticalCenter: centerItem.verticalCenter
-                onYChanged: {
+                onXChanged: {
                     colorPreview.x= colorPreviewDuplicate.x
                     colorPreview.y= colorPreviewDuplicate.y
                 }
@@ -170,6 +157,7 @@ Item{
                 visible: (isAnyToolSelected && currentTool !== "Erase")
                 x: colorPreviewDuplicate.x
                 y: colorPreviewDuplicate.y
+                z: 100
                 width: colorPreviewDuplicate.width
                 onWidthChanged: {
                     x= colorPreviewDuplicate.x
@@ -182,17 +170,18 @@ Item{
                 scale: dragArea.drag.active? 0.7: 1
 
                 Drag.active: dragArea.drag.active
-                Drag.hotSpot.x: colorPreview.width/2
-                Drag.hotSpot.y: colorPreview.height/2
+                Drag.hotSpot.x: colorPreview.width
+                Drag.hotSpot.y: colorPreview.height
+
                 MouseArea{
                     id: dragArea
                     anchors.fill: parent
                     hoverEnabled: true
                     drag.target: parent
-                    drag.minimumX: -toolProperties.width/2
+                    drag.minimumX: -toolProperties.width
                     drag.maximumX: toolProperties.width
-                    drag.minimumY: buttonHeight
-                    drag.maximumY: buttonHeight*4
+                    drag.minimumY: XsStyleSheet.primaryButtonStdHeight
+                    drag.maximumY: XsStyleSheet.primaryButtonStdHeight*4
                     onReleased: {
                         colorProp.isPressed = false
                         parent.Drag.drop()
@@ -210,27 +199,27 @@ Item{
             }
         }
 
-
     }
 
     XsColourPresetsTB{ id: row3_colourpresets
-        x: framePadding
-        y: row2_controls.y + row2_controls.height + itemSpacing*1.5
-        onYChanged: {
-            toolPropLoaderHeight = row3_colourpresets.y + row3_colourpresets.height
-        }
-
         visible: (isAnyToolSelected && currentTool !== "Erase")
-        width: toolProperties.width- framePadding*2
-        height: visible? buttonHeight*2 : 0
-        onHeightChanged: {
-            toolPropLoaderHeight = row3_colourpresets.y + row3_colourpresets.height
+
+        x: row2_controls.x + row2_controls.width + itemSpacing*2
+        onXChanged: {
+            toolPropLoaderWidth = x + width
+        }
+        y: framePadding
+        width: visible? row2_controls.gridItemWidth : 0
+        height: parent.height - y*2
+        onWidthChanged: {
+            toolPropLoaderWidth = x + width
         }
     }
 
 
+
     Component.onCompleted: {
-        toolPropLoaderHeight = row3_colourpresets.y + row3_colourpresets.height
+        toolPropLoaderWidth = row3_colourpresets.x + row3_colourpresets.width
         setPropertyIndeces()
     }
 

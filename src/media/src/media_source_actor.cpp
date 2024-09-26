@@ -34,6 +34,11 @@ caf::message_handler MediaSourceActor::default_event_handler() {
     return {
         [=](utility::event_atom, media_status_atom, const MediaStatus) {},
         [=](utility::event_atom, change_atom) {},
+        [=](json_store::update_atom,
+            const JsonStore &,
+            const std::string &,
+            const JsonStore &) {},
+        [=](json_store::update_atom, const JsonStore &) {},
         [=](utility::event_atom,
             media_metadata::get_metadata_atom,
             const utility::JsonStore &) {}};
@@ -51,6 +56,7 @@ MediaSourceActor::MediaSourceActor(caf::actor_config &cfg, const JsonStore &jsn)
             std::chrono::milliseconds(50));
     }
     link_to(json_store_);
+    join_event_group(this, json_store_);
 
     bool re_aquire_detail = false;
     for (const auto &[key, value] : jsn["actors"].items()) {
@@ -93,6 +99,7 @@ MediaSourceActor::MediaSourceActor(
     json_store_ = spawn<json_store::JsonStoreActor>(
         utility::Uuid::generate(), utility::JsonStore(), std::chrono::milliseconds(50));
     link_to(json_store_);
+    join_event_group(this, json_store_);
 
     // need this on creation or other functions randomly fail, as streams aren't configured..
     anon_send(actor_cast<actor>(this), acquire_media_detail_atom_v, rate);
@@ -113,6 +120,7 @@ MediaSourceActor::MediaSourceActor(
     json_store_ = spawn<json_store::JsonStoreActor>(
         utility::Uuid::generate(), utility::JsonStore(), std::chrono::milliseconds(50));
     link_to(json_store_);
+    join_event_group(this, json_store_);
 
     // need this on creation or other functions randomly fail, as streams aren't configured..
     anon_send(actor_cast<actor>(this), acquire_media_detail_atom_v, rate);
@@ -134,6 +142,7 @@ MediaSourceActor::MediaSourceActor(
     json_store_ = spawn<json_store::JsonStoreActor>(
         utility::Uuid::generate(), utility::JsonStore(), std::chrono::milliseconds(50));
     link_to(json_store_);
+    join_event_group(this, json_store_);
 
     // MediaReference mr = base_.media_reference();
     // mr.set_timecode_from_frames();
@@ -366,6 +375,19 @@ void MediaSourceActor::init() {
         make_get_event_group_handler(event_group_),
         base_.make_get_detail_handler(this, event_group_),
         [=](xstudio::broadcast::broadcast_down_atom, const caf::actor_addr &) {},
+
+        [=](json_store::update_atom,
+            const JsonStore &change,
+            const std::string &path,
+            const JsonStore &full) {
+            if (current_sender() == json_store_)
+                send(event_group_, json_store::update_atom_v, change, path, full);
+        },
+
+        [=](json_store::update_atom, const JsonStore &full) mutable {
+            if (current_sender() == json_store_)
+                send(event_group_, json_store::update_atom_v, full);
+        },
 
         [=](acquire_media_detail_atom) -> result<bool> {
             auto rp = make_response_promise<bool>();

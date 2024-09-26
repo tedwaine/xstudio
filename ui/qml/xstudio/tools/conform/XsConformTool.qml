@@ -256,7 +256,7 @@ Item{
         if(selection.length) {
             Future.promise(
                 engine.conformToNewSequenceFuture(
-                    selection, playlistIndex
+                    selection, "", playlistIndex
                 )
             ).then(
                 function(uuid_list) {
@@ -264,6 +264,23 @@ Item{
                 },
                 function(err) {
                     dialogHelpers.errorDialogFunc("Conform To New Sequence", "No Sequence found for media")
+                }
+            )
+        }
+    }
+
+    function conformWithToNewSequence(selection, task, playlistIndex=helpers.qModelIndex()) {
+        if(selection.length) {
+            Future.promise(
+                engine.conformToNewSequenceFuture(
+                    selection, task, playlistIndex
+                )
+            ).then(
+                function(uuid_list) {
+                    // console.log("nope", uuid_list)
+                },
+                function(err) {
+                    dialogHelpers.errorDialogFunc("Conform With", "No Sequence found for media")
                 }
             )
         }
@@ -336,6 +353,14 @@ Item{
         // menuItemType: "button"
         menuPath: ""
         menuItemPosition: 22
+        menuModelName: "media_list_menu_"
+    }
+
+    XsMenuModelItem {
+        text: "Conform With"
+        // menuItemType: "button"
+        menuPath: ""
+        menuItemPosition: 22.5
         menuModelName: "media_list_menu_"
     }
 
@@ -416,12 +441,18 @@ Item{
         onActivated: conformTracksToSequence(menuContext.theTimeline.timelineSelection.selectedIndexes, inspectedMediaSetIndex)
     }
 
+    XsMenuModelItem {
+        menuItemType: "divider"
+        menuPath: ""
+        menuItemPosition: 50
+        menuModelName: "timeline_menu_"
+    }
 
     XsMenuModelItem {
         text: "Create Conform Track"
         // menuItemType: "button"
         menuPath: ""
-        menuItemPosition: 2
+        menuItemPosition: 51
         menuModelName: "timeline_menu_"
         onActivated: conformPrepareSequence(menuContext.theTimeline.timelineModel.rootIndex.parent)
     }
@@ -482,6 +513,15 @@ Item{
                     menuItemPosition: index
                     menuModelName: "timeline_clip_menu_"
                     onActivated: conformSelectionTimeline(text, menuContext.theTimeline.timelineSelection.selectedIndexes)
+                }
+
+                XsMenuModelItem {
+                    text: nameRole
+                    menuItemType: "button"
+                    menuPath: "Conform With"
+                    menuItemPosition: index
+                    menuModelName: "media_list_menu_"
+                    onActivated: conformWithToNewSequence(menuContext.mediaSelection, text)
                 }
 			}
 	}

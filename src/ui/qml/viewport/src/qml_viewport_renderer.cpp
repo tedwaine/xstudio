@@ -334,3 +334,8 @@ void QMLViewportRenderer::setScreenInfos(
 }
 
 void QMLViewportRenderer::setIsQuickViewer(const bool is_quick_viewer) {}
+
+void QMLViewportRenderer::visibleChanged(const bool is_visible) {
+    if (viewport_renderer_)
+        viewport_renderer_->set_visibility(is_visible);
+}

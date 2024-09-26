@@ -402,7 +402,7 @@ Rectangle {
 						anchors.left: parent.left
 						anchors.right: parent.right
 						anchors.bottom: parent.bottom
-						height: 10
+						height: 8
 						z:1
 						tickWidth: control.scaleX
 						fractionOffset: frameTrack.offset % control.scaleX

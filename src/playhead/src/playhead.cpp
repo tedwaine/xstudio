@@ -53,6 +53,8 @@ void PlayheadBase::add_attributes() {
 
     image_source_ = add_string_choice_attribute("Source", "Src", "", {}, {});
 
+    image_source_name_ = add_string_attribute("Source Name", "Src", "");
+
     image_stream_ = add_string_choice_attribute("Stream", "Strm", "", {}, {});
 
     audio_source_ = add_string_choice_attribute("Audio Source", "Aud Src", "", {}, {});
@@ -794,14 +796,6 @@ void PlayheadBase::connect_to_viewport(
 
         insert_menu_item(
             viewport_context_menu_model_name,
-            "Set Loop",
-            "",
-            5.0f,
-            nullptr,
-            false);
-
-        insert_menu_item(
-            viewport_context_menu_model_name,
             "In Frame",
             "Set Loop",
             1.0f,
@@ -817,6 +811,13 @@ void PlayheadBase::connect_to_viewport(
             nullptr,
             false,
             set_loop_out_);
+
+
+        // Divider
+        insert_menu_item(viewport_context_menu_model_name, "", "Set Loop", 2.5f, nullptr, true);
+
+        set_submenu_position_in_parent(viewport_context_menu_model_name, "Set Loop", 5.0f);
+
 
         insert_menu_item(
             viewport_context_menu_model_name,

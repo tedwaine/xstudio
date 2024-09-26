@@ -23,7 +23,6 @@ Item{
     property real buttonHeight: 20
     property real toolPropLoaderHeight: 0
     property real defaultHeight: toolSelector.height + toolProperties.height + toolActionSection.height + framePadding*3
-    property bool showButtonHints: false //#TODO: for testing
     property real toolPropertiesWidthThreshold: 200
 
     property real colSpacing: buttonHeight

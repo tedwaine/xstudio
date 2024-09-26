@@ -51,6 +51,7 @@ const auto GroupTemplate = R"({
     "hidden": false,
     "favourite": true,
 	"entity": "",
+    "update": null,
     "userdata": "",
     "children": [
         {
@@ -412,8 +413,10 @@ class QueryEngine {
 
     static utility::JsonStore validate_presets(
         const utility::JsonStore &data,
+        const bool is_user               = false,
         const utility::JsonStore &parent = utility::JsonStore(),
-        const size_t index               = 0);
+        const size_t index               = 0,
+        const bool export_as_system      = false);
 
 
     static std::string cache_name_auto(const std::string &type, const int project_id);

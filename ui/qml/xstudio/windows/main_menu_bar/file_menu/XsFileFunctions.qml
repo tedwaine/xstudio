@@ -52,6 +52,33 @@ Item {
         }
     }
 
+    function exportSequencePath(chaserFunc=undefined) {
+        dialogHelpers.showFileDialog(
+            function(fileUrl, undefined, func) {
+                exportSequence(fileUrl, "otio", func)
+            },
+            defaultSessionFolder(),
+            "Export Sequence",
+            "otio",
+            ["OTIO (*.otio)"],
+            false,
+            false,
+            chaserFunc
+        )
+    }
+
+    function exportSequence(path, type, chaserFunc) {
+        if (path == false) return; // save was cancelled
+
+        Future.promise(theSessionData.exportOTIO(sessionSelectionModel.selectedIndexes[0], path, type)).then(function(result){
+            if (chaserFunc != undefined) chaserFunc(result)
+            },
+            function (err) {
+                dialogHelpers.errorDialogFunc("Export Sequence Failed", err)
+            }
+        )
+    }
+
     function saveSelectionAs(path, folder, chaserFunc) {
 
         if (path == false) return; // save was cancelled
@@ -136,7 +163,7 @@ Item {
 
     }
 
-    function saveSelelctionNewPath(chaserFunc) {
+    function saveSelectionNewPath(chaserFunc) {
 
         dialogHelpers.showFileDialog(
             saveSelectionAs,

@@ -22,6 +22,7 @@ CAF_PUSH_WARNINGS
 #include <QCursor>
 #include <QDesktopServices>
 #include <QImage>
+#include <QPixmap>
 #include <QItemSelection>
 #include <QItemSelectionModel>
 #include <QJsonArray>
@@ -32,7 +33,7 @@ CAF_PUSH_WARNINGS
 #include <QPointF>
 #include <QQmlApplicationEngine>
 #include <QQmlContext>
-#include <QQmlPropertyMap>
+#include <QQmlProperty>
 #include <QQmlPropertyMap>
 #include <QQuickItem>
 #include <QQuickPaintedItem>
@@ -518,6 +519,46 @@ namespace ui {
                      "string:"});
 
                 return startDetachedProcess("dbus-send", arguments);
+            }
+
+            Q_INVOKABLE void setOverrideCursor(const QString &name = "") {
+                const static auto cursors = std::map<QString, Qt::CursorShape>(
+                    {{"Qt.ArrowCursor", Qt::ArrowCursor},
+                     {"Qt.UpArrowCursor", Qt::UpArrowCursor},
+                     {"Qt.CrossCursor", Qt::CrossCursor},
+                     {"Qt.WaitCursor", Qt::WaitCursor},
+                     {"Qt.IBeamCursor", Qt::IBeamCursor},
+                     {"Qt.SizeVerCursor", Qt::SizeVerCursor},
+                     {"Qt.SizeHorCursor", Qt::SizeHorCursor},
+                     {"Qt.SizeBDiagCursor", Qt::SizeBDiagCursor},
+                     {"Qt.SizeFDiagCursor", Qt::SizeFDiagCursor},
+                     {"Qt.SizeAllCursor", Qt::SizeAllCursor},
+                     {"Qt.BlankCursor", Qt::BlankCursor},
+                     {"Qt.SplitVCursor", Qt::SplitVCursor},
+                     {"Qt.SplitHCursor", Qt::SplitHCursor},
+                     {"Qt.PointingHandCursor", Qt::PointingHandCursor},
+                     {"Qt.ForbiddenCursor", Qt::ForbiddenCursor},
+                     {"Qt.OpenHandCursor", Qt::OpenHandCursor},
+                     {"Qt.ClosedHandCursor", Qt::ClosedHandCursor},
+                     {"Qt.WhatsThisCursor", Qt::WhatsThisCursor},
+                     {"Qt.BusyCursor", Qt::BusyCursor},
+                     {"Qt.DragMoveCursor", Qt::DragMoveCursor},
+                     {"Qt.DragCopyCursor", Qt::DragCopyCursor},
+                     {"Qt.DragLinkCursor", Qt::DragLinkCursor}});
+
+                if (name == "")
+                    restoreOverrideCursor();
+                else {
+                    if (cursors.count(name))
+                        QGuiApplication::setOverrideCursor(QCursor(cursors.at(name)));
+                    else
+                        QGuiApplication::setOverrideCursor(
+                            QCursor(QPixmap(name).scaledToWidth(32, Qt::SmoothTransformation)));
+                }
+            }
+
+            Q_INVOKABLE void restoreOverrideCursor() {
+                QGuiApplication::restoreOverrideCursor();
             }
 
             Q_INVOKABLE [[nodiscard]] QString getUserName() const {
@@ -1022,6 +1063,42 @@ namespace ui {
 
 
           private:
+        };
+
+        /* Surprisingly, QML does not provide any facility to bind to a named
+        property, where you name the property value as a string.
+        This class will allow us to do this.*/
+        class HELPER_QML_EXPORT PropertyFollower : public QObject {
+            Q_OBJECT
+
+            Q_PROPERTY(QVariant propertyValue READ propertyValue NOTIFY propertyValueChanged)
+            Q_PROPERTY(QObject *target READ target WRITE setTarget NOTIFY targetChanged)
+            Q_PROPERTY(QString propertyName READ propertyName WRITE setPropertyName NOTIFY
+                           propertyNameChanged)
+
+          public:
+            PropertyFollower(QObject *parent = nullptr) : QObject(parent) {}
+
+            Q_INVOKABLE void setTarget(QObject *target);
+
+            Q_INVOKABLE void setPropertyName(const QString propertyName);
+
+            QVariant propertyValue() { return the_property_.read(); }
+
+            QString propertyName() { return property_name_; }
+
+            QObject *target() { return target_; }
+
+          signals:
+
+            void propertyValueChanged();
+            void targetChanged();
+            void propertyNameChanged();
+
+          private:
+            QQmlProperty the_property_;
+            QString property_name_;
+            QObject *target_ = {nullptr};
         };
 
 

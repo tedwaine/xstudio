@@ -23,6 +23,8 @@ Item {
     anchors.fill: parent
     property string panelId: "" + container
 
+    property var tabCount: tabs_repeater.count
+
     // This object instance has been build via a model.
     // These properties point us into that node of the model that created us.
     property var panels_layout_model
@@ -102,7 +104,8 @@ Item {
         property var foo: viewsModel.length
         Item {
             XsMenuModelItem {
-                text: view_name ? view_name : ""
+                text: menuItemType == "divider" ? "" : view_name
+                menuItemType: view_name == "divider" ? "divider" : "button"
                 menuPath: "" //"Set Panel To|"
                 menuModelName: container.__menuModelName
                 menuItemPosition: index
@@ -139,7 +142,7 @@ Item {
 
     property bool forceHideTabs: false
 
-    property bool tabsVisible: forceHideTabs ? false : tabsVisibility == 2 || (tabsVisibility == 1 && tabs_repeater.count > 1)
+    property bool tabsVisible: forceHideTabs ? false : tabsVisibility == 2 || (tabsVisibility == 1 && tabCount > 1)
     property var tabsHeight: tabsVisible ? XsStyleSheet.widgetStdHeight : 0
     Behavior on tabsHeight {NumberAnimation{ duration: 150 }}
 

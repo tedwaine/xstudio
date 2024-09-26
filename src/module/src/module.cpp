@@ -1450,18 +1450,6 @@ void Module::release_keyboard_focus() {
     }
 }
 
-void Module::listen_to_playhead_events(const bool listen) {
-
-    // join the global playhead events group - this tells us when the playhead that should
-    // be on screen changes, among other things
-    auto ph_events =
-        self()->home_system().registry().template get<caf::actor>(global_playhead_events_actor);
-    if (listen)
-        anon_send(ph_events, broadcast::join_broadcast_atom_v, self());
-    else
-        anon_send(ph_events, broadcast::leave_broadcast_atom_v, self());
-}
-
 void Module::connect_to_ui() {
 
     // if necessary, get the global module events actor and the associated events groups
@@ -1741,6 +1729,12 @@ utility::JsonStore Module::attribute_menu_item_data(Attribute *attr) {
         menu_item_data["choices"] =
             attr->get_role_data<std::vector<std::string>>(Attribute::StringChoices);
         menu_item_data["menu_item_type"] = "multichoice";
+
+        if (attr->has_role_data(Attribute::StringChoicesIds)) {
+            menu_item_data["choices_ids"] =
+                attr->get_role_data<std::vector<utility::Uuid>>(Attribute::StringChoicesIds);
+        }
+
     } else if (attr->get_role_data<std::string>(Attribute::Type) == "RadioGroup") {
         menu_item_data["current_choice"] = attr->get_role_data<std::string>(Attribute::Value);
         /*auto choices = nlohmann::json::parse("[]");
@@ -1750,6 +1744,12 @@ utility::JsonStore Module::attribute_menu_item_data(Attribute *attr) {
         menu_item_data["choices"] =
             attr->get_role_data<std::vector<std::string>>(Attribute::StringChoices);
         menu_item_data["menu_item_type"] = "radiogroup";
+
+        if (attr->has_role_data(Attribute::StringChoicesIds)) {
+            menu_item_data["choices_ids"] =
+                attr->get_role_data<std::vector<utility::Uuid>>(Attribute::StringChoicesIds);
+        }
+
     } else if (attr->get_role_data<std::string>(Attribute::Type) == "OnOffToggle") {
         menu_item_data["is_checked"]     = attr->get_role_data<bool>(Attribute::Value);
         menu_item_data["menu_item_type"] = "toggle";
@@ -2248,6 +2248,7 @@ utility::JsonStore Module::public_state_data() {
 void Module::register_ui_panel_qml(
     const std::string &panel_name,
     const std::string &qml_code,
+    const float position_in_menu,
     const std::string &viewport_popout_button_icon,
     const float &viewport_popout_button_position,
     const utility::Uuid toggle_hotkey_id) {
@@ -2258,7 +2259,7 @@ void Module::register_ui_panel_qml(
     utility::JsonStore data;
     data["view_name"]       = panel_name;
     data["view_qml_source"] = qml_code;
-
+    data["position"]        = position_in_menu;
     /*anon_send(
         central_models_data_actor,
         ui::model_data::insert_rows_atom_v,

@@ -143,6 +143,10 @@ void GlobalActor::init(const utility::JsonStore &prefs) {
     link_to(audio_out);
 #endif
 
+    if (audio_out) {
+        system().registry().put(pc_audio_output_registry, audio_out);
+    }
+
     python_enabled_ = false;
     connected_      = false;
     api_enabled_    = false;
@@ -487,6 +491,7 @@ void GlobalActor::on_exit() {
         system().middleman().unpublish(actor_cast<actor>(this), sync_port_);
     }
     system().registry().erase(global_registry);
+    system().registry().erase(pc_audio_output_registry);
 }
 
 void GlobalActor::connect_api(const caf::actor &embedded_python) {

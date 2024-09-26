@@ -493,7 +493,8 @@ void ConformWorkerActor::process_request(
                         auto track_to_use = 0;
                         scoped_actor sys{system()};
 
-                        auto unconformed_track = result.request_.template_tracks_.at(track_to_use);
+                        auto unconformed_track =
+                            result.request_.template_tracks_.at(track_to_use);
                         unconformed_track.reset_actor(true);
                         unconformed_track.clear();
                         unconformed_track.set_name("Unconformed Media");
@@ -619,20 +620,23 @@ void ConformWorkerActor::process_request(
                                         media,
                                         Uuid());
 
-                                    auto detail = request_receive<std::pair<Uuid, MediaReference>>(*sys, media.actor(), media::media_reference_atom_v, Uuid());
+                                    auto detail =
+                                        request_receive<std::pair<Uuid, MediaReference>>(
+                                            *sys,
+                                            media.actor(),
+                                            media::media_reference_atom_v,
+                                            Uuid());
 
                                     auto clip = timeline::Item(
-                                        timeline::IT_CLIP,
-                                        "",
-                                        unconformed_track.rate());
+                                        timeline::IT_CLIP, "", unconformed_track.rate());
 
-                                    auto media_prop = R"({"media_uuid": null})"_json;
+                                    auto media_prop          = R"({"media_uuid": null})"_json;
                                     media_prop["media_uuid"] = media.uuid();
                                     clip.set_prop(media_prop);
                                     unconformed_track.push_back(clip);
                                     unconformed_track.refresh();
 
-                                } catch(const std::exception &err) {
+                                } catch (const std::exception &err) {
                                     spdlog::warn("{} {}", __PRETTY_FUNCTION__, err.what());
                                 }
                             }
@@ -683,10 +687,11 @@ void ConformWorkerActor::process_request(
                                     true);
                             }
 
-                            if(not unconformed_track.empty()) {
+                            if (not unconformed_track.empty()) {
                                 unconformed_track.clean(true);
                                 unconformed_track.reset_uuid(true);
-                                auto track_actor = spawn<timeline::TrackActor>(unconformed_track, unconformed_track);
+                                auto track_actor = spawn<timeline::TrackActor>(
+                                    unconformed_track, unconformed_track);
                                 // spdlog::warn("NEW TRACK {} {} {}",
                                 // to_string(track_actor), to_string(i.actor()),
                                 // to_string(i.uuid()));

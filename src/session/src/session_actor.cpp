@@ -1606,6 +1606,12 @@ caf::message_handler SessionActor::message_handler() {
             return rp;
         },
 
+        [=](json_store::update_atom,
+            const JsonStore &,
+            const std::string &,
+            const JsonStore &) {},
+        [=](json_store::update_atom, const JsonStore &) {},
+
         [=](utility::serialise_atom,
             const std::vector<utility::Uuid> &containers) -> result<JsonStore> {
             caf::scoped_actor sys(system());

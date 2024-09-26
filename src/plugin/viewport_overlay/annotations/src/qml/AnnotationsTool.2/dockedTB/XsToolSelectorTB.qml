@@ -16,15 +16,12 @@ import xstudio.qml.helpers 1.0
 Item{
     id: toolSetBg
 
-    property int colItemCount: 3
-    property int rowItemCount: 2
+    property int colCount: tool_choices.length
+    property int rowCount: 1
 
     property alias toolSet: toolSet
 
-    property real itemWidth: (width-framePadding*2)/rowItemCount
-    onItemWidthChanged: {
-        buttonWidth = itemWidth
-    }
+    property real itemWidth: XsStyleSheet.primaryButtonStdWidth
     property real itemHeight: XsStyleSheet.primaryButtonStdHeight
 
     /* This connects to the backend annotations tool object and exposes its
@@ -65,9 +62,10 @@ Item{
 
         x: framePadding
         y: framePadding*2
+        anchors.verticalCenter: parent.verticalCenter
 
-        width: itemWidth*rowItemCount
-        height: itemHeight*colItemCount
+        width: itemWidth*colCount
+        height: itemHeight*rowCount
 
         cellWidth: itemWidth
         cellHeight: itemHeight
@@ -93,12 +91,12 @@ Item{
 
                 XsPrimaryButton{ id: toolBtn
 
-                    // x: index>=rowItemCount? width/2:0
-                    width: index == toolImages.length-1? parent.width*2 : parent.width - itemSpacing
+                    // x: index>=rowCount? width/2:0
+                    width: parent.width - itemSpacing
                     height: parent.height - itemSpacing
 
                     clip: true
-                    isToolTipEnabled: showButtonHints
+                    isToolTipEnabled: false
 
                     imageDiv.opacity: isEnabled ? 1.0 : 0.33
                     isActive: current_tool===text
@@ -119,9 +117,6 @@ Item{
                         {
                             current_tool = text
                         }
-                    }
-                    onPressAndHold:{ //#TODO: for testing
-                        showButtonHints = !showButtonHints
                     }
 
                 }

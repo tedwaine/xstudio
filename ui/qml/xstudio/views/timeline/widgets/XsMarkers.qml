@@ -15,7 +15,7 @@ Rectangle {
     property real fractionOffset: 0
     property real tickWidth: (control.width / duration)
     property alias model: delegateModel.model
-    property int markerWidth: 8
+    property int markerWidth: 6
 
 	color: "transparent"
 
@@ -26,7 +26,7 @@ Rectangle {
             property real thickness: 2
             visible: x >=0
             x: (((startRole / rateRole) - start ) * tickWidth) - fractionOffset
-            y: -layerRole * shape.height
+            y: -layerRole // *shape.height
             height: control.height
             containsMode: Shape.FillContains
             property var color: helpers.saturate(flagRole, 0.4)

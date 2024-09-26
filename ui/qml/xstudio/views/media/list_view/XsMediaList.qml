@@ -118,13 +118,28 @@ XsListView {
             autoScroll(mousePosition.y)
         }
 
+        onDragEnded: {
+            if (dragTargetIndex != undefined && dragTargetIndex.valid) {
+                mediaList.itemAtIndex(dragTargetIndex.row).isDragTarget = false
+            }
+            dragTargetIndex = undefined
+        }
+
         onDropped: {
 
             if (source == "External URIS") {
-
+                
                 var idx = dragTargetIndex
                 if (idx == undefined || !idx.valid) {
-                    idx = theSessionData.createPlaylist("New Playlist")
+                    idx = mediaListModelDataRoot
+                    if (idx == undefined || !idx.valid) {
+                        idx = theSessionData.createPlaylist("New Playlist")
+                    } else {
+                        // mediaListModelDataRoot is the 'MediaList' that lives
+                        // underneath a Playist, Subset etc. We want to call
+                        // handleDropFuture with the Playlist/Subset/Timeline index
+                        idx = idx.parent 
+                    }
                 }
 
                 Future.promise(
@@ -148,6 +163,7 @@ XsListView {
                 // are these indeces from the same list as our list here?
                 if (data.length && data[0].parent == mediaListModelDataRoot) {
                     // do a move rows
+                    beforeMoveContentY = contentY
                     theSessionData.moveRows(
                         data,
                         dragTargetIndex.row,
@@ -221,6 +237,16 @@ XsListView {
             }
         }
 
+    }
+
+    // When we do a moveRows, the list view resets contentY to zero. Annoying.
+    // So here we try and preserve the scrolled position in that case
+    property real beforeMoveContentY: 0
+    onContentYChanged: {
+        if(beforeMoveContentY != 0){
+            contentY = beforeMoveContentY
+            beforeMoveContentY = 0
+        }
     }
 
     property var autoScrollVelocity: 200

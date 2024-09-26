@@ -73,7 +73,6 @@ Item {
         onHotkeyActivated: {
             file_functions.newSessionWithCheck()
         }
-        enabled: false
     }
 
     XsMenuModelItem {
@@ -200,10 +199,23 @@ Item {
         menuItemPosition: 1
         menuModelName: "main menu bar"
         onActivated: {
-            file_functions.saveSelelctionNewPath(undefined)
+            file_functions.saveSelectionNewPath(undefined)
         }
         Component.onCompleted: {
             setMenuPathPosition("File|Export", 7.5)
+        }
+    }
+
+    XsMenuModelItem {
+        text: "Selected Sequence as OTIO ..."
+        menuPath: "File|Export"
+        menuItemPosition: 1
+        menuModelName: "main menu bar"
+        onActivated: {
+            file_functions.exportSequencePath(function(result){if(result) {dialogHelpers.errorDialogFunc("Export Sequence Succeeded", "OTIO Exported")} else {dialogHelpers.errorDialogFunc("Export Sequence Failed", result)} })
+        }
+        Component.onCompleted: {
+            setMenuPathPosition("File|Export", 7.6)
         }
     }
 

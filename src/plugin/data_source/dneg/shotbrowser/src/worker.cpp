@@ -92,6 +92,13 @@ void MediaWorker::add_media_step_3(
                     jsn,
                     ShotgunMetadataPath + "/version");
 
+                anon_send(
+                    media,
+                    json_store::set_json_atom_v,
+                    utility::Uuid(),
+                    JsonStore(nlohmann::json("qrc:/shotbrowser_icons/shot_grid.svg")),
+                    "/ui/decorators/shotgrid");
+
                 // dispatch delayed shot data.
                 try {
                     auto shotreq = JsonStore(GetShotFromId);

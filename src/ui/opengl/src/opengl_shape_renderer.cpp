@@ -214,26 +214,31 @@ const char *frag_shader = R"(
 
         for (int i = 0; i < quads_count; ++i) {
             Quad q = quads.items[i];
+            // Shape boundary is at distance 0, inside is < 0, outside is > 0
+            // To invert the shape, we can simply multiply by -1.
             float d = sdQuad(coords, q.bl, q.tl, q.tr, q.br) * q.invert;
-            float d_smooth = opRound(d, q.softness);
+            // When shape is inverted, add softness to the current distance
+            // so that softness expands the original shape outward.
+            // (q.invert - 1) * -0.5 is 1 if inverted, 0 otherwise
+            d = d + q.softness * (q.invert - 1) * -0.5;
             vec4 color = mix(vec4(0.0f), q.color, q.opacity);
-            accum_color = max(accum_color, mix(color, vec4(0.0f), smoothstep(0.0f, d - d_smooth, d)));
+            accum_color = max(accum_color, mix(color, vec4(0.0f), smoothstep(0.0f, q.softness, d)));
         }
 
         for (int i = 0; i < ellipses_count; ++i) {
             Ellipse e = ellipses.items[i];
             float d = sdEllipse4(opRotate(coords - e.center, e.angle), e.radius) * e.invert;
-            float d_smooth = opRound(d, e.softness);
+            d = d + e.softness * (e.invert - 1) * -0.5;
             vec4 color = mix(vec4(0.0f), e.color, e.opacity);
-            accum_color = max(accum_color, mix(color, vec4(0.0f), smoothstep(0.0f, d - d_smooth, d)));
+            accum_color = max(accum_color, mix(color, vec4(0.0f), smoothstep(0.0f, e.softness, d)));
         }
 
         for (int i = 0; i < polygons_count; ++i) {
             Polygon p = polygons.items[i];
             float d = sdPolygon(coords, p.offset, p.count) * p.invert;
-            float d_smooth = opRound(d, p.softness);
+            d = d + p.softness * (p.invert - 1) * -0.5;
             vec4 color = mix(vec4(0.0f), p.color, p.opacity);
-            accum_color = max(accum_color, mix(color, vec4(0.0f), smoothstep(0.0f, d - d_smooth, d)));
+            accum_color = max(accum_color, mix(color, vec4(0.0f), smoothstep(0.0f, p.softness, d)));
         }
 
         color = accum_color;

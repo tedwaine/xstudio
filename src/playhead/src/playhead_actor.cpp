@@ -240,6 +240,15 @@ void PlayheadActor::init() {
 
         [=](viewport_events_group_atom) -> caf::actor { return viewport_events_group_; },
 
+        [=](playlist::selection_actor_atom, caf::actor selection_actor) {
+            // this gives us a handle on a selection actor, so we know what media is
+            // selected in a timeline, for example, without being driven by the event
+            // messages that a selection actor emits. i.e. we do not run the stuff in
+            // connect_to_playlist_selection_actor which would normally set up the
+            // playhead to be driven by changes in the selection
+            playlist_selection_addr_ = caf::actor_cast<caf::actor_addr>(selection_actor);
+        },
+
         /* move all child playheads to current position */
         [=](jump_atom) { update_child_playhead_positions(true); },
 
@@ -262,7 +271,7 @@ void PlayheadActor::init() {
                         forward(),
                         velocity(),
                         playing(),
-                        true,
+                        false,
                         connected_to_ui(),
                         user_is_frame_scrubbing_->value());
                 }
@@ -515,6 +524,13 @@ void PlayheadActor::init() {
             return true;
         },
 
+        [=](json_store::update_atom,
+            const JsonStore &,
+            const std::string &,
+            const JsonStore &) {},
+
+        [=](json_store::update_atom, const JsonStore &) mutable {},
+
         [=](playhead_rate_atom) -> FrameRate { return playhead_rate(); },
 
         [=](playhead_rate_atom, const FrameRate &rate) -> result<bool> {
@@ -694,6 +710,16 @@ void PlayheadActor::init() {
 
         [=](buffer_atom) { delegate(key_playhead_, buffer_atom_v); },
 
+        [=](buffer_atom, const utility::Uuid &playhead_uuid) -> result<ImageBufPtr> {
+            auto rp = make_response_promise<ImageBufPtr>();
+            if (key_playhead_uuid_) {
+                rp.delegate(key_playhead_, buffer_atom_v);
+            } else {
+                rp.deliver(make_error(xstudio_error::error, "Wrong sub playhead."));
+            }
+            return rp;
+        },
+
         // child playhead is broadcasting frames *about* to show on screen
         // during playback, so we can start uploading pixels to GPU ahead
         // of when they are needed
@@ -704,12 +730,19 @@ void PlayheadActor::init() {
 
             // have we got all the frames we expected? - if not, it's probably
             // because the lookahead read/cache can't keep up,
+            // Note - if we've got the first 4 'future_frames' that's enough
+            // for what the viewport needs in terms of doing async pixel transfer
+            // to the GPU.
             bool missing_future_frame = false;
+            int i                     = 0;
             for (const auto &frame : future_frames) {
                 if (!frame) {
                     missing_future_frame = true;
                     break;
                 }
+                ++i;
+                if (i == 4)
+                    break;
             }
 
             if (child_playhead_uuid == key_playhead_uuid_ && missing_future_frame) {
@@ -990,10 +1023,12 @@ void PlayheadActor::init() {
                     .then(
                         [=](const std::string name) {
                             updating_source_list_ = true;
+                            std::cerr << "FOOFOO " << name << "\n";
                             if (mt == media::MT_IMAGE) {
-                                image_source_->set_value(name, false);
+                                image_source_->set_value(to_string(media_source.uuid()), false);
+                                image_source_name_->set_value(name);
                             } else if (mt == media::MT_AUDIO) {
-                                audio_source_->set_value(name, false);
+                                audio_source_->set_value(to_string(media_source.uuid()), false);
                             }
                             updating_source_list_ = false;
                         },
@@ -1004,6 +1039,7 @@ void PlayheadActor::init() {
                 updating_source_list_ = true;
                 if (mt == media::MT_IMAGE) {
                     image_source_->set_value("-");
+                    image_source_name_->set_value("-");
                 } else if (mt == media::MT_AUDIO) {
                     audio_source_->set_value("-");
                 }
@@ -1081,6 +1117,40 @@ void PlayheadActor::init() {
             return unit;
         },
 
+        [=](full_precache_atom,
+            const bool all_playheads,
+            const bool force,
+            const std::vector<caf::actor> sub_playheads) {
+            if (sub_playheads == sub_playheads_) {
+                if (all_playheads) {
+                    for (auto &ph : sub_playheads) {
+                        anon_send(ph, full_precache_atom_v, true, force);
+                    }
+                } else if (key_playhead_) {
+                    anon_send(key_playhead_, full_precache_atom_v, true, force);
+                }
+
+                if (audio_playhead_) {
+                    anon_send(audio_playhead_, full_precache_atom_v, true, force);
+                }
+            }
+        },
+
+        [=](const std::vector<caf::actor> &old_sub_playheads,
+            const std::vector<caf::actor> &old_source_wrappers,
+            const std::vector<utility::Uuid> &sub_playhead_ids) {
+            // this (delayed) message comes from clear_child_playheads method.
+            send(broadcast_, child_playheads_deleted_atom_v, sub_playhead_ids);
+            for (auto &i : old_sub_playheads) {
+                unlink_from(i);
+                send_exit(i, caf::exit_reason::user_shutdown);
+            }
+            for (auto &i : old_source_wrappers) {
+                unlink_from(i);
+                send_exit(i, caf::exit_reason::user_shutdown);
+            }
+        },
+
         [=](bool) {});
 }
 
@@ -1140,8 +1210,8 @@ void PlayheadActor::clear_all_precache_requests(caf::typed_response_promise<bool
 
 void PlayheadActor::clear_child_playheads() {
 
-    auto playheads_copy        = sub_playheads_;
-    auto source_wrappers_copy_ = source_wrappers_;
+    auto playheads_copy       = sub_playheads_;
+    auto source_wrappers_copy = source_wrappers_;
 
     fan_out_request<policy::select_all>(playheads_copy, infinite, uuid_atom_v)
         .then(
@@ -1149,16 +1219,12 @@ void PlayheadActor::clear_child_playheads() {
                 // stop any read-ahead activity for these playheads
                 anon_send(pre_reader_, clear_precache_queue_atom_v, uuids);
 
-                send(broadcast_, child_playheads_deleted_atom_v, uuids);
-
-                for (auto &i : playheads_copy) {
-                    unlink_from(i);
-                    send_exit(i, caf::exit_reason::user_shutdown);
-                }
-                for (auto &i : source_wrappers_copy_) {
-                    unlink_from(i);
-                    send_exit(i, caf::exit_reason::user_shutdown);
-                }
+                // send a message to delete these things in 2 seconds. We want
+                // a delay as they may be fetching images and providing them to
+                // the Viewport while we are setting up new sub-playheads (for
+                // new sources)
+                delayed_anon_send(
+                    this, std::chrono::seconds(2), playheads_copy, source_wrappers_copy, uuids);
             },
             [=](const error &err) {
                 spdlog::warn("{} {}", __PRETTY_FUNCTION__, to_string(err));
@@ -1389,12 +1455,6 @@ void PlayheadActor::switch_key_playhead(int idx) {
             const Uuid uuid    = request_receive<Uuid>(*sys, key_playhead_, uuid_atom_v);
             key_playhead_uuid_ = uuid;
 
-            // if 'switch_key_playhead' is called rapidly, the broadcast made below
-            // can reach the receiver out of order, so we need to give it a timestamp
-            // so they can know if they have got an out-of-order notification and ignore it
-            const auto switchpoint = utility::clock::now();
-            send(broadcast_, key_child_playhead_atom_v, uuid, switchpoint);
-
             auto source_actor = request_receive<caf::actor>(*sys, key_playhead_, source_atom_v);
 
             make_audio_child_playhead(idx);
@@ -1420,6 +1480,8 @@ void PlayheadActor::switch_key_playhead(int idx) {
                 update_child_playhead_positions(true);
             }
 
+            const auto switchpoint = utility::clock::now();
+
             // this will trigger an update to the duration, at which point we can
             // update other dependent data like loop range etc.
             request(caf::actor_cast<caf::actor>(this), infinite, duration_flicks_atom_v)
@@ -1431,6 +1493,17 @@ void PlayheadActor::switch_key_playhead(int idx) {
                         update_playback_rate();
                         rebuild_cached_frames_status();
                         restart_readahead_cacheing(compare_mode() != CM_OFF);
+
+                        // if 'switch_key_playhead' is called rapidly, the broadcast made below
+                        // can reach the receiver out of order, so we need to give it a
+                        // timestamp so they can know if they have got an out-of-order
+                        // notification and ignore it
+                        send(
+                            broadcast_,
+                            key_child_playhead_atom_v,
+                            uuid,
+                            key_playhead_,
+                            switchpoint);
                     },
                     [=](const caf::error &err) {
                         spdlog::warn("{} {}", __PRETTY_FUNCTION__, to_string(err));
@@ -2274,6 +2347,8 @@ void PlayheadActor::update_source_multichoice(
                         current_source.actor());
                 }
 
+                using uuid_name = std::pair<utility::Uuid, std::string>;
+
                 request(current_source.actor(), infinite, utility::name_atom_v)
                     .then(
                         [=](const std::string &current_source_name) mutable {
@@ -2283,31 +2358,44 @@ void PlayheadActor::update_source_multichoice(
                                 media::get_media_source_names_atom_v,
                                 mt)
                                 .then(
-                                    [=](const std::vector<std::pair<utility::Uuid, std::string>>
-                                            &source_uuid_names) mutable {
+                                    [=](std::vector<uuid_name> source_uuid_names) mutable {
                                         updating_source_list_ = true;
-                                        attr->set_value(current_source_name);
+                                        attr->set_value(to_string(current_source.uuid()));
+                                        if (attr == image_source_) {
+                                            image_source_name_->set_value(current_source_name);
+                                        }
 
-                                        auto source_names =
+                                        std::sort(
+                                            source_uuid_names.begin(),
+                                            source_uuid_names.end(),
+                                            [](const uuid_name &a, const uuid_name &b) -> bool {
+                                                return a.second < b.second;
+                                            });
+
+                                        std::vector<std::string> source_names =
                                             vpair_second_to_v(source_uuid_names);
-                                        // sort names..
-                                        std::sort(source_names.begin(), source_names.end());
+                                        std::vector<utility::Uuid> source_uuids =
+                                            vpair_first_to_v(source_uuid_names);
 
                                         if (source_names.empty()) {
                                             source_names.emplace_back(
                                                 mt == media::MT_IMAGE ? "No Video"
                                                                       : "No Audio");
+                                            source_uuids.emplace_back(utility::Uuid());
                                         }
 
                                         attr->set_role_data(
                                             module::Attribute::StringChoices, source_names);
                                         attr->set_role_data(
                                             module::Attribute::AbbrStringChoices, source_names);
+                                        attr->set_role_data(
+                                            module::Attribute::StringChoicesIds, source_uuids);
                                         updating_source_list_ = false;
                                     },
                                     [=](error &err) mutable {
                                         spdlog::warn(
                                             "{} {}", __PRETTY_FUNCTION__, to_string(err));
+                                        updating_source_list_ = false;
                                     });
                         },
                         [=](error &err) mutable {
@@ -2402,17 +2490,18 @@ void PlayheadActor::restart_readahead_cacheing(
         request(caf::actor_cast<caf::actor>(this), infinite, clear_precache_requests_atom_v)
             .then(
                 [=](bool r) {
-                    if (all_child_playheads) {
-                        for (auto ph : sub_playheads_) {
-                            anon_send(ph, full_precache_atom_v, true, force);
-                        }
-
-                    } else {
-                        anon_send(key_playhead_, full_precache_atom_v, true, force);
-                    }
-                    if (audio_playhead_) {
-                        anon_send(audio_playhead_, full_precache_atom_v, true, force);
-                    }
+                    // wait one second, and then tell sub-playheads that they can start cacheing
+                    // frames ready for playback. We wait one second because the user might be
+                    // scrolling the selection up or down the media list rapidly, meaning
+                    // subplayheads are being made and destroyed rapidly. We don't want them
+                    // swamping the media readers with pre-cache requests until we're 'steady'
+                    delayed_anon_send(
+                        this,
+                        std::chrono::seconds(1),
+                        full_precache_atom_v,
+                        all_child_playheads,
+                        force,
+                        sub_playheads_);
                 },
                 [=](caf::error &err) {
 
@@ -2421,41 +2510,46 @@ void PlayheadActor::restart_readahead_cacheing(
 }
 
 void PlayheadActor::switch_media_source(
-    const std::string new_source_name, const media::MediaType mt) {
+    const std::string new_source_uuid, const media::MediaType mt) {
 
-    if (!key_playhead_ || new_source_name == "N/A" || new_source_name == "-")
+    auto siwtch_all_selected = [=](const std::string source_name) {
+        // now, if we have a selection actor we want to try and switch all the
+        // media sources in the selected media too:
+        auto playlist_selection = caf::actor_cast<caf::actor>(playlist_selection_addr_);
+        if (playlist_selection) {
+
+            request(playlist_selection, infinite, get_selection_atom_v, true)
+                .then(
+                    [=](std::vector<caf::actor> selected_sources) mutable {
+                        for (auto &media_src : selected_sources) {
+                            anon_send(media_src, media_source_atom_v, source_name, mt);
+                        }
+                    },
+                    [=](error &err) mutable {
+                        if (to_string(err) != "No frames")
+                            spdlog::warn("{} {}", __PRETTY_FUNCTION__, to_string(err));
+                    });
+        }
+    };
+
+    if (!key_playhead_ || new_source_uuid == "N/A" || new_source_uuid == "-")
         return;
+
+    utility::Uuid source_uuid(new_source_uuid);
 
     // going via the sub-playhead (which resolves which actual MediaActor is
     // on screen now), we make the request to change the active MediaSource
     // for the MediaActor
-    request(key_playhead_, infinite, media_source_atom_v, new_source_name, mt)
+    request(key_playhead_, infinite, media_source_atom_v, source_uuid, mt)
         .then(
 
-            [=](bool switched) mutable {
+            [=](const std::string &new_source_name) mutable {
                 // re-kick cacheing following switch
-                if (switched && connected_to_ui()) {
+                if (connected_to_ui()) {
                     restart_readahead_cacheing(false, true);
                 }
 
-                // now, if we have a selection actor we want to try and switch all the
-                // media sources in the selected media too:
-                auto playlist_selection = caf::actor_cast<caf::actor>(playlist_selection_addr_);
-                if (playlist_selection) {
-
-                    request(playlist_selection, infinite, get_selection_atom_v, true)
-                        .then(
-                            [=](std::vector<caf::actor> selected_sources) mutable {
-                                for (auto &media_src : selected_sources) {
-                                    anon_send(
-                                        media_src, media_source_atom_v, new_source_name, mt);
-                                }
-                            },
-                            [=](error &err) mutable {
-                                if (to_string(err) != "No frames")
-                                    spdlog::warn("{} {}", __PRETTY_FUNCTION__, to_string(err));
-                            });
-                }
+                siwtch_all_selected(new_source_name);
             },
             [=](error &err) mutable {
                 if (to_string(err) != "No frames")

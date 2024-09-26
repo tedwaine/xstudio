@@ -48,7 +48,7 @@ void blocking_loader(
     std::vector<UuidActor> result;
     std::vector<UuidActor> batched_media_to_add;
 
-    spdlog::error("blocking_loader uri {}", to_string(path));
+    // spdlog::error("blocking_loader uri {}", to_string(path));
     // spdlog::error("blocking_loader posix {}", uri_to_posix_path(path));
 
     self->anon_send(dst.actor(), playlist::loading_media_atom_v, true);
@@ -199,7 +199,7 @@ PlaylistActor::PlaylistActor(
     }
 
     link_to(json_store_);
-
+    join_event_group(this, json_store_);
     // media needs to exist before we can deserialise containers.
     spdlog::stopwatch sw;
 
@@ -277,7 +277,7 @@ PlaylistActor::PlaylistActor(
     json_store_ = spawn<json_store::JsonStoreActor>(
         utility::Uuid::generate(), utility::JsonStore(), std::chrono::milliseconds(50));
     link_to(json_store_);
-
+    join_event_group(this, json_store_);
     init();
 }
 
@@ -299,6 +299,11 @@ caf::message_handler PlaylistActor::default_event_handler() {
             rename_container_atom,
             const utility::Uuid &,
             const std::string &) {},
+        [=](json_store::update_atom,
+            const JsonStore &,
+            const std::string &,
+            const JsonStore &) {},
+        [=](json_store::update_atom, const JsonStore &) {},
         [=](utility::event_atom, create_subset_atom, const utility::UuidActor &) {},
         [=](utility::event_atom, create_contact_sheet_atom, const utility::UuidActor &) {},
         [=](utility::event_atom, create_timeline_atom, const utility::UuidActor &) {},
@@ -331,9 +336,12 @@ void PlaylistActor::init() {
     join_broadcast(
         caf::actor_cast<caf::event_based_actor *>(selection_actor_), playlist_broadcast_);
 
+    auto global_prefs_actor = caf::actor();
+
     try {
         auto prefs = GlobalStoreHelper(system());
         JsonStore j;
+        global_prefs_actor = prefs.get_jsonactor();
         join_broadcast(this, prefs.get_group(j));
         auto_gather_sources_ =
             preference_value<bool>(j, "/core/media_reader/auto_gather_sources");
@@ -1891,18 +1899,28 @@ void PlaylistActor::init() {
 
         // watch for events...
         [=](json_store::update_atom,
-            const JsonStore & /*change*/,
-            const std::string & /*path*/,
+            const JsonStore &change,
+            const std::string &path,
             const JsonStore &full) {
-            delegate(actor_cast<caf::actor>(this), json_store::update_atom_v, full);
+            if (current_sender() == global_prefs_actor) {
+                try {
+                    auto_gather_sources_ =
+                        preference_value<bool>(full, "/core/media_reader/auto_gather_sources");
+                } catch (...) {
+                }
+            } else if (current_sender() == json_store_)
+                send(event_group_, json_store::update_atom_v, change, path, full);
         },
 
-        [=](json_store::update_atom, const JsonStore &j) mutable {
-            try {
-                auto_gather_sources_ =
-                    preference_value<bool>(j, "/core/media_reader/auto_gather_sources");
-            } catch (...) {
-            }
+        [=](json_store::update_atom, const JsonStore &full) mutable {
+            if (current_sender() == global_prefs_actor) {
+                try {
+                    auto_gather_sources_ =
+                        preference_value<bool>(full, "/core/media_reader/auto_gather_sources");
+                } catch (...) {
+                }
+            } else if (current_sender() == json_store_)
+                send(event_group_, json_store::update_atom_v, full);
         },
 
         [=](session::import_atom,

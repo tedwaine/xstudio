@@ -230,6 +230,38 @@ void SubsetActor::init() {
             return true;
         },
 
+        [=](playlist::add_media_atom atom,
+            const caf::uri &path,
+            const bool recursive,
+            const utility::Uuid &uuid_before) -> result<std::vector<UuidActor>> {
+            auto rp = make_response_promise<std::vector<UuidActor>>();
+            request(
+                caf::actor_cast<caf::actor>(playlist_),
+                infinite,
+                atom,
+                path,
+                recursive,
+                uuid_before)
+                .then(
+                    [=](const std::vector<UuidActor> new_media) mutable {
+                        for (const auto &m : new_media) {
+                            add_media(m.actor(), m.uuid(), uuid_before);
+                        }
+                        send(
+                            event_group_,
+                            utility::event_atom_v,
+                            playlist::add_media_atom_v,
+                            new_media);
+                        base_.send_changed(event_group_, this);
+                        send(event_group_, utility::event_atom_v, change_atom_v);
+                        send(
+                            change_event_group_, utility::event_atom_v, utility::change_atom_v);
+                        rp.deliver(new_media);
+                    },
+                    [=](caf::error &err) mutable { rp.deliver(err); });
+            return rp;
+        },
+
         [=](add_media_atom atom,
             UuidActor ua, // the MediaActor
             const utility::UuidList &final_ordered_uuid_list,

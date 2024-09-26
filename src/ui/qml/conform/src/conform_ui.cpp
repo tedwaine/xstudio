@@ -535,7 +535,9 @@ QFuture<QList<QUuid>> ConformEngineUI::conformItemsFuture(
 }
 
 QFuture<QList<QUuid>> ConformEngineUI::conformToNewSequenceFuture(
-    const QModelIndexList &mediaIndexes, const QModelIndex &playlistIndex) const {
+    const QModelIndexList &mediaIndexes,
+    const QString &qtask,
+    const QModelIndex &playlistIndex) const {
 
     auto media = UuidActorVector();
 
@@ -564,6 +566,8 @@ QFuture<QList<QUuid>> ConformEngineUI::conformToNewSequenceFuture(
 
         target_playlist = UuidActor(playlist_uuid, playlist_actor);
     }
+
+    auto task = StdFromQString(qtask);
 
     return QtConcurrent::run([=]() {
         auto result = QList<QUuid>();
@@ -657,8 +661,81 @@ QFuture<QList<QUuid>> ConformEngineUI::conformToNewSequenceFuture(
                         request_receive<bool>(
                             *sys, conform_manager, conform::conform_atom_v, timeline, false);
 
-                        // conform media to timeline..
+                        // if task is supplied add conformed track.
+                        if (not task.empty()) {
+                            // duplicate nominated conform track
+                            // always track 0 ?
+                            try {
+                                auto timeline_item = request_receive<timeline::Item>(
+                                    *sys, timeline.actor(), timeline::item_atom_v);
+                                auto conform_track_uuid = timeline_item.prop().value(
+                                    "conform_track_uuid", utility::Uuid());
 
+                                // iterate over tracks
+                                for (int j = 0;
+                                     j < static_cast<int>(timeline_item.front().size());
+                                     j++) {
+                                    if ((*timeline_item.front().item_at_index(j))->uuid() ==
+                                        conform_track_uuid) {
+
+                                        // duplicate
+                                        auto dup = request_receive<UuidActor>(
+                                            *sys,
+                                            (*timeline_item.front().item_at_index(j))->actor(),
+                                            duplicate_atom_v);
+                                        request_receive<JsonStore>(
+                                            *sys,
+                                            dup.actor(),
+                                            timeline::item_lock_atom_v,
+                                            false);
+                                        request_receive<JsonStore>(
+                                            *sys,
+                                            dup.actor(),
+                                            timeline::item_name_atom_v,
+                                            task);
+
+                                        auto dupitem = request_receive<timeline::Item>(
+                                            *sys, dup.actor(), timeline::item_atom_v);
+                                        auto citems = UuidActorVector();
+
+                                        for (const auto &ditem : dupitem) {
+                                            if (ditem.item_type() == timeline::IT_CLIP) {
+                                                request_receive<JsonStore>(
+                                                    *sys,
+                                                    ditem.actor(),
+                                                    timeline::item_flag_atom_v,
+                                                    "");
+                                                citems.emplace_back(ditem.uuid_actor());
+                                            }
+                                        }
+
+                                        // insert above
+                                        auto inserted = request_receive<JsonStore>(
+                                            *sys,
+                                            timeline_item.front().actor(),
+                                            timeline::insert_item_atom_v,
+                                            j,
+                                            UuidActorVector({dup}));
+
+                                        // get clips from dup
+                                        conformItemsFuture(
+                                            task,
+                                            citems,
+                                            playlist,
+                                            timeline,
+                                            "Clip",
+                                            UuidVector(),
+                                            true)
+                                            .result();
+                                        break;
+                                    }
+                                }
+                            } catch (const std::exception &err) {
+                                spdlog::warn("{} {}", __PRETTY_FUNCTION__, err.what());
+                            }
+                        }
+
+                        // conform media to timeline..
                         auto operations            = JsonStore(conform::ConformOperationsJSON);
                         operations["create_media"] = false;
                         operations["remove_media"] = false;

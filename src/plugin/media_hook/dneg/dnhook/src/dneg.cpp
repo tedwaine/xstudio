@@ -734,7 +734,6 @@ class DNegMediaHook : public MediaHook {
         if (display.empty()) {
             display = default_display;
         }
-
         return display;
     }
 

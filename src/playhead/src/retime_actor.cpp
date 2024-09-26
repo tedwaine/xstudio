@@ -53,6 +53,13 @@ RetimeActor::RetimeActor(
             send(event_group_, utility::event_atom_v, media::add_media_source_atom_v, uav);
         },
 
+        [=](json_store::update_atom,
+            const JsonStore &,
+            const std::string &,
+            const JsonStore &) {},
+
+        [=](json_store::update_atom, const JsonStore &) mutable {},
+
         [=](utility::event_atom, playlist::add_media_atom, const utility::UuidActorVector &) {},
 
         [=](utility::event_atom,

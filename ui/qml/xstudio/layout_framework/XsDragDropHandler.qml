@@ -16,6 +16,7 @@ Item {
     signal dragged(var mousePosition, string source, var data)
     signal dropped(var mousePosition, string source, var data)
     signal dragExited()
+    signal dragEnded()
 
     function startDrag(mouseX, mouseY) {
         dragStartPosition = targetWidget.mapToItem(
@@ -41,6 +42,7 @@ Item {
                 dragSourceName,
                 dragData)
             dragging = false
+            dragEnded()
         }
     }
 

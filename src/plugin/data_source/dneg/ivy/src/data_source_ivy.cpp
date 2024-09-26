@@ -63,6 +63,7 @@ class IvyMediaWorker : public caf::event_based_actor {
         caf::typed_response_promise<utility::UuidActorVector> rp,
         const JsonStore &jsn,
         const FrameRate &media_rate);
+
     void add_media_source(
         caf::typed_response_promise<utility::UuidActor> rp,
         const JsonStore &jsn,

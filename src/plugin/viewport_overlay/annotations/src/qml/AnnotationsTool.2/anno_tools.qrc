@@ -15,5 +15,8 @@
         <file alias="undo.svg">icons/undo.svg</file>
         <file alias="redo.svg">icons/redo.svg</file>
         <file alias="delete.svg">icons/delete.svg</file>
+        <file alias="check_circle.svg">icons/check_circle.svg</file>
+        <file alias="pause_circle.svg">icons/pause_circle.svg</file>
+        <file alias="play_circle.svg">icons/play_circle.svg</file>
     </qresource>
 </RCC>

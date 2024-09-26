@@ -1258,6 +1258,72 @@ void SessionModel::gatherMediaFor(const QModelIndex &index, const QModelIndexLis
 }
 
 // special handing for media!!
+QFuture<QVariant> SessionModel::getJSONObjectFuture(
+    const QModelIndex &index, const QString &path, const bool includeSource) {
+    return QtConcurrent::run([=]() {
+        QVariant result;
+        try {
+            if (index.isValid()) {
+                nlohmann::json &j = indexToData(index);
+                if (not j.contains("placeholder")) {
+                    auto actor = actorFromString(system(), j.at("actor"));
+                    auto type  = j.at("type").get<std::string>();
+                    if (actor) {
+                        scoped_actor sys{system()};
+
+                        try {
+                            std::string path_string = StdFromQString(path);
+                            if (type == "Media") {
+                                auto jsn = request_receive<JsonStore>(
+                                    *sys,
+                                    actor,
+                                    json_store::get_json_atom_v,
+                                    Uuid(),
+                                    path_string);
+
+                                if (includeSource) {
+                                    auto imageuuid =
+                                        UuidFromQUuid(index.data(imageActorUuidRole).toUuid());
+                                    auto audiouuid =
+                                        UuidFromQUuid(index.data(audioActorUuidRole).toUuid());
+                                    auto ijsn = request_receive<JsonStore>(
+                                        *sys,
+                                        actor,
+                                        json_store::get_json_atom_v,
+                                        imageuuid,
+                                        "");
+                                    jsn["metadata"]["image_source_metadata"] = ijsn;
+                                    if (imageuuid == audiouuid)
+                                        jsn["metadata"]["audio_source_metadata"] = ijsn;
+                                    else {
+                                        auto ajsn = request_receive<JsonStore>(
+                                            *sys,
+                                            actor,
+                                            json_store::get_json_atom_v,
+                                            audiouuid,
+                                            "");
+                                        jsn["metadata"]["audio_source_metadata"] = ajsn;
+                                    }
+                                }
+
+                                result = mapFromValue(jsn);
+                            } else {
+                                auto jsn = request_receive<JsonStore>(
+                                    *sys, actor, json_store::get_json_atom_v, path_string);
+
+                                result = mapFromValue(jsn);
+                            }
+                        } catch (...) {
+                        }
+                    }
+                }
+            }
+        } catch (const std::exception &err) {
+            spdlog::warn("{} {}", __PRETTY_FUNCTION__, err.what());
+        }
+        return result;
+    });
+}
 
 QFuture<QString> SessionModel::getJSONFuture(
     const QModelIndex &index, const QString &path, const bool includeSource) {

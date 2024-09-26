@@ -43,12 +43,25 @@ Item{ id: leftSec
     }
 
     XsMenuModelItem {
-        text: "Rename..."
-        enabled: false
-        menuPath: ""
+        menuItemType: "radiogroup"
+        choices: attrs.media_colour_managed ? ["scene_linear", "compositing_log"] : ["raw"]
+        
+        property string currentColorSpace: attrs.media_colour_managed ? attrs.colour_space : "raw"
+        
+        currentChoice: currentColorSpace
+        onCurrentChoiceChanged: {
+            if (currentChoice != "raw")
+                attrs.colour_space = currentChoice
+        }
+
+        enabled: hasActiveGrade() && attrs.media_colour_managed
+        text: ""
+        menuPath: "Color Space"
         menuItemPosition: 1
         menuModelName: moreMenu.menu_model_name
-        onActivated: {}
+        onActivated: {
+            cdl_save_dialog.open()
+        }
     }
     XsMenuModelItem {
         menuItemType: "divider"
@@ -56,11 +69,26 @@ Item{ id: leftSec
         menuItemPosition: 2
         menuModelName: moreMenu.menu_model_name
     }
+
+    XsMenuModelItem {
+        text: "Rename..."
+        enabled: false
+        menuPath: ""
+        menuItemPosition: 3
+        menuModelName: moreMenu.menu_model_name
+        onActivated: {}
+    }
+    XsMenuModelItem {
+        menuItemType: "divider"
+        menuPath: ""
+        menuItemPosition: 4
+        menuModelName: moreMenu.menu_model_name
+    }
     XsMenuModelItem {
         text: "Copy"
         enabled: hasActiveGrade()
         menuPath: ""
-        menuItemPosition: 3
+        menuItemPosition: 5
         menuModelName: moreMenu.menu_model_name
         onActivated: {
             copyFunction()
@@ -70,7 +98,7 @@ Item{ id: leftSec
         text: "Paste"
         enabled: copy_buffer.length == (grading_sliders_model.length + grading_wheels_model.length)
         menuPath: ""
-        menuItemPosition: 4
+        menuItemPosition: 6
         menuModelName: moreMenu.menu_model_name
         onActivated: {
             pasteFunction();
@@ -79,13 +107,13 @@ Item{ id: leftSec
     XsMenuModelItem {
         menuItemType: "divider"
         menuPath: ""
-        menuItemPosition: 5
+        menuItemPosition: 7
         menuModelName: moreMenu.menu_model_name
     }
     XsMenuModelItem {
         text: "Copy Nuke Node"
         menuPath: ""
-        menuItemPosition: 6
+        menuItemPosition: 8
         menuModelName: moreMenu.menu_model_name
         onActivated: {
             copyNukeNode();
@@ -94,7 +122,7 @@ Item{ id: leftSec
     XsMenuModelItem {
         text: "Save CDL..."
         menuPath: ""
-        menuItemPosition: 7
+        menuItemPosition: 9
         menuModelName: moreMenu.menu_model_name
         onActivated: {
             cdl_save_dialog.open()

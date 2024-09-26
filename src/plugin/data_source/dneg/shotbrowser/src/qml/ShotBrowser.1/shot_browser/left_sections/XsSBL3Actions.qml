@@ -29,6 +29,15 @@ Rectangle{
         }
     }
 
+    // make sure index is updated
+    XsModelProperty {
+        index: quickModel.rootIndex
+        onIndexChanged: {
+            populateModels()
+        }
+    }
+
+
     function populateModels() {
         if(ShotBrowserEngine.ready && ShotBrowserEngine.presetsModel.rowCount()) {
             quickModel.rootIndex = quickModel.notifyModel.mapFromSource(ShotBrowserEngine.presetsModel.searchRecursive("137aa66a-87e2-4c53-b304-44bd7ff9f755", "idRole"))

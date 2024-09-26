@@ -66,10 +66,14 @@ void SubPlayhead::init() {
     spdlog::debug("Created SubPlayhead {}", base_.name());
     // print_on_exit(this, "SubPlayhead");
 
+    auto global_prefs_actor = caf::actor();
+
     try {
 
         auto prefs = GlobalStoreHelper(system());
         JsonStore j;
+
+        global_prefs_actor = prefs.get_jsonactor();
         join_broadcast(this, prefs.get_group(j));
         pre_cache_read_ahead_frames_ = preference_value<size_t>(j, "/core/playhead/read_ahead");
         static_cache_delay_milliseconds_ = std::chrono::milliseconds(
@@ -263,21 +267,31 @@ void SubPlayhead::init() {
             const JsonStore & /*change*/,
             const std::string & /*path*/,
             const JsonStore &full) mutable {
-            try {
-
-                pre_cache_read_ahead_frames_ =
-                    preference_value<size_t>(full, "/core/playhead/read_ahead");
-                static_cache_delay_milliseconds_ =
-                    std::chrono::milliseconds(preference_value<size_t>(
-                        full, "/core/playhead/static_cache_delay_milliseconds"));
-
-            } catch (std::exception &e) {
-                spdlog::warn("{} {}", __PRETTY_FUNCTION__, e.what());
+            if (current_sender() == global_prefs_actor) {
+                try {
+                    pre_cache_read_ahead_frames_ =
+                        preference_value<size_t>(full, "/core/playhead/read_ahead");
+                    static_cache_delay_milliseconds_ =
+                        std::chrono::milliseconds(preference_value<size_t>(
+                            full, "/core/playhead/static_cache_delay_milliseconds"));
+                } catch (std::exception &e) {
+                    spdlog::warn("{} {}", __PRETTY_FUNCTION__, e.what());
+                }
             }
         },
 
-        [=](json_store::update_atom, const JsonStore &js) {
-            delegate(actor_cast<caf::actor>(this), json_store::update_atom_v, js, "", js);
+        [=](json_store::update_atom, const JsonStore &full) {
+            if (current_sender() == global_prefs_actor) {
+                try {
+                    pre_cache_read_ahead_frames_ =
+                        preference_value<size_t>(full, "/core/playhead/read_ahead");
+                    static_cache_delay_milliseconds_ =
+                        std::chrono::milliseconds(preference_value<size_t>(
+                            full, "/core/playhead/static_cache_delay_milliseconds"));
+                } catch (std::exception &e) {
+                    spdlog::warn("{} {}", __PRETTY_FUNCTION__, e.what());
+                }
+            }
         },
 
         [=](jump_atom,
@@ -484,6 +498,49 @@ void SubPlayhead::init() {
         },
 
         [=](media_source_atom,
+            utility::Uuid source_uuid,
+            const media::MediaType mt) -> result<std::string> {
+            // switch the media source and return the name of the new source
+
+            auto rp = make_response_promise<std::string>();
+            // get the media actor on the current frame
+            request(caf::actor_cast<caf::actor>(this), infinite, media_atom_v)
+                .then(
+                    [=](caf::actor media_actor) mutable {
+                        // no media ?
+                        if (!media_actor) {
+                            rp.deliver("");
+                            return;
+                        }
+                        // switch the source
+                        request(
+                            media_actor,
+                            infinite,
+                            media::current_media_source_atom_v,
+                            source_uuid,
+                            mt)
+                            .then(
+                                [=](const bool) mutable {
+                                    // now get the name of the new source
+                                    request(
+                                        media_actor,
+                                        infinite,
+                                        media::current_media_source_atom_v,
+                                        mt)
+                                        .then(
+                                            [=](UuidActor media_source) mutable {
+                                                rp.delegate(
+                                                    media_source.actor(), utility::name_atom_v);
+                                            },
+                                            [=](const error &err) mutable { rp.deliver(err); });
+                                },
+                                [=](const error &err) mutable { rp.deliver(err); });
+                    },
+                    [=](const error &err) mutable { rp.deliver(err); });
+            return rp;
+        },
+
+        [=](media_source_atom,
             std::string source_name,
             const media::MediaType mt) -> result<bool> {
             auto rp = make_response_promise<bool>();
@@ -620,6 +677,7 @@ void SubPlayhead::init() {
                 rp.deliver(ImageBufPtr());
                 return rp;
             }
+
             request(
                 pre_reader_,
                 std::chrono::milliseconds(5000),
@@ -767,7 +825,8 @@ void SubPlayhead::init() {
             return rp;
         },
         [=](full_precache_atom, bool start_precache, const bool force) -> result<bool> {
-            auto rp = make_response_promise<bool>();
+            full_precache_activated_ = true;
+            auto rp                  = make_response_promise<bool>();
             if (start_precache && (precache_start_frame_ != logical_frame_ || force)) {
                 // we've been asked to start precaching, and the previous
                 // sarting point is different to current position, so go ahead
@@ -846,7 +905,7 @@ void SubPlayhead::set_position(
 
         // get the image from the image readers or cache and also request the
         // next frame so we can do async texture uploads in the viewer
-        if (playing || (force_updates && active_in_ui)) {
+        if (playing || ((force_updates || scrubbing) && active_in_ui)) {
 
             // make a blocking request to retrieve the image
             if (media_type_ == media::MediaType::MT_IMAGE) {
@@ -896,7 +955,7 @@ void SubPlayhead::set_position(
                 frame->timecode_);
         }
 
-        if (!playing && active_in_ui) {
+        if (!playing && active_in_ui && full_precache_activated_) {
             // this delayed message allows us to kick-off the
             // pre-cache operation *if* the playhead has stopped
             // moving for static_cache_delay_milliseconds_, as we
@@ -951,7 +1010,7 @@ void SubPlayhead::broadcast_image_frame(
             // we can try again to fetch the current frame and broadcast to the viewer
             delayed_anon_send(
                 parent_,
-                std::chrono::milliseconds(10),
+                std::chrono::milliseconds(16),
                 jump_atom_v,
                 caf::actor_cast<caf::actor_addr>(this));
             return;
@@ -1166,7 +1225,7 @@ std::vector<timebase::flicks> SubPlayhead::get_lookahead_frame_pointers(
 void SubPlayhead::request_future_frames() {
 
     media::AVFrameIDsAndTimePoints future_frames;
-    auto timeline_pts_vec = get_lookahead_frame_pointers(future_frames, 4);
+    auto timeline_pts_vec = get_lookahead_frame_pointers(future_frames, 20);
 
     request(
         pre_reader_,

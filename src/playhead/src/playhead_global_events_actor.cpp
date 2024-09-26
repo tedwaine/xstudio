@@ -86,8 +86,7 @@ void PlayheadGlobalEventsActor::init() {
             }
             return r;
         },
-        [=](ui::viewport::viewport_cursor_atom,
-            const std::string &cursor_name) {
+        [=](ui::viewport::viewport_cursor_atom, const std::string &cursor_name) {
             for (auto &p : viewports_) {
                 anon_send(p.second.viewport, ui::viewport::viewport_cursor_atom_v, cursor_name);
             }
@@ -100,6 +99,11 @@ void PlayheadGlobalEventsActor::init() {
                 anon_send(p.second.viewport, ui::viewport::viewport_playhead_atom_v, playhead);
             }
             global_active_playhead_ = playhead;
+            send(
+                event_group_,
+                utility::event_atom_v,
+                ui::viewport::viewport_playhead_atom_v,
+                global_active_playhead_);
         },
         [=](ui::viewport::viewport_playhead_atom,
             const std::string viewport_name,
@@ -199,13 +203,14 @@ void PlayheadGlobalEventsActor::init() {
             }
         },
         [=](ui::viewport::viewport_playhead_atom,
-            const std::string viewport_name) -> result <caf::actor> {
-            if (viewport_name.empty()) return global_active_playhead_;
+            const std::string viewport_name) -> result<caf::actor> {
+            if (viewport_name.empty())
+                return global_active_playhead_;
             if (viewports_.find(viewport_name) != viewports_.end()) {
                 return viewports_[viewport_name].playhead;
             }
             return make_error(
-                    xstudio_error::error, fmt::format("No viewport named {}", viewport_name));
+                xstudio_error::error, fmt::format("No viewport named {}", viewport_name));
         },
         [=](ui::viewport::viewport_atom) -> std::vector<caf::actor> {
             std::vector<caf::actor> result;
@@ -294,5 +299,28 @@ void PlayheadGlobalEventsActor::init() {
                     send(p.second.viewport, atom, true, action, viewport_name, window_id);
                 }
             }
+        },
+        [=](ui::viewport::active_viewport_atom) -> caf::actor {
+            // find a viewport that lives in the xstudio_main_window
+            // and is visible
+            caf::scoped_actor sys(system());
+            try {
+
+                for (const auto &p : viewports_) {
+                    auto window_name = utility::request_receive<std::string>(
+                        *sys, p.second.viewport, utility::name_atom_v, true);
+                    if (window_name == "xstudio_main_window") {
+                        if (utility::request_receive<bool>(
+                                *sys,
+                                p.second.viewport,
+                                ui::viewport::viewport_visibility_atom_v)) {
+                            return p.second.viewport;
+                        }
+                    }
+                }
+            } catch (std::exception &e) {
+                spdlog::warn("{} {}", __PRETTY_FUNCTION__, e.what());
+            }
+            return caf::actor();
         });
 }

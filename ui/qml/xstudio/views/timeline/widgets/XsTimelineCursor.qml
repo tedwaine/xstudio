@@ -6,7 +6,7 @@ import xStudio 1.0
 Item {
     id: control
 
-    property real thickness: 2
+    property alias thickness: line.width
     property color color: playheadActive ? palette.highlight : Qt.darker(palette.base, 1.8)
 
     property int position: start
@@ -18,17 +18,26 @@ Item {
     property real tickWidth: (control.width / duration)
 
     readonly property real cursorX: ((position-start) * tickWidth) - fractionOffset
-    property int cursorSize: 20
-
     property bool playheadActive: currentPlayhead.uuid == timelinePlayhead.uuid
+
+    // layer.enabled: true
+    // layer.samples: 4
 
     Rectangle {
         id: line
-        width: 2.0
+        width: 1
         color: control.color
 
         x: cursorX
         height: parent.height
+    }
+
+    Rectangle {
+        width: 7.0
+        color: control.color
+
+        x: cursorX-3
+        height: 4
     }
 
     // Note: the qml Shape stuff REALLY slows down drawing of the interface.

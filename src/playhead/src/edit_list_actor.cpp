@@ -71,6 +71,13 @@ EditListActor::EditListActor(
             // send(event_group_, utility::event_atom_v, utility::change_atom_v);
         },
 
+        [=](json_store::update_atom,
+            const JsonStore &,
+            const std::string &,
+            const JsonStore &) {},
+
+        [=](json_store::update_atom, const JsonStore &) mutable {},
+
         [=](utility::event_atom,
             media::add_media_source_atom,
             const utility::UuidActorVector &uav) {

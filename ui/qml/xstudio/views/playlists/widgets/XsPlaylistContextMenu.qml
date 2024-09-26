@@ -75,6 +75,20 @@ XsPopupMenu {
    //      panelContext: contextMenu.panelContext
    //  }
 
+   // XsMenuModelItem {
+   //      text: qsTr("Dump Metadata")
+   //      menuPath: "Debug"
+   //      menuItemPosition: 100
+   //      menuModelName: contextMenu.menu_model_name
+   //      onActivated: {
+   //          for(let i=0;i<sessionSelectionModel.selectedIndexes.length;i++) {
+   //              let idx = sessionSelectionModel.selectedIndexes[i]
+   //              console.log(theSessionData.getJSON(idx, ""))
+   //          }
+   //      }
+   //      panelContext: contextMenu.panelContext
+   //  }
+
     XsMenuModelItem {
         menuItemType: "divider"
         menuPath: ""
@@ -150,10 +164,20 @@ XsPopupMenu {
         menuPath: "Export"
         menuItemPosition: 4.0
         onActivated: {
-            file_functions.saveSelelctionNewPath(undefined)
+            file_functions.saveSelectionNewPath(undefined)
         }
     }
 
+    XsMenuModelItem {
+        text: "Selected Sequence as OTIO ..."
+        menuItemPosition: 4.5
+        panelContext: contextMenu.panelContext
+        menuModelName: contextMenu.menu_model_name
+        menuPath: "Export"
+        onActivated: {
+            file_functions.exportSequencePath(function(result){if(result) {dialogHelpers.errorDialogFunc("Export Sequence Succeeded", "OTIO Exported")} else {dialogHelpers.errorDialogFunc("Export Sequence Failed", result)} })
+        }
+    }
 
     XsMenuModelItem {
         menuItemType: "divider"

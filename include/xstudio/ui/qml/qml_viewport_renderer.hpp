@@ -76,6 +76,7 @@ namespace ui {
             [[nodiscard]] std::string std_name() const { return viewport_renderer_->name(); }
 
             void setIsQuickViewer(const bool is_quick_viewer);
+            void visibleChanged(const bool is_visible);
 
           public slots:
 

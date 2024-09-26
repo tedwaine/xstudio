@@ -14,6 +14,9 @@ XsListView{
     anchors.fill: parent
     spacing: panelPadding
 
+    property int rightSpacing: list.height < list.contentHeight ? 16 : 0
+    Behavior on rightSpacing {NumberAnimation {duration: 150}}
+
     XsLabel {
         text: "Select the 'Scope' and the 'Note Type' to view the Note History."
         color: XsStyleSheet.hintColor
@@ -41,7 +44,7 @@ XsListView{
         id: chooserModel
         model: dataModel
         delegate: NotesHistoryListDelegate{
-            width: list.width
+            width: list.width - rightSpacing
             height: XsStyleSheet.widgetStdHeight * 8
 
             delegateModel: chooserModel

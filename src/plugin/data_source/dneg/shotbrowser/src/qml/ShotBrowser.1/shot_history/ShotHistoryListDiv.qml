@@ -11,6 +11,8 @@ import ShotBrowser 1.0
 
 XsListView{ id: list
     spacing: panelPadding
+    property int rightSpacing: list.height < list.contentHeight ? 16 : 0
+    Behavior on rightSpacing {NumberAnimation {duration: 150}}
 
     XsLabel {
         text: "Select the 'Scope' to view the Shot History."
@@ -39,7 +41,7 @@ XsListView{ id: list
         id: chooserModel
         model: dataModel
         delegate: ShotHistoryListDelegate{
-            width: list.width
+            width: list.width - rightSpacing
             height: XsStyleSheet.widgetStdHeight * 4
             delegateModel: chooserModel
             popupMenu: resultPopup

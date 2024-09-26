@@ -83,6 +83,11 @@ namespace timeline {
         void item_pre_event_callback(const utility::JsonStore &event, Item &item);
         void item_post_event_callback(const utility::JsonStore &event, Item &item);
 
+        void export_otio(
+            caf::typed_response_promise<bool> rp,
+            const caf::uri &path,
+            const std::string &type);
+
       private:
         caf::behavior behavior_;
         Timeline base_;

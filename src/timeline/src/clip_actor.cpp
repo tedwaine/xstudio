@@ -257,7 +257,7 @@ void ClipActor::init() {
             auto prop = base_.item().prop();
             try {
                 auto ptr = nlohmann::json::json_pointer(path);
-                prop.at(ptr).update(value);
+                prop.at(ptr).update(value, true);
             } catch (const std::exception &err) {
                 spdlog::warn("{} {}", __PRETTY_FUNCTION__, err.what());
             }
@@ -386,6 +386,19 @@ void ClipActor::init() {
         // re-evaluate media reference.., needed for lazy loading
         // [=](media_reference_atom atom,
         //     const Uuid &uuid) -> caf::result<std::pair<Uuid, MediaReference>> {
+
+        [=](media::media_reference_atom,
+            const media::MediaType media_type) -> result<std::pair<Uuid, MediaReference>> {
+            auto rp    = make_response_promise<std::pair<Uuid, MediaReference>>();
+            auto actor = caf::actor_cast<caf::actor>(media_);
+            if (actor)
+                rp.delegate(actor, media::media_reference_atom_v, media_type, Uuid());
+            else
+                rp.deliver(make_error(xstudio_error::error, "No media assigned."));
+
+            return rp;
+        },
+
         [=](media::acquire_media_detail_atom, const utility::Uuid &uuid) {
             auto actor = caf::actor_cast<caf::actor>(media_);
             // spdlog::warn("acquire_media_detail_atom {} {}", to_string(uuid),
@@ -539,15 +552,25 @@ void ClipActor::init() {
             if (mt == media::MediaType::MT_IMAGE) {
                 delayed_send(
                     caf::actor_cast<caf::actor>(this),
-                    std::chrono::milliseconds(100),
+                    std::chrono::milliseconds(10),
                     media::acquire_media_detail_atom_v,
                     ua.uuid());
             }
 
             image_ptr_cache_.clear();
             audio_ptr_cache_.clear();
+
+            send(event_group_, utility::event_atom_v, utility::change_atom_v);
         },
         [=](utility::event_atom, utility::change_atom) {},
+
+        [=](json_store::update_atom,
+            const JsonStore &,
+            const std::string &,
+            const JsonStore &) {},
+
+        [=](json_store::update_atom, const JsonStore &) mutable {},
+
         [=](utility::event_atom,
             media::add_media_source_atom,
             const utility::UuidActorVector &) {},
@@ -577,10 +600,11 @@ void ClipActor::init() {
             return UuidActor(base_.media_uuid(), caf::actor_cast<caf::actor>(media_));
         },
 
-        [=](xstudio::media::current_media_source_atom atom) -> caf::result<UuidActor> {
+        [=](xstudio::media::current_media_source_atom atom,
+            const media::MediaType mt) -> caf::result<UuidActor> {
             if (media_) {
                 auto rp = make_response_promise<UuidActor>();
-                rp.delegate(caf::actor_cast<caf::actor>(media_), atom);
+                rp.delegate(caf::actor_cast<caf::actor>(media_), atom, mt);
                 return rp;
             }
             return make_error(xstudio_error::error, "No media assigned.");
@@ -796,12 +820,12 @@ void ClipActor::init() {
         // },
 
 
-        [=](xstudio::media::current_media_source_atom atom) {
-            delegate(caf::actor_cast<caf::actor>(media_), atom);
-        },
-        [=](xstudio::playlist::reflag_container_atom atom) {
-            delegate(caf::actor_cast<caf::actor>(media_), atom);
-        },
+        // [=](xstudio::media::current_media_source_atom atom) {
+        //     delegate(caf::actor_cast<caf::actor>(media_), atom);
+        // },
+        // [=](xstudio::playlist::reflag_container_atom atom) {
+        //     delegate(caf::actor_cast<caf::actor>(media_), atom);
+        // },
 
         [=](utility::duplicate_atom) -> result<UuidActor> {
             JsonStore jsn;

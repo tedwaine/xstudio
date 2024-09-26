@@ -363,7 +363,7 @@ utility::JsonStore GlobalStoreHelper::get_existing_or_create_new_preference(
     const std::string &path,
     const utility::JsonStore &default_,
     const bool async,
-    const bool broacast_change,
+    const bool broadcast_change,
     const std::string &context) {
     try {
 
@@ -372,7 +372,7 @@ utility::JsonStore GlobalStoreHelper::get_existing_or_create_new_preference(
             v["overridden_value"] = default_;
             v["path"]             = path;
             v["context"]          = std::vector<std::string>({"APPLICATION"});
-            JsonStoreHelper::set(v, path, async, broacast_change);
+            JsonStoreHelper::set(v, path, async, broadcast_change);
         }
         return v["value"];
 
@@ -382,7 +382,7 @@ utility::JsonStore GlobalStoreHelper::get_existing_or_create_new_preference(
         v["overridden_value"] = default_;
         v["path"]             = path;
         v["context"]          = std::vector<std::string>({"APPLICATION"});
-        JsonStoreHelper::set(v, path, async, broacast_change);
+        JsonStoreHelper::set(v, path, async, broadcast_change);
     }
     return default_;
 }

@@ -21,8 +21,13 @@ void xstudio::media_reader::ffmpeg::AVC_CHECK_THROW(int errorNum, const char *av
     std::array<char, 4096> buf;
 
     if (!av_strerror(errorNum, buf.data(), buf.size())) {
-        throw media_corrupt_error(
-            std::string() + avc_command + " " + buf.data() + " (ffmpeg reader).");
+        if (-errorNum == ENOENT) {
+            throw media_missing_error(
+                std::string() + avc_command + " " + buf.data() + " (ffmpeg reader).");
+        } else {
+            throw media_corrupt_error(
+                std::string() + avc_command + " " + buf.data() + " (ffmpeg reader).");
+        }
     } else {
         throw media_corrupt_error(
             std::string("FFMPEG reader: ") + avc_command + " unknown error num " +

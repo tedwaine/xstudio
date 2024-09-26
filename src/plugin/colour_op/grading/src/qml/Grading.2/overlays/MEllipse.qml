@@ -14,6 +14,7 @@ Item {
     property real drawScale: 200
     property real strokeWidth: 2 / viewScale * drawScale
     property real handleSize: 8 / viewScale * drawScale
+    property real handleDetectSize: 32 / viewScale * drawScale
     property real handleRadius: 5 / viewScale * drawScale
     property var handleColor: isSelected() ? "lime" : "red"
     property bool interacting: rr_rotation.interacting || rr_center.interacting || rr_right.interacting || rr_top.interacting
@@ -94,7 +95,7 @@ Item {
         id: selector
 
         // Rotation handle
-        Rectangle {
+        Item {
             id: rr_rotation
 
             property bool hovering: false
@@ -104,11 +105,17 @@ Item {
             y: sp.center.y - height / 2
 
             width: sp.radius.x / 2
-            height: root.handleSize / 2
-            radius: root.handleRadius
-            color: hovering || interacting ? "yellow" : root.handleColor
+            height: root.handleDetectSize / 2
             transformOrigin: Item.Left
             rotation: sp.angle
+
+            Rectangle {
+                anchors.centerIn: parent
+                width: sp.radius.x / 2
+                height: root.handleSize / 2
+                radius: root.handleRadius / 4
+                color: rr_rotation.hovering || interacting ? "yellow" : root.handleColor
+            }
 
             MouseArea {
                 anchors.fill: parent
@@ -137,7 +144,7 @@ Item {
         }
 
         // Center move
-        Rectangle {
+        Item {
             id: rr_center
 
             property bool hovering: false
@@ -146,10 +153,17 @@ Item {
             x: sp.center.x - width / 2
             y: sp.center.y - height / 2
 
-            width: root.handleSize
-            height: root.handleSize
-            radius: root.handleRadius
-            color: hovering || interacting ? "yellow" : root.handleColor
+            width: root.handleDetectSize
+            height: root.handleDetectSize
+
+            Rectangle {
+                anchors.centerIn: parent
+                radius: root.handleRadius
+                color: rr_center.hovering || rr_center.interacting ? "yellow" : root.handleColor
+                width: root.handleSize
+                height: root.handleSize
+        
+            }
 
             MouseArea {
                 anchors.fill: parent
@@ -175,7 +189,7 @@ Item {
         }
 
         // Right extend
-        Rectangle {
+        Item {
             id: rr_right
 
             property bool hovering: false
@@ -184,10 +198,17 @@ Item {
             x: sp.right.x - width / 2
             y: sp.right.y - height / 2
 
-            width: root.handleSize
-            height: root.handleSize
-            radius: root.handleRadius
-            color: hovering || interacting ? "yellow" : root.handleColor
+            width: root.handleDetectSize
+            height: root.handleDetectSize
+
+            Rectangle {
+                anchors.centerIn: parent
+                radius: root.handleRadius
+                color: rr_right.hovering || rr_right.interacting ? "yellow" : root.handleColor
+                width: root.handleSize
+                height: root.handleSize
+        
+            }
 
             MouseArea {
                 anchors.fill: parent
@@ -228,7 +249,7 @@ Item {
         }
 
         // Top extend
-        Rectangle {
+        Item {
             id: rr_top
 
             property bool hovering: false
@@ -237,10 +258,17 @@ Item {
             x: sp.top.x - width / 2
             y: sp.top.y - height / 2
 
-            width: root.handleSize
-            height: root.handleSize
-            radius: root.handleRadius
-            color: hovering || interacting ? "yellow" : root.handleColor
+            width: root.handleDetectSize
+            height: root.handleDetectSize
+
+            Rectangle {
+                anchors.centerIn: parent
+                radius: root.handleRadius
+                color: rr_top.hovering || rr_top.interacting ? "yellow" : root.handleColor
+                width: root.handleSize
+                height: root.handleSize
+        
+            }
 
             MouseArea {
                 anchors.fill: parent

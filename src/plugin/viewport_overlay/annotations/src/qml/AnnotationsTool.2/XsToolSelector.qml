@@ -95,7 +95,7 @@ Item{
                     height: parent.height - itemSpacing
 
                     clip: true
-                    isToolTipEnabled: showButtonHints
+                    isToolTipEnabled: false
 
                     imageDiv.opacity: isEnabled ? 1.0 : 0.33
                     isActive: current_tool===text
@@ -116,9 +116,6 @@ Item{
                         {
                             current_tool = text
                         }
-                    }
-                    onPressAndHold:{ //#TODO: for testing
-                        showButtonHints = !showButtonHints
                     }
 
                 }

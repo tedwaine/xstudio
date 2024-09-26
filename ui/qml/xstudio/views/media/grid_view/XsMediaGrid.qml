@@ -126,7 +126,12 @@ XsGridView {
 
                 var idx = dragTargetIndex
                 if (idx == undefined || !idx.valid) {
-                    idx = theSessionData.createPlaylist("New Playlist")
+                    idx = mediaListModelDataRoot
+                    if (idx == undefined || !idx.valid) {
+                        idx = theSessionData.createPlaylist("New Playlist")
+                    } else {
+                        idx = idx.parent // mediaListModelDataRoot is the 'MediaList' underneath a Playist, Subset etc.
+                    }
                 }
 
                 Future.promise(

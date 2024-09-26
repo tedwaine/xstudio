@@ -88,6 +88,7 @@ XsPopup {
                 // }
 
                 isRadioButton: true
+                actualValue: _choices[index]
                 radioSelectedChoice: _currentChoice
                 onClicked:{
                     if (typeof current_choice!== "undefined") {

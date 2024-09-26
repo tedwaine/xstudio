@@ -136,6 +136,7 @@ XsPopupMenu {
             let sindexs = mediaSelectionModel.selectedIndexes
             for(let i = 0; i< sindexs.length; i++) {
                 theSessionData.set(sindexs[i], flag, "flagColourRole")
+
                 if (flag_text)
                     theSessionData.set(sindexs[i], flag_text, "flagTextRole")
             }
@@ -305,7 +306,7 @@ XsPopupMenu {
 
     XsMenuModelItem {
         menuPath: "Copy To Clipboard"
-        text: "Selected To Shell Command"
+        text: "QuickView Shell Command"
         menuItemPosition: 3
         menuModelName: btnMenu.menu_model_name
         onActivated: {
@@ -324,7 +325,7 @@ XsPopupMenu {
 
     XsMenuModelItem {
         menuPath: "Copy To Clipboard"
-        text: "Selected To Email Link"
+        text: "Email Link"
         menuItemPosition: 4
         menuModelName: btnMenu.menu_model_name
         onActivated: {
@@ -383,6 +384,17 @@ XsPopupMenu {
         menuModelName: btnMenu.menu_model_name
         onActivated: {
             console.log(theSessionData.getJSON(mediaSelectionModel.selectedIndexes[0],""))
+        }
+        panelContext: btnMenu.panelContext
+    }
+
+    XsMenuModelItem {
+        text: "Dump Source Metadata"
+        menuPath: "Advanced"
+        menuItemPosition: 1
+        menuModelName: btnMenu.menu_model_name
+        onActivated: {
+            console.log(theSessionData.getJSON(mediaSelectionModel.getSourceIndex(mediaSelectionModel.selectedIndexes[0]),""))
         }
         panelContext: btnMenu.panelContext
     }

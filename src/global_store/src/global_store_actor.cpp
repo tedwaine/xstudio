@@ -58,15 +58,17 @@ void GlobalStoreActor::init() {
     // link to store, so we can get our own settings.
     try {
         caf::scoped_actor sys(system());
-        auto result = request_receive<std::pair<caf::actor, JsonStore>>(
+        auto result = request_receive<std::tuple<caf::actor, caf::actor, JsonStore>>(
             *sys, jsonactor, utility::get_group_atom_v);
 
-        request_receive<bool>(*sys, result.first, broadcast::join_broadcast_atom_v, this);
+        request_receive<bool>(
+            *sys, std::get<1>(result), broadcast::join_broadcast_atom_v, this);
 
-        base_.preferences_.set(result.second);
+        base_.preferences_.set(std::get<2>(result));
         base_.autosave_interval_ =
             preference_value<int>(base_.preferences_, "/core/global_store/autosave_interval");
-    } catch (...) {
+    } catch (const std::exception &err) {
+        spdlog::warn("{} {}", __PRETTY_FUNCTION__, err.what());
     }
 
     system().registry().put(reg_value_, this);

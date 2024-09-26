@@ -41,7 +41,7 @@ class HELPER_QML_EXPORT UIModelData : public caf::mixin::actor_object<JSONTreeMo
     const QString modelDataName() const { return QStringFromStd(model_name_); }
 
     Q_INVOKABLE void dump() const {
-        spdlog::warn("Banglesod {}", utility::tree_to_json(data_, "children").dump(2));
+        spdlog::warn("UIModelData dump {}", utility::tree_to_json(data_, "children").dump(2));
     }
 
     static void add_context_object_lookup(QObject *obj);
@@ -116,7 +116,7 @@ class HELPER_QML_EXPORT ViewsModelData : public UIModelData {
 
     // call this function to register a widget (or view) that can be used to
     // fill an xSTUDIO panel in the interface. See main.qml for examples.
-    void register_view(QString qml_source, QString view_name);
+    void register_view(QString qml_source, QString view_name, float position);
 
     // call this function to retrieve the QML source (or the path to the
     // source .qml file) for the given view
@@ -136,7 +136,11 @@ class HELPER_QML_EXPORT PopoutWindowsData : public UIModelData {
     // a pop-out window via a button in the tool shelf at the top-left of the
     // viewport window.
     void register_popout_window(
-        QString name, QString qml_source, QString icon_path, float button_position);
+        QString name,
+        QString qml_source,
+        QString icon_path,
+        float button_position,
+        const QUuid hotkey = QUuid());
 };
 
 class HELPER_QML_EXPORT SingletonsModelData : public UIModelData {
@@ -162,6 +166,8 @@ class HELPER_QML_EXPORT PanelsModel : public UIModelData {
     Q_INVOKABLE void split_panel(QModelIndex panel_index, bool horizontal_split);
     Q_INVOKABLE int add_layout(QString layout_name, QModelIndex root, QString layoutType);
     Q_INVOKABLE QModelIndex duplicate_layout(QModelIndex panel_index);
+    Q_INVOKABLE void storeFloatingWindowData(QString window_name, QVariant data);
+    Q_INVOKABLE QVariant retrieveFloatingWindowData(QString window_name);
 };
 
 class HELPER_QML_EXPORT MediaListColumnsModel : public UIModelData {

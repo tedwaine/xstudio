@@ -18,6 +18,7 @@ default_options(${PROJECT_NAME})
 
 target_link_libraries(${PROJECT_NAME}
 	PUBLIC
+		xstudio::audio_output
 		xstudio::module
 		xstudio::plugin_manager
 		xstudio::utility

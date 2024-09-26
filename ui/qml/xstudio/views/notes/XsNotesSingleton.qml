@@ -27,10 +27,17 @@ Item {
         onActivated: {
             if(bookmarkModel.insertRows(bookmarkModel.rowCount(), 1)) {
                 // set owner..
+                var nm = currentOnScreenMediaData.values.nameRole
+                if (nm == "New Media") {
+                    nm = helpers.fileFromURL(currentOnScreenMediaSourceData.values.pathRole)
+                }    
+                // There are 705600000 flicks in one second
+                var media_position_flicks = Math.round(currentPlayhead.mediaFrame*705600000.0/currentOnScreenMediaSourceData.values.rateFPSRole)
+
                 let ind = bookmarkModel.index(bookmarkModel.rowCount()-1, 0)
                 bookmarkModel.set(ind, currentOnScreenMediaData.values.actorUuidRole, "ownerRole")
-                bookmarkModel.set(ind, currentPlayhead.positionFlicks, "startRole")
-                bookmarkModel.set(ind, currentOnScreenMediaData.values.nameRole, "subjectRole")
+                bookmarkModel.set(ind, media_position_flicks, "startRole")
+                bookmarkModel.set(ind, nm, "subjectRole")
                 bookmarkModel.set(ind, 0, "durationRole")
                 bookmarkModel.set(ind, note_category, "categoryRole")
                 bookmarkModel.set(ind, note_colour, "colourRole")

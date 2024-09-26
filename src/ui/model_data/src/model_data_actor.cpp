@@ -355,6 +355,8 @@ GlobalUIModelData::GlobalUIModelData(caf::actor_config &cfg) : caf::event_based_
             const std::string &role_name) {
             // not implemented yet .. idea is you can sort the model based off
             // a particular role.
+            check_model_is_registered(model_name, true);
+            models_[model_name]->sort_key_ = role_name;
         },
         [=](remove_node_atom,
             const std::string model_name,
@@ -869,6 +871,10 @@ void GlobalUIModelData::insert_rows(
             throw std::runtime_error(ss.str().c_str());
         }
 
+        if (!models_[model_name]->sort_key_.empty()) {
+            do_ordering(&model_data, models_[model_name]->sort_key_);
+        }
+
         auto model_data_json = model_data_as_json(model_name);
 
         if (data.contains("hotkey_uuid")) {
@@ -1340,11 +1346,13 @@ void GlobalUIModelData::broadcast_whole_model_data(const std::string &model_name
     }
 }
 
-void GlobalUIModelData::do_ordering(utility::JsonTree *node) {
+void GlobalUIModelData::do_ordering(utility::JsonTree *node, const std::string &ordering_key) {
 
-    auto comp = [](const utility::JsonTree &branchA, const utility::JsonTree &branchB) -> bool {
-        return branchA.data().value("menu_item_position", 0.0f) <
-               branchB.data().value("menu_item_position", 0.0f);
+    auto comp = [&ordering_key](
+                    const utility::JsonTree &branchA,
+                    const utility::JsonTree &branchB) -> bool {
+        return branchA.data().value(ordering_key, 0.0f) <
+               branchB.data().value(ordering_key, 0.0f);
     };
 
     // order the children of the node by their "menu_item_position" (if there

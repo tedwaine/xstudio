@@ -50,8 +50,11 @@ namespace ui {
         [[nodiscard]] int modifiers() const { return modifiers_; }
         [[nodiscard]] const utility::Uuid &uuid() const { return uuid_; }
         [[nodiscard]] std::string hotkey_sequence() const;
+        [[nodiscard]] const std::vector<caf::actor_addr> &watchers() const { return watchers_; }
 
         bool update(const Hotkey &o);
+
+        void watcher_died(caf::actor_addr &watcher);
 
         void update_state(
             const std::set<int> &current_keys,

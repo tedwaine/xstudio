@@ -93,12 +93,11 @@ Item{
 
                 XsPrimaryButton{ id: toolBtn
 
-                    // x: index>=rowItemCount? width/2:0
                     width: index == toolImages.length-1? parent.width*2 : parent.width - itemSpacing
                     height: parent.height - itemSpacing
 
                     clip: true
-                    isToolTipEnabled: showButtonHints
+                    isToolTipEnabled: false
 
                     imageDiv.opacity: isEnabled ? 1.0 : 0.33
                     isActive: current_tool===text
@@ -119,9 +118,6 @@ Item{
                         {
                             current_tool = text
                         }
-                    }
-                    onPressAndHold:{ //#TODO: for testing
-                        showButtonHints = !showButtonHints
                     }
 
                 }

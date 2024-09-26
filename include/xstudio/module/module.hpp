@@ -329,7 +329,6 @@ namespace module {
         void release_mouse_focus();
         void grab_keyboard_focus();
         void release_keyboard_focus();
-        void listen_to_playhead_events(const bool listen = true);
 
         virtual void disconnect_from_ui();
 
@@ -349,6 +348,7 @@ namespace module {
         void register_ui_panel_qml(
             const std::string &panel_name,
             const std::string &qml_code,
+            const float position_in_menu,
             const std::string &viewport_popout_button_icon_path = "",
             const float &viewport_popout_button_position        = -1.0f,
             const utility::Uuid toggle_hotkey_id                = utility::Uuid());

@@ -183,6 +183,7 @@ namespace playhead {
         module::FloatAttribute *velocity_;
         module::StringChoiceAttribute *compare_mode_;
         module::QmlCodeAttribute *source_;
+        module::StringAttribute *image_source_name_;
         module::StringChoiceAttribute *image_source_;
         module::StringChoiceAttribute *image_stream_;
         module::StringChoiceAttribute *audio_source_;

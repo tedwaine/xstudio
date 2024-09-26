@@ -12,7 +12,6 @@ XsGradientRectangle {
 	property bool isEnabled: true
 	property bool isSelected: false
 	property int start: 0
-	property int parentStart: 0
 	property int duration: 0
 	property real fps: 24.0
 	property string name

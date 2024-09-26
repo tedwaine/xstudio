@@ -1035,9 +1035,10 @@ void OCIOEngine::update_dynamic_parameters(
     }
 }
 
-std::string OCIOEngine::compute_hash(const utility::JsonStore &src_colour_mgmt_metadata) const {
-    std::string hash;
-    hash += src_colour_mgmt_metadata.dump();
+size_t OCIOEngine::compute_hash(
+    const utility::JsonStore &src_colour_mgmt_metadata, const std::string &extra) const {
+    size_t hash = 0;
+    hash        = std::hash<std::string>{}(src_colour_mgmt_metadata.dump() + extra);
     return hash;
 }
 

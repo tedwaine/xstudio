@@ -79,6 +79,15 @@ void StudioUI::init(actor_system &system_) {
     // put ourselves in the registry
     system().registry().template put<caf::actor>(studio_ui_registry, as_actor());
 
+    self()->set_down_handler([=](down_msg &msg) {
+        for (auto p = video_output_plugins_.begin(); p != video_output_plugins_.end(); ++p) {
+            if (msg.source == *p) {
+                video_output_plugins_.erase(p);
+                break;
+            }
+        }
+    });
+
     set_message_handler([=](actor_companion * /*self_*/) -> message_handler {
         return {
             [=](utility::event_atom, utility::change_atom) {},
@@ -142,8 +151,7 @@ void StudioUI::init(actor_system &system_) {
                     requester,
                     ui::offscreen_viewport_atom_v,
                     offscreen_viewports_.back()->as_actor());
-            },
-            [=](std::string) { loadVideoOutputPlugins(); }
+            }
 
         };
     });
@@ -154,12 +162,6 @@ void StudioUI::init(actor_system &system_) {
     if (studio) {
         anon_send(studio, ui::open_quickview_window_atom_v, as_actor());
     }
-
-    // we need to delay loading video output plugins by a couple of seconds
-    // to make sure the UI is up and running before we create offscreen viewports
-    // etc. that the video output plugin probably wants
-    delayed_anon_send(
-        as_actor(), std::chrono::seconds(5), std::string("load video output plugins"));
 }
 
 void StudioUI::setSessionActorAddr(const QString &addr) {
@@ -355,15 +357,11 @@ void StudioUI::loadVideoOutputPlugins() {
             plugin_manager::PluginType(plugin_manager::PluginFlags::PF_VIDEO_OUTPUT));
 
         for (const auto &i : details) {
-            try {
 
-                auto video_output_plugin = request_receive<caf::actor>(
-                    *sys, pm, plugin_manager::spawn_plugin_atom_v, i.uuid_);
-                video_output_plugins_.push_back(video_output_plugin);
-
-            } catch (const std::exception &err) {
-                spdlog::info("{}", err.what());
-            }
+            auto video_output_plugin = request_receive<caf::actor>(
+                *sys, pm, plugin_manager::spawn_plugin_atom_v, i.uuid_);
+            self()->monitor(video_output_plugin);
+            video_output_plugins_.push_back(video_output_plugin);
         }
 
     } catch (const std::exception &err) {

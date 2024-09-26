@@ -11,15 +11,18 @@ namespace xstudio::audio {
 class AudioOutputDeviceActor : public caf::event_based_actor {
 
   public:
-    AudioOutputDeviceActor(caf::actor_config &cfg, caf::actor samples_actor, std::shared_ptr<AudioOutputDevice> output_device)
+    AudioOutputDeviceActor(
+        caf::actor_config &cfg,
+        caf::actor samples_actor,
+        std::shared_ptr<AudioOutputDevice> output_device)
         : caf::event_based_actor(cfg),
           playing_(false),
           waiting_for_samples_(false),
           audio_samples_actor_(samples_actor),
           output_device_(output_device) {
 
-        //spdlog::debug("Created {} {}", "AudioOutputDeviceActor", OutputClassType::name());
-        //utility::print_on_exit(this, OutputClassType::name());
+        // spdlog::debug("Created {} {}", "AudioOutputDeviceActor", OutputClassType::name());
+        // utility::print_on_exit(this, OutputClassType::name());
 
         /*try {
             auto prefs = global_store::GlobalStoreHelper(system());
@@ -123,7 +126,6 @@ class AudioOutputDeviceActor : public caf::event_based_actor {
     const char *name() const override { return name_.c_str(); }
 
   protected:
-
     std::shared_ptr<AudioOutputDevice> output_device_;
 
   private:
@@ -137,9 +139,10 @@ class AudioOutputDeviceActor : public caf::event_based_actor {
 class AudioOutputActor : public caf::event_based_actor, AudioOutputControl {
 
   public:
-    AudioOutputActor(
-        caf::actor_config &cfg,
-        std::shared_ptr<AudioOutputDevice> output_device) : caf::event_based_actor(cfg), output_device_(output_device) { init(); }
+    AudioOutputActor(caf::actor_config &cfg, std::shared_ptr<AudioOutputDevice> output_device)
+        : caf::event_based_actor(cfg), output_device_(output_device) {
+        init();
+    }
 
     ~AudioOutputActor() override = default;
 
@@ -160,7 +163,6 @@ class AudioOutputActor : public caf::event_based_actor, AudioOutputControl {
     utility::Uuid uuid_ = {utility::Uuid::generate()};
     utility::Uuid sub_playhead_uuid_;
     std::shared_ptr<AudioOutputDevice> output_device_;
-
 };
 
 /* Singleton class that receives audio sample buffers from the current
@@ -180,6 +182,12 @@ class GlobalAudioOutputActor : public caf::event_based_actor, module::Module {
         return behavior_.or_else(module::Module::message_handler());
     }
 
+    void hotkey_pressed(
+        const utility::Uuid &hotkey_uuid,
+        const std::string &context,
+        const std::string &window) override;
+
+
   private:
     caf::actor event_group_;
     caf::message_handler behavior_;
@@ -187,6 +195,7 @@ class GlobalAudioOutputActor : public caf::event_based_actor, module::Module {
     module::BooleanAttribute *audio_scrubbing_;
     module::FloatAttribute *volume_;
     module::BooleanAttribute *muted_;
+    utility::Uuid mute_hotkey_;
 };
 
 } // namespace xstudio::audio

@@ -31,19 +31,20 @@ Item{ id: listDiv
             }
 
             onCurrentIndexChanged: {
+                // console.log(userSelect, currentIndex)
                 if(userSelect) {
                     userSelect = false
                 } else if (currentIndex < 0) {
                     attrs.grading_bookmark = helpers.QUuidToQString("00000000-0000-0000-0000-000000000000")
                 } else if (currentIndex == 0 && bookmarkFilterModel.length) {
                     if(currentIndex != bookmarkFilterModel.length) {
-                        userSelect = true
                         if(lastSelected.get(bookmarkFilterModel.currentMedia)  != undefined) {
                             var index = bookmarkFilterModel.sourceModel.search(
                                 helpers.QVariantFromUuidString(lastSelected.get(bookmarkFilterModel.currentMedia)), "uuidRole")
                             if (index.valid) {
                                 var row = bookmarkFilterModel.mapFromSource(index).row
                                 if (row >= 0 && row < bookmarkList.count && row != currentIndex) {
+                                    userSelect = true
                                     currentIndex = row
                                 }
                             }
@@ -117,11 +118,25 @@ Item{ id: listDiv
                         Layout.preferredWidth: 100
                         Layout.fillHeight: true
 
-                        text: userDataRole.layer_name ? userDataRole.layer_name : "Grade Layer " + (index+1)
+                        text: layerUIName()
                         font.weight: isSelected? Font.Bold : Font.Normal
                         horizontalAlignment: Text.AlignLeft
                         leftPadding: bookmark.activeIndicator.width + 5
                         elide: Text.ElideRight
+
+                        function layerUIName() {
+                            var name = "";
+                            if (userDataRole.layer_name) {
+                                name = userDataRole.layer_name
+                                if (startFrameRole == endFrameRole) {
+                                    name += " - Frame " + startFrameRole
+                                }
+                            } else {
+                                name = "Grade Layer " + (index+1)
+                            }
+
+                            return name
+                        }
                     }
                     Item{ id: maskDiv
                         Layout.preferredWidth: height * 1.2

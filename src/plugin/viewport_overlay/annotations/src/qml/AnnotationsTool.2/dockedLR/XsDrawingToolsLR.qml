@@ -19,21 +19,15 @@ Item {
     id: drawDialog
 
     objectName: "XStudioPanel"
-
-    // this var is REQUIRED to set the horizontal size of the widget
-    property var dockWidgetSize: 90
-
     anchors.fill: parent
 
-    XsGradientRectangle{
-        anchors.fill: parent
-    }
+    // this var is REQUIRED to set the vertical size of the widget
+    property var dockWidgetSize: 90
 
     property real buttonWidth: 0
     property real buttonHeight: 20
     property real toolPropLoaderHeight: 0
     property real defaultHeight: toolSelector.height + toolProperties.height + toolActionSection.height + framePadding*3
-    property bool showButtonHints: false //#TODO: for testing
     property real toolPropertiesWidthThreshold: 200
 
     property real colSpacing: buttonHeight
@@ -46,7 +40,7 @@ Item {
     property color textValueColor: "white"
 
     property int maxDrawSize: 250
-    property bool isAnyToolSelected: currentTool !== "None"
+    property bool isAnyToolSelected: currentTool != "None"
 
     /* This connects to the backend annotations tool object and exposes its
     ui data via model data */
@@ -167,31 +161,44 @@ Item {
     // value binding
 
     property ListModel currentColorPresetModel: drawColourPresetsModel
+    
+    XsGradientRectangle{
+        anchors.fill: parent
+    }
 
     // We wrap all the widgets in a top level Item that can forward keyboard
     // events back to the viewport for consistent
-    Item {
+    ColumnLayout {
         anchors.fill: parent
-        focus: true
-        // Keys.forwardTo: [sessionWidget] //#TODO - backend
+        spacing: 0
 
         XsToolSelectorLR {
             id: toolSelector
             x: framePadding/2
-            width: parent.width - x*2
-            height: toolSet.height + framePadding*2
+            z: 1
+            Layout.preferredWidth: parent.width - x*2
+            Layout.preferredHeight: toolSet.height + framePadding
         }
 
-        Loader { id: toolProperties
-            width: toolSelector.width
-            height: toolPropLoaderHeight
-            x: toolSelector.x
-            y: toolSelector.y + toolSelector.height + colSpacing
+        Item{
+            Layout.fillWidth: true
+            Layout.fillHeight: true
+            Layout.minimumHeight: 0
+            Layout.preferredHeight: !isAnyToolSelected? 0 : XsStyleSheet.primaryButtonStdHeight
+            Layout.maximumHeight: !isAnyToolSelected? 0 : XsStyleSheet.primaryButtonStdHeight
+        }
+        Item{ id: toolProperties
+            Layout.preferredWidth: parent.width - x*2
+            Layout.preferredHeight: !isAnyToolSelected? 0 : toolPropLoaderHeight
+            Layout.maximumHeight: !isAnyToolSelected? 0 : toolPropLoaderHeight
+            x: framePadding/2
 
-            sourceComponent: XsToolPropertiesLR{
-                root: drawDialog
+            Loader { 
+                anchors.fill: parent
+                sourceComponent: XsToolPropertiesLR{
+                    root: drawDialog
+                }
             }
-
 
             ColorDialog {
                 id: colorDialog
@@ -209,24 +216,6 @@ Item {
                     }
                 }
             }
-            ColorDialog {
-                id: bgColorDialog
-                title: "Please pick a BG-Colour"
-                onAccepted: {
-                    backgroundColor = color
-                    close()
-                }
-                onRejected: {
-                    close()
-                }
-                onVisibleChanged: {
-                    if (visible) {
-                        color = backgroundColor
-                    }
-                }
-
-            }
-
 
             ListModel{ id: eraseColorPresetModel
                 ListElement{
@@ -314,20 +303,36 @@ Item {
                     preset: "#000000" //- "black"
                 }
             }
-
         }
 
+        Item{
+            Layout.fillWidth: true
+            Layout.fillHeight: true
+            Layout.minimumHeight: 0
+            Layout.preferredHeight: XsStyleSheet.primaryButtonStdHeight
+            Layout.maximumHeight: XsStyleSheet.primaryButtonStdHeight
+        }
         XsToolActionsLR{ id: toolActionSection
-            x: framePadding
-            y: !isAnyToolSelected?
-                toolProperties.y :
-                toolProperties.y + toolProperties.height + colSpacing
-
-            // Behavior on y {NumberAnimation{ duration: 250 }}
-
-            width: parent.width - framePadding
+            x: framePadding*2
+            Layout.preferredWidth: parent.width - x*2
+            Layout.preferredHeight: toolActionUndoRedo.height + framePadding/2
+        }
+        
+        Item{
+            Layout.fillWidth: true
+            Layout.fillHeight: true
         }
 
+        XsToolDisplayLR{ id: toolDispOptions
+            x: framePadding*2
+            Layout.preferredWidth: parent.width - x*2
+            Layout.preferredHeight: displayBtn.y + displayBtn.height + framePadding/2
+        }
+
+        Item{
+            Layout.fillWidth: true
+            Layout.preferredHeight: XsStyleSheet.primaryButtonStdHeight
+        }
     }
 
 }

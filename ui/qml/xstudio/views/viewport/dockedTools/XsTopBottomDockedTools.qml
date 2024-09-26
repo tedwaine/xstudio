@@ -10,8 +10,11 @@ XsListView {
 
     id: row
     orientation: ListView.Vertical
+    interactive: false
+
     property string placement: "top"
     property var dockedWidgetsModel
+    property real framePadding: XsStyleSheet.panelPadding/2
 
     model: delegate_model
 
@@ -111,16 +114,19 @@ XsListView {
                 NumberAnimation { properties: "implicitHeight"; duration: 150 }
             }
 
-            XsSecondaryButton {
-                anchors.left: placement == "top"? undefined : parent.top
-                anchors.bottom: placement == "top"? parent.bottom : undefined
+            XsButtonWithImageAndText{ id: groupBtn
+                iconText: "Position"
                 anchors.right: parent.right
-                anchors.margins: 8
-                width: 16
-                height: 16
+                width: height //XsStyleSheet.primaryButtonStdWidth
+                height: XsStyleSheet.primaryButtonStdHeight
+                anchors.verticalCenter: parent.verticalCenter
                 z: 100
-                imgSrc: "qrc:/icons/dock_left.svg"
-                imageDiv.rotation: placement == "top" ? 90 : 270
+                iconSrc: "qrc:/icons/dock_left.svg"
+                iconRotation: placement == "top" ? 90 : 270
+                textDiv.visible: false
+                textDiv.font.bold: false
+                textDiv.font.pixelSize: XsStyleSheet.fontSize
+                paddingSpace: 2
 
                 onClicked:{
                     if(dockPositionMenu.visible) dockPositionMenu.visible = false
@@ -130,6 +136,7 @@ XsListView {
                         dockPositionMenu.visible = true
                     }
                 }
+                forcedBgColorNormal: XsStyleSheet.panelBgGradTopColor //XsStyleSheet.panelBgFlatColor
             }
 
         }
@@ -164,32 +171,32 @@ XsListView {
             move_dockable_widget(widgetNameForMenu, "right")
         }
     }
-    // XsMenuModelItem {
-    //     menuItemType: "divider"
-    //     menuItemPosition: 3
-    //     menuPath: ""
-    //     menuModelName: dockPositionMenu.menu_model_name
-    // }
-    // XsMenuModelItem {
-    //     text: "Top"
-    //     menuPath: ""
-    //     menuCustomIcon: "qrc:/icons/dock_bottom.svg"
-    //     menuItemPosition: 4
-    //     menuModelName: dockPositionMenu.menu_model_name
-    //     onActivated: {
-    //         move_dockable_widget(widgetNameForMenu, "top")
-    //     }
-    // }
-    // XsMenuModelItem {
-    //     text: "Bottom"
-    //     menuPath: ""
-    //     menuCustomIcon: "qrc:/icons/dock_bottom.svg"
-    //     menuItemPosition: 5
-    //     menuModelName: dockPositionMenu.menu_model_name
-    //     onActivated: {
-    //         move_dockable_widget(widgetNameForMenu, "bottom")
-    //     }
-    // }
+    XsMenuModelItem {
+        menuItemType: "divider"
+        menuItemPosition: 3
+        menuPath: ""
+        menuModelName: dockPositionMenu.menu_model_name
+    }
+    XsMenuModelItem {
+        text: "Top"
+        menuPath: ""
+        menuCustomIcon: "qrc:/icons/dock_bottom_flipped.png"
+        menuItemPosition: 4
+        menuModelName: dockPositionMenu.menu_model_name
+        onActivated: {
+            move_dockable_widget(widgetNameForMenu, "top")
+        }
+    }
+    XsMenuModelItem {
+        text: "Bottom"
+        menuPath: ""
+        menuCustomIcon: "qrc:/icons/dock_bottom.svg"
+        menuItemPosition: 5
+        menuModelName: dockPositionMenu.menu_model_name
+        onActivated: {
+            move_dockable_widget(widgetNameForMenu, "bottom")
+        }
+    }
 
 
 }

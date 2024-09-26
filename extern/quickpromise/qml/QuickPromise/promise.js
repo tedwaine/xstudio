@@ -104,6 +104,7 @@ QPromise.prototype.then = function(onFulfilled,onRejected) {
                 var x = onFulfilled(value);
                 thenPromise.resolve(x);
             } catch (e) {
+                console.log("V", value)
                 console.error(e);
                 console.trace();
                 thenPromise.reject(e);

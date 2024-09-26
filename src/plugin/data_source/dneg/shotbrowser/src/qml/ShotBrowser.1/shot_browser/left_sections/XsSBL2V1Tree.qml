@@ -65,6 +65,7 @@ Item{
                 Layout.preferredHeight: parent.height
                 iconSrc: "qrc:/icons/link.svg"
                 iconText: "Link"
+                textDiv.visible: true
                 isActive: sequenceTreeLiveLink && !isPaused
                 onClicked: {
                     // searchBtn.isExpanded = false
@@ -172,7 +173,10 @@ Item{
 
                 XsSBTreeView{
                     id: tree
-                    width: sequenceTreeView.width
+                    property int rightSpacing: sequenceTreeView.height < sequenceTreeView.contentHeight ? 10 : 0
+                    Behavior on rightSpacing {NumberAnimation {duration: 150}}
+
+                    width: sequenceTreeView.width-rightSpacing
                     treeSequenceModel: sequenceModel
                     treeSequenceSelectionModel: sequenceSelectionModel
                     treeSequenceExpandedModel: sequenceExpandedModel

@@ -19,33 +19,29 @@ Rectangle{
 
     GridView{ id: presetColours
         x: framePadding
-        width: parent.width - framePadding*2
-        height: buttonHeight*2
-        // anchors.verticalCenter: parent.verticalCenter
+        width: parent.width - x*2
+        height: parent.height 
+        anchors.verticalCenter: parent.verticalCenter
         clip: false
         interactive: false
-        // orientation: ListView.Horizontal
-        // spacing: (itemSpacing!==0)?itemSpacing/2: 0
 
 
         flow: GridView.FlowLeftToRight
-        cellWidth: width/4
-        cellHeight: buttonHeight
+        cellWidth: width / (model.count/2)
+        cellHeight: height / 2
 
         model: currentColorPresetModel
         delegate:
         Item{
             property bool isMouseHovered: presetMArea.containsMouse
-            width: presetColours.cellWidth //index == itemCount-1? presetColours.width/itemCount : presetColours.width/itemCount-presetColours.spacing;
-            height: presetColours.cellHeight //presetColours.height
+            width: presetColours.cellWidth 
+            height: presetColours.cellHeight 
             Rectangle {
                 anchors.centerIn: parent
                 width: parent.width
                 height: parent.height
                 radius: 0
                 color: preset
-                // border.width: 1
-                // border.color: parent.isMouseHovered? palette.highlight: (currentToolColour === preset)? "white": "black"
 
                 MouseArea{
                     id: presetMArea
@@ -64,7 +60,7 @@ Rectangle{
                     anchors.fill: parent
 
                     Image {
-                        visible: parent.containsDrag || (presetMArea.containsMouse && !showButtonHints)
+                        visible: parent.containsDrag || presetMArea.containsMouse
                         anchors.centerIn: parent
                         width: parent.width<16? parent.width:16
                         height: width

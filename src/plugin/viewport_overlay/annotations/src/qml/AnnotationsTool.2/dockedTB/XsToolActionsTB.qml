@@ -14,7 +14,7 @@ import xstudio.qml.models 1.0
 
 Item{ id: toolActionsDiv
 
-    // height: toolActionUndoRedo.height + toolActionCopyPasteClear.height //+ displayBtns.height
+    property alias displayBtn: displayBtn
 
     XsAttributeValue {
         id: __action_attr
@@ -26,10 +26,10 @@ Item{ id: toolActionsDiv
 
     ListView{ id: toolActionUndoRedo
 
-        width: parent.height - framePadding*2
-        height: XsStyleSheet.primaryButtonStdHeight //buttonHeight
-        x: framePadding
-        y: framePadding + spacing/2
+        width: XsStyleSheet.primaryButtonStdWidth * model.count
+        height: XsStyleSheet.primaryButtonStdHeight
+        
+        anchors.verticalCenter: parent.verticalCenter
 
         spacing: itemSpacing
         interactive: false
@@ -45,53 +45,23 @@ Item{ id: toolActionsDiv
                 action: "Redo"
                 icon: "qrc:///anno_icons/redo.svg"
             }
-        }
-
-        delegate: XsPrimaryButton{
-            text: "" //model.action
-            imgSrc: model.icon //""
-            width: toolActionUndoRedo.width/modelUndoRedo.count - toolActionUndoRedo.spacing
-            height: toolActionUndoRedo.height //buttonHeight
-
-            onClicked: {
-                action_attribute = model.action
-            }
-        }
-    }
-
-    ListView{ id: toolActionCopyPasteClear
-
-        width: parent.height - framePadding*2
-        height: XsStyleSheet.primaryButtonStdHeight //buttonHeight
-        x: framePadding //+ spacing/2
-        y: toolActionUndoRedo.y + toolActionUndoRedo.height + spacing
-
-        spacing: itemSpacing
-        interactive: false
-        orientation: ListView.Horizontal
-
-        model:
-        ListModel{
-            id: modelCopyPasteClear
             ListElement{
                 action: "Clear"
                 icon: "qrc:///anno_icons/delete.svg"
             }
         }
 
-        delegate:
-        XsPrimaryButton{
+        delegate: XsPrimaryButton{
             text: "" //model.action
-            imgSrc: model.icon //""
-            width: toolActionCopyPasteClear.width/modelCopyPasteClear.count - toolActionCopyPasteClear.spacing
-            height: toolActionCopyPasteClear.height
+            imgSrc: model.icon 
+            width: toolActionUndoRedo.width/modelUndoRedo.count - toolActionUndoRedo.spacing
+            height: toolActionUndoRedo.height 
+
             onClicked: {
                 action_attribute = model.action
             }
-
         }
     }
-
 
 
     // Sigh - hooking up the draw mode backen attr to the combo box here
@@ -108,68 +78,63 @@ Item{ id: toolActionsDiv
     }
     property alias display_mode: __display_mode.value
 
-    ColumnLayout{ id: displayBtns
-        // x: framePadding
-        width: parent.height - framePadding*2
-        height: XsStyleSheet.primaryButtonStdHeight*2 + spacing
-        spacing: 0
-
-        anchors.left: toolActionCopyPasteClear.right
-        // anchors.leftMargin: colSpacing
+    XsButtonWithImageAndText{ id: displayBtn
+        iconText: "Always"
+        width: XsStyleSheet.primaryButtonStdWidth*2.2
+        height: XsStyleSheet.primaryButtonStdHeight
+        
         anchors.verticalCenter: parent.verticalCenter
+        anchors.left: toolActionUndoRedo.right
+        anchors.leftMargin: itemSpacing //framePadding
+        iconSrc: "qrc:///anno_icons/check_circle.svg"
+        textDiv.visible: true
+        textDiv.font.bold: false
+        textDiv.font.pixelSize: XsStyleSheet.fontSize
+        paddingSpace: 4
 
-        // anchors.top: displayAnnotations.bottom
-        // anchors.topMargin: itemSpacing/2
-        // anchors.horizontalCenter: displayAnnotations.horizontalCenter
-
-        Rectangle{ id: displayAnnotations
-
-            Layout.fillWidth: true
-            Layout.preferredWidth: parent.width - framePadding*2
-            Layout.preferredHeight: buttonHeight
-            Layout.alignment: Qt.AlignHCenter
-
-            color: "transparent";
-
-            Text{
-                text: "Display"
-                font.pixelSize: fontSize
-                font.family: fontFamily
-                color: toolInactiveTextColor
-                width: parent.width
-                elide: Text.ElideRight
-                horizontalAlignment: Text.AlignHCenter
-                anchors.bottom: parent.bottom
-                anchors.bottomMargin: framePadding
+        onClicked:{
+            if(displayMenu.visible) displayMenu.visible = false
+            else{
+                displayMenu.x = x
+                displayMenu.y = y + height
+                displayMenu.visible = true
             }
         }
-        XsComboBox {
-            Layout.fillWidth: true
-            Layout.preferredWidth: parent.width - framePadding*2
-            Layout.preferredHeight: XsStyleSheet.primaryButtonStdHeight
-            Layout.alignment: Qt.AlignHCenter
-            model: ["Always", "Never", "When Paused"]
-            currentIndex: 0
-            framePadding: 2
-            fontSize: XsStyleSheet.fontSize - 1
 
-            onActivated: (aindex) => {
-                if(textAt(aindex) == "Always") {
-                    display_mode = "Always"
-                    displayText = "Always"
-                }
-                else if(textAt(aindex) == "Never") {
-                    display_mode = "With Drawing Tools"
-                    displayText = "Never"
-                }
-                else if(textAt(aindex) == "When Paused") {
-                    display_mode = "Only When Paused"
-                    displayText = "Paused"
-                }
-            }
+        Component.onCompleted: {
+            display_mode = "Always"
         }
     }
 
+    XsPopupMenu {
+        id: displayMenu
+        visible: false
+        menu_model_name: "displayMenu" + toolActionsDiv
+    }
+    XsMenuModelItem {
+        text: "Always"
+        menuPath: ""
+        menuCustomIcon: "qrc:///anno_icons/check_circle.svg"
+        menuItemPosition: 1
+        menuModelName: displayMenu.menu_model_name
+        onActivated: {
+            display_mode = text
+            displayBtn.iconText = text
+            displayBtn.iconSrc = menuCustomIcon
+        }
+    }
+    XsMenuModelItem {
+        text: "When Paused"
+        menuPath: ""
+        menuCustomIcon: "qrc:///anno_icons/pause_circle.svg"
+        menuItemPosition: 2
+        menuModelName: displayMenu.menu_model_name
+        onActivated: {
+            display_mode = "Only When Paused"
+            displayBtn.iconText = "Paused"
+            displayBtn.iconSrc = menuCustomIcon
+        }
+    }
 
 }
 

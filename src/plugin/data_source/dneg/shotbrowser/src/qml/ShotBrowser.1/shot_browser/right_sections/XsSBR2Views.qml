@@ -12,6 +12,9 @@ import ShotBrowser 1.0
 XsListView{ id: listDiv
     spacing: XsStyleSheet.panelPadding
 
+    property int rightSpacing: listDiv.height < listDiv.contentHeight ? 16 : 0
+    Behavior on rightSpacing {NumberAnimation {duration: 150}}
+
     XsLabel {
         text: !queryRunning ? (presetsSelectionModel.hasSelection ? "No Results Found" : "Select a preset on left to view the results") : ""
         color: XsStyleSheet.hintColor
@@ -38,7 +41,7 @@ XsListView{ id: listDiv
 
                   ShotHistoryListDelegate{
                     modelDepth: chooserModel.notifyModel.depthAtRow(index)
-                    width: listDiv.width
+                    width: listDiv.width - rightSpacing
                     height: XsStyleSheet.widgetStdHeight*4
                     delegateModel: chooserModel
                     popupMenu: versionResultPopup
@@ -51,7 +54,7 @@ XsListView{ id: listDiv
                 roleValue: "Note"
 
                 NotesHistoryListDelegate{
-                    width: listDiv.width
+                    width: listDiv.width - rightSpacing
                     height: XsStyleSheet.widgetStdHeight*8
                     delegateModel: chooserModel
                     popupMenu: noteResultPopup
@@ -62,7 +65,7 @@ XsListView{ id: listDiv
                 roleValue: "Playlist"
 
                 XsSBRPlaylistViewDelegate{
-                    width: listDiv.width
+                    width: listDiv.width - rightSpacing
                     height: XsStyleSheet.widgetStdHeight*2
                     delegateModel: chooserModel
                     popupMenu: playlistResultPopup

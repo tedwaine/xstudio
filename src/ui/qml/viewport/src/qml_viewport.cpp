@@ -273,9 +273,8 @@ void QMLViewport::hoverLeaveEvent(QHoverEvent *event) {
 void QMLViewport::mousePressEvent(QMouseEvent *event) {
 
     mouse_position = event->pos();
-    emit(mouseChanged());
-    mouse_buttons = event->buttons();
-    emit(mouseButtonsChanged());
+    emit(mousePositionChanged(event->pos()));
+    emit mousePress(event->buttons());
 
     event->accept();
 
@@ -287,9 +286,8 @@ void QMLViewport::mousePressEvent(QMouseEvent *event) {
 void QMLViewport::mouseReleaseEvent(QMouseEvent *event) {
 
     mouse_position = event->pos();
-    emit(mouseChanged());
-    mouse_buttons = event->buttons();
-    emit(mouseButtonsChanged());
+    emit(mousePositionChanged(event->pos()));
+    emit mouseRelease(event->buttons());
 
     event->accept();
 
@@ -302,8 +300,7 @@ void QMLViewport::mouseReleaseEvent(QMouseEvent *event) {
 void QMLViewport::hoverMoveEvent(QHoverEvent *event) {
 
     mouse_position = event->pos();
-
-    emit(mouseChanged());
+    emit(mousePositionChanged(event->pos()));
 
     if (renderer_actor) {
 
@@ -323,7 +320,7 @@ void QMLViewport::mouseMoveEvent(QMouseEvent *event) {
 
     mouse_position = event->pos();
 
-    emit(mouseChanged());
+    emit(mousePositionChanged(event->pos()));
 
     if (renderer_actor) {
         renderer_actor->pointerEvent(makePointerEvent(
@@ -339,7 +336,9 @@ void QMLViewport::mouseMoveEvent(QMouseEvent *event) {
 void QMLViewport::mouseDoubleClickEvent(QMouseEvent *event) {
 
     mouse_position = event->pos();
-    emit(mouseChanged());
+    emit(mousePositionChanged(event->pos()));
+    emit mouseDoubleClick(event->buttons());
+
     if (renderer_actor) {
         renderer_actor->pointerEvent(
             makePointerEvent(Signature::EventType::DoubleClick, event));
@@ -559,4 +558,7 @@ QString QMLViewport::playheadActorAddress() {
     return actorToQString(CafSystemObject::get_actor_system(), renderer_actor->playhead());
 }
 
-void QMLViewport::onVisibleChanged() {}
+void QMLViewport::onVisibleChanged() {
+    if (renderer_actor)
+        renderer_actor->visibleChanged(isVisible());
+}

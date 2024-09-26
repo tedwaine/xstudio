@@ -183,6 +183,7 @@ ApplicationWindow {
 
     property bool popoutIsOpen: false
     property bool isPopoutViewer: true
+    property bool isQuickview: false
 
     XsViewportPanel {
         anchors.fill: parent

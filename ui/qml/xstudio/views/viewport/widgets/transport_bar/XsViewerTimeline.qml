@@ -58,22 +58,31 @@ Item {
 
     property int numTicks: width/tickSpacing
 
+    // highlights the loop region
+    // Rectangle {
+    //     opacity: 0.2
+    //     anchors.top: parent.top
+    //     anchors.bottom: parent.bottom
+    //     anchors.left: parent.left
+    //     width: scaleFactor*viewportPlayhead.loopStartFrame
+    //     visible: viewportPlayhead.loopStartFrame != 0 && viewportPlayhead.enableLoopRange != 0
+    // }
+    // Rectangle {
+    //     opacity: 0.2
+    //     anchors.top: parent.top
+    //     anchors.bottom: parent.bottom
+    //     anchors.right: parent.right
+    //     width: scaleFactor*(viewportPlayhead.durationFrames-viewportPlayhead.loopEndFrame)
+    //     visible: viewportPlayhead.loopEndFrame < viewportPlayhead.durationFrames != 0 && viewportPlayhead.enableLoopRange != 0
+    // }
     Rectangle {
         opacity: 0.2
         anchors.top: parent.top
         anchors.bottom: parent.bottom
-        anchors.left: parent.left
-        width: scaleFactor*viewportPlayhead.loopStartFrame
-        visible: viewportPlayhead.loopStartFrame != 0 && viewportPlayhead.enableLoopRange != 0
-    }
-
-    Rectangle {
-        opacity: 0.2
-        anchors.top: parent.top
-        anchors.bottom: parent.bottom
-        anchors.right: parent.right
-        width: scaleFactor*(viewportPlayhead.durationFrames-viewportPlayhead.loopEndFrame)
-        visible: viewportPlayhead.loopEndFrame < viewportPlayhead.durationFrames != 0 && viewportPlayhead.enableLoopRange != 0
+        x: scaleFactor*viewportPlayhead.loopStartFrame
+        width: scaleFactor*(viewportPlayhead.loopEndFrame - viewportPlayhead.loopStartFrame)
+        visible: viewportPlayhead.enableLoopRange != 0 && viewportPlayhead.loopStartFrame != 0 && viewportPlayhead.loopEndFrame < viewportPlayhead.durationFrames
+        color: XsStyleSheet.accentColor
     }
 
     // draw faint strips for alternating media/clips
@@ -101,6 +110,21 @@ Item {
                 x: (tickSpacing * index)
                 y: isBigTick ? 0 : 4
                 property bool isBigTick: index == Math.round((index/5.0))*5
+            }
+        }
+    }
+
+    // Draws the image cache indicator bar(s)
+    Item {
+        Repeater {
+            model: viewportPlayhead.cachedFrames ? viewportPlayhead.cachedFrames.length/2 : []
+            Rectangle { 
+                color: "green"
+                opacity: 0.5
+                x: scaleFactor*viewportPlayhead.cachedFrames[index*2]
+                width: scaleFactor*(viewportPlayhead.cachedFrames[index*2+1])
+                height: 5
+                y: 10
             }
         }
     }
@@ -152,21 +176,6 @@ Item {
         }
     }
 
-    // Draws the image cache indicator bar(s)
-    Item {
-        Repeater {
-            model: viewportPlayhead.cachedFrames ? viewportPlayhead.cachedFrames.length/2 : []
-            Rectangle {
-                height: 5
-                color: "green"
-                opacity: 0.5
-                radius: 2.5
-                x: scaleFactor*viewportPlayhead.cachedFrames[index*2]
-                width: scaleFactor*(viewportPlayhead.cachedFrames[index*2+1])
-                y: 10
-            }
-        }
-    }
 
     Item {
         Repeater {
@@ -175,14 +184,14 @@ Item {
                 height: 5
                 color: bmColour ? bmColour : palette.highlight
                 property var bmColour: viewportPlayhead.bookmarkedFrameColours[index]
-                opacity: 0.5
-                radius: 2.5
+                opacity: 1
+                radius: height/2
                 // if indicator width is less than diameter (5 pixels) of a dot then
                 // we need to adjust the x to ensure the dot is aligned with the frame number
                 x: scaleFactor*viewportPlayhead.bookmarkedFrames[index*2] - (w < 5 ? (5-w)/2 : 0.0)
                 property var w: scaleFactor*viewportPlayhead.bookmarkedFrames[index*2+1]
                 width: Math.max(5, w)
-                y: 16
+                y: control.height - height + 1.2
             }
         }
     }

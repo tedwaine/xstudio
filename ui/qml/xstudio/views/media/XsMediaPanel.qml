@@ -44,53 +44,12 @@ Item{
     property var mediaSelection: mediaSelectionModel.selectedIndexes
 
     property bool is_list_view: true
-    onIs_list_viewChanged:{
-        // console.log("onIs_list_viewChanged: ", is_list_view, JSON.stringify(user_data))
-
-        if( (is_list_view && user_data.viewType != "list") ||
-            (!is_list_view && user_data.viewType != "grid") || user_data == undefined ){
-            var u = user_data
-            if(u == undefined){
-                u = {}
-            }
-
-            if(is_list_view)
-                u["viewType"] = "list"
-            else
-                u["viewType"] = "grid"
-
-            user_data = u
-        }
-    }
-
     property int standardCellSize: 150
     property real cellSize: 200
-    onCellSizeChanged:{
-        if(cellSize != user_data.cellSize || user_data == undefined ){
-            var u = user_data
-            if(u == undefined){
-                u = {}
-            }
-            u["cellSize"] = cellSize
-            user_data = u
-        }
-    }
 
-    property var userData: user_data
-    onUserDataChanged:{
-
-        if(user_data == undefined){
-            user_data = {"cellSize":cellSize, "viewType": "list"}
-        }
-
-
-        if(user_data.cellSize && cellSize != user_data.cellSize)
-            cellSize = user_data.cellSize
-
-        if(user_data.viewType && user_data.viewType == "grid")
-            is_list_view = false
-        else if(user_data.viewType && user_data.viewType == "list")
-            is_list_view = true
+    // persist the type of media view and cell size
+    XsStoredPanelProperties {
+        propertyNames: ["is_list_view", "cellSize"]
     }
 
     /**************************************************************

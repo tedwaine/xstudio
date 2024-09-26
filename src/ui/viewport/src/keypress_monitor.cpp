@@ -31,6 +31,11 @@ KeypressMonitor::KeypressMonitor(caf::actor_config &cfg) : caf::event_based_acto
 
         if (msg.source == actor_grabbing_all_keyboard_input_) {
             actor_grabbing_all_keyboard_input_ = caf::actor();
+        } else {
+            caf::actor_addr w = caf::actor_cast<caf::actor_addr>(msg.source);
+            for (auto &p : active_hotkeys_) {
+                p.second.watcher_died(w);
+            }
         }
     });
 
@@ -115,6 +120,10 @@ KeypressMonitor::KeypressMonitor(caf::actor_config &cfg) : caf::event_based_acto
             } else {
 
                 active_hotkeys_[hk.uuid()] = hk;
+            }
+
+            for (auto &p : hk.watchers()) {
+                monitor(caf::actor_cast<caf::actor>(p));
             }
 
             std::vector<Hotkey> hks;

@@ -153,6 +153,7 @@ namespace ui {
                     clients_.push_back(client);
                 }
                 std::string name_;
+                std::string sort_key_;
                 utility::JsonTree data_;
                 std::string preference_path_;
                 std::vector<caf::actor> clients_;
@@ -166,7 +167,9 @@ namespace ui {
 
             ModelDataVec get_menu_models(const std::string model_name);
 
-            void do_ordering(utility::JsonTree *node);
+            void do_ordering(
+                utility::JsonTree *node,
+                const std::string &ordering_key = "menu_item_position");
 
             std::map<std::string, ModelDataPtr> models_;
             std::set<std::string> models_to_be_fully_broadcasted_;

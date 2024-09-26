@@ -17,6 +17,7 @@ using namespace xstudio::ui::qml;
 #include <QItemSelectionRange>
 #include <QVector4D>
 #include <QPainter>
+#include <QQmlProperty>
 
 CafSystemObject::CafSystemObject(QObject *parent, caf::actor_system &sys)
     : QObject(parent), system_ref_(sys) {
@@ -89,10 +90,11 @@ QString xstudio::ui::qml::getThumbnailURL(
             auto mhash = utility::request_receive<std::pair<std::string, uintmax_t>>(
                 *sys, actor, media::checksum_atom_v);
 
-            auto display_transform_hash = utility::request_receive<std::string>(
+            auto display_transform_hash = utility::request_receive<size_t>(
                 *sys, colour_pipe, colour_pipeline::display_colour_transform_hash_atom_v, mp);
             hash = std::hash<std::string>{}(static_cast<const std::string &>(
-                display_transform_hash + mhash.first + std::to_string(mhash.second)));
+                std::to_string(display_transform_hash) + mhash.first +
+                std::to_string(mhash.second)));
         } catch ([[maybe_unused]] const std::exception &err) {
             // spdlog::warn("{} {}", __PRETTY_FUNCTION__, err.what());
         }
@@ -543,16 +545,15 @@ QVariant MarkerModel::data(const QModelIndex &index, int role) const {
             result = QVariant::fromValue(j.at("range").value("rate", 0l));
             break;
         case Roles::layerRole: {
-                auto layer = 0;
+            auto layer = 0;
 
-                for(auto i = 0; i < index.row(); i++) {
-                    auto previ = MarkerModel::index(i, 0, index.parent());
-                    if(previ.data(startRole) == index.data(startRole))
-                        layer ++;
-                }
-                result = layer;
+            for (auto i = 0; i < index.row(); i++) {
+                auto previ = MarkerModel::index(i, 0, index.parent());
+                if (previ.data(startRole) == index.data(startRole))
+                    layer++;
             }
-            break;
+            result = layer;
+        } break;
         default:
             result = JSONTreeModel::data(index, role);
             break;
@@ -643,4 +644,28 @@ QModelIndex MarkerModel::addMarker(
     }
 
     return result;
+}
+
+void PropertyFollower::setTarget(QObject *target) {
+
+    if (target_ != target) {
+        target_ = target;
+        emit targetChanged();
+        if (target_) {
+            the_property_ = QQmlProperty(target_, property_name_);
+            the_property_.connectNotifySignal(this, SIGNAL(propertyValueChanged()));
+        }
+    }
+}
+
+void PropertyFollower::setPropertyName(const QString propertyName) {
+
+    if (property_name_ != propertyName) {
+        property_name_ = propertyName;
+        emit propertyNameChanged();
+        if (target_) {
+            the_property_ = QQmlProperty(target_, property_name_);
+            the_property_.connectNotifySignal(this, SIGNAL(propertyValueChanged()));
+        }
+    }
 }

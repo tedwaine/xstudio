@@ -22,6 +22,7 @@ XsSplitPanel              1.0 ../layout_framework/XsPanelSplitter.qml
 XsPanelContainer          1.0 ../layout_framework/XsTestWindow.qml
 XsViewContainer           1.0 ../layout_framework/XsViewContainer.qml
 XsPanelsMenuButton        1.0 ../layout_framework/XsPanelsMenuButton.qml
+XsStoredPanelProperties           1.0 ../layout_framework/XsStoredPanelProperties.qml
 
 XsMedialist                     1.0 ../views/media/XsMediaPanel.qml
 XsMediaListSwitchSourceMenu     1.0 ../views/media/widgets/XsMediaListSwitchSourceMenu.qml

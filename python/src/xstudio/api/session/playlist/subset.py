@@ -2,6 +2,7 @@
 from xstudio.core import Uuid, add_media_atom, actor, selection_actor_atom
 from xstudio.api.session.container import Container
 from xstudio.api.session.media.media import Media
+from xstudio.api.session.playhead import Playhead, PlayheadSelection
 
 class Subset(Container):
     """Subset object."""

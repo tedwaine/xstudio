@@ -66,10 +66,12 @@ class OCIOEngine {
         std::vector<std::string> &displays,
         std::map<std::string, std::vector<std::string>> &display_views) const;
 
-    /* Make a unique string from the source colour metadata that will change
+    /* Make a unique size_t from the source colour metadata that will change
     when any aspect of the colour management of the source is expected to cahnge
     the way the source will be transformed to display space.*/
-    std::string compute_hash(const utility::JsonStore &src_colour_mgmt_metadata) const;
+    size_t compute_hash(
+        const utility::JsonStore &src_colour_mgmt_metadata,
+        const std::string &extra = std::string()) const;
 
     /* For given media source colour metadata determine the expected source
     colourspace.*/
@@ -181,7 +183,7 @@ class OCIOEngine {
     mutable std::map<std::string, OCIO::ConstConfigRcPtr> ocio_config_cache_;
 
     // Pixel probe
-    std::string last_pixel_probe_source_hash_;
+    size_t last_pixel_probe_source_hash_;
     OCIO::ConstCPUProcessorRcPtr pixel_probe_to_display_proc_;
     OCIO::ConstCPUProcessorRcPtr pixel_probe_to_lin_proc_;
 };

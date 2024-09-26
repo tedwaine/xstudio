@@ -87,6 +87,11 @@ namespace ui {
                 }
             }
 
+            Q_INVOKABLE QString hotkey_sequence(const QVariant &hotkey_uuid);
+
+            Q_INVOKABLE QString hotkey_sequence_from_hotkey_name(const QString &hotkey_name);
+
+
           signals:
 
             void rowCountChanged();

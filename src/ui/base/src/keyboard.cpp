@@ -111,6 +111,17 @@ void Hotkey::update_state(
     }
 }
 
+void Hotkey::watcher_died(caf::actor_addr &watcher) {
+    auto p = watchers_.begin();
+    while (p != watchers_.end()) {
+        if (*p == watcher) {
+            p = watchers_.erase(p);
+        } else {
+            p++;
+        }
+    }
+}
+
 void Hotkey::notify_watchers(const std::string &context, const std::string &window) {
     auto p = watchers_.begin();
     while (p != watchers_.end()) {

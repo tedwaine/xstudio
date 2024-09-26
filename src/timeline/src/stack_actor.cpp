@@ -659,6 +659,10 @@ void StackActor::init() {
             return rp;
         },
 
+        [=](utility::event_atom, utility::change_atom) {
+            send(event_group_, utility::event_atom_v, utility::change_atom_v);
+        },
+
         [=](utility::serialise_atom) -> result<JsonStore> {
             if (not actors_.empty()) {
                 auto rp = make_response_promise<JsonStore>();

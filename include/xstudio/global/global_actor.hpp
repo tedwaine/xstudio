@@ -26,7 +26,6 @@ namespace global {
         caf::behavior make_behavior() override { return behavior_; }
 
       private:
-
         int publish_port(
             const int minimum,
             const int maximum,
@@ -39,10 +38,13 @@ namespace global {
         void disconnect_api(const caf::actor &embedded_python, const bool force = false);
         void disconnect_sync_api(const bool force = false);
 
-        template<class AudioOutputDev>
+        template <class AudioOutputDev>
         caf::actor spawn_audio_output_actor(const utility::JsonStore &prefs) {
-          static_assert(std::is_base_of<audio::AudioOutputDevice, AudioOutputDev>::value, "Not derived from audio::AudioOutputDevice");
-          return spawn<audio::AudioOutputActor>(std::shared_ptr<audio::AudioOutputDevice>(new AudioOutputDev(prefs)));
+            static_assert(
+                std::is_base_of<audio::AudioOutputDevice, AudioOutputDev>::value,
+                "Not derived from audio::AudioOutputDevice");
+            return spawn<audio::AudioOutputActor>(
+                std::shared_ptr<audio::AudioOutputDevice>(new AudioOutputDev(prefs)));
         }
 
         inline static const std::string NAME = "GlobalActor";

@@ -25,13 +25,12 @@ XsGapItem {
 	duration: durationFrame
 	fps: rateFPSRole
 	name: nameRole
-	parentStart: parentStartRole
 	isEnabled: enabledRole
 
-	property int adjustDuration: 0
-	property bool isAdjustingDuration: false
-	property int adjustStart: 0
-	property bool isAdjustingStart: false
+	property int adjustDuration: "adjust_duration" in userDataRole ? userDataRole.adjust_duration : 0
+	property bool isAdjustingDuration: "is_adjusting_duration" in userDataRole ? userDataRole.is_adjusting_duration : false
+	property int adjustStart: "adjust_start" in userDataRole ? userDataRole.adjust_start : 0
+	property bool isAdjustingStart: "is_adjusting_start" in userDataRole ? userDataRole.is_adjusting_start : false
 	property int durationFrame: isAdjustingDuration ? trimmedDurationRole + adjustDuration : trimmedDurationRole
 	property int startFrame: isAdjustingStart ? trimmedStartRole + adjustStart : trimmedStartRole
     property var itemTypeRole: typeRole
@@ -43,7 +42,9 @@ XsGapItem {
     property var hoveredItem: config.hoveredItem
 
 	function adjust(offset) {
-		adjustDuration = offset
+		let tmp = userDataRole
+		tmp.adjust_duration = offset
+		userDataRole = tmp
 	}
 
 	// we only ever adjust duration

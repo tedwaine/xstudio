@@ -152,13 +152,43 @@ QVariantList SessionModel::mediaFrameToTimelineFrames(
     return result;
 }
 
+int SessionModel::startFrameInParent(const QModelIndex &timelineItemIndex) {
+    auto result = 0;
+
+    try {
+        if (timelineItemIndex.isValid()) {
+            const auto &j = indexToData(timelineItemIndex);
+            if (j.count("active_range")) {
+                auto p = timelineItemIndex.parent();
+                auto t = getTimelineIndex(timelineItemIndex);
+
+                if (p.isValid() and t.isValid()) {
+                    auto tactor = actorFromIndex(t);
+                    auto puuid  = UuidFromQUuid(p.data(idRole).toUuid());
+
+                    if (timeline_lookup_.count(tactor)) {
+                        auto pitem =
+                            timeline::find_item(timeline_lookup_.at(tactor).children(), puuid);
+                        if (pitem)
+                            result = (*pitem)->frame_at_index(timelineItemIndex.row());
+                    }
+                }
+            }
+        }
+    } catch (...) {
+    }
+
+    return result;
+}
+
+
 int SessionModel::getTimelineFrameFromClip(
     const QModelIndex &clipIndex, const int logicalMediaFrame) {
     auto result = -1;
 
     if (clipIndex.isValid()) {
         auto start  = clipIndex.data(trimmedStartRole).toInt();
-        auto pstart = clipIndex.data(parentStartRole).toInt();
+        auto pstart = startFrameInParent(clipIndex);
         result      = pstart + (logicalMediaFrame - start);
     }
 
@@ -293,6 +323,34 @@ QModelIndex SessionModel::getTimelineIndex(const QModelIndex &index) const {
     }
 
     return QModelIndex();
+}
+
+QFuture<bool>
+SessionModel::exportOTIO(const QModelIndex &timeline, const QUrl &path, const QString &type) {
+
+    return QtConcurrent::run([=]() {
+        auto result = false;
+        try {
+            if (timeline == getTimelineIndex(timeline)) {
+                nlohmann::json &j = indexToData(timeline);
+                auto actor        = actorFromString(system(), j.at("actor"));
+                if (actor) {
+                    scoped_actor sys{system()};
+                    result = request_receive<bool>(
+                        *sys,
+                        actor,
+                        global_store::save_atom_v,
+                        UriFromQUrl(path),
+                        StdFromQString(type));
+                }
+            }
+        } catch (const std::exception &err) {
+            spdlog::warn("{} {}", __PRETTY_FUNCTION__, err.what());
+            throw; // QFuture catches it..
+        }
+
+        return result;
+    });
 }
 
 QModelIndex SessionModel::getTimelineTrackIndex(const QModelIndex &index) const {
@@ -1216,12 +1274,12 @@ bool SessionModel::alignTimelineItems(const QModelIndexList &indexes, const bool
 
     if (indexes.size() > 1) {
         // index 0 is item to align to with respect to the track.
-        int align_to = indexes[0].data(parentStartRole).toInt();
+        int align_to = startFrameInParent(indexes[0]);
         if (align_right)
             align_to += indexes[0].data(trimmedDurationRole).toInt();
 
         for (auto i = 1; i < indexes.size(); i++) {
-            auto frame = indexes[i].data(parentStartRole).toInt();
+            auto frame = startFrameInParent(indexes[i]);
             if (align_right)
                 frame += indexes[i].data(trimmedDurationRole).toInt();
 

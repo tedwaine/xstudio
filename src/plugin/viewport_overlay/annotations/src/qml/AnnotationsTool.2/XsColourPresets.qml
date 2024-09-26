@@ -59,7 +59,7 @@ Rectangle{
                     anchors.fill: parent
 
                     Image {
-                        visible: parent.containsDrag || (presetMArea.containsMouse && !showButtonHints)
+                        visible: parent.containsDrag || presetMArea.containsMouse
                         anchors.centerIn: parent
                         width: parent.width<16? parent.width:16
                         height: width

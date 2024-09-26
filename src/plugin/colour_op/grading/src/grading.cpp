@@ -233,6 +233,7 @@ GradingTool::GradingTool(caf::actor_config &cfg, const utility::JsonStore &init_
                 }
             }
         )",
+        6.0f,
         "qrc:/icons/instant_mix.svg",
         2.0f);
 
@@ -313,7 +314,7 @@ void GradingTool::on_screen_media_changed(
         colour_params.get_or("working_space", std::string("scene_linear"));
     // Only medias that are fully inverted to scene_linear currently support custom colour space
     // This exclude medias that are only inverted to display_linear.
-    // TODO: Detect when un-tone-mapped view is used
+    // TODO: Detect when display_linear input space and un-tone-mapped view are used
     const bool is_unmanaged =
         config_name == "" || config_name == "__raw__" || working_space != "scene_linear";
 
@@ -586,6 +587,12 @@ void GradingTool::attribute_changed(const utility::Uuid &attribute_uuid, const i
 
 void GradingTool::register_hotkeys() {
 
+    bypass_hotkey_ = register_hotkey(
+        int('B'),
+        ui::ControlModifier,
+        "Bypass all grades",
+        "Bypass all grades applied on all media");
+
     undo_hotkey_ = register_hotkey(
         int('Z'),
         ui::ControlModifier,
@@ -604,7 +611,13 @@ void GradingTool::hotkey_pressed(
     const std::string & /*context*/,
     const std::string & /*window*/) {
 
-    if (hotkey_uuid == undo_hotkey_ && grading_tools_active()) {
+    // This shortcut should be active even when no grading panel is visible
+    if (hotkey_uuid == bypass_hotkey_) {
+
+        grading_bypass_->set_value(!grading_bypass_->value());
+        redraw_viewport();
+
+    } else if (hotkey_uuid == undo_hotkey_ && grading_tools_active()) {
 
         undo();
         redraw_viewport();
@@ -691,7 +704,7 @@ void GradingTool::start_quad(const std::vector<Imath::V2f> &corners) {
     shape_data["br"]       = corners[3];
     shape_data["colour"]   = pen_colour_->value();
     shape_data["softness"] = pen_softness_->value();
-    shape_data["opacity"]  = pen_opacity_->value();
+    shape_data["opacity"]  = 100.f;
     shape_data["invert"]   = false;
 
     utility::JsonStore additional_roles;
@@ -714,7 +727,7 @@ void GradingTool::start_polygon(const std::vector<Imath::V2f> &points) {
     shape_data["count"]    = points.size();
     shape_data["colour"]   = pen_colour_->value();
     shape_data["softness"] = pen_softness_->value();
-    shape_data["opacity"]  = pen_opacity_->value();
+    shape_data["opacity"]  = 100.f;
     shape_data["invert"]   = false;
 
     utility::JsonStore additional_roles;
@@ -740,7 +753,7 @@ void GradingTool::start_ellipse(
     shape_data["angle"]    = angle;
     shape_data["colour"]   = pen_colour_->value();
     shape_data["softness"] = pen_softness_->value();
-    shape_data["opacity"]  = pen_opacity_->value();
+    shape_data["opacity"]  = 100.f;
     shape_data["invert"]   = false;
 
     utility::JsonStore additional_roles;
@@ -978,7 +991,10 @@ void GradingTool::refresh_ui_from_current_grade() {
 
     // Auto select the last shape, this will force shape controls
     // (softness, opacity, etc) to refresh when changing selected layer.
-    mask_selected_shape_->set_value(mask_shapes_.size());
+    if (!mask_shapes_.empty())
+        mask_selected_shape_->set_value(mask_shapes_.size());
+    else
+        mask_selected_shape_->set_value(-1);
 
     auto bmd = get_bookmark_detail(current_bookmark());
     if (bmd.media_reference_ && bmd.start_ && bmd.start_.value() != timebase::k_flicks_low &&

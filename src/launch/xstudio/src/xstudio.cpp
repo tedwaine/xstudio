@@ -206,6 +206,47 @@ caf::behavior connect_to_remote(caf::event_based_actor *self) {
     };
 }
 
+void xstudioQtMessageHandler(
+    QtMsgType type, const QMessageLogContext &context, const QString &msg) {
+    QByteArray localMsg  = msg.toLocal8Bit();
+    const char *file     = context.file ? context.file : "";
+    const char *function = context.function ? context.function : "";
+
+    if (!strcmp("qml", context.category)) {
+        // qml messages are type = QtDebugMsg but we always want to see these.
+        spdlog::info("QML: {} ({}:{}, {})", localMsg.constData(), file, context.line, function);
+        return;
+    }
+
+    switch (type) {
+    case QtDebugMsg:
+        spdlog::debug(
+            "Qt -- {} ({}:{}, {})", localMsg.constData(), file, context.line, function);
+        break;
+    case QtInfoMsg:
+        spdlog::info(
+            "Qt -- {} ({}:{}, {})", localMsg.constData(), file, context.line, function);
+        break;
+    case QtWarningMsg:
+        // for now, supressing Qt warnings as we get some spurious stuff from QML that has been
+        // impossible to track down! Might be fixed with Qt6
+        spdlog::debug(
+            "Qt -- {} ({}:{}, {})", localMsg.constData(), file, context.line, function);
+        break;
+    case QtCriticalMsg:
+        spdlog::critical(
+            "Qt -- {} ({}:{}, {})", localMsg.constData(), file, context.line, function);
+        break;
+    case QtFatalMsg:
+        spdlog::error(
+            "Qt -- {} ({}:{}, {})", localMsg.constData(), file, context.line, function);
+        break;
+    default:
+        spdlog::info(
+            "Qt -- {} ({}:{}, {})", localMsg.constData(), file, context.line, function);
+        break;
+    }
+}
 
 struct CLIArguments {
     args::ArgumentParser parser = {"xstudio. v" PROJECT_VERSION, "Launchs xstudio."};
@@ -255,6 +296,10 @@ struct CLIArguments {
 
     args::ValueFlagList<std::string> cli_pref_paths = {
         misc, "PATH", "Path to preferences", {"pref"}};
+
+    args::ValueFlagList<std::string> cli_override_pref_paths = {
+        misc, "PATH", "Path to preferences that override user preferences", {"override-pref"}};
+
     args::Flag debug                     = {misc, "debug", "Debugging mode", {"debug"}};
     args::ValueFlag<std::string> logfile = {
         misc, "PATH", "Write session log to file", {"log-file"}};
@@ -544,6 +589,10 @@ struct Launcher {
 
         for (const auto &i : global_store::PreferenceContexts)
             pref_paths.push_back(preference_path_context(i));
+
+        for (const auto &p : args::get(cli_args.cli_override_pref_paths)) {
+            pref_paths.push_back(p);
+        }
 
         auto prefs = JsonStore();
         if (not preference_load_defaults(prefs, xstudio_root("/preference"))) {
@@ -1010,6 +1059,8 @@ int main(int argc, char **argv) {
                     spdlog::warn("{}", e.what());
                 }
 
+                qInstallMessageHandler(xstudioQtMessageHandler);
+
                 QApplication app(argc, argv);
                 app.setOrganizationName("DNEG");
                 app.setOrganizationDomain("dneg.com");
@@ -1046,6 +1097,8 @@ int main(int argc, char **argv) {
                 qmlRegisterType<ClipboardProxy>("xstudio.qml.clipboard", 1, 0, "Clipboard");
                 qmlRegisterType<ImagePainter>("xstudio.qml.helpers", 1, 0, "XsImagePainter");
                 qmlRegisterType<MarkerModel>("xstudio.qml.helpers", 1, 0, "XsMarkerModel");
+                qmlRegisterType<PropertyFollower>(
+                    "xstudio.qml.helpers", 1, 0, "XsPropertyFollower");
 
                 qmlRegisterType<EventAttrs>("xstudio.qml.event", 1, 0, "XsEvent");
 

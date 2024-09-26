@@ -33,6 +33,14 @@ RowLayout {
         sourceModel: ShotBrowserEngine.presetsModel
     }
 
+    // make sure index is updated
+    XsModelProperty {
+        index: scopeGroupModel.rootIndex
+        onIndexChanged: {
+            populateModels()
+        }
+    }
+
 
     DelegateModel {
         id: scopeGroupModel

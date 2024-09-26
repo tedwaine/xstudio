@@ -15,7 +15,10 @@ XsPrimaryButton{ id: widget
 
     property string iconText: text
     property alias iconSrc: iconDiv.source
+    property alias iconRotation: iconDiv.rotation
     property real paddingSpace: 5
+    property alias textDiv: textDiv
+    
 
     XsImage{ id: iconDiv
         x: paddingSpace*2

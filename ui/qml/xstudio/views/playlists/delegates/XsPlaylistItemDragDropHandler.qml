@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 import QtQuick 2.12
 import QuickFuture 1.0
+import QtQml.Models 2.15
 
 import xstudio.qml.helpers 1.0
 import xStudio 1.0
@@ -79,6 +80,27 @@ XsDragDropHandler {
     function doMove(button, data) {
         if (button != "Cancel") {
             let type = modelIndex.model.get(modelIndex, "typeRole")
+
+            if (button == "Move" && data.length) {
+                // as we are moving out of current playlist, we need to modify
+                // selection so that something other than what's being moved
+                // is in the selection
+                var rc = theSessionData.rowCount(data[0].parent)
+                var best_idx
+                for (var i = 0; i < rc; ++i) {
+                    var idx = theSessionData.index(i, 0, data[0].parent)
+                    if (!data.includes(idx)) {
+                        best_idx = idx
+                    } else if (best_idx) {
+                        break
+                    }
+                }
+                mediaSelectionModel.select(
+                    helpers.createItemSelection([best_idx]),
+                    ItemSelectionModel.ClearAndSelect | ItemSelectionModel.setCurrentIndex)
+
+            }
+
             let new_indexes = theSessionData.moveRows(
                 data,
                 -1, // insertion row: make invalid so always inserts on the end
