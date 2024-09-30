@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 #include <caf/policy/select_all.hpp>
 #include <caf/logger.hpp>
+#include<Python.h>
 
 #include <pybind11/pybind11.h> // everything needed for embedding
 #include <pybind11/embed.h>    // everything needed for embedding

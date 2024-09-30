@@ -104,6 +104,7 @@
 	    <file>views/python/XsPythonPanel.qml</file>
 	    <file>views/log/XsLogPanel.qml</file>
 
+	    <file>views/viewport/XsOffscreenViewportOverlays.qml</file>
 	    <file>views/viewport/XsViewportPanel.qml</file>
 	    <file>views/viewport/XsViewport.qml</file>
 	    <file>views/viewport/hud/XsHudItem.qml</file>

@@ -596,21 +596,6 @@ bool Viewport::process_pointer_event(PointerEvent &pointer_event) {
 
         if (pointer_event_handlers_[pointer_event.signature()](pointer_event)) {
 
-            // Send message to other_viewport_ and pass zoom/pan
-            anon_send(
-                global_playhead_events_group_,
-                viewport_pan_atom_v,
-                state_.translate_.x,
-                state_.translate_.y,
-                name(),
-                window_id_);
-            anon_send(
-                global_playhead_events_group_,
-                viewport_scale_atom_v,
-                state_.scale_,
-                name(),
-                window_id_);
-
             if (state_.translate_.x != 0.0f || state_.translate_.y != 0.0f ||
                 state_.scale_ != 1.0f) {
                 if (state_.fit_mode_ != Free) {
@@ -619,12 +604,6 @@ bool Viewport::process_pointer_event(PointerEvent &pointer_event) {
                     previous_fit_zoom_state_.scale_     = old_scale;
                     state_.fit_mode_                    = Free;
                     fit_mode_->set_value("Off");
-                    anon_send(
-                        global_playhead_events_group_,
-                        fit_mode_atom_v,
-                        Free,
-                        name(),
-                        window_id_);
                 }
             }
 
@@ -819,14 +798,6 @@ void Viewport::set_fit_mode(const FitMode md, const bool sync) {
     update_matrix();
     event_callback_(Redraw);
 
-    if (sync) {
-        anon_send(
-            global_playhead_events_group_,
-            fit_mode_atom_v,
-            state_.fit_mode_,
-            name(),
-            window_id_);
-    }
 }
 
 void Viewport::set_mirror_mode(const MirrorMode md) {
@@ -835,28 +806,8 @@ void Viewport::set_mirror_mode(const MirrorMode md) {
     event_callback_(Redraw);
 }
 
-void Viewport::set_pixel_zoom(const float zoom) {
-    if (state_.size_.x && state_.fit_mode_zoom_) {
-        const float old_scale          = state_.scale_;
-        const Imath::V3f old_translate = state_.translate_;
-
-        state_.scale_ =
-            state_.image_size_.x * zoom / (state_.fit_mode_zoom_ * float(state_.size_.x));
-        if (state_.translate_.x != 0.0f || state_.translate_.y != 0.0f ||
-            state_.scale_ != 1.0f) {
-            if (state_.fit_mode_ != Free) {
-                previous_fit_zoom_state_.fit_mode_  = state_.fit_mode_;
-                previous_fit_zoom_state_.translate_ = old_translate;
-                previous_fit_zoom_state_.scale_     = old_scale;
-            }
-            state_.fit_mode_ = Free;
-            fit_mode_->set_value("Off");
-        }
-        update_matrix();
-    }
-}
-
 void Viewport::revert_fit_zoom_to_previous(const bool synced) {
+
     if (previous_fit_zoom_state_.scale_ == 0.0f)
         return; // previous state not set
     std::swap(state_.fit_mode_, previous_fit_zoom_state_.fit_mode_);
@@ -879,9 +830,6 @@ void Viewport::revert_fit_zoom_to_previous(const bool synced) {
     update_matrix();
     event_callback_(Redraw);
 
-    if (state_.fit_mode_ == FitMode::Free && !synced) {
-        anon_send(global_playhead_events_group_, fit_mode_atom_v, "revert", name(), window_id_);
-    }
 }
 
 void Viewport::switch_mirror_mode() {
@@ -926,6 +874,18 @@ Imath::V2f Viewport::pointer_position() const {
 Imath::V2i Viewport::raw_pointer_position() const { return state_.raw_pointer_position_; }
 
 void Viewport::update_matrix() {
+
+    if (broadcast_fit_details_) {
+        anon_send(
+            global_playhead_events_group_,
+            fit_mode_atom_v,
+            state_.fit_mode_,
+            state_.mirror_mode_,
+            state_.scale_,
+            pan(),
+            name(),
+            window_id_);
+    }
 
     const float flipFactor = (state_.mirror_mode_ & MirrorMode::Flip) ? -1.0f : 1.0f;
     const float flopFactor = (state_.mirror_mode_ & MirrorMode::Flop) ? -1.0f : 1.0f;
@@ -1030,44 +990,43 @@ caf::message_handler Viewport::message_handler() {
 
                 [=](fit_mode_atom,
                     const FitMode mode,
+                    const MirrorMode mirror_mode,
+                    const float scale,
+                    const Imath::V2f pan,
                     const std::string &viewport_name,
                     const std::string &window_id) {
-                    if (sync_to_main_viewport_->value() &
-                        ViewportSyncMode::ViewportSyncFitMode) {
-                        set_fit_mode(mode, false);
-                    }
-                },
 
-                [=](fit_mode_atom,
-                    const std::string action,
-                    const std::string &viewport_name,
-                    const std::string &window_id) {
-                    // see above comment
+                    if (viewport_name == name()) return;
+
                     if ((window_id_ == "xstudio_popout_window" &&
                          window_id == "xstudio_main_window") ||
                         (window_id == "xstudio_popout_window" &&
                          window_id_ == "xstudio_main_window") ||
                         (sync_to_main_viewport_->value() &
                          ViewportSyncMode::ViewportSyncZoomAndPan)) {
-                        if (action == "revert") {
-                            revert_fit_zoom_to_previous(true);
-                        }
-                    }
-                },
 
-                [=](fit_mode_atom,
-                    const bool /*mirror*/,
-                    const std::string mirror_mode,
-                    const std::string &viewport_name,
-                    const std::string &window_id) {
-                    // see above comment
-                    if ((window_id_ == "xstudio_popout_window" &&
-                         window_id == "xstudio_main_window") ||
-                        (window_id == "xstudio_popout_window" &&
-                         window_id_ == "xstudio_main_window") ||
-                        (sync_to_main_viewport_->value() &
-                         ViewportSyncMode::ViewportSyncMirrorMode)) {
-                        mirror_mode_->set_value(mirror_mode);
+                        broadcast_fit_details_ = false;
+
+
+                        if (mode == FitMode::Free) {
+                            state_.translate_ = Imath::V3f(pan.x, pan.y, 0.0f);
+                            state_.scale_     = scale;
+                            fit_mode_->set_value("Off", false);
+                            update_matrix();
+                        } else {
+                            set_fit_mode(mode);
+                        }
+
+                        if (mirror_mode == MirrorMode::Flip) {
+                            mirror_mode_->set_value("Mirror Horizontally");
+                        } else if (mirror_mode == MirrorMode::Flop) {
+                            mirror_mode_->set_value("Mirror Vertically");
+                        } else if (mirror_mode == MirrorMode::Both) {
+                            mirror_mode_->set_value("Mirror Both");
+                        } else {
+                            mirror_mode_->set_value("Off");
+                        }
+                        broadcast_fit_details_ = true;
                     }
                 },
 
@@ -1127,11 +1086,6 @@ caf::message_handler Viewport::message_handler() {
 
                 [=](viewport_playhead_atom, bool autoconnect) {
                     auto_connect_to_global_selected_playhead();
-                },
-
-                [=](viewport_pixel_zoom_atom, const float zoom) {
-                    const FitMode fm = fit_mode();
-                    set_pixel_zoom(zoom);
                 },
 
                 [=](viewport_scale_atom) -> float { return state_.scale_; },
@@ -1464,9 +1418,6 @@ void Viewport::attribute_changed(const utility::Uuid &attr_uuid, const int role)
             set_mirror_mode(MirrorMode::Both);
         else
             set_mirror_mode(MirrorMode::Off);
-
-        anon_send(
-            global_playhead_events_group_, fit_mode_atom_v, true, mode, name(), window_id_);
     }
 }
 

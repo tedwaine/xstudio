@@ -20,12 +20,17 @@
 #include <QByteArray>
 #include <QImageWriter>
 #include <QThread>
+#include <QQmlComponent>
+#include <QQuickItem>
+#include <QQuickWindow>
+#include <QQuickRenderControl>
 
 using namespace caf;
 using namespace xstudio;
 using namespace xstudio::ui;
 using namespace xstudio::ui::qt;
 using namespace xstudio::ui::viewport;
+using namespace xstudio::ui::qml;
 
 namespace fs = std::filesystem;
 
@@ -107,6 +112,22 @@ OffscreenViewport::OffscreenViewport(const std::string name) : super() {
             video_output_actor_ = caf::actor();
         }
     });
+
+    // join studio events, so we know when a new session has been created
+    auto grp = utility::request_receive<caf::actor>(
+        *sys,
+        system().registry().template get<caf::actor>(studio_registry),
+        utility::get_event_group_atom_v);
+
+    utility::request_receive<bool>(
+        *sys, grp, broadcast::join_broadcast_atom_v, as_actor());
+
+    session_actor_addr_ = actorToQString(
+        system(),
+        utility::request_receive<caf::actor>(
+            *sys,
+            system().registry().template get<caf::actor>(studio_registry),
+            session::session_atom_v));
 
     // Here we set-up the caf message handler for this class by combining the
     // message handler from OpenGLViewportRenderer with our own message handlers for offscreen
@@ -251,7 +272,18 @@ OffscreenViewport::OffscreenViewport(const std::string name) : super() {
                         last_rendered_frame_ = new_frame;
                     }
                 }
-            }
+            },
+
+            // event coming from session actor
+            [=](utility::event_atom, session::session_atom, caf::actor session) {
+                session_actor_addr_ = actorToQString(system(), session);
+            },
+
+            // event coming from session actor (ignore)
+            [=](utility::event_atom,
+                session::session_request_atom,
+                const std::string &path,
+                const utility::JsonStore &js) {}
 
         });
     });
@@ -261,7 +293,9 @@ OffscreenViewport::OffscreenViewport(const std::string name) : super() {
 
 OffscreenViewport::~OffscreenViewport() {
 
+    // gl context must be current for cleanup
     gl_context_->makeCurrent(surface_);
+    render_control_->invalidate();
     delete viewport_renderer_;
 
     if (texId_) {
@@ -270,13 +304,25 @@ OffscreenViewport::~OffscreenViewport() {
         glDeleteTextures(1, &depth_texId_);
     }
 
+    // teardown the QML gubbins
+    delete render_control_;
+    delete root_qml_overlays_item_;
+    delete qml_component_;
+    delete helper_;
+    delete quick_win_;
+    delete qml_engine_;
     delete gl_context_;
     delete surface_;
-
+        
     video_output_actor_ = caf::actor();
 }
 
-void OffscreenViewport::autoDelete() { delete this; }
+void OffscreenViewport::autoDelete() { 
+    // autoDelete is called by our thread on completion, so we can delete
+    // ouselves whilst still in the Thread. Qt doesn't let us kill object 
+    // living in one thread from another thread.
+    delete this; 
+}
 
 void OffscreenViewport::initGL() {
 
@@ -299,21 +345,37 @@ void OffscreenViewport::initGL() {
                                      "for offscreen rendering.");
         }
 
-        // we also require a QSurface to use the GL context
-        surface_ = new QOffscreenSurface(nullptr, nullptr);
-        surface_->setFormat(format);
-        surface_->create();
-
-        // gl_context_->makeCurrent(surface_);
-
-        // we also require a QSurface to use the GL context
-        surface_ = new QOffscreenSurface(nullptr, nullptr);
-        surface_->setFormat(format);
-        surface_->create();
-
+        // This offscreen viewport runs in its own thread
         thread_ = new QThread();
+
+        // we also require a QSurface to use the GL context
+        surface_ = new QOffscreenSurface(nullptr, nullptr);
+        surface_->setFormat(format);
+        surface_->create();
+
+        // Here we set-up the gubbins necessary for rendering QML graphics
+        // into the viewport
+        render_control_ = new QQuickRenderControl();
+        quick_win_ = new QQuickWindow(render_control_);
+        qml_engine_ = new QQmlEngine;
+        if (!qml_engine_->incubationController())
+            qml_engine_->setIncubationController(quick_win_->incubationController());
+        qml_engine_->addImportPath("qrc:///");
+        qml_engine_->addImportPath("qrc:///extern");
+
+        connect(render_control_, SIGNAL(sceneChanged()), this, SLOT(sceneChanged()));
+        connect(render_control_, SIGNAL(renderRequested()), this, SLOT(sceneChanged()));
+
+        // gui plugins..
+        qml_engine_->addImportPath(QStringFromStd(utility::xstudio_root("/plugin/qml")));
+        qml_engine_->addPluginPath(QStringFromStd(utility::xstudio_root("/plugin")));
+
         gl_context_->moveToThread(thread_);
+        qml_engine_->moveToThread(thread_);
+        render_control_->moveToThread(thread_);
         moveToThread(thread_);
+        render_control_->prepareThread(thread_);
+
         thread_->start();
 
         // Note - the only way I seem to be able to 'cleanly' exit is
@@ -332,6 +394,10 @@ void OffscreenViewport::initGL() {
 void OffscreenViewport::stop() {
     thread_->quit();
     thread_->wait();
+}
+
+void OffscreenViewport::sceneChanged() {
+    last_rendered_frame_.reset();
 }
 
 void OffscreenViewport::renderSnapshot(const int width, const int height, const caf::uri path) {
@@ -553,6 +619,57 @@ void OffscreenViewport::setupTextureAndFrameBuffer(
     glFramebufferTexture2D(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_TEXTURE_2D, depth_texId_, 0);
 }
 
+bool OffscreenViewport::loadQMLOverlays() {
+
+    if (overlays_loaded_) return bool(root_qml_overlays_item_);
+
+    overlays_loaded_ = true;
+
+
+    qml_component_ = new QQmlComponent(qml_engine_, "qrc:/views/viewport/XsOffscreenViewportOverlays.qml");
+    qml_component_->moveToThread(thread_);
+
+    if (qml_component_->isError()) {
+        const QList<QQmlError> errorList = qml_component_->errors();
+        for (const QQmlError &error : errorList)
+            qWarning() << error.url() << error.line() << error;
+        return false;;
+    }
+
+    QObject *rootObject = qml_component_->create();
+    if (qml_component_->isError()) {
+        const QList<QQmlError> errorList = qml_component_->errors();
+        for (const QQmlError &error : errorList)
+            qWarning() << error.url() << error.line() << error;
+        return false;;
+    }
+
+    root_qml_overlays_item_ = qobject_cast<QQuickItem *>(rootObject);
+    if (!root_qml_overlays_item_) {
+        qWarning("run: Not a QQuickItem");
+        delete rootObject;
+        return false;
+    }
+
+    // The root item is ready. Associate it with the window.
+    root_qml_overlays_item_->setParentItem(quick_win_->contentItem());
+
+    quick_win_->setClearBeforeRendering(false);
+
+    render_control_->initialize(gl_context_);
+
+    helper_ = new qml::Helpers(qml_engine_, this);
+    helper_->moveToThread(thread_);
+
+    QVariant v(QMetaType::QObjectStar, &helper_);
+    root_qml_overlays_item_->setProperty("helpers", v);
+
+    root_qml_overlays_item_->setProperty("name", qml::QStringFromStd(viewport_renderer_->name()));
+
+    // Update item and rendering related geometries.   
+    return true;
+}
+
 void OffscreenViewport::renderToImageBuffer(
     const int w,
     const int h,
@@ -574,10 +691,9 @@ void OffscreenViewport::renderToImageBuffer(
 
     auto t1 = utility::clock::now();
 
-    // Clearup before render, probably useless for a new buffer
-    glClearColor(0.0, 1.0, 0.0, 0.0);
-    glClear(GL_COLOR_BUFFER_BIT);
+    glPushClientAttrib(GL_CLIENT_ALL_ATTRIB_BITS);
 
+    // Clearup before render, probably useless for a new buffer
     glViewport(0, 0, w, h);
 
     // This essential call tells the viewport renderer how to project the
@@ -599,10 +715,46 @@ void OffscreenViewport::renderToImageBuffer(
         viewport_renderer_->render();
     }
 
+    glPopClientAttrib();
+
+    auto t2 = utility::clock::now();
+
+    if (loadQMLOverlays()) {
+
+        quick_win_->setRenderTarget(fboId_, QSize(w, h));
+        root_qml_overlays_item_->setWidth(w);
+        root_qml_overlays_item_->setHeight(h);
+
+        // convert the image boundary in the viewport into plain pixels
+        Imath::Box2f box = viewport_renderer_->image_bounds_in_viewport_pixels();
+        QRectF imageBoundsInViewportPixels(
+            (box.min.x)*float(w),
+            box.min.y*float(h),
+            (box.max.x - box.min.x)*float(w),
+            (box.max.y - box.min.y)*float(h)
+            );
+        // these properties on XsOffscreenViewportOverlays mirror the same
+        // properties provided by XsViewport - some overlay/HUD QML items access
+        // these properties so they know how to compute their geometrty in 
+        // the QML coordinates to overlay the xSTUDIO image.
+        root_qml_overlays_item_->setProperty("imageBoundaryInViewport", imageBoundsInViewportPixels);
+        root_qml_overlays_item_->setProperty("imageResolution", QSize(viewport_renderer_->image_resolution().x, viewport_renderer_->image_resolution().y));
+        root_qml_overlays_item_->setProperty("sessionActorAddr", session_actor_addr_);
+        quick_win_->setWidth(w);
+        quick_win_->setHeight(h);
+        quick_win_->setGeometry(0, 0, w, h);
+        render_control_->polishItems();
+        render_control_->sync();
+        render_control_->render();
+
+    }
+
+    glFlush();
+    auto t3 = utility::clock::now();
+
     // Not sure if this is necessary
     // glFinish();
 
-    auto t2 = utility::clock::now();
 
     // unbind
     glBindFramebuffer(GL_FRAMEBUFFER, 0);
@@ -633,8 +785,6 @@ void OffscreenViewport::renderToImageBuffer(
     glPixelStorei(GL_PACK_ROW_LENGTH, w);
     glPixelStorei(GL_PACK_ALIGNMENT, 1);
 
-    auto t3 = utility::clock::now();
-
     glBindFramebuffer(GL_FRAMEBUFFER, 0);
 
     glGetTexImage(GL_TEXTURE_2D, 0, GL_RGBA, format_to_gl_pixe_type[vid_out_format_], nullptr);
@@ -653,13 +803,14 @@ void OffscreenViewport::renderToImageBuffer(
     auto t5 = utility::clock::now();
 
     auto tt = utility::clock::now();
-    /*std::cerr << "glBindBuffer "
-        << std::chrono::duration_cast<std::chrono::milliseconds>(t1-t0).count() << " "
-        << std::chrono::duration_cast<std::chrono::milliseconds>(t2-t1).count() << " "
-        << std::chrono::duration_cast<std::chrono::milliseconds>(t3-t2).count() << " "
-        << std::chrono::duration_cast<std::chrono::milliseconds>(t4-t3).count() << " "
-        << std::chrono::duration_cast<std::chrono::milliseconds>(t5-t4).count() << " : "
-        << std::chrono::duration_cast<std::chrono::milliseconds>(t5-t0).count() << "\n";*/
+
+    // TODO: Gather stats on draw times etc and send to video_output_actor_
+    // so it can monitor performance
+
+    /*std::cerr << "Draw time "  << std::chrono::duration_cast<std::chrono::milliseconds>(t2-t1).count() << "\n";
+    std::cerr << "Overlays time "  << std::chrono::duration_cast<std::chrono::milliseconds>(t3-t2).count() << "\n";
+    std::cerr << "Map buffer time "  << std::chrono::duration_cast<std::chrono::milliseconds>(t4-t3).count() << "\n";
+    std::cerr << "Copy buffer time "  << std::chrono::duration_cast<std::chrono::milliseconds>(t5-t4).count() << "\n";*/
 
     glBindTexture(GL_TEXTURE_2D, 0);
 }

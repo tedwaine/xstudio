@@ -16,8 +16,19 @@ namespace opengl {
 class OpenGLViewportRenderer;
 }
 
+class QQuickWindow;
+class QQuickItem;
+class QQmlComponent;
+class QQuickRenderControl;
+class QQmlEngine;
+
 namespace xstudio {
 namespace ui {
+
+    namespace qml {
+        class Helpers;
+    }
+    
     namespace qt {
 
         class OffscreenViewport : public caf::mixin::actor_object<QObject> {
@@ -42,8 +53,12 @@ namespace ui {
           public slots:
 
             void autoDelete();
+            void sceneChanged();
 
           private:
+
+            caf::actor_system &system() { return self()->home_system(); }
+
             void receive_change_notification(viewport::Viewport::ChangeCallbackId id);
 
             thumbnail::ThumbnailBufferPtr renderOffscreen(
@@ -98,6 +113,8 @@ namespace ui {
 
             void make_conversion_lut();
 
+            bool loadQMLOverlays();
+
             thumbnail::ThumbnailBufferPtr
             rgb96thumbFromHalfFloatImage(const media_reader::ImageBufPtr &image);
 
@@ -126,6 +143,16 @@ namespace ui {
             std::vector<uint32_t> half_to_int_32_lut_;
 
             caf::actor local_playhead_;
+            QString session_actor_addr_;
+            
+            QQuickWindow *quick_win_ = nullptr;
+            QQuickItem *root_qml_overlays_item_ = nullptr;
+            QQmlComponent * qml_component_ = nullptr;
+            QQuickRenderControl *render_control_ = nullptr;
+            QQmlEngine *qml_engine_ = nullptr;
+            ui::qml::Helpers * helper_ = nullptr;
+            bool overlays_loaded_ = false;
+
         };
     } // namespace qt
 } // namespace ui

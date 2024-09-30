@@ -46,11 +46,13 @@ Item {
     function updateDecorations() {
         if(typeRole == "Playlist" && !placeHolder) {
             let meta = theSessionData.getJSONObject(modelIndex, "/ui/decorators")
-            let tmp = []
-            for (const [key, value] of Object.entries(meta)) {
-              tmp.push([key, value])
+            if(meta != undefined) {
+                let tmp = []
+                for (const [key, value] of Object.entries(meta)) {
+                  tmp.push([key, value])
+                }
+                decoratorModel = tmp
             }
-            decoratorModel = tmp
         }
     }
 

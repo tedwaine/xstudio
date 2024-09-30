@@ -228,7 +228,7 @@ void register_bookmark_detail_class(py::module &m, const std::string &name) {
         .def_readwrite("visible", &bookmark::BookmarkDetail::visible_)
         .def_readwrite("start", &bookmark::BookmarkDetail::start_)
         .def_readwrite("duration", &bookmark::BookmarkDetail::duration_)
-        .def_readwrite("user_data", &bookmark::BookmarkDetail::user_data_)
+        //.def_readwrite("user_data", &bookmark::BookmarkDetail::user_data_)
         .def_readwrite("author", &bookmark::BookmarkDetail::author_)
         .def_readwrite("owner", &bookmark::BookmarkDetail::owner_)
         .def_readwrite("note", &bookmark::BookmarkDetail::note_)
@@ -248,7 +248,7 @@ void register_mediakey_class(py::module &m, const std::string &name) {
 }
 
 void register_jsonstore_class(py::module &m, const std::string &name) {
-    auto str_impl             = [](const utility::JsonStore &x) { return to_string(x); };
+    auto str_impl             = [](const utility::JsonStore &x) -> std::string { return std::string("basket"); };
     auto get_preferences_impl = [](const utility::JsonStore &x,
                                    const std::set<std::string> &context =
                                        std::set<std::string>()) {

@@ -261,6 +261,7 @@ struct CLIArguments {
         "quick-view",
         "Open a quick-view for each supplied media item",
         {'l', "quick-view"}};
+    args::Flag allow_qt_warnings = {parser, "allow-qt-warnings", "Allow all QT warnings to be printed into the terminal.", {'qtw', "allow-qt-warnings"}};
 
     std::unordered_map<std::string, std::string> cmMapValues{
         {"none", "Off"},
@@ -357,6 +358,7 @@ struct Launcher {
         actions["disable_vsync"]         = cli_args.disable_vsync.Matched();
         actions["share_opengl_contexts"] = cli_args.share_opengl_contexts.Matched();
         actions["compare"] = static_cast<std::string>(args::get(cli_args.compare));
+        actions["allow_qt_warnings"]     = cli_args.allow_qt_warnings.Matched();
 
         // check for xstudio url..
         if (args::get(cli_args.media_paths).size() == 1 and
@@ -1059,7 +1061,9 @@ int main(int argc, char **argv) {
                     spdlog::warn("{}", e.what());
                 }
 
-                qInstallMessageHandler(xstudioQtMessageHandler);
+                if (not l.actions["allow_qt_warnings"]) {
+                    qInstallMessageHandler(xstudioQtMessageHandler);
+                }
 
                 QApplication app(argc, argv);
                 app.setOrganizationName("DNEG");

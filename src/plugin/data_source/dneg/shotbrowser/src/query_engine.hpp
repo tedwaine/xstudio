@@ -85,7 +85,7 @@ const auto ValidEntities = R"([
     "Versions"
 ])"_json;
 
-const auto ValidTerms = R"({
+const auto ValidTerms = R"_({
     "Playlists" : [
         "Operator",
         "Author",
@@ -170,10 +170,11 @@ const auto ValidTerms = R"({
         "Shot Status",
         "Shot",
         "Tag",
+        "Tag (Version)",
         "Twig Name",
         "Twig Type"
     ]
-})"_json;
+})_"_json;
 
 const auto OnDiskTermValues = R"([
         {"name": "chn"},
@@ -262,7 +263,7 @@ const auto SourceTermValues = R"([
         { "name": "review_proxy_2" }
     ])"_json;
 
-const auto TermProperties = R"({
+const auto TermProperties = R"_({
     "Author": { "negated": null, "livelink": false },
     "Client Filename": { "negated": false, "livelink": null },
     "Completion Location": { "negated": false, "livelink": null },
@@ -305,11 +306,12 @@ const auto TermProperties = R"({
     "Shot": { "negated": false, "livelink": false },
     "Site": { "negated": false, "livelink": null },
     "Tag": { "negated": false, "livelink": null },
+    "Tag (Version)": { "negated": false, "livelink": null },
     "Twig Name": { "negated": false, "livelink": false },
     "Twig Type": { "negated": false, "livelink": false },
     "Unit": { "negated": false, "livelink": null },
     "Version Name": { "negated": false, "livelink": false }
-})"_json;
+})_"_json;
 
 const std::set<std::string> TermHasProjectKey = {
     "shot",

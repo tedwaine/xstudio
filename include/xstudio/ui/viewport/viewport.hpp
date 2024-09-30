@@ -49,7 +49,6 @@ namespace ui {
             void set_pan(const float x_pan, const float y_pan);
             void set_fit_mode(const FitMode md, const bool sync = true);
             void set_mirror_mode(const MirrorMode md);
-            void set_pixel_zoom(const float zoom);
             void set_screen_infos(
                 const std::string &name,
                 const std::string &model,
@@ -344,6 +343,7 @@ namespace ui {
             Imath::M44f viewport_to_canvas_;
             Imath::M44f fit_mode_matrix_;
             float devicePixelRatio_ = {1.0};
+            bool broadcast_fit_details_ = {true};
 
             Imath::V4f normalised_pointer_position() const;
 

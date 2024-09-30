@@ -1,5 +1,7 @@
 
 include(CTest)
+
+find_package(Python COMPONENTS Interpreter Development)
 find_package(pybind11 REQUIRED)  # or `add_subdirectory(pybind11)`
 find_package(spdlog REQUIRED)
 find_package(fmt REQUIRED)

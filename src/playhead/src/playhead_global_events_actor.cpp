@@ -243,60 +243,19 @@ void PlayheadGlobalEventsActor::init() {
                     xstudio_error::error, fmt::format("No viewport named {}", viewport_name));
             return r;
         },
-        [=](ui::viewport::viewport_pan_atom atom,
-            float tx,
-            float ty,
-            const std::string &viewport_name,
-            const std::string &window_id) {
-            // forward pan changed to all other viewports in case they want to sync
-            for (const auto &p : viewports_) {
-                if (p.first != viewport_name) {
-                    send(p.second.viewport, atom, tx, ty, viewport_name, window_id);
-                }
-            }
-        },
-        [=](ui::viewport::viewport_scale_atom atom,
-            float scale,
-            const std::string &viewport_name,
-            const std::string &window_id) {
-            // forward scale changed to all other viewports in case they want to sync
-            for (const auto &p : viewports_) {
-                if (p.first != viewport_name) {
-                    send(p.second.viewport, atom, scale, viewport_name, window_id);
-                }
-            }
-        },
         [=](ui::viewport::fit_mode_atom atom,
             const ui::viewport::FitMode mode,
+            const ui::viewport::MirrorMode mirror_mode,
+            const float scale,
+            const Imath::V2f pan,
             const std::string &viewport_name,
-            const std::string &window_id) {
-            // forward fitmode changes to all other viewports in case they want to sync
+            const std::string &window_id) 
+        {
+            // viewports tell us when they are zooming/panning, setting fit or mirror mode.
+            // We broadcast to all other viewports so that they can track (if they want to)
             for (const auto &p : viewports_) {
                 if (p.first != viewport_name) {
-                    send(p.second.viewport, atom, mode, viewport_name, window_id);
-                }
-            }
-        },
-        [=](ui::viewport::fit_mode_atom atom,
-            const std::string action,
-            const std::string &viewport_name,
-            const std::string &window_id) {
-            // forward fitmode changes to all other viewports in case they want to sync
-            for (const auto &p : viewports_) {
-                if (p.first != viewport_name) {
-                    send(p.second.viewport, atom, action, viewport_name, window_id);
-                }
-            }
-        },
-        [=](ui::viewport::fit_mode_atom atom,
-            const bool /*mirror*/,
-            const std::string action,
-            const std::string &viewport_name,
-            const std::string &window_id) {
-            // using the fit_mode_atom to transmit change in mirror mode
-            for (const auto &p : viewports_) {
-                if (p.first != viewport_name) {
-                    send(p.second.viewport, atom, true, action, viewport_name, window_id);
+                    send(p.second.viewport, atom, mode, mirror_mode, scale, pan, viewport_name, window_id);
                 }
             }
         },

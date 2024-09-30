@@ -30,6 +30,8 @@ macro(default_compile_options name)
 		# PRIVATE $<$<CONFIG:Debug>:-Wno-unused-parameter>
 		PRIVATE $<$<AND:$<CONFIG:Debug>,$<PLATFORM_ID:Linux>>:-Wno-unused-function>
 		PRIVATE $<$<AND:$<CONFIG:Debug>,$<PLATFORM_ID:Linux>>:-Wextra>
+		PRIVATE $<$<AND:$<CONFIG:Debug>,$<PLATFORM_ID:Linux>>:-Wextra>
+		PRIVATE $<$<PLATFORM_ID:Linux>:-Wfatal-errors> # Stop after first error
 		PRIVATE $<$<AND:$<CONFIG:Debug>,$<PLATFORM_ID:Linux>>:-Wpedantic>
 		PRIVATE $<$<AND:$<CONFIG:Debug>,$<PLATFORM_ID:Windows>>:/wd4100>
 		# PRIVATE $<$<CONFIG:Debug>:-Wall>

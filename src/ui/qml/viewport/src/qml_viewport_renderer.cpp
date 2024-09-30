@@ -156,6 +156,8 @@ void QMLViewportRenderer::make_xstudio_viewport() {
      */
     viewport_renderer_ = new ui::viewport::Viewport(jsn, as_actor(), gl_renderer);
 
+    viewport_renderer_->set_visibility(viewport_qml_item_->isVisible());
+
     /* Provide a callback so the Viewport can tell this class when some property of the viewport
     has changed and such events can be propagated to other QT components, for example */
     auto callback = [this](auto &&PH1) {

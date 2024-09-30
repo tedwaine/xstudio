@@ -1,6 +1,7 @@
 cmake_minimum_required(VERSION 3.12)
 project(embedded_python VERSION 0.1.0 LANGUAGES CXX)
 
+find_package(Python COMPONENTS Interpreter Development)
 find_package(pybind11 CONFIG REQUIRED)  # or `add_subdirectory(pybind11)`
 find_package(spdlog CONFIG REQUIRED)
 find_package(fmt CONFIG REQUIRED)
@@ -31,7 +32,7 @@ if(UNIX)
 			xstudio::utility
 			xstudio::broadcast
 			xstudio::global_store
-			pybind11::embed
+			Python::Python
 			OTIO::opentime
 			OTIO::opentimelineio
 	)

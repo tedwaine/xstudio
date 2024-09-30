@@ -103,6 +103,8 @@ QMLViewport::QMLViewport(QQuickItem *parent) : QQuickItem(parent), cursor_(Qt::A
 
     setAcceptedMouseButtons(Qt::AllButtons);
     setAcceptHoverEvents(true);
+
+    renderer_actor->visibleChanged(isVisible());
 }
 
 QMLViewport::~QMLViewport() { delete renderer_actor; }
