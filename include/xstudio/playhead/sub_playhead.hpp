@@ -93,6 +93,10 @@ namespace playhead {
             int step_frames,
             const bool loop);
 
+         timebase::flicks get_next_or_previous_clip_start_position(
+            const timebase::flicks start_position, 
+            const bool next_clip);
+
         void set_in_and_out_frames();
 
         typedef std::vector<std::tuple<utility::Uuid, std::string, int, int>> BookmarkRanges;

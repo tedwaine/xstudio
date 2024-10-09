@@ -30,7 +30,7 @@ namespace playhead {
 
         caf::behavior make_behavior() override { return behavior_; }
 
-        void select_media(const utility::UuidList &media_uuids);
+        void select_media(const utility::UuidList &media_uuids, const bool retry = true);
 
         void insert_actor(
             caf::actor actor, const utility::Uuid media_uuid, const utility::Uuid &before_uuid);

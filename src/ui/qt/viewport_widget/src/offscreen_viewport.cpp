@@ -80,7 +80,8 @@ static std::map<ImageFormat, GLint> format_to_bytes_per_pixel = {
 
 } // namespace
 
-OffscreenViewport::OffscreenViewport(const std::string name) : super() {
+OffscreenViewport::OffscreenViewport(const std::string name, bool include_qml_overlays)
+    : super(), include_qml_overlays_(include_qml_overlays) {
 
     // This class is a QObject with a caf::actor 'companion' that allows it
     // to receive and send caf messages - here we run necessary initialisation
@@ -119,8 +120,7 @@ OffscreenViewport::OffscreenViewport(const std::string name) : super() {
         system().registry().template get<caf::actor>(studio_registry),
         utility::get_event_group_atom_v);
 
-    utility::request_receive<bool>(
-        *sys, grp, broadcast::join_broadcast_atom_v, as_actor());
+    utility::request_receive<bool>(*sys, grp, broadcast::join_broadcast_atom_v, as_actor());
 
     session_actor_addr_ = actorToQString(
         system(),
@@ -295,7 +295,8 @@ OffscreenViewport::~OffscreenViewport() {
 
     // gl context must be current for cleanup
     gl_context_->makeCurrent(surface_);
-    render_control_->invalidate();
+    if (render_control_)
+        render_control_->invalidate();
     delete viewport_renderer_;
 
     if (texId_) {
@@ -313,15 +314,15 @@ OffscreenViewport::~OffscreenViewport() {
     delete qml_engine_;
     delete gl_context_;
     delete surface_;
-        
+
     video_output_actor_ = caf::actor();
 }
 
-void OffscreenViewport::autoDelete() { 
+void OffscreenViewport::autoDelete() {
     // autoDelete is called by our thread on completion, so we can delete
-    // ouselves whilst still in the Thread. Qt doesn't let us kill object 
+    // ouselves whilst still in the Thread. Qt doesn't let us kill object
     // living in one thread from another thread.
-    delete this; 
+    delete this;
 }
 
 void OffscreenViewport::initGL() {
@@ -356,8 +357,8 @@ void OffscreenViewport::initGL() {
         // Here we set-up the gubbins necessary for rendering QML graphics
         // into the viewport
         render_control_ = new QQuickRenderControl();
-        quick_win_ = new QQuickWindow(render_control_);
-        qml_engine_ = new QQmlEngine;
+        quick_win_      = new QQuickWindow(render_control_);
+        qml_engine_     = new QQmlEngine;
         if (!qml_engine_->incubationController())
             qml_engine_->setIncubationController(quick_win_->incubationController());
         qml_engine_->addImportPath("qrc:///");
@@ -396,9 +397,7 @@ void OffscreenViewport::stop() {
     thread_->wait();
 }
 
-void OffscreenViewport::sceneChanged() {
-    last_rendered_frame_.reset();
-}
+void OffscreenViewport::sceneChanged() { last_rendered_frame_.reset(); }
 
 void OffscreenViewport::renderSnapshot(const int width, const int height, const caf::uri path) {
 
@@ -621,19 +620,22 @@ void OffscreenViewport::setupTextureAndFrameBuffer(
 
 bool OffscreenViewport::loadQMLOverlays() {
 
-    if (overlays_loaded_) return bool(root_qml_overlays_item_);
+    if (overlays_loaded_)
+        return bool(root_qml_overlays_item_);
 
     overlays_loaded_ = true;
 
 
-    qml_component_ = new QQmlComponent(qml_engine_, "qrc:/views/viewport/XsOffscreenViewportOverlays.qml");
+    qml_component_ =
+        new QQmlComponent(qml_engine_, "qrc:/views/viewport/XsOffscreenViewportOverlays.qml");
     qml_component_->moveToThread(thread_);
 
     if (qml_component_->isError()) {
         const QList<QQmlError> errorList = qml_component_->errors();
         for (const QQmlError &error : errorList)
             qWarning() << error.url() << error.line() << error;
-        return false;;
+        return false;
+        ;
     }
 
     QObject *rootObject = qml_component_->create();
@@ -641,7 +643,8 @@ bool OffscreenViewport::loadQMLOverlays() {
         const QList<QQmlError> errorList = qml_component_->errors();
         for (const QQmlError &error : errorList)
             qWarning() << error.url() << error.line() << error;
-        return false;;
+        return false;
+        ;
     }
 
     root_qml_overlays_item_ = qobject_cast<QQuickItem *>(rootObject);
@@ -664,9 +667,10 @@ bool OffscreenViewport::loadQMLOverlays() {
     QVariant v(QMetaType::QObjectStar, &helper_);
     root_qml_overlays_item_->setProperty("helpers", v);
 
-    root_qml_overlays_item_->setProperty("name", qml::QStringFromStd(viewport_renderer_->name()));
+    root_qml_overlays_item_->setProperty(
+        "name", qml::QStringFromStd(viewport_renderer_->name()));
 
-    // Update item and rendering related geometries.   
+    // Update item and rendering related geometries.
     return true;
 }
 
@@ -684,6 +688,8 @@ void OffscreenViewport::renderToImageBuffer(
         throw std::runtime_error("OffscreenrenderToImageBuffer - GL Context is not valid.");
     }
 
+    glPushClientAttrib(GL_CLIENT_ALL_ATTRIB_BITS);
+
     // intialises shaders and textures where necessary
     viewport_renderer_->init();
 
@@ -691,7 +697,6 @@ void OffscreenViewport::renderToImageBuffer(
 
     auto t1 = utility::clock::now();
 
-    glPushClientAttrib(GL_CLIENT_ALL_ATTRIB_BITS);
 
     // Clearup before render, probably useless for a new buffer
     glViewport(0, 0, w, h);
@@ -715,11 +720,12 @@ void OffscreenViewport::renderToImageBuffer(
         viewport_renderer_->render();
     }
 
+    auto t2 = utility::clock::now();
     glPopClientAttrib();
 
-    auto t2 = utility::clock::now();
+    glActiveTexture(GL_TEXTURE0);
 
-    if (loadQMLOverlays()) {
+    if (include_qml_overlays_ && loadQMLOverlays()) {
 
         quick_win_->setRenderTarget(fboId_, QSize(w, h));
         root_qml_overlays_item_->setWidth(w);
@@ -728,17 +734,21 @@ void OffscreenViewport::renderToImageBuffer(
         // convert the image boundary in the viewport into plain pixels
         Imath::Box2f box = viewport_renderer_->image_bounds_in_viewport_pixels();
         QRectF imageBoundsInViewportPixels(
-            (box.min.x)*float(w),
-            box.min.y*float(h),
-            (box.max.x - box.min.x)*float(w),
-            (box.max.y - box.min.y)*float(h)
-            );
+            (box.min.x) * float(w),
+            box.min.y *float(h),
+            (box.max.x - box.min.x) * float(w),
+            (box.max.y - box.min.y) * float(h));
         // these properties on XsOffscreenViewportOverlays mirror the same
         // properties provided by XsViewport - some overlay/HUD QML items access
-        // these properties so they know how to compute their geometrty in 
+        // these properties so they know how to compute their geometrty in
         // the QML coordinates to overlay the xSTUDIO image.
-        root_qml_overlays_item_->setProperty("imageBoundaryInViewport", imageBoundsInViewportPixels);
-        root_qml_overlays_item_->setProperty("imageResolution", QSize(viewport_renderer_->image_resolution().x, viewport_renderer_->image_resolution().y));
+        root_qml_overlays_item_->setProperty(
+            "imageBoundaryInViewport", imageBoundsInViewportPixels);
+        root_qml_overlays_item_->setProperty(
+            "imageResolution",
+            QSize(
+                viewport_renderer_->image_resolution().x,
+                viewport_renderer_->image_resolution().y));
         root_qml_overlays_item_->setProperty("sessionActorAddr", session_actor_addr_);
         quick_win_->setWidth(w);
         quick_win_->setHeight(h);
@@ -746,10 +756,11 @@ void OffscreenViewport::renderToImageBuffer(
         render_control_->polishItems();
         render_control_->sync();
         render_control_->render();
-
     }
 
     glFlush();
+
+
     auto t3 = utility::clock::now();
 
     // Not sure if this is necessary
@@ -780,6 +791,12 @@ void OffscreenViewport::renderToImageBuffer(
     glActiveTexture(GL_TEXTURE0);
     glBindTexture(GL_TEXTURE_2D, texId_);
 
+    int skip_rows, skip_pixels, row_length, alignment;
+    glGetIntegerv(GL_PACK_SKIP_ROWS, &skip_rows);
+    glGetIntegerv(GL_PACK_SKIP_PIXELS, &skip_pixels);
+    glGetIntegerv(GL_PACK_ROW_LENGTH, &row_length);
+    glGetIntegerv(GL_PACK_ALIGNMENT, &alignment);
+
     glPixelStorei(GL_PACK_SKIP_ROWS, 0);
     glPixelStorei(GL_PACK_SKIP_PIXELS, 0);
     glPixelStorei(GL_PACK_ROW_LENGTH, w);
@@ -788,7 +805,6 @@ void OffscreenViewport::renderToImageBuffer(
     glBindFramebuffer(GL_FRAMEBUFFER, 0);
 
     glGetTexImage(GL_TEXTURE_2D, 0, GL_RGBA, format_to_gl_pixe_type[vid_out_format_], nullptr);
-
 
     glBindBuffer(GL_PIXEL_PACK_BUFFER, pixel_buffer_object_);
     void *mappedBuffer = glMapBuffer(GL_PIXEL_PACK_BUFFER, GL_READ_ONLY);
@@ -807,12 +823,20 @@ void OffscreenViewport::renderToImageBuffer(
     // TODO: Gather stats on draw times etc and send to video_output_actor_
     // so it can monitor performance
 
-    /*std::cerr << "Draw time "  << std::chrono::duration_cast<std::chrono::milliseconds>(t2-t1).count() << "\n";
-    std::cerr << "Overlays time "  << std::chrono::duration_cast<std::chrono::milliseconds>(t3-t2).count() << "\n";
-    std::cerr << "Map buffer time "  << std::chrono::duration_cast<std::chrono::milliseconds>(t4-t3).count() << "\n";
-    std::cerr << "Copy buffer time "  << std::chrono::duration_cast<std::chrono::milliseconds>(t5-t4).count() << "\n";*/
+    /*std::cerr << "Draw time "  <<
+    std::chrono::duration_cast<std::chrono::milliseconds>(t2-t1).count() << "\n"; std::cerr <<
+    "Overlays time "  << std::chrono::duration_cast<std::chrono::milliseconds>(t3-t2).count() <<
+    "\n"; std::cerr << "Map buffer time "  <<
+    std::chrono::duration_cast<std::chrono::milliseconds>(t4-t3).count() << "\n"; std::cerr <<
+    "Copy buffer time "  << std::chrono::duration_cast<std::chrono::milliseconds>(t5-t4).count()
+    << "\n";*/
 
     glBindTexture(GL_TEXTURE_2D, 0);
+
+    glPixelStorei(GL_PACK_SKIP_ROWS, skip_rows);
+    glPixelStorei(GL_PACK_SKIP_PIXELS, skip_pixels);
+    glPixelStorei(GL_PACK_ROW_LENGTH, row_length);
+    glPixelStorei(GL_PACK_ALIGNMENT, alignment);
 }
 
 void OffscreenViewport::receive_change_notification(Viewport::ChangeCallbackId id) {
@@ -927,6 +951,7 @@ thumbnail::ThumbnailBufferPtr OffscreenViewport::renderToThumbnail(
     }
 
     media_reader::ImageBufPtr image(new media_reader::ImageBuffer());
+
     renderToImageBuffer(width, height, image, ImageFormat::RGBA_16F, true);
     thumbnail::ThumbnailBufferPtr r = rgb96thumbFromHalfFloatImage(image);
     r->convert_to(format);

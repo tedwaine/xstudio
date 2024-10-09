@@ -33,10 +33,6 @@ Item {
     property var tool_opened_count: grd_attrs.tool_opened_count
     property var mask_shapes_visible: attrs.mask_shapes_visible
     property var mask_selected_shape: attrs.mask_selected_shape
-    property var pen_softness: attrs.pen_softness
-    property var pen_opacity: attrs.pen_opacity
-    property var pen_colour: attrs.pen_colour
-    property var shape_invert: attrs.shape_invert
     property var drawing_action: attrs.drawing_action
 
     visible: mask_shapes_visible && tool_opened_count > 0
@@ -68,22 +64,6 @@ Item {
 
     onImageResolutionChanged: {
         imageAspectRatio = imageResolution.width / imageResolution.height;
-    }
-
-    onPen_softnessChanged: {
-        updateAttrItem("softness", pen_softness);
-    }
-
-    onPen_opacityChanged: {
-        updateAttrItem("opacity", pen_opacity);
-    }
-
-    // onPen_colourChanged: {
-    //     updateAttrItem("colour", pen_colour);
-    // }
-
-    onShape_invertChanged: {
-        updateAttrItem("invert", shape_invert);
     }
 
     onPolygon_initChanged: {
@@ -159,23 +139,11 @@ Item {
 
         onItemAdded: {
             activeShape = index;
-
-            // First time a shape is added to a layer activate single frame mode
-            if (count == 1) {
-                grd_attrs.grade_in = currentPlayhead.mediaFrame
-                grd_attrs.grade_out = currentPlayhead.mediaFrame
-            }
         }
 
         onItemRemoved: {
             if (activeShape >= count) {
                 activeShape = count - 1;
-            }
-
-            // Last shape removed from the layer disable single frame mode
-            if (count == 0) {
-                grd_attrs.grade_in = -1
-                grd_attrs.grade_out = -1
             }
         }
 

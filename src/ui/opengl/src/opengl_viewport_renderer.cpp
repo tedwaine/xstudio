@@ -143,6 +143,9 @@ void OpenGLViewportRenderer::bind_textures() {
 
     active_shader_program_->set_shader_parameters(txshder_param);
     colour_pipe_textures_.bind_luts(active_shader_program_, tex_idx);
+
+    // return active texture to default
+    glActiveTexture(GL_TEXTURE0);
 }
 
 void OpenGLViewportRenderer::release_textures() {

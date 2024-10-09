@@ -73,6 +73,8 @@ Rectangle{ id: frame
         hoverEnabled: true
         acceptedButtons: Qt.LeftButton | Qt.RightButton
 
+        readonly property var special_sauce: [helpers.QVariantFromUuidString("087c4ff5-2da0-4e54-afcf-c7914a247fae"), helpers.QVariantFromUuidString("7cb214ce-e14c-4626-b2c4-76c188bf12b9")]
+
         // wierd workaround for flickable..
         propagateComposedEvents: false
         onReleased: {
@@ -82,7 +84,7 @@ Rectangle{ id: frame
 
         onDoubleClicked: (mouse)=> {
             let m = ShotBrowserHelpers.mapIndexesToResultModel([delegateModel.modelIndex(index)])[0].model
-            if(m.groupId != helpers.QVariantFromUuidString("087c4ff5-2da0-4e54-afcf-c7914a247fae"))
+            if(! special_sauce.includes(m.groupId) )
                 ShotBrowserHelpers.addToCurrent([delegateModel.modelIndex(index)], panelType != "ShotBrowser")
             else
                 ShotBrowserHelpers.addSequencesToNewPlaylist([delegateModel.modelIndex(index)])

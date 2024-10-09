@@ -52,15 +52,22 @@ MouseArea {
                 // view individual clips in a timeline, whereas the regular
                 // playhead (from a timeline) only plays the whole timeline
                 // itself.
-                viewedMediaSetIndex = inspectedMediaSetIndex
-                theSessionData.setPlayheadTo(
-                    viewedMediaSetIndex,
-                    inspectedMediaSetProperties.values.typeRole == "Timeline")
-                currentPlayhead.playing = true
+                viewportCurrentMediaContainerIndex = currentMediaContainerIndex
+
+                // delay plahead start, giving backend time to switch playhead
+                callbackTimer.setTimeout(function() { return function() {
+                    if (inspectedMediaSetProperties.values.typeRole == "Timeline") {
+                        // we 'un-pin' the timeline playhead so that instead of using
+                        // the timline as its source it uses the selected media alone
+                        currentPlayhead.pinnedSourceMode = false
+                    }    
+                    currentPlayhead.playing = true
+                }}(), 200);
+                
 
             }
 
-            if (underMouseItem) {
+            if (underMouseItem && mouse.button == Qt.LeftButton) {
                 drag_drop_handler.startDrag(mouseX, mouseY)
             }
 
@@ -69,7 +76,7 @@ MouseArea {
     }
 
     onPositionChanged: {
-        if (pressed && mediaSelectionModel.selectedIndexes.length) {
+        if (pressed && mouse.buttons == Qt.LeftButton && mediaSelectionModel.selectedIndexes.length) {
             interactive = false
             drag_drop_handler.doDrag(mouse.x, mouse.y)
         }
@@ -93,10 +100,19 @@ MouseArea {
             // this sets the *viewed* playlist to match the playlist that this
             // media item belongs to so that this media item is shown in the
             // viewport
-            viewedMediaSetIndex = inspectedMediaSetIndex
-            theSessionData.setPlayheadTo(
-                viewedMediaSetIndex,
-                inspectedMediaSetProperties.values.typeRole == "Timeline")
+
+            viewportCurrentMediaContainerIndex = currentMediaContainerIndex            
+
+            // delay plahead start, giving backend time to switch playhead
+            callbackTimer.setTimeout(function() { return function() {
+                if (inspectedMediaSetProperties.values.typeRole == "Timeline") {
+                    // we 'un-pin' the timeline playhead so that instead of using
+                    // the timline as its source it uses the selected media alone
+                    currentPlayhead.pinnedSourceMode = false
+                }
+                currentPlayhead.playing = true
+            }}(), 200);
+            
         }
     }
 

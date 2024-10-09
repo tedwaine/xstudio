@@ -47,7 +47,7 @@ namespace ui {
                     cv_.wait(lk, [=]() { return !uploading_pixels_; });
             }
 
-            void do_pixel_upload(uint8_t *target, uint8_t *src, size_t n);
+            void do_pixel_upload(uint8_t *target, uint8_t *src, size_t n, media::MediaKey k);
 
             utility::time_point when_last_used_;
 

@@ -276,7 +276,7 @@ namespace ui {
             void set_aux_shader_uniforms(
                 const utility::JsonStore &j, const bool clear_and_overwrite = false);
 
-            void set_visibility(bool is_visible) { is_visible_ = is_visible; }
+            void set_visibility(bool is_visible);
 
           protected:
             void register_hotkeys() override;
@@ -342,7 +342,7 @@ namespace ui {
             Imath::M44f interact_start_inv_projection_matrix_;
             Imath::M44f viewport_to_canvas_;
             Imath::M44f fit_mode_matrix_;
-            float devicePixelRatio_ = {1.0};
+            float devicePixelRatio_     = {1.0};
             bool broadcast_fit_details_ = {true};
 
             Imath::V4f normalised_pointer_position() const;

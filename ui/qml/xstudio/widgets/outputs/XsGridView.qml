@@ -10,6 +10,7 @@ GridView{ id: widget
     // Rectangle{anchors.fill: parent; color: "yellow"; opacity: 0.3}
 
     property bool isScrollbarVisibile : true
+    property alias scrollBar: scrollBar
 
     width: contentWidth<parent.width-x? contentWidth : parent.width-x
     height: contentHeight<parent.height-y? contentHeight : parent.height-y
@@ -23,7 +24,7 @@ GridView{ id: widget
 
     // model:
 
-    ScrollBar.vertical: XsScrollBar {id: scrollBar; anchors.right: widget.right; anchors.rightMargin: 0;
+    ScrollBar.vertical: XsScrollBar {id: scrollBar; x: 0; 
         visible: isScrollbarVisibile && widget.height < widget.contentHeight;
     }
 

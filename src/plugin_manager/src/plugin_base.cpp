@@ -139,47 +139,35 @@ StandardPlugin::StandardPlugin(
 
 void StandardPlugin::on_screen_media_changed(caf::actor media) {
 
-    if (media) {
-        request(media, infinite, utility::name_atom_v)
-            .then(
-                [=](const std::string name) mutable {
-                    request(
-                        media, infinite, media::current_media_source_atom_v, media::MT_IMAGE)
-                        .then(
+    if (!media)
+        return;
+    request(media, infinite, media::current_media_source_atom_v, media::MT_IMAGE)
+        .then(
 
-                            [=](utility::UuidActor source) mutable {
-                                request(source.actor(), infinite, media::media_reference_atom_v)
-                                    .then(
-                                        [=](const utility::MediaReference &media_ref) mutable {
-                                            request(
-                                                source.actor(),
-                                                infinite,
-                                                colour_pipeline::get_colour_pipe_params_atom_v)
-                                                .then(
-                                                    [=](utility::JsonStore params) {
-                                                        on_screen_media_changed(
-                                                            media, media_ref, name, params);
-                                                    },
-                                                    [=](error &err) mutable {
-                                                        spdlog::warn(
-                                                            "{} {}",
-                                                            __PRETTY_FUNCTION__,
-                                                            to_string(err));
-                                                    });
-                                        },
-                                        [=](error &err) mutable {
-                                            spdlog::warn(
-                                                "{} {}", __PRETTY_FUNCTION__, to_string(err));
-                                        });
-                            },
-                            [=](error &err) mutable {
-                                spdlog::warn("{} {}", __PRETTY_FUNCTION__, to_string(err));
-                            });
-                },
-                [=](error &err) mutable {
-                    spdlog::warn("{} {}", __PRETTY_FUNCTION__, to_string(err));
-                });
-    }
+            [=](utility::UuidActor source) mutable {
+                request(source.actor(), infinite, media::media_reference_atom_v)
+                    .then(
+                        [=](const utility::MediaReference &media_ref) mutable {
+                            request(
+                                source.actor(),
+                                infinite,
+                                colour_pipeline::get_colour_pipe_params_atom_v)
+                                .then(
+                                    [=](utility::JsonStore params) {
+                                        on_screen_media_changed(media, media_ref, params);
+                                    },
+                                    [=](error &err) mutable {
+                                        spdlog::debug(
+                                            "{} {}", __PRETTY_FUNCTION__, to_string(err));
+                                    });
+                        },
+                        [=](error &err) mutable {
+                            spdlog::debug("{} {}", __PRETTY_FUNCTION__, to_string(err));
+                        });
+            },
+            [=](error &err) mutable {
+                spdlog::debug("{} {}", __PRETTY_FUNCTION__, to_string(err));
+            });
 }
 
 void StandardPlugin::session_changed(caf::actor session) {
@@ -281,7 +269,7 @@ void StandardPlugin::start_stop_playback(const std::string viewport_name, bool p
             ui::viewport::viewport_playhead_atom_v,
             viewport_name);
         if (playhead) {
-            utility::request_receive<unit_t>(*sys, playhead, playhead::play_atom_v, play);
+            utility::request_receive<bool>(*sys, playhead, playhead::play_atom_v, play);
         }
     } catch (std::exception &e) {
         spdlog::warn("{} {}", __PRETTY_FUNCTION__, e.what());

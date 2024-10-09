@@ -22,6 +22,8 @@ Rectangle {
 
     property var flag: currentOnScreenMediaData.values.flagColourRole
 
+    
+
     // access the 'dnmask_settings' attribute group
     XsModuleData {
         id: vp_flag_indicator_settings

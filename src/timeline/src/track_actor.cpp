@@ -408,9 +408,23 @@ void TrackActor::init() {
 
         [=](trimmed_range_atom) -> utility::FrameRange { return base_.item().trimmed_range(); },
 
+        // check events processes
+        [=](item_atom, event_atom, const std::set<utility::Uuid> &events) -> bool {
+            auto result = true;
+            for (const auto &i : events) {
+                if (not events_processed_.contains(i)) {
+                    result = false;
+                    break;
+                }
+            }
+            return result;
+        },
+
         // handle child change events.
         [=](event_atom, item_atom, const JsonStore &update, const bool hidden) {
-            if (base_.item().update(update)) {
+            auto event_ids = base_.item().update(update);
+            if (not event_ids.empty()) {
+                events_processed_.insert(event_ids.begin(), event_ids.end());
                 auto more = base_.item().refresh();
                 if (not more.is_null()) {
                     more.insert(more.begin(), update.begin(), update.end());
@@ -426,6 +440,7 @@ void TrackActor::init() {
             base_.item().undo(hist);
             if (actors_.empty())
                 return true;
+
             // push to children..
             auto rp = make_response_promise<bool>();
 
@@ -458,7 +473,7 @@ void TrackActor::init() {
             const int frame,
             const UuidActorVector &uav) -> result<JsonStore> {
             auto rp = make_response_promise<JsonStore>();
-            insert_items_at_frame(frame, uav, rp);
+            insert_items_at_frame(rp, frame, uav);
             return rp;
         },
 
@@ -466,7 +481,7 @@ void TrackActor::init() {
             const int index,
             const UuidActorVector &uav) -> result<JsonStore> {
             auto rp = make_response_promise<JsonStore>();
-            insert_items(index, uav, rp);
+            insert_items(rp, index, uav);
             return rp;
         },
 
@@ -474,7 +489,7 @@ void TrackActor::init() {
             -> result<JsonStore> {
             auto rp     = make_response_promise<JsonStore>();
             auto tframe = base_.item().frame_at_index(index, frame);
-            insert_items_at_frame(tframe, uav, rp);
+            insert_items_at_frame(rp, tframe, uav);
             return rp;
         },
 
@@ -494,17 +509,32 @@ void TrackActor::init() {
             }
 
             if (rp.pending())
-                insert_items(index, uav, rp);
+                insert_items(rp, index, uav);
 
             return rp;
         },
 
-
         [=](remove_item_at_frame_atom,
             const int frame,
-            const int duration) -> result<std::pair<JsonStore, std::vector<Item>>> {
+            const int duration,
+            const bool add_gap,
+            const bool collapse_gaps) -> result<std::pair<JsonStore, std::vector<Item>>> {
             auto rp = make_response_promise<std::pair<JsonStore, std::vector<Item>>>();
-            remove_items_at_frame(frame, duration, rp);
+            remove_items_at_frame(rp, frame, duration, add_gap, collapse_gaps);
+            return rp;
+        },
+
+        [=](remove_item_at_frame_atom, const int frame, const int duration, const bool add_gap)
+            -> result<std::pair<JsonStore, std::vector<Item>>> {
+            auto rp = make_response_promise<std::pair<JsonStore, std::vector<Item>>>();
+            remove_items_at_frame(rp, frame, duration, add_gap, true);
+            return rp;
+        },
+
+        [=](remove_item_atom,
+            const int index) -> result<std::pair<JsonStore, std::vector<Item>>> {
+            auto rp = make_response_promise<std::pair<JsonStore, std::vector<Item>>>();
+            remove_items(rp, index, 1, false, true);
             return rp;
         },
 
@@ -512,14 +542,14 @@ void TrackActor::init() {
             const int index,
             const bool add_gap) -> result<std::pair<JsonStore, std::vector<Item>>> {
             auto rp = make_response_promise<std::pair<JsonStore, std::vector<Item>>>();
-            remove_items(index, 1, add_gap, rp);
+            remove_items(rp, index, 1, add_gap, true);
             return rp;
         },
 
         [=](remove_item_atom, const int index, const int count, const bool add_gap)
             -> result<std::pair<JsonStore, std::vector<Item>>> {
             auto rp = make_response_promise<std::pair<JsonStore, std::vector<Item>>>();
-            remove_items(index, count, add_gap, rp);
+            remove_items(rp, index, count, add_gap, true);
             return rp;
         },
 
@@ -534,29 +564,44 @@ void TrackActor::init() {
                 rp.deliver(make_error(xstudio_error::error, "Invalid uuid"));
 
             if (rp.pending())
-                remove_items(std::distance(base_.item().begin(), it), 1, add_gap, rp);
+                remove_items(rp, std::distance(base_.item().begin(), it), 1, add_gap, true);
 
             return rp;
         },
 
         [=](erase_item_at_frame_atom,
             const int frame,
-            const int duration) -> result<JsonStore> {
+            const int duration,
+            const bool add_gap,
+            const bool collapse_gaps) -> result<JsonStore> {
             auto rp = make_response_promise<JsonStore>();
-            erase_items_at_frame(frame, duration, rp);
+            erase_items_at_frame(rp, frame, duration, add_gap, collapse_gaps);
+            return rp;
+        },
+
+        [=](erase_item_at_frame_atom, const int frame, const int duration, const bool add_gap)
+            -> result<JsonStore> {
+            auto rp = make_response_promise<JsonStore>();
+            erase_items_at_frame(rp, frame, duration, add_gap, true);
+            return rp;
+        },
+
+        [=](erase_item_atom, const int index) -> result<JsonStore> {
+            auto rp = make_response_promise<JsonStore>();
+            erase_items(rp, index, 1, false, true);
             return rp;
         },
 
         [=](erase_item_atom, const int index, const bool add_gap) -> result<JsonStore> {
             auto rp = make_response_promise<JsonStore>();
-            erase_items(index, 1, add_gap, rp);
+            erase_items(rp, index, 1, add_gap, true);
             return rp;
         },
 
         [=](erase_item_atom, const int index, const int count, const bool add_gap)
             -> result<JsonStore> {
             auto rp = make_response_promise<JsonStore>();
-            erase_items(index, count, add_gap, rp);
+            erase_items(rp, index, count, add_gap, true);
             return rp;
         },
 
@@ -571,7 +616,7 @@ void TrackActor::init() {
                 rp.deliver(make_error(xstudio_error::error, "Invalid uuid"));
 
             if (rp.pending())
-                erase_items(std::distance(base_.item().begin(), it), 1, add_gap, rp);
+                erase_items(rp, std::distance(base_.item().begin(), it), 1, add_gap, true);
 
             return rp;
         },
@@ -582,7 +627,7 @@ void TrackActor::init() {
             if (not split_point)
                 rp.deliver(make_error(xstudio_error::error, "Invalid split frame"));
             else
-                split_item(split_point->first, split_point->second, rp);
+                split_item(rp, split_point->first, split_point->second);
 
             return rp;
         },
@@ -593,7 +638,7 @@ void TrackActor::init() {
             if (it == base_.item().children().end())
                 return make_error(xstudio_error::error, "Invalid index");
             auto rp = make_response_promise<JsonStore>();
-            split_item(it, frame, rp);
+            split_item(rp, it, frame);
             return rp;
         },
 
@@ -602,7 +647,7 @@ void TrackActor::init() {
             if (it == base_.item().end())
                 return make_error(xstudio_error::error, "Invalid uuid");
             auto rp = make_response_promise<JsonStore>();
-            split_item(it, frame, rp);
+            split_item(rp, it, frame);
             return rp;
         },
 
@@ -610,16 +655,27 @@ void TrackActor::init() {
             const int frame,
             const int duration,
             const int dest_frame,
-            const bool insert) -> result<JsonStore> {
+            const bool insert,
+            const bool add_gap) -> result<JsonStore> {
             auto rp = make_response_promise<JsonStore>();
-            move_items_at_frame(frame, duration, dest_frame, insert, rp);
+            move_items_at_frame(rp, frame, duration, dest_frame, insert, add_gap);
+            return rp;
+        },
+
+        [=](move_item_atom,
+            const int src_index,
+            const int count,
+            const int dst_index,
+            const bool add_gap) -> result<JsonStore> {
+            auto rp = make_response_promise<JsonStore>();
+            move_items(rp, src_index, count, dst_index, add_gap);
             return rp;
         },
 
         [=](move_item_atom, const int src_index, const int count, const int dst_index)
             -> result<JsonStore> {
             auto rp = make_response_promise<JsonStore>();
-            move_items(src_index, count, dst_index, rp);
+            move_items(rp, src_index, count, dst_index, false);
             return rp;
         },
 
@@ -644,10 +700,11 @@ void TrackActor::init() {
                 }
                 if (rp.pending())
                     move_items(
+                        rp,
                         std::distance(base_.item().begin(), sitb),
                         count,
                         std::distance(base_.item().begin(), dit),
-                        rp);
+                        false);
             }
 
             return rp;
@@ -844,9 +901,9 @@ void TrackActor::add_item(const utility::UuidActor &ua) {
 
 
 void TrackActor::split_item(
+    caf::typed_response_promise<utility::JsonStore> rp,
     const Items::const_iterator &itemit,
-    const int frame,
-    caf::typed_response_promise<utility::JsonStore> rp) {
+    const int frame) {
     // validate frame is inside item..
     // validate item type..
     auto item = *itemit;
@@ -888,9 +945,10 @@ void TrackActor::split_item(
                                         .await(
                                             [=](const JsonStore &) mutable {
                                                 // insert next to original.
-                                                rp.delegate(
-                                                    caf::actor_cast<caf::actor>(this),
-                                                    insert_item_atom_v,
+                                                // we got a backlog of inflight events.
+                                                // track will not be in sync
+                                                insert_items(
+                                                    rp,
                                                     static_cast<int>(
                                                         std::distance(
                                                             base_.item().cbegin(), itemit) +
@@ -914,9 +972,9 @@ void TrackActor::split_item(
 }
 
 void TrackActor::insert_items(
+    caf::typed_response_promise<utility::JsonStore> rp,
     const int index,
-    const UuidActorVector &uav,
-    caf::typed_response_promise<utility::JsonStore> rp) {
+    const UuidActorVector &uav) {
     // validate items can be inserted.
     fan_out_request<policy::select_all>(vector_to_caf_actor_vector(uav), infinite, item_atom_v)
         .then(
@@ -975,9 +1033,9 @@ void TrackActor::insert_items(
 }
 
 void TrackActor::insert_items_at_frame(
+    caf::typed_response_promise<utility::JsonStore> rp,
     const int frame,
-    const utility::UuidActorVector &uav,
-    caf::typed_response_promise<utility::JsonStore> rp) {
+    const utility::UuidActorVector &uav) {
     auto item_frame = base_.item().item_at_frame(frame);
 
     if (not item_frame) {
@@ -994,7 +1052,7 @@ void TrackActor::insert_items_at_frame(
         for (const auto &i : uav)
             uav_plus_gap.push_back(i);
 
-        insert_items(base_.item().size(), uav_plus_gap, rp);
+        insert_items(rp, base_.item().size(), uav_plus_gap);
     } else {
         auto cit    = item_frame->first;
         auto cframe = item_frame->second;
@@ -1002,7 +1060,7 @@ void TrackActor::insert_items_at_frame(
 
         if (cframe == cit->trimmed_frame_start().frames()) {
             // simple insertion..
-            insert_items(index, uav, rp);
+            insert_items(rp, index, uav);
         } else {
             // complex.. we need to split item
             request(
@@ -1012,7 +1070,7 @@ void TrackActor::insert_items_at_frame(
                 static_cast<int>(index),
                 static_cast<int>(cframe))
                 .then(
-                    [=](const JsonStore &) { insert_items_at_frame(frame, uav, rp); },
+                    [=](const JsonStore &) { insert_items_at_frame(rp, frame, uav); },
                     [=](const caf::error &err) mutable { rp.deliver(err); });
         }
     }
@@ -1022,10 +1080,11 @@ void TrackActor::insert_items_at_frame(
 // build item/count value and pass to remove items
 //  how do we wait for sync of state, from split children.. ?
 void TrackActor::remove_items_at_frame(
+    caf::typed_response_promise<std::pair<utility::JsonStore, std::vector<timeline::Item>>> rp,
     const int frame,
     const int duration,
-    caf::typed_response_promise<std::pair<utility::JsonStore, std::vector<timeline::Item>>>
-        rp) {
+    const bool add_gap,
+    const bool collapse_gaps) {
 
     auto in_point = base_.item().item_at_frame(frame);
 
@@ -1041,7 +1100,9 @@ void TrackActor::remove_items_at_frame(
                 static_cast<int>(std::distance(base_.item().cbegin(), in_point->first)),
                 static_cast<int>(in_point->second))
                 .then(
-                    [=](const JsonStore &) { remove_items_at_frame(frame, duration, rp); },
+                    [=](const JsonStore &) {
+                        remove_items_at_frame(rp, frame, duration, add_gap, collapse_gaps);
+                    },
                     [=](const caf::error &err) mutable { rp.deliver(err); });
 
         } else {
@@ -1056,20 +1117,22 @@ void TrackActor::remove_items_at_frame(
                     static_cast<int>(std::distance(base_.item().cbegin(), out_point->first)),
                     static_cast<int>(out_point->second))
                     .then(
-                        [=](const JsonStore &) { remove_items_at_frame(frame, duration, rp); },
+                        [=](const JsonStore &) {
+                            remove_items_at_frame(rp, frame, duration, add_gap, collapse_gaps);
+                        },
                         [=](const caf::error &err) mutable { rp.deliver(err); });
             } else {
                 // in and out split now remove items
                 auto first_index = std::distance(base_.item().cbegin(), in_point->first);
                 auto last_index  = std::distance(base_.item().cbegin(), out_point->first);
-                remove_items(first_index, last_index - first_index, false, rp);
+                remove_items(rp, first_index, last_index - first_index, add_gap, collapse_gaps);
             }
         }
     }
 }
 
-std::pair<utility::JsonStore, std::vector<timeline::Item>>
-TrackActor::remove_items(const int index, const int count, const bool add_gap) {
+std::pair<utility::JsonStore, std::vector<timeline::Item>> TrackActor::remove_items(
+    const int index, const int count, const bool add_gap, const bool collapse_gaps) {
     std::vector<Item> items;
     JsonStore changes(R"([])"_json);
 
@@ -1102,151 +1165,32 @@ TrackActor::remove_items(const int index, const int count, const bool add_gap) {
             }
         }
 
-        if (index < base_.item().size()) {
-            try {
-                if (index - 1 >= 0 and
-                    std::next(base_.item().begin(), index - 1)->item_type() == IT_GAP) {
-                    auto it = std::next(base_.item().begin(), index - 1);
-                    // extend preceeding gap
-                    auto new_range = it->trimmed_range();
+        // add gap and index isn't last entry.
+        if (gap_size.frames() and index != static_cast<int>(base_.item().size())) {
+            JsonStore gap_changes(R"([])"_json);
+            auto uuid = utility::Uuid::generate();
+            auto gap  = spawn<GapActor>("GAP", gap_size, uuid);
+            // take ownership
+            add_item(UuidActor(uuid, gap));
+            // where we're going to insert gap..
+            auto it    = std::next(base_.item().begin(), index);
+            auto item  = request_receive<Item>(*sys, gap, item_atom_v);
+            auto blind = request_receive<JsonStore>(*sys, gap, serialise_atom_v);
 
-                    if (gap_size.frames())
-                        new_range.set_duration(new_range.duration() + gap_size.duration());
+            auto tmp = base_.item().insert(it, item, blind);
 
-                    // also check for trailing gap...
-                    if (index < base_.item().size() and
-                        std::next(base_.item().begin(), index)->item_type() == IT_GAP) {
-                        auto nit = std::next(base_.item().begin(), index);
-                        new_range.set_duration(
-                            new_range.duration() + nit->trimmed_range().duration());
-                        // remove trailing gap..
+            changes.insert(changes.end(), tmp.begin(), tmp.end());
+        }
 
-                        // not sure this is safe..
-
-                        auto item = *nit;
-                        demonitor(item.actor());
-                        actors_.erase(item.uuid());
-
-                        // need to serialise actor..
-                        auto blind =
-                            request_receive<JsonStore>(*sys, item.actor(), serialise_atom_v);
-                        auto tmp = base_.item().erase(nit, blind);
-                        changes.insert(changes.end(), tmp.begin(), tmp.end());
-                        items.push_back(item);
-
-                        // anon_send(this, erase_item_atom_v, nit->uuid(), false);
-                    }
-
-                    it->set_range(new_range, new_range);
-
-                    // anon_send(it->actor(), trimmed_range_atom_v, new_range, new_range);
-
-                    auto gap_event = request_receive<JsonStore>(
-                        *sys, it->actor(), trimmed_range_atom_v, new_range, new_range, true);
-                    changes.insert(changes.begin(), gap_event.begin(), gap_event.end());
-                    // update
-                    {
-                        auto more = base_.item().refresh();
-                        if (not more.is_null())
-                            changes.insert(changes.end(), more.begin(), more.end());
-                        send(event_group_, event_atom_v, item_atom_v, changes, false);
-                    }
-
-                } else if (
-                    index < base_.item().size() and
-                    std::next(base_.item().begin(), index)->item_type() == IT_GAP) {
-                    auto it = std::next(base_.item().begin(), index);
-                    // extend following gap
-                    auto new_range = it->trimmed_range();
-                    if (gap_size.frames())
-                        new_range.set_duration(new_range.duration() + gap_size.duration());
-
-                    it->set_range(new_range, new_range);
-
-                    // anon_send(it->actor(), trimmed_range_atom_v, new_range, new_range);
-
-                    auto gap_event = request_receive<JsonStore>(
-                        *sys, it->actor(), trimmed_range_atom_v, new_range, new_range, true);
-                    changes.insert(changes.begin(), gap_event.begin(), gap_event.end());
-
-                    // update
-                    {
-                        auto more = base_.item().refresh();
-                        if (not more.is_null())
-                            changes.insert(changes.end(), more.begin(), more.end());
-                        send(event_group_, event_atom_v, item_atom_v, changes, false);
-                    }
-                } else {
-                    // update
-                    {
-                        auto more = base_.item().refresh();
-                        if (not more.is_null())
-                            changes.insert(changes.end(), more.begin(), more.end());
-                        send(event_group_, event_atom_v, item_atom_v, changes, false);
-                    }
-
-                    if (gap_size.frames()) {
-
-                        JsonStore gap_changes(R"([])"_json);
-
-                        auto uuid = utility::Uuid::generate();
-                        auto gap  = spawn<GapActor>("GAP", gap_size, uuid);
-                        // take ownership
-                        add_item(UuidActor(uuid, gap));
-                        // where we're going to insert gap..
-                        auto it    = std::next(base_.item().begin(), index);
-                        auto item  = request_receive<Item>(*sys, gap, item_atom_v);
-                        auto blind = request_receive<JsonStore>(*sys, gap, serialise_atom_v);
-
-                        auto tmp = base_.item().insert(it, item, blind);
-                        gap_changes.insert(gap_changes.end(), tmp.begin(), tmp.end());
-
-                        auto more = base_.item().refresh();
-                        if (not more.is_null())
-                            gap_changes.insert(gap_changes.end(), more.begin(), more.end());
-
-                        send(event_group_, event_atom_v, item_atom_v, gap_changes, false);
-                    }
-                }
-
-            } catch (const std::exception &err) {
-                spdlog::warn("{} {}", __PRETTY_FUNCTION__, err.what());
-            }
-        } else if (base_.item().size()) {
-            // was last item but preceeding item might be gap that'll need pruning as well.
-            auto nit = std::next(base_.item().begin(), base_.item().size() - 1);
-            if (nit->item_type() == IT_GAP) {
-                // anon_send(nit->actor(), trimmed_range_atom_v, utility::FrameRange(),
-                // utility::FrameRange());
-                auto item = *nit;
-                demonitor(item.actor());
-                actors_.erase(item.uuid());
-
-                // need to serialise actor..
-                auto blind = request_receive<JsonStore>(*sys, item.actor(), serialise_atom_v);
-                auto tmp   = base_.item().erase(nit, blind);
-                changes.insert(changes.end(), tmp.begin(), tmp.end());
-                items.push_back(item);
-
-                // anon_send(this, erase_item_atom_v, nit->uuid(), false);
-            }
-
-            // update
-            {
-                auto more = base_.item().refresh();
-                if (not more.is_null())
-                    changes.insert(changes.end(), more.begin(), more.end());
-                send(event_group_, event_atom_v, item_atom_v, changes, false);
-            }
+        if (collapse_gaps) {
+            auto more = merge_gaps();
+            if (not more.is_null())
+                changes.insert(changes.end(), more.begin(), more.end());
         } else {
-            // empty track..
             auto more = base_.item().refresh();
             if (not more.is_null())
                 changes.insert(changes.end(), more.begin(), more.end());
-            send(event_group_, event_atom_v, item_atom_v, changes, false);
         }
-
-        // reverse order as we deleted back to front.
     }
     std::reverse(items.begin(), items.end());
     return std::make_pair(changes, items);
@@ -1254,28 +1198,36 @@ TrackActor::remove_items(const int index, const int count, const bool add_gap) {
 
 
 void TrackActor::remove_items(
+    caf::typed_response_promise<std::pair<utility::JsonStore, std::vector<timeline::Item>>> rp,
     const int index,
     const int count,
     const bool add_gap,
-    caf::typed_response_promise<std::pair<utility::JsonStore, std::vector<timeline::Item>>>
-        rp) {
+    const bool collapse_gaps) {
 
     try {
-        rp.deliver(remove_items(index, count, add_gap));
+        auto result = remove_items(index, count, add_gap, collapse_gaps);
+        send(event_group_, event_atom_v, item_atom_v, result.first, false);
+        rp.deliver(result);
     } catch (const std::exception &err) {
         rp.deliver(make_error(xstudio_error::error, err.what()));
     }
 }
 
 void TrackActor::erase_items_at_frame(
-    const int frame, const int duration, caf::typed_response_promise<JsonStore> rp) {
+    caf::typed_response_promise<JsonStore> rp,
+    const int frame,
+    const int duration,
+    const bool add_gap,
+    const bool collapse_gaps) {
 
     request(
         caf::actor_cast<caf::actor>(this),
         infinite,
         remove_item_at_frame_atom_v,
         frame,
-        duration)
+        duration,
+        add_gap,
+        collapse_gaps)
         .then(
             [=](const std::pair<JsonStore, std::vector<Item>> &hist_item) mutable {
                 for (const auto &i : hist_item.second)
@@ -1286,13 +1238,18 @@ void TrackActor::erase_items_at_frame(
 }
 
 void TrackActor::erase_items(
+    caf::typed_response_promise<JsonStore> rp,
     const int index,
     const int count,
     const bool add_gap,
-    caf::typed_response_promise<JsonStore> rp) {
+    const bool collapse_gaps) {
 
     try {
-        auto result = remove_items(index, count, add_gap);
+        auto result = remove_items(index, count, add_gap, collapse_gaps);
+
+        // spdlog::warn("{}", result.first.dump(2));
+
+        send(event_group_, event_atom_v, item_atom_v, result.first, false);
         for (const auto &i : result.second)
             send_exit(i.actor(), caf::exit_reason::user_shutdown);
         rp.deliver(result.first);
@@ -1304,11 +1261,14 @@ void TrackActor::erase_items(
 
 
 void TrackActor::move_items(
+    caf::typed_response_promise<utility::JsonStore> rp,
     const int src_index,
     const int count,
     const int dst_index,
-    caf::typed_response_promise<utility::JsonStore> rp) {
+    const bool add_gap,
+    const bool replace_with_gap) {
 
+    // this has to deal with gap removal / consolidation
 
     if (dst_index == src_index or not count)
         rp.deliver(make_error(xstudio_error::error, "Invalid Move"));
@@ -1317,183 +1277,495 @@ void TrackActor::move_items(
         auto eit = std::next(sit, count);
         auto dit = std::next(base_.item().begin(), dst_index);
 
+        // collect size of possible gap.
+        auto gap_size = FrameRateDuration();
+        if (add_gap or replace_with_gap) {
+            for (auto it = sit; it != eit; it++) {
+                if (gap_size.frames()) {
+                    gap_size += it->trimmed_frame_duration();
+                } else {
+                    gap_size = it->trimmed_frame_duration();
+                }
+            }
+        }
+
+        // move done.
         auto changes = base_.item().splice(dit, base_.item().children(), sit, eit);
-        auto more    = base_.item().refresh();
+
+        // deal with gaps..
+        auto index = src_index;
+        if (dst_index < src_index)
+            index += count;
+
+        if (index < static_cast<int>(base_.item().size())) {
+            scoped_actor sys{system()};
+
+            if (add_gap and gap_size.frames()) {
+
+                JsonStore gap_changes(R"([])"_json);
+
+                auto uuid = utility::Uuid::generate();
+                auto gap  = spawn<GapActor>("GAP", gap_size, uuid);
+                // take ownership
+                add_item(UuidActor(uuid, gap));
+                // where we're going to insert gap..
+                auto it    = std::next(base_.item().begin(), index);
+                auto item  = request_receive<Item>(*sys, gap, item_atom_v);
+                auto blind = request_receive<JsonStore>(*sys, gap, serialise_atom_v);
+
+                auto tmp = base_.item().insert(it, item, blind);
+                changes.insert(changes.end(), tmp.begin(), tmp.end());
+            }
+        }
+
+        if (replace_with_gap) {
+            // remove moved entries, and insert gap there..
+            auto adjusted_dst = dst_index;
+            if (dst_index > src_index)
+                adjusted_dst -= count;
+
+            auto more = remove_items(adjusted_dst, count, true, false);
+            for (const auto &i : more.second) {
+                send_exit(i.actor(), caf::exit_reason::user_shutdown);
+            }
+            changes.insert(changes.end(), more.first.begin(), more.first.end());
+        }
+
+
+        auto more = merge_gaps();
+        if (not more.is_null())
+            changes.insert(changes.end(), more.begin(), more.end());
+
+        // end gap code...
+        more = base_.item().refresh();
         if (not more.is_null())
             changes.insert(changes.begin(), more.begin(), more.end());
 
         send(event_group_, event_atom_v, item_atom_v, changes, false);
+
         rp.deliver(changes);
     }
 }
 
 void TrackActor::move_items_at_frame(
-    const int frame,
-    const int duration,
-    const int dest_frame,
-    const bool insert,
-    caf::typed_response_promise<utility::JsonStore> rp) {
+    caf::typed_response_promise<utility::JsonStore> rp,
+    const int frame_,
+    const int duration_,
+    const int dest_frame_,
+    const bool insert_,
+    const bool add_gap_,
+    const bool replace_with_gap_) {
 
-    // don't support moving in to move range..
-    if (dest_frame >= frame and dest_frame <= frame + duration)
-        rp.deliver(make_error(xstudio_error::error, "Invalid move"));
+    // this is gonna be complex..
+    // validate input
+    auto frame            = frame_;
+    auto duration         = duration_;
+    auto dest_frame       = dest_frame_;
+    auto insert           = insert_;
+    auto add_gap          = add_gap_;
+    auto replace_with_gap = replace_with_gap_;
+
+    auto overwrite_self_start = dest_frame > frame and dest_frame < frame + duration;
+    auto overwrite_self_end =
+        dest_frame + duration > frame and dest_frame + duration < frame + duration;
+    auto overwrite_self = overwrite_self_start or overwrite_self_end;
+
+    if (frame_ == dest_frame_) {
+        return rp.deliver(make_error(xstudio_error::error, "Invalid start frame"));
+    }
+
+    if (overwrite_self_end) {
+        // invert logic..
+        frame            = dest_frame_;
+        duration         = frame_ - dest_frame_;
+        dest_frame       = frame_ + duration_;
+        insert           = true;
+        add_gap          = false;
+        replace_with_gap = true;
+
+        // spdlog::warn("{} {} {}", frame_, duration_, dest_frame_);
+        // spdlog::warn("{} {} {}", frame, duration, dest_frame);
+        // spdlog::warn("overwrite_self_end");
+    } else if (overwrite_self_start) {
+        dest_frame = frame_;
+        frame      = frame_ + duration_;
+        duration   = dest_frame_ - frame_;
+
+        // spdlog::warn("{} {} {}", frame_, duration_, dest_frame_);
+        // spdlog::warn("{} {} {}", frame, duration, dest_frame);
+        insert           = true;
+        add_gap          = false;
+        replace_with_gap = true;
+        // spdlog::warn("overwrite_self_start");
+
+        // if were overwriting the end of the track we need to pad it.
+        // use track trimmed duration to work out how big a gap we need,
+        auto track_duration = base_.item().trimmed_frame_duration().frames();
+        auto gap_duration   = (frame + duration) - track_duration;
+        if (gap_duration > 0) {
+            // insert gap on track end.
+            auto gap_uuid  = utility::Uuid::generate();
+            auto gap_actor = spawn<GapActor>(
+                "Gap", FrameRateDuration(gap_duration, base_.item().rate()), gap_uuid);
+
+            // spdlog::warn("INSERT DEST GAP {}", gap_duration);
+
+            // insert_items(base_.item().size(), uav_plus_gap, rp);
+            request(
+                caf::actor_cast<caf::actor>(this),
+                infinite,
+                insert_item_atom_v,
+                Uuid(),
+                UuidActorVector({UuidActor(gap_uuid, gap_actor)}))
+                .then(
+                    [=](const JsonStore &) mutable {
+                        move_items_at_frame(
+                            rp,
+                            frame_,
+                            duration_,
+                            dest_frame_,
+                            insert_,
+                            add_gap_,
+                            replace_with_gap_);
+                    },
+                    [=](error &err) mutable { rp.deliver(std::move(err)); });
+
+            return;
+        }
+        // spdlog::warn("gap_duration {}", gap_duration);
+    }
+
+    auto start = base_.item().item_at_frame(frame);
+
+    if (not start)
+        rp.deliver(make_error(xstudio_error::error, "Invalid start frame"));
     else {
-        // this is gonna be complex..
-        // validate input
-        auto start = base_.item().item_at_frame(frame);
+        // spdlog::warn(
+        //     "check source start {} {} {}",
+        //     frame,
+        //     start->first->trimmed_frame_start().frames(),
+        //     start->second);
 
-        if (not start)
-            rp.deliver(make_error(xstudio_error::error, "Invalid start frame"));
-        else {
-            // split at start ?
-            if (start->first->trimmed_frame_start().frames() != start->second) {
-                // split start item
+        // split at start ?
+        if (start and start->first->trimmed_frame_start().frames() != start->second) {
+            // split start item
+            // spdlog::warn(
+            //     "split source index {} at frame {} (start)",
+            //     static_cast<int>(std::distance(base_.item().cbegin(), start->first)),
+            //     start->second);
+            request(
+                caf::actor_cast<caf::actor>(this),
+                infinite,
+                split_item_atom_v,
+                static_cast<int>(std::distance(base_.item().cbegin(), start->first)),
+                start->second)
+                .then(
+                    [=](const JsonStore &) mutable {
+                        move_items_at_frame(
+                            rp, frame, duration, dest_frame, insert, add_gap, replace_with_gap);
+                    },
+                    [=](error &err) mutable { rp.deliver(std::move(err)); });
+
+        } else {
+            // split at end frame ?
+            auto end = base_.item().item_at_frame(frame + duration);
+            // if (end)
+            //     spdlog::warn(
+            //         "check source end {} {} {}",
+            //         frame + duration,
+            //         end->first->trimmed_frame_start().frames(),
+            //         end->second);
+            // else
+            //     spdlog::warn("check source end {}", frame + duration);
+
+            if (end and end->first->trimmed_frame_start().frames() != end->second) {
+                // split end item
+                // spdlog::warn(
+                //     "split source index {} at frame {} (end)",
+                //     static_cast<int>(std::distance(base_.item().cbegin(), end->first)),
+                //     end->second);
+
                 request(
                     caf::actor_cast<caf::actor>(this),
                     infinite,
                     split_item_atom_v,
-                    static_cast<int>(std::distance(base_.item().cbegin(), start->first)),
-                    start->second)
+                    static_cast<int>(std::distance(base_.item().cbegin(), end->first)),
+                    end->second)
                     .then(
                         [=](const JsonStore &) mutable {
-                            move_items_at_frame(frame, duration, dest_frame, insert, rp);
+                            move_items_at_frame(
+                                rp,
+                                frame,
+                                duration,
+                                dest_frame,
+                                insert,
+                                add_gap,
+                                replace_with_gap);
                         },
                         [=](error &err) mutable { rp.deliver(std::move(err)); });
-
             } else {
-                // split at end frame ?
-                auto end = base_.item().item_at_frame(frame + duration);
+                // move to frame should insert gap, but we might need to split..
+                // either split or inject end..
+                // dest might be off end of track which is still valid..
+                auto dest = base_.item().item_at_frame(dest_frame);
 
-                if (end->first->trimmed_frame_start().frames() != end->second) {
-                    // split end item
+                // if (dest)
+                //     spdlog::warn(
+                //         "check dest start {} {} {}",
+                //         dest_frame,
+                //         dest->first->trimmed_frame_start().frames(),
+                //         dest->second);
+
+                if (dest and dest->first->trimmed_frame_start().frames() != dest->second) {
+                    // spdlog::warn(
+                    //     "split dest index {} at frame {} (start)",
+                    //     static_cast<int>(std::distance(base_.item().cbegin(), dest->first)),
+                    //     dest->second);
+
+                    // split dest start
                     request(
                         caf::actor_cast<caf::actor>(this),
                         infinite,
                         split_item_atom_v,
-                        static_cast<int>(std::distance(base_.item().cbegin(), end->first)),
-                        end->second)
+                        static_cast<int>(std::distance(base_.item().cbegin(), dest->first)),
+                        dest->second)
                         .then(
                             [=](const JsonStore &) mutable {
-                                move_items_at_frame(frame, duration, dest_frame, insert, rp);
+                                move_items_at_frame(
+                                    rp,
+                                    frame,
+                                    duration,
+                                    dest_frame,
+                                    insert,
+                                    add_gap,
+                                    replace_with_gap);
+                            },
+                            [=](error &err) mutable { rp.deliver(std::move(err)); });
+                } else if (
+                    not dest and base_.item().trimmed_frame_duration().frames() != dest_frame) {
+                    // check for off end as we'll need gap..
+                    auto track_end = base_.item().trimmed_frame_start().frames() +
+                                     base_.item().trimmed_frame_duration().frames() - 1;
+                    auto filler    = dest_frame - track_end - 1;
+                    auto gap_uuid  = utility::Uuid::generate();
+                    auto gap_actor = spawn<GapActor>(
+                        "Gap", FrameRateDuration(filler, base_.item().rate()), gap_uuid);
+
+                    // insert_items(base_.item().size(), uav_plus_gap, rp);
+                    request(
+                        caf::actor_cast<caf::actor>(this),
+                        infinite,
+                        insert_item_atom_v,
+                        Uuid(),
+                        UuidActorVector({UuidActor(gap_uuid, gap_actor)}))
+                        .then(
+                            [=](const JsonStore &) mutable {
+                                move_items_at_frame(
+                                    rp,
+                                    frame,
+                                    duration,
+                                    dest_frame,
+                                    true,
+                                    add_gap,
+                                    replace_with_gap);
                             },
                             [=](error &err) mutable { rp.deliver(std::move(err)); });
                 } else {
-                    // move to frame should insert gap, but we might need to split..
-                    // either split or inject end..
-                    // dest might be off end of track which is still valid..
-                    auto dest = base_.item().item_at_frame(dest_frame);
+                    // finally ready..
+                    if (insert or
+                        (not dest and
+                         base_.item().trimmed_frame_duration().frames() == dest_frame)) {
 
-                    if (dest and dest->first->trimmed_frame_start().frames() != dest->second) {
+                        auto index = std::distance(base_.item().cbegin(), start->first);
+                        auto end_index = end ? std::distance(base_.item().cbegin(), end->first)
+                                             : base_.item().size();
+                        auto count =
+                            end_index - std::distance(base_.item().cbegin(), start->first);
+                        auto dst = dest ? std::distance(base_.item().cbegin(), dest->first)
+                                        : base_.item().size();
 
-                        // split dest..
-                        request(
-                            caf::actor_cast<caf::actor>(this),
-                            infinite,
-                            split_item_atom_v,
-                            static_cast<int>(std::distance(base_.item().cbegin(), dest->first)),
-                            dest->second)
-                            .then(
-                                [=](const JsonStore &) mutable {
-                                    move_items_at_frame(
-                                        frame, duration, dest_frame, insert, rp);
-                                },
-                                [=](error &err) mutable { rp.deliver(std::move(err)); });
-                    } else if (
-                        not dest and
-                        base_.item().trimmed_frame_duration().frames() != dest_frame) {
-
-                        // check for off end as we'll need gap..
-                        auto track_end = base_.item().trimmed_frame_start().frames() +
-                                         base_.item().trimmed_frame_duration().frames() - 1;
-                        auto filler    = dest_frame - track_end - 1;
-                        auto gap_uuid  = utility::Uuid::generate();
-                        auto gap_actor = spawn<GapActor>(
-                            "Gap", FrameRateDuration(filler, base_.item().rate()), gap_uuid);
-
-                        // insert_items(base_.item().size(), uav_plus_gap, rp);
-                        request(
-                            caf::actor_cast<caf::actor>(this),
-                            infinite,
-                            insert_item_atom_v,
-                            static_cast<int>(base_.item().size()),
-                            UuidActorVector({UuidActor(gap_uuid, gap_actor)}))
-                            .then(
-                                [=](const JsonStore &) mutable {
-                                    move_items_at_frame(
-                                        frame, duration, dest_frame, insert, rp);
-                                },
-                                [=](error &err) mutable { rp.deliver(std::move(err)); });
+                        move_items(rp, index, count, dst, add_gap, replace_with_gap);
                     } else {
-                        // finally ready..
-                        if (insert or
-                            (not dest and
-                             base_.item().trimmed_frame_duration().frames() == dest_frame)) {
-                            auto index = std::distance(base_.item().cbegin(), start->first);
-                            auto count = std::distance(base_.item().cbegin(), end->first) -
-                                         std::distance(base_.item().cbegin(), start->first);
-                            auto dst = dest ? std::distance(base_.item().cbegin(), dest->first)
-                                            : base_.item().size();
+                        // we need to remove material at destnation
+                        // we may need to split at dst+duration
+                        auto dst_end = base_.item().item_at_frame(dest_frame + duration);
 
-                            move_items(index, count, dst, rp);
+                        // spdlog::warn(
+                        //     "check dest end {} {} {}",
+                        //     dest_frame + duration,
+                        //     dst_end->first->trimmed_frame_start().frames(),
+                        //     dst_end->second);
+
+                        if (dst_end and
+                            dst_end->first->trimmed_frame_start().frames() != dst_end->second) {
+                            // we need to split..
+                            // split dest..
+                            // spdlog::warn(
+                            //     "split dest index {} at frame {} (end)",
+                            //     static_cast<int>(
+                            //         std::distance(base_.item().cbegin(), dst_end->first)),
+                            //     dst_end->second);
+
+                            request(
+                                caf::actor_cast<caf::actor>(this),
+                                infinite,
+                                split_item_atom_v,
+                                static_cast<int>(
+                                    std::distance(base_.item().cbegin(), dst_end->first)),
+                                dst_end->second)
+                                .then(
+                                    [=](const JsonStore &) mutable {
+                                        move_items_at_frame(
+                                            rp,
+                                            frame,
+                                            duration,
+                                            dest_frame,
+                                            insert,
+                                            add_gap,
+                                            replace_with_gap);
+                                    },
+                                    [=](error &err) mutable { rp.deliver(std::move(err)); });
                         } else {
-                            // we need to remove material at destnation
-                            // we may need to split at dst+duration
-                            auto dst_end = base_.item().item_at_frame(dest_frame + duration);
-                            if (dst_end) {
-                                // we need to split..
-                                // split dest..
-                                request(
-                                    caf::actor_cast<caf::actor>(this),
-                                    infinite,
-                                    split_item_atom_v,
-                                    static_cast<int>(
-                                        std::distance(base_.item().cbegin(), dst_end->first)),
-                                    dst_end->second)
-                                    .then(
-                                        [=](const JsonStore &) mutable {
-                                            move_items_at_frame(
-                                                frame, duration, dest_frame, insert, rp);
-                                        },
-                                        [=](error &err) mutable {
-                                            rp.deliver(std::move(err));
-                                        });
-                            } else {
-                                // move and prune..
-                                int move_from_frame = frame;
-                                int move_to_frame   = dest_frame + duration;
+                            // move and prune..
+                            int move_from_frame = frame;
+                            int move_to_frame   = dest_frame;
 
-                                // if we remove from in front of start we need to adjust move
-                                // ranges.
-                                if (dest_frame < frame) {
-                                    move_from_frame -= duration;
-                                    move_to_frame -= duration;
-                                }
-
-                                request(
-                                    caf::actor_cast<caf::actor>(this),
-                                    infinite,
-                                    erase_item_at_frame_atom_v,
-                                    static_cast<int>(dest_frame + duration),
-                                    duration)
-                                    .then(
-                                        [=](const JsonStore &) mutable {
-                                            move_items_at_frame(
-                                                move_from_frame,
-                                                duration,
-                                                move_to_frame,
-                                                false,
-                                                rp);
-                                        },
-                                        [=](error &err) mutable {
-                                            rp.deliver(std::move(err));
-                                        });
+                            // if we remove from in front of start we need to adjust move
+                            // ranges.
+                            if (dest_frame < frame) {
+                                move_from_frame -= duration;
                             }
+
+                            // replace source with gap ?
+                            request(
+                                caf::actor_cast<caf::actor>(this),
+                                infinite,
+                                erase_item_at_frame_atom_v,
+                                dest_frame,
+                                duration,
+                                false,
+                                false)
+                                .then(
+                                    [=](const JsonStore &) mutable {
+                                        move_items_at_frame(
+                                            rp,
+                                            move_from_frame,
+                                            duration,
+                                            move_to_frame,
+                                            true,
+                                            add_gap,
+                                            replace_with_gap);
+                                    },
+                                    [=](error &err) mutable { rp.deliver(std::move(err)); });
                         }
                     }
                 }
             }
         }
     }
+}
+
+utility::JsonStore TrackActor::merge_gaps() {
+    JsonStore changes(R"([])"_json);
+    scoped_actor sys{system()};
+
+    // purge trailing gaps also handles track of gap
+    while (not base_.item().empty() and base_.item().back().item_type() == IT_GAP) {
+        // prune gaps off end of track.
+        // spdlog::warn("ERASE TRAILING GAP {}", base_.item().size() - 1);
+
+        auto it   = std::next(base_.item().begin(), base_.item().size() - 1);
+        auto item = *it;
+        demonitor(item.actor());
+        actors_.erase(item.uuid());
+
+        // need to serialise actor..
+        auto blind = request_receive<JsonStore>(*sys, item.actor(), serialise_atom_v);
+        auto tmp   = base_.item().erase(it, blind);
+        send_exit(item.actor(), caf::exit_reason::user_shutdown);
+        changes.insert(changes.end(), tmp.begin(), tmp.end());
+    }
+
+    auto gap_count    = 0;
+    auto gap_duration = FrameRateDuration();
+    // look for multiple sequential gaps.
+    int index = static_cast<int>(base_.item().size()) - 1;
+
+    auto merge_gaps_ = [&](auto it) mutable {
+        if (gap_count) {
+            if (gap_count > 1) {
+                // spdlog::warn("merging {}", gap_count);
+                scoped_actor sys{system()};
+
+                auto uuid = utility::Uuid::generate();
+                auto gap  = spawn<GapActor>("GAP", gap_duration, uuid);
+
+                // take ownership
+                add_item(UuidActor(uuid, gap));
+
+                // where we're going to insert gap..
+                auto item  = request_receive<Item>(*sys, gap, item_atom_v);
+                auto blind = request_receive<JsonStore>(*sys, gap, serialise_atom_v);
+
+                auto tmp = base_.item().insert(it, item, blind);
+                changes.insert(changes.end(), tmp.begin(), tmp.end());
+
+                while (gap_count) {
+                    // get distance from start.
+                    auto gip = std::next(it, gap_count - 1);
+
+                    // spdlog::warn("remove index {}", std::distance(base_.item().begin(), gip));
+
+                    auto item = *gip;
+                    demonitor(item.actor());
+                    actors_.erase(item.uuid());
+
+                    // need to serialise actor..
+                    auto blind =
+                        request_receive<JsonStore>(*sys, item.actor(), serialise_atom_v);
+                    auto tmp = base_.item().erase(gip, blind);
+                    send_exit(item.actor(), caf::exit_reason::user_shutdown);
+                    changes.insert(changes.end(), tmp.begin(), tmp.end());
+
+                    gap_count--;
+                }
+            } else
+                gap_count = 0;
+        }
+    };
+
+    for (; index >= 0; index--) {
+        auto it = std::next(base_.item().begin(), index);
+
+        if (it->item_type() == IT_GAP) {
+            if (not gap_count)
+                gap_duration = it->trimmed_frame_duration();
+            else
+                gap_duration += it->trimmed_frame_duration();
+
+            gap_count++;
+        } else {
+            merge_gaps_(std::next(it, 1));
+        }
+    }
+
+    merge_gaps_(base_.item().begin());
+
+    auto more = base_.item().refresh();
+    if (not more.is_null())
+        changes.insert(changes.end(), more.begin(), more.end());
+
+    return changes;
+}
+
+// iterate over track removing surplus gaps
+void TrackActor::merge_gaps(caf::typed_response_promise<utility::JsonStore> rp) {
+    auto changes = merge_gaps();
+
+    if (changes.size())
+        send(event_group_, event_atom_v, item_atom_v, changes, false);
+
+    rp.deliver(changes);
 }
 
 

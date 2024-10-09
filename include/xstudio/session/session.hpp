@@ -74,6 +74,13 @@ namespace session {
             current_playlist_uuid_ = uuid;
         }
 
+        [[nodiscard]] utility::Uuid viewed_playlist_uuid() const {
+            return viewed_playlist_uuid_;
+        }
+        void set_viewed_playlist_uuid(const utility::Uuid &uuid) {
+            viewed_playlist_uuid_ = uuid;
+        }
+
         void set_media_rate(const utility::FrameRate &rate) { media_rate_ = rate; }
         void set_playhead_rate(const utility::FrameRate &rate) { playhead_rate_ = rate; }
         void set_filepath(const caf::uri &path);
@@ -90,6 +97,7 @@ namespace session {
         utility::FrameRate media_rate_;
         utility::FrameRate playhead_rate_;
         utility::Uuid current_playlist_uuid_;
+        utility::Uuid viewed_playlist_uuid_;
         caf::uri filepath_;
         fs::file_time_type session_file_mtime_{fs::file_time_type::min()};
     };

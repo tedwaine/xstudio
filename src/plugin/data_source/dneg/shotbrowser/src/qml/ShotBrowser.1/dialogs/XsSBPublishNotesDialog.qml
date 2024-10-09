@@ -604,7 +604,6 @@ XsWindow{
                     Layout.fillHeight: true
                     text: "Cancel"
                     onClicked: {
-                        forceActiveFocus()
                         close()
                     }
                 }
@@ -615,7 +614,6 @@ XsWindow{
                     text: "Publish Notes To SG"
                     enabled: !invalidPublish
                     onClicked: {
-                        forceActiveFocus()
                         publishNotes()
                         close()
                     }

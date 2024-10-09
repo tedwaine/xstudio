@@ -28,7 +28,7 @@ namespace ui {
     namespace qml {
         class Helpers;
     }
-    
+
     namespace qt {
 
         class OffscreenViewport : public caf::mixin::actor_object<QObject> {
@@ -37,7 +37,7 @@ namespace ui {
             using super = caf::mixin::actor_object<QObject>;
 
           public:
-            OffscreenViewport(const std::string name);
+            OffscreenViewport(const std::string name, bool include_qml_overlays = true);
             ~OffscreenViewport() override;
 
             // Direct rendering to an output file
@@ -56,7 +56,6 @@ namespace ui {
             void sceneChanged();
 
           private:
-
             caf::actor_system &system() { return self()->home_system(); }
 
             void receive_change_notification(viewport::Viewport::ChangeCallbackId id);
@@ -144,15 +143,15 @@ namespace ui {
 
             caf::actor local_playhead_;
             QString session_actor_addr_;
-            
-            QQuickWindow *quick_win_ = nullptr;
-            QQuickItem *root_qml_overlays_item_ = nullptr;
-            QQmlComponent * qml_component_ = nullptr;
-            QQuickRenderControl *render_control_ = nullptr;
-            QQmlEngine *qml_engine_ = nullptr;
-            ui::qml::Helpers * helper_ = nullptr;
-            bool overlays_loaded_ = false;
 
+            QQuickWindow *quick_win_             = nullptr;
+            QQuickItem *root_qml_overlays_item_  = nullptr;
+            QQmlComponent *qml_component_        = nullptr;
+            QQuickRenderControl *render_control_ = nullptr;
+            QQmlEngine *qml_engine_              = nullptr;
+            ui::qml::Helpers *helper_            = nullptr;
+            bool overlays_loaded_                = false;
+            bool include_qml_overlays_           = true;
         };
     } // namespace qt
 } // namespace ui

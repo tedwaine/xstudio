@@ -21,8 +21,9 @@ namespace fs = std::filesystem;
 GlobalStoreHelper::GlobalStoreHelper(caf::actor_system &sys, const std::string &reg_name)
     : JsonStoreHelper(sys, caf::actor()) {
     auto gs_actor = sys.registry().get<caf::actor>(reg_name);
-    if (not gs_actor)
+    if (not gs_actor) {
         throw std::runtime_error("GlobalStore is not registered");
+    }
 
     store_actor_ = caf::actor_cast<caf::actor_addr>(gs_actor);
 }
@@ -150,7 +151,7 @@ void load_override(utility::JsonStore &json, const fs::path &path) {
     // should be dict ..
     for (auto it : j.items()) {
         try {
-            if (not ends_with(it.key(), "/value") and not ends_with(it.key(), "/locked")) {
+            if (not ends_with(it.key(), "/value") and not ends_with(it.key(), "/locked") and not ends_with(it.key(), "/default_value")) {
                 spdlog::warn("Property key is restricted {} {}", it.key(), path.string());
                 continue;
             }

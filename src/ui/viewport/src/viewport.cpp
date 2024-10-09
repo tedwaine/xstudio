@@ -797,7 +797,6 @@ void Viewport::set_fit_mode(const FitMode md, const bool sync) {
 
     update_matrix();
     event_callback_(Redraw);
-
 }
 
 void Viewport::set_mirror_mode(const MirrorMode md) {
@@ -829,7 +828,6 @@ void Viewport::revert_fit_zoom_to_previous(const bool synced) {
 
     update_matrix();
     event_callback_(Redraw);
-
 }
 
 void Viewport::switch_mirror_mode() {
@@ -995,15 +993,16 @@ caf::message_handler Viewport::message_handler() {
                     const Imath::V2f pan,
                     const std::string &viewport_name,
                     const std::string &window_id) {
-
-                    if (viewport_name == name()) return;
+                    if (viewport_name == name())
+                        return;
 
                     if ((window_id_ == "xstudio_popout_window" &&
                          window_id == "xstudio_main_window") ||
                         (window_id == "xstudio_popout_window" &&
                          window_id_ == "xstudio_main_window") ||
-                        (sync_to_main_viewport_->value() &
-                         ViewportSyncMode::ViewportSyncZoomAndPan)) {
+                        (window_id == "xstudio_main_window" &&
+                         (sync_to_main_viewport_->value() &
+                          ViewportSyncMode::ViewportSyncZoomAndPan))) {
 
                         broadcast_fit_details_ = false;
 
@@ -1070,8 +1069,9 @@ caf::message_handler Viewport::message_handler() {
                          window_id == "xstudio_main_window") ||
                         (window_id == "xstudio_popout_window" &&
                          window_id_ == "xstudio_main_window") ||
-                        (sync_to_main_viewport_->value() &
-                         ViewportSyncMode::ViewportSyncZoomAndPan)) {
+                        (window_id == "xstudio_main_window" &&
+                         (sync_to_main_viewport_->value() &
+                          ViewportSyncMode::ViewportSyncZoomAndPan))) {
 
                         set_pan(xpan, ypan);
                         event_callback_(Redraw);
@@ -1105,8 +1105,9 @@ caf::message_handler Viewport::message_handler() {
                          window_id == "xstudio_main_window") ||
                         (window_id == "xstudio_popout_window" &&
                          window_id_ == "xstudio_main_window") ||
-                        (sync_to_main_viewport_->value() &
-                         ViewportSyncMode::ViewportSyncZoomAndPan)) {
+                        (window_id == "xstudio_main_window" &&
+                         (sync_to_main_viewport_->value() &
+                          ViewportSyncMode::ViewportSyncZoomAndPan))) {
 
                         set_scale(scale);
                         event_callback_(Redraw);
@@ -1231,7 +1232,9 @@ void Viewport::set_playhead(caf::actor playhead, const bool wait_for_refresh) {
             return;
         }
 
-        anon_send(playhead, module::connect_to_ui_atom_v);
+        if (is_visible_) {
+            anon_send(playhead, module::connect_to_ui_atom_v);
+        }
 
         // and join the new playhead's broacast events group that concern the
         // viewport
@@ -1594,9 +1597,11 @@ void Viewport::get_frames_for_display(
 
     try {
 
-        auto t0 = utility::clock::now();
+        // TODO: refactor this stuff, could be tidier. Why doesn't 
+        // display_frames_queue_actor_ handle filling in the colour management
+        // data? force_playhead_sync requirement should be shifted out of here
+        // it's only needed for 'get_onscreen_image'
 
-        // try {
         next_images = when_being_displayed == utility::time_point()
                           ? request_receive_wait<std::vector<media_reader::ImageBufPtr>>(
                                 *sys,
@@ -1611,14 +1616,8 @@ void Viewport::get_frames_for_display(
                                 viewport_get_next_frames_for_display_atom_v,
                                 when_being_displayed);
 
-        // } catch (const std::exception &e) {
-        //     spdlog::warn("viewport_get_next_frames_for_display_atom_v failed");
-        //     throw;
-        // }
-
         for (auto &image : next_images) {
 
-            // try {
             image.colour_pipe_data_ =
                 request_receive_wait<colour_pipeline::ColourPipelineDataPtr>(
                     *sys,
@@ -1626,12 +1625,7 @@ void Viewport::get_frames_for_display(
                     std::chrono::milliseconds(1000),
                     colour_pipeline::get_colour_pipe_data_atom_v,
                     image.frame_id());
-            // } catch (const std::exception &e) {
-            //     spdlog::warn("colour_pipeline::get_colour_pipe_data_atom_v failed");
-            //     throw;
-            // }
 
-            // try {
             image.colour_pipe_uniforms_ = request_receive_wait<utility::JsonStore>(
                 *sys,
                 colour_pipeline_,
@@ -1639,20 +1633,18 @@ void Viewport::get_frames_for_display(
                 colour_pipeline::colour_operation_uniforms_atom_v,
                 image);
 
-
-            // } catch (const std::exception &e) {
-            //     spdlog::warn("colour_pipeline::colour_operation_uniforms_atom_v failed");
-            //     throw;
-            // }
         }
 
         if (next_images.size()) {
 
             auto image = next_images.front();
+
             // for active 'fit modes' to work we need to tell the viewport the dimensions of the
             // image that is about to be drawn.
-            auto image_dims = image->image_size_in_pixels();
-            update_fit_mode_matrix(image_dims.x, image_dims.y, image->pixel_aspect());
+            if (image) {
+                auto image_dims = image->image_size_in_pixels();
+                update_fit_mode_matrix(image_dims.x, image_dims.y, image->pixel_aspect());
+            }
         }
 
         std::vector<media_reader::ImageBufPtr> going_on_screen;
@@ -1687,18 +1679,8 @@ void Viewport::get_frames_for_display(
 
     } catch (const std::exception &e) {
 
-        // on start-up, we might get a timeout error here occasionally while
-        // playhead and colourpipeline are getting themselves set-up. For now,
-        // supressing the warnings unless there are a lot of them (suggesting
-        // something is properly broken)
-        static thread_local int error_count = 0;
-        error_count++;
-        if (error_count == 10) {
-            spdlog::warn("{} : {} {}", name(), __PRETTY_FUNCTION__, e.what());
-            error_count = 0;
-        } else {
-            spdlog::debug("{} : {} {}", name(), __PRETTY_FUNCTION__, e.what());
-        }
+        spdlog::debug("{} : {} {}", name(), __PRETTY_FUNCTION__, e.what());
+        
     }
     t1_ = utility::clock::now();
 }
@@ -1979,4 +1961,14 @@ void Viewport::set_aux_shader_uniforms(
     }
 
     the_renderer_->set_aux_shader_uniforms(aux_shader_uniforms_);
+}
+
+void Viewport::set_visibility(bool is_visible) { 
+    
+    is_visible_ = is_visible; 
+    auto playhead = caf::actor_cast<caf::actor>(playhead_addr_);
+     if (is_visible_ && playhead) {
+        anon_send(playhead, module::connect_to_ui_atom_v);
+    }
+    
 }

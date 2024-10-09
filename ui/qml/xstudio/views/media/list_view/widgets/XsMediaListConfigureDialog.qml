@@ -194,7 +194,7 @@ metadata with media that isn't from your pipeline.`
         if (mediaSelectionModel.selectedIndexes.length) {
             source_object_index = mediaSelectionModel.selectedIndexes[0]
         } else {
-            var media_idx = theSessionData.index(0,0,viewedMediaSetIndex)
+            var media_idx = theSessionData.index(0,0,viewportCurrentMediaContainerIndex)
             if (theSessionData.rowCount(media_idx)) {
                 source_object_index = theSessionData.index(0,0,media_idx)
             } else {

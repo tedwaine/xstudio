@@ -111,7 +111,7 @@ Item { id: wheelItem
             }
 
             Loader{ id: wheelDiv
-                property int defaultWheelSize: width //135
+                property int defaultWheelSize: width
 
                 Layout.fillWidth: true
                 Layout.fillHeight: true
@@ -206,7 +206,7 @@ Item { id: wheelItem
 
         if(w > minW) wheelDiv.sourceComponent = wheelHor
         else if(h < minH) wheelDiv.sourceComponent = wheelHor
-        else wheelDiv.sourceComponent = wheelVer
+        else wheelDiv.sourceComponent = wheelHor //wheelVer
 
     }
 

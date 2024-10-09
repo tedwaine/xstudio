@@ -261,7 +261,11 @@ struct CLIArguments {
         "quick-view",
         "Open a quick-view for each supplied media item",
         {'l', "quick-view"}};
-    args::Flag allow_qt_warnings = {parser, "allow-qt-warnings", "Allow all QT warnings to be printed into the terminal.", {'qtw', "allow-qt-warnings"}};
+    args::Flag allow_qt_warnings = {
+        parser,
+        "allow-qt-warnings",
+        "Allow all QT warnings to be printed into the terminal.",
+        {"allow-qt-warnings"}};
 
     std::unordered_map<std::string, std::string> cmMapValues{
         {"none", "Off"},
@@ -357,8 +361,8 @@ struct Launcher {
         actions["quick_view"]            = cli_args.quick_view.Matched();
         actions["disable_vsync"]         = cli_args.disable_vsync.Matched();
         actions["share_opengl_contexts"] = cli_args.share_opengl_contexts.Matched();
-        actions["compare"] = static_cast<std::string>(args::get(cli_args.compare));
-        actions["allow_qt_warnings"]     = cli_args.allow_qt_warnings.Matched();
+        actions["compare"]           = static_cast<std::string>(args::get(cli_args.compare));
+        actions["allow_qt_warnings"] = cli_args.allow_qt_warnings.Matched();
 
         // check for xstudio url..
         if (args::get(cli_args.media_paths).size() == 1 and
@@ -538,7 +542,7 @@ struct Launcher {
             if (p.key() == "Untitled Playlist" and not actions["new_instance"]) {
                 try {
                     playlist = request_receive<caf::actor>(
-                        *self, session, session::current_playlist_atom_v);
+                        *self, session, session::active_media_container_atom_v);
                 } catch (...) {
                     try {
                         playlist = request_receive<caf::actor>(
@@ -878,7 +882,7 @@ struct Launcher {
 
         // to ensure what we've added appears on screen we need to
         // make the playlist the 'current' one - i.e. the one being viewer
-        anon_send(session, session::current_playlist_atom_v, playlist);
+        anon_send(session, session::active_media_container_atom_v, playlist);
 
 
         // even if 'open_quick_view' is false, we send a message to the session

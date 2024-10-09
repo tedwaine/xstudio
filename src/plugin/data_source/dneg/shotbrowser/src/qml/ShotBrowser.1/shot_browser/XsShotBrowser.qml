@@ -91,12 +91,6 @@ Item{
         }
     }
 
-    // XsHotkeyArea {
-    //     anchors.fill: parent
-    //     context: "shotbrowser"
-    //     focus: true
-    // }
-
     /*MouseArea {
         anchors.fill: parent
         onClicked: forceActiveFocus(panel)

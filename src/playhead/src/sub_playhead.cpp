@@ -340,6 +340,8 @@ void SubPlayhead::init() {
             last_frame--;
             last_frame--;
 
+            // woopsie - this loop is not an efficient way to work out if 
+            // we will hit the end frame!!
             auto frame = full_timeline_frames_.begin();
             while (logical_frame > 0 && frame != last_frame) {
                 frame++;
@@ -398,11 +400,28 @@ void SubPlayhead::init() {
             return result;
         },
 
-        [=](media::get_edit_list_atom _get_edit_list_atom, const Uuid &uuid) {
-            delegate(source_, _get_edit_list_atom, media_type_, uuid);
+        [=](media::get_edit_list_atom atom, const Uuid &uuid) ->result<utility::EditList> {
+
+            auto rp = make_response_promise<utility::EditList>();
+            request(source_, infinite, atom, uuid).then(
+                [=](const utility::EditList &edl) mutable {
+                    rp.deliver(edl);
+                },
+                [=](caf::error &err) mutable { rp.deliver(err); });
+            return rp;
+
         },
 
-        [=](media::source_offset_frames_atom atom) { delegate(source_, atom); },
+        [=](media::source_offset_frames_atom atom) -> result<int> { 
+
+            auto rp = make_response_promise<int>();
+            request(source_, infinite, atom).then(
+                [=](int offset) mutable {
+                    rp.deliver(offset);
+                },
+                [=](caf::error &err) mutable { rp.deliver(err); });
+            return rp;
+        },
 
         [=](media::source_offset_frames_atom atom, const int64_t offset) -> result<bool> {
             // change the time offset on the source ... this means we have
@@ -756,12 +775,6 @@ void SubPlayhead::init() {
             set_in_and_out_frames();
         },
 
-        [=](skip_through_sources_atom, const int skip_by) {
-            // if logical_frame_ sits on source N in an edit list, then this returns
-            // the uuid of the source (N+skip_by) in the edit list
-            delegate(source_, skip_through_sources_atom_v, skip_by, logical_frame_);
-        },
-
         [=](step_atom,
             timebase::flicks current_playhead_position,
             const int step_frames,
@@ -769,6 +782,14 @@ void SubPlayhead::init() {
             auto rp = make_response_promise<timebase::flicks>();
             get_position_after_step_by_frames(current_playhead_position, rp, step_frames, loop);
             return rp;
+        },
+
+        [=](skip_to_clip_atom,
+            timebase::flicks current_playhead_position,
+            const bool next_clip) -> timebase::flicks {
+            // get the position corresponding to the first frame of the next
+            // clip of the previous (current) clip
+            return get_next_or_previous_clip_start_position(current_playhead_position, next_clip);
         },
 
         [=](utility::event_atom, media::source_offset_frames_atom atom, const int offset) {
@@ -864,21 +885,23 @@ void SubPlayhead::init() {
             bookmark_changed(a);
         });
 
-    scoped_actor sys{system()};
-    try {
-        auto session = utility::request_receive<caf::actor>(
-            *sys,
-            system().registry().template get<caf::actor>(studio_registry),
-            session::session_atom_v);
-        auto bookmark_manager =
-            utility::request_receive<caf::actor>(*sys, session, bookmark::get_bookmark_atom_v);
-
-        utility::join_event_group(this, bookmark_manager);
-
-    } catch (std::exception &e) {
-        spdlog::warn("{} {}", __PRETTY_FUNCTION__, e.what());
-    }
+    // slightly awkward...we need to join event group of bookmark manager
+    request(
+        system().registry().template get<caf::actor>(studio_registry),
+        infinite,
+        session::session_atom_v)
+        .then(
+            [=](caf::actor session) {
+                request(session, infinite, bookmark::get_bookmark_atom_v)
+                    .then(
+                        [=](caf::actor bookmark_manager) {
+                            utility::join_event_group(this, bookmark_manager);
+                        },
+                        [=](caf::error &err) {});
+            },
+            [=](caf::error &err) {});
 }
+
 // move playhead to position
 void SubPlayhead::set_position(
     const timebase::flicks time,
@@ -897,7 +920,7 @@ void SubPlayhead::set_position(
     std::shared_ptr<const media::AVFrameID> frame = get_frame(time, frame_period, timeline_pts);
     int logical_frame                             = frame ? frame->playhead_logical_frame_ : 0;
 
-    if (logical_frame_ != logical_frame || force_updates) {
+    if (logical_frame_ != logical_frame || force_updates || scrubbing) {
 
         logical_frame_ = logical_frame;
 
@@ -1002,17 +1025,11 @@ void SubPlayhead::broadcast_image_frame(
             send(parent_, dropped_frame_atom_v);
             return;
         } else {
-            // we're not playing, assumption is that the timeline is being scrubbed
-            // and the reader(s) can't keep up. We can't request more frames until
-            // the reader has responded or we could build up a big list of pending frame
-            // requests. Instead, we'll send a delayed message to the parent playhead
-            // to re-broadcast its position to us so that (when the reader is less busy)
-            // we can try again to fetch the current frame and broadcast to the viewer
-            delayed_anon_send(
-                parent_,
-                std::chrono::milliseconds(16),
-                jump_atom_v,
-                caf::actor_cast<caf::actor_addr>(this));
+            // we still haven't received the last frame we asked for a previous
+            // time we entered this method. Instead of flooding the reader with
+            // more frame read requests, we just return here. When we do get
+            // the frame we asked for, we then force another update so that we
+            // do request the latest frame based on the parent playhead position
             return;
         }
     }
@@ -1035,6 +1052,8 @@ void SubPlayhead::broadcast_image_frame(
 
     waiting_for_next_frame_ = true;
 
+    const int broadcast_logical = logical_frame_;
+
     request(
         pre_reader_,
         infinite,
@@ -1051,6 +1070,7 @@ void SubPlayhead::broadcast_image_frame(
                 add_annotations_data_to_frame(image_buffer);
 
                 if (image_buffer) {
+
                     if (frame_media_pointer->params_.find("HELD_FRAME") !=
                         frame_media_pointer->params_.end()) {
                         image_buffer->params()["HELD_FRAME"] = true;
@@ -1086,10 +1106,23 @@ void SubPlayhead::broadcast_image_frame(
                 // re-draws during playback
                 if (playing)
                     request_future_frames();
+                else if (broadcast_logical != logical_frame_) {
+                    // This is crucial ... what if the playhead has moved since we
+                    // requested the frame to broadcast? This could happen if the user
+                    // is scrubbing frames and the reader can't keep up. If that is the
+                    // case, we send a jump_atom message to the parent playhead, which
+                    // in turn sends us back a jump_atom with its state and we request
+                    // another broadcast frame
+                    anon_send(parent_, jump_atom_v, caf::actor_cast<caf::actor_addr>(this));
+                }
             },
 
             [=](const caf::error &err) mutable {
                 waiting_for_next_frame_ = false;
+                if (broadcast_logical != logical_frame_) {
+                    // see above
+                    anon_send(parent_, jump_atom_v, caf::actor_cast<caf::actor_addr>(this));
+                }
                 spdlog::warn("{} {}", __PRETTY_FUNCTION__, to_string(err));
             });
 }
@@ -1225,7 +1258,7 @@ std::vector<timebase::flicks> SubPlayhead::get_lookahead_frame_pointers(
 void SubPlayhead::request_future_frames() {
 
     media::AVFrameIDsAndTimePoints future_frames;
-    auto timeline_pts_vec = get_lookahead_frame_pointers(future_frames, 20);
+    auto timeline_pts_vec = get_lookahead_frame_pointers(future_frames, 4);
 
     request(
         pre_reader_,
@@ -1581,7 +1614,7 @@ std::shared_ptr<const media::AVFrameID> SubPlayhead::get_frame(
 }
 
 void SubPlayhead::get_position_after_step_by_frames(
-    const timebase::flicks start_position,
+    const timebase::flicks ref_position,
     caf::typed_response_promise<timebase::flicks> &rp,
     int step_frames,
     const bool loop) {
@@ -1592,7 +1625,7 @@ void SubPlayhead::get_position_after_step_by_frames(
     }
 
     timebase::flicks t =
-        std::min(out_frame_->first, std::max(in_frame_->first, start_position));
+        std::min(out_frame_->first, std::max(in_frame_->first, ref_position));
 
     auto frame = full_timeline_frames_.upper_bound(t);
     if (frame != full_timeline_frames_.begin())
@@ -1625,6 +1658,69 @@ void SubPlayhead::get_position_after_step_by_frames(
     rp.deliver(frame->first);
 }
 
+timebase::flicks SubPlayhead::get_next_or_previous_clip_start_position(
+    const timebase::flicks ref_position, 
+    const bool next_clip) 
+{
+
+    auto result = ref_position;
+
+    if (full_timeline_frames_.size() < 2) {
+        return result;
+    }
+
+    auto frame = full_timeline_frames_.upper_bound(ref_position);
+    if (frame != full_timeline_frames_.begin())
+        frame--;
+
+    utility::Uuid curr_frame_media_uuid = frame->second ? frame->second->media_uuid_ : utility::Uuid();
+    if (next_clip) {
+        while (frame != full_timeline_frames_.end()) {
+            
+            if (frame->second && frame->second->media_uuid_ != curr_frame_media_uuid) {
+                result = frame->first;
+                break;
+            }
+            frame++;
+        }
+    } else {
+        
+        if (frame != full_timeline_frames_.begin()) {
+            // step back one frame. Has the media changed?
+            frame--;
+            auto prev_frame_media_uuid = frame->second ? frame->second->media_uuid_ : utility::Uuid();
+            if (prev_frame_media_uuid == curr_frame_media_uuid) {
+                // nope, we're in the same media .. so we need to keep going
+                // back only until we hit some new media
+            } else {
+                // yes, so we need to go all the way back to the start of
+                // this previous clip
+                curr_frame_media_uuid = prev_frame_media_uuid;
+            }
+        }
+
+        while (frame != full_timeline_frames_.begin()) {
+            
+            if (frame->second && frame->second->media_uuid_ != curr_frame_media_uuid) {
+                // we've got to the last frame of the previous source.
+                // Step forward one frame to get to the first frame of 
+                // this source
+                frame++;
+                result = frame->first;
+                break;
+            }
+            frame--;
+        }
+
+        if (frame == full_timeline_frames_.begin()) {
+            result = frame->first;
+        }
+    }
+
+    return result;
+
+}
+
 void SubPlayhead::set_in_and_out_frames() {
 
     if (full_timeline_frames_.size() < 2) {
@@ -1645,7 +1741,14 @@ void SubPlayhead::set_in_and_out_frames() {
     if (loop_out_point_ > last_frame_->first) {
         out_frame_ = last_frame_;
     } else {
+        // loop out point includes frame duration of last frame in the loop
+        // range.
+        // So if frame rate is @25hz, frame duration is 40ms
+        // If loop in point is 0ms and loop out_point is 80ms, we will loop
+        // over frames 0 & 1 only.
         out_frame_ = full_timeline_frames_.upper_bound(loop_out_point_);
+        if (out_frame_ != first_frame_)
+            out_frame_--;
         if (out_frame_ != first_frame_)
             out_frame_--;
     }

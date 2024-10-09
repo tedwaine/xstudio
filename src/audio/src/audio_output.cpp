@@ -377,8 +377,8 @@ media_reader::AudioBufPtr AudioOutputControl::pick_audio_buffer(
         double(std::chrono::duration_cast<std::chrono::microseconds>(r->first - tp).count()) /
         1000000.0;
 
-    if (fabs(delta) > v->duration_seconds()/2) {
-         return media_reader::AudioBufPtr();
+    if (fabs(delta) > v->duration_seconds() / 2) {
+        return media_reader::AudioBufPtr();
     }
 
     if (drop_old_buffers) {

@@ -1236,7 +1236,6 @@ void SessionModel::moveSelectionByIndex(const QModelIndex &index, const int offs
 
 void SessionModel::updateSelection(const QModelIndex &index, const QModelIndexList &selection) {
     try {
-
         if (index.isValid()) {
             nlohmann::json &j = indexToData(index);
             if (j.at("type") == "PlayheadSelection" && j.at("actor").is_string()) {

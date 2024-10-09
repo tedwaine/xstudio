@@ -346,7 +346,10 @@ void ContactSheetActor::init() {
             auto uuid = utility::Uuid::generate();
 
             auto playhead = spawn<playhead::PlayheadActor>(
-                std::string("ContactSheet Playhead"), selection_actor_, uuid);
+                std::string("ContactSheet Playhead"),
+                selection_actor_,
+                uuid,
+                caf::actor_cast<caf::actor_addr>(this));
             link_to(playhead);
 
             // anon_send(actor, playhead::source_atom_v, tactor);

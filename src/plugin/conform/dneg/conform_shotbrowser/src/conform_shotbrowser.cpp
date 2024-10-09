@@ -604,7 +604,8 @@ template <typename T> class ShotbrowserConformActor : public caf::event_based_ac
 
                         for (const auto &m : timeline_item.children().front().markers()) {
                             if (m.start() == tframe) {
-                                if (m.prop().contains(fcpp) and not m.name().empty()) {
+                                if (m.prop().contains(fcpp) and
+                                    m.prop().at(fcpp).is_string() and not m.name().empty()) {
                                     const static auto cutcompre =
                                         std::regex("\\s*(\\d+)\\s*,\\s*(\\d+)\\s*-\\s*(\\d+)"
                                                    "\\s*,\\s*(\\d+)\\s*");

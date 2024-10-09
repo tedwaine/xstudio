@@ -276,21 +276,6 @@ EditListActor::EditListActor(
             return rp;
         },
 
-        [=](playhead::skip_through_sources_atom,
-            const int skip_by,
-            const int ref_frame) -> result<utility::Uuid> {
-            try {
-
-                EditListSection section =
-                    edit_list_.skip_sections(ref_frame - frames_offset_, skip_by);
-
-                return section.media_uuid_;
-
-            } catch (std::exception &e) {
-                return make_error(xstudio_error::error, e.what());
-            }
-        },
-
         [=](rate_atom, const int logical_frame) -> result<FrameRate> {
             try {
                 return edit_list_.frame_rate_at_frame(logical_frame);

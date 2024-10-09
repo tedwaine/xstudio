@@ -126,6 +126,7 @@ namespace ui {
             utility::Uuid toggle_active_hotkey_;
             utility::Uuid undo_hotkey_;
             utility::Uuid redo_hotkey_;
+            utility::Uuid clear_hotkey_;
 
             // Annotations
             utility::Uuid current_bookmark_uuid_;

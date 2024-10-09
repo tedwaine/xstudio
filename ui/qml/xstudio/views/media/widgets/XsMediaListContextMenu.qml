@@ -201,7 +201,7 @@ XsPopupMenu {
     //     menuModelName: btnMenu.menu_model_name
     //     onActivated: {
     //         let mlf = 14
-    //         let c = theSessionData.getTimelineVisibleClipIndexes(viewedMediaSetIndex, mediaSelectionModel.selectedIndexes[0], mlf)
+    //         let c = theSessionData.getTimelineVisibleClipIndexes(currentMediaContainerIndex, mediaSelectionModel.selectedIndexes[0], mlf)
     //         if(c.length)
     //             console.log(theSessionData.getTimelineFrameFromClip(c[0], mlf))
     //     }

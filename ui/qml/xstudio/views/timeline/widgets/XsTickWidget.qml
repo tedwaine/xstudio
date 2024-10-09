@@ -42,14 +42,16 @@ Rectangle {
         }
         onPressed: {
 
-            if (viewedMediaSetIndex != timelineModel.rootIndex.parent) {
-                viewedMediaSetIndex = helpers.makePersistent(timelineModel.rootIndex.parent)
-            }
-
             // here we make sure the viewport is attached to the correct
             // playhead - we want the 'main' playhead of the timeline not the
             // auxillary one which is used for showing individual clips
-            theSessionData.setPlayheadTo(viewedMediaSetIndex, false)
+            viewportCurrentMediaContainerIndex = timelineModel.rootIndex.parent
+
+            // we ensure the timeline playhead is back in 'pinned' mode. This
+            // means, regardless of the media selection, the playhead source 
+            // is pinned to the timeline itslef and isn't going to use the 
+            // selected media as it's source (which is usual behaviour)
+            timelinePlayhead.pinnedSourceMode = true
 
             if (mouse.button == Qt.LeftButton) {
                 timelinePlayhead.scrubbingFrames = true

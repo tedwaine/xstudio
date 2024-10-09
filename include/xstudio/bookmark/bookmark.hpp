@@ -91,6 +91,7 @@ namespace bookmark {
         std::optional<bool> visible_;
         std::optional<timebase::flicks> start_;
         std::optional<timebase::flicks> duration_;
+        std::optional<std::string> user_type_;
         std::optional<utility::JsonStore> user_data_;
 
         std::optional<std::string> author_;
@@ -118,6 +119,7 @@ namespace bookmark {
                 f.field("vis", x.visible_),
                 f.field("sta", x.start_),
                 f.field("dur", x.duration_),
+                f.field("utp", x.user_type_),
                 f.field("udt", x.user_data_),
                 f.field("hasa", x.has_annotation_),
                 f.field("hasn", x.has_note_),
@@ -293,6 +295,7 @@ namespace bookmark {
         auto visible() const { return visible_; }
         auto start() const { return start_; }
         auto duration() const { return duration_; }
+        auto user_type() const { return user_type_; }
         auto user_data() const { return user_data_; }
         auto created() const { return created_; };
 
@@ -308,6 +311,7 @@ namespace bookmark {
         void set_duration(const timebase::flicks duration = timebase::k_flicks_max) {
             duration_ = duration;
         }
+        void set_user_type(const std::string &user_type) { user_type_ = user_type; }
         void set_user_data(const utility::JsonStore &user_data) { user_data_ = user_data; }
         void set_created(const utility::sys_time_point &created) { created_ = created; }
 
@@ -323,6 +327,7 @@ namespace bookmark {
         bool visible_{true};
         timebase::flicks start_{timebase::k_flicks_low};
         timebase::flicks duration_{timebase::k_flicks_max};
+        std::string user_type_;
         utility::JsonStore user_data_;
         utility::sys_time_point created_{utility::sysclock::now()};
 

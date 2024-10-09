@@ -26,9 +26,8 @@ Item {
         XsHotkeysDialog {}
     }
 
-    Component {
-        id: release_notes_dialog
-        XsReleaseNotes {}
+    XsReleaseNotes {
+        id: release_notes
     }
 
     Component {
@@ -80,8 +79,7 @@ Item {
         menuItemPosition: 5
         menuModelName: "main menu bar"
         onActivated: {
-            loader.sourceComponent = release_notes_dialog
-            loader.item.visible = true
+            release_notes.showDialog()            
         }
     }
 

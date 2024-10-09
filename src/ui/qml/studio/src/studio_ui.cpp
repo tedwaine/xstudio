@@ -197,7 +197,7 @@ QUrl StudioUI::apiDocsUrl() const {
 }
 
 QUrl StudioUI::releaseDocsUrl() const {
-    std::string docs_index = utility::xstudio_root("/docs/user_docs/release_notes/index.html");
+    std::string docs_index = utility::xstudio_root("/user_docs/release_notes/index.html");
     return QUrl(QString(tr("file://")) + QString(docs_index.c_str()));
 }
 
@@ -372,8 +372,10 @@ void StudioUI::loadVideoOutputPlugins() {
 xstudio::ui::qt::OffscreenViewport *StudioUI::offscreen_snapshot_viewport() {
     // create an offscreen viewport and send its companion actor to the actor that requested it
     if (!snapshot_offscreen_viewport_) {
-        snapshot_offscreen_viewport_ =
-            new xstudio::ui::qt::OffscreenViewport("snapshot_viewport");
+        snapshot_offscreen_viewport_ = new xstudio::ui::qt::OffscreenViewport(
+            "snapshot_viewport",
+            false // this flag means we don't have QML overlays in the snapshot viewport
+        );
         system().registry().put(
             offscreen_viewport_registry, snapshot_offscreen_viewport_->as_actor());
     }

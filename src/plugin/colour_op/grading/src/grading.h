@@ -40,8 +40,15 @@ class GradingTool : public plugin::StandardPlugin {
     void on_screen_media_changed(
         caf::actor,
         const utility::MediaReference &,
-        const std::string,
         const utility::JsonStore &
+    ) override;
+
+    void on_screen_frame_changed(
+        const timebase::flicks playhead_position,
+        const int playhead_logical_frame,
+        const int media_frame,
+        const int media_logical_frame,
+        const utility::Timecode & timecode
     ) override;
 
     // Interactions
@@ -151,6 +158,7 @@ class GradingTool : public plugin::StandardPlugin {
 
     // Current media info (eg. for Bookmark creation)
     bool playhead_is_playing_ {false};
+    int playhead_media_frame_ {0};
 
     std::string current_viewport_;
 

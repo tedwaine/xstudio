@@ -31,7 +31,6 @@ Item{ id: listDiv
             }
 
             onCurrentIndexChanged: {
-                // console.log(userSelect, currentIndex)
                 if(userSelect) {
                     userSelect = false
                 } else if (currentIndex < 0) {

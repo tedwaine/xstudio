@@ -7,6 +7,7 @@ import QtQml.Models 2.14
 import QtQuick.Layouts 1.4
 
 import xStudio 1.0
+import xstudio.qml.helpers 1.0
 
 XsWindow {
 
@@ -72,6 +73,23 @@ XsWindow {
         }
     }
 
+    XsHotkeyArea {
+        anchors.fill: parent
+        focus: true
+        context: name
+        id: hotkey_area
+   }
+
+   onActiveFocusItemChanged: {
+    if (activeFocusItem == floatingWindow.contentItem) {
+        // if a widget like a text-entry box that's part of a combobox has 
+        // given up its focus, sometimes the window's root contentItem gets 
+        // the focus. If this happens we give the focus back to the hotkey
+        // area.
+        hotkey_area.forceActiveFocus()
+    }
+   }
+
     Timer {
         id: updateTimer
         interval: 1000
@@ -110,7 +128,7 @@ XsWindow {
 
                 if (content_item != undefined) content_item.destroy()
                 content_item = component.createObject(
-                    floatingWindow,
+                    hotkey_area,
                     {
                     })
 
@@ -123,7 +141,7 @@ XsWindow {
 
         } else {
 
-            content_item = Qt.createQmlObject(content_qml, floatingWindow)
+            content_item = Qt.createQmlObject(content_qml, hotkey_area)
             // see note above
 
         }

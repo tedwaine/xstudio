@@ -64,8 +64,8 @@ Item { id: dialog
         sourceModel: bookmarkModel
         currentMedia: currentPlayhead.mediaUuid
         showHidden: true
+        showUserType: "Grading"
         sortbyCreated: true
-        includedCategories: ["Grading"]
     }
 
     XsSplitView {

@@ -48,9 +48,10 @@ auto __sysclock_now() {
 #endif
 }
 
-const static auto COLOUR_JPOINTER  = nlohmann::json::json_pointer("/xstudio/colour");
-const static auto LOCKED_JPOINTER  = nlohmann::json::json_pointer("/xstudio/locked");
-const static auto ENABLED_JPOINTER = nlohmann::json::json_pointer("/xstudio/enabled");
+const static auto COLOUR_JPOINTER       = nlohmann::json::json_pointer("/xstudio/colour");
+const static auto LOCKED_JPOINTER       = nlohmann::json::json_pointer("/xstudio/locked");
+const static auto ENABLED_JPOINTER      = nlohmann::json::json_pointer("/xstudio/enabled");
+const static auto MEDIA_COLOUR_JPOINTER = nlohmann::json::json_pointer("/xstudio/media_colour");
 
 } // namespace
 
@@ -555,10 +556,11 @@ void process_item(
             }
 
             try {
-                auto locked   = false;
-                auto enabled  = ii->enabled();
-                auto metadata = JsonStore();
-                auto flag     = std::string();
+                auto locked     = false;
+                auto enabled    = ii->enabled();
+                auto metadata   = JsonStore();
+                auto flag       = std::string();
+                auto media_flag = std::string();
                 otio::ErrorStatus err;
                 auto ometadata = nlohmann::json::parse(ii->to_json_string(&err, {}, 0));
                 if (ometadata.count("metadata"))
@@ -574,6 +576,9 @@ void process_item(
 
                 if (metadata.contains(COLOUR_JPOINTER))
                     flag = metadata.at(COLOUR_JPOINTER).get<std::string>();
+
+                if (metadata.contains(MEDIA_COLOUR_JPOINTER))
+                    media_flag = metadata.at(MEDIA_COLOUR_JPOINTER).get<std::string>();
 
                 if (metadata.contains(LOCKED_JPOINTER))
                     locked = metadata.at(LOCKED_JPOINTER).get<bool>();
@@ -595,6 +600,18 @@ void process_item(
 
                 if (not metadata.is_null())
                     anon_send(actor, item_prop_atom_v, metadata, "");
+
+                // set media colour
+                if (not media_flag.empty() and not active_path.empty() and
+                    media_lookup.count(active_path)) {
+                    self->request(
+                            media_lookup.at(active_path).actor(),
+                            infinite,
+                            playlist::reflag_container_atom_v,
+                            std::tuple<std::optional<std::string>, std::optional<std::string>>(
+                                media_flag, {}))
+                        .receive([=](const bool) {}, [=](const error &err) {});
+                }
 
             } catch (const std::exception &err) {
                 spdlog::warn("{} {}", __PRETTY_FUNCTION__, err.what());
@@ -1388,9 +1405,23 @@ void TimelineActor::init() {
         //     }
         // },
 
+        // check events processes
+        [=](item_atom, event_atom, const std::set<utility::Uuid> &events) -> bool {
+            auto result = true;
+            for (const auto &i : events) {
+                if (not events_processed_.contains(i)) {
+                    result = false;
+                    break;
+                }
+            }
+            return result;
+        },
+
         // handle child change events.
         [=](event_atom, item_atom, const JsonStore &update, const bool hidden) {
-            if (base_.item().update(update)) {
+            auto event_ids = base_.item().update(update);
+            if (not event_ids.empty()) {
+                events_processed_.insert(event_ids.begin(), event_ids.end());
                 auto more = base_.item().refresh();
                 if (not more.is_null()) {
                     more.insert(more.begin(), update.begin(), update.end());
@@ -1535,10 +1566,10 @@ void TimelineActor::init() {
             base_.item().undo(hist);
 
             auto inverted = R"([])"_json;
-            for (const auto &i : hist) {
+            for(auto it = hist.crbegin(); it != hist.crend(); ++it) {
                 auto ev    = R"({})"_json;
-                ev["redo"] = i.at("undo");
-                ev["undo"] = i.at("redo");
+                ev["redo"] = it->at("undo");
+                ev["undo"] = it->at("redo");
                 inverted.emplace_back(ev);
             }
 
@@ -1634,7 +1665,7 @@ void TimelineActor::init() {
             if (not base_.item().empty() or uav.size() > 1)
                 rp.deliver(make_error(xstudio_error::error, "Only one child allowed"));
             else
-                insert_items(index, uav, rp);
+                insert_items(rp, index, uav);
             return rp;
         },
 
@@ -1658,7 +1689,7 @@ void TimelineActor::init() {
                 }
 
                 if (rp.pending())
-                    insert_items(index, uav, rp);
+                    insert_items(rp, index, uav);
             }
 
             return rp;
@@ -1668,14 +1699,14 @@ void TimelineActor::init() {
             const int index,
             const bool) -> result<std::pair<JsonStore, std::vector<Item>>> {
             auto rp = make_response_promise<std::pair<JsonStore, std::vector<Item>>>();
-            remove_items(index, 1, rp);
+            remove_items(rp, index);
             return rp;
         },
 
         [=](remove_item_atom, const int index, const int count, const bool)
             -> result<std::pair<JsonStore, std::vector<Item>>> {
             auto rp = make_response_promise<std::pair<JsonStore, std::vector<Item>>>();
-            remove_items(index, count, rp);
+            remove_items(rp, index, count);
             return rp;
         },
 
@@ -1705,21 +1736,21 @@ void TimelineActor::init() {
                 rp.deliver(make_error(xstudio_error::error, "Invalid uuid"));
 
             if (rp.pending())
-                remove_items(std::distance(base_.item().begin(), it), 1, rp);
+                remove_items(rp, std::distance(base_.item().begin(), it));
 
             return rp;
         },
 
         [=](erase_item_atom, const int index, const bool) -> result<JsonStore> {
             auto rp = make_response_promise<JsonStore>();
-            erase_items(index, 1, rp);
+            erase_items(rp, index);
             return rp;
         },
 
         [=](erase_item_atom, const int index, const int count, const bool)
             -> result<JsonStore> {
             auto rp = make_response_promise<JsonStore>();
-            erase_items(index, count, rp);
+            erase_items(rp, index, count);
             return rp;
         },
 
@@ -1747,7 +1778,7 @@ void TimelineActor::init() {
                 rp.deliver(make_error(xstudio_error::error, "Invalid uuid"));
 
             if (rp.pending())
-                erase_items(std::distance(base_.item().begin(), it), 1, rp);
+                erase_items(rp, std::distance(base_.item().begin(), it));
 
             return rp;
         },
@@ -1822,7 +1853,7 @@ void TimelineActor::init() {
             // get actors attached to our media..
             if (not base_.empty()) {
                 auto rp = make_response_promise<media::AVFrameID>();
-                deliver_media_pointer(logical_frame, media_type, rp);
+                deliver_media_pointer(rp, logical_frame, media_type);
                 return rp;
             }
 
@@ -1934,7 +1965,7 @@ void TimelineActor::init() {
             const UuidActor &ua,
             const Uuid &before_uuid) -> result<UuidActor> {
             auto rp = make_response_promise<UuidActor>();
-            add_media(ua, before_uuid, rp);
+            add_media(rp, ua, before_uuid);
             return rp;
         },
 
@@ -2063,7 +2094,7 @@ void TimelineActor::init() {
             // to enact the adding, because it might happen *after* we get
             // another of these add_media messages which would then mess up the
             // ordering algorithm
-            add_media(ua, before, rp);
+            add_media(rp, ua, before);
 
             return rp;
         },
@@ -2199,35 +2230,6 @@ void TimelineActor::init() {
             return rp;
         },
 
-        [=](playlist::create_playhead_atom, const int index) -> result<UuidActor> {
-            // aux playheads where index >= 0
-
-            auto rp = make_response_promise<UuidActor>();
-            if (!index) {
-                rp.delegate(
-                    caf::actor_cast<caf::actor>(this), playlist::create_playhead_atom_v);
-                return rp;
-            }
-
-            if (aux_playheads_.find(index) != aux_playheads_.end()) {
-                rp.deliver(aux_playheads_[index]);
-                return rp;
-            }
-
-            auto uuid = utility::Uuid::generate();
-
-            auto playhead_actor = spawn<playhead::PlayheadActor>(
-                fmt::format("Timeline Aux Playhead {}", index), selection_actor_, uuid);
-
-            link_to(playhead_actor);
-
-            anon_send(playhead_actor, playhead::playhead_rate_atom_v, base_.rate());
-
-            aux_playheads_[index] = UuidActor(uuid, playhead_actor);
-            rp.deliver(aux_playheads_[index]);
-            return rp;
-        },
-
         [=](playlist::create_playhead_atom) -> UuidActor {
             if (playhead_)
                 return playhead_;
@@ -2243,7 +2245,10 @@ void TimelineActor::init() {
             // We want to play this timeline, not the media in the timeline
             // that is selected.
             auto playhead_actor = spawn<playhead::PlayheadActor>(
-                std::string("Timeline Playhead"), caf::actor(), uuid);
+                std::string("Timeline Playhead"),
+                selection_actor_,
+                uuid,
+                caf::actor_cast<caf::actor_addr>(this));
 
             link_to(playhead_actor);
 
@@ -2257,7 +2262,9 @@ void TimelineActor::init() {
             anon_send(
                 playhead_actor,
                 playhead::source_atom_v,
-                std::vector<caf::actor>({caf::actor_cast<caf::actor>(this)}));
+                std::vector<caf::actor>({caf::actor_cast<caf::actor>(this)}),
+                true // this special flag tells the playhead that the source is a timeline
+            );
 
             playhead_ = UuidActor(uuid, playhead_actor);
             return playhead_;
@@ -3126,9 +3133,9 @@ void TimelineActor::add_media(
 }
 
 void TimelineActor::add_media(
+    caf::typed_response_promise<utility::UuidActor> rp,
     const utility::UuidActor &ua,
-    const utility::Uuid &before_uuid,
-    caf::typed_response_promise<utility::UuidActor> rp) {
+    const utility::Uuid &before_uuid) {
 
     try {
 
@@ -3190,9 +3197,9 @@ void TimelineActor::on_exit() {
 }
 
 void TimelineActor::deliver_media_pointer(
+    caf::typed_response_promise<media::AVFrameID> rp,
     const int logical_frame,
-    const media::MediaType media_type,
-    caf::typed_response_promise<media::AVFrameID> rp) {
+    const media::MediaType media_type) {
 
     std::vector<caf::actor> actors;
     for (const auto &i : base_.media())
@@ -3316,9 +3323,9 @@ void TimelineActor::sort_by_media_display_info(
 }
 
 void TimelineActor::insert_items(
+    caf::typed_response_promise<utility::JsonStore> rp,
     const int index,
-    const UuidActorVector &uav,
-    caf::typed_response_promise<utility::JsonStore> rp) {
+    const UuidActorVector &uav) {
     // validate items can be inserted.
     fan_out_request<policy::select_all>(vector_to_caf_actor_vector(uav), infinite, item_atom_v)
         .then(
@@ -3414,10 +3421,9 @@ TimelineActor::remove_items(const int index, const int count) {
 
 
 void TimelineActor::remove_items(
+    caf::typed_response_promise<std::pair<utility::JsonStore, std::vector<timeline::Item>>> rp,
     const int index,
-    const int count,
-    caf::typed_response_promise<std::pair<utility::JsonStore, std::vector<timeline::Item>>>
-        rp) {
+    const int count) {
 
     try {
         rp.deliver(remove_items(index, count));
@@ -3427,7 +3433,7 @@ void TimelineActor::remove_items(
 }
 
 void TimelineActor::erase_items(
-    const int index, const int count, caf::typed_response_promise<JsonStore> rp) {
+    caf::typed_response_promise<JsonStore> rp, const int index, const int count) {
 
     try {
         auto result = remove_items(index, count);
@@ -3625,15 +3631,15 @@ void TimelineActor::export_otio(
 
                     meta.erase("media_uuid");
 
-                    xstudio_meta =
-                        R"({"xstudio": {"colour": "", "enabled": true, "locked": false}})"_json;
-                    xstudio_meta[COLOUR_JPOINTER]  = citem.flag();
-                    xstudio_meta[ENABLED_JPOINTER] = citem.enabled();
-                    xstudio_meta[LOCKED_JPOINTER]  = citem.locked();
-                    meta.update(xstudio_meta, true);
-                    deserialize_json_from_string(meta.dump(), &jany, &err);
-
                     if (citem.item_type() == IT_GAP) {
+                        xstudio_meta =
+                            R"({"xstudio": {"colour": "", "enabled": true, "locked": false}})"_json;
+                        xstudio_meta[COLOUR_JPOINTER]  = citem.flag();
+                        xstudio_meta[ENABLED_JPOINTER] = citem.enabled();
+                        xstudio_meta[LOCKED_JPOINTER]  = citem.locked();
+                        meta.update(xstudio_meta, true);
+                        deserialize_json_from_string(meta.dump(), &jany, &err);
+
                         auto gap = new otio::Gap(
                             otio::RationalTime::from_frames(
                                 citem.trimmed_frame_duration().frames(), citem.rate().to_fps()),
@@ -3646,6 +3652,31 @@ void TimelineActor::export_otio(
 
                         result->append_child(gap);
                     } else if (citem.item_type() == IT_CLIP) {
+                        xstudio_meta =
+                            R"({"xstudio": {"colour": "", "media_colour": "", "enabled": true, "locked": false}})"_json;
+                        xstudio_meta[COLOUR_JPOINTER]  = citem.flag();
+                        xstudio_meta[ENABLED_JPOINTER] = citem.enabled();
+                        xstudio_meta[LOCKED_JPOINTER]  = citem.locked();
+
+                        // need to get the media flag..
+                        try {
+                            if (citem.actor()) {
+                                caf::scoped_actor sys(system());
+                                auto flag = std::get<0>(
+                                    request_receive<std::tuple<std::string, std::string>>(
+                                        *sys,
+                                        citem.actor(),
+                                        playlist::reflag_container_atom_v));
+                                if (flag != "#00000000" and flag != "")
+                                    xstudio_meta[MEDIA_COLOUR_JPOINTER] = flag;
+                            }
+                        } catch (const std::exception &err) {
+                            spdlog::warn("{} {}", __PRETTY_FUNCTION__, err.what());
+                        }
+
+                        meta.update(xstudio_meta, true);
+                        deserialize_json_from_string(meta.dump(), &jany, &err);
+
                         auto clip = new otio::Clip(
                             citem.name(),
                             nullptr,
@@ -3678,6 +3709,7 @@ void TimelineActor::export_otio(
                                     media::current_media_source_atom_v,
                                     item.item_type() == IT_VIDEO_TRACK ? media::MT_IMAGE
                                                                        : media::MT_AUDIO);
+
                                 auto name = request_receive<std::string>(
                                     *sys, msua.actor(), name_atom_v);
 

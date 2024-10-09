@@ -150,7 +150,6 @@ RowLayout {id: titleDiv
 
                 onAccepted: {
                     sentTo = model.get(model.index(currentIndex,0), "nameRole")
-                    toolDiv.forceActiveFocus()
                 }
 
                 onActivated: sentTo = model.get(model.index(currentIndex,0), "nameRole")

@@ -37,36 +37,39 @@ namespace timeline {
         deserialise(const utility::JsonStore &value, const bool replace_item = false);
         void deserialise();
         void item_event_callback(const utility::JsonStore &event, Item &item);
-        void insert_items(
-            const int index,
-            const utility::UuidActorVector &uav,
-            caf::typed_response_promise<utility::JsonStore> rp);
-
-        void remove_items(
-            const int index,
-            const int count,
-            caf::typed_response_promise<
-                std::pair<utility::JsonStore, std::vector<timeline::Item>>> rp);
-
-        void erase_items(
-            const int index,
-            const int count,
-            caf::typed_response_promise<utility::JsonStore> rp);
 
         std::pair<utility::JsonStore, std::vector<timeline::Item>>
-        remove_items(const int index, const int count);
+        remove_items(const int index, const int count = 1);
+
+        void insert_items(
+            caf::typed_response_promise<utility::JsonStore> rp,
+            const int index,
+            const utility::UuidActorVector &uav);
+
+        void remove_items(
+            caf::typed_response_promise<
+                std::pair<utility::JsonStore, std::vector<timeline::Item>>> rp,
+            const int index,
+            const int count = 1);
+
+        void erase_items(
+            caf::typed_response_promise<utility::JsonStore> rp,
+            const int index,
+            const int count = 1);
 
         void move_items(
+            caf::typed_response_promise<utility::JsonStore> rp,
             const int src_index,
             const int count,
-            const int dst_index,
-            caf::typed_response_promise<utility::JsonStore> rp);
+            const int dst_index);
 
       private:
         caf::behavior behavior_;
         Stack base_;
         caf::actor event_group_;
         std::map<utility::Uuid, caf::actor> actors_;
+        // might need to prune.. ?
+        std::set<utility::Uuid> events_processed_;
     };
 } // namespace timeline
 } // namespace xstudio

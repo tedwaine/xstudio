@@ -452,9 +452,23 @@ void StackActor::init() {
             return rp;
         },
 
+        // check events processes
+        [=](item_atom, event_atom, const std::set<utility::Uuid> &events) -> bool {
+            auto result = true;
+            for (const auto &i : events) {
+                if (not events_processed_.contains(i)) {
+                    result = false;
+                    break;
+                }
+            }
+            return result;
+        },
+
         // handle child change events.
         [=](event_atom, item_atom, const JsonStore &update, const bool hidden) {
-            if (base_.item().update(update)) {
+            auto event_ids = base_.item().update(update);
+            if (not event_ids.empty()) {
+                events_processed_.insert(event_ids.begin(), event_ids.end());
                 auto more = base_.item().refresh();
                 if (not more.is_null()) {
                     more.insert(more.begin(), update.begin(), update.end());
@@ -470,7 +484,7 @@ void StackActor::init() {
             const int index,
             const UuidActorVector &uav) -> result<JsonStore> {
             auto rp = make_response_promise<JsonStore>();
-            insert_items(index, uav, rp);
+            insert_items(rp, index, uav);
             return rp;
         },
 
@@ -490,7 +504,7 @@ void StackActor::init() {
             }
 
             if (rp.pending())
-                insert_items(index, uav, rp);
+                insert_items(rp, index, uav);
 
             return rp;
         },
@@ -498,7 +512,7 @@ void StackActor::init() {
         [=](move_item_atom, const int src_index, const int count, const int dst_index)
             -> result<JsonStore> {
             auto rp = make_response_promise<JsonStore>();
-            move_items(src_index, count, dst_index, rp);
+            move_items(rp, src_index, count, dst_index);
             return rp;
         },
 
@@ -522,10 +536,10 @@ void StackActor::init() {
                 }
                 if (rp.pending())
                     move_items(
+                        rp,
                         std::distance(base_.item().begin(), sitb),
                         count,
-                        std::distance(base_.item().begin(), dit),
-                        rp);
+                        std::distance(base_.item().begin(), dit));
             }
 
             return rp;
@@ -552,14 +566,14 @@ void StackActor::init() {
             const int index,
             const bool) -> result<std::pair<JsonStore, std::vector<Item>>> {
             auto rp = make_response_promise<std::pair<JsonStore, std::vector<Item>>>();
-            remove_items(index, 1, rp);
+            remove_items(rp, index);
             return rp;
         },
 
         [=](remove_item_atom, const int index, const int count, const bool)
             -> result<std::pair<JsonStore, std::vector<Item>>> {
             auto rp = make_response_promise<std::pair<JsonStore, std::vector<Item>>>();
-            remove_items(index, count, rp);
+            remove_items(rp, index, count);
             return rp;
         },
 
@@ -574,21 +588,21 @@ void StackActor::init() {
                 rp.deliver(make_error(xstudio_error::error, "Invalid uuid"));
 
             if (rp.pending())
-                remove_items(std::distance(base_.item().begin(), it), 1, rp);
+                remove_items(rp, std::distance(base_.item().begin(), it));
 
             return rp;
         },
 
         [=](erase_item_atom, const int index, const bool) -> result<JsonStore> {
             auto rp = make_response_promise<JsonStore>();
-            erase_items(index, 1, rp);
+            erase_items(rp, index);
             return rp;
         },
 
         [=](erase_item_atom, const int index, const int count, const bool)
             -> result<JsonStore> {
             auto rp = make_response_promise<JsonStore>();
-            erase_items(index, count, rp);
+            erase_items(rp, index, count);
             return rp;
         },
 
@@ -601,7 +615,7 @@ void StackActor::init() {
                 rp.deliver(make_error(xstudio_error::error, "Invalid uuid"));
 
             if (rp.pending())
-                erase_items(std::distance(base_.item().begin(), it), 1, rp);
+                erase_items(rp, std::distance(base_.item().begin(), it));
 
             return rp;
         },
@@ -710,9 +724,9 @@ void StackActor::add_item(const utility::UuidActor &ua) {
 }
 
 void StackActor::insert_items(
+    caf::typed_response_promise<utility::JsonStore> rp,
     const int index,
-    const UuidActorVector &uav,
-    caf::typed_response_promise<utility::JsonStore> rp) {
+    const UuidActorVector &uav) {
     // validate items can be inserted.
     fan_out_request<policy::select_all>(vector_to_caf_actor_vector(uav), infinite, item_atom_v)
         .then(
@@ -764,10 +778,9 @@ void StackActor::insert_items(
 }
 
 void StackActor::remove_items(
+    caf::typed_response_promise<std::pair<utility::JsonStore, std::vector<timeline::Item>>> rp,
     const int index,
-    const int count,
-    caf::typed_response_promise<std::pair<utility::JsonStore, std::vector<timeline::Item>>>
-        rp) {
+    const int count) {
 
     try {
         rp.deliver(remove_items(index, count));
@@ -777,7 +790,7 @@ void StackActor::remove_items(
 }
 
 void StackActor::erase_items(
-    const int index, const int count, caf::typed_response_promise<JsonStore> rp) {
+    caf::typed_response_promise<JsonStore> rp, const int index, const int count) {
 
     try {
         auto result = remove_items(index, count);
@@ -827,10 +840,10 @@ StackActor::remove_items(const int index, const int count) {
 
 
 void StackActor::move_items(
+    caf::typed_response_promise<utility::JsonStore> rp,
     const int src_index,
     const int count,
-    const int dst_index,
-    caf::typed_response_promise<utility::JsonStore> rp) {
+    const int dst_index) {
 
     // don't allow mixing audio / video tracks ?
 

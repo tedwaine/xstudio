@@ -142,6 +142,9 @@ void PlayheadBase::add_attributes() {
     user_is_frame_scrubbing_ =
         add_boolean_attribute("User Is Frame Scrubbing", "User Is Frame Scrubbing", false);
 
+    pinned_source_mode_ =
+        add_boolean_attribute("Pinned Source Mode", "Pinned Source Mode", true);
+
     // this attr tracks the global 'Audio Delay Millisecs' preference
     audio_delay_millisecs_ =
         add_integer_attribute("Audio Delay Millisecs", "Aud. Delay", 0, -1000, 1000);
@@ -312,6 +315,35 @@ void PlayheadBase::register_hotkeys() {
         "Steps the playhead backward by one frame.",
         false,
         "Playback");
+
+    jump_to_first_frame_ = register_hotkey(
+        "Home",
+        "Jump to First Frame",
+        "Jump the playhead to the first in the playhead range.",
+        false,
+        "Playback");
+
+    jump_to_last_frame_ = register_hotkey(
+        "End",
+        "Jump to Last Frame",
+        "Jump the playhead to the very last frame in the playhead range.",
+        false,
+        "Playback");
+
+    jump_to_next_clip_ = register_hotkey(
+        "Shift+Right",
+        "Jump to Next Clip",
+        "Jump the playhead to the start of the next clip in a timeline.",
+        false,
+        "Playback");
+
+    jump_to_previous_clip_ = register_hotkey(
+        "Shift+Left",
+        "Jump to Previous Clip",
+        "Jump the playhead to the start of the current clip, or the start of the previous clip.",
+        false,
+        "Playback");
+
 }
 
 

@@ -178,7 +178,18 @@ void PlayheadSelectionActor::init() {
 
         [=](playlist::select_all_media_atom) { select_all(); },
 
+        [=](playlist::select_media_atom, const UuidList &media_uuids, bool retry) -> bool {
+
+            if (media_uuids.empty()) {
+                select_one();
+            } else {
+                select_media(media_uuids, false);
+            }
+            return true;
+        },
+
         [=](playlist::select_media_atom, const UuidList &media_uuids) -> bool {
+
             if (media_uuids.empty()) {
                 select_one();
             } else {
@@ -242,7 +253,7 @@ void PlayheadSelectionActor::init() {
     );
 }
 
-void PlayheadSelectionActor::select_media(const UuidList &media_uuids) {
+void PlayheadSelectionActor::select_media(const UuidList &media_uuids, const bool retry) {
     if (base_.items_vec() == std::vector<Uuid>(media_uuids.begin(), media_uuids.end())) {
         return;
     }
@@ -263,16 +274,30 @@ void PlayheadSelectionActor::select_media(const UuidList &media_uuids) {
         request(playlist_, infinite, playlist::get_media_atom_v)
             .then(
                 [=](const std::vector<UuidActor> &media_actors) mutable {
-                    // re can have nasty races..
-                    // we should try and give a grace period
+
+                    // It's possible that a client has told us to select a piece
+                    // of media that the playlist hasn't quite got around to
+                    // adding yet. e.g. client creates media, adds to playlist
+                    // and then tells PlayheadSelectionActor to select it.
+                    // Due to async actors the Playlist might not have the new
+                    // media quite yet.. in this case order a retry
+                   
                     auto media_uas = uuidactor_vect_to_map(media_actors);
                     for (const auto &i : media_uuids) {
-                        if (not media_uas.count(i))
-                            return delayed_anon_send(
-                                caf::actor_cast<caf::actor>(this),
-                                std::chrono::milliseconds(50),
-                                playlist::select_media_atom_v,
-                                media_uuids);
+                        if (not media_uas.count(i)) {
+                            if (retry) {
+                                delayed_anon_send(
+                                    caf::actor_cast<caf::actor>(this),
+                                    std::chrono::milliseconds(500),
+                                    playlist::select_media_atom_v,
+                                    media_uuids,
+                                    false);
+                            } else {
+                                // bogus request, playlist doesn't own media with
+                                // the provided uuid
+                            }
+                            return;
+                        }
                     }
 
                     for (const auto &i : source_actors_)

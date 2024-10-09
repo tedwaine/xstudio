@@ -71,7 +71,6 @@ ColumnLayout { id: wheelDiv
 
                 GTValueEditor{
                     Layout.preferredWidth: 46
-                    // Layout.maximumWidth: 46
                     Layout.preferredHeight: XsStyleSheet.widgetStdHeight
                     valueText: value[index].toFixed(4)
                     indicatorColor: index==0?"red":index==1?"green":"blue"

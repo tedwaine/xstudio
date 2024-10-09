@@ -505,7 +505,10 @@ void SubsetActor::init() {
                 return playhead_;
             auto uuid  = utility::Uuid::generate();
             auto actor = spawn<playhead::PlayheadActor>(
-                std::string("Subset Playhead"), selection_actor_, uuid);
+                std::string("Subset Playhead"),
+                selection_actor_,
+                uuid,
+                caf::actor_cast<caf::actor_addr>(this));
             link_to(actor);
 
             anon_send(actor, playhead::playhead_rate_atom_v, base_.playhead_rate());

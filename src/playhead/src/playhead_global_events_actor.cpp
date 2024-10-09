@@ -33,6 +33,16 @@ void PlayheadGlobalEventsActor::init() {
 
     link_to(event_group_);
 
+    set_default_handler(
+        [this](caf::scheduled_actor *, caf::message &msg) -> caf::skippable_result {
+            //  UNCOMMENT TO DEBUG UNEXPECT MESSAGES
+
+            spdlog::warn(
+                "Got broadcast from {} {}", to_string(current_sender()), to_string(msg));
+
+            return message{};
+        });
+
     set_down_handler([=](down_msg &msg) {
         // a playhead OR a viewport has gone offline
         auto q = viewports_.begin();
@@ -94,7 +104,7 @@ void PlayheadGlobalEventsActor::init() {
         [=](ui::viewport::viewport_playhead_atom, caf::actor playhead) {
             // something can send us this message in order to set the 'global'
             // playhead - i.e. the playhead that is being viewed by non-quickview
-            // viewports. SessionModel::setPlayheadTo does this for example.
+            // viewports. SessionModel::setCurrentPlayheadFromPlaylist does this for example.
             for (auto &p : viewports_) {
                 anon_send(p.second.viewport, ui::viewport::viewport_playhead_atom_v, playhead);
             }
@@ -249,13 +259,20 @@ void PlayheadGlobalEventsActor::init() {
             const float scale,
             const Imath::V2f pan,
             const std::string &viewport_name,
-            const std::string &window_id) 
-        {
+            const std::string &window_id) {
             // viewports tell us when they are zooming/panning, setting fit or mirror mode.
             // We broadcast to all other viewports so that they can track (if they want to)
             for (const auto &p : viewports_) {
                 if (p.first != viewport_name) {
-                    send(p.second.viewport, atom, mode, mirror_mode, scale, pan, viewport_name, window_id);
+                    send(
+                        p.second.viewport,
+                        atom,
+                        mode,
+                        mirror_mode,
+                        scale,
+                        pan,
+                        viewport_name,
+                        window_id);
                 }
             }
         },

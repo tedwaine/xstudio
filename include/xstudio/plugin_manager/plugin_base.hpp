@@ -134,7 +134,6 @@ namespace plugin {
         virtual void on_screen_media_changed(
             caf::actor,                      // media item actor
             const utility::MediaReference &, // media reference
-            const std::string,               // media name
             const utility::JsonStore &       // colour params
         ) {}
 

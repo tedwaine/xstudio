@@ -646,7 +646,7 @@ QModelIndexList SessionModel::insertRows(
                         } else if (type == "Gap") {
                             auto duration = utility::FrameRateDuration(24, rate);
                             new_item      = self()->spawn<timeline::GapActor>(
-                                name.empty() ? "New Gap" : name, duration, new_uuid);
+                                name.empty() ? "Gap" : name, duration, new_uuid);
                         } else if (type == "Clip") {
                             new_item = self()->spawn<timeline::ClipActor>(
                                 UuidActor(), name.empty() ? "New Clip" : name, new_uuid);

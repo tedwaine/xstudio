@@ -76,7 +76,7 @@ class HELPER_QML_EXPORT JSONTreeModel : public QAbstractItemModel {
     bool
     setData(const QModelIndex &index, const QVariant &value, int role = Qt::EditRole) override;
 
-    Q_INVOKABLE [[nodiscard]] bool
+    Q_INVOKABLE bool
     set(const QModelIndex &item, const QVariant &value, const QString &role = "display");
 
     Q_INVOKABLE [[nodiscard]] QVariant

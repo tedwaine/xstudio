@@ -43,59 +43,73 @@ namespace timeline {
         void item_event_callback(const utility::JsonStore &event, Item &item);
 
         void split_item(
+            caf::typed_response_promise<utility::JsonStore> rp,
             const Items::const_iterator &item,
-            const int frame,
-            caf::typed_response_promise<utility::JsonStore> rp);
+            const int frame);
 
         void insert_items(
+            caf::typed_response_promise<utility::JsonStore> rp,
             const int index,
-            const utility::UuidActorVector &uav,
-            caf::typed_response_promise<utility::JsonStore> rp);
+
+            const utility::UuidActorVector &uav);
 
         void insert_items_at_frame(
+            caf::typed_response_promise<utility::JsonStore> rp,
             const int frame,
-            const utility::UuidActorVector &uav,
-            caf::typed_response_promise<utility::JsonStore> rp);
+            const utility::UuidActorVector &uav);
 
         void remove_items_at_frame(
+            caf::typed_response_promise<
+                std::pair<utility::JsonStore, std::vector<timeline::Item>>> rp,
             const int frame,
             const int duration,
-            caf::typed_response_promise<
-                std::pair<utility::JsonStore, std::vector<timeline::Item>>> rp);
+            const bool add_gap,
+            const bool collapse_gaps);
 
         void remove_items(
+            caf::typed_response_promise<
+                std::pair<utility::JsonStore, std::vector<timeline::Item>>> rp,
             const int index,
             const int count,
             const bool add_gap,
-            caf::typed_response_promise<
-                std::pair<utility::JsonStore, std::vector<timeline::Item>>> rp);
+            const bool collapse_gaps);
 
         void erase_items_at_frame(
+            caf::typed_response_promise<utility::JsonStore> rp,
             const int frame,
             const int duration,
-            caf::typed_response_promise<utility::JsonStore> rp);
+            const bool add_gap,
+            const bool collapse_gaps);
 
         void erase_items(
+            caf::typed_response_promise<utility::JsonStore> rp,
             const int index,
             const int count,
             const bool add_gap,
-            caf::typed_response_promise<utility::JsonStore> rp);
+            const bool collapse_gaps);
 
         void move_items(
+            caf::typed_response_promise<utility::JsonStore> rp,
             const int src_index,
             const int count,
             const int dst_index,
-            caf::typed_response_promise<utility::JsonStore> rp);
+            const bool add_gap,
+            const bool replace_with_gap = false);
 
         void move_items_at_frame(
+            caf::typed_response_promise<utility::JsonStore> rp,
             const int frame,
             const int duration,
             const int dest_frame,
             const bool insert,
-            caf::typed_response_promise<utility::JsonStore> rp);
+            const bool add_gap,
+            const bool replace_with_gap = false);
 
-        std::pair<utility::JsonStore, std::vector<timeline::Item>>
-        remove_items(const int index, const int count, const bool add_gap);
+        void merge_gaps(caf::typed_response_promise<utility::JsonStore> rp);
+        utility::JsonStore merge_gaps();
+
+        std::pair<utility::JsonStore, std::vector<timeline::Item>> remove_items(
+            const int index, const int count, const bool add_gap, const bool collapse_gaps);
 
         // void merge_gaps(caf::typed_response_promise<utility::JsonStore> rp);
 
@@ -104,6 +118,8 @@ namespace timeline {
         Track base_;
         caf::actor event_group_;
         std::map<utility::Uuid, caf::actor> actors_;
+        // might need to prune.. ?
+        std::set<utility::Uuid> events_processed_;
 
         // bool update_edit_list_;
         // utility::EditList edit_list_;

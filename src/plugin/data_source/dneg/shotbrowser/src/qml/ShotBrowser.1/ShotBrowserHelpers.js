@@ -269,7 +269,7 @@ function compareSelectedResults(indexes=[]) {
 	        if(next.valid) {
 				media_uuid = mediaSelectionModel.model.get(next, "actorUuidRole")
 	        }
-			addToCurrentPlaylist(indexes, media_uuid, true, compareMediaCallback)
+			addToCurrentMediaContainer(indexes, media_uuid, true, compareMediaCallback)
 		}
 	}
 }
@@ -296,7 +296,7 @@ function replaceSelectedResults(indexes=[]) {
 		    if(next.valid) {
 				media_uuid = mediaSelectionModel.model.get(next, "actorUuidRole")
 		    }
-			addToCurrentPlaylist([indexes[0]], media_uuid, true, replaceMediaCallback)
+			addToCurrentMediaContainer([indexes[0]], media_uuid, true, replaceMediaCallback)
 		}
 	}
 }
@@ -428,7 +428,7 @@ function replaceToSequence(indexes=[], callback=replaceConformMediaCallback) {
 	addToPlaylist(indexes, current_pl, null, "Untitled Playlist", callback)
 }
 
-function addToCurrentPlaylist(indexes=[], media_uuid=null, viewed=true, callback=selectFirstMediaCallback) {
+function addToCurrentMediaContainer(indexes=[], media_uuid=null, viewed=true, callback=selectFirstMediaCallback) {
 	let current_pl = viewed ? viewedMediaSetProperties.values.actorUuidRole : inspectedMediaSetProperties.values.actorUuidRole
 
 	addToPlaylist(indexes, current_pl, media_uuid, "Untitled Playlist", callback)
@@ -533,7 +533,7 @@ function addToCurrent(indexes=[], viewed=true) {
 	if(viewedMediaSetProperties.values.typeRole == "Timeline") {
 		addToSequence(indexes, viewed)
 	} else {
-        addToCurrentPlaylist(indexes, null, viewed)
+        addToCurrentMediaContainer(indexes, null, viewed)
 	}
 }
 
@@ -546,7 +546,7 @@ function addSequencesToNewPlaylist(indexes=[], callback=selectTimelineCallback) 
 	}
 }
 
-function addSequencesToCurrentPlaylist(indexes=[], viewed=true, callback=selectTimelineCallback) {
+function addSequencesToCurrentMediaContainer(indexes=[], viewed=true, callback=selectTimelineCallback) {
 	let current_pl = viewed ? viewedMediaSetProperties.index : inspectedMediaSetProperties.index
 
 	addSequencesToPlaylist(indexes, current_pl, "ShotBrowser Sequence", callback)

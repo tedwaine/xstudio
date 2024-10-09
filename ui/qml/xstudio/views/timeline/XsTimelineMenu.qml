@@ -1,7 +1,8 @@
-import xstudio.qml.models 1.0
-import xStudio 1.0
 import QtQml.Models 2.14
+import QtQuick 2.15
+import xStudio 1.0
 import xstudio.qml.helpers 1.0
+import xstudio.qml.models 1.0
 
 XsPopupMenu {
 
@@ -53,6 +54,21 @@ XsPopupMenu {
     XsMenuModelItem {
         menuItemType: "divider"
         menuPath: ""
+        menuItemPosition: 2
+        menuModelName: timelineMenu.menu_model_name
+    }
+
+    XsMenuModelItem {
+        text: qsTr("Create Tracks")
+        menuPath: ""
+        menuItemPosition: 3
+        menuModelName: timelineMenu.menu_model_name
+        panelContext: timelineMenu.panelContext
+      }
+
+    XsMenuModelItem {
+        menuItemType: "divider"
+        menuPath: ""
         menuItemPosition: 99
         menuModelName: timelineMenu.menu_model_name
     }
@@ -67,9 +83,33 @@ XsPopupMenu {
             console.log(theTimeline.timelineModel.rootIndex.model.get(theTimeline.timelineModel.rootIndex, "jsonTextRole"))
         }
         panelContext: timelineMenu.panelContext
-
-
     }
+
+    XsPreference {
+        id: createTrack
+        path: "/core/sequence/create_tracks"
+    }
+
+    Repeater {
+        id: createTrackRepeater
+        model: createTrack.value
+        Item {
+        XsMenuModelItem {
+            text: modelData["name"]
+            menuItemType: "button"
+            menuPath: "Create Tracks"
+            menuItemPosition: index
+            menuModelName: timelineMenu.menu_model_name
+            onActivated: {
+              for(let i=0;i<modelData["video tracks"].length;i++)
+                theTimeline.addTrack("Video Track", false, modelData["video tracks"][i])
+              for(let i=0;i<modelData["audio tracks"].length;i++)
+                theTimeline.addTrack("Audio Track", false, modelData["audio tracks"][i])
+            }
+        }
+      }
+    }
+
 }
 
     // XsMenuModelItem {

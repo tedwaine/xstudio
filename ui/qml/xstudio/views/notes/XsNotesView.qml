@@ -159,25 +159,26 @@ Item{
     }
 
     function jumpToNote(owner, frame, frameFromTimeCode) {
-        var media_idx = theSessionData.searchRecursive(owner, "actorUuidRole", viewedMediaSetIndex)
+        var media_idx = theSessionData.searchRecursive(owner, "actorUuidRole", viewportCurrentMediaContainerIndex)
 
         if(!media_idx.valid) {
-            // media for note isn't in current viewedMediaSet.
+            // media for note isn't in current playhead.
             // find it...
             media_idx = theSessionData.searchRecursive(owner, "actorUuidRole")
             if(media_idx.valid) {
-                viewedMediaSetIndex = theSessionData.getPlaylistIndex(media_idx)
+                var playist = theSessionData.getPlaylistIndex(media_idx)
+                viewportCurrentMediaContainerIndex = playist
             }
         }
 
         // user has clicked on the 'Go to frame'.
-        if (theSessionData.get(viewedMediaSetIndex, "typeRole") == "Timeline") {
+        if (theSessionData.get(viewportCurrentMediaContainerIndex, "typeRole") == "Timeline") {
             // if we are seeking to a note within a timeline, need some different
             // logic here.
             if (media_idx.valid) {
 
                 let frames = theSessionData.mediaFrameToTimelineFrames(
-                    viewedMediaSetIndex,
+                    viewportCurrentMediaContainerIndex,
                     media_idx,
                     frameFromTimeCode,
                     true // skip disabled clips
@@ -191,9 +192,9 @@ Item{
 
                     // now, if we can, we want to select the corresponding
                     // clip too
-                    let c = theSessionData.getTimelineClipIndexes(viewedMediaSetIndex, media_idx);
+                    let c = theSessionData.getTimelineClipIndexes(viewportCurrentMediaContainerIndex, media_idx);
                     if (c.length) {
-                        theSessionData.makeTimelineSelection(viewedMediaSetIndex, [c[0]]);
+                        theSessionData.makeTimelineSelection(viewportCurrentMediaContainerIndex, [c[0]]);
                     }
 
                     return
@@ -257,7 +258,7 @@ Item{
 
     property var mediaOrder: updateMediaOrder()
 
-    property var playlistFollower: viewedMediaSetIndex
+    property var playlistFollower: viewportCurrentMediaContainerIndex
     onPlaylistFollowerChanged: {
         theTitle
     }
@@ -271,12 +272,12 @@ Item{
         // with the media uuid as the index. This is used by XsBookmarkFilterModel
         // to order the notes according to the media order in the playlist
         let result = {}
-        if(viewedMediaSetIndex.valid) {
+        if(viewportCurrentMediaContainerIndex.valid) {
 
-            let model = viewedMediaSetIndex.model
+            let model = viewportCurrentMediaContainerIndex.model
 
             // from playlist, to get to the media list within we go to first row/column
-            let mediaind = viewedMediaSetIndex.model.index(0, 0, viewedMediaSetIndex)
+            let mediaind = viewportCurrentMediaContainerIndex.model.index(0, 0, viewportCurrentMediaContainerIndex)
 
             let count = model.rowCount(mediaind)
             for(let i=0;i<count;i++) {
@@ -322,7 +323,6 @@ Item{
         showHidden: true
         depth: dropdownNoteScope.currentIndex
         mediaOrder: panel.mediaOrder
-        excludedCategories: ["Grading"]
     }
 
 }

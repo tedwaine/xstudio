@@ -219,7 +219,7 @@ namespace timeline {
         serialise(const int depth = std::numeric_limits<int>::max()) const;
 
         bool replace_child(const Item &child);
-        bool update(const utility::JsonStore &event);
+        std::set<utility::Uuid> update(const utility::JsonStore &event);
 
         void clean(const bool purge_clips = false);
         utility::JsonStore refresh(const int depth = std::numeric_limits<int>::max());
@@ -443,6 +443,15 @@ namespace timeline {
                 break;
             }
         }
+
+        return result;
+    }
+
+    inline std::set<utility::Uuid> get_event_ids(const utility::JsonStore &events) {
+        auto result = std::set<utility::Uuid>();
+
+        for (const auto &i : events)
+            result.insert(i.at("undo").at("event_id"));
 
         return result;
     }

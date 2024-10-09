@@ -131,27 +131,27 @@ void GLDoubleBufferedTexture::upload_next(
 
 void GLDoubleBufferedTexture::release() { current_->release(); }
 
-void GLBlindTex::do_pixel_upload(uint8_t *target, uint8_t *src, size_t n) {
+void GLBlindTex::do_pixel_upload(
+    uint8_t *target, uint8_t *src, size_t n, media::MediaKey media_key_) {
+
+    // auto t0 = utility::clock::now();
 
     // This commented chunk will do threaded memcpy. I've found on some systems
     // this can improve playback performance where pixel upload for large frame
     // sizes was a bottleneck. On other systems, however, the extra thread
     // management was causing high CPU load without obvious performance
     // benefit.
+    // TODO: use a threadpool, optimise it properly and do some benchmarking
 
-    /*const int n_threads = 8; // TODO: proper thread count here
+    /*const int n_threads = 2; // TODO: proper thread count here
         std::vector<std::thread> memcpy_threads;
-        size_t sz   = std::min(tex_size_bytes(), source_frame_->size());
-        size_t step = ((sz / n_threads) / 4096) * 4096;
-        auto *dst   = (uint8_t *)source_frame_->buffer();
-
-        uint8_t *ioPtrY = buffer_io_ptr_;
+        size_t step = ((n / n_threads) / 4096) * 4096;
 
         for (int i = 0; i < n_threads; ++i) {
-            memcpy_threads.emplace_back(memcpy, ioPtrY, dst, std::min(sz, step));
-            ioPtrY += step;
-            dst += step;
-            sz -= step;
+            memcpy_threads.emplace_back(memcpy, target, src, std::min(n, step));
+            target += step;
+            src += step;
+            n -= step;
         }
 
         // ensure any threads still running to copy data to this texture are done
@@ -167,6 +167,10 @@ void GLBlindTex::do_pixel_upload(uint8_t *target, uint8_t *src, size_t n) {
         uploading_pixels_ = false;
     }
     cv_.notify_all();
+
+    // std::cerr << "Tex " << to_string(media_key_) << " uploaded in " <<
+    // std::chrono::duration_cast<std::chrono::microseconds>(utility::clock::now()-t0).count() <<
+    // "\n";
 }
 
 void GLBlindTex::upload_image_buffer(media_reader::ImageBufPtr &frame) {
@@ -201,7 +205,8 @@ void GLBlindTex::upload_image_buffer(media_reader::ImageBufPtr &frame) {
             upload_thread_.join();
 
         // start the thread to do the actual copy
-        upload_thread_ = std::thread(&GLBlindTex::do_pixel_upload, this, target, dst, sz);
+        upload_thread_ =
+            std::thread(&GLBlindTex::do_pixel_upload, this, target, dst, sz, media_key_);
     }
 }
 

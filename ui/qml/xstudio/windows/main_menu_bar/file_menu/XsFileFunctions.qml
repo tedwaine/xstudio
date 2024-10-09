@@ -301,7 +301,7 @@ Item {
             uris = uris + String(item) +"\n"
         })
 
-        if(!inspectedMediaSetIndex.valid) {
+        if(!theSessionData.valid) {
             // create new playlist..
             var index = theSessionData.createPlaylist("New Playlist")
             callbackTimer.setTimeout(function(capture) { return function(){
@@ -314,9 +314,9 @@ Item {
 
         } else {
 
-            Future.promise(theSessionData.handleDropFuture(Qt.CopyAction, {"text/uri-list": uris}, inspectedMediaSetIndex)).then(
+            Future.promise(theSessionData.handleDropFuture(Qt.CopyAction, {"text/uri-list": uris}, theSessionData)).then(
                 function(quuids){
-                    mediaSelectionModel.selectFirstNewMedia(inspectedMediaSetIndex, quuids)
+                    mediaSelectionModel.selectFirstNewMedia(theSessionData, quuids)
                 }
             )
         }

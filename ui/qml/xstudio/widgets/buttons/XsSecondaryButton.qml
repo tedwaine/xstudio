@@ -96,8 +96,5 @@ Button {
         x: 0 //#TODO: flex/pointer
     }
 
-    onPressed: focus = true
-    onReleased: focus = false
-
 }
 

@@ -23,7 +23,7 @@ Item{
             for (var i in bookmarkUuidsRole) {
                 var idx = bookmarkModel.searchRecursive(bookmarkUuidsRole[i], "uuidRole")
                 if (idx.valid) {
-                    if(bookmarkModel.get(idx,"categoryRole") == "Grading") {
+                    if(bookmarkModel.get(idx,"userTypeRole") == "Grading") {
                         grade = true
                     } else if (bookmarkModel.get(idx,"hasAnnotationRole")) {
                         anno = true

@@ -14,6 +14,7 @@ import xstudio.qml.viewport 1.0
 
 import "./quickview/"
 import "./runtime/"
+import "./main_menu_bar/help_menu" // for XsReleaseNotes
 
 ApplicationWindow {
 
@@ -310,9 +311,9 @@ ApplicationWindow {
     property alias globalStoreModel: sessionData.globalStoreModel
     property alias mediaSelectionModel: sessionData.mediaSelectionModel
     property alias playlistsModelData: sessionData.playlistsModelData
-    property alias inspectedMediaSetIndex: sessionData.inspectedMediaSetIndex
+    property alias currentMediaContainerIndex: sessionData.currentMediaContainerIndex
+    property alias viewportCurrentMediaContainerIndex: sessionData.viewportCurrentMediaContainerIndex
     property alias inspectedMediaSetProperties: sessionData.inspectedMediaSetProperties
-    property alias viewedMediaSetIndex: sessionData.viewedMediaSetIndex
     property alias viewedMediaSetProperties: sessionData.viewedMediaSetProperties
     property alias currentPlayhead: sessionData.current_playhead
     property alias callbackTimer: sessionData.callbackTimer
@@ -608,6 +609,12 @@ ApplicationWindow {
     }
     // For dynamic loading of QML by plugins
     XsRuntimeQMLItems {
+    }
+
+    // this auto-shows the release notes when xstudio version is higher
+    // than the last time it was run
+    XsReleaseNotes {
+        auto_show: true
     }
 
 }

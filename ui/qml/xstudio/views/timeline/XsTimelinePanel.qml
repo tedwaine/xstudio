@@ -347,6 +347,18 @@ XsGradientRectangle{
             XsPrimaryButton{
                 Layout.preferredWidth: iconTextBtnWidth
                 Layout.preferredHeight: parent.height
+                visible: false
+                imgSrc: "qrc:/icons/waves.svg"
+                text: "Overwrite"
+                toolTip: "Overwrite"
+                showBoth: true
+                font.pixelSize: XsStyleSheet.fontSize
+                isActive: theTimeline.overwriteMode
+                onClicked: theTimeline.overwriteMode = !theTimeline.overwriteMode
+            }
+            XsPrimaryButton{
+                Layout.preferredWidth: iconTextBtnWidth
+                Layout.preferredHeight: parent.height
                 imgSrc: "qrc:/icons/vertical_align_center.svg"
                 imageDiv.rotation: 90
                 text: "Snap"

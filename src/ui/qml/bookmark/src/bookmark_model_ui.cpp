@@ -160,6 +160,14 @@ bool BookmarkFilterModel::filterAcceptsRow(
         "--:--:--:--")
         return false;
 
+    if (!showUserType_.isEmpty()) {
+        if (showUserType_ != index.data(BookmarkModel::Roles::userTypeRole).toString())
+            return false;
+    } else {
+        if (!index.data(BookmarkModel::Roles::userTypeRole).toString().isEmpty())
+            return false;
+    }
+
     if (included_categories_.size()) {
         if (!included_categories_.contains(
                 index.data(BookmarkModel::Roles::categoryRole).toString()))
@@ -250,6 +258,14 @@ void BookmarkFilterModel::setShowHidden(const bool value) {
     }
 }
 
+void BookmarkFilterModel::setShowUserType(const QString &value) {
+    if (value != showUserType_) {
+        showUserType_ = value;
+        emit showUserTypeChanged();
+        invalidateFilter();
+    }
+}
+
 void BookmarkFilterModel::setExcludedCategories(const QStringList value) {
     if (value != excluded_categories_) {
         excluded_categories_ = value;
@@ -303,6 +319,7 @@ BookmarkModel::BookmarkModel(QObject *parent) : super(parent) {
          "durationRole",
          "durationFrameRole",
          "visibleRole",
+         "userTypeRole",
          "userDataRole",
          "createdEpochRole"}));
 }
@@ -365,26 +382,20 @@ void BookmarkModel::init(caf::actor_system &_system) {
                         auto node = indexToTree(ind);
                         node->data().update(jsn);
 
+                        // Needs optimising!! Currently this leaves 'change'
+                        // empty, meaning all roles are changing. This means 
+                        // thumbnail role is always updated so thumbnail is 
+                        // re-rendered for every character the user enters into
+                        // a note, for example
                         auto change = getRoleChanges(bookmarks_.at(ua.uuid()), detail);
-                        // if(not change.isEmpty()) {
+                        
+                        if (change.empty() || change.contains(thumbnailRole)) {
+                            out_of_date_thumbnails_.insert(detail.uuid_);
+                        }
+
                         bookmarks_[ua.uuid()] = detail;
                         emit dataChanged(ind, ind, change);
 
-                        // we have a problem in that we don't get specific info
-                        // about when an annotation has been created/updated
-                        // so we re-render the thumnail on every change.
-                        // However, notes don't 'change' that much - we only get
-                        // a change when user stops editing the note, for
-                        // example, not on every letter entered so we can
-                        // easily get away with this:
-                        anon_send(
-                            bookmark_actor_,
-                            media_reader::get_thumbnail_atom_v,
-                            detail,
-                            256,
-                            as_actor());
-
-                        // }
                     } catch (const std::exception &err) {
                         spdlog::warn("{} {}", __PRETTY_FUNCTION__, err.what());
                     }
@@ -443,6 +454,8 @@ void BookmarkModel::init(caf::actor_system &_system) {
                 // from the global BookmarksActor
                 thumbnail_cache_[detail.uuid_] =
                     QImage(thumbnail->width(), thumbnail->height(), QImage::Format_RGB888);
+                auto p = out_of_date_thumbnails_.find(detail.uuid_);
+                if (p != out_of_date_thumbnails_.end()) out_of_date_thumbnails_.erase(p);
 
                 uint8_t *bits = thumbnail_cache_[detail.uuid_].bits();
                 memcpy(
@@ -606,6 +619,12 @@ QVariant BookmarkModel::data(const QModelIndex &index, int role) const {
                 }
                 break;
 
+            case userTypeRole:
+                if (detail.user_type_) {
+                    result = QVariant::fromValue(QStringFromStd(*(detail.user_type_)));
+                }
+                break;
+
             case userDataRole:
                 if (detail.user_data_) {
                     result = QVariantMapFromJson(*(detail.user_data_));
@@ -735,15 +754,22 @@ QVariant BookmarkModel::data(const QModelIndex &index, int role) const {
                 result = QVariant::fromValue(*(detail.has_annotation_));
                 break;
             case thumbnailRole:
-                if (thumbnail_cache_.count(detail.uuid_)) {
-                    result = thumbnail_cache_.at(detail.uuid_);
-                } else {
-                    anon_send(
-                        bookmark_actor_,
-                        media_reader::get_thumbnail_atom_v,
-                        detail,
-                        256,
-                        as_actor());
+                {
+                    bool get_thumbnail = true;
+                    if (thumbnail_cache_.count(detail.uuid_)) {
+                        result = thumbnail_cache_.at(detail.uuid_);                    
+                        if (!out_of_date_thumbnails_.count(detail.uuid_)) {
+                            get_thumbnail = false;
+                        }
+                    } 
+                    if (get_thumbnail) {
+                        anon_send(
+                            bookmark_actor_,
+                            media_reader::get_thumbnail_atom_v,
+                            detail,
+                            256,
+                            as_actor());
+                    }
                 }
                 break;
             case ownerRole:
@@ -922,6 +948,15 @@ bool BookmarkModel::setData(const QModelIndex &index, const QVariant &value, int
                         sendDetail(bm);
                         result = true;
                     }
+                }
+            } break;
+
+            case userTypeRole: {
+                auto str = StdFromQString(value.toString());
+                if (not detail.user_type_ or (*detail.user_type_) != str) {
+                    detail.user_type_ = bm.user_type_ = str;
+                    sendDetail(bm);
+                    result = true;
                 }
             } break;
 

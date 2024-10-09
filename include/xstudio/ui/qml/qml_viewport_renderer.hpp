@@ -61,7 +61,9 @@ namespace ui {
             Imath::V2i imageResolutionCoords();
             Imath::V2f imageCoordsToViewport(const int x, const int y);
             [[nodiscard]] QRectF imageBoundsInViewportPixels() const;
-            [[nodiscard]] caf::actor playhead() { return viewport_renderer_ ? viewport_renderer_->playhead() : caf::actor(); }
+            [[nodiscard]] caf::actor playhead() {
+                return viewport_renderer_ ? viewport_renderer_->playhead() : caf::actor();
+            }
             bool pointerEvent(const PointerEvent &e);
             void setScreenInfos(
                 QString name,
@@ -70,10 +72,13 @@ namespace ui {
                 QString serialNumber,
                 double refresh_rate);
             [[nodiscard]] QString name() const {
-                return viewport_renderer_ ? QStringFromStd(viewport_renderer_->name()) : QString("Not Yet");
+                return viewport_renderer_ ? QStringFromStd(viewport_renderer_->name())
+                                          : QString("Not Yet");
             }
 
-            [[nodiscard]] std::string std_name() const { return viewport_renderer_ ? viewport_renderer_->name() : "not yet"; }
+            [[nodiscard]] std::string std_name() const {
+                return viewport_renderer_ ? viewport_renderer_->name() : "not yet";
+            }
 
             void setIsQuickViewer(const bool is_quick_viewer);
             void visibleChanged(const bool is_visible);

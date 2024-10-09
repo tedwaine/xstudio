@@ -38,28 +38,6 @@ QVariant SessionModel::playlists() const {
     return mapFromValue(data);
 }
 
-void SessionModel::setCurrentContainer(const QModelIndex &index, const bool viewed) {
-    if (index.isValid()) {
-        auto pindex = getPlaylistIndex(index);
-        if (pindex.isValid()) {
-            auto puuid  = UuidFromQUuid(pindex.data(actorUuidRole).toUuid());
-            auto pactor = actorFromQString(system(), pindex.data(actorRole).toString());
-
-            auto ctype  = StdFromQString(index.data(typeRole).toString());
-            auto cuuid  = UuidFromQUuid(index.data(actorUuidRole).toUuid());
-            auto cactor = actorFromQString(system(), index.data(actorRole).toString());
-
-            anon_send(
-                session_actor_,
-                session::current_playlist_atom_v,
-                viewed,
-                UuidActor(puuid, pactor),
-                ctype,
-                UuidActor(cuuid, cactor));
-        }
-    }
-}
-
 void SessionModel::setSelectedMedia(const QModelIndexList &indexes) {
     auto media = UuidActorVector();
 
@@ -113,19 +91,65 @@ Q_INVOKABLE void SessionModel::purgePlaylist(const QModelIndex &index) {
     }
 }
 
-Q_INVOKABLE QModelIndex SessionModel::currentPlaylistIndex() {
+void SessionModel::updateCurrentMediaContainerIndexFromBackend() {
 
     scoped_actor sys{system()};
     try {
-        auto actor =
-            request_receive<caf::actor>(*sys, session_actor_, session::current_playlist_atom_v);
-        auto actor_string = QStringFromStd(actorToString(system(), actor));
-        return searchRecursive(actor_string, "actorRole");
+        auto playlist = request_receive<UuidActor>(
+            *sys, session_actor_, session::active_media_container_atom_v);
+        auto actor_string = QStringFromStd(actorToString(system(), playlist.actor()));
+
+        // playlists are in 2nd row of root of the session model. We only need to go 2 levels
+        // deep to see all playlists and subsets/timelines which are children of playlists
+        auto r =
+            QPersistentModelIndex(searchRecursive(actor_string, "actorRole", index(1, 0), 2));
+
+        if (!r.isValid() && playlist) {
+            // we didn't find the actor in the model ... this could be that the model is
+            // still building so re-try in 250ms
+            QTimer::singleShot(250, this, SLOT(updateCurrentMediaContainerIndexFromBackend()));
+        }
+
+        if (r != current_playlist_index_) {
+            current_playlist_index_ = r;
+            emit currentMediaContainerChanged();
+        }
+
+    } catch (const std::exception &e) {
+        spdlog::warn("{} {}", __PRETTY_FUNCTION__, e.what());
+    }
+}
+
+void SessionModel::updateViewportCurrentMediaContainerIndexFromBackend() {
+    scoped_actor sys{system()};
+    try {
+
+        auto playlist = request_receive<UuidActor>(
+            *sys, session_actor_, session::viewport_active_media_container_atom_v);
+        auto actor_string = QStringFromStd(actorToString(system(), playlist.actor()));
+
+        // playlists are in 2nd row of root of the session model. We only need to go 2 levels
+        // deep to see all playlists and subsets/timelines which are children of playlists
+        auto r =
+            QPersistentModelIndex(searchRecursive(actor_string, "actorRole", index(1, 0), 2));
+
+        if (!r.isValid() && playlist) {
+            // we didn't find the actor in the model ... this could be that the model is
+            // still building so re-try in 250ms
+            QTimer::singleShot(
+                250, this, SLOT(updateViewportCurrentMediaContainerIndexFromBackend()));
+        }
+
+        if (r != current_playhead_owner_index_) {
+            current_playhead_owner_index_ = r;
+            emit viewportCurrentMediaContainerIndexChanged();
+        }
+
     } catch (const std::exception &e) {
         spdlog::debug("{} {}", __PRETTY_FUNCTION__, e.what());
     }
-    return index(-1, -1);
 }
+
 
 Q_INVOKABLE void SessionModel::decomposeMedia(const QModelIndexList &indexes) {
     for (const auto &i : indexes) {
@@ -302,17 +326,24 @@ void SessionModel::setSessionActorAddr(const QString &addr) {
             setModelData(data);
             add_lookup(*indexToTree(index(0, 0)), index(0, 0));
             emit playlistsChanged();
-            emit currentPlaylistChanged();
 
-            // if (backend_events_) {
-            //     try {
-            //         request_receive<bool>(
-            //             *sys, backend_events_, broadcast::leave_broadcast_atom_v,
-            //             as_actor());
-            //     } catch (const std::exception &e) {
-            //     }
-            //     backend_events_ = caf::actor();
-            // }
+            // get the 'current' playlists (inspected and on-screen)
+            // from the session backend actor
+            updateCurrentMediaContainerIndexFromBackend();
+            updateViewportCurrentMediaContainerIndexFromBackend();
+
+            try {
+                auto playhead_events_actor =
+                    system().registry().template get<caf::actor>(global_playhead_events_actor);
+                auto playhead = request_receive<caf::actor>(
+                    *sys, playhead_events_actor, ui::viewport::viewport_playhead_atom_v);
+                if (playhead) {
+                    on_screen_playhead_uuid_ = QUuidFromUuid(
+                        request_receive<utility::Uuid>(*sys, playhead, utility::uuid_atom_v));
+                    emit onScreenPlayheadUuidChanged();
+                }
+            } catch (...) {
+            }
 
             // join bookmark events
             if (session_actor_) {
@@ -1444,61 +1475,47 @@ void SessionModel::sortByMediaDisplayInfo(
     }
 }
 
-void SessionModel::setCurrentPlaylist(const QModelIndex &index) {
-    try {
-        if (index.isValid()) {
-            nlohmann::json &j = indexToData(index);
-            auto actor        = actorFromString(system(), j.at("actor"));
-            auto type         = j.at("type").get<std::string>();
-            if (session_actor_ and actor and
-                (type == "Subset" or type == "Playlist" or type == "Timeline")) {
-                scoped_actor sys{system()};
-                anon_send(session_actor_, session::current_playlist_atom_v, actor);
-            }
-        }
-    } catch (const std::exception &err) {
-        spdlog::warn("{} {}", __PRETTY_FUNCTION__, err.what());
+void SessionModel::setCurrentMediaContainer(const QModelIndex &index) {
+
+    if (index.isValid()) {
+
+        auto cuuid  = UuidFromQUuid(index.data(actorUuidRole).toUuid());
+        auto cactor = actorFromQString(system(), index.data(actorRole).toString());
+
+        scoped_actor sys{system()};
+        request_receive<bool>(
+            *sys,
+            session_actor_,
+            session::active_media_container_atom_v,
+            UuidActor(cuuid, cactor));
+
+        updateCurrentMediaContainerIndexFromBackend();
     }
 }
 
-void SessionModel::setPlayheadTo(const QModelIndex &index, const bool aux_playhead) {
+
+void SessionModel::setViewportCurrentMediaContainerIndex(const QModelIndex &index) {
+
     try {
 
-        if (index.isValid()) {
+        if (index != current_playhead_owner_index_) {
 
-            nlohmann::json &j = indexToData(index);
-            auto actor        = actorFromString(system(), j.at("actor"));
-            auto type         = j.at("type").get<std::string>();
+            auto cuuid  = UuidFromQUuid(index.data(actorUuidRole).toUuid());
+            auto cactor = actorFromQString(system(), index.data(actorRole).toString());
 
-            if (actor and (type == "Subset" or type == "Playlist" or type == "Timeline")) {
-                auto ph_events =
-                    system().registry().template get<caf::actor>(global_playhead_events_actor);
-                scoped_actor sys{system()};
-                try {
-                    caf::actor playhead;
-                    if (aux_playhead && type == "Timeline") {
-                        // note only TimelineActor has the appropriate message handler here
-                        // for (create_playhead_atom_v, bool)
-                        playhead = request_receive<UuidActor>(
-                                       *sys, actor, playlist::create_playhead_atom_v, 1)
-                                       .actor();
-                    } else {
-                        playhead = request_receive<UuidActor>(
-                                       *sys, actor, playlist::create_playhead_atom_v)
-                                       .actor();
-                    }
-                    emit playheadChanged(index, aux_playhead);
-                    anon_send(ph_events, viewport::viewport_playhead_atom_v, playhead);
+            // This is the 'viewed' playlist
+            const bool viewed = true;
 
-                } catch (const std::exception &err) {
-                    spdlog::warn("{} {}", __PRETTY_FUNCTION__, err.what());
-                }
-            }
-        } else {
-            // let listeners know we have been set an invalid playhead index
-            emit playheadChanged(index, false);
-            // spdlog::warn("{} {}", __PRETTY_FUNCTION__, "Invalid index.");
+            scoped_actor sys{system()};
+            request_receive<bool>(
+                *sys,
+                session_actor_,
+                session::viewport_active_media_container_atom_v,
+                UuidActor(cuuid, cactor));
+
+            updateViewportCurrentMediaContainerIndexFromBackend();
         }
+
     } catch (const std::exception &err) {
         spdlog::warn("{} {}", __PRETTY_FUNCTION__, err.what());
     }

@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
 #include <algorithm>
-#include<Python.h>
+#include <Python.h>
 #include <pybind11/embed.h> // everything needed for embedding
 #include <pybind11_json/pybind11_json.hpp>
 

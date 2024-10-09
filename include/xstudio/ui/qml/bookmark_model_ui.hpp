@@ -57,6 +57,7 @@ class BOOKMARK_QML_EXPORT BookmarkFilterModel : public QSortFilterProxyModel {
 
     Q_PROPERTY(int depth READ depth WRITE setDepth NOTIFY depthChanged)
     Q_PROPERTY(bool showHidden READ showHidden WRITE setShowHidden NOTIFY showHiddenChanged)
+    Q_PROPERTY(QString showUserType READ showUserType WRITE setShowUserType NOTIFY showUserTypeChanged)
     Q_PROPERTY(QStringList excludedCategories READ excludedCategories WRITE
                    setExcludedCategories NOTIFY excludedCategoriesChanged)
     Q_PROPERTY(QStringList includedCategories READ includedCategories WRITE
@@ -79,6 +80,7 @@ class BOOKMARK_QML_EXPORT BookmarkFilterModel : public QSortFilterProxyModel {
     [[nodiscard]] int depth() const { return depth_; }
     [[nodiscard]] QVariant currentMedia() const { return QVariant::fromValue(current_media_); }
     [[nodiscard]] bool showHidden() const { return showHidden_; }
+    [[nodiscard]] QString showUserType() const { return showUserType_; }
     [[nodiscard]] QStringList excludedCategories() const { return excluded_categories_; }
     [[nodiscard]] QStringList includedCategories() const { return included_categories_; }
     [[nodiscard]] bool sortbyCreated() const { return sortbyCreated_; }
@@ -88,6 +90,7 @@ class BOOKMARK_QML_EXPORT BookmarkFilterModel : public QSortFilterProxyModel {
     void setDepth(const int value);
     void setCurrentMedia(const QVariant &value);
     void setShowHidden(const bool value);
+    void setShowUserType(const QString &value);
     void setExcludedCategories(const QStringList value);
     void setIncludedCategories(const QStringList value);
     void setsortbyCreated(const bool value);
@@ -114,6 +117,7 @@ class BOOKMARK_QML_EXPORT BookmarkFilterModel : public QSortFilterProxyModel {
     void lengthChanged();
     void currentMediaChanged();
     void showHiddenChanged();
+    void showUserTypeChanged();
     void excludedCategoriesChanged();
     void includedCategoriesChanged();
     void sortbyCreatedChanged();
@@ -123,6 +127,7 @@ class BOOKMARK_QML_EXPORT BookmarkFilterModel : public QSortFilterProxyModel {
     QUuid current_media_;
     int depth_{0};
     bool showHidden_{false};
+    QString showUserType_;
     QStringList excluded_categories_;
     QStringList included_categories_;
     bool sortbyCreated_{false};
@@ -163,6 +168,7 @@ class BOOKMARK_QML_EXPORT BookmarkModel : public caf::mixin::actor_object<JSONTr
         durationRole,
         durationFrameRole,
         visibleRole,
+        userTypeRole,
         userDataRole,
         createdEpochRole
     };
@@ -219,5 +225,6 @@ class BOOKMARK_QML_EXPORT BookmarkModel : public caf::mixin::actor_object<JSONTr
     caf::actor backend_events_;
     std::map<utility::Uuid, bookmark::BookmarkDetail> bookmarks_;
     std::map<utility::Uuid, QImage> thumbnail_cache_;
+    std::set<utility::Uuid> out_of_date_thumbnails_;
 };
 } // namespace xstudio::ui::qml

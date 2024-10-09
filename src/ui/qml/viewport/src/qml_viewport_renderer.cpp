@@ -58,7 +58,6 @@ void QMLViewportRenderer::paint() {
             init_done = true;
             init_renderer();
         }
-
         glPushClientAttrib(GL_CLIENT_ALL_ATTRIB_BITS);
         viewport_renderer_->render();
         glPopClientAttrib();

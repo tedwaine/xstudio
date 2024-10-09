@@ -49,7 +49,7 @@ static Uuid s_plugin_uuid("9fd34c7e-8b35-44c7-8976-387bae1e35e0");
 overscan amount, compute the cropped data window that limits
 the overscan in the data window.
 
-Returns true if a crop is required to meet max overscan requirement
+Returns true if a crop is required to meet max overscan requirement*/
 bool crop_data_window(
         Imath::Box2i &data_window,
         const Imath::Box2i &display_window,
@@ -85,8 +85,6 @@ bool crop_data_window(
         return in_data_window != data_window;
 
 }
-*/
-
 
 static Uuid openexr_shader_uuid{"1c9259fc-46a5-11ea-87fe-989096adb429"};
 static std::string shader{R"(
@@ -271,11 +269,11 @@ ImageBufPtr OpenEXRMediaReader::image(const media::AVFrameID &mptr) {
         Imath::Box2i display_window = in.header().displayWindow();
 
         // decide the area of the image we want to load
-        const bool cropped_data_window = false; /*crop_data_window(
+        const bool cropped_data_window = crop_data_window(
                  data_window,
                  display_window,
                  max_exr_overscan_percent_
-                 );*/
+                 );
 
         // compute the size of the buffer we need
         const size_t n_pixels = (data_window.size().x + 1) * (data_window.size().y + 1);

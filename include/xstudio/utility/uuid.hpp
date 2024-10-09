@@ -160,9 +160,11 @@ namespace utility {
 
         UuidActor &operator=(const UuidActor &o) = default;
 
-        bool operator==(const UuidActor &o) const {
-            return (uuid_ == o.uuid_ && actor_ == o.actor_);
+        friend bool operator==(const UuidActor &a, const UuidActor &b) {
+            return (a.uuid_ == b.uuid_ && a.actor_ == b.actor_);
         };
+
+        friend bool operator!=(const UuidActor &a, const UuidActor &b) { return !(a == b); };
 
         operator caf::actor &() { return actor_; }
         operator const caf::actor &() const { return actor_; }

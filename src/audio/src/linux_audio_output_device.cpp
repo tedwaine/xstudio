@@ -12,11 +12,7 @@ using namespace xstudio::global_store;
 LinuxAudioOutputDevice::LinuxAudioOutputDevice(const utility::JsonStore &prefs)
     : prefs_(prefs) {}
 
-LinuxAudioOutputDevice::~LinuxAudioOutputDevice() {
-
-    std::cerr << "~LinuxAudioOutputDevice()\n";
-    disconnect_from_soundcard();
-}
+LinuxAudioOutputDevice::~LinuxAudioOutputDevice() { disconnect_from_soundcard(); }
 
 void LinuxAudioOutputDevice::disconnect_from_soundcard() {
     if (playback_handle_) {

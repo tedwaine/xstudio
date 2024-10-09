@@ -34,41 +34,42 @@ namespace timeline {
 
         caf::behavior make_behavior() override { return behavior_; }
 
-        void deliver_media_pointer(
-            const int logical_frame,
-            const media::MediaType media_type,
-            caf::typed_response_promise<media::AVFrameID> rp);
-
         void add_item(const utility::UuidActor &ua);
 
-        void add_media(
-            const utility::UuidActor &ua,
-            const utility::Uuid &uuid_before,
-            caf::typed_response_promise<utility::UuidActor> rp);
         void add_media(
             caf::actor actor,
             const utility::Uuid &uuid,
             const utility::Uuid &before_uuid = utility::Uuid());
+
+        void deliver_media_pointer(
+            caf::typed_response_promise<media::AVFrameID> rp,
+            const int logical_frame,
+            const media::MediaType media_type);
+
+        void add_media(
+            caf::typed_response_promise<utility::UuidActor> rp,
+            const utility::UuidActor &ua,
+            const utility::Uuid &uuid_before);
         bool remove_media(caf::actor actor, const utility::Uuid &uuid);
 
         void insert_items(
+            caf::typed_response_promise<utility::JsonStore> rp,
             const int index,
-            const utility::UuidActorVector &uav,
-            caf::typed_response_promise<utility::JsonStore> rp);
+            const utility::UuidActorVector &uav);
 
         void remove_items(
-            const int index,
-            const int count,
             caf::typed_response_promise<
-                std::pair<utility::JsonStore, std::vector<timeline::Item>>> rp);
+                std::pair<utility::JsonStore, std::vector<timeline::Item>>> rp,
+            const int index,
+            const int count = 1);
 
         void erase_items(
+            caf::typed_response_promise<utility::JsonStore> rp,
             const int index,
-            const int count,
-            caf::typed_response_promise<utility::JsonStore> rp);
+            const int count = 1);
 
         std::pair<utility::JsonStore, std::vector<timeline::Item>>
-        remove_items(const int index, const int count);
+        remove_items(const int index, const int count = 1);
 
         void sort_by_media_display_info(const int sort_column_index, const bool ascending);
 
@@ -99,8 +100,9 @@ namespace timeline {
         caf::actor_addr playlist_;
         bool content_changed_{false};
         utility::UuidActor playhead_;
-        std::map<int, utility::UuidActor> aux_playheads_;
         caf::actor history_;
+        // might need to prune.. ?
+        std::set<utility::Uuid> events_processed_;
         // bool update_edit_list_;
         // utility::EditList edit_list_;
     };

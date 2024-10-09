@@ -727,12 +727,14 @@ bool Item::has_dirty(const utility::JsonStore &event) {
 utility::JsonStore Item::set_enabled(const bool value) {
     if (enabled_ != value) {
         utility::JsonStore jsn(R"([{"undo":{}, "redo":{}}])"_json);
+        jsn[0]["undo"]["event_id"] = jsn[0]["redo"]["event_id"] = Uuid::generate();
         jsn[0]["undo"]["action"] = jsn[0]["redo"]["action"] = ItemAction::IA_ENABLE;
         jsn[0]["undo"]["uuid"] = jsn[0]["redo"]["uuid"] = uuid_addr_.first;
         jsn[0]["undo"]["value"]                         = enabled_;
         jsn[0]["redo"]["value"]                         = value;
 
         jsn.push_back(R"({"undo":{}, "redo":{}})"_json);
+        jsn[1]["undo"]["event_id"] = jsn[1]["redo"]["event_id"] = Uuid::generate();
         jsn[1]["undo"]["action"] = jsn[1]["redo"]["action"] = ItemAction::IA_DIRTY;
         jsn[1]["undo"]["uuid"] = jsn[1]["redo"]["uuid"] = uuid_addr_.first;
 
@@ -746,6 +748,7 @@ utility::JsonStore Item::set_enabled(const bool value) {
 utility::JsonStore Item::set_locked(const bool value) {
     if (locked_ != value) {
         utility::JsonStore jsn(R"([{"undo":{}, "redo":{}}])"_json);
+        jsn[0]["undo"]["event_id"] = jsn[0]["redo"]["event_id"] = Uuid::generate();
         jsn[0]["undo"]["action"] = jsn[0]["redo"]["action"] = ItemAction::IA_LOCK;
         jsn[0]["undo"]["uuid"] = jsn[0]["redo"]["uuid"] = uuid_addr_.first;
         jsn[0]["undo"]["value"]                         = locked_;
@@ -760,6 +763,7 @@ utility::JsonStore Item::set_locked(const bool value) {
 utility::JsonStore Item::set_name(const std::string &value) {
     if (name_ != value) {
         utility::JsonStore jsn(R"([{"undo":{}, "redo":{}}])"_json);
+        jsn[0]["undo"]["event_id"] = jsn[0]["redo"]["event_id"] = Uuid::generate();
         jsn[0]["undo"]["action"] = jsn[0]["redo"]["action"] = ItemAction::IA_NAME;
         jsn[0]["undo"]["uuid"] = jsn[0]["redo"]["uuid"] = uuid_addr_.first;
         jsn[0]["undo"]["value"]                         = name_;
@@ -774,6 +778,7 @@ utility::JsonStore Item::set_name(const std::string &value) {
 utility::JsonStore Item::set_flag(const std::string &value) {
     if (flag_ != value) {
         utility::JsonStore jsn(R"([{"undo":{}, "redo":{}}])"_json);
+        jsn[0]["undo"]["event_id"] = jsn[0]["redo"]["event_id"] = Uuid::generate();
         jsn[0]["undo"]["action"] = jsn[0]["redo"]["action"] = ItemAction::IA_FLAG;
         jsn[0]["undo"]["uuid"] = jsn[0]["redo"]["uuid"] = uuid_addr_.first;
         jsn[0]["undo"]["value"]                         = flag_;
@@ -788,6 +793,7 @@ utility::JsonStore Item::set_flag(const std::string &value) {
 utility::JsonStore Item::set_prop(const utility::JsonStore &value) {
     if (prop_ != value) {
         utility::JsonStore jsn(R"([{"undo":{}, "redo":{}}])"_json);
+        jsn[0]["undo"]["event_id"] = jsn[0]["redo"]["event_id"] = Uuid::generate();
         jsn[0]["undo"]["action"] = jsn[0]["redo"]["action"] = ItemAction::IA_PROP;
         jsn[0]["undo"]["uuid"] = jsn[0]["redo"]["uuid"] = uuid_addr_.first;
         jsn[0]["undo"]["value"]                         = prop_;
@@ -795,6 +801,7 @@ utility::JsonStore Item::set_prop(const utility::JsonStore &value) {
 
         if (item_type_ == IT_CLIP) {
             jsn.push_back(R"({"undo":{}, "redo":{}})"_json);
+            jsn[1]["undo"]["event_id"] = jsn[1]["redo"]["event_id"] = Uuid::generate();
             jsn[1]["undo"]["action"] = jsn[1]["redo"]["action"] = ItemAction::IA_DIRTY;
             jsn[1]["undo"]["uuid"] = jsn[1]["redo"]["uuid"] = uuid_addr_.first;
         }
@@ -811,9 +818,10 @@ void Item::set_actor_addr_direct(const caf::actor_addr &value) { uuid_addr_.seco
 utility::JsonStore Item::make_actor_addr_update() const {
     utility::JsonStore jsn(R"([{"undo":{}, "redo":{}}])"_json);
 
-    jsn[0]["redo"]["action"] = ItemAction::IA_ADDR;
-    jsn[0]["redo"]["uuid"]   = uuid_addr_.first;
-    jsn[0]["redo"]["value"]  = actor_addr_to_string(uuid_addr_.second);
+    jsn[0]["undo"]["event_id"] = jsn[0]["redo"]["event_id"] = Uuid::generate();
+    jsn[0]["redo"]["action"]                                = ItemAction::IA_ADDR;
+    jsn[0]["redo"]["uuid"]                                  = uuid_addr_.first;
+    jsn[0]["redo"]["value"] = actor_addr_to_string(uuid_addr_.second);
 
     return jsn;
 }
@@ -821,6 +829,7 @@ utility::JsonStore Item::make_actor_addr_update() const {
 utility::JsonStore Item::set_actor_addr(const caf::actor_addr &value) {
     if (uuid_addr_.second != value) {
         utility::JsonStore jsn(R"([{"undo":{}, "redo":{}}])"_json);
+        jsn[0]["undo"]["event_id"] = jsn[0]["redo"]["event_id"] = Uuid::generate();
         jsn[0]["undo"]["action"] = jsn[0]["redo"]["action"] = ItemAction::IA_ADDR;
         jsn[0]["undo"]["uuid"] = jsn[0]["redo"]["uuid"] = uuid_addr_.first;
 
@@ -844,6 +853,7 @@ utility::JsonStore Item::set_actor_addr(const caf::actor_addr &value) {
 utility::JsonStore Item::set_markers(const Markers &value) {
     if (value != markers_) {
         utility::JsonStore jsn(R"([{"undo":{}, "redo":{}}])"_json);
+        jsn[0]["undo"]["event_id"] = jsn[0]["redo"]["event_id"] = Uuid::generate();
         jsn[0]["undo"]["action"] = jsn[0]["redo"]["action"] = ItemAction::IA_MARKER;
         jsn[0]["undo"]["uuid"] = jsn[0]["redo"]["uuid"] = uuid_addr_.first;
 
@@ -866,6 +876,7 @@ utility::JsonStore
 Item::set_range(const utility::FrameRange &avail, const utility::FrameRange &active) {
     if (active != active_range_ || avail != available_range_) {
         utility::JsonStore jsn(R"([{"undo":{}, "redo":{}}])"_json);
+        jsn[0]["undo"]["event_id"] = jsn[0]["redo"]["event_id"] = Uuid::generate();
         jsn[0]["undo"]["action"] = jsn[0]["redo"]["action"] = ItemAction::IA_RANGE;
         jsn[0]["undo"]["uuid"] = jsn[0]["redo"]["uuid"] = uuid_addr_.first;
 
@@ -880,6 +891,7 @@ Item::set_range(const utility::FrameRange &avail, const utility::FrameRange &act
         jsn[0]["redo"]["value4"] = true;
 
         jsn.push_back(R"({"undo":{}, "redo":{}})"_json);
+        jsn[1]["undo"]["event_id"] = jsn[1]["redo"]["event_id"] = Uuid::generate();
         jsn[1]["undo"]["action"] = jsn[1]["redo"]["action"] = ItemAction::IA_DIRTY;
         jsn[1]["undo"]["uuid"] = jsn[1]["redo"]["uuid"] = uuid_addr_.first;
 
@@ -899,6 +911,8 @@ void Item::set_active_range_direct(const utility::FrameRange &value) {
 utility::JsonStore Item::set_active_range(const utility::FrameRange &value) {
     if (value != active_range_) {
         utility::JsonStore jsn(R"([{"undo":{}, "redo":{}}])"_json);
+        jsn[0]["undo"]["event_id"] = jsn[0]["redo"]["event_id"] = Uuid::generate();
+
         jsn[0]["undo"]["action"] = jsn[0]["redo"]["action"] = ItemAction::IA_ACTIVE;
         jsn[0]["undo"]["uuid"] = jsn[0]["redo"]["uuid"] = uuid_addr_.first;
 
@@ -909,6 +923,7 @@ utility::JsonStore Item::set_active_range(const utility::FrameRange &value) {
         jsn[0]["redo"]["value2"] = true;
 
         jsn.push_back(R"({"undo":{}, "redo":{}})"_json);
+        jsn[1]["undo"]["event_id"] = jsn[1]["redo"]["event_id"] = Uuid::generate();
         jsn[1]["undo"]["action"] = jsn[1]["redo"]["action"] = ItemAction::IA_DIRTY;
         jsn[1]["undo"]["uuid"] = jsn[1]["redo"]["uuid"] = uuid_addr_.first;
 
@@ -928,6 +943,7 @@ utility::JsonStore Item::set_available_range(const utility::FrameRange &value) {
     if (value != available_range_) {
         utility::JsonStore jsn(R"([{"undo":{}, "redo":{}}])"_json);
 
+        jsn[0]["undo"]["event_id"] = jsn[0]["redo"]["event_id"] = Uuid::generate();
         jsn[0]["undo"]["action"] = jsn[0]["redo"]["action"] = ItemAction::IA_AVAIL;
         jsn[0]["undo"]["uuid"] = jsn[0]["redo"]["uuid"] = uuid_addr_.first;
 
@@ -938,6 +954,7 @@ utility::JsonStore Item::set_available_range(const utility::FrameRange &value) {
         jsn[0]["redo"]["value2"] = true;
 
         jsn.push_back(R"({"undo":{}, "redo":{}})"_json);
+        jsn[1]["undo"]["event_id"] = jsn[1]["redo"]["event_id"] = Uuid::generate();
         jsn[1]["undo"]["action"] = jsn[1]["redo"]["action"] = ItemAction::IA_DIRTY;
         jsn[1]["undo"]["uuid"] = jsn[1]["redo"]["uuid"] = uuid_addr_.first;
 
@@ -962,6 +979,7 @@ Item::insert(Items::iterator position, const Item &value, const utility::JsonSto
     utility::JsonStore jsn(R"([{"undo":{}, "redo":{}}])"_json);
     auto index = std::distance(begin(), position);
 
+    jsn[0]["undo"]["event_id"] = jsn[0]["redo"]["event_id"] = Uuid::generate();
     jsn[0]["undo"]["uuid"] = jsn[0]["redo"]["uuid"] = uuid_addr_.first;
 
     jsn[0]["undo"]["action"]    = ItemAction::IA_REMOVE;
@@ -974,6 +992,7 @@ Item::insert(Items::iterator position, const Item &value, const utility::JsonSto
     jsn[0]["redo"]["blind"]  = blind;
 
     jsn.push_back(R"({"undo":{}, "redo":{}})"_json);
+    jsn[1]["undo"]["event_id"] = jsn[1]["redo"]["event_id"] = Uuid::generate();
     jsn[1]["undo"]["action"] = jsn[1]["redo"]["action"] = ItemAction::IA_DIRTY;
     jsn[1]["undo"]["uuid"] = jsn[1]["redo"]["uuid"] = uuid_addr_.first;
 
@@ -988,6 +1007,7 @@ utility::JsonStore Item::erase(Items::iterator position, const utility::JsonStor
     utility::JsonStore jsn(R"([{"undo":{}, "redo":{}}])"_json);
     auto index = std::distance(begin(), position);
 
+    jsn[0]["undo"]["event_id"] = jsn[0]["redo"]["event_id"] = Uuid::generate();
     jsn[0]["undo"]["uuid"] = jsn[0]["redo"]["uuid"] = uuid_addr_.first;
 
     jsn[0]["undo"]["action"] = ItemAction::IA_INSERT;
@@ -1000,6 +1020,7 @@ utility::JsonStore Item::erase(Items::iterator position, const utility::JsonStor
     jsn[0]["redo"]["item_uuid"] = position->uuid();
 
     jsn.push_back(R"({"undo":{}, "redo":{}})"_json);
+    jsn[1]["undo"]["event_id"] = jsn[1]["redo"]["event_id"] = Uuid::generate();
     jsn[1]["undo"]["action"] = jsn[1]["redo"]["action"] = ItemAction::IA_DIRTY;
     jsn[1]["undo"]["uuid"] = jsn[1]["redo"]["uuid"] = uuid_addr_.first;
 
@@ -1028,6 +1049,7 @@ utility::JsonStore Item::splice(
     auto start_index = std::distance(cbegin(), first);
     auto count       = std::distance(first, last);
 
+    jsn[0]["undo"]["event_id"] = jsn[0]["redo"]["event_id"] = Uuid::generate();
     jsn[0]["undo"]["uuid"] = jsn[0]["redo"]["uuid"] = uuid_addr_.first;
 
     jsn[0]["redo"]["action"] = ItemAction::IA_SPLICE;
@@ -1051,6 +1073,7 @@ utility::JsonStore Item::splice(
     jsn[0]["undo"]["count"]  = count;
 
     jsn.push_back(R"({"undo":{}, "redo":{}})"_json);
+    jsn[1]["undo"]["event_id"] = jsn[1]["redo"]["event_id"] = Uuid::generate();
     jsn[1]["undo"]["action"] = jsn[1]["redo"]["action"] = ItemAction::IA_DIRTY;
     jsn[1]["undo"]["uuid"] = jsn[1]["redo"]["uuid"] = uuid_addr_.first;
 
@@ -1064,16 +1087,18 @@ utility::JsonStore Item::splice(
 }
 
 // apply update that occurred outside our tree.
-bool Item::update(const utility::JsonStore &event) {
-    bool changed = false;
+std::set<utility::Uuid> Item::update(const utility::JsonStore &event) {
+    auto result = std::set<utility::Uuid>();
     for (const auto &i : event)
-        changed |= process_event(i.at("redo"));
-    return changed;
+        if (process_event(i.at("redo")))
+            result.insert(i.at("redo").at("event_id"));
+    return result;
 }
 
 void Item::undo(const utility::JsonStore &event) {
-    for (const auto &i : event)
-        process_event(i.at("undo"));
+    // reverse ordering..
+    for(auto it = event.crbegin(); it != event.crend(); ++it)
+        process_event(it->at("undo"));
 }
 
 void Item::redo(const utility::JsonStore &event) {
@@ -1082,7 +1107,7 @@ void Item::redo(const utility::JsonStore &event) {
 }
 
 bool Item::process_event(const utility::JsonStore &event) {
-    // spdlog::warn("{}", event.dump(2));
+    // spdlog::warn("{} {}", name(), event.dump(2));
 
     if (Uuid(event.at("uuid")) == uuid_addr_.first) {
         if (item_pre_event_callback_)
@@ -1125,14 +1150,19 @@ bool Item::process_event(const utility::JsonStore &event) {
             has_active_range_ = event.at("value4");
             break;
         case IA_INSERT: {
-            // spdlog::warn("IT_INSERT {}", event.dump(2));
             auto index = event.at("index").get<size_t>();
-            if (index == 0 or index <= size()) {
+            if (index >= 0 and index <= size()) {
                 insert_direct(
                     std::next(begin(), index), Item(JsonStore(event.at("item")), the_system_));
             } else {
                 spdlog::error(
-                    "IA_INSERT - INVALID INDEX {} {} {}", size(), index, event.dump(2));
+                    "IA_INSERT - INVALID INDEX uuid {} name {} type {} index {} track size {} {}",
+                    to_string(uuid()),
+                    name(),
+                    to_string(item_type()),
+                    index,
+                    size(),
+                    event.dump(2));
             }
         } break;
         case IA_REMOVE: {

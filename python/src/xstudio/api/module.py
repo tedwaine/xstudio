@@ -612,7 +612,7 @@ class ModuleBase(ActorConnection):
                     self.hotkey_callbacks[hotkey_uuid](activated, context)
 
             elif isinstance(atom, type(menu_node_activated_atom())):
-                menu_item_data = json.loads(str(message_content[1])) if len(
+                menu_item_data = message_content[1].get() if len(
                     message_content) > 1 else None
                 user_data = str(message_content[2]) if len(
                     message_content) > 2 else ""

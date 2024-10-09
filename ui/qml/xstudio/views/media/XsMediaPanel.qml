@@ -112,7 +112,7 @@ Item{
 
     function sort_media(sort_column_idx, ascending) {
         theSessionData.sortByMediaDisplayInfo(
-            inspectedMediaSetIndex,
+            currentMediaContainerIndex,
             sort_column_idx,
             ascending)
     }

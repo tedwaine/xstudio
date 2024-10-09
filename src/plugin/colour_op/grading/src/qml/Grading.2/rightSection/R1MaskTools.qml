@@ -179,10 +179,10 @@ Item{
             XsText {
                 Layout.fillWidth: true
                 Layout.minimumWidth: 0
-                Layout.preferredWidth: maskBtnWidth*0.8
-                Layout.maximumWidth: maskBtnWidth*0.8
+                Layout.preferredWidth: maskBtnWidth*0.5
+                Layout.maximumWidth: maskBtnWidth*0.5
                 Layout.fillHeight: true
-                text: "Set Range:"
+                text: "Range:"
                 elide: Text.ElideRight
                 horizontalAlignment: Text.AlignHCenter
                 verticalAlignment: Text.AlignVCenter

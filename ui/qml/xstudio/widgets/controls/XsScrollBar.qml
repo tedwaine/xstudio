@@ -24,7 +24,7 @@ ScrollBar { id: widget
         implicitWidth: 5
         implicitHeight: 5
         radius: width/1.1
-        color: widget.pressed ? thumbColorPressed: thumbColorHovered
-        opacity: hovered || active ? 0.8 : 0.4
+        color: widget.pressed ? thumbColorPressed: thumbColorNormal
+        // opacity: hovered || active ? 0.8 : 0.4
     }
 }

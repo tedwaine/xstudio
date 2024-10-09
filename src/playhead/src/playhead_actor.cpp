@@ -74,8 +74,15 @@ class PlayLoopActor : public caf::event_based_actor {
 };
 
 PlayheadActor::PlayheadActor(
-    caf::actor_config &cfg, const utility::JsonStore &jsn, caf::actor playlist_selection)
-    : caf::event_based_actor(cfg), PlayheadBase(static_cast<utility::JsonStore>(jsn["base"])) {
+    caf::actor_config &cfg,
+    const std::string &name,
+    caf::actor playlist_selection,
+    const utility::Uuid uuid,
+    caf::actor_addr parent_playlist)
+    : caf::event_based_actor(cfg),
+      PlayheadBase(name, std::move(uuid)),
+      parent_playlist_(parent_playlist) {
+
     init();
     set_parent_actor_addr(actor_cast<caf::actor_addr>(this));
     connect_to_playlist_selection_actor(playlist_selection);
@@ -89,26 +96,6 @@ PlayheadActor::PlayheadActor(
     // SessionModel - we use this to connect to the model data of a given
     // Playhead so we can talk to the Playhead of the 'current' timeline, subset,
     // or playlist
-    for (auto &attr : attributes_) {
-        expose_attribute_in_model_data(
-            attr.get(), std::string("{") + to_string(Module::uuid()) + std::string("}"), true);
-    }
-
-    make_source_menu_model();
-}
-
-PlayheadActor::PlayheadActor(
-    caf::actor_config &cfg,
-    const std::string &name,
-    caf::actor playlist_selection,
-    const utility::Uuid uuid)
-    : caf::event_based_actor(cfg), PlayheadBase(name, std::move(uuid)) {
-
-    init();
-    set_parent_actor_addr(actor_cast<caf::actor_addr>(this));
-    connect_to_playlist_selection_actor(playlist_selection);
-
-    // see comment in other constructor above
     for (auto &attr : attributes_) {
         expose_attribute_in_model_data(
             attr.get(), std::string("{") + to_string(Module::uuid()) + std::string("}"), true);
@@ -141,6 +128,8 @@ void PlayheadActor::init() {
         sub_playheads_.clear();
         source_wrappers_.clear();
         source_actors_.clear();
+        pinned_source_actors_.clear();
+        unpinned_source_actors_.clear();
         default_exit_handler(a, m);
     });
 
@@ -218,6 +207,8 @@ void PlayheadActor::init() {
         make_get_event_group_handler(event_group_),
         make_get_detail_handler(this, event_group_),
 
+        [=](utility::parent_atom) -> caf::actor_addr { return parent_playlist_; },
+
         [=](actual_playback_rate_atom atom) { delegate(key_playhead_, atom); },
 
         [=](clear_precache_requests_atom) -> result<bool> {
@@ -271,7 +262,7 @@ void PlayheadActor::init() {
                         forward(),
                         velocity(),
                         playing(),
-                        false,
+                        true,
                         connected_to_ui(),
                         user_is_frame_scrubbing_->value());
                 }
@@ -465,9 +456,9 @@ void PlayheadActor::init() {
 
         [=](play_atom) -> bool { return playing(); },
 
-        [=](play_atom, const bool _play) -> unit_t {
+        [=](play_atom, const bool _play) -> bool {
             set_playing(_play);
-            return unit;
+            return true;
         },
 
         [=](play_atom, const float left_right_key_id) {
@@ -515,13 +506,6 @@ void PlayheadActor::init() {
             // spdlog::warn("playhead delegate duration_frames_atom {}",
             // to_string(key_playhead_));
             delegate(key_playhead_, duration_frames_atom_v);
-        },
-
-        [=](playhead::skip_through_sources_atom, const int skip_by) -> bool {
-            if (source_actors_.size() <= 1)
-                return false;
-            skip_through_sources(skip_by);
-            return true;
         },
 
         [=](json_store::update_atom,
@@ -848,6 +832,22 @@ void PlayheadActor::init() {
                     });
         },
 
+        [=](skip_to_clip_atom, bool next_clip) {
+            auto rp = make_response_promise<bool>();
+            // skip the playhead position to the start of the next clip, the
+            // beginning of the current clip, or if we are already at the beginning
+            // of the current clip then the beginning of the preceeding clip
+            request(key_playhead_, infinite, skip_to_clip_atom_v, position(), next_clip).then(
+                [=](const timebase::flicks new_position) mutable {
+                    set_position(new_position);
+                    update_child_playhead_positions(true);
+                    rp.deliver(true);
+                },
+                [=](const caf::error &err) mutable {
+                    rp.deliver(err);
+                });            
+        },
+
         [=](use_loop_range_atom) -> bool { return use_loop_range(); },
 
         [=](use_loop_range_atom, const bool _use_loop_range) -> unit_t {
@@ -977,7 +977,13 @@ void PlayheadActor::init() {
             // This comes from the 'PlaylistSelectionActor' and sets the
             // viewable(s) that this playhead will play. A child playhead is
             // made for each source in the source list
-            new_source_list(source_list);
+            unpinned_source_actors_ = source_list;
+            new_source_list();
+        },
+
+        [=](source_atom, const std::vector<caf::actor> &source_list, bool pinned) {
+            pinned_source_actors_ = source_list;
+            delegate(caf::actor_cast<caf::actor>(this), source_atom_v, source_list);
         },
 
         [=](source_atom, const std::vector<caf::actor> &source_list) -> result<bool> {
@@ -986,7 +992,8 @@ void PlayheadActor::init() {
             // This message can be pushed to a playhead so it can start p[laying
             // medioa - the contents of the incoming source_list must be MediaActor type
             // or a wrapper that has the message handlers for playback
-            new_source_list(source_list);
+            unpinned_source_actors_ = source_list;
+            new_source_list();
 
             // calling source_atom on SubPlayhead and waiting for response
             // ensures that the SubPlayhead is 'up-to-date' in other wordfs
@@ -1023,7 +1030,6 @@ void PlayheadActor::init() {
                     .then(
                         [=](const std::string name) {
                             updating_source_list_ = true;
-                            std::cerr << "FOOFOO " << name << "\n";
                             if (mt == media::MT_IMAGE) {
                                 image_source_->set_value(to_string(media_source.uuid()), false);
                                 image_source_name_->set_value(name);
@@ -1174,10 +1180,10 @@ void PlayheadActor::connect_to_playlist_selection_actor(caf::actor playlist_sele
                                     playhead::get_selected_sources_atom_v)
                                     .then(
                                         [=](const utility::UuidActorVector &selection) {
-                                            std::vector<caf::actor> actors;
+                                            unpinned_source_actors_.clear();
                                             for (auto &s : selection)
-                                                actors.push_back(s.actor());
-                                            new_source_list(actors);
+                                                unpinned_source_actors_.push_back(s.actor());
+                                            new_source_list();
                                         },
                                         [=](const caf::error &e) {
                                             spdlog::warn(
@@ -1309,7 +1315,12 @@ void PlayheadActor::make_audio_child_playhead(const int source_index) {
             });
 }
 
-void PlayheadActor::new_source_list(const std::vector<caf::actor> &sl) {
+void PlayheadActor::new_source_list() {
+
+    const std::vector<caf::actor> &sl =
+        pinned_source_actors_.empty()
+            ? unpinned_source_actors_
+            : (pinned_source_mode_->value() ? pinned_source_actors_ : unpinned_source_actors_);
 
     if (sl == source_actors_)
         return;
@@ -1684,47 +1695,6 @@ void PlayheadActor::update_duration(caf::typed_response_promise<timebase::flicks
             });
 }
 
-void PlayheadActor::skip_through_sources(const int skip_by) {
-
-    if (compare_mode() != CM_STRING) {
-
-        // Items are multi selected, so we only skip through the items selected
-        // by switching to the child playhead
-        int curr_idx = -1;
-        for (size_t i = 0; i < sub_playheads_.size(); ++i) {
-            if (sub_playheads_[i] == key_playhead_) {
-                curr_idx = (int)i;
-            }
-        }
-        if (curr_idx != -1) {
-            auto prefs   = global_store::GlobalStoreHelper(system());
-            bool loop    = prefs.value<bool>("/ui/qml/cycle_through_playlist");
-            int skip_idx = curr_idx + skip_by;
-
-            curr_idx =
-                loop ? skip_idx == -1 ? static_cast<int>(sub_playheads_.size() - 1)
-                                      : skip_idx % sub_playheads_.size()
-                     : std::max(
-                           0, std::min(skip_idx, static_cast<int>(sub_playheads_.size() - 1)));
-
-            switch_key_playhead(curr_idx);
-        }
-
-    } else {
-
-        request(key_playhead_, infinite, playhead::skip_through_sources_atom_v, skip_by)
-            .then(
-                [=](utility::Uuid &new_source_uuid) {
-                    move_playhead_to_last_viewed_frame_of_given_source(new_source_uuid);
-                },
-                [=](const error &err) {
-                    spdlog::warn("B {} {}", __PRETTY_FUNCTION__, to_string(err));
-                }
-
-            );
-    }
-}
-
 void PlayheadActor::jump_to_source(const utility::Uuid &media_uuid) {
     if (compare_mode() == CM_STRING) {
 
@@ -2044,7 +2014,9 @@ void PlayheadActor::attribute_changed(const utility::Uuid &attr_uuid, const int 
         return;
     }
 
-    if (attr_uuid == compare_mode_->uuid() || attr_uuid == auto_align_mode_->uuid()) {
+    if (attr_uuid == pinned_source_mode_->uuid()) {
+        new_source_list();
+    } else if (attr_uuid == compare_mode_->uuid() || attr_uuid == auto_align_mode_->uuid()) {
         rebuild();
     } else if (attr_uuid == velocity_->uuid()) {
         send(fps_moniotor_group_, utility::event_atom_v, velocity_atom_v, velocity());
@@ -2262,6 +2234,30 @@ void PlayheadActor::hotkey_pressed(
         step_keypress_event_id_ = -drand48();
         delayed_anon_send(
             this, std::chrono::milliseconds(500), play_atom_v, step_keypress_event_id_);
+    } else if (hotkey_uuid == jump_to_first_frame_) {
+
+        if (loop_start_frame_->value() > 0 && loop_range_enabled_->value()) {
+            anon_send(caf::actor_cast<caf::actor>(this), jump_atom_v, loop_start_frame_->value());
+        } else {
+            anon_send(caf::actor_cast<caf::actor>(this), jump_atom_v, 0);            
+        }
+
+    } else if (hotkey_uuid == jump_to_last_frame_) {
+
+        if (loop_end_frame_->value() > 0 && loop_range_enabled_->value()) {
+            anon_send(caf::actor_cast<caf::actor>(this), jump_atom_v, loop_end_frame_->value());
+        } else {
+            anon_send(caf::actor_cast<caf::actor>(this), jump_atom_v, std::numeric_limits<int>::max());            
+        }
+
+    } else if (hotkey_uuid == jump_to_next_clip_) {
+
+        anon_send(caf::actor_cast<caf::actor>(this), skip_to_clip_atom_v, true);            
+
+    } else if (hotkey_uuid == jump_to_previous_clip_) {
+        
+        anon_send(caf::actor_cast<caf::actor>(this), skip_to_clip_atom_v, false);            
+
     } else {
         PlayheadBase::hotkey_pressed(hotkey_uuid, context, window);
     }

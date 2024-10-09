@@ -373,6 +373,15 @@ void AnnotationsTool::register_hotkeys() {
         "Redoes your last undone edit on an annotation",
         false,
         "Drawing Tools");
+
+    clear_hotkey_ = register_hotkey(
+        int('X'),
+        ui::ShiftModifier,
+        "Clear all strokes",
+        "Clears the entire current drawing. If there is no text in the assicated note it will also be removed.",
+        false,
+        "Drawing Tools");
+
 }
 
 void AnnotationsTool::hotkey_pressed(
@@ -392,6 +401,10 @@ void AnnotationsTool::hotkey_pressed(
 
         redo();
         redraw_viewport();
+    } else if (hotkey_uuid == clear_hotkey_ && active_tool_->value() != "None") {
+        
+        clear_onscreen_annotations();
+
     }
 }
 

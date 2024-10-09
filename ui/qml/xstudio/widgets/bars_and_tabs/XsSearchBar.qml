@@ -39,7 +39,7 @@ TextField { id: widget
 
 
     onEditingFinished: {
-        // focus = false
+        focus = false
         editingCompleted()
     }
 

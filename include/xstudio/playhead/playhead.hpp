@@ -170,6 +170,10 @@ namespace playhead {
         utility::Uuid set_loop_out_;
         utility::Uuid step_forward_;
         utility::Uuid step_backward_;
+        utility::Uuid jump_to_first_frame_;
+        utility::Uuid jump_to_last_frame_;
+        utility::Uuid jump_to_next_clip_;
+        utility::Uuid jump_to_previous_clip_;
 
         float drag_start_x_;
         timebase::flicks drag_start_playhead_position_;
@@ -221,6 +225,7 @@ namespace playhead {
         module::StringAttribute *current_media_source_uuid_;
         module::BooleanAttribute *loop_range_enabled_;
         module::BooleanAttribute *user_is_frame_scrubbing_;
+        module::BooleanAttribute *pinned_source_mode_;
 
 
         bool was_playing_when_scrub_started_ = {false};

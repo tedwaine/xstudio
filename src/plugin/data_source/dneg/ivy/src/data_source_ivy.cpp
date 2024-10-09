@@ -232,7 +232,7 @@ IvyDataSourceActor<T>::IvyDataSourceActor(caf::actor_config &cfg, const utility:
             auto httpquery = std::string(fmt::format(
                 R"({{
                     files_by_path(show: "{}", paths: ["{}"]){{
-                        id, name, path
+                        id, name, path, timeline_range
                         version{{
                             id, name, show{{id, name}}, scope {{id, name}}, kind{{id, name}}
                         }},
@@ -814,7 +814,7 @@ void IvyDataSourceActor<T>::ivy_load_version_sources(
             versions_by_id(show: "{}", ids: ["{}"]){{
                 id, name, number{{major,minor,micro}}, kind{{id,name}},scope{{id,name}}
                 files{{
-                    id,name,path,type,version{{id,name,kind{{id,name}},scope{{id,name}}}}
+                    id,name,path,timeline_range,type,version{{id,name,kind{{id,name}},scope{{id,name}}}}
                 }},
             }}
         }})",
@@ -937,7 +937,7 @@ void IvyDataSourceActor<T>::ivy_load_version(
         R"({{
             versions_by_id(show: "{}", ids: [{}]){{
                 id, name, number{{major,minor,micro}}, kind{{id,name}},scope{{id,name}}
-                files{{id,name,path,type,version{{id,name,kind{{id,name}},scope{{id,name}}}}}},
+                files{{id,name,path,timeline_range,type,version{{id,name,kind{{id,name}},scope{{id,name}}}}}},
             }}
         }})",
         show,
@@ -1025,7 +1025,7 @@ void IvyDataSourceActor<T>::ivy_load_file(
     auto httpquery = std::string(fmt::format(
         R"({{
             files_by_id(show: "{}", ids: [{}]){{
-                id, name, path, type, version{{id,name,kind{{id,name}},scope{{id,name}}}}
+                id, name, path,timeline_range, type, version{{id,name,kind{{id,name}},scope{{id,name}}}}
             }}
         }})",
         show,
@@ -1387,6 +1387,7 @@ void IvyDataSourceActor<T>::ivy_load_audio_sources(
       id
       name
       path
+      timeline_range
       type
       version{{
         id

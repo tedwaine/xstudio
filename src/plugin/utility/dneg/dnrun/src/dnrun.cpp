@@ -383,7 +383,7 @@ template <typename T> class DNRunPluginActor : public caf::event_based_actor {
                             try {
                                 // this throws an exception if there is no 'current' playlist
                                 playlist = request_receive<caf::actor>(
-                                    *sys, session, session::current_playlist_atom_v);
+                                    *sys, session, session::active_media_container_atom_v);
                             } catch (...) {
                             }
 

@@ -160,7 +160,7 @@ vec4 fetch_rgba_pixel_from_rgba32(ivec2 image_coord)
 	int address = image_coord.x*4 + image_coord.y*y_linesize;
 	uvec4 rgba = get_image_data_4bytes(address);
 	if (rgb == 3) { // AV_PIX_FMT_ARGB
-		rgba.xyzw = rgba.wxyz;
+		rgba.xyzw = rgba.yzwx;
 	} else if (rgb == 4) { // AV_PIX_FMT_RGBA
         //nope
 	} else if (rgb == 5) { // AV_PIX_FMT_ABGR
@@ -555,7 +555,7 @@ PixelInfo FFMpegMediaReader::ffmpeg_buffer_pixel_picker(
             auto bytes4 = get_image_data_4bytes(address);
             Imath::V4f r;
             if (rgb == 3) { // AV_PIX_FMT_ARGB
-                r = Imath::V4f(bytes4[3], bytes4[0], bytes4[1], bytes4[2]);
+                r = Imath::V4f(bytes4[1], bytes4[2], bytes4[3], bytes4[0]);
             } else if (rgb == 4) { // AV_PIX_FMT_RGBA
                 // nope
             } else if (rgb == 5) { // AV_PIX_FMT_ABGR

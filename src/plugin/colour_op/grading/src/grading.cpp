@@ -306,7 +306,6 @@ void GradingTool::images_going_on_screen(
 void GradingTool::on_screen_media_changed(
     caf::actor media_actor,
     const utility::MediaReference &media_ref,
-    const std::string media_name,
     const utility::JsonStore &colour_params) {
 
     const std::string config_name = colour_params.get_or("ocio_config", std::string(""));
@@ -320,6 +319,17 @@ void GradingTool::on_screen_media_changed(
 
     working_space_->set_value(working_space);
     media_colour_managed_->set_value(!is_unmanaged);
+}
+
+void GradingTool::on_screen_frame_changed(
+    const timebase::flicks /*playhead_position*/,
+    const int /*playhead_logical_frame*/,
+    const int media_frame,
+    const int /*media_logical_frame*/,
+    const utility::Timecode & /*timecode*/
+) {
+
+    playhead_media_frame_ = media_frame;
 }
 
 void GradingTool::attribute_changed(const utility::Uuid &attribute_uuid, const int role) {
@@ -517,12 +527,42 @@ void GradingTool::attribute_changed(const utility::Uuid &attribute_uuid, const i
         const int id = mask_selected_shape_->value();
         if (id >= 0 && id < mask_shapes_.size()) {
             auto value = mask_shapes_[id]->role_data_as_json(module::Attribute::Value);
-
-            pen_opacity_->set_value(value["opacity"]);
-            pen_softness_->set_value(value["softness"]);
+            pen_opacity_->set_value(
+                value["opacity"], false); // 2nd flag means we don't get notified
+            pen_softness_->set_value(value["softness"], false);
             // TODO: Fix colour json <-> qvariant conversion
             // pen_colour_->set_value(value["colour"]);
-            shape_invert_->set_value(value["invert"]);
+            shape_invert_->set_value(value["invert"], false);
+        }
+
+    } else if (attribute_uuid == pen_softness_->uuid()) {
+
+        // set softness on current shape
+        const int id = mask_selected_shape_->value();
+        if (id >= 0 && id < mask_shapes_.size()) {
+            auto user_data = mask_shapes_[id]->role_data_as_json(module::Attribute::Value);
+            user_data["softness"] = pen_softness_->value();
+            mask_shapes_[id]->set_role_data(module::Attribute::Value, user_data);
+        }
+
+    } else if (attribute_uuid == pen_opacity_->uuid()) {
+
+        // set opacity on current shape
+        const int id = mask_selected_shape_->value();
+        if (id >= 0 && id < mask_shapes_.size()) {
+            auto user_data = mask_shapes_[id]->role_data_as_json(module::Attribute::Value);
+            user_data["opacity"] = pen_opacity_->value();
+            mask_shapes_[id]->set_role_data(module::Attribute::Value, user_data);
+        }
+
+    } else if (attribute_uuid == shape_invert_->uuid()) {
+
+        // set invert on current shape
+        const int id = mask_selected_shape_->value();
+        if (id >= 0 && id < mask_shapes_.size()) {
+            auto user_data      = mask_shapes_[id]->role_data_as_json(module::Attribute::Value);
+            user_data["invert"] = shape_invert_->value();
+            mask_shapes_[id]->set_role_data(module::Attribute::Value, user_data);
         }
 
     } else if (attribute_uuid == polygon_init_->uuid()) {
@@ -1025,7 +1065,7 @@ utility::UuidList GradingTool::current_clip_bookmarks() {
         std::back_inserter(filtered_list),
         [this](const auto &uuid) {
             auto bmd = get_bookmark_detail(uuid);
-            return bmd.category_.value_or("") == "Grading";
+            return bmd.user_type_.value_or("") == "Grading";
         });
 
     return filtered_list;
@@ -1042,9 +1082,9 @@ void GradingTool::create_bookmark() {
 
     bookmark::BookmarkDetail bmd;
     // Hides bookmark from timeline
-    bmd.colour_   = "transparent";
-    bmd.visible_  = false;
-    bmd.category_ = "Grading";
+    bmd.colour_    = "transparent";
+    bmd.visible_   = false;
+    bmd.user_type_ = "Grading";
 
     utility::JsonStore user_data;
     user_data["grade_active"] = true;
@@ -1101,8 +1141,16 @@ void GradingTool::update_boomark_shape(const utility::Uuid &uuid) {
 
     auto bmd = get_bookmark_detail(uuid);
     if (bmd.user_data_) {
+
         (*bmd.user_data_)["mask_active"] = !mask_shapes_.empty();
         update_bookmark_detail(uuid, bmd);
+    }
+
+    // First shape added on the layer, switch to Single frame mode
+    if (mask_shapes_.size() == 1) {
+
+        grade_in_->set_value(playhead_media_frame_);
+        grade_out_->set_value(playhead_media_frame_);
     }
 }
 

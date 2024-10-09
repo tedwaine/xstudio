@@ -1532,7 +1532,8 @@ void PlaylistActor::init() {
             std::stringstream ss;
             ss << base_.name() << " Playhead";
             auto uuid  = utility::Uuid::generate();
-            auto actor = spawn<playhead::PlayheadActor>(ss.str(), selection_actor_, uuid);
+            auto actor = spawn<playhead::PlayheadActor>(
+                ss.str(), selection_actor_, uuid, caf::actor_cast<caf::actor_addr>(this));
             anon_send(actor, playhead::playhead_rate_atom_v, base_.playhead_rate());
             playhead_ = UuidActor(uuid, actor);
 

@@ -185,6 +185,14 @@ Item {
         model: playhead_attrs_model
     }            
 
+    XsAttributeValue {
+        id: __pinnedSourceMode
+        attributeTitle: "Pinned Source Mode"
+        model: playhead_attrs_model
+    }            
+
+    
+
     property alias logicalFrame: __playheadLogicalFrame.value
     property alias mediaFrame: __playheadMediaFrame.value
     property alias positionSeconds: __playheadPositionSeconds.value
@@ -213,6 +221,7 @@ Item {
     property alias scrubbingFrames: __playheadScrubbing.value
     property alias mediaTransitionFrames: __mediaTransitionFrames.value
     property alias sourceOffsetFrames: __sourceOffsetFrames.value
+    property alias pinnedSourceMode: __pinnedSourceMode.value
 
     /* This gives us a 'model' with one row - the row is the attribute data
     for the "Auto Align" attribute of the current playhead. We use it below

@@ -61,8 +61,11 @@ Chas Jarrett<P>
 <i>Lead Engineers</i><BR>
 Al Crate and Ted Waine<P>
 
+<i>UI Developer</i><BR>
+Ron Kurian Maniangat<P>
+
 <i>Developers</i><BR>
-Ron Kurian Maniangat, Clement Jovet, Remi Achard and Tomas Berzinskas<P>
+Remi Achard, Clement Jovet and Tomas Berzinskas<P>
 
 <i>UI / UX</i><BR>
 Alex Tibbs<P>
@@ -79,22 +82,6 @@ Jason Brown, Richard Jenns and Katherine Roberts<BR>
                     font.pixelSize: XsStyleSheet.fontSize
                     font.hintingPreference: Font.PreferNoHinting
                     color: XsStyleSheet.primaryTextColor
-                }
-
-                Text {
-                    text:"Documentation is available here:<BR><style>a:link { color:'+XsStyleSheet.accentColor+'; }</style><a href='"+studio.userDocsUrl()+"'>Documentation</a>"
-                    textFormat: Text.RichText
-                    font.family: XsStyleSheet.fontFamily
-                    font.pixelSize: XsStyleSheet.fontSize
-                    font.hintingPreference: Font.PreferNoHinting
-                    color: XsStyleSheet.primaryTextColor
-                    onLinkActivated: Qt.openUrlExternally(link)
-
-                    MouseArea {
-                        anchors.fill: parent
-                        acceptedButtons: Qt.NoButton // we don't want to eat clicks on the Text
-                        cursorShape: parent.hoveredLink ? Qt.PointingHandCursor : Qt.ArrowCursor
-                    }
                 }
 
                 Rectangle {

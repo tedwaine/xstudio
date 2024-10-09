@@ -379,7 +379,7 @@ Item{
         menuPath: ""
         menuItemPosition: 25
         menuModelName: "media_list_menu_"
-        onActivated: conformToSequence(menuContext.mediaSelection, viewedMediaSetIndex)
+        onActivated: conformToSequence(menuContext.mediaSelection, viewportCurrentMediaContainerIndex)
     }
 
     XsMenuModelItem {
@@ -438,7 +438,7 @@ Item{
         menuPath: ""
         menuItemPosition: 14.5
         menuModelName: "timeline_track_menu_"
-        onActivated: conformTracksToSequence(menuContext.theTimeline.timelineSelection.selectedIndexes, inspectedMediaSetIndex)
+        onActivated: conformTracksToSequence(menuContext.theTimeline.timelineSelection.selectedIndexes, currentMediaContainerIndex)
     }
 
     XsMenuModelItem {

@@ -82,7 +82,7 @@ ColumnLayout{
             isExpanded: true
             hint: "Filter"
             onTextChanged: nameFilter = text
-            onEditingCompleted: forceActiveFocus(panel)
+            onEditingCompleted: focus = false
 
             Connections {
                 target: panel
@@ -132,7 +132,7 @@ ColumnLayout{
             }
             onAccepted: {
                 pipeStep = model.get(model.index(currentIndex, 0), "nameRole")
-                toolDiv.forceActiveFocus()
+                focus = false
             }
 
             onActivated: pipeStep = model.get(model.index(currentIndex,0), "nameRole")
@@ -162,7 +162,7 @@ ColumnLayout{
 
             onAccepted: {
                 onDisk = model.get(model.index(currentIndex,0), "nameRole")
-                toolDiv.forceActiveFocus()
+                focus = false
             }
 
             onActivated: onDisk = model.get(model.index(currentIndex,0), "nameRole")

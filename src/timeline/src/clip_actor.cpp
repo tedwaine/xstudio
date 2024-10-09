@@ -387,6 +387,18 @@ void ClipActor::init() {
         // [=](media_reference_atom atom,
         //     const Uuid &uuid) -> caf::result<std::pair<Uuid, MediaReference>> {
 
+        [=](playlist::reflag_container_atom) -> result<std::tuple<std::string, std::string>> {
+            auto rp    = make_response_promise<std::tuple<std::string, std::string>>();
+            auto actor = caf::actor_cast<caf::actor>(media_);
+            if (actor)
+                rp.delegate(actor, playlist::reflag_container_atom_v);
+            else
+                rp.deliver(make_error(xstudio_error::error, "No media assigned."));
+
+            return rp;
+        },
+
+
         [=](media::media_reference_atom,
             const media::MediaType media_type) -> result<std::pair<Uuid, MediaReference>> {
             auto rp    = make_response_promise<std::pair<Uuid, MediaReference>>();

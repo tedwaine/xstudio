@@ -128,16 +128,12 @@ namespace session {
         caf::actor bookmarks_;
         caf::actor tags_;
         std::map<utility::Uuid, caf::actor> playlists_;
-        caf::actor current_playlist_;
         std::map<caf::actor_addr, std::string> serialise_targets_;
         // std::map<utility::Uuid, caf::actor> players_;
 
         // store gui conext information
-        utility::UuidActorAddr viewedPlaylist_;
-        std::pair<std::string, utility::UuidActorAddr> viewedContainer_;
-
-        utility::UuidActorAddr inspectedPlaylist_;
-        std::pair<std::string, utility::UuidActorAddr> inspectedContainer_;
+        utility::UuidActor viewedContainer_;
+        utility::UuidActor inspectedContainer_;
 
         std::vector<utility::UuidActorAddr> selectedMedia_;
     };

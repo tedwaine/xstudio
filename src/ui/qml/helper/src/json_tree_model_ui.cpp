@@ -491,9 +491,7 @@ QVariant JSONTreeModel::data(const QModelIndex &index, int role) const {
 
     } catch (const std::exception &err) {
 
-        qDebug() << "index " << index << "\n";
-
-        spdlog::warn(
+        spdlog::debug(
             "{} {} role: {}",
             __PRETTY_FUNCTION__,
             err.what(),

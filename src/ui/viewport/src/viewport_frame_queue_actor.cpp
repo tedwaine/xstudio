@@ -417,11 +417,18 @@ void ViewportFrameQueueActor::get_frames_for_display(
 
             next_images.push_back(*r_next);
             r_next++;
+            if (r_next == frames_queued_for_display.end()) {
+                r_next = frames_queued_for_display.begin();
+            }
         }
     } else {
         while (r_next != frames_queued_for_display.begin() && next_images.size() < 4) {
             r_next--;
             next_images.push_back(*r_next);
+            if (r_next == frames_queued_for_display.begin()) {
+                r_next = frames_queued_for_display.end();
+                r_next--;
+            }
         }
     }
 
@@ -620,7 +627,7 @@ ViewportFrameQueueActor::predicted_playhead_position(const utility::time_point &
 
 
     } catch (std::exception &e) {
-        spdlog::warn("{} {}", __PRETTY_FUNCTION__, e.what());
+        spdlog::debug("{} {}", __PRETTY_FUNCTION__, e.what());
     }
     return timebase::flicks(0);
 }

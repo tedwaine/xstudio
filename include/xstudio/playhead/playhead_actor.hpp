@@ -20,13 +20,10 @@ namespace playhead {
       public:
         PlayheadActor(
             caf::actor_config &cfg,
-            const utility::JsonStore &jsn,
-            caf::actor playlist_selection = caf::actor());
-        PlayheadActor(
-            caf::actor_config &cfg,
             const std::string &name,
-            caf::actor playlist_selection = caf::actor(),
-            const utility::Uuid uuid      = utility::Uuid::generate());
+            caf::actor playlist_selection   = caf::actor(),
+            const utility::Uuid uuid        = utility::Uuid::generate(),
+            caf::actor_addr parent_playlist = caf::actor_addr());
 
         virtual ~PlayheadActor();
 
@@ -49,7 +46,7 @@ namespace playhead {
         void make_audio_child_playhead(const int source_index);
         void rebuild();
         void connect_to_playlist_selection_actor(caf::actor playlist_selection);
-        void new_source_list(const std::vector<caf::actor> &sl);
+        void new_source_list();
         void switch_key_playhead(int idx);
         void calculate_duration();
         void update_child_playhead_positions(const bool force_broadcast);
@@ -117,6 +114,8 @@ namespace playhead {
         std::vector<caf::actor> sub_playheads_;
         std::vector<caf::actor> source_wrappers_;
         std::vector<caf::actor> source_actors_;
+        std::vector<caf::actor> pinned_source_actors_;
+        std::vector<caf::actor> unpinned_source_actors_;
         caf::actor key_playhead_;
         caf::actor audio_output_actor_;
         caf::actor playhead_events_actor_;
@@ -125,6 +124,7 @@ namespace playhead {
         caf::actor image_cache_;
         caf::actor pre_reader_;
         caf::actor_addr playlist_selection_addr_;
+        caf::actor_addr parent_playlist_;
         utility::Uuid previous_source_uuid_;
         utility::Uuid current_source_uuid_;
         utility::Uuid key_playhead_uuid_;
@@ -146,6 +146,7 @@ namespace playhead {
         timebase::flicks vid_refresh_sync_phase_adjust_ = timebase::flicks{0};
         int media_logical_frame_                        = {0};
         float step_keypress_event_id_                   = {0};
+        bool precacheing_enabled_                       = {true};
     };
 } // namespace playhead
 } // namespace xstudio

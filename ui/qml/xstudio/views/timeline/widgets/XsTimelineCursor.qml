@@ -17,8 +17,13 @@ Item {
     property real fps: 24
     property real tickWidth: (control.width / duration)
 
-    readonly property real cursorX: ((position-start) * tickWidth) - fractionOffset
-    property bool playheadActive: currentPlayhead.uuid == timelinePlayhead.uuid
+    readonly property real cursorX: playheadActive ? liveCursorX : stoppedCursorX
+    readonly property real liveCursorX: ((position-start) * tickWidth) - fractionOffset
+    property bool playheadActive: timelinePlayhead.pinnedSourceMode ? currentPlayhead.uuid == timelinePlayhead.uuid : false
+    property var stoppedCursorX
+    onPlayheadActiveChanged: {
+        if (!playheadActive) stoppedCursorX = liveCursorX
+    }
 
     // layer.enabled: true
     // layer.samples: 4

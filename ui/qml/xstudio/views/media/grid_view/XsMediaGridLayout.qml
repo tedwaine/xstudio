@@ -26,9 +26,11 @@ Item {
     XsMediaGrid{
 
         anchors.fill: parent
-        anchors.margins: 10
+        anchors.topMargin: 10
+        anchors.bottomMargin: 10
+        anchors.leftMargin: 10
 
-        model: mediaListModelData //.model
+        model: mediaListModelData
 
     }
 

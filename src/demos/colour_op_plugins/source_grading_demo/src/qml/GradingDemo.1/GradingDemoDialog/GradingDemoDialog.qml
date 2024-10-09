@@ -25,13 +25,6 @@ XsWindow {
     minimumHeight: minimumWidth
     maximumHeight: minimumHeight
 
-    onVisibleChanged: {
-        if (!visible) {
-            // ensure keyboard events are returned to the viewport
-            sessionWidget.playerWidget.viewport.forceActiveFocus()
-        }
-    }
-
     XsModuleAttributesModel {
         id: grading_demo_controls
         attributesGroupNames: "grading_demo_controls"

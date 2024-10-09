@@ -13,7 +13,9 @@ XsGradientRectangle {
 	property bool isLocked: false
 	property bool isSelected: false
 	property bool isDragging: false
-	property bool isBroken: false
+
+	property bool isMissingMedia: false
+	property bool isInvalidRange: false
 
 	property bool showRolling: false
 	property bool showDragLeft: false
@@ -27,6 +29,7 @@ XsGradientRectangle {
 	property int availableStart: 0
 	property int availableDuration: 1
 	property string name
+	property int dragValue: 0
 	property color primaryColor: defaultClip
 	property var realColor: Qt.tint(timelineBackground, helpers.saturate(helpers.alphate(primaryColor, 0.3), 0.3))
     property bool isMoving: false
@@ -41,7 +44,7 @@ XsGradientRectangle {
     opacity: isHovered ? 1.0 : isEnabled ? (isLocked ? 0.6 : 1.0) : 0.3
 
 	border.width: 1
-    border.color: isHovered ? palette.highlight : (isBroken && isEnabled ? "Red" : Qt.darker(realColor, 0.8))
+    border.color: isHovered ? palette.highlight : (isMissingMedia && isEnabled ? "Red" : (isInvalidRange && isEnabled ? "Orange" : Qt.darker(realColor, 0.8)))
 
 	flatColor: topColor
 
@@ -70,7 +73,7 @@ XsGradientRectangle {
 		anchors.rightMargin: 5
 		anchors.bottomMargin: 5
 		elide: Qt.ElideMiddle
-		text: name
+		text: !isDragging ? name : dragValue > 0 ? "+" + dragValue : dragValue
 		z:2
 		color: palette.text
 	    horizontalAlignment: isDragging ? Text.AlignHCenter : Text.AlignLeft

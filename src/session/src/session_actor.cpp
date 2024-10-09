@@ -482,7 +482,10 @@ SessionActor::SessionActor(
     check_media_hook_plugin_version(jsn, path);
 
     if (!base_.current_playlist_uuid().is_null()) {
-        anon_send(this, current_playlist_atom_v, base_.current_playlist_uuid());
+        anon_send(this, active_media_container_atom_v, base_.current_playlist_uuid());
+    }
+    if (!base_.viewed_playlist_uuid().is_null()) {
+        anon_send(this, viewport_active_media_container_atom_v, base_.viewed_playlist_uuid());
     }
 }
 
@@ -527,15 +530,24 @@ void SessionActor::init() {
         // find in playhead list..
         // if they don't unsubscribe we blow their data..!
         auto target = caf::actor_cast<caf::actor_addr>(msg.source);
-        if (msg.source == current_playlist_) {
-            demonitor(current_playlist_);
-            current_playlist_ = caf::actor();
+        if (msg.source == viewedContainer_.actor()) {
+            demonitor(viewedContainer_.actor());
+            viewedContainer_ = UuidActor();
+            base_.set_viewed_playlist_uuid(utility::Uuid());
+            send(
+                event_group_,
+                utility::event_atom_v,
+                session::viewport_active_media_container_atom_v,
+                viewedContainer_);
+        } else if (msg.source == inspectedContainer_.actor()) {
+            demonitor(inspectedContainer_.actor());
+            inspectedContainer_ = UuidActor();
             base_.set_current_playlist_uuid(utility::Uuid());
             send(
                 event_group_,
                 utility::event_atom_v,
-                session::current_playlist_atom_v,
-                current_playlist_);
+                session::active_media_container_atom_v,
+                inspectedContainer_);
         }
         if (serialise_targets_.count(target)) {
             anon_send(json_store_, json_store::erase_json_atom_v, serialise_targets_[target]);
@@ -550,6 +562,14 @@ void SessionActor::init() {
                          .or_else(tag::TagActor::default_event_handler()));
 
     anon_send(caf::actor_cast<caf::actor>(this), bookmark::associate_bookmark_atom_v);
+
+    auto playhead_events_actor =
+        system().registry().template get<caf::actor>(global_playhead_events_actor);
+
+    anon_send(
+        playhead_events_actor,
+        broadcast::join_broadcast_atom_v,
+        caf::actor_cast<caf::actor>(this));
 }
 
 caf::message_handler SessionActor::message_handler() {
@@ -1357,42 +1377,103 @@ caf::message_handler SessionActor::message_handler() {
             return result;
         },
 
+        [=](session::active_media_container_atom, const UuidActor &playlist) -> bool {
+            if (playlist != inspectedContainer_) {
 
-        [=](session::current_playlist_atom,
-            const bool viewed,
-            const UuidActor &playlist,
-            const std::string &container_type,
-            const UuidActor &container) {
-            if (viewed) {
-                viewedPlaylist_        = UuidActorAddr(playlist.uuid(), playlist.actor_addr());
-                viewedContainer_.first = container_type;
-                viewedContainer_.second =
-                    UuidActorAddr(container.uuid(), container.actor_addr());
-            } else {
-                inspectedPlaylist_ = UuidActorAddr(playlist.uuid(), playlist.actor_addr());
-                inspectedContainer_.first = container_type;
-                inspectedContainer_.second =
-                    UuidActorAddr(container.uuid(), container.actor_addr());
+                if (inspectedContainer_) {
+                    demonitor(inspectedContainer_.actor());
+                }
+                inspectedContainer_ = playlist;
+                if (inspectedContainer_) {
+                    monitor(inspectedContainer_.actor());
+                }
+                base_.set_current_playlist_uuid(inspectedContainer_.uuid());
+                send(
+                    event_group_,
+                    utility::event_atom_v,
+                    session::active_media_container_atom_v,
+                    inspectedContainer_);
+
+                if (!viewedContainer_) {
+                    // if the viewed playlist is not set, default it to the inspected playlist
+                    anon_send(
+                        this,
+                        session::viewport_active_media_container_atom_v,
+                        inspectedContainer_);
+                }
             }
+            return true;
         },
 
-        [=](session::current_playlist_atom,
-            const bool viewed) -> std::pair<UuidActor, std::pair<std::string, UuidActor>> {
-            auto result = std::pair<UuidActor, std::pair<std::string, UuidActor>>();
-            if (viewed) {
-                result.first        = UuidActor(viewedPlaylist_.first, viewedPlaylist_.second);
-                result.second.first = viewedContainer_.first;
-                result.second.second =
-                    UuidActor(viewedContainer_.second.first, viewedContainer_.second.second);
-            } else {
-                result.first = UuidActor(inspectedPlaylist_.first, inspectedPlaylist_.second);
-                result.second.first  = inspectedContainer_.first;
-                result.second.second = UuidActor(
-                    inspectedContainer_.second.first, inspectedContainer_.second.second);
-            }
-            return result;
-        },
+        [=](session::viewport_active_media_container_atom, const UuidActor &playlist) -> bool {
+            // Sets the active Playlist/Subset/Timeline ... either the 'viewed' one driving the
+            // viewport or the 'current' one that shows up in the MediaList, for example
+            if (playlist != viewedContainer_) {
 
+                if (viewedContainer_) {
+                    demonitor(viewedContainer_.actor());
+                }
+                viewedContainer_ = playlist;
+                if (viewedContainer_) {
+
+                    monitor(viewedContainer_.actor());
+
+                    // we need to ensure that the Playlist/Subset/Timeline has a playhead and
+                    // that this playhead is broadcast to viewport so they can attach to it.
+                    request(
+                        viewedContainer_.actor(), infinite, playlist::create_playhead_atom_v)
+                        .then(
+                            [=](utility::UuidActor &playhead) {
+                                // this is a bit nasty - I need to know if this SessionActor
+                                // is the *current* session (it could be a session that's being
+                                // imported)
+                                request(
+                                    system().registry().template get<caf::actor>(
+                                        studio_registry),
+                                    infinite,
+                                    session::session_atom_v)
+                                    .then(
+                                        [=](caf::actor session) {
+                                            // If  we are not THE active session. Don't try and
+                                            // switch
+                                            // the global playhead ...
+                                            if (caf::actor_cast<caf::actor>(this) != session)
+                                                return;
+
+                                            // this actually broadcasts, via the global playhead
+                                            // events actor, the new playhead to all viewports
+                                            // so they can attach to the playhead
+                                            auto playhead_events_actor =
+                                                system().registry().template get<caf::actor>(
+                                                    global_playhead_events_actor);
+
+                                            anon_send(
+                                                playhead_events_actor,
+                                                ui::viewport::viewport_playhead_atom_v,
+                                                playhead.actor());
+                                        },
+                                        [=](caf::error &err) {});
+
+
+                                send(
+                                    event_group_,
+                                    utility::event_atom_v,
+                                    ui::viewport::viewport_playhead_atom_v,
+                                    playhead.uuid());
+                            },
+                            [=](caf::error &err) {
+
+                            });
+                }
+                base_.set_viewed_playlist_uuid(viewedContainer_.uuid());
+                send(
+                    event_group_,
+                    utility::event_atom_v,
+                    session::viewport_active_media_container_atom_v,
+                    playlist);
+            }
+            return true;
+        },
 
         [=](media::current_media_atom) -> UuidActorVector {
             auto result = UuidActorVector();
@@ -1410,55 +1491,68 @@ caf::message_handler SessionActor::message_handler() {
             }
         },
 
-        [=](session::current_playlist_atom) -> result<caf::actor> { return current_playlist_; },
+        [=](session::active_media_container_atom) -> UuidActor { return inspectedContainer_; },
 
-        [=](session::current_playlist_atom, const utility::Uuid playlist_uuid) {
+        [=](session::viewport_active_media_container_atom) -> UuidActor {
+            return viewedContainer_;
+        },
+
+        [=](session::active_media_container_atom, utility::Uuid playlist_uuid) {
             request(
                 caf::actor_cast<caf::actor>(this), infinite, get_playlist_atom_v, playlist_uuid)
                 .then(
                     [=](caf::actor playlist) {
-                        anon_send(this, session::current_playlist_atom_v, playlist);
+                        anon_send(
+                            this,
+                            session::active_media_container_atom_v,
+                            UuidActor(playlist_uuid, playlist));
                     },
                     [=](caf::error &err) {
                         spdlog::warn("{} {}", __PRETTY_FUNCTION__, to_string(err));
                     });
         },
 
-        [=](session::current_playlist_atom, caf::actor actor, bool broadcast) {
-            current_playlist_ = actor;
-            if (current_playlist_) {
-                monitor(current_playlist_);
-                request(actor, infinite, utility::uuid_atom_v)
-                    .then(
-                        [=](const utility::Uuid &uuid) mutable {
-                            base_.set_current_playlist_uuid(uuid);
-                            if (broadcast)
-                                send(
-                                    event_group_,
-                                    utility::event_atom_v,
-                                    session::current_playlist_atom_v,
-                                    actor);
-                        },
-                        [=](caf::error &err) {
-                            spdlog::warn("{} {}", __PRETTY_FUNCTION__, to_string(err));
-                        });
-            } else {
-                base_.set_current_playlist_uuid(utility::Uuid());
-                if (broadcast)
-                    send(
-                        event_group_,
-                        utility::event_atom_v,
-                        session::current_playlist_atom_v,
-                        actor);
-            }
+        [=](session::viewport_active_media_container_atom, utility::Uuid playlist_uuid) {
+            request(
+                caf::actor_cast<caf::actor>(this), infinite, get_playlist_atom_v, playlist_uuid)
+                .then(
+                    [=](caf::actor playlist) {
+                        anon_send(
+                            this,
+                            session::viewport_active_media_container_atom_v,
+                            UuidActor(playlist_uuid, playlist));
+                    },
+                    [=](caf::error &err) {
+                        spdlog::warn("{} {}", __PRETTY_FUNCTION__, to_string(err));
+                    });
         },
 
-        [=](session::current_playlist_atom, caf::actor actor) {
-            delegate(
-                caf::actor_cast<caf::actor>(this),
-                session::current_playlist_atom_v,
-                actor,
-                true);
+        [=](session::active_media_container_atom, caf::actor actor) {
+            request(actor, infinite, utility::uuid_atom_v)
+                .then(
+                    [=](const utility::Uuid &playlist_uuid) mutable {
+                        anon_send(
+                            this,
+                            session::active_media_container_atom_v,
+                            UuidActor(playlist_uuid, actor));
+                    },
+                    [=](caf::error &err) {
+                        spdlog::warn("{} {}", __PRETTY_FUNCTION__, to_string(err));
+                    });
+        },
+
+        [=](session::viewport_active_media_container_atom, caf::actor actor) {
+            request(actor, infinite, utility::uuid_atom_v)
+                .then(
+                    [=](const utility::Uuid &playlist_uuid) mutable {
+                        anon_send(
+                            this,
+                            session::viewport_active_media_container_atom_v,
+                            UuidActor(playlist_uuid, actor));
+                    },
+                    [=](caf::error &err) {
+                        spdlog::warn("{} {}", __PRETTY_FUNCTION__, to_string(err));
+                    });
         },
 
         [=](utility::event_atom, playlist::add_media_atom, const UuidActorVector &uav) {
@@ -1707,6 +1801,54 @@ caf::message_handler SessionActor::message_handler() {
                 compare_mode,
                 in_point,
                 out_point);
+        },
+        [=](utility::event_atom,
+            ui::viewport::viewport_atom,
+            const std::string &viewport_name,
+            caf::actor viewport) {
+            // event from 'global_playhead_events_actor'
+            // a new viewport has been created
+        },
+
+        [=](utility::event_atom,
+            ui::viewport::viewport_playhead_atom,
+            const std::string &viewport_name,
+            caf::actor playhead) {
+            // event from 'global_playhead_events_actor'
+            // the playhead of the given viewport has changed
+        },
+
+        [=](utility::event_atom,
+            ui::viewport::viewport_playhead_atom,
+            caf::actor live_playhead) {
+            // the main, globally active playhead that pushes images to the
+            // viewport (apart from QuickView windows) has changed....
+
+            if (live_playhead) {
+                // we want to get the playlist/subset/timeline that owns this
+                // new playhead
+                request(live_playhead, infinite, utility::parent_atom_v)
+                    .then(
+                        [=](caf::actor_addr playhead_owner) {
+                            // the playhead owner is a Playlist, Subset or Timeline
+                            anon_send(
+                                this,
+                                session::viewport_active_media_container_atom_v,
+                                caf::actor_cast<caf::actor>(playhead_owner));
+                        },
+                        [=](caf::error &err) {});
+            } else {
+                anon_send(this, session::viewport_active_media_container_atom_v, UuidActor());
+            }
+        },
+
+        [=](utility::event_atom,
+            playhead::show_atom,
+            caf::actor media,
+            caf::actor media_source,
+            const std::string &viewport_name) {
+            // event from 'global_playhead_events_actor'
+            // the onscreen media for the given viewport has changed
         }};
 }
 

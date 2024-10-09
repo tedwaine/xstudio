@@ -44,7 +44,15 @@ void SessionModel::triggerMediaStatusChange(const QModelIndex &index) {
 void SessionModel::init(caf::actor_system &_system) {
     super::init(_system);
 
-    self()->set_default_handler(caf::drop);
+    self()->set_default_handler(
+        [this](caf::scheduled_actor *, caf::message &msg) -> caf::skippable_result {
+            //  UNCOMMENT TO DEBUG UNEXPECT MESSAGES
+
+            spdlog::warn(
+                "Got adfd from {} {}", to_string(self()->current_sender()), to_string(msg));
+
+            return message{};
+        });
     setModified(false, true);
 
     try {
@@ -72,7 +80,7 @@ void SessionModel::init(caf::actor_system &_system) {
 
                     if (timeline_lookup_.count(src)) {
                         // spdlog::warn("update timeline");
-                        if (timeline_lookup_[src].update(event)) {
+                        if (not timeline_lookup_[src].update(event).empty()) {
                             // refresh ?
                             // timeline_lookup_[src].refresh(-1);
                             // spdlog::warn("state changed");
@@ -416,8 +424,28 @@ void SessionModel::init(caf::actor_system &_system) {
                 }
             },
 
-            [=](utility::event_atom, session::current_playlist_atom, caf::actor playlist) {
-                emit currentPlaylistChanged();
+            [=](utility::event_atom,
+                session::active_media_container_atom,
+                utility::UuidActor &a) {
+                // this comes from the backend SessionActor
+                updateCurrentMediaContainerIndexFromBackend();
+            },
+
+            [=](utility::event_atom,
+                session::viewport_active_media_container_atom,
+                utility::UuidActor &a) {
+                // this comes from the backend SessionActor
+                updateViewportCurrentMediaContainerIndexFromBackend();
+            },
+
+            [=](utility::event_atom,
+                ui::viewport::viewport_playhead_atom,
+                utility::Uuid playhead_uuid) {
+                // this comes from the backend SessionActor
+                if (QUuidFromUuid(playhead_uuid) != on_screen_playhead_uuid_) {
+                    on_screen_playhead_uuid_ = QUuidFromUuid(playhead_uuid);
+                    emit onScreenPlayheadUuidChanged();
+                }
             },
 
             [=](utility::event_atom,
@@ -1078,6 +1106,7 @@ void SessionModel::init(caf::actor_system &_system) {
                 const utility::UuidActor &) {},
 
             [=](broadcast::broadcast_down_atom, const caf::actor_addr &) {},
+
             [=](const group_down_msg &g) {
                 caf::aout(self()) << "down: " << to_string(g.source) << std::endl;
             }

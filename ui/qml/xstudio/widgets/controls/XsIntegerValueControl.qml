@@ -185,7 +185,6 @@ Control
             }
 
             onAccepted:{
-                console.log(widget.text,"OnAccepted: ", text)
                 // if(currentTool != "Erase"){ //#todo
                     if(parseInt(text) >= toValue) {
                         value = toValue

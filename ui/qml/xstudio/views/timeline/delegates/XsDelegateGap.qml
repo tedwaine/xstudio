@@ -41,24 +41,6 @@ XsGapItem {
     property var parentLV: config
     property var hoveredItem: config.hoveredItem
 
-	function adjust(offset) {
-		let tmp = userDataRole
-		tmp.adjust_duration = offset
-		userDataRole = tmp
-	}
-
-	// we only ever adjust duration
-	function checkAdjust(offset) {
-		let tmp = Math.max(0, trimmedDurationRole + offset)
-
-		if(trimmedDurationRole != tmp-offset) {
-			// console.log("duration limited", trimmedDurationRole, tmp-doffset)
-			return checkAdjust(tmp-trimmedDurationRole)
-		}
-
-		return offset
-	}
-
 	function modelIndex() {
 		return helpers.makePersistent(DelegateModel.model.modelIndex(index))
 	}

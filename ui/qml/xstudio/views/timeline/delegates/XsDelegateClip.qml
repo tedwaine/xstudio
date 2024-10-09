@@ -20,20 +20,23 @@ RowLayout {
 	width: (durationFrame + adjustPreceedingGap + adjustAnteceedingGap) * config.scaleX
 	height: config.scaleY * config.itemHeight
 
-	property bool showDragLeft: false
-	property bool showDragRight: false
-	property bool showDragMiddle: false
-	property bool showDragLeftLeft: false
-	property bool showDragRightRight: false
-	property bool showRolling: false
+	property bool showDragLeft: "show_drag_left" in userDataRole ? userDataRole.show_drag_left : false
+	property bool showDragRight: "show_drag_right" in userDataRole ? userDataRole.show_drag_right : false
+	property bool showDragMiddle: "show_drag_middle" in userDataRole ? userDataRole.show_drag_middle : false
+	property bool showDragLeftLeft: "show_drag_left_left" in userDataRole ? userDataRole.show_drag_left_left : false
+	property bool showDragRightRight: "show_drag_right_right" in userDataRole ? userDataRole.show_drag_right_right : false
+	property bool showRolling: "show_rolling" in userDataRole ? userDataRole.show_rolling : false
 
-	property bool isAdjustPreceeding: false
-	property bool isAdjustAnteceeding: false
+	property bool isAdjustPreceeding: "is_adjusting_preceeding" in userDataRole ? userDataRole.is_adjusting_preceeding : false
+	property bool isAdjustAnteceeding: "is_adjusting_anteceeding" in userDataRole ? userDataRole.is_adjusting_anteceeding : false
 
-	property int adjustPreceedingGap: 0
-	property int adjustAnteceedingGap: 0
+	property int adjustPreceedingGap: "adjust_preceeding_gap" in userDataRole ? userDataRole.adjust_preceeding_gap : 0
+	property int adjustAnteceedingGap: "adjust_anteceeding_gap" in userDataRole ? userDataRole.adjust_anteceeding_gap : 0
 
-	property bool isBothHovered: false
+	property int moveX: "move_x" in userDataRole ? userDataRole.move_x : 0
+	property int moveY: "move_y" in userDataRole ? userDataRole.move_y : 0
+
+	property int dragValue: "drag_value" in userDataRole ? userDataRole.drag_value : 0
 
 	property int adjustDuration: "adjust_duration" in userDataRole ? userDataRole.adjust_duration : 0
 	property bool isAdjustingDuration: "is_adjusting_duration" in userDataRole ? userDataRole.is_adjusting_duration : false
@@ -61,7 +64,6 @@ RowLayout {
     property var draggingStopped: config.draggingStopped
     property var doubleTapped: config.doubleTapped
 
-
     property string itemFlag: flagColourRole != "" ? flagColourRole : config.itemFlag
 
     property bool hasMedia: !trimmedDurationRole || clipMediaUuidRole == "{00000000-0000-0000-0000-000000000000}" || mediaIndex.valid
@@ -73,8 +75,6 @@ RowLayout {
 	property var mediaUuid: clipMediaUuidRole
 
 	onMediaUuidChanged: updateMediaIndex()
-
-	onHoveredItemChanged: isBothHovered = false
 
 	XsModelProperty {
 		id: mediaStatus
@@ -116,74 +116,6 @@ RowLayout {
     	}
     }
 
-	function adjust(offset) {
-		let doffset = offset
-		let tmp = userDataRole
-
-		if(isAdjustingStart) {
-			tmp.adjust_start = offset
-			doffset = -doffset
-		}
-
-		if(isAdjustingDuration) {
-			tmp.adjust_duration = doffset
-		}
-
-		if(isAdjustingDuration || isAdjustingStart) {
-			userDataRole = tmp
-		}
-	}
-
-	function checkAdjust(offset, lock_duration=false, lock_end=false) {
-		let doffset = offset
-
-		if(isAdjustingStart) {
-			let tmp = Math.min(
-				availableStartRole+availableDurationRole-1,
-				Math.max(trimmedStartRole + offset, availableStartRole)
-			)
-
-			if(lock_end && tmp > trimmedStartRole+trimmedDurationRole) {
-				tmp = trimmedStartRole+trimmedDurationRole-1
-			}
-
-			if(trimmedStartRole != tmp-offset) {
-				return checkAdjust(tmp-trimmedStartRole)
-			}
-
-			// if adjusting duration as well
-			doffset = -doffset
-		}
-
-		if(isAdjustingDuration && lock_duration) {
-			let tmp = Math.max(
-				1,
-				Math.min(trimmedDurationRole + doffset, availableDurationRole - (startFrame-availableStartRole) )
-			)
-
-			if(trimmedDurationRole != tmp-doffset) {
-				if(isAdjustingStart)
-					return checkAdjust(-(tmp-trimmedDurationRole))
-				else
-					return checkAdjust(tmp-trimmedDurationRole)
-			}
-		}
-
-		return offset
-	}
-
-
-    function updateStart(change) {
-		let tmp = userDataRole
-
-		tmp.adjust_start = Math.floor(Math.min(
-			Math.max(trimmedStartRole + change, availableStartRole),
-			availableStartRole + availableDurationRole - trimmedDurationRole
-		) - trimmedStartRole)
-
-		userDataRole = tmp
-    }
-
 	XsGapItem {
 		visible: adjustPreceedingGap != 0
 		Layout.preferredWidth: adjustPreceedingGap * scaleX
@@ -195,15 +127,22 @@ RowLayout {
 	XsClipItem {
 		id: clip
 
+		x: mappedX + (moveX * scaleX)
+		y: mappedY + (moveY * scaleY)
+
+		property real mappedX: 0
+		property real mappedY: 0
+
 		Layout.preferredWidth: durationFrame * scaleX
 		Layout.fillHeight: true
 
-		isHovered: hoveredItem == control || isAdjustingStart || isAdjustingDuration || isBothHovered
+		isHovered: hoveredItem == control || isAdjustingStart || isAdjustingDuration
 		start: startFrame
 		duration: durationFrame
 		isLocked: (isParentLocked || lockedRole)
 		isEnabled: isParentEnabled && enabledRole
-		isBroken: !hasMedia || (mediaStatus.value != undefined && mediaStatus.value != "Online") || !activeRangeValidRole
+		isMissingMedia: !hasMedia || (mediaStatus.value != undefined && mediaStatus.value != "Online")
+		isInvalidRange: !activeRangeValidRole
 
 		showRolling: isSelected && isHovered && control.showRolling && !isParentLocked && !lockedRole
 		showDragLeft: isSelected && isHovered && control.showDragLeft && !isParentLocked && !lockedRole
@@ -212,16 +151,9 @@ RowLayout {
 		showDragLeftLeft: isSelected && isHovered && control.showDragLeftLeft && !isParentLocked && !lockedRole
 		showDragRightRight: isSelected && isHovered && control.showDragRightRight && !isParentLocked && !lockedRole
 
-		// onIsBrokenChanged: {
-		// 	if(isBroken) {
-		// 		console.log(nameRole, hasMedia, mediaStatus.value, activeRangeValidRole)
-		// 		console.log("avail", availableStartRole, availableDurationRole, availableStartRole + availableDurationRole-1)
-		// 		console.log("active", activeStartRole, activeDurationRole, activeStartRole + activeDurationRole-1)
-		// 		console.log("trimmed", trimmedStartRole, trimmedDurationRole, trimmedStartRole + trimmedDurationRole-1)
-		// 	}
-		// }
-		// fps: control.fps
-		name: !isDragging ? nameRole : isAdjustingStart ? (adjustStart > 0 ? "+" + adjustStart : adjustStart) : (adjustDuration > 0 ? "+" + adjustDuration : adjustDuration)
+		name: nameRole
+		dragValue: control.dragValue
+
 		availableStart: availableStartRole
 		availableDuration: availableDurationRole
 		primaryColor: itemFlag != "" ?  itemFlag : defaultClip
@@ -243,12 +175,25 @@ RowLayout {
 	    onDraggingStarted: {
 	    	control.draggingStarted(modelIndex(), control, mode)
 	    	isDragging = true
+
+	    	if(mode == "middle" && !rippleMode) {
+		    	let new_parent = control.parent.parent.parent.parent
+				let orig = mapFromItem(new_parent, x, y)
+				clip.parent = new_parent
+				mappedX = -orig.x
+				mappedY = -orig.y
+			}
 	    }
 		onDragging: control.dragging(modelIndex(), control, mode, x / scaleX)
 		onDoubleTapped: control.doubleTapped(control, mode)
 		onDraggingStopped: {
 			control.draggingStopped(modelIndex(), control, mode)
 	    	isDragging = false
+			if(mode == "middle" && !rippleMode) {
+				clip.parent = control
+				mappedX = 0
+				mappedY = 0
+			}
 		}
 
 	    Connections {

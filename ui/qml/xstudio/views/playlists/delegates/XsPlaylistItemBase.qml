@@ -128,12 +128,12 @@ Item {
     /* first index in playlist is media ... */
     property var itemCount: mediaCountRole? mediaCountRole : 0
 
-    property bool isCurrent: modelIndex == inspectedMediaSetIndex
+    property bool isCurrent: modelIndex == currentMediaContainerIndex
     property bool isSelected: sessionSelectionModel.isSelected(modelIndex)
     property bool isMissing: false
     property bool isExpanded: false
     property bool isExpandable: false
-    property bool isViewed: modelIndex == viewedMediaSetIndex
+    property bool isViewed: modelIndex == viewportCurrentMediaContainerIndex
     property bool lineVisible: true
     //property bool mouseOverInspect: false
 
@@ -275,7 +275,7 @@ Item {
             // Put the content of the playlist into the media browser etc.
             // and also put it on screen
             sessionSelectionModel.setCurrentIndex(modelIndex, ItemSelectionModel.ClearAndSelect)
-            viewedMediaSetIndex = helpers.makePersistent(modelIndex)
+            viewportCurrentMediaContainerIndex = modelIndex
         }
 
     }
@@ -308,17 +308,15 @@ Item {
                 rotation: (expandedRole)? 90:0
                 imageSrcSize: width
                 Behavior on rotation {NumberAnimation{duration: 150 }}
-                bgColorPressed: bgColorNormal
+                // bgColorPressed: bgColorNormal
 
                 onClicked:{
                     expandedRole = !expandedRole
                 }
-
             }
         }
 
-        XsImage
-        {
+        XsImage{
             Layout.fillHeight: true
             Layout.margins: 2
             width: height
@@ -341,6 +339,16 @@ Item {
             tooltipText: text
             tooltipVisibility: hovered && truncated
             toolTipWidth: contentDiv.width*2
+        }
+
+        XsImage {
+            id: inspect_icon
+            source: "qrc:/icons/desktop_windows.svg"
+            visible: isViewed
+            imgOverlayColor: palette.highlight
+            Layout.fillHeight: true
+            Layout.preferredWidth: height
+            Layout.margins: 2
         }
 
         Repeater {
@@ -382,18 +390,6 @@ Item {
             }
 
         }*/
-
-        XsImage {
-
-            id: inspect_icon
-            source: "qrc:/icons/desktop_windows.svg"
-            visible: isViewed
-            imgOverlayColor: palette.highlight
-            Layout.fillHeight: true
-            Layout.preferredWidth: height
-            Layout.margins: 2
-
-        }
 
         XsText{
             id: countDiv

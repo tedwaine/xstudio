@@ -63,6 +63,7 @@ Rectangle {
     property alias timelineProperty: timelineProperty
     property string editMode: "Select"
     property bool rippleMode: false
+    property bool overwriteMode: false
     property bool snapMode: false
 
     property bool scalingModeActive: false
@@ -318,13 +319,13 @@ Rectangle {
         trackHeaderWidth = Math.max(val, 40)
     }
 
-    function addTrack(type, sync=true) {
+    function addTrack(type, sync=true, name=null) {
         let m = timeline_items.srcModel
         let stack_index = m.index(0, 0, timeline_items.rootIndex)
         if(type == "Video Track")
-            return addItem(type, stack_index, 0, "Video Track", sync)
+            return addItem(type, stack_index, 0, name || "Video Track", sync)
         else if(type == "Audio Track")
-            return addItem(type, stack_index, m.rowCount(stack_index), "Audio Track", sync)
+            return addItem(type, stack_index, m.rowCount(stack_index), name || "Audio Track", sync)
 
         return undefined
     }
@@ -391,8 +392,6 @@ Rectangle {
     // This menu is built from a menu model that is maintained by xSTUDIO's
     // backend. We access the menu model by an id string 'menuModelName' that
     // will be set by the derived type
-
-
     XsTimelineMenu {
         id: timelineMenu
         Component.onCompleted: {
@@ -1313,13 +1312,6 @@ Rectangle {
             property var initialValue: 0
             property real minScaleX: 0
 
-            property var modifyItem: null
-            property var modifyPreceedingItem: null
-            property var modifyAnteceedingItem: null
-            property bool anteceedingIsTrack: false
-
-            property real modifyItemStartX: 0.0
-
             Rectangle {
                 id: region
                 visible: ma.isRegionSelection
@@ -1407,10 +1399,18 @@ Rectangle {
             onDoubleClicked: {
                 // jump to playlist and show media.
                 if(hovered && hovered.mediaUuid) {
-                    inspectedMediaSetIndex = viewedMediaSetIndex
-                    theSessionData.setPlayheadTo(
-                        viewedMediaSetIndex,
-                        inspectedMediaSetProperties.values.typeRole == "Timeline")
+
+                    // set the aux playhead to drive the viewer - it will not
+                    // show the timeline but just the bit of media we have
+                    // double clicked on
+                    viewportCurrentMediaContainerIndex = currentMediaContainerIndex
+
+                    callbackTimer.setTimeout(function() { return function() {
+                        // we 'un-pin' the timeline playhead so that instead of using
+                        // the timline as its source it uses the selected media alone
+                        currentPlayhead.pinnedSourceMode = false
+                    }}(), 200);
+
                 }
             }
 
@@ -1500,14 +1500,8 @@ Rectangle {
                 let [item, item_type, local_x, local_y] = resolveItem(mousex, mousey)
 
                 if(hovered != item) {
-                    if(hovered && hovered.itemTypeRole == "Clip") {
-                        hovered.showRolling = false
-                        hovered.showDragLeft = false
-                        hovered.showDragRight = false
-                        hovered.showDragMiddle = false
-                        hovered.showDragLeftLeft = false
-                        hovered.showDragRightRight = false
-                    }
+                    if(hovered && hovered.itemTypeRole == "Clip")
+                        theSessionData.resetTimelineItemDragFlag([hovered.modelIndex()]);
                     hovered = item
                 }
 
@@ -1515,56 +1509,24 @@ Rectangle {
                     if(["Select"].includes(editMode))
                         return
 
-                    if("Clip" == item_type) {
-                        if(editMode == "Roll") {
-                            item.showRolling = true
-                        } else {
-                            let preceeding_type = "Track"
-                            let anteceeding_type = "Track"
-
-                            let mi = item.modelIndex()
-
-                            let ante_index = anteceedingIndex(mi)
-                            let pre_index = preceedingIndex(mi)
-
-                            if(ante_index.valid)
-                                anteceeding_type = ante_index.model.get(ante_index, "typeRole")
-
-                            if(pre_index.valid)
-                                preceeding_type = pre_index.model.get(pre_index, "typeRole")
-
-                            // if(!rippleMode || preceeding_type == "Gap")
-                            item.showDragLeft = true
-                            item.showDragRight = true
-                            item.showDragMiddle = true
-
-                            if(preceeding_type == "Clip" && !rippleMode)
-                                item.showDragLeftLeft = true
-
-                            if(anteceeding_type == "Clip" && !rippleMode)
-                                item.showDragRightRight = true
-                        }
-                    }
+                    if("Clip" == item_type)
+                        theSessionData.updateTimelineItemDragFlag([hovered.modelIndex()], editMode == "Roll", rippleMode)
                 }
             }
 
             function draggingStarted(index, item, mode ) {
-                ma.modifyPreceedingItem = null
-                ma.modifyAnteceedingItem = null
-                ma.anteceedingIsTrack = false
-
                 if(mode == "left")
-                    ma.beginDragLeft(index, item)
+                    theSessionData.beginTimelineItemDrag(timelineSelection.selectedIndexes, mode)
                 else if(mode == "right")
-                    ma.beginDragRight(index, item)
+                    theSessionData.beginTimelineItemDrag(timelineSelection.selectedIndexes, mode, rippleMode)
                 else if(mode == "leftleft")
-                    ma.beginDragBothLeft(index, item)
+                    theSessionData.beginTimelineItemDrag(timelineSelection.selectedIndexes, mode)
                 else if(mode == "rightright")
-                    ma.beginDragBothRight(index, item)
+                    theSessionData.beginTimelineItemDrag(timelineSelection.selectedIndexes, mode)
                 else if(mode == "middle")
-                    ma.beginMove(index, item)
+                    theSessionData.beginTimelineItemDrag(timelineSelection.selectedIndexes, mode, rippleMode)
                 else if(mode == "roll")
-                    ma.beginRoll(index, item)
+                    theSessionData.beginTimelineItemDrag(timelineSelection.selectedIndexes, mode)
             }
 
             function dragging(index, item, mode, x) {
@@ -1595,407 +1557,42 @@ Rectangle {
                 }
 
                 if(mode == "left")
-                    ma.updateDragLeft(index, item, x)
+                    theSessionData.updateTimelineItemDrag(timelineSelection.selectedIndexes, mode, x)
                 else if(mode == "right")
-                    ma.updateDragRight(index, item, x)
+                    theSessionData.updateTimelineItemDrag(timelineSelection.selectedIndexes, mode, x, rippleMode)
                 else if(mode == "leftleft")
-                    ma.updateDragBothLeft(index, item, x)
+                    theSessionData.updateTimelineItemDrag(timelineSelection.selectedIndexes, mode, x)
                 else if(mode == "rightright")
-                    ma.updateDragBothRight(index, item, x)
+                    theSessionData.updateTimelineItemDrag(timelineSelection.selectedIndexes, mode, x)
                 else if(mode == "middle")
-                    ma.updateMove(index, item, x)
+                    theSessionData.updateTimelineItemDrag(timelineSelection.selectedIndexes, mode, x, rippleMode, overwriteMode)
                 else if(mode == "roll")
-                    ma.updateRoll(index, item, x)
+                    theSessionData.updateTimelineItemDrag(timelineSelection.selectedIndexes, mode, x)
             }
 
             function doubleTapped(item, mode) {
                 // console.log("doubleTapped", item, mode)
-                if(mode == "middle") {
-                    inspectedMediaSetIndex = viewedMediaSetIndex
+                /*if(mode == "middle") {
+                    currentMediaContainerIndex = viewedMediaSetIndex
                     theSessionData.setPlayheadTo(
                         viewedMediaSetIndex,
                         inspectedMediaSetProperties.values.typeRole == "Timeline")
-                }
+                }*/
             }
 
             function draggingStopped(index, item, mode) {
                 if(mode == "left")
-                    ma.endDragLeft(index, item)
+                    theSessionData.endTimelineItemDrag(timelineSelection.selectedIndexes, mode)
                 else if(mode == "right")
-                    ma.endDragRight(index, item)
+                    theSessionData.endTimelineItemDrag(timelineSelection.selectedIndexes, mode)
                 else if(mode == "leftleft")
-                    ma.endDragBothLeft(index, item)
+                    theSessionData.endTimelineItemDrag(timelineSelection.selectedIndexes, mode)
                 else if(mode == "rightright")
-                    ma.endDragBothRight(index, item)
+                    theSessionData.endTimelineItemDrag(timelineSelection.selectedIndexes, mode)
                 else if(mode == "middle")
-                    ma.endMove(index, item)
+                    theSessionData.endTimelineItemDrag(timelineSelection.selectedIndexes, mode, overwriteMode)
                 else if(mode == "roll")
-                    ma.endRoll(index, item)
-
-                if(ma.modifyPreceedingItem) {
-                    let tmp = index.model.get(ma.modifyPreceedingItem.modelIndex(), "userDataRole")
-                    tmp.is_adjusting_start = false
-                    tmp.is_adjusting_duration = false
-                    index.model.set(ma.modifyPreceedingItem.modelIndex(), tmp, "userDataRole")
-                }
-
-                if(ma.modifyAnteceedingItem) {
-                    let tmp = index.model.get(ma.modifyAnteceedingItem.modelIndex(), "userDataRole")
-                    tmp.is_adjusting_start = false
-                    tmp.is_adjusting_duration = false
-                    index.model.set(ma.modifyAnteceedingItem.modelIndex(), tmp, "userDataRole")
-                }
-            }
-
-            function beginMove(index, item) {
-                // we adjust material either side of us..
-                let prec_index = preceedingIndex(index)
-                let ante_index = anteceedingIndex(index)
-
-                let preceeding_type = prec_index.valid ? prec_index.model.get(prec_index, "typeRole") : "Track"
-                let anteceeding_type = ante_index.valid ? ante_index.model.get(ante_index, "typeRole") : "Track"
-
-                if(preceeding_type == "Gap") {
-                    modifyPreceedingItem = item.parentLV.itemAtIndex(index.row - 1)
-
-                    let tmp = index.model.get(ma.modifyPreceedingItem.modelIndex(), "userDataRole")
-                    tmp.is_adjusting_duration = true
-                    tmp.adjust_duration = 0
-                    index.model.set(ma.modifyPreceedingItem.modelIndex(), tmp, "userDataRole")
-
-                } else {
-                    item.adjustPreceedingGap = 0
-                    item.isAdjustPreceeding = true
-                }
-
-                if(!rippleMode) {
-                    if(anteceeding_type == "Gap") {
-                        modifyAnteceedingItem = item.parentLV.itemAtIndex(index.row + 1)
-
-                        let tmp = index.model.get(ma.modifyAnteceedingItem.modelIndex(), "userDataRole")
-                        tmp.is_adjusting_duration = true
-                        tmp.adjust_duration = 0
-                        index.model.set(ma.modifyAnteceedingItem.modelIndex(), tmp, "userDataRole")
-                    } else if(anteceeding_type != "Track") {
-                        item.adjustAnteceedingGap = 0
-                        item.isAdjustAnteceeding = true
-                    } else {
-                        anteceedingIsTrack = true
-                    }
-                }
-            }
-
-            function updateMove(index, item, frame_change) {
-                if(modifyPreceedingItem)
-                    frame_change = modifyPreceedingItem.checkAdjust(frame_change, false)
-                else
-                    frame_change = Math.max(0, frame_change)
-
-                if(!rippleMode) {
-                    if(modifyAnteceedingItem)
-                        frame_change = -modifyAnteceedingItem.checkAdjust(-frame_change, false)
-                    else if(anteceedingIsTrack) {
-                    }
-                    else
-                        frame_change = Math.min(0, frame_change)
-                }
-
-                if(modifyPreceedingItem)
-                    modifyPreceedingItem.adjust(frame_change)
-                else if(item.isAdjustPreceeding)
-                    item.adjustPreceedingGap = frame_change
-
-                if(modifyAnteceedingItem)
-                    modifyAnteceedingItem.adjust(-frame_change)
-                else if(item.isAdjustAnteceeding)
-                    item.adjustAnteceedingGap = -frame_change
-
-                // fake value to just update hint.
-                let tmp = index.model.get(index, "userDataRole")
-                tmp.is_adjust_duration = frame_change
-                index.model.set(index, tmp, "userDataRole")
-            }
-
-            function endMove(index, item) {
-                let src_model = index.model
-
-                if(modifyPreceedingItem && modifyPreceedingItem.durationFrame) {
-                    src_model.set(modifyPreceedingItem.modelIndex(), modifyPreceedingItem.durationFrame, "activeDurationRole")
-                    src_model.set(modifyPreceedingItem.modelIndex(), modifyPreceedingItem.durationFrame, "availableDurationRole")
-                }
-
-                if(modifyAnteceedingItem && modifyAnteceedingItem.durationFrame) {
-                    src_model.set(modifyAnteceedingItem.modelIndex(), modifyAnteceedingItem.durationFrame, "activeDurationRole")
-                    src_model.set(modifyAnteceedingItem.modelIndex(), modifyAnteceedingItem.durationFrame, "availableDurationRole")
-                }
-
-                let delete_preceeding = modifyPreceedingItem && !modifyPreceedingItem.durationFrame
-                let delete_anteceeding = modifyAnteceedingItem && !modifyAnteceedingItem.durationFrame
-                let insert_preceeding = item.isAdjustPreceeding && item.adjustPreceedingGap
-                let insert_anteceeding = item.isAdjustAnteceeding && item.adjustAnteceedingGap
-
-                // some operations are moves
-                if(insert_preceeding && delete_anteceeding) {
-                    // move clip left
-                    moveItem(index, 1)
-                } else if (delete_preceeding && insert_anteceeding) {
-                    moveItem(index, -1)
-                } else {
-                    if(delete_preceeding) {
-                        theSessionData.removeTimelineItems([modifyPreceedingItem.modelIndex()])
-                    }
-
-                    if(delete_anteceeding) {
-                        theSessionData.removeTimelineItems([modifyAnteceedingItem.modelIndex()])
-                    }
-
-                    if(insert_preceeding) {
-                        theSessionData.insertTimelineGap(index.row, index.parent, item.adjustPreceedingGap, item.fps, "New Gap")
-                    }
-
-                    if(insert_anteceeding) {
-                        theSessionData.insertTimelineGap(index.row + 1, index.parent, item.adjustAnteceedingGap, item.fps, "New Gap")
-                    }
-                }
-
-                item.adjustPreceedingGap = 0
-                item.isAdjustPreceeding = false
-                item.adjustAnteceedingGap = 0
-                item.isAdjustAnteceeding = false
-            }
-
-            function beginRoll(index, item) {
-                let tmp = index.model.get(index, "userDataRole")
-                tmp.adjust_start = 0
-                tmp.is_adjusting_start = true
-                index.model.set(index, tmp, "userDataRole")
-            }
-
-            function updateRoll(index, item, frame_change) {
-                item.updateStart(frame_change)
-            }
-
-            function endRoll(index, item) {
-                let src_model = index.model
-                src_model.set(index, item.startFrame, "activeStartRole")
-
-                let tmp = index.model.get(index, "userDataRole")
-                tmp.is_adjusting_start = false
-                index.model.set(index, tmp, "userDataRole")
-            }
-
-            function beginDragLeft(index, item) {
-
-                let tmp = index.model.get(index, "userDataRole")
-                tmp.adjust_duration = 0
-                tmp.adjust_start = 0
-                tmp.is_adjusting_start = true
-                tmp.is_adjusting_duration = true
-                index.model.set(index, tmp, "userDataRole")
-
-                // is there a gap to our left..
-                let pre_index = preceedingIndex(index)
-                if(pre_index.valid) {
-                    let preceeding_type = pre_index.model.get(pre_index, "typeRole")
-
-                    if(preceeding_type == "Gap") {
-                        modifyPreceedingItem = item.parentLV.itemAtIndex(index.row - 1)
-
-                        let tmp2 = index.model.get(ma.modifyPreceedingItem.modelIndex(), "userDataRole")
-                        tmp2.adjust_duration = 0
-                        tmp2.is_adjusting_duration = true
-                        index.model.set(ma.modifyPreceedingItem.modelIndex(), tmp2, "userDataRole")
-                    }
-                }
-            }
-
-            function updateDragLeft(index, item, frame_change) {
-                // must inject / resize gap.
-                // make sure last frame doesn't change..
-                frame_change = item.checkAdjust(frame_change, false, true)
-                if(modifyPreceedingItem) {
-                    frame_change = modifyPreceedingItem.checkAdjust(frame_change, false)
-                    modifyPreceedingItem.adjust(frame_change)
-                } else {
-                    frame_change = Math.max(0, frame_change)
-                    item.adjustPreceedingGap = frame_change
-                }
-
-                item.adjust(frame_change)
-            }
-
-            function endDragLeft(index, item) {
-                let src_model = index.model
-                src_model.set(index, item.startFrame, "activeStartRole")
-                src_model.set(index, item.durationFrame, "activeDurationRole")
-
-                let tmp = index.model.get(index, "userDataRole")
-                tmp.is_adjusting_start = false
-                tmp.is_adjusting_duration = false
-                index.model.set(index, tmp, "userDataRole")
-
-                if(modifyPreceedingItem) {
-                    if(modifyPreceedingItem.durationFrame == 0) {
-                        theSessionData.removeTimelineItems([modifyPreceedingItem.modelIndex()])
-                        modifyPreceedingItem = null
-                    } else {
-                        src_model.set(modifyPreceedingItem.modelIndex(), modifyPreceedingItem.durationFrame, "activeDurationRole")
-                        src_model.set(modifyPreceedingItem.modelIndex(), modifyPreceedingItem.durationFrame, "availableDurationRole")
-                        let tmp2 = index.model.get(ma.modifyPreceedingItem.modelIndex(), "userDataRole")
-                        tmp2.is_adjusting_duration = false
-                        index.model.set(ma.modifyPreceedingItem.modelIndex(), tmp2, "userDataRole")
-                    }
-                } else {
-                    if(item.adjustPreceedingGap > 0) {
-                        theSessionData.insertTimelineGap(index.row, index.parent, item.adjustPreceedingGap, item.fps, "New Gap")
-                    }
-                    item.adjustPreceedingGap = 0
-                }
-            }
-
-            function beginDragBothLeft(index, item) {
-                // both at front or end..?
-                let tmp = index.model.get(index, "userDataRole")
-                tmp.adjust_duration = 0
-                tmp.adjust_start = 0
-                tmp.is_adjusting_start = true
-                tmp.is_adjusting_duration = true
-                index.model.set(index, tmp, "userDataRole")
-
-                modifyPreceedingItem = item.parentLV.itemAtIndex(index.row - 1)
-                let tmp2 = index.model.get(ma.modifyPreceedingItem.modelIndex(), "userDataRole")
-                tmp2.adjust_duration = 0
-                tmp2.is_adjusting_duration = true
-                index.model.set(ma.modifyPreceedingItem.modelIndex(), tmp2, "userDataRole")
-            }
-
-            function updateDragBothLeft(index, item, frame_change) {
-                frame_change = item.checkAdjust(frame_change, true)
-                frame_change = modifyPreceedingItem.checkAdjust(frame_change, true)
-
-                item.adjust(frame_change)
-                modifyPreceedingItem.adjust(frame_change)
-            }
-
-            function endDragBothLeft(index, item) {
-                let src_model = index.model
-                src_model.set(index, item.startFrame, "activeStartRole")
-                src_model.set(index, item.durationFrame, "activeDurationRole")
-
-                if(modifyPreceedingItem) {
-                    let pindex = src_model.index(index.row-1, 0, index.parent)
-                    src_model.set(pindex, modifyPreceedingItem.durationFrame, "activeDurationRole")
-                }
-
-                let tmp = index.model.get(index, "userDataRole")
-                tmp.is_adjusting_start = false
-                tmp.is_adjusting_duration = false
-                index.model.set(index, tmp, "userDataRole")
-            }
-
-            function beginDragRight(index, item) {
-                let tmp = index.model.get(index, "userDataRole")
-                tmp.adjust_duration = 0
-                tmp.is_adjusting_duration = true
-                index.model.set(index, tmp, "userDataRole")
-
-                if(!rippleMode) {
-                    let ante_index = anteceedingIndex(index)
-                    if(ante_index.valid) {
-                        let anteceeding_type = ante_index.model.get(ante_index, "typeRole")
-
-                        if(anteceeding_type == "Gap") {
-                            modifyAnteceedingItem = item.parentLV.itemAtIndex(index.row + 1)
-                            let tmp2 = index.model.get(ma.modifyAnteceedingItem.modelIndex(), "userDataRole")
-                            tmp2.adjust_duration = 0
-                            tmp2.is_adjusting_duration = true
-                            index.model.set(ma.modifyAnteceedingItem.modelIndex(), tmp2, "userDataRole")
-                        }
-                    } else {
-                        ma.anteceedingIsTrack = true
-                    }
-                }
-            }
-
-            function updateDragRight(index, item, frame_change) {
-                frame_change = item.checkAdjust(frame_change, true)
-
-                // this must be a gap.
-                if(modifyAnteceedingItem) {
-                    frame_change = -modifyAnteceedingItem.checkAdjust(-frame_change, false)
-                    modifyAnteceedingItem.adjust(-frame_change)
-                } else if(!rippleMode && !anteceedingIsTrack) {
-                    frame_change = Math.min(0, frame_change)
-                    item.adjustAnteceedingGap = -frame_change
-                }
-
-                item.adjust(frame_change)
-            }
-
-            function endDragRight(index, item) {
-                let src_model = index.model
-
-                src_model.set(index, item.durationFrame, "activeDurationRole")
-
-                let tmp = index.model.get(index, "userDataRole")
-                tmp.is_adjusting_duration = false
-                index.model.set(index, tmp, "userDataRole")
-
-                if(modifyAnteceedingItem) {
-                    if(modifyAnteceedingItem.durationFrame == 0) {
-                        theSessionData.removeTimelineItems([modifyAnteceedingItem.modelIndex()])
-                    } else {
-                        src_model.set(modifyAnteceedingItem.modelIndex(), modifyAnteceedingItem.durationFrame, "activeDurationRole")
-                        src_model.set(modifyAnteceedingItem.modelIndex(), modifyAnteceedingItem.durationFrame, "availableDurationRole")
-
-                        let tmp2 = index.model.get(ma.modifyAnteceedingItem.modelIndex(), "userDataRole")
-                        tmp2.is_adjusting_duration = false
-                        index.model.set(ma.modifyAnteceedingItem.modelIndex(), tmp2, "userDataRole")
-                    }
-                } else {
-                    if(item.adjustAnteceedingGap > 0) {
-                        theSessionData.insertTimelineGap(index.row+1, index.parent, item.adjustAnteceedingGap, item.fps, "New Gap")
-                    }
-                    item.adjustAnteceedingGap = 0
-                }
-            }
-
-            function beginDragBothRight(index, item) {
-                // both at front or end..?
-                let tmp = index.model.get(index, "userDataRole")
-                tmp.is_adjusting_duration = true
-                tmp.adjust_duration = 0
-                index.model.set(index, tmp, "userDataRole")
-
-                modifyAnteceedingItem = item.parentLV.itemAtIndex(index.row + 1)
-
-                let tmp2 = index.model.get(ma.modifyAnteceedingItem.modelIndex(), "userDataRole")
-                tmp2.adjust_start = 0
-                tmp2.adjust_duration = 0
-                tmp2.is_adjusting_start = true
-                tmp2.is_adjusting_duration = true
-                index.model.set(ma.modifyAnteceedingItem.modelIndex(), tmp2, "userDataRole")
-            }
-
-            function updateDragBothRight(index, item, frame_change) {
-                frame_change = item.checkAdjust(frame_change, true)
-                frame_change = modifyAnteceedingItem.checkAdjust(frame_change, true)
-
-                item.adjust(frame_change)
-                modifyAnteceedingItem.adjust(frame_change)
-            }
-
-            function endDragBothRight(index, item) {
-                let src_model = index.model
-                src_model.set(index, item.durationFrame, "activeDurationRole")
-
-                let pindex = src_model.index(index.row + 1, 0, index.parent)
-                src_model.set(pindex, modifyAnteceedingItem.startFrame, "activeStartRole")
-                src_model.set(pindex, modifyAnteceedingItem.durationFrame, "activeDurationRole")
-
-                let tmp2 = index.model.get(index, "userDataRole")
-                tmp2.is_adjusting_duration = false
-                index.model.set(index, tmp2, "userDataRole")
+                    theSessionData.endTimelineItemDrag(timelineSelection.selectedIndexes, mode)
             }
 
             function isValidSelection(ctype, ntype) {

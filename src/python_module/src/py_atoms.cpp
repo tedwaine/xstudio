@@ -142,7 +142,8 @@ void py_config::add_atoms() {
     ADD_ATOM(xstudio::session, session_request_atom);
     ADD_ATOM(xstudio::session, add_playlist_atom);
     ADD_ATOM(xstudio::session, get_playlist_atom);
-    ADD_ATOM(xstudio::session, current_playlist_atom);
+    ADD_ATOM(xstudio::session, active_media_container_atom);
+    ADD_ATOM(xstudio::session, viewport_active_media_container_atom);
     ADD_ATOM(xstudio::session, get_playlists_atom);
     ADD_ATOM(xstudio::session, media_rate_atom);
     ADD_ATOM(xstudio::session, load_uris_atom);
@@ -302,7 +303,6 @@ void py_config::add_atoms() {
     ADD_ATOM(xstudio::playhead, dropped_frame_atom);
     ADD_ATOM(xstudio::playhead, simple_loop_end_atom);
     ADD_ATOM(xstudio::playhead, simple_loop_start_atom);
-    ADD_ATOM(xstudio::playhead, skip_through_sources_atom);
     ADD_ATOM(xstudio::playhead, source_atom);
     ADD_ATOM(xstudio::playhead, step_atom);
     ADD_ATOM(xstudio::playhead, use_loop_range_atom);

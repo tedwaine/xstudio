@@ -17,7 +17,7 @@ Item {
 
     // This gives us a model that just contains a flat list of the
     // Media items in the current media set (Playlist, Sequence, Subset) -
-    // it is a  the node in the sessionData at index = inspectedMediaSetIndex
+    // it is a  the node in the sessionData at index = currentMediaContainerIndex
     QTreeModelToTableModel {
         id: mediaListModelData
         model: theSessionData
@@ -38,7 +38,7 @@ Item {
     // we listen to the main selection model that selects stuff in the
     // main sessionData - this thing decides which playlist, subset, timeline
     // etc. is selected to be displayed in our media list
-    property var currentSelectedPlaylistIndex: inspectedMediaSetIndex
+    property var currentSelectedPlaylistIndex: currentMediaContainerIndex
     property var name: theSessionData.get(currentSelectedPlaylistIndex, "nameRole")
     property var uuid: theSessionData.get(currentSelectedPlaylistIndex, "uuidRole")
 

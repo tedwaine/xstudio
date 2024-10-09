@@ -41,7 +41,6 @@ Item  {
     // Makes these important global items visible for child contexts, namely
     // overlays and HUDs that might need this info
     property alias theSessionData: sessionData.session
-    property alias viewedMediaSetIndex: sessionData.viewedMediaSetIndex
     property alias viewedMediaSetProperties: sessionData.viewedMediaSetProperties
     property alias currentPlayhead: sessionData.current_playhead
     property alias callbackTimer: sessionData.callbackTimer
@@ -49,6 +48,7 @@ Item  {
     property alias bookmarkModel: sessionData.bookmarkModel
     property alias currentOnScreenMediaData: sessionData.currentOnScreenMediaData
     property alias currentOnScreenMediaSourceData: sessionData.currentOnScreenMediaSourceData
+    property alias viewportCurrentMediaContainerIndex: sessionData.viewportCurrentMediaContainerIndex
 
     property var sessionPath: sessionProperties.values.pathRole
     

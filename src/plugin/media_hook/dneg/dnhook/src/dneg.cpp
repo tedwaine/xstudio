@@ -92,6 +92,12 @@ class DNegMediaHook : public MediaHook {
             "Some DNEG pipeline movies have metadata indicating if there is a slate frame. "
             "Enable this option to use the metadata to automatically trim the slate.");
 
+        adjust_timecode_ = add_boolean_attribute("Adjust Timecode", "Adjust Timecode", false);
+
+        adjust_timecode_->set_preference_path("/plugin/dneg_media_hook/adjust_timecode");
+        adjust_timecode_->expose_in_ui_attrs_group("media_hook_settings");
+        adjust_timecode_->set_tool_tip("Use timeline_range from pipequery to adjust timecode.");
+
         slate_trim_behaviour_ = add_string_choice_attribute(
             "Default Trim Slate Behaviour",
             "Trim Slate",
@@ -110,6 +116,7 @@ class DNegMediaHook : public MediaHook {
 
     module::StringChoiceAttribute *slate_trim_behaviour_;
     module::BooleanAttribute *auto_trim_slate_;
+    module::BooleanAttribute *adjust_timecode_;
 
     std::optional<utility::MediaReference> modify_media_reference(
         const utility::MediaReference &mr, const utility::JsonStore &jsn) override {
@@ -132,6 +139,45 @@ class DNegMediaHook : public MediaHook {
                 changed = true;
             }
         }
+        if (adjust_timecode_->value()) {
+            // check for ivy timeline_range
+            try {
+                const static auto tcp = json::json_pointer("/metadata/ivy/file/timeline_range");
+                if (jsn.contains(tcp)) {
+                    auto ifr = FrameList(jsn.at(tcp).get<std::string>());
+
+                    // there is a slate frame ?
+                    if (ifr.count()+1 == result.frame_list().count()) {
+                        // offset ifr start..
+                        auto &ifg = ifr.frame_groups();
+                        ifg.at(0).set_start(
+                            ifg.at(0).start() - 1);
+                    }
+
+                    if (result.timecode().total_frames() != ifr.start()) {
+                        // force range..
+                        if (result.frame_list().size() == 1) {
+                            auto before = result.timecode();
+                            result.set_timecode(
+                                result.timecode() +
+                                (ifr.start() -
+                                 static_cast<int>(result.timecode().total_frames())));
+                            // spdlog::info(
+                            //     "Adjust timecode {} before {} {} after {} {}",
+                            //     to_string(result.uri()),
+                            //     to_string(before),
+                            //     before.total_frames(),
+                            //     to_string(result.timecode()),
+                            //     result.timecode().total_frames());
+                            changed = true;
+                        }
+                    }
+                }
+            } catch (const std::exception &err) {
+                spdlog::warn("{} {}", __PRETTY_FUNCTION__, err.what());
+            }
+        }
+
         // we chomp the first frame if internal movie..
         // why do we come here multiple times ??
         if (not result.frame_list().start() and result.container()) {

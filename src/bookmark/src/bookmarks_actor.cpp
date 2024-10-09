@@ -594,6 +594,7 @@ void BookmarksActor::init() {
             }
             if (!detail.owner_ || !detail.start_ | !detail.owner_->actor())
                 return;
+
             request(
                 offscreen_renderer,
                 infinite,

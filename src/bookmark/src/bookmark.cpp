@@ -44,6 +44,7 @@ Bookmark::Bookmark(const JsonStore &jsn)
     enabled_   = jsn.value("enabled", true);
     owner_     = jsn.value("owner", utility::Uuid());
     visible_   = jsn.value("visible", true);
+    user_type_ = jsn.value("user_type", std::string());
     user_data_ = jsn.value("user_data", utility::JsonStore());
     created_   = jsn.value("created", utility::sysclock::now());
 
@@ -79,6 +80,7 @@ JsonStore Bookmark::serialise() const {
     jsn["enabled"]   = enabled_;
     jsn["owner"]     = owner_;
     jsn["visible"]   = visible_;
+    jsn["user_type"] = user_type_;
     jsn["user_data"] = user_data_;
     jsn["created"]   = created_;
 
@@ -116,6 +118,11 @@ bool Bookmark::update(const BookmarkDetail &detail) {
     if (detail.duration_) {
         duration_ = *(detail.duration_);
         changed   = true;
+    }
+
+    if (detail.user_type_) {
+        user_type_ = *(detail.user_type_);
+        changed    = true;
     }
 
     if (detail.user_data_) {
@@ -223,6 +230,7 @@ BookmarkDetail &BookmarkDetail::operator=(const Bookmark &other) {
     visible_   = other.visible_;
     start_     = other.start_;
     duration_  = other.duration_;
+    user_type_ = other.user_type_;
     user_data_ = other.user_data_;
     created_   = other.created_;
 
