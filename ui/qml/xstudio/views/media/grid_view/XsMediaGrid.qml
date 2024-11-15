@@ -1,10 +1,10 @@
 // SPDX-License-Identifier: Apache-2.0
-import QtQuick 2.15
-import QtQuick.Controls 2.14
-import QtQuick.Controls.Styles 1.4
-import QtQml.Models 2.14
-import Qt.labs.qmlmodels 1.0
-import QtQuick.Layouts 1.15
+import QtQuick
+
+
+
+
+import QtQuick.Layouts
 import QuickFuture 1.0
 
 import xStudio 1.0
@@ -122,27 +122,39 @@ XsGridView {
 
         onDropped: {
 
-            if (source == "External URIS") {
-
-                var idx = dragTargetIndex
+            var idx = dragTargetIndex
+            if (idx == undefined || !idx.valid) {
+                idx = mediaListModelDataRoot
                 if (idx == undefined || !idx.valid) {
-                    idx = mediaListModelDataRoot
-                    if (idx == undefined || !idx.valid) {
-                        idx = theSessionData.createPlaylist("New Playlist")
-                    } else {
-                        idx = idx.parent // mediaListModelDataRoot is the 'MediaList' underneath a Playist, Subset etc.
-                    }
+                    idx = theSessionData.createPlaylist("New Playlist")
+                } else {
+                    idx = idx.parent // mediaListModelDataRoot is the 'MediaList' underneath a Playist, Subset etc.
                 }
+            }
 
+            if (source == "External URIS") {
+        
                 Future.promise(
                     theSessionData.handleDropFuture(
                         Qt.CopyAction,
                         {"text/uri-list": data},
                         idx)
                 ).then(function(quuids){
-                    mediaSelectionModel.selectNewMedia(index, quuids)
+                    if (idx) mediaSelectionModel.selectNewMedia(idx, quuids)
                 })
 
+                return
+
+            } else if (source == "External JSON") {
+
+                Future.promise(
+                    theSessionData.handleDropFuture(
+                        Qt.CopyAction,
+                        data,
+                        idx)
+                ).then(function(quuids){
+                    if (idx) mediaSelectionModel.selectNewMedia(idx, quuids)
+                })
                 return
             }
 

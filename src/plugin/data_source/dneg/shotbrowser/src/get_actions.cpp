@@ -934,14 +934,12 @@ void ShotBrowser::get_data_department(
 void ShotBrowser::get_data_project(
     caf::typed_response_promise<utility::JsonStore> rp, const std::string &type) {
 
-    auto filter = R"(
-    {
-        "logical_operator": "and",
-        "conditions": [
-        ]
-    })"_json;
-
-    request(shotgun_, infinite, shotgun_projects_atom_v)
+    request(
+        shotgun_,
+        infinite,
+        shotgun_projects_atom_v,
+        ProjectFields,
+        std::vector<std::string>({"name"}))
         .then(
             [=](const JsonStore &data) mutable {
                 try {
@@ -1480,8 +1478,7 @@ void ShotBrowser::get_data_sequence(
         shotgun_entity_search_atom_v,
         "Sequences",
         JsonStore(filter),
-        std::vector<std::string>(
-            {"id", "code", "shots", "type", "sg_parent", "sg_sequence_type", "sg_status_list"}),
+        SequenceFields,
         std::vector<std::string>({"code"}),
         page,
         4999)
@@ -1516,7 +1513,7 @@ void ShotBrowser::get_data_sequence(
                                 shotgun_entity_search_atom_v,
                                 "Shots",
                                 JsonStore(statusfilter),
-                                std::vector<std::string>({"id", "sg_status_list"}),
+                                SequenceShotFields,
                                 std::vector<std::string>({"id"}),
                                 1,
                                 4999)

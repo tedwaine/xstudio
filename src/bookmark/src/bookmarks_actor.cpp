@@ -179,12 +179,25 @@ void BookmarksActor::init() {
             auto clients = std::vector<caf::actor>();
 
             // check for dead bookmarks
-            for (const auto &i : bookmarks_) {
+            {
+                auto i = bookmarks_.begin();
+                while (i != bookmarks_.end()) {
+                    if (not i->second) {
+                        i = bookmarks_.erase(i);
+                    } else {
+                        clients.push_back(i->second);
+                        i++;
+                    }
+                }
+            }
+
+            // Big NOPE, you can't erase with an iterator in a loop like this
+            /*for (auto i = bookmarks_) {
                 if (not i.second)
                     bookmarks_.erase(i.first);
                 else
                     clients.push_back(i.second);
-            }
+            }*/
 
             if (not clients.empty()) {
                 fan_out_request<policy::select_all>(clients, infinite, serialise_atom_v)

@@ -31,11 +31,12 @@ class ShotbrowserConform : public Conformer {
     }
 
 
-    std::vector<std::string> conform_tasks() override { return tasks_; }
+    std::vector<std::string> conform_tasks() override { return visible_tasks_; }
 
     bool update_tasks(const utility::JsonStoreSync &presets) {
         auto result = false;
         std::vector<std::string> tasks;
+        std::vector<std::string> visible_tasks;
         std::map<std::string, utility::Uuid> task_uuids;
 
         // find entry with uuid  == b6e0ca0e-2d23-4b1d-a33a-761596183d5f
@@ -49,21 +50,24 @@ class ShotbrowserConform : public Conformer {
                     if (i.value("hidden", false))
                         continue;
 
+                    task_uuids[i.value("name", "")] = i.value("id", utility::Uuid());
+                    tasks.emplace_back(i.value("name", ""));
+
                     if (not i.value("favourite", true))
                         continue;
 
-                    tasks.emplace_back(i.value("name", ""));
-                    task_uuids[i.value("name", "")] = i.value("id", utility::Uuid());
+                    visible_tasks.emplace_back(i.value("name", ""));
                 }
             }
         } catch (const std::exception &err) {
             spdlog::warn("{} {}", __PRETTY_FUNCTION__, err.what());
         }
 
-        if (tasks != tasks_) {
-            tasks_      = tasks;
-            task_uuids_ = task_uuids;
-            result      = true;
+        if (tasks != tasks_ or visible_tasks_ != visible_tasks) {
+            visible_tasks_ = visible_tasks;
+            tasks_         = tasks;
+            task_uuids_    = task_uuids;
+            result         = true;
         }
 
         return result;
@@ -104,6 +108,7 @@ class ShotbrowserConform : public Conformer {
 
   private:
     std::vector<std::string> tasks_;
+    std::vector<std::string> visible_tasks_;
     std::map<std::string, utility::Uuid> task_uuids_;
     bool purge_sequence_on_import_{true};
 };
@@ -327,7 +332,9 @@ template <typename T> class ShotbrowserConformActor : public caf::event_based_ac
                                 });
                     }
                 } else {
-                    throw std::runtime_error("Failed to find query id");
+                    spdlog::warn(
+                        "{} Failed to find query id {}", __PRETTY_FUNCTION__, conform_task);
+                    rp.deliver(ConformReply(crequest));
                 }
             }
         } catch (const std::exception &err) {
@@ -966,18 +973,16 @@ template <typename T> class ShotbrowserConformActor : public caf::event_based_ac
                                 auto spath = nlohmann::json::json_pointer(
                                     "/result/data/0/relationships/entity/data");
                                 if (result.contains(jpath)) {
+                                    auto otiopath = result.at(jpath).value(
+                                        "sg_path_to_frames", std::string());
+                                    auto last_dot = otiopath.find_last_of(".");
+                                    otiopath      = otiopath.substr(0, last_dot);
+                                    otiopath += ".otio";
 
-                                    auto fspath = fs::path(result.at(jpath).value(
-                                        "sg_path_to_frames", std::string()));
-                                    // no idea why we have to do parent path twice.. BUG
-                                    // ?
-                                    auto otiopath =
-                                        fspath.parent_path().parent_path() /
-                                        (fspath.stem().string() + std::string(".otio"));
                                     auto name = result.at(spath).value("name", std::string());
 
                                     try {
-                                        auto uri = posix_path_to_uri(otiopath.string());
+                                        auto uri = posix_path_to_uri(otiopath);
                                         (*shotgrid_results)[count] = std::make_pair(name, uri);
                                     } catch (...) {
                                         (*shotgrid_results)[count] = {};

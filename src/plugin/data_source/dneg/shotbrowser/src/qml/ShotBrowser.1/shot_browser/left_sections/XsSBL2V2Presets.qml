@@ -1,8 +1,9 @@
 // SPDX-License-Identifier: Apache-2.0
 
-import QtQuick 2.15
-import QtQuick.Controls 2.15
-import QtQuick.Layouts 1.15
+import QtQuick
+
+import QtQuick.Layouts
+import QtQuick.Controls
 
 import QuickFuture 1.0
 import QuickPromise 1.0
@@ -74,16 +75,19 @@ XsGradientRectangle{
             clip: true
 
             Flickable {
-                id:flick
+                id: flick
                 anchors.fill: parent
                 contentWidth: width
                 contentHeight: tree.height
 
                 ScrollBar.vertical: XsScrollBar{visible: flick.height < flick.contentHeight}
 
+                property int rightSpacing: flick.height < flick.contentHeight ? 12 : 0
+                Behavior on rightSpacing {NumberAnimation {duration: 150}}
+
                 XsSBPresetsView{
                     id: tree
-                    width: flick.width
+                    width: flick.width - flick.rightSpacing
                     treeSequenceModel: presetsFilterModel
                     treeSequenceSelectionModel: presetsSelectionModel
                     treeSequenceExpandedModel: presetsExpandedModel
@@ -208,6 +212,63 @@ XsGradientRectangle{
     //     menuItemPosition: 3
     //     menuModelName: moreMenu.menu_model_name
     // }
+    XsMenuModelItem {
+        text: "Backup Presets..."
+        menuPath: ""
+        menuItemPosition: 3.5
+        menuModelName: moreMenu.menu_model_name
+        onActivated: dialogHelpers.showFileDialog(
+                function(fileUrl, undefined, func) {
+                    if(fileUrl)
+                        Future.promise(
+                            ShotBrowserEngine.presetsModel.backupPresetsFuture(
+                                fileUrl
+                            )
+                        ).then(function(string) {
+                                dialogHelpers.errorDialogFunc("Backup Presets", "Backup Presets complete.\n\n" + string)
+                            },
+                            function(err) {
+                                dialogHelpers.errorDialogFunc("Backup Presets", "Backup Presets failed.\n\n" + err)
+                            }
+                        )
+                },
+                file_functions.defaultSessionFolder(),
+                "Backup Presets",
+                "json",
+                ["JSON (*.json)"],
+                false,
+                false
+            )
+    }
+
+    XsMenuModelItem {
+        text: "Restore Presets..."
+        menuPath: ""
+        menuItemPosition: 3.6
+        menuModelName: moreMenu.menu_model_name
+        onActivated: dialogHelpers.showFileDialog(
+                function(fileUrl, button, func) {
+                    if(fileUrl)
+                        Future.promise(
+                            ShotBrowserEngine.presetsModel.restorePresetsFuture(
+                                fileUrl
+                            )
+                        ).then(function(string) {
+                                dialogHelpers.errorDialogFunc("Restore Presets", "Restore Presets complete.\n\n" + string)
+                            },
+                            function(err) {
+                                dialogHelpers.errorDialogFunc("Restore Presets", "Restore Presets failed.\n\n" + err)
+                            }
+                        )
+                },
+                file_functions.defaultSessionFolder(),
+                "Backup Presets",
+                "json",
+                ["JSON (*.json)"],
+                true,
+                false
+            )
+    }
 
     XsMenuModelItem {
         text: "Export As System Presets..."
@@ -216,17 +277,18 @@ XsGradientRectangle{
         menuModelName: moreMenu.menu_model_name
         onActivated: dialogHelpers.showFileDialog(
                 function(fileUrl, undefined, func) {
-                    Future.promise(
-                        ShotBrowserEngine.presetsModel.exportAsSystemPresetsFuture(
-                            fileUrl
+                    if(fileUrl)
+                        Future.promise(
+                            ShotBrowserEngine.presetsModel.exportAsSystemPresetsFuture(
+                                fileUrl
+                            )
+                        ).then(function(string) {
+                                dialogHelpers.errorDialogFunc("Export As System Presets", "Export As System Presets complete.\n\n" + string)
+                            },
+                            function(err) {
+                                dialogHelpers.errorDialogFunc("Export As System Presets", "Export As System Presets failed.\n\n" + err)
+                            }
                         )
-                    ).then(function(string) {
-                            dialogHelpers.errorDialogFunc("Export As System Presets", "Export As System Presets complete.\n\n" + string)
-                        },
-                        function(err) {
-                            dialogHelpers.errorDialogFunc("Export As System Presets", "Export As System Presets failed.\n\n" + err)
-                        }
-                    )
                 },
                 file_functions.defaultSessionFolder(),
                 "Export Presets",

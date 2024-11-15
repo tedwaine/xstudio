@@ -91,7 +91,7 @@ class DNRun : public Utility {
             fds_[0].events = POLLIN;
             nfds_          = 1;
 
-            spdlog::info("DNRun port created: {}", port_name_v1_.c_str());
+            spdlog::debug("DNRun port created: {}", port_name_v1_.c_str());
         } catch (const std::exception &err) {
             if (sock_ >= 0)
                 close(sock_);

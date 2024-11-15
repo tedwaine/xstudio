@@ -215,8 +215,8 @@ GradingTool::GradingTool(caf::actor_config &cfg, const utility::JsonStore &init_
     register_ui_panel_qml(
         "Grading Tools",
         R"(
-            import QtGraphicalEffects 1.15
-            import QtQuick 2.15
+            
+            import QtQuick
             import Grading 2.0
 
             import xStudio 1.0

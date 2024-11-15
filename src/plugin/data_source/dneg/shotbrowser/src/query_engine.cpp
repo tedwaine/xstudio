@@ -69,7 +69,7 @@ QueryEngine::QueryEngine() {
 std::optional<nlohmann::json>
 QueryEngine::find_by_id(const utility::Uuid &uuid, const utility::JsonStore &presets) {
     if (presets.is_object()) {
-        if (presets.count("id") && presets.at("id") == uuid)
+        if (presets.count("id") && presets.at("id").get<utility::Uuid>() == uuid)
             return presets;
         else {
             if (presets.count("children")) {
@@ -344,9 +344,11 @@ void QueryEngine::merge_group(nlohmann::json &destination, const nlohmann::json 
                     i["children"][0] = source.at("children").at(0);
                 }
 
-                // validate group presets.
+                // validate group presets. add or update
+                std::set<utility::Uuid> found_system_presets;
                 for (const auto &gp : source.at("children").at(1).at("children")) {
-                    auto preset_id     = gp.value("id", Uuid());
+                    auto preset_id = gp.value("id", Uuid());
+                    found_system_presets.insert(preset_id);
                     bool preset_exists = false;
 
                     for (auto &up : i["children"][1]["children"]) {
@@ -357,6 +359,7 @@ void QueryEngine::merge_group(nlohmann::json &destination, const nlohmann::json 
                             // validate group preset
                             if (not up.value("update", false) and preset_diff(up, gp)) {
                                 // replace content.. as update flag not set by user change.
+                                up["name"]     = gp.at("name");
                                 up["children"] = gp.at("children");
                             }
                         }
@@ -365,6 +368,39 @@ void QueryEngine::merge_group(nlohmann::json &destination, const nlohmann::json 
                     if (not preset_exists)
                         i["children"][1]["children"].push_back(gp);
                 }
+
+                // do a reverse validation.
+                // if the user has a system preset that hasn't been modified and doesn't exist
+                // in this list.. but this will then break project presets..
+                auto tmp = R"([])"_json;
+
+                for (const auto &up : i["children"][1]["children"]) {
+                    // spdlog::warn("checking {}", up.at("name").get<std::string>());
+                    if (up.contains("update") and not up.at("update").is_null() and
+                        up.at("update") == false) {
+                        // is system preset, check it's in source.
+                        if (found_system_presets.count(up.value("id", Uuid())))
+                            tmp.push_back(up);
+                        else
+                            spdlog::debug(
+                                "Removing retired system preset {}",
+                                up.at("name").get<std::string>());
+                    } else {
+                        // orpahaned system presets should change to user presets.
+                        if (up.contains("update") and not up.at("update").is_null() and
+                            up.at("update") == true and
+                            not found_system_presets.count(up.value("id", Uuid()))) {
+
+                            auto tup      = up;
+                            tup["update"] = nullptr;
+                            tmp.push_back(tup);
+                        } else
+                            tmp.push_back(up);
+                    }
+                }
+
+
+                i["children"][1]["children"] = tmp;
             }
         }
 
@@ -455,7 +491,8 @@ bool QueryEngine::preset_diff(const nlohmann::json &a, const nlohmann::json &b) 
     auto result = true;
 
     try { // term count check (quick)
-        if (a.at("children").size() == b.at("children").size()) {
+        if (a.at("name") == b.at("name") and
+            a.at("children").size() == b.at("children").size()) {
             // term comparison..
             bool mismatch = false;
 
@@ -1084,6 +1121,13 @@ void QueryEngine::add_version_term_to_filter(
             qry->push_back(Text("sg_production_status")
                                .is(resolve_query_value(term, JsonStore(value), lookup)
                                        .get<std::string>()));
+    } else if (term == "Unit") {
+        auto tmp  = R"({"type": "CustomEntity24", "id":0})"_json;
+        tmp["id"] = resolve_query_value(term, JsonStore(value), project_id, lookup).get<int>();
+        if (negated)
+            qry->push_back(RelationType("entity.Shot.sg_unit").is_not({JsonStore(tmp)}));
+        else
+            qry->push_back(RelationType("entity.Shot.sg_unit").is({JsonStore(tmp)}));
     } else if (term == "Shot Status") {
         if (negated)
             qry->push_back(Text("entity.Shot.sg_status_list")

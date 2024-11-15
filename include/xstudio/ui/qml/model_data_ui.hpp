@@ -5,7 +5,7 @@
 
 #include "xstudio/ui/qml/helper_ui.hpp"
 #include "xstudio/ui/qml/json_tree_model_ui.hpp"
-//#include "xstudio/ui/qml/tag_ui.hpp"
+// #include "xstudio/ui/qml/tag_ui.hpp"
 
 
 CAF_PUSH_WARNINGS
@@ -233,7 +233,7 @@ class HELPER_QML_EXPORT MenuModelItem : public caf::mixin::actor_object<QObject>
 
     explicit MenuModelItem(QObject *parent = nullptr);
 
-    ~MenuModelItem() override;
+    virtual ~MenuModelItem() override;
 
     virtual void init(caf::actor_system &system);
 
@@ -442,6 +442,8 @@ class HELPER_QML_EXPORT PanelMenuModelFilter : public QSortFilterProxyModel {
         return QVariant();
     }
 
+    void setSourceModel(QAbstractItemModel *sourceModel) override;
+
   public slots:
 
     void setPanelAddress(const QString &panelAddress) {
@@ -455,8 +457,9 @@ class HELPER_QML_EXPORT PanelMenuModelFilter : public QSortFilterProxyModel {
     void nodeActivated(const QModelIndex &idx, const QString &data, QObject *panel) {
         source_model_->nodeActivated(mapToSource(idx), data, panel);
     }
-
+  
   protected:
+
     [[nodiscard]] bool
     filterAcceptsRow(int source_row, const QModelIndex &source_parent) const override;
 

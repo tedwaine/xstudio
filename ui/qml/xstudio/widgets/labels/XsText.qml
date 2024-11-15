@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
-import QtQuick 2.12
-import QtQuick.Controls 2.14
-import QtGraphicalEffects 1.15
+import QtQuick
+
+
 
 import xStudio 1.0
 
@@ -51,10 +51,6 @@ Text {
     //     propagateComposedEvents: true
     // }
 
-    //Type1
-    ToolTip.text: text
-    ToolTip.visible: toolTipEnabled && truncated && isHovered
-    ToolTip.delay: 1000
 
     //Type2
     XsToolTip {

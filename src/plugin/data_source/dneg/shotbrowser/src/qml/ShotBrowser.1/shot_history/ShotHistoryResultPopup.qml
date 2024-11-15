@@ -1,10 +1,9 @@
 // SPDX-License-Identifier: Apache-2.0
-import QtQuick 2.12
-import QtQuick.Controls 2.14
-import QtGraphicalEffects 1.15
-import QtQuick.Layouts 1.15
-import QtQml.Models 2.14
-import Qt.labs.qmlmodels 1.0
+import QtQuick
+
+
+import QtQuick.Layouts
+
 
 import xStudio 1.0
 import xstudio.qml.models 1.0
@@ -167,7 +166,19 @@ XsPopupMenu {
         menuItemPosition: 8
         menuPath: "Transfer Selected"
         menuModelName: rightClickMenu.menu_model_name
-        onActivated: helpers.startDetachedProcess("dnenv-do", [helpers.getEnv("SHOW"), helpers.getEnv("SHOT"), "--", "maketransfer"])
+        onActivated: {
+            let uuids = []
+            if(popupSelectionModel.selectedIndexes.length) {
+                let indexes = ShotBrowserHelpers.mapIndexesToResultModel(popupSelectionModel.selectedIndexes)
+                let m = indexes[0].model
+                for(let i = 0; i< indexes.length; i++) {
+                    let uuid = m.get(indexes[i], "stalkUuidRole")
+                    if(uuid)
+                        uuids.push(helpers.QUuidToQString(uuid))
+                }
+            }
+            helpers.startDetachedProcess("dnenv-do", [helpers.getEnv("SHOW"), helpers.getEnv("SHOT"), "--", "maketransfer"].concat(uuids))
+        }
 
         Component.onCompleted: {
             // we need this so the menu model knows where to insert the

@@ -7,6 +7,7 @@
 #include "xstudio/ui/qml/helper_ui.hpp"
 
 #include <QProcess>
+#include <QRegularExpression>
 #include <qdebug.h>
 
 using namespace std::chrono_literals;
@@ -352,13 +353,13 @@ QVariant ShotBrowserResultModel::data(const QModelIndex &index, int role) const 
             break;
 
         case Roles::otioRole: {
-            auto fspath =
-                fs::path(j.at("attributes").value("sg_path_to_frames", std::string()));
-            // no idea why we have to do parent path twice.. BUG ?
-            auto otiopath = fspath.parent_path().parent_path() /
-                            (fspath.stem().string() + std::string(".otio"));
+            auto path     = j.at("attributes").value("sg_path_to_frames", std::string());
+            auto last_dot = path.find_last_of(".");
+            path          = path.substr(0, last_dot);
+            path += ".otio";
+
             try {
-                auto uri = posix_path_to_uri(otiopath.string());
+                auto uri = posix_path_to_uri(path);
                 result   = QVariant::fromValue(QUrlFromUri(uri));
             } catch (...) {
             }
@@ -482,7 +483,7 @@ QVariant ShotBrowserResultModel::data(const QModelIndex &index, int role) const 
             auto tmp = QStringList();
             for (const auto &i : j.at("relationships").at("tags").at("data")) {
                 auto name = QStringFromStd(i.at("name").get<std::string>());
-                name.replace(QRegExp("\\.REFERENCE$"), "");
+                name.replace(QRegularExpression("\\.REFERENCE$"), "");
                 tmp.append(name);
             }
             result = tmp;
@@ -735,14 +736,14 @@ bool ShotBrowserResultModel::setData(
 void ShotBrowserResultModel::groupBy() {
     // reorder rows injecting into parent with version max for stalk.
     // build lookup for items.
-    std::map<QVariant, std::map<int, utility::JsonTree *>> vmap;
+    std::map<QString, std::map<int, utility::JsonTree *>> vmap;
 
     for (auto i = 0; i < rowCount(); i++) {
         auto index   = ShotBrowserResultModel::index(i, 0);
-        auto name    = index.data(Roles::twigNameRole);
+        auto name    = index.data(Roles::twigNameRole).toString();
         auto version = index.data(Roles::versionRole).toInt();
 
-        if (not vmap.count(name))
+        if (not vmap.count(name)) 
             vmap[name] = std::map<int, utility::JsonTree *>();
 
         vmap[name][version] = indexToTree(index);

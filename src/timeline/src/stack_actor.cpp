@@ -172,6 +172,7 @@ void StackActor::item_event_callback(const utility::JsonStore &event, Item &item
             add_item(UuidActor(cuuid, actor));
             // spdlog::warn("{}",to_string(caf::actor_cast<caf::actor_addr>(actor)));
             // spdlog::warn("{}",to_string(caf::actor_cast<caf::actor_addr>(child_item_it->actor())));
+            child_item_it = find_uuid(base_.item().children(), cuuid);
             child_item_it->set_actor_addr(actor);
             // change item actor addr
             // spdlog::warn("{}",to_string(caf::actor_cast<caf::actor_addr>(child_item_it->actor())));

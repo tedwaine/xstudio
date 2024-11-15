@@ -1,10 +1,10 @@
 // SPDX-License-Identifier: Apache-2.0
 
-import QtQuick 2.15
-import QtQuick.Controls 2.15
-import QtQuick.Layouts 1.15
-import QtQml.Models 2.14
-import Qt.labs.qmlmodels 1.0
+import QtQuick
+
+import QtQuick.Layouts
+import QtQuick.Controls
+
 
 import xStudio 1.0
 import ShotBrowser 1.0
@@ -102,6 +102,52 @@ Item{
             visible: false
 
             closePolicy: filterBtn.hovered ? Popup.CloseOnEscape :  Popup.CloseOnEscape | Popup.CloseOnPressOutside
+            XsMenuModelItem {
+                text: "Unit"
+                menuItemType: "divider"
+                menuPath: ""
+                menuItemPosition: 1
+                menuModelName: shotFilterPopup.menu_model_name
+            }
+
+            Repeater {
+                model:  DelegateModel {
+                    property var notifyUnitModel: ShotBrowserEngine.presetsModel.termModel("Unit", "Version", projectId)
+                    onNotifyUnitModelChanged: {
+                        if(sequenceModel)
+                            sequenceModel.unitFilter = []
+                    }
+                    model: notifyUnitModel
+                    delegate :
+                        Item {
+                            XsMenuModelItem {
+                                text: nameRole
+                                menuItemType: "toggle"
+                                menuPath: ""
+                                menuItemPosition: index + 1
+                                menuModelName: shotFilterPopup.menu_model_name
+                                isChecked: sequenceModel && sequenceModel.unitFilter.includes(nameRole)
+                                onActivated: {
+                                    if(isChecked) {
+                                        sequenceModel.unitFilter = Array.from(sequenceModel.unitFilter).filter(r => r !== nameRole)
+                                    } else {
+                                        let tmp = sequenceModel.unitFilter
+                                        tmp.push(nameRole)
+                                        sequenceModel.unitFilter = tmp
+                                    }
+                                }
+                            }
+                        }
+                }
+            }
+
+            XsMenuModelItem {
+                text: "Status"
+                menuItemType: "divider"
+                menuPath: ""
+                menuItemPosition: 100
+                menuModelName: shotFilterPopup.menu_model_name
+            }
 
             Repeater {
                 model:  DelegateModel {
@@ -113,7 +159,7 @@ Item{
                                 text: nameRole
                                 menuItemType: "toggle"
                                 menuPath: ""
-                                menuItemPosition: index
+                                menuItemPosition: index + 101
                                 menuModelName: shotFilterPopup.menu_model_name
                                 isChecked: sequenceModel && (sequenceModel.hideStatus.includes(nameRole) || sequenceModel.hideStatus.includes(idRole))
                                 onActivated: {

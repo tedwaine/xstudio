@@ -354,4 +354,8 @@ void OpenGLStrokeRenderer::render_strokes(
     glBindVertexArray(0);
 
     shader_->stop_using();
+
+    glDisable(GL_BLEND);
+    glDisable(GL_DEPTH_TEST);
+
 }

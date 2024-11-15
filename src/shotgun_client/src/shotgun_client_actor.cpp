@@ -252,6 +252,27 @@ void ShotgunClientActor::init() {
             return rp;
         },
 
+        [=](shotgun_projects_atom,
+            const std::vector<std::string> &fields,
+            const std::vector<std::string> &sort) -> result<JsonStore> {
+            auto rp = make_response_promise<JsonStore>();
+
+            auto filter = FilterBy().And(
+                StatusList("sg_status").is_not("Archive"), Text("sg_type").is_not("Template"));
+
+            authenticate(rp, [=]() {
+                request_entity_search(
+                    "projects",
+                    JsonStore(static_cast<nlohmann::json>(filter)),
+                    fields,
+                    sort,
+                    1,
+                    4999,
+                    rp);
+            });
+            return rp;
+        },
+
         [=](shotgun_projects_atom) {
             auto rp = make_response_promise<JsonStore>();
 

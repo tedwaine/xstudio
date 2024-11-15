@@ -340,7 +340,7 @@ void SubPlayhead::init() {
             last_frame--;
             last_frame--;
 
-            // woopsie - this loop is not an efficient way to work out if 
+            // woopsie - this loop is not an efficient way to work out if
             // we will hit the end frame!!
             auto frame = full_timeline_frames_.begin();
             while (logical_frame > 0 && frame != last_frame) {
@@ -400,26 +400,21 @@ void SubPlayhead::init() {
             return result;
         },
 
-        [=](media::get_edit_list_atom atom, const Uuid &uuid) ->result<utility::EditList> {
-
+        [=](media::get_edit_list_atom atom, const Uuid &uuid) -> result<utility::EditList> {
             auto rp = make_response_promise<utility::EditList>();
-            request(source_, infinite, atom, uuid).then(
-                [=](const utility::EditList &edl) mutable {
-                    rp.deliver(edl);
-                },
-                [=](caf::error &err) mutable { rp.deliver(err); });
+            request(source_, infinite, atom, uuid)
+                .then(
+                    [=](const utility::EditList &edl) mutable { rp.deliver(edl); },
+                    [=](caf::error &err) mutable { rp.deliver(err); });
             return rp;
-
         },
 
-        [=](media::source_offset_frames_atom atom) -> result<int> { 
-
+        [=](media::source_offset_frames_atom atom) -> result<int> {
             auto rp = make_response_promise<int>();
-            request(source_, infinite, atom).then(
-                [=](int offset) mutable {
-                    rp.deliver(offset);
-                },
-                [=](caf::error &err) mutable { rp.deliver(err); });
+            request(source_, infinite, atom)
+                .then(
+                    [=](int offset) mutable { rp.deliver(offset); },
+                    [=](caf::error &err) mutable { rp.deliver(err); });
             return rp;
         },
 
@@ -789,7 +784,8 @@ void SubPlayhead::init() {
             const bool next_clip) -> timebase::flicks {
             // get the position corresponding to the first frame of the next
             // clip of the previous (current) clip
-            return get_next_or_previous_clip_start_position(current_playhead_position, next_clip);
+            return get_next_or_previous_clip_start_position(
+                current_playhead_position, next_clip);
         },
 
         [=](utility::event_atom, media::source_offset_frames_atom atom, const int offset) {
@@ -1624,8 +1620,7 @@ void SubPlayhead::get_position_after_step_by_frames(
         return;
     }
 
-    timebase::flicks t =
-        std::min(out_frame_->first, std::max(in_frame_->first, ref_position));
+    timebase::flicks t = std::min(out_frame_->first, std::max(in_frame_->first, ref_position));
 
     auto frame = full_timeline_frames_.upper_bound(t);
     if (frame != full_timeline_frames_.begin())
@@ -1659,9 +1654,7 @@ void SubPlayhead::get_position_after_step_by_frames(
 }
 
 timebase::flicks SubPlayhead::get_next_or_previous_clip_start_position(
-    const timebase::flicks ref_position, 
-    const bool next_clip) 
-{
+    const timebase::flicks ref_position, const bool next_clip) {
 
     auto result = ref_position;
 
@@ -1673,10 +1666,11 @@ timebase::flicks SubPlayhead::get_next_or_previous_clip_start_position(
     if (frame != full_timeline_frames_.begin())
         frame--;
 
-    utility::Uuid curr_frame_media_uuid = frame->second ? frame->second->media_uuid_ : utility::Uuid();
+    utility::Uuid curr_frame_media_uuid =
+        frame->second ? frame->second->media_uuid_ : utility::Uuid();
     if (next_clip) {
         while (frame != full_timeline_frames_.end()) {
-            
+
             if (frame->second && frame->second->media_uuid_ != curr_frame_media_uuid) {
                 result = frame->first;
                 break;
@@ -1684,11 +1678,12 @@ timebase::flicks SubPlayhead::get_next_or_previous_clip_start_position(
             frame++;
         }
     } else {
-        
+
         if (frame != full_timeline_frames_.begin()) {
             // step back one frame. Has the media changed?
             frame--;
-            auto prev_frame_media_uuid = frame->second ? frame->second->media_uuid_ : utility::Uuid();
+            auto prev_frame_media_uuid =
+                frame->second ? frame->second->media_uuid_ : utility::Uuid();
             if (prev_frame_media_uuid == curr_frame_media_uuid) {
                 // nope, we're in the same media .. so we need to keep going
                 // back only until we hit some new media
@@ -1700,10 +1695,10 @@ timebase::flicks SubPlayhead::get_next_or_previous_clip_start_position(
         }
 
         while (frame != full_timeline_frames_.begin()) {
-            
+
             if (frame->second && frame->second->media_uuid_ != curr_frame_media_uuid) {
                 // we've got to the last frame of the previous source.
-                // Step forward one frame to get to the first frame of 
+                // Step forward one frame to get to the first frame of
                 // this source
                 frame++;
                 result = frame->first;
@@ -1718,7 +1713,6 @@ timebase::flicks SubPlayhead::get_next_or_previous_clip_start_position(
     }
 
     return result;
-
 }
 
 void SubPlayhead::set_in_and_out_frames() {

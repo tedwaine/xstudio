@@ -57,7 +57,7 @@ namespace thumbnail {
         }
         [[nodiscard]] std::string hash_str() const {
             return fmt::format(
-                fmt_format(),
+                fmt::runtime(fmt_format()),
                 std::hash<std::string>{}(static_cast<const std::string &>(*this)));
         }
         [[nodiscard]] size_t hash() const {
@@ -71,7 +71,8 @@ namespace thumbnail {
     };
 
     inline std::string to_hash_string(const size_t hash) {
-        return fmt::format("{:0" + std::to_string(sizeof(size_t) * 2) + "x}", hash);
+        return fmt::format(
+            fmt::runtime("{:0" + std::to_string(sizeof(size_t) * 2) + "x}"), hash);
     }
     inline std::string to_string(const ThumbnailKey &v) {
         return static_cast<const std::string>(v);

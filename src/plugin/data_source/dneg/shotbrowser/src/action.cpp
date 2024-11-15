@@ -35,7 +35,8 @@ void ShotBrowser::use_action(
                         rp.deliver(JsonStore(R"({"data": {"status": "successful"}})"_json));
                     });
         } else if (operation == "RefreshPlaylist") {
-            refresh_playlist_versions(rp, Uuid(action.at("playlist_uuid")));
+            refresh_playlist_versions(
+                rp, Uuid(action.at("playlist_uuid")), action.at("match_order"));
         } else {
             rp.deliver(make_error(xstudio_error::error, "Invalid operation."));
         }
@@ -66,7 +67,8 @@ void ShotBrowser::use_action(
 void ShotBrowser::use_action(
     caf::typed_response_promise<utility::UuidActorVector> rp,
     const caf::uri &uri,
-    const FrameRate &media_rate) {
+    const FrameRate &media_rate,
+    const bool create_playlist) {
     // check protocol == shotgun..
     if (uri.scheme() != "shotgun")
         return rp.deliver(UuidActorVector());
@@ -106,9 +108,8 @@ void ShotBrowser::use_action(
                                     infinite,
                                     playlist::add_media_atom_v,
                                     js,
-                                    utility::Uuid(),
-                                    caf::actor(),
-                                    utility::Uuid())
+                                    create_playlist,
+                                    media_rate)
                                     .then(
                                         [=](const UuidActorVector &uav) mutable {
                                             (*count)--;

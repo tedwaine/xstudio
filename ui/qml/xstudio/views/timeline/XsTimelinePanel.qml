@@ -1,22 +1,18 @@
 // SPDX-License-Identifier: Apache-2.0
-import QtQuick 2.14
-import QtQuick.Controls 2.14
-import QtQuick.Controls.Styles 1.4
-import QtQml.Models 2.14
-import Qt.labs.qmlmodels 1.0
-import QtQuick.Layouts 1.15
-import QtQml 2.14
+import QtQuick
+import QtQuick.Controls
+import QtQuick.Layouts
+
 import xstudio.qml.helpers 1.0
 import xstudio.qml.models 1.0
 import xstudio.qml.viewport 1.0
 
 import xStudio 1.0
 
-XsGradientRectangle{
+XsGradientRectangle {
 
     id: panel
     anchors.fill: parent
-
     property color bgColorPressed: palette.highlight
     property color bgColorNormal: "transparent"
     property color forcedBgColorNormal: bgColorNormal
@@ -46,6 +42,11 @@ XsGradientRectangle{
     property bool hideMarkers: false
     property real verticalScale: 1.0
 
+    property bool isPlayheadActive: timelinePlayhead.pinnedSourceMode ? currentPlayhead.uuid == timelinePlayhead.uuid : false
+
+    opacity: isPlayheadActive ? 1.0 : 0.4
+    Behavior on opacity {NumberAnimation {duration: 150}}
+
     // persist these properties between sessions
     XsStoredPanelProperties {
         propertyNames: ["hideMarkers", "verticalScale"]
@@ -59,7 +60,7 @@ XsGradientRectangle{
     }
 
     function nTimer() {
-         return Qt.createQmlObject("import QtQuick 2.0; Timer {}", appWindow);
+        return Qt.createQmlObject("import QtQuick; Timer {}", appWindow);
     }
 
     function delay(delayTime, cb) {
@@ -233,7 +234,14 @@ XsGradientRectangle{
                         )
 
                 }
-                onEditingCompleted: forceActiveFocus(panel)
+                onEditingCompleted: {
+                    // jump to first clip
+                    if(theTimeline.timelineSelection.selectedIndexes.length) {
+                        let frame = theSessionData.startFrameInParent(theTimeline.timelineSelection.selectedIndexes[0])
+                        timelinePlayhead.logicalFrame = frame
+                    }
+                    forceActiveFocus(panel)
+                }
             }
             Item{
                 Layout.fillWidth: true
@@ -347,9 +355,9 @@ XsGradientRectangle{
             XsPrimaryButton{
                 Layout.preferredWidth: iconTextBtnWidth
                 Layout.preferredHeight: parent.height
-                visible: false
+                visible: true
                 imgSrc: "qrc:/icons/waves.svg"
-                text: "Overwrite"
+                text: "Overwrite (test)"
                 toolTip: "Overwrite"
                 showBoth: true
                 font.pixelSize: XsStyleSheet.fontSize

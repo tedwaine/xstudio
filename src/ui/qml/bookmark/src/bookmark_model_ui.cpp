@@ -383,12 +383,12 @@ void BookmarkModel::init(caf::actor_system &_system) {
                         node->data().update(jsn);
 
                         // Needs optimising!! Currently this leaves 'change'
-                        // empty, meaning all roles are changing. This means 
-                        // thumbnail role is always updated so thumbnail is 
+                        // empty, meaning all roles are changing. This means
+                        // thumbnail role is always updated so thumbnail is
                         // re-rendered for every character the user enters into
                         // a note, for example
                         auto change = getRoleChanges(bookmarks_.at(ua.uuid()), detail);
-                        
+
                         if (change.empty() || change.contains(thumbnailRole)) {
                             out_of_date_thumbnails_.insert(detail.uuid_);
                         }
@@ -455,7 +455,8 @@ void BookmarkModel::init(caf::actor_system &_system) {
                 thumbnail_cache_[detail.uuid_] =
                     QImage(thumbnail->width(), thumbnail->height(), QImage::Format_RGB888);
                 auto p = out_of_date_thumbnails_.find(detail.uuid_);
-                if (p != out_of_date_thumbnails_.end()) out_of_date_thumbnails_.erase(p);
+                if (p != out_of_date_thumbnails_.end())
+                    out_of_date_thumbnails_.erase(p);
 
                 uint8_t *bits = thumbnail_cache_[detail.uuid_].bits();
                 memcpy(
@@ -753,25 +754,23 @@ QVariant BookmarkModel::data(const QModelIndex &index, int role) const {
             case hasAnnotationRole:
                 result = QVariant::fromValue(*(detail.has_annotation_));
                 break;
-            case thumbnailRole:
-                {
-                    bool get_thumbnail = true;
-                    if (thumbnail_cache_.count(detail.uuid_)) {
-                        result = thumbnail_cache_.at(detail.uuid_);                    
-                        if (!out_of_date_thumbnails_.count(detail.uuid_)) {
-                            get_thumbnail = false;
-                        }
-                    } 
-                    if (get_thumbnail) {
-                        anon_send(
-                            bookmark_actor_,
-                            media_reader::get_thumbnail_atom_v,
-                            detail,
-                            256,
-                            as_actor());
+            case thumbnailRole: {
+                bool get_thumbnail = true;
+                if (thumbnail_cache_.count(detail.uuid_)) {
+                    result = thumbnail_cache_.at(detail.uuid_);
+                    if (!out_of_date_thumbnails_.count(detail.uuid_)) {
+                        get_thumbnail = false;
                     }
                 }
-                break;
+                if (get_thumbnail) {
+                    anon_send(
+                        bookmark_actor_,
+                        media_reader::get_thumbnail_atom_v,
+                        detail,
+                        256,
+                        as_actor());
+                }
+            } break;
             case ownerRole:
                 result = QVariant::fromValue(QUuidFromUuid((*(detail.owner_)).uuid()));
                 break;

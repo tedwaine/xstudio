@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: Apache-2.0
-import QtQuick 2.12
-import QtQuick.Controls 2.14
-import QtQuick.Layouts 1.3
-import QtQuick.Dialogs 1.0
+import QtQuick
+
+import QtQuick.Layouts
+
 
 import xStudio 1.0
 
@@ -21,10 +21,10 @@ XsWindow {
     FileDialog {
         id: select_path_dialog
         title: "Select Snapshot Path"
-        folder: file_functions.defaultSessionFolder()
+        currentFolder: file_functions.defaultSessionFolder()
 
         selectFolder: true
-        selectExisting: true
+        //selectExisting: true
         selectMultiple: false
 
         onAccepted: {

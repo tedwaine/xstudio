@@ -1,11 +1,14 @@
 // SPDX-License-Identifier: Apache-2.0
 
-import QtQuick 2.15
-import QtQuick.Controls 2.15
-import QtQuick.Layouts 1.15
+import QtQuick
+
+import QtQuick.Layouts
+import QtQuick.Controls
 
 import xStudio 1.0
 import ShotBrowser 1.0
+import xstudio.qml.models 1.0
+import xstudio.qml.helpers 1.0
 
 
 RowLayout{
@@ -84,20 +87,33 @@ RowLayout{
         }
     }
 
+
+
     XsComboBoxEditable{
         id: combo
-        model: ShotBrowserEngine.ready ? ShotBrowserEngine.presetsModel.termModel("Project") : []
+        model: ShotBrowserFilterModel {
+            divisionFilter: prefs.filterProjects
+
+        }
+
+        Connections {
+            target: ShotBrowserEngine
+            function onReadyChanged() {
+                if(ShotBrowserEngine.ready)
+                    combo.model.sourceModel = ShotBrowserEngine.presetsModel.termModel("Project")
+            }
+        }
+
         textRole: "nameRole"
         Layout.fillWidth: true
         Layout.minimumWidth: btnWidth * 1.3
         Layout.fillHeight: true
         Layout.leftMargin: 4
-        Layout.rightMargin: 4
         textField.font.weight: Font.Black
 
-        onActivated: projectIndex = model.index(index, 0)
+        onActivated: projectIndex = model.mapToSource(model.index(index, 0))
         onAccepted: {
-            projectIndex = model.index(currentIndex, 0)
+            projectIndex = model.mapToSource(model.index(currentIndex, 0))
             focus = false
         }
 
@@ -105,17 +121,70 @@ RowLayout{
             target: panel
             function onProjectIndexChanged() {
                 // console.log(projectIndex, projectIndex.row)
-                if(combo.currentIndex != projectIndex.row) {
-                    combo.currentIndex = projectIndex.row
+                if(combo.currentIndex != combo.model.mapFromSource(projectIndex).row) {
+                    combo.currentIndex = combo.model.mapFromSource(projectIndex).row
                 }
             }
         }
         Component.onCompleted: {
-            if(projectIndex && projectIndex.valid && combo.currentIndex != projectIndex.row) {
-                combo.currentIndex = projectIndex.row
+            if(projectIndex && projectIndex.valid && combo.currentIndex != model.mapFromSource(projectIndex).row) {
+                combo.currentIndex = model.mapFromSource(projectIndex).row
             }
         }
     }
+
+    XsPrimaryButton{ id: filterBtn
+        Layout.minimumWidth: butWidth
+        Layout.maximumWidth: butWidth
+        Layout.fillHeight: true
+        Layout.rightMargin: 4
+
+        imgSrc: "qrc:/icons/filter.svg"
+        isActive: combo.model && combo.model.divisionFilter.length
+        onClicked: {
+            // searchBtn.isExpanded = false
+            if(projectFilterPopup.visible) {
+                projectFilterPopup.visible = false
+            } else {
+                projectFilterPopup.showMenu(
+                    filterBtn,
+                    width/2,
+                    height/2);
+            }
+        }
+    }
+
+    XsPopupMenu {
+        id: projectFilterPopup
+        menu_model_name: "project_filter_popup"
+        visible: false
+
+        closePolicy: filterBtn.hovered ? Popup.CloseOnEscape :  Popup.CloseOnEscape | Popup.CloseOnPressOutside
+
+        Repeater {
+            model: ["Feature Animation", "Visual Effects", "ReDefine", "TV", "dneg360"]
+            Item {
+                XsMenuModelItem {
+                    text: modelData
+                    menuItemType: "toggle"
+                    menuPath: ""
+                    menuItemPosition: index
+                    menuModelName: projectFilterPopup.menu_model_name
+                    isChecked: combo.model && combo.model.divisionFilter.includes(modelData)
+                    onActivated: {
+                        if(isChecked) {
+                            prefs.filterProjects = Array.from(combo.model.divisionFilter).filter(r => r !== modelData)
+                        } else {
+                            let tmp = combo.model.divisionFilter
+                            tmp.push(modelData)
+                            prefs.filterProjects = tmp
+                        }
+                    }
+                }
+            }
+        }
+    }
+
 
     XsPrimaryButton{ id: credentialsBtn
         Layout.minimumWidth: butWidth

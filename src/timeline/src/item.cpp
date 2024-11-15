@@ -1097,7 +1097,7 @@ std::set<utility::Uuid> Item::update(const utility::JsonStore &event) {
 
 void Item::undo(const utility::JsonStore &event) {
     // reverse ordering..
-    for(auto it = event.crbegin(); it != event.crend(); ++it)
+    for (auto it = event.crbegin(); it != event.crend(); ++it)
         process_event(it->at("undo"));
 }
 
@@ -1156,7 +1156,8 @@ bool Item::process_event(const utility::JsonStore &event) {
                     std::next(begin(), index), Item(JsonStore(event.at("item")), the_system_));
             } else {
                 spdlog::error(
-                    "IA_INSERT - INVALID INDEX uuid {} name {} type {} index {} track size {} {}",
+                    "IA_INSERT - INVALID INDEX uuid {} name {} type {} index {} track size {} "
+                    "{}",
                     to_string(uuid()),
                     name(),
                     to_string(item_type()),

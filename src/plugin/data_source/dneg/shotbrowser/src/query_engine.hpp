@@ -172,7 +172,8 @@ const auto ValidTerms = R"_({
         "Tag",
         "Tag (Version)",
         "Twig Name",
-        "Twig Type"
+        "Twig Type",
+        "Unit"
     ]
 })_"_json;
 

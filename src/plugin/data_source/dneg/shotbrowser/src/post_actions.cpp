@@ -114,7 +114,7 @@ void ShotBrowser::create_playlist_notes(
 
     const std::string ui(R"(
         import xStudio 1.0
-        import QtQuick 2.14
+        import QtQuick
         XsLabel {
             anchors.fill: parent
             font.pixelSize: XsStyle.popupControlFontSize*1.2

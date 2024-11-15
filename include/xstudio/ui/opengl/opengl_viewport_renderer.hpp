@@ -50,7 +50,8 @@ namespace ui {
                 const std::vector<media_reader::ImageBufPtr> &next_images,
                 const Imath::M44f &to_scene_matrix,
                 const Imath::M44f &projection_matrix,
-                const Imath::M44f &fit_mode_matrix) override;
+                const Imath::M44f &fit_mode_matrix,
+                const Imath::V2i &window_size) override;
 
             utility::JsonStore default_prefs() override;
 
@@ -67,7 +68,7 @@ namespace ui {
             upload_image_and_colour_data(std::vector<media_reader::ImageBufPtr> &next_images);
             void bind_textures();
             void release_textures();
-            void clear_viewport_area(const Imath::M44f &to_scene_matrix);
+            void clear_viewport_area(const Imath::M44f &to_scene_matrix, const Imath::V2i &window_size);
 
             typedef std::shared_ptr<GLDoubleBufferedTexture> GLTexturePtr;
             std::vector<GLTexturePtr> textures_;

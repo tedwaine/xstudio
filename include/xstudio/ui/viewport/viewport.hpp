@@ -45,7 +45,7 @@ namespace ui {
             void set_pointer_event_viewport_coords(PointerEvent &pointer_event);
 
             void set_scale(const float scale);
-            void set_size(const float w, const float h, const float devicePixelRatio);
+            void set_size(const float w, const float h, const float window_width, const float window_height);
             void set_pan(const float x_pan, const float y_pan);
             void set_fit_mode(const FitMode md, const bool sync = true);
             void set_mirror_mode(const MirrorMode md);
@@ -85,7 +85,8 @@ namespace ui {
                 if (!next_images.empty())
                     update_onscreen_frame_info(next_images[0]);
                 the_renderer_->render(
-                    next_images, to_scene_matrix(), projection_matrix(), fit_mode_matrix());
+                    next_images, to_scene_matrix(), projection_matrix(), fit_mode_matrix(),
+                    state_.window_size_);
             }
 
             /**
@@ -105,7 +106,8 @@ namespace ui {
                 if (!next_images.empty())
                     update_onscreen_frame_info(next_images[0]);
                 the_renderer_->render(
-                    next_images, to_scene_matrix(), projection_matrix(), fit_mode_matrix());
+                    next_images, to_scene_matrix(), projection_matrix(), fit_mode_matrix(), 
+                    state_.window_size_);
             }
 
             /**
@@ -120,7 +122,8 @@ namespace ui {
                     std::vector<media_reader::ImageBufPtr>({image_buf}),
                     to_scene_matrix(),
                     projection_matrix(),
-                    fit_mode_matrix());
+                    fit_mode_matrix(),
+                    state_.window_size_);
             }
 
 
@@ -142,13 +145,13 @@ namespace ui {
              *  as in order to draw the viewport correctly into the QQuickItem bounds we
              *  need to know how the QQuickItem is transformed into the parent QQuickWindow
              */
-            bool set_scene_coordinates(
-                const Imath::V2f topleft,
-                const Imath::V2f topright,
-                const Imath::V2f bottomright,
-                const Imath::V2f bottomleft,
-                const Imath::V2i scene_size,
-                const float devicePixelRatio);
+            bool set_geometry(
+                    const float x,
+                    const float y,
+                    const float width,
+                    const float height,
+                    const float window_width,
+                    const float window_height);
 
             /**
              *  @brief Inform the viewport of the size of the image currently on screen to
@@ -328,6 +331,7 @@ namespace ui {
                 MirrorMode mirror_mode_ = {Off};
                 float image_aspect_     = {16.0f / 9.0f};
                 float fit_mode_zoom_    = {1.0};
+                Imath::V2f window_size_ = {};
             } state_, interact_start_state_;
 
             struct FitModeStat {
@@ -342,7 +346,6 @@ namespace ui {
             Imath::M44f interact_start_inv_projection_matrix_;
             Imath::M44f viewport_to_canvas_;
             Imath::M44f fit_mode_matrix_;
-            float devicePixelRatio_     = {1.0};
             bool broadcast_fit_details_ = {true};
 
             Imath::V4f normalised_pointer_position() const;

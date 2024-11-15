@@ -532,6 +532,7 @@ void OpenGLShapeRenderer::render_shapes(
     glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
 
     glEnable(GL_DEPTH_TEST);
+    glDisable(GL_BLEND);
 
     shader_->stop_using();
 }

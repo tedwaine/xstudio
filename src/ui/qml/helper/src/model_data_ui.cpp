@@ -1207,16 +1207,24 @@ QObject *MenuModelItem::contextPanel() {
 
 PanelMenuModelFilter::PanelMenuModelFilter(QObject *parent) : QSortFilterProxyModel(parent) {
 
-    QObject::connect(this, &QSortFilterProxyModel::sourceModelChanged, [=]() {
-        if (auto m = dynamic_cast<UIModelData *>(sourceModel())) {
-            menu_item_context_role_id_ = m->roleId(QString("menu_item_context"));
-            source_model_              = m;
-        }
-    });
+}
+
+void PanelMenuModelFilter::setSourceModel(QAbstractItemModel *sourceModel) {
+
+    if (auto m = dynamic_cast<UIModelData *>(sourceModel)) {
+        menu_item_context_role_id_ = m->roleId(QString("menu_item_context"));
+        source_model_              = m;
+    } else {
+        menu_item_context_role_id_ = 0;
+        source_model_              = nullptr;
+    }
+    QSortFilterProxyModel::setSourceModel(sourceModel);
 }
 
 bool PanelMenuModelFilter::filterAcceptsRow(
     int source_row, const QModelIndex &source_parent) const {
+
+    if (!sourceModel()) return false;
 
     if (menu_item_context_role_id_) {
 

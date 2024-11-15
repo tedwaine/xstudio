@@ -99,6 +99,7 @@ void TimelineActor::item_post_event_callback(const utility::JsonStore &event, It
 
             auto actor = deserialise(utility::JsonStore(event.at("blind")), false);
             add_item(UuidActor(cuuid, actor));
+            child_item_it = find_uuid(base_.item().children(), cuuid);
             // spdlog::warn("{}",to_string(caf::actor_cast<caf::actor_addr>(actor)));
             // spdlog::warn("{}",to_string(caf::actor_cast<caf::actor_addr>(child_item_it->actor())));
             child_item_it->set_actor_addr(actor);
@@ -1566,7 +1567,7 @@ void TimelineActor::init() {
             base_.item().undo(hist);
 
             auto inverted = R"([])"_json;
-            for(auto it = hist.crbegin(); it != hist.crend(); ++it) {
+            for (auto it = hist.crbegin(); it != hist.crend(); ++it) {
                 auto ev    = R"({})"_json;
                 ev["redo"] = it->at("undo");
                 ev["undo"] = it->at("redo");

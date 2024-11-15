@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
 
-import QtQuick 2.15
+import QtQuick
 import QtQuick.Shapes 1.6
 import xstudio.qml.models 1.0
 import xstudio.qml.viewport 1.0

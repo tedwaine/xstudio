@@ -1,8 +1,9 @@
 // SPDX-License-Identifier: Apache-2.0
-import QtQuick 2.12
+import QtQuick
 
 import xStudio 1.0
 import xstudio.qml.models 1.0
+import xstudio.qml.clipboard 1.0
 import "."
 
 XsPopupMenu {
@@ -10,6 +11,10 @@ XsPopupMenu {
     id: contextMenu
     visible: false
     menu_model_name: "playlist_context_menu"
+
+    Clipboard {
+      id: clipboard
+    }
 
     XsPlaylistPlusMenu {
         menu_model_name: "playlist_context_menu"
@@ -26,6 +31,7 @@ XsPopupMenu {
     Component.onCompleted: {
         // make sure the 'Add' sub-menu appears in the correct place
         helpers.setMenuPathPosition("Add", "playlist_context_menu", -2.0)
+        helpers.setMenuPathPosition("Copy To Clipboard", "playlist_context_menu", 0.8)
         helpers.setMenuPathPosition("Cleanup", "playlist_context_menu", 22.0)
         helpers.setMenuPathPosition("Export", "playlist_context_menu", 4.0)
     }
@@ -88,6 +94,25 @@ XsPopupMenu {
    //      }
    //      panelContext: contextMenu.panelContext
    //  }
+    XsMenuModelItem {
+        text: "Playlist Name"
+        menuItemType: "button"
+        menuPath: "Copy To Clipboard"
+        menuItemPosition: 1.0
+        menuModelName: contextMenu.menu_model_name
+        onActivated: clipboard.text = theSessionData.get(theSessionData.getPlaylistIndex(sessionSelectionModel.selectedIndexes[0]), "nameRole")
+        panelContext: contextMenu.panelContext
+    }
+
+    XsMenuModelItem {
+        text: "Selected Name"
+        menuItemType: "button"
+        menuPath: "Copy To Clipboard"
+        menuItemPosition: 2.0
+        menuModelName: contextMenu.menu_model_name
+        onActivated: clipboard.text = theSessionData.get(sessionSelectionModel.selectedIndexes[0], "nameRole")
+        panelContext: contextMenu.panelContext
+    }
 
     XsMenuModelItem {
         menuItemType: "divider"

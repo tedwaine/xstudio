@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: Apache-2.0
-import QtQuick 2.12
-import QtQuick.Controls 2.12
-import QtGraphicalEffects 1.15
-import QtQuick.Layouts 1.15
+import QtQuick
+
+
+import QtQuick.Layouts
 import QtQml.Models 2.12
 
 import xStudio 1.0
@@ -501,6 +501,7 @@ XsPopupMenu {
         menuModelName: btnMenu.menu_model_name
         onActivated: theSessionData.rescanMedia(mediaSelectionModel.selectedIndexes)
         panelContext: btnMenu.panelContext
+        hotkeyUuid: reload_selected_media_hotkey.uuid
     }
 
     XsMenuModelItem {

@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
 pragma Singleton
-import QtQuick 2.12
+import QtQuick
 
 QtObject {
 

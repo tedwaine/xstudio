@@ -148,8 +148,8 @@ AnnotationsTool::AnnotationsTool(
         "Drawing Tools",
         R"(
             import AnnotationsTool 2.0
-            import QtGraphicalEffects 1.15
-            import QtQuick 2.15
+            
+            import QtQuick
             Rectangle {
                 anchors.fill: parent
                 XsDrawingTools {
@@ -176,7 +176,7 @@ AnnotationsTool::AnnotationsTool(
         // qml code to create the left/right dockable widget
         R"(
             import AnnotationsTool 2.0
-            import QtQuick 2.15
+            import QtQuick
             XsDrawingToolsLR {
             }
             )",
@@ -184,7 +184,7 @@ AnnotationsTool::AnnotationsTool(
         // one)
         R"(
             import AnnotationsTool 2.0
-            import QtQuick 2.15
+            import QtQuick
             XsDrawingToolsTB {
             }
             )",
@@ -378,10 +378,10 @@ void AnnotationsTool::register_hotkeys() {
         int('X'),
         ui::ShiftModifier,
         "Clear all strokes",
-        "Clears the entire current drawing. If there is no text in the assicated note it will also be removed.",
+        "Clears the entire current drawing. If there is no text in the assicated note it will "
+        "also be removed.",
         false,
         "Drawing Tools");
-
 }
 
 void AnnotationsTool::hotkey_pressed(
@@ -402,9 +402,8 @@ void AnnotationsTool::hotkey_pressed(
         redo();
         redraw_viewport();
     } else if (hotkey_uuid == clear_hotkey_ && active_tool_->value() != "None") {
-        
-        clear_onscreen_annotations();
 
+        clear_onscreen_annotations();
     }
 }
 

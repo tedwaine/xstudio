@@ -2151,7 +2151,7 @@ inline void dump_tree3(const utility::JsonTree &node, const int depth = 0) {
 void MediaActor::build_media_list_info(caf::typed_response_promise<utility::JsonStore> rp) {
 
     // empty json array for results of the filter sets
-    auto result = std::make_shared<JsonStore>(nlohmann::json::parse(R"([])"));
+    auto result = std::make_shared<JsonStore>(R"([])"_json);
 
     // because do this by firing off a bunch of asynchronous requests, we count
     // the number of results we get until it matches num_metadata_filter_results_
@@ -2177,7 +2177,7 @@ void MediaActor::build_media_list_info(caf::typed_response_promise<utility::Json
     };
 
     // empty json array for results of the filter set items
-    result->push_back(nlohmann::json::parse(R"([])"));
+    result->push_back(R"([])"_json);
 
     int item_idx = 0;
 

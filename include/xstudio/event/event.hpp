@@ -58,11 +58,12 @@ namespace event {
         [[nodiscard]] auto progress_text() const { return progress_text_; }
         [[nodiscard]] auto progress_text_percentage() const {
             return std::string(fmt::format(
-                progress_text_, std::string(fmt::format("{:>5.1f}%", progress_percentage()))));
+                fmt::runtime(progress_text_),
+                std::string(fmt::format("{:>5.1f}%", progress_percentage()))));
         }
         [[nodiscard]] auto progress_text_range() const {
             return std::string(fmt::format(
-                progress_text_,
+                fmt::runtime(progress_text_),
                 std::string(fmt::format(
                     "{}/{}",
                     progress_ - progress_minimum_,

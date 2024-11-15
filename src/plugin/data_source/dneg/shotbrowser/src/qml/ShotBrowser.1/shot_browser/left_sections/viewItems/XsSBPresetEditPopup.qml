@@ -1,15 +1,14 @@
 // SPDX-License-Identifier: Apache-2.0
 
-import QtQuick 2.15
-import QtQuick.Controls 2.15
-import QtQuick.Layouts 1.15
-import QtQuick.Window 2.14
+import QtQuick
+
+import QtQuick.Layouts
+
 
 import xStudio 1.0
 import ShotBrowser 1.0
 import xstudio.qml.helpers 1.0
-import QtQml.Models 2.14
-import Qt.labs.qmlmodels 1.0
+
 
 XsWindow{
     id: presetEditPopup
@@ -34,31 +33,16 @@ XsWindow{
     onClosing: coln.focus = true
 
     onPresetIndexChanged: {
-        presetTermModel.rootIndex = presetIndex
-        // presetTermModel.model = ShotBrowserEngine.presetsModel
-        presetDelegateModel.newTermParent = presetIndex
+        if(presetIndex && presetIndex.valid) {
+            presetTermModel.model = ShotBrowserEngine.presetsModel
+            presetTermModel.rootIndex = presetIndex
+            presetList.model.newTermParent = presetIndex
+        }
     }
 
     QTreeModelToTableModel {
         id: presetTermModel
-        model: ShotBrowserEngine.presetsModel
     }
-
-    DelegateModel {
-        id: presetDelegateModel
-        property var notifyModel: presetTermModel
-        model: notifyModel
-
-        property var newTermParent: null
-
-        delegate: XsSBPresetEditItem{
-            width: presetList.width
-            height: itemHeight
-            termModel: ShotBrowserEngine.presetsModel.termLists[entityType]
-            delegateModel: presetDelegateModel
-        }
-    }
-
 
     ColumnLayout { id: coln
         anchors.fill: parent
@@ -124,12 +108,29 @@ XsWindow{
             Layout.fillWidth: true
             Layout.fillHeight: true
 
-            model: presetDelegateModel
+            property int rightSpacing: height < contentHeight ? 14 : 0
+            Behavior on rightSpacing {NumberAnimation {duration: 150}}
+
+            model: DelegateModel {
+                id: presetDelegateModel
+                property var notifyModel: presetTermModel
+                model: notifyModel
+
+                property var newTermParent: null
+
+                delegate: XsSBPresetEditItem{
+                    width: presetList.width - presetList.rightSpacing
+                    height: itemHeight
+                    termModel: ShotBrowserEngine.presetsModel.termLists[entityType]
+                    delegateModel: presetDelegateModel
+                }
+            }
+
             interactive: true
             spacing: 1
 
             footer: Item{
-                    width: presetList.width
+                    width: presetList.width - presetList.rightSpacing
                     height: itemHeight
                     XsSBPresetEditNewItem{
                         anchors.fill: parent

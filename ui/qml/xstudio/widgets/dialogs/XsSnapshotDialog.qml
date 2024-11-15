@@ -1,10 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
-import QtQuick 2.15
-import QtQuick.Controls 2.15
-import QtGraphicalEffects 1.12
-import QtQuick.Layouts 1.3
-import QtQuick.Window 2.2
-import QtQuick.Dialogs 1.0
+import QtQuick
+import QtQuick.Layouts
+import QtQuick.Dialogs
 
 import xstudio.qml.models 1.0
 import xStudio 1.0
@@ -61,11 +58,10 @@ XsWindow {
             title: qsTr("Name / select a file to save")
             selectMultiple: false
             selectFolder: false
-            selectExisting: false
+            //selectExisting: false
             nameFilters: [ "JPEG files (*.jpg)", "PNG files (*.png)", "TIF files (*.tif *.tiff)", "EXR files (*.exr)" ]
-            property var suffixes: ["jpg", "png", "tif", "exr"]
             defaultSuffix: "jpg"
-            selectedNameFilter: "JPEG files (*.jpg)"
+            selectedNameFilter.index: 0
             onAccepted: {
                 var fixedfileUrl = fileUrl.toString()
                 var result = studio.renderScreenShotToDisk(

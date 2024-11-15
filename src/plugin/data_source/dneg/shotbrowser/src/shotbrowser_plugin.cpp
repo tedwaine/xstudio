@@ -483,14 +483,16 @@ caf::message_handler ShotBrowser::message_handler_extensions() {
          // erm...
          [=](use_data_atom atom, const caf::uri &uri) -> result<UuidActorVector> {
              auto rp = make_response_promise<UuidActorVector>();
-             use_action(rp, uri, FrameRate());
+             use_action(rp, uri, FrameRate(), true);
              return rp;
          },
 
-         [=](use_data_atom, const caf::uri &uri, const FrameRate &media_rate)
-             -> result<UuidActorVector> {
+         [=](use_data_atom,
+             const caf::uri &uri,
+             const FrameRate &media_rate,
+             const bool create_playlist) -> result<UuidActorVector> {
              auto rp = make_response_promise<UuidActorVector>();
-             use_action(rp, uri, media_rate);
+             use_action(rp, uri, media_rate, create_playlist);
              return rp;
          },
 
@@ -629,7 +631,31 @@ caf::message_handler ShotBrowser::message_handler_extensions() {
              const caf::actor &playlist,
              const utility::Uuid &before) -> result<std::vector<UuidActor>> {
              auto rp = make_response_promise<std::vector<UuidActor>>();
-             add_media_to_playlist(rp, data, playlist_uuid, playlist, before);
+             add_media_to_playlist(
+                 rp,
+                 data,
+                 playlist ? false : true,
+                 playlist_uuid,
+                 playlist,
+                 before,
+                 FrameRate());
+             return rp;
+         },
+
+         [=](playlist::add_media_atom,
+             const utility::JsonStore &data,
+             const bool create_playlist,
+             const FrameRate &media_rate) -> result<std::vector<UuidActor>> {
+             auto rp = make_response_promise<std::vector<UuidActor>>();
+             add_media_to_playlist(
+                 rp, data, create_playlist, Uuid(), caf::actor(), Uuid(), media_rate);
+             return rp;
+         },
+
+         [=](playlist::move_media_atom, caf::actor playlist, const JsonStore &sg_playlist)
+             -> result<bool> {
+             auto rp = make_response_promise<bool>();
+             reorder_playlist(rp, playlist, sg_playlist);
              return rp;
          },
 
@@ -1040,7 +1066,9 @@ void ShotBrowser::update_preferences(const JsonStore &js) {
 }
 
 void ShotBrowser::refresh_playlist_versions(
-    caf::typed_response_promise<JsonStore> rp, const utility::Uuid &playlist_uuid) {
+    caf::typed_response_promise<JsonStore> rp,
+    const utility::Uuid &playlist_uuid,
+    const bool match_order) {
     // grab playlist id, get versions compare/load into playlist
     try {
 
@@ -1054,7 +1082,6 @@ void ShotBrowser::refresh_playlist_versions(
         auto playlist = request_receive<caf::actor>(
             *sys, session, session::get_playlist_atom_v, playlist_uuid);
 
-
         auto plsg = request_receive<JsonStore>(
             *sys, playlist, json_store::get_json_atom_v, ShotgunMetadataPath + "/playlist");
 
@@ -1064,8 +1091,7 @@ void ShotBrowser::refresh_playlist_versions(
         auto media =
             request_receive<std::vector<UuidActor>>(*sys, playlist, playlist::get_media_atom_v);
 
-
-        // foreach media actor get it's shogtun metadata.
+        // foreach media actor get it's shotgun metadata.
         std::set<int> current_version_ids;
 
         for (const auto &i : media) {
@@ -1078,7 +1104,7 @@ void ShotBrowser::refresh_playlist_versions(
                     ShotgunMetadataPath + "/version");
                 current_version_ids.insert(mjson["id"].template get<int>());
             } catch (const std::exception &err) {
-                spdlog::warn("{} {}", __PRETTY_FUNCTION__, err.what());
+                // spdlog::warn("{} {}", __PRETTY_FUNCTION__, err.what());
             }
         }
 
@@ -1112,6 +1138,16 @@ void ShotBrowser::refresh_playlist_versions(
                         }
 
                         if (version_ids.empty()) {
+                            if (match_order) {
+                                // still need to match ordering..
+                                // which is in another table :(
+                                anon_send(
+                                    caf::actor_cast<caf::actor>(this),
+                                    playlist::move_media_atom_v,
+                                    playlist,
+                                    JsonStore(result["data"]));
+                            }
+
                             rp.deliver(result);
                             return;
                         }
@@ -1129,19 +1165,36 @@ void ShotBrowser::refresh_playlist_versions(
                             VersionFields,
                             std::vector<std::string>(),
                             1,
-                            1000)
+                            4999)
                             .then(
                                 [=](const JsonStore &result2) mutable {
                                     try {
                                         // got version details.
                                         // we can now just call add versions to playlist..
-                                        anon_send(
+                                        request(
                                             caf::actor_cast<caf::actor>(this),
+                                            infinite,
                                             playlist::add_media_atom_v,
                                             result2,
                                             playlist_uuid,
                                             playlist,
-                                            utility::Uuid());
+                                            utility::Uuid())
+                                            .then(
+                                                [=](const std::vector<UuidActor>
+                                                        &media) mutable {
+                                                    if (match_order)
+                                                        anon_send(
+                                                            caf::actor_cast<caf::actor>(this),
+                                                            playlist::move_media_atom_v,
+                                                            playlist,
+                                                            JsonStore(result["data"]));
+                                                },
+                                                [=](error &err) mutable {
+                                                    spdlog::warn(
+                                                        "{} {}",
+                                                        __PRETTY_FUNCTION__,
+                                                        to_string(err));
+                                                });
 
                                         // return this as the result.
                                         rp.deliver(result);
@@ -1174,9 +1227,11 @@ void ShotBrowser::refresh_playlist_versions(
 void ShotBrowser::add_media_to_playlist(
     caf::typed_response_promise<UuidActorVector> rp,
     const utility::JsonStore &data,
+    const bool create_playlist,
     utility::Uuid playlist_uuid,
     caf::actor playlist,
-    const utility::Uuid &before) {
+    const utility::Uuid &before,
+    const utility::FrameRate &media_rate_) {
     // data can be in multiple forms..
 
     auto sys = caf::scoped_actor(system());
@@ -1233,7 +1288,7 @@ void ShotBrowser::add_media_to_playlist(
     }
 
     // create playlist..
-    if (not playlist and playlist_uuid.is_null()) {
+    if (create_playlist and not playlist and playlist_uuid.is_null()) {
         try {
             auto session = request_receive<caf::actor>(
                 *sys,
@@ -1262,8 +1317,9 @@ void ShotBrowser::add_media_to_playlist(
     }
 
     try {
-        auto media_rate =
-            request_receive<FrameRate>(*sys, playlist, session::media_rate_atom_v);
+        auto media_rate = media_rate_;
+        if (playlist)
+            media_rate = request_receive<FrameRate>(*sys, playlist, session::media_rate_atom_v);
 
         std::string flag_text, flag_colour;
         if (data.contains(json::json_pointer("/context/flag_text")) and
@@ -1563,34 +1619,50 @@ void ShotBrowser::do_add_media_sources_from_shotgun(
                 // the playlist, we pass in the overall ordered list of uuids that
                 // we are building so the playlist can ensure everything is added
                 // in order, even if they aren't created in the correct order
-                request(
-                    build_media_task_data->playlist_actor_,
-                    caf::infinite,
-                    playlist::add_media_atom_v,
-                    ua,
-                    *(build_media_task_data->ordererd_uuids_),
-                    build_media_task_data->before_)
-                    .then(
+                if (build_media_task_data->playlist_actor_) {
+                    request(
+                        build_media_task_data->playlist_actor_,
+                        caf::infinite,
+                        playlist::add_media_atom_v,
+                        ua,
+                        *(build_media_task_data->ordererd_uuids_),
+                        build_media_task_data->before_)
+                        .then(
 
-                        [=](const UuidActor &) {
-                            if (!build_media_task_data->flag_colour_.empty()) {
-                                anon_send(
-                                    build_media_task_data->media_actor_,
-                                    playlist::reflag_container_atom_v,
-                                    std::make_tuple(
-                                        std::optional<std::string>(
-                                            build_media_task_data->flag_colour_),
-                                        std::optional<std::string>(
-                                            build_media_task_data->flag_text_)));
-                            }
+                            [=](const UuidActor &) {
+                                if (!build_media_task_data->flag_colour_.empty()) {
+                                    anon_send(
+                                        build_media_task_data->media_actor_,
+                                        playlist::reflag_container_atom_v,
+                                        std::make_tuple(
+                                            std::optional<std::string>(
+                                                build_media_task_data->flag_colour_),
+                                            std::optional<std::string>(
+                                                build_media_task_data->flag_text_)));
+                                }
 
-                            extend_media_with_ivy_tasks_.emplace_back(build_media_task_data);
-                            continue_processing_job_queue();
-                        },
-                        [=](const caf::error &err) mutable {
-                            spdlog::warn("{} {}", __PRETTY_FUNCTION__, to_string(err));
-                            continue_processing_job_queue();
-                        });
+                                extend_media_with_ivy_tasks_.emplace_back(
+                                    build_media_task_data);
+                                continue_processing_job_queue();
+                            },
+                            [=](const caf::error &err) mutable {
+                                spdlog::warn("{} {}", __PRETTY_FUNCTION__, to_string(err));
+                                continue_processing_job_queue();
+                            });
+                } else {
+                    // not adding to playlist..
+                    if (!build_media_task_data->flag_colour_.empty()) {
+                        anon_send(
+                            build_media_task_data->media_actor_,
+                            playlist::reflag_container_atom_v,
+                            std::make_tuple(
+                                std::optional<std::string>(build_media_task_data->flag_colour_),
+                                std::optional<std::string>(build_media_task_data->flag_text_)));
+                    }
+
+                    extend_media_with_ivy_tasks_.emplace_back(build_media_task_data);
+                    continue_processing_job_queue();
+                }
             },
             [=](const caf::error &err) mutable {
                 spdlog::warn("{} {}", __PRETTY_FUNCTION__, to_string(err));
@@ -1826,6 +1898,104 @@ std::vector<std::string> ShotBrowser::extend_fields(
         return concatenate_vector(fields, playlist_fields_);
 
     return fields;
+}
+
+void ShotBrowser::reorder_playlist(
+    caf::typed_response_promise<bool> rp,
+    const caf::actor &playlist,
+    const utility::JsonStore &sg_playlist) {
+    // get version order
+    const static auto id_jpointer =
+        nlohmann::json::json_pointer("/relationships/version/data/id");
+
+    auto order_filter = R"(
+    {
+        "logical_operator": "and",
+        "conditions": [
+            ["playlist", "is", {"type":"Playlist", "id":0}]
+        ]
+    })"_json;
+
+    order_filter["conditions"][0][2]["id"] = sg_playlist.at("id");
+
+    request(
+        caf::actor_cast<caf::actor>(this),
+        infinite,
+        shotgun_entity_search_atom_v,
+        "PlaylistVersionConnection",
+        JsonStore(order_filter),
+        std::vector<std::string>({"sg_sort_order", "version"}),
+        std::vector<std::string>({"sg_sort_order"}),
+        1,
+        4999)
+        .then(
+            [=](const JsonStore &order) mutable {
+                try {
+                    auto version_ids = std::vector<int>();
+
+                    for (const auto &i : order.at("data"))
+                        version_ids.push_back(i.at(id_jpointer).get<int>());
+
+                    // get media from playlist..
+                    scoped_actor sys{system()};
+                    auto media = request_receive<std::vector<UuidActor>>(
+                        *sys, playlist, playlist::get_media_atom_v);
+
+                    auto media_id     = std::map<int, Uuid>();
+                    auto unused_media = std::list<Uuid>();
+
+                    // get media current version id..
+                    for (const auto &i : media) {
+                        unused_media.push_back(i.uuid());
+                        try {
+                            auto mvid = request_receive<JsonStore>(
+                                *sys,
+                                i.actor(),
+                                json_store::get_json_atom_v,
+                                utility::Uuid(),
+                                ShotgunMetadataPath + "/version/id");
+                            media_id[mvid.get<int>()] = i.uuid();
+                        } catch (const std::exception &) {
+                            // spdlog::warn("{} {}", __PRETTY_FUNCTION__, err.what());
+                        }
+                    }
+
+                    // build list of media uuids, ordered by version_ids.
+                    auto new_media_order = std::vector<Uuid>();
+
+                    for (const auto &i : version_ids)
+                        if (media_id.count(i)) {
+                            new_media_order.push_back(media_id.at(i));
+                            unused_media.erase(std::find(
+                                unused_media.begin(), unused_media.end(), media_id.at(i)));
+                        }
+
+                    new_media_order.insert(
+                        new_media_order.end(), unused_media.begin(), unused_media.end());
+
+                    // update playlist.
+                    request(
+                        playlist,
+                        infinite,
+                        playlist::move_media_atom_v,
+                        new_media_order,
+                        Uuid())
+                        .then(
+                            [=](const bool) mutable { rp.deliver(true); },
+                            [=](error &err) mutable {
+                                spdlog::warn("{} {}", __PRETTY_FUNCTION__, to_string(err));
+                                rp.deliver(err);
+                            });
+
+                } catch (const std::exception &err) {
+                    spdlog::warn("{} {}", __PRETTY_FUNCTION__, err.what());
+                    rp.deliver(make_error(xstudio_error::error, err.what()));
+                }
+            },
+            [=](error &err) mutable {
+                spdlog::warn("{} {}", __PRETTY_FUNCTION__, to_string(err));
+                rp.deliver(err);
+            });
 }
 
 

@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
-import QtQuick 2.12
-import QtGraphicalEffects 1.15
-import QtQml.Models 2.14
+import QtQuick
+
+
 
 import xStudio 1.0
 
@@ -20,6 +20,7 @@ XsHotkeyArea {
     property alias delete_selected_hotkey: delete_selected_hotkey
     property alias select_all_hotkey: select_all_hotkey
     property alias deselect_all_hotkey: deselect_all_hotkey
+    property alias reload_selected_media_hotkey: reload_selected_media_hotkey
 
     XsHotkey {
         id: select_all_hotkey
@@ -72,4 +73,13 @@ XsHotkeyArea {
     }
 
 
+    XsHotkey {
+        id: reload_selected_media_hotkey
+        sequence: "SHIFT+~"
+        name: "Reload Selected Media"
+        description: "Reload selected media items."
+        context: "" + parent
+        onActivated: theSessionData.rescanMedia(mediaSelectionModel.selectedIndexes)
+        componentName: "Media List"
+    }
 }

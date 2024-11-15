@@ -51,6 +51,8 @@ void QMLViewportRenderer::paint() {
 
     if (viewport_qml_item_ && viewport_qml_item_->isVisible() && viewport_renderer_) {
 
+        m_window->beginExternalCommands();
+
         // TODO: again, this init call probably shouldn't happen in the main
         // draw call. see above.
 
@@ -69,10 +71,13 @@ void QMLViewportRenderer::paint() {
             imageBounds_ = bounds;
         }
 
-        m_window->resetOpenGLState();
+        //m_window->resetOpenGLState();
         if (viewport_renderer_->playing()) {
             emit(doRedraw());
         }
+
+        m_window->endExternalCommands();
+
     }
 }
 
@@ -104,17 +109,21 @@ void QMLViewportRenderer::setSceneCoordinates(
     // Qml item changes. viewport_coords_.set returns true only when
     // these values have changed since the last call
 
+    // devicePixelRatio allows us to account for high DPI scaling, giving
+    // us the window size in actual device pixels
+
     if (viewport_coords_.set(topleft, topright, bottomright, bottomleft, sceneSize)) {
 
         anon_send(
             self(),
             viewport_set_scene_coordinates_atom_v,
-            Imath::V2f(topleft.x(), topleft.y()),
-            Imath::V2f(topright.x(), topright.y()),
-            Imath::V2f(bottomright.x(), bottomright.y()),
-            Imath::V2f(bottomleft.x(), bottomleft.y()),
-            Imath::V2i(sceneSize.width(), sceneSize.height()),
-            devicePixelRatio);
+            float(topleft.x())*devicePixelRatio,
+            float(topleft.y())*devicePixelRatio,
+            float(topright.x()-topleft.x())*devicePixelRatio,
+            float(bottomleft.y()-topleft.y())*devicePixelRatio,
+            float(sceneSize.width())*devicePixelRatio,
+            float(sceneSize.height())*devicePixelRatio);
+
     }
 }
 

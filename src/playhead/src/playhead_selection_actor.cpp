@@ -179,7 +179,6 @@ void PlayheadSelectionActor::init() {
         [=](playlist::select_all_media_atom) { select_all(); },
 
         [=](playlist::select_media_atom, const UuidList &media_uuids, bool retry) -> bool {
-
             if (media_uuids.empty()) {
                 select_one();
             } else {
@@ -189,7 +188,6 @@ void PlayheadSelectionActor::init() {
         },
 
         [=](playlist::select_media_atom, const UuidList &media_uuids) -> bool {
-
             if (media_uuids.empty()) {
                 select_one();
             } else {
@@ -274,14 +272,13 @@ void PlayheadSelectionActor::select_media(const UuidList &media_uuids, const boo
         request(playlist_, infinite, playlist::get_media_atom_v)
             .then(
                 [=](const std::vector<UuidActor> &media_actors) mutable {
-
                     // It's possible that a client has told us to select a piece
                     // of media that the playlist hasn't quite got around to
                     // adding yet. e.g. client creates media, adds to playlist
                     // and then tells PlayheadSelectionActor to select it.
                     // Due to async actors the Playlist might not have the new
                     // media quite yet.. in this case order a retry
-                   
+
                     auto media_uas = uuidactor_vect_to_map(media_actors);
                     for (const auto &i : media_uuids) {
                         if (not media_uas.count(i)) {

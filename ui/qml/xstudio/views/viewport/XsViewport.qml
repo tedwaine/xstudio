@@ -1,5 +1,5 @@
-import QtQuick 2.12
-import QtQuick.Layouts 1.15
+import QtQuick
+import QtQuick.Layouts
 
 import xStudio 1.0
 import xstudio.qml.viewport 1.0
@@ -65,7 +65,7 @@ Viewport {
         }
     }
 
-    onMousePress: {
+    onMousePress: buttons => {
         if (buttons == Qt.RightButton) {
             showContextMenu(mousePosition.x, mousePosition.y)
         }

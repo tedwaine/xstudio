@@ -41,7 +41,8 @@ namespace ui {
                 const std::vector<media_reader::ImageBufPtr> &next_images,
                 const Imath::M44f &to_scene_matrix,
                 const Imath::M44f &projection_matrix,
-                const Imath::M44f &fit_mode_matrix) = 0;
+                const Imath::M44f &fit_mode_matrix,
+                const Imath::V2i &window_size) = 0;
 
             /**
              *  @brief Provide default preference dictionary for the viewport renderer

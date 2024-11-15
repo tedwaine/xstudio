@@ -197,8 +197,8 @@ std::optional<caf::uri> MediaReference::uri_from_frame(const int sequence_frame)
     if (container_)
         return uri_;
 
-    auto _uri =
-        caf::make_uri(uri_encode(fmt::format(uri_decode(to_string(uri_)), sequence_frame)));
+    auto _uri = caf::make_uri(
+        uri_encode(fmt::format(fmt::runtime(uri_decode(to_string(uri_))), sequence_frame)));
     if (_uri)
         return *_uri;
 

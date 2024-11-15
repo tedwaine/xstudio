@@ -51,39 +51,28 @@ the overscan in the data window.
 
 Returns true if a crop is required to meet max overscan requirement*/
 bool crop_data_window(
-        Imath::Box2i &data_window,
-        const Imath::Box2i &display_window,
-        const float overscan_percent
-)
-{
+    Imath::Box2i &data_window,
+    const Imath::Box2i &display_window,
+    const float overscan_percent) {
 
-        const int width = display_window.size().x+1;
-        const int height = display_window.size().y+1;
+    const int width  = display_window.size().x + 1;
+    const int height = display_window.size().y + 1;
 
-        const Imath::Box2i in_data_window = data_window;
+    const Imath::Box2i in_data_window = data_window;
 
-        data_window.min.x = std::max(
-                data_window.min.x,
-                (int)round(-float(width)*overscan_percent/100.0f)
-                );
+    data_window.min.x =
+        std::max(data_window.min.x, (int)round(-float(width) * overscan_percent / 100.0f));
 
-        data_window.max.x = std::min(
-                data_window.max.x,
-                (int)round(float(width)*(overscan_percent/100.0f + 1.0f))
-                );
+    data_window.max.x = std::min(
+        data_window.max.x, (int)round(float(width) * (overscan_percent / 100.0f + 1.0f)));
 
-        data_window.min.y = std::max(
-                data_window.min.y,
-                (int)round(-float(height)*overscan_percent/100.0f)
-                );
+    data_window.min.y =
+        std::max(data_window.min.y, (int)round(-float(height) * overscan_percent / 100.0f));
 
-        data_window.max.y = std::min(
-                data_window.max.y,
-                (int)round(float(height)*(overscan_percent/100.0f + 1.0f))
-                );
+    data_window.max.y = std::min(
+        data_window.max.y, (int)round(float(height) * (overscan_percent / 100.0f + 1.0f)));
 
-        return in_data_window != data_window;
-
+    return in_data_window != data_window;
 }
 
 static Uuid openexr_shader_uuid{"1c9259fc-46a5-11ea-87fe-989096adb429"};
@@ -269,11 +258,8 @@ ImageBufPtr OpenEXRMediaReader::image(const media::AVFrameID &mptr) {
         Imath::Box2i display_window = in.header().displayWindow();
 
         // decide the area of the image we want to load
-        const bool cropped_data_window = crop_data_window(
-                 data_window,
-                 display_window,
-                 max_exr_overscan_percent_
-                 );
+        const bool cropped_data_window =
+            crop_data_window(data_window, display_window, max_exr_overscan_percent_);
 
         // compute the size of the buffer we need
         const size_t n_pixels = (data_window.size().x + 1) * (data_window.size().y + 1);

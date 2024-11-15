@@ -1,4 +1,4 @@
-import QtQuick 2.14
+import QtQuick
 import QtQuick.Shapes 1.6
 
 import "VecLib.js" as VL

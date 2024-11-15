@@ -442,12 +442,14 @@ QFuture<QString> ShotBrowserEngine::updatePlaylistVersionsFuture(const QUuid &pl
 // find playlist id from playlist
 // request versions from shotgun
 // add to playlist.
-QFuture<QString> ShotBrowserEngine::refreshPlaylistVersionsFuture(const QUuid &playlist) {
+QFuture<QString>
+ShotBrowserEngine::refreshPlaylistVersionsFuture(const QUuid &playlist, const bool matchOrder) {
     REQUEST_BEGIN()
 
     scoped_actor sys{system()};
     auto req             = JsonStore(UseRefreshPlaylist);
     req["playlist_uuid"] = to_string(UuidFromQUuid(playlist));
+    req["match_order"]   = matchOrder;
     auto js              = request_receive_wait<JsonStore>(
         *sys, backend_, SHOTGRID_TIMEOUT, data_source::use_data_atom_v, req);
     return QStringFromStd(js.dump());

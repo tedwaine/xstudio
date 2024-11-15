@@ -1,10 +1,8 @@
 // SPDX-License-Identifier: Apache-2.0
-import QtQuick 2.12
-import QtQuick.Controls 2.14
-import QtQuick.Controls.Styles 1.4
-import QtQml.Models 2.14
-import Qt.labs.qmlmodels 1.0
-import QtQuick.Layouts 1.15
+import QtQuick
+import QtQuick.Layouts
+import Qt.labs.qmlmodels
+
 import QuickFuture 1.0
 
 import xStudio 1.0
@@ -164,7 +162,21 @@ XsListView { id: playlists
                         {"text/uri-list": data},
                         idx)
                 ).then(function(quuids){
-                    mediaSelectionModel.selectNewMedia(index, quuids)
+                    if (idx) mediaSelectionModel.selectNewMedia(idx, quuids)
+                })
+            } else if (source == "External JSON") {
+
+                // by providing invalid index, backend will create named
+                // playlists for us
+                var idx = theSessionData.index(-1,-1)
+
+                Future.promise(
+                    theSessionData.handleDropFuture(
+                        Qt.CopyAction,
+                        data,
+                        idx)
+                ).then(function(quuids){
+                    if (idx) mediaSelectionModel.selectNewMedia(idx, quuids)
                 })
             } else if (source == "PlayListView") {
 

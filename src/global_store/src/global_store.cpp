@@ -151,7 +151,8 @@ void load_override(utility::JsonStore &json, const fs::path &path) {
     // should be dict ..
     for (auto it : j.items()) {
         try {
-            if (not ends_with(it.key(), "/value") and not ends_with(it.key(), "/locked") and not ends_with(it.key(), "/default_value")) {
+            if (not ends_with(it.key(), "/value") and not ends_with(it.key(), "/locked") and
+                not ends_with(it.key(), "/default_value")) {
                 spdlog::warn("Property key is restricted {} {}", it.key(), path.string());
                 continue;
             }
@@ -188,8 +189,9 @@ void load_override(utility::JsonStore &json, const fs::path &path) {
             // override it.
             json.set(it.value(), it.key());
 
-            spdlog::debug(
-                "Property overriden {} {} {}", it.key(), to_string(it.value()), path.string());
+            // spdlog::debug(
+            //     "Property overriden {} {} {}", it.key(), to_string(it.value()),
+            //     path.string());
             // tag it.
             set_preference_overridden_path(json, path.string(), property);
             if (set_as_overridden)

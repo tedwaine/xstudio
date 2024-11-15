@@ -158,19 +158,9 @@ void OpenGLViewportRenderer::release_textures() {
 
 // static std::mutex m;
 
-void OpenGLViewportRenderer::clear_viewport_area(const Imath::M44f &to_scene_matrix) {
-
-    // The GL viewport does not necessarily match the area of the xstudio
-    // viewport ... for example, the xstudio viewport is typically embedded in
-    // a QML interface with various other widgets arranged around it. At render
-    // time, we take account of this using the 'to_scene_matrix' which maps from
-    // the current GL_VIEWPORT to the area of the xstudio viewport within it.
-    // In this case, we are using this to run glClear but only on the area of
-    // the viewport. This might save a tiny bit of time when rendering the whole
-    // interface, but also means we don't stomp on something that has been drawn
-    // into the GL canvas that is supposed to be there!
-    std::array<int, 4> vp;
-    glGetIntegerv(GL_VIEWPORT, vp.data());
+void OpenGLViewportRenderer::clear_viewport_area(
+    const Imath::M44f &to_scene_matrix,
+    const Imath::V2i &window_size) {
 
     // Our ref coord system maps -1.0, -1.0 to the bottom left of the viewport and
     // 1.0, 1.0 to the top right
@@ -184,11 +174,11 @@ void OpenGLViewportRenderer::clear_viewport_area(const Imath::M44f &to_scene_mat
     botomleft *= 1.0f / botomleft.w;
     topright *= 1.0f / topright.w;
 
-    float bottom = 0.5f * (botomleft.y + 1.0f) * float(vp[3]);
-    float top    = 0.5f * (topright.y + 1.0f) * float(vp[3]);
+    float bottom = 0.5f * (botomleft.y + 1.0f) * float(window_size.y);
+    float top    = 0.5f * (topright.y + 1.0f) * float(window_size.y);
 
-    float left  = 0.5f * (botomleft.x + 1.0f) * float(vp[2]);
-    float right = 0.5f * (topright.x + 1.0f) * float(vp[2]);
+    float left  = 0.5f * (botomleft.x + 1.0f) * float(window_size.x);
+    float right = 0.5f * (topright.x + 1.0f) * float(window_size.x);
 
     glEnable(GL_SCISSOR_TEST);
     glScissor(
@@ -226,7 +216,8 @@ void OpenGLViewportRenderer::render(
     const std::vector<media_reader::ImageBufPtr> &_next_images,
     const Imath::M44f &to_scene_matrix,
     const Imath::M44f &projection_matrix,
-    const Imath::M44f &fit_mode_matrix) {
+    const Imath::M44f &fit_mode_matrix,
+    const Imath::V2i &window_size) {
 
     // we want our images to be modifiable so we can append colour op sidecar
     // data in the pre_viewport_draw_gpu_hook calls
@@ -250,20 +241,17 @@ void OpenGLViewportRenderer::render(
     // (with the rest of the UI taking up the remainder) then this value will be 0.5
     const float viewport_x_size_in_window = to_scene_matrix[0][0] / to_scene_matrix[3][3];
 
-    // the gl viewport corresponds to the parent window size.
-    std::array<int, 4> gl_viewport;
-    glGetIntegerv(GL_VIEWPORT, gl_viewport.data());
-    const auto viewport_width = (float)gl_viewport[2];
-
     // this value tells us how much a screen pixel width in the viewport is in the units
     // of viewport coordinate space
     const float viewport_du_dx =
-        image_zoom_in_viewport / (viewport_width * viewport_x_size_in_window);
+        image_zoom_in_viewport / (window_size.x * viewport_x_size_in_window);
 
     /* we do our own clear of the viewport */
-    clear_viewport_area(to_scene_matrix);
+    clear_viewport_area(to_scene_matrix, window_size);
 
     glUseProgram(0);
+
+    glViewport(0, 0, window_size.x, window_size.y);
 
     if (!next_images.size()) {
         if (onscreen_frame_)

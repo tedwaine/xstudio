@@ -339,7 +339,7 @@ SessionSnapshotsPlugin::SessionSnapshotsPlugin(
     // clicks on the top level menu item.
     register_singleton_qml(
         R"(
-            import QtQuick 2.15
+            import QtQuick
             import xstudio.qml.models 1.0
 
             XsMenuModelItem {

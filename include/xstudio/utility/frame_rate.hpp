@@ -110,7 +110,7 @@ namespace utility {
         [[nodiscard]] timebase::flicks to_flicks() const { return *this; }
 
         FrameRate &operator=(const FrameRate &) = default;
-        FrameRate &operator=(FrameRate &&) = default;
+        FrameRate &operator=(FrameRate &&)      = default;
 
         operator bool() const { return count() != 0; }
 

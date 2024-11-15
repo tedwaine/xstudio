@@ -90,8 +90,8 @@ using cpp_binding_ptr = std::unique_ptr<cpp_binding>;
 template <typename T> class has_register_struct {
   private:
     template <typename U>
-    static auto test(U *x) -> decltype(
-        register_class(x, std::declval<py::module &>(), std::declval<const std::string &>()));
+    static auto test(U *x) -> decltype(register_class(
+        x, std::declval<py::module &>(), std::declval<const std::string &>()));
 
     static auto test(...) -> std::false_type;
 
@@ -117,8 +117,8 @@ template <class T> class has_to_string {
 template <class T> class has_register_class {
   private:
     template <class U>
-    static auto test(U *x) -> decltype(
-        register_class(x, std::declval<py::module &>(), std::declval<const std::string &>()));
+    static auto test(U *x) -> decltype(register_class(
+        x, std::declval<py::module &>(), std::declval<const std::string &>()));
 
     static auto test(...) -> std::false_type;
 

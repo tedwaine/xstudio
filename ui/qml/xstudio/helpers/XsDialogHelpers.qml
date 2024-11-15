@@ -1,8 +1,9 @@
 // SPDX-License-Identifier: Apache-2.0
-import QtQuick 2.15
-import QtQuick.Dialogs 1.0
-import QtQuick.Controls 2.15
-import QtQuick.Layouts 1.15
+import QtQuick
+
+
+import QtQuick.Layouts
+import QtQuick.Dialogs
 
 import QuickFuture 1.0
 import QuickPromise 1.0
@@ -25,7 +26,7 @@ Item {
     function showDialog(callback) {
         loader.item.x = root.width/2 - loader.item.width/2
         loader.item.y = root.height/2 - loader.item.height/2
-        if (callback) loader.item.response.connect(callback)
+        if (callback) loader.item.callback = callback
         loader.item.visible = true
     }
 
@@ -45,22 +46,43 @@ Item {
         id: fileDialog
 
         FileDialog {
+            id: dlg
             property var chaser
+            property var callback
 
             onAccepted: {
-                if (selectMultiple)
-                    result(fileUrls, folder, chaser)
-                else
-                    result(fileUrl, folder, chaser)
+                if (fileMode == FileDialog.OpenFiles) {
+                    callback(selectedFiles, currentFolder, chaser)
+                } else {
+                    callback(selectedFile, currentFolder, chaser)
+                }
+                loader.sourceComponent = undefined
+            }
+            onRejected: {
+                callback(false, currentFolder, chaser)
+                // unload (important!)
+                loader.sourceComponent = undefined
+            }
+        }
+    }
+
+    Component {
+        id: folderDialog
+
+        FolderDialog {
+            property var chaser
+            property var callback
+
+            onAccepted: {
+                callback(selectedFolder, selectedFolder, chaser)
                 // unload (important!)
                 loader.sourceComponent = undefined
             }
             onRejected: {
-                result(false, undefined, chaser)
+                callback(false, undefined, chaser)
                 // unload (important!)
                 loader.sourceComponent = undefined
             }
-            signal result(variant _path, variant _folder, variant _chaser);
         }
     }
 
@@ -75,16 +97,23 @@ Item {
         chaser) {
 
         loader.sourceComponent = fileDialog
-        loader.item.result.connect(resultCallback)
-        if (folder) loader.item.folder = folder
+        if (folder) loader.item.currentFolder = folder
         loader.item.title = title
         loader.item.defaultSuffix = defaultSuffix ? defaultSuffix : ""
         loader.item.nameFilters = nameFilters
-        loader.item.selectExisting = selectExisting
-        loader.item.selectMultiple = selectMultiple
+        if (selectExisting) {
+            if (selectMultiple) {
+                loader.item.fileMode = FileDialog.OpenFiles
+            } else {
+                loader.item.fileMode = FileDialog.OpenFile
+            }
+        } else {
+            loader.item.fileMode = FileDialog.SaveFile
+        }
         loader.item.chaser = chaser
-        loader.item.selectFolder = false
+        loader.item.callback = resultCallback
         loader.item.open()
+
 
     }
 
@@ -93,13 +122,10 @@ Item {
         folder,
         title) {
 
-        loader.sourceComponent = fileDialog
-        loader.item.result.connect(resultCallback)
-        loader.item.folder = folder
+        loader.sourceComponent = folderDialog
+        loader.item.callback = resultCallback
+        loader.item.currentFolder = folder
         loader.item.title = title
-        loader.item.selectFolder = true
-        loader.item.selectExisting = true
-        loader.item.selectMultiple = false
         loader.item.open()
 
     }
@@ -194,7 +220,7 @@ Item {
             property var choices: []
             width: 400
             height: 200
-            signal response(variant p, variant chaser)
+            property var callback
             property var chaser
 
             ColumnLayout {
@@ -205,11 +231,11 @@ Item {
 
                 focus: true
                 Keys.onReturnPressed: {
-                    popup.response(popup.choices[popup.choices.length-1], popup.chaser)
+                    popup.callback(popup.choices[popup.choices.length-1], popup.chaser)
                     popup.visible = false
                 }
                 Keys.onEscapePressed: {
-                    popup.response(popup.choices[0], popup.chaser)
+                    popup.callback(popup.choices[0], popup.chaser)
                     popup.visible = false
                 }
 
@@ -233,7 +259,7 @@ Item {
                             text: popup.choices[index]
                             Layout.alignment: Qt.AlignRight
                             onClicked: {
-                                popup.response(popup.choices[index], popup.chaser)
+                                popup.callback(popup.choices[index], popup.chaser)
                                 popup.visible = false
                             }
                         }

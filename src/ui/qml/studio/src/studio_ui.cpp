@@ -139,6 +139,7 @@ void StudioUI::init(actor_system &system_) {
                 // create a new offscreen viewport and return the actor handle
                 offscreen_viewports_.push_back(new xstudio::ui::qt::OffscreenViewport(name));
                 return offscreen_viewports_.back()->as_actor();
+
             },
 
             [=](ui::offscreen_viewport_atom, const std::string name, caf::actor requester) {

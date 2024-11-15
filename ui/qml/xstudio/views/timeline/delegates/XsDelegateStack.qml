@@ -1,13 +1,11 @@
 // SPDX-License-Identifier: Apache-2.0
-import QtQuick 2.15
-import QtQuick.Controls 2.15
-import QtQuick.Layouts 1.15
-import QtQml.Models 2.14
-import Qt.labs.qmlmodels 1.0
-import QtGraphicalEffects 1.0
+import QtQuick
+import QtQuick.Controls
+import QtQuick.Layouts
+import Qt.labs.qmlmodels
+
 import QuickFuture 1.0
 import QuickPromise 1.0
-import QtQml 2.14
 
 import xStudio 1.0
 import xstudio.qml.helpers 1.0
@@ -341,7 +339,16 @@ Rectangle {
 		                    id: ttc
 		                    dropFrame: false
 		                    frameRate: timelineDetail.fps
-		                    totalFrames: timelinePlayhead.logicalFrame + timelineDetail.start
+		                    totalFrames: playheadActive ? currentFrame : lastFrame
+
+		                    property int currentFrame: timelinePlayhead.logicalFrame + timelineDetail.start
+		                    property int lastFrame: 0
+	                        property bool playheadActive: timelinePlayhead.pinnedSourceMode ? currentPlayhead.uuid == timelinePlayhead.uuid : false
+
+	                        onPlayheadActiveChanged: {
+						        if (!playheadActive) lastFrame = currentFrame
+    						}
+
 		                }
 
 		                id: timestampDiv
@@ -382,10 +389,10 @@ Rectangle {
 						duration: Math.ceil(width / control.scaleX)
 						fps: rateFPSRole
 
-						onFramePressed: {
+						onFramePressed: frame => {
 							timelinePlayhead.logicalFrame = frame
 						}
-						onFrameDragging:{
+						onFrameDragging: frame => {
 							timelinePlayhead.logicalFrame = frame
 						}
 					}

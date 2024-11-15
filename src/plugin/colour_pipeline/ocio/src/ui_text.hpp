@@ -112,8 +112,8 @@ struct UiText {
 
     std::string CS_MSG_CMS_SELECT_CLR_TIP =
         "Select colour channel to display. You can also use R,G,B,A,Ctrl+L hotkeys.";
-    std::string CS_MSG_CMS_SET_EXP_TIP = "Set viewer Exposure in f-stops. Double click to "
-                                         "toggle between last set value and default of 0.0.";
+    std::string CS_MSG_CMS_SET_EXP_TIP   = "Set viewer Exposure in f-stops. Double click to "
+                                           "toggle between last set value and default of 0.0.";
     std::string CS_MSG_CMS_SET_GAMMA_TIP = "Set viewer Gamma. Double click to "
                                            "toggle between last set value and default of 1.0.";
     std::string CS_MSG_CMS_SET_SATURATION_TIP =

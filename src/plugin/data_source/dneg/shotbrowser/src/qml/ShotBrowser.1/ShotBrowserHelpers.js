@@ -37,6 +37,31 @@ function revealMediaInShotgrid(indexes=[]) {
 	}
 }
 
+function resolvePlaylistLink(indexes=[]) {
+	// get metadata from playlists..
+	let resolved = []
+
+	for(let i = 0; i< indexes.length; i++) {
+		let meta = theSessionData.getJSON(theSessionData.getPlaylistIndex(indexes[i]), "/metadata/shotgun/playlist/id")
+		if(meta)
+			resolved.push("http://shotgun/detail/Playlist/"+meta)
+	}
+
+	return resolved
+}
+
+function revealPlaylistInShotgrid(indexes=[]) {
+	let links = resolvePlaylistLink(indexes)
+	for(let i = 0; i< links.length; i++) {
+		if(links[i])
+	        Future.promise(
+	            helpers.openURLFuture(links[i])
+	        ).then(function(result) {
+	        })
+	}
+}
+
+
 function revealInShotgrid(indexes=[]) {
 	if(indexes.length) {
 		indexes = mapIndexesToResultModel(indexes)
@@ -373,7 +398,7 @@ function replaceConformMediaCallback(playlist_uuid, uuids) {
 }
 
 function _Timer() {
-     return Qt.createQmlObject("import QtQuick 2.0; Timer {}", appWindow);
+	return Qt.createQmlObject("import QtQuick 2.0; Timer {}", appWindow);
 }
 
 function delayCallback(delayTime, cb) {
@@ -809,13 +834,21 @@ function transferMedia(source, destination, indexes) {
 	}
 }
 
-
-function syncPlaylistFromShotGrid(playlistUuid, callback=console.log) {
+function syncPlaylistFromShotGrid(playlistUuid, matchOrder=false, callback=null) {
     Future.promise(
-        ShotBrowserEngine.refreshPlaylistVersionsFuture(playlistUuid)
-    ).then(function(json_string) {
-    	callback(json_string)
-    })
+        ShotBrowserEngine.refreshPlaylistVersionsFuture(playlistUuid, matchOrder)
+    ).then(
+	    function(json_string) {
+	    	if(callback) {
+		    	callback(json_string)
+		    } else {
+		    	dialogHelpers.errorDialogFunc("SG Playlist Reloaded", "Succeeded")
+		    }
+		},
+	    function() {
+	    	dialogHelpers.errorDialogFunc("SG Playlist Reloaded", "Failed")
+	    }
+    )
 }
 
 

@@ -770,6 +770,74 @@ QFuture<QString> ShotBrowserPresetModel::exportAsSystemPresetsFuture(
     });
 }
 
+QFuture<QString>
+ShotBrowserPresetModel::backupPresetsFuture(const QUrl &qpath, const QModelIndex &index) const {
+    return QtConcurrent::run([=]() {
+        auto path = uri_to_posix_path(UriFromQUrl(qpath));
+        if (fs::path(path).extension() != ".json")
+            path += ".json";
+
+        try {
+            // get json from index or the lot
+            auto data = R"({"type": "root", "children": []})"_json;
+
+            if (not index.isValid()) {
+                data = modelData();
+            } else {
+                data["children"].push_back(indexToFullData(index));
+            }
+
+            std::ofstream myfile;
+            myfile.open(path);
+            myfile << data.at("children").dump(2) << std::endl;
+            myfile.close();
+        } catch (const std::exception &err) {
+            spdlog::warn("{} {}", __PRETTY_FUNCTION__, err.what());
+            throw;
+        }
+
+        return QStringFromStd(std::string("Presets Backed up to ") + path);
+    });
+}
+
+QFuture<QString> ShotBrowserPresetModel::restorePresetsFuture(const QUrl &qpath) {
+    return QtConcurrent::run([=]() {
+        auto path = uri_to_posix_path(UriFromQUrl(qpath));
+        if (fs::path(path).extension() != ".json")
+            path += ".json";
+
+        try {
+            // // get json from index or the lot
+            // auto data = R"({"type": "root", "children": []})"_json;
+
+            // if (not index.isValid()) {
+            //     data = modelData();
+            // } else {
+            //     data["children"].push_back(indexToFullData(index));
+            // }
+
+            std::ifstream myfile;
+            std::stringstream filedata;
+
+            myfile.open(path);
+
+            myfile >> filedata.rdbuf();
+
+            auto restored        = RootTemplate;
+            restored["id"]       = Uuid::generate();
+            restored["children"] = nlohmann::json::parse(filedata.str());
+
+            setModelDataBase(restored, true);
+            myfile.close();
+        } catch (const std::exception &err) {
+            spdlog::warn("{} {}", __PRETTY_FUNCTION__, err.what());
+            throw;
+        }
+
+        return QStringFromStd(std::string("Presets restored from ") + path);
+    });
+}
+
 nlohmann::json JSONTreeModel::modelData() const {
     // build json from tree..
     return tree_to_json(data_, children_);

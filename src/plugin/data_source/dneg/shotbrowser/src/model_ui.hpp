@@ -17,13 +17,28 @@ namespace xstudio {
 // using namespace shotgun_client;
 namespace ui::qml {
 
+    // dumping ground for termModels
     class ShotBrowserListModel : public JSONTreeModel {
         Q_OBJECT
 
       public:
-        const static inline std::vector<std::string> RoleNames = {"nameRole", "typeRole"};
+        const static inline std::vector<std::string> RoleNames = {
+            "createdRole",
+            "descriptionRole",
+            "divisionRole",
+            "nameRole",
+            "sgTypeRole",
+            "typeRole"};
 
-        enum Roles { nameRole = JSONTreeModel::Roles::LASTROLE, typeRole, LASTROLE };
+        enum Roles {
+            createdRole = JSONTreeModel::Roles::LASTROLE,
+            descriptionRole,
+            divisionRole,
+            nameRole,
+            sgTypeRole,
+            typeRole,
+            LASTROLE
+        };
 
         ShotBrowserListModel(QObject *parent = nullptr) : JSONTreeModel(parent) {
             setRoleNames(RoleNames);
@@ -36,9 +51,9 @@ namespace ui::qml {
     class ShotBrowserSequenceModel : public ShotBrowserListModel {
 
       public:
-        const static inline std::vector<std::string> RoleNames = {"statusRole"};
+        const static inline std::vector<std::string> RoleNames = {"statusRole", "unitRole"};
 
-        enum Roles { statusRole = ShotBrowserListModel::Roles::LASTROLE };
+        enum Roles { statusRole = ShotBrowserListModel::Roles::LASTROLE, unitRole };
 
         ShotBrowserSequenceModel(QObject *parent = nullptr) : ShotBrowserListModel(parent) {
             auto roles = ShotBrowserListModel::RoleNames;
@@ -61,6 +76,9 @@ namespace ui::qml {
         Q_PROPERTY(
             QStringList hideStatus READ hideStatus WRITE setHideStatus NOTIFY hideStatusChanged)
 
+        Q_PROPERTY(QVariantList unitFilter READ unitFilter WRITE setUnitFilter NOTIFY
+                       unitFilterChanged)
+
       public:
         ShotBrowserSequenceFilterModel(QObject *parent = nullptr)
             : QSortFilterProxyModel(parent) {}
@@ -76,11 +94,22 @@ namespace ui::qml {
             const int depth           = -1);
 
         QStringList hideStatus() const;
+        [[nodiscard]] QVariantList unitFilter() const { return filter_unit_; }
 
         void setHideStatus(const QStringList &value);
 
+        void setUnitFilter(const QVariantList &filter) {
+            if (filter_unit_ != filter) {
+                filter_unit_ = filter;
+                emit unitFilterChanged();
+                invalidateFilter();
+            }
+        }
+
+
       signals:
         void hideStatusChanged();
+        void unitFilterChanged();
 
       protected:
         [[nodiscard]] bool
@@ -89,6 +118,7 @@ namespace ui::qml {
 
       private:
         std::set<QString> hide_status_;
+        QVariantList filter_unit_;
     };
 
 
@@ -97,6 +127,9 @@ namespace ui::qml {
 
         Q_PROPERTY(int length READ length NOTIFY lengthChanged)
         Q_PROPERTY(int count READ length NOTIFY lengthChanged)
+
+        Q_PROPERTY(QVariantList divisionFilter READ divisionFilter WRITE setDivisionFilter
+                       NOTIFY divisionFilterChanged)
 
         Q_PROPERTY(QItemSelection selectionFilter READ selectionFilter WRITE setSelectionFilter
                        NOTIFY selectionFilterChanged)
@@ -134,6 +167,7 @@ namespace ui::qml {
 
 
         [[nodiscard]] QItemSelection selectionFilter() const { return selection_filter_; }
+        [[nodiscard]] QVariantList divisionFilter() const { return filter_division_; }
 
         void setSelectionFilter(const QItemSelection &selection) {
             if (selection_filter_ != selection) {
@@ -146,9 +180,18 @@ namespace ui::qml {
             }
         }
 
+        void setDivisionFilter(const QVariantList &filter) {
+            if (filter_division_ != filter) {
+                filter_division_ = filter;
+                emit divisionFilterChanged();
+                invalidateFilter();
+            }
+        }
+
       signals:
         void lengthChanged();
         void selectionFilterChanged();
+        void divisionFilterChanged();
 
       protected:
         [[nodiscard]] bool
@@ -158,6 +201,7 @@ namespace ui::qml {
 
       private:
         QItemSelection selection_filter_;
+        QVariantList filter_division_;
     };
 
 

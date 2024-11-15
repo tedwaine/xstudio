@@ -18,7 +18,7 @@ using namespace xstudio::ui;
 using namespace xstudio;
 
 namespace {
-/*
+
 static Imath::M44f matrix_from_square(const float *in) {
 
     const Imath::V2f * corners = (const Imath::V2f *)in;
@@ -33,7 +33,7 @@ static Imath::M44f matrix_from_square(const float *in) {
     return i;
 
 }
-*/
+
 Imath::M44f matrix_from_corners(const float *in) {
 
     // A simplified version of the cornerpin transform matrix
@@ -614,42 +614,43 @@ bool Viewport::process_pointer_event(PointerEvent &pointer_event) {
     return rt_val;
 }
 
-bool Viewport::set_scene_coordinates(
-    const Imath::V2f topleft,
-    const Imath::V2f topright,
-    const Imath::V2f bottomright,
-    const Imath::V2f bottomleft,
-    const Imath::V2i scene_size,
-    const float devicePixelRatio) {
+bool Viewport::set_geometry(
+    const float x,
+    const float y,
+    const float width,
+    const float height,
+    const float window_width,
+    const float window_height) {
 
     // These coordinates describe the quad into which the viewport
     // will be rendered in the coordinate system of the parent 'canvas'.
     // We need this so that we can render the viewport correctly into the
     // QQuickWindow into which it is embedded as a QQuickItem within some
     // qml scene.
-
+    
     std::vector<float> render_rect = {
-        topleft.x * 2.0f / float(scene_size.x) - 1.0f,
-        -(topleft.y * 2.0f / float(scene_size.y) - 1.0f),
-        topright.x * 2.0f / float(scene_size.x) - 1.0f,
-        -(topright.y * 2.0f / float(scene_size.y) - 1.0f),
-        bottomright.x * 2.0f / float(scene_size.x) - 1.0f,
-        -(bottomright.y * 2.0f / float(scene_size.y) - 1.0f),
-        bottomleft.x * 2.0f / float(scene_size.x) - 1.0f,
-        -(bottomleft.y * 2.0f / float(scene_size.y) - 1.0f)};
+        x * 2.0f / window_width - 1.0f,
+        -(y * 2.0f / window_height - 1.0f),
+        (x+width) * 2.0f / window_width - 1.0f,
+        -(y * 2.0f / window_height - 1.0f),
+        (x+width) * 2.0f / window_width - 1.0f,
+        -((y+height) * 2.0f / window_height - 1.0f),
+        x * 2.0f / window_width - 1.0f,
+        -((y+height) * 2.0f / window_height - 1.0f)};
 
     // now we've got the quad we convert to a transform matrix to be used at
     // render time to plot the viewport correctly into its window within the
     // fuill glviewport (which corresponds to the QQuickWindow)
-    Imath::M44f vp2c = matrix_from_corners(render_rect.data());
+    Imath::M44f vp2c = matrix_from_square(render_rect.data());
 
-    if (vp2c != viewport_to_canvas_ || (bottomright - bottomleft).length() != state_.size_.x ||
-        (bottomleft - topleft).length() != state_.size_.y) {
+    if (vp2c != viewport_to_canvas_ || width != state_.size_.x ||
+        height != state_.size_.y) {
         viewport_to_canvas_ = vp2c;
         set_size(
-            (bottomright - bottomleft).length(),
-            (bottomleft - topleft).length(),
-            devicePixelRatio);
+            width,
+            height,
+            window_width,
+            window_height);
         return true;
     }
     return false;
@@ -707,8 +708,8 @@ void Viewport::update_fit_mode_matrix(
 
         // for 1:1 to work when we have high DPI display scaling (e.g. with
         // QT_SCALE_FACTOR!=1.0) we need to account for the pixel ratio
-        int screen_pix_size_x = (int)round(float(size().x) * devicePixelRatio_);
-        int screen_pix_size_y = (int)round(float(size().y) * devicePixelRatio_);
+        int screen_pix_size_x = (int)round(size().x);
+        int screen_pix_size_y = (int)round(size().y);
 
         state_.fit_mode_zoom_ = float(state_.image_size_.x) / screen_pix_size_x;
 
@@ -746,9 +747,9 @@ void Viewport::set_scale(const float scale) {
     update_matrix();
 }
 
-void Viewport::set_size(const float w, const float h, const float devicePixelRatio) {
+void Viewport::set_size(const float w, const float h, const float window_width, const float window_height) {
+    state_.window_size_ = Imath::V2f(window_width, window_height);
     state_.size_      = Imath::V2f(w, h);
-    devicePixelRatio_ = devicePixelRatio;
     update_matrix();
 }
 
@@ -963,20 +964,14 @@ caf::message_handler Viewport::message_handler() {
 
     return caf::message_handler(
                {[=](::viewport_set_scene_coordinates_atom,
-                    const Imath::V2f &topleft,
-                    const Imath::V2f &topright,
-                    const Imath::V2f &bottomright,
-                    const Imath::V2f &bottomleft,
-                    const Imath::V2i &scene_size,
-                    const float devicePixelRatio) {
-                    float zoom = pixel_zoom();
-                    if (set_scene_coordinates(
-                            topleft,
-                            topright,
-                            bottomright,
-                            bottomleft,
-                            scene_size,
-                            devicePixelRatio)) {
+                    const float x,
+                    const float y,
+                    const float width,
+                    const float height,
+                    const float window_width,
+                    const float window_height) {
+
+                    if (set_geometry(x, y, width, height, window_width, window_height)) {
                         event_callback_(Redraw);
                     }
                 },
@@ -1597,7 +1592,7 @@ void Viewport::get_frames_for_display(
 
     try {
 
-        // TODO: refactor this stuff, could be tidier. Why doesn't 
+        // TODO: refactor this stuff, could be tidier. Why doesn't
         // display_frames_queue_actor_ handle filling in the colour management
         // data? force_playhead_sync requirement should be shifted out of here
         // it's only needed for 'get_onscreen_image'
@@ -1632,7 +1627,6 @@ void Viewport::get_frames_for_display(
                 std::chrono::milliseconds(1000),
                 colour_pipeline::colour_operation_uniforms_atom_v,
                 image);
-
         }
 
         if (next_images.size()) {
@@ -1680,7 +1674,6 @@ void Viewport::get_frames_for_display(
     } catch (const std::exception &e) {
 
         spdlog::debug("{} : {} {}", name(), __PRETTY_FUNCTION__, e.what());
-        
     }
     t1_ = utility::clock::now();
 }
@@ -1963,12 +1956,11 @@ void Viewport::set_aux_shader_uniforms(
     the_renderer_->set_aux_shader_uniforms(aux_shader_uniforms_);
 }
 
-void Viewport::set_visibility(bool is_visible) { 
-    
-    is_visible_ = is_visible; 
+void Viewport::set_visibility(bool is_visible) {
+
+    is_visible_   = is_visible;
     auto playhead = caf::actor_cast<caf::actor>(playhead_addr_);
-     if (is_visible_ && playhead) {
+    if (is_visible_ && playhead) {
         anon_send(playhead, module::connect_to_ui_atom_v);
     }
-    
 }

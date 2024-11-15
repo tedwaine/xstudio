@@ -88,4 +88,11 @@ void AnnotationsRenderer::render_opengl(
             have_alpha_buffer,
             1.f);
     }
+
+    // The canvas drawing routines use the depth buffer and clear it
+    // for this purpose, we need to restore it to what QtQuick renderer
+    // has set it to which I'm pretty sure is 1.0
+    glClearDepth(1.0);
+    glClear(GL_DEPTH_BUFFER_BIT);
+
 }

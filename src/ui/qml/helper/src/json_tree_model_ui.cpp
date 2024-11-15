@@ -916,6 +916,7 @@ bool JSONTreeModel::reorderRows(
     if (new_row_indeces.size() != rowCount(parent)) {
         spdlog::error(
             "{}. {} indexes in re-ordered layout, expecting {}.",
+            __PRETTY_FUNCTION__,
             new_row_indeces.size(),
             rowCount(parent));
         return false;

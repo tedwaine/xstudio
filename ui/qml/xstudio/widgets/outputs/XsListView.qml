@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: Apache-2.0
-import QtQuick 2.12
-import QtQuick.Controls 2.14
-import QtGraphicalEffects 1.15
-import QtQml.Models 2.14
+import QtQuick
+
+
+
 
 import xStudio 1.0
 
@@ -26,7 +26,7 @@ ListView { id: widget
     snapMode: ListView.NoSnap //SnapToItem //SnapOneItem
     // highlightRangeMode: ListView.StrictlyEnforceRange
 
-    ScrollBar.vertical: XsScrollBar {id: scrollBar; x:0; visible: showScrollbar;}
+    XsScrollBar {id: scrollBar; x:0; visible: showScrollbar;}
     // ScrollBar.horizontal: XsScrollBar { y:height; }//visible: isScrollbarVisibile && widget.width < widget.contentWidth}
 
     // model: delegateModel

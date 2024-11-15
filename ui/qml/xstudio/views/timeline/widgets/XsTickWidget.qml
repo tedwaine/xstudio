@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: Apache-2.0
-import QtQuick 2.15
-import QtQuick.Controls 2.15
-import QtQuick.Layouts 1.15
-import QtGraphicalEffects 1.0
+import QtQuick
+
+import QtQuick.Layouts
+
 import QtQml.Models 2.15
 
 import xStudio 1.0
@@ -31,7 +31,7 @@ Rectangle {
         anchors.fill: parent
         hoverEnabled: true
         property bool dragging: false
-        onClicked: {
+        onClicked: mouse => {
             if (mouse.button == Qt.LeftButton) {
                 frameClicked(start + ((mouse.x + fractionOffset)/ tickWidth))
             }
@@ -40,7 +40,7 @@ Rectangle {
             dragging = false
             timelinePlayhead.scrubbingFrames = false
         }
-        onPressed: {
+        onPressed: mouse => {
 
             // here we make sure the viewport is attached to the correct
             // playhead - we want the 'main' playhead of the timeline not the
@@ -60,7 +60,7 @@ Rectangle {
             }
         }
 
-        onPositionChanged: {
+        onPositionChanged: mouse => {
             if (dragging) {
                 frameDragging(start + ((mouse.x + fractionOffset)/ tickWidth))
             }

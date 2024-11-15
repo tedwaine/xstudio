@@ -115,7 +115,12 @@ void TrackActor::item_event_callback(const utility::JsonStore &event, Item &item
             add_item(UuidActor(cuuid, actor));
             // spdlog::warn("{}",to_string(caf::actor_cast<caf::actor_addr>(actor)));
             // spdlog::warn("{}",to_string(caf::actor_cast<caf::actor_addr>(child_item_it->actor())));
+
+            // iteraror becomes invalid..
+            child_item_it = find_uuid(base_.item().children(), cuuid);
             child_item_it->set_actor_addr(actor);
+
+
             // change item actor addr
             // spdlog::warn("TrackActor create
             // {}",to_string(caf::actor_cast<caf::actor_addr>(child_item_it->actor())));
@@ -913,7 +918,7 @@ void TrackActor::split_item(
         auto orig_duration = trimmed_range.frame_duration().frames();
         auto orig_end      = orig_start + orig_duration - 1;
 
-        if (frame > orig_start and frame < orig_end) {
+        if (frame > orig_start and frame <= orig_end) {
             // duplicate item to split.
             request(item.actor(), infinite, utility::duplicate_atom_v)
                 .await(
@@ -964,6 +969,8 @@ void TrackActor::split_item(
                     },
                     [=](error &err) mutable { rp.deliver(std::move(err)); });
         } else {
+            // spdlog::warn("{} {} frame {} clip start {} clip end {}", __PRETTY_FUNCTION__,
+            // "Invalid frame to split on", frame, orig_start, orig_end);
             rp.deliver(make_error(xstudio_error::error, "Invalid frame to split on"));
         }
     } else {
@@ -1088,11 +1095,16 @@ void TrackActor::remove_items_at_frame(
 
     auto in_point = base_.item().item_at_frame(frame);
 
+    // spdlog::warn("{}",base_.item().size());
+
     if (not in_point)
         rp.deliver(make_error(xstudio_error::error, "Invalid frame"));
     else {
         if (in_point->second != in_point->first->trimmed_frame_start().frames()) {
             // split at in point, and recall function.
+            // spdlog::warn("start split {} {}",
+            // static_cast<int>(std::distance(base_.item().cbegin(), in_point->first)),
+            // static_cast<int>(in_point->second));
             request(
                 caf::actor_cast<caf::actor>(this),
                 infinite,
@@ -1106,10 +1118,15 @@ void TrackActor::remove_items_at_frame(
                     [=](const caf::error &err) mutable { rp.deliver(err); });
 
         } else {
+            // do we need to account for erasing off the end ?
             // split end point...
             auto out_point = base_.item().item_at_frame(frame + duration);
-            if (out_point->second != out_point->first->trimmed_frame_start().frames()) {
+            if (out_point and
+                out_point->second != out_point->first->trimmed_frame_start().frames()) {
                 // split at in point, and recall function.
+                // spdlog::warn("start end {} {}",
+                // static_cast<int>(std::distance(base_.item().cbegin(), out_point->first)),
+                // static_cast<int>(out_point->second));
                 request(
                     caf::actor_cast<caf::actor>(this),
                     infinite,
@@ -1123,8 +1140,15 @@ void TrackActor::remove_items_at_frame(
                         [=](const caf::error &err) mutable { rp.deliver(err); });
             } else {
                 // in and out split now remove items
-                auto first_index = std::distance(base_.item().cbegin(), in_point->first);
-                auto last_index  = std::distance(base_.item().cbegin(), out_point->first);
+                auto first_index = 0;
+                auto last_index  = base_.item().size();
+                if (in_point)
+                    first_index = std::distance(base_.item().cbegin(), in_point->first);
+                if (out_point)
+                    last_index = std::distance(base_.item().cbegin(), out_point->first);
+
+                // spdlog::warn("remove {} {} {}", first_index, last_index, last_index -
+                // first_index);
                 remove_items(rp, first_index, last_index - first_index, add_gap, collapse_gaps);
             }
         }
@@ -1383,20 +1407,29 @@ void TrackActor::move_items_at_frame(
         add_gap          = false;
         replace_with_gap = true;
 
-        // spdlog::warn("{} {} {}", frame_, duration_, dest_frame_);
-        // spdlog::warn("{} {} {}", frame, duration, dest_frame);
+        // handle moving off beginning of track
         // spdlog::warn("overwrite_self_end");
+        // spdlog::warn("{} {} {}", frame_, duration_, dest_frame_);
+
+        if (frame < 0) {
+            // spdlog::warn("{} {} {}", frame, duration, dest_frame);
+            duration += -frame - 1;
+            // dest_frame += frame;
+            frame = 0;
+        }
+
+        // spdlog::warn("{} {} {}", frame, duration, dest_frame);
     } else if (overwrite_self_start) {
         dest_frame = frame_;
         frame      = frame_ + duration_;
         duration   = dest_frame_ - frame_;
 
+        // spdlog::warn("overwrite_self_start");
         // spdlog::warn("{} {} {}", frame_, duration_, dest_frame_);
         // spdlog::warn("{} {} {}", frame, duration, dest_frame);
         insert           = true;
         add_gap          = false;
         replace_with_gap = true;
-        // spdlog::warn("overwrite_self_start");
 
         // if were overwriting the end of the track we need to pad it.
         // use track trimmed duration to work out how big a gap we need,
@@ -1551,6 +1584,8 @@ void TrackActor::move_items_at_frame(
                     auto gap_actor = spawn<GapActor>(
                         "Gap", FrameRateDuration(filler, base_.item().rate()), gap_uuid);
 
+                    // spdlog::warn("INSERT GAP {}", filler);
+
                     // insert_items(base_.item().size(), uav_plus_gap, rp);
                     request(
                         caf::actor_cast<caf::actor>(this),
@@ -1576,7 +1611,7 @@ void TrackActor::move_items_at_frame(
                         (not dest and
                          base_.item().trimmed_frame_duration().frames() == dest_frame)) {
 
-                        auto index = std::distance(base_.item().cbegin(), start->first);
+                        auto index     = std::distance(base_.item().cbegin(), start->first);
                         auto end_index = end ? std::distance(base_.item().cbegin(), end->first)
                                              : base_.item().size();
                         auto count =
@@ -1584,17 +1619,21 @@ void TrackActor::move_items_at_frame(
                         auto dst = dest ? std::distance(base_.item().cbegin(), dest->first)
                                         : base_.item().size();
 
+                        // spdlog::warn("move_items index {} count {} dst {}", index, count,
+                        // dst);
+
                         move_items(rp, index, count, dst, add_gap, replace_with_gap);
                     } else {
                         // we need to remove material at destnation
                         // we may need to split at dst+duration
                         auto dst_end = base_.item().item_at_frame(dest_frame + duration);
 
-                        // spdlog::warn(
-                        //     "check dest end {} {} {}",
-                        //     dest_frame + duration,
-                        //     dst_end->first->trimmed_frame_start().frames(),
-                        //     dst_end->second);
+                        // if(dst_end)
+                        //     spdlog::warn(
+                        //         "check dest end {} {} {}",
+                        //         dest_frame + duration,
+                        //         dst_end->first->trimmed_frame_start().frames(),
+                        //         dst_end->second);
 
                         if (dst_end and
                             dst_end->first->trimmed_frame_start().frames() != dst_end->second) {
@@ -1635,6 +1674,7 @@ void TrackActor::move_items_at_frame(
                             if (dest_frame < frame) {
                                 move_from_frame -= duration;
                             }
+                            // spdlog::warn("ERASE {} {}", dest_frame, duration);
 
                             // replace source with gap ?
                             request(
@@ -1714,7 +1754,8 @@ utility::JsonStore TrackActor::merge_gaps() {
                     // get distance from start.
                     auto gip = std::next(it, gap_count - 1);
 
-                    // spdlog::warn("remove index {}", std::distance(base_.item().begin(), gip));
+                    // spdlog::warn("remove index {}", std::distance(base_.item().begin(),
+                    // gip));
 
                     auto item = *gip;
                     demonitor(item.actor());

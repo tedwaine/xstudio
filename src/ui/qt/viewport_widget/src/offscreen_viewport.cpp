@@ -657,14 +657,15 @@ bool OffscreenViewport::loadQMLOverlays() {
     // The root item is ready. Associate it with the window.
     root_qml_overlays_item_->setParentItem(quick_win_->contentItem());
 
-    quick_win_->setClearBeforeRendering(false);
+    quick_win_->setColor(QColor(0,0,0,0));
 
-    render_control_->initialize(gl_context_);
+    render_control_->initialize();
 
     helper_ = new qml::Helpers(qml_engine_, this);
     helper_->moveToThread(thread_);
 
-    QVariant v(QMetaType::QObjectStar, &helper_);
+    QVariant v;
+    v.fromValue((QObject*)&helper_);
     root_qml_overlays_item_->setProperty("helpers", v);
 
     root_qml_overlays_item_->setProperty(
@@ -703,13 +704,14 @@ void OffscreenViewport::renderToImageBuffer(
 
     // This essential call tells the viewport renderer how to project the
     // viewport area into the glViewport window.
-    viewport_renderer_->set_scene_coordinates(
-        Imath::V2f(0.0f, 0.0),
-        Imath::V2f(w, 0.0),
-        Imath::V2f(w, h),
-        Imath::V2f(0.0f, h),
-        Imath::V2i(w, h),
-        1.0f);
+    viewport_renderer_->set_geometry(
+        0.0f, // x offset
+        0.0f, // y offset
+        w, // viewport width in window
+        h, // viewport height in window
+        w, // window width
+        h  // window height
+        );
 
     if (sync_fetch_playhead_image) {
         media_reader::ImageBufPtr image = viewport_renderer_->get_onscreen_image(true);
@@ -727,7 +729,7 @@ void OffscreenViewport::renderToImageBuffer(
 
     if (include_qml_overlays_ && loadQMLOverlays()) {
 
-        quick_win_->setRenderTarget(fboId_, QSize(w, h));
+        //quick_win_->setRenderTarget(fboId_, QSize(w, h));
         root_qml_overlays_item_->setWidth(w);
         root_qml_overlays_item_->setHeight(h);
 
@@ -735,7 +737,7 @@ void OffscreenViewport::renderToImageBuffer(
         Imath::Box2f box = viewport_renderer_->image_bounds_in_viewport_pixels();
         QRectF imageBoundsInViewportPixels(
             (box.min.x) * float(w),
-            box.min.y *float(h),
+            box.min.y * float(h),
             (box.max.x - box.min.x) * float(w),
             (box.max.y - box.min.y) * float(h));
         // these properties on XsOffscreenViewportOverlays mirror the same

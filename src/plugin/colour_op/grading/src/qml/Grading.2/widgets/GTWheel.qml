@@ -1,11 +1,10 @@
 // SPDX-License-Identifier: Apache-2.0
 
-import QtQuick 2.15
-import QtQuick.Controls 2.15
-import QtQuick.Layouts 1.15
-import QtQuick.Window 2.15
+import QtQuick
+import QtQuick.Controls
+import QtQuick.Layouts
+
 import QtQml 2.15
-import QtQml.Models 2.14
 import xStudio 1.0
 
 Control { id: wheel

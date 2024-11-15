@@ -1,10 +1,9 @@
 // SPDX-License-Identifier: Apache-2.0
 
-import QtQuick 2.15
-import QtQuick.Controls 2.15
-import QtQuick.Layouts 1.15
-import QtQml.Models 2.14
-import Qt.labs.qmlmodels 1.0
+import QtQuick
+
+import QtQuick.Layouts
+
 
 import xStudio 1.0
 import ShotBrowser 1.0
@@ -34,12 +33,14 @@ RowLayout {
     }
 
     // make sure index is updated
-    XsModelProperty {
+    // Commenting this out ... recursive? scopeGroupModel.rootIndex is set
+    // in populateModels
+    /*XsModelProperty {
         index: scopeGroupModel.rootIndex
         onIndexChanged: {
             populateModels()
         }
-    }
+    }*/
 
 
     DelegateModel {

@@ -170,7 +170,7 @@ if(WIN32)
   set(CMAKE_WINDOWS_EXPORT_ALL_SYMBOLS ON)
 
   # When moving to Qt6 or greater, we might be able to use qt_generate_deploy_app_script
-  #set(deploy_script "${Qt5_DIR}/../../../windeployqt.exe  )
+  #set(deploy_script "${Qt6_DIR}/../../../windeployqt.exe  )
 endif()
 
 if(MSVC)
@@ -241,7 +241,7 @@ if(INSTALL_XSTUDIO)
   add_subdirectory(share/fonts)
 
   if(BUILD_DOCS)
-    add_subdirectory(docs)
+      #add_subdirectory(docs)
   else()
     install(DIRECTORY share/docs/ DESTINATION share/xstudio/docs)
   endif ()

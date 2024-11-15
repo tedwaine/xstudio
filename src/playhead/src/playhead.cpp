@@ -340,10 +340,10 @@ void PlayheadBase::register_hotkeys() {
     jump_to_previous_clip_ = register_hotkey(
         "Shift+Left",
         "Jump to Previous Clip",
-        "Jump the playhead to the start of the current clip, or the start of the previous clip.",
+        "Jump the playhead to the start of the current clip, or the start of the previous "
+        "clip.",
         false,
         "Playback");
-
 }
 
 

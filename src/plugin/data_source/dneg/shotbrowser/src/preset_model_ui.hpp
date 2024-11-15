@@ -99,6 +99,18 @@ namespace ui::qml {
             return exportAsSystemPresetsFuture(path, index).result();
         }
 
+        Q_INVOKABLE QFuture<QString>
+        backupPresetsFuture(const QUrl &path, const QModelIndex &index = QModelIndex()) const;
+        Q_INVOKABLE QString
+        backupPresets(const QUrl &path, const QModelIndex &index = QModelIndex()) const {
+            return backupPresetsFuture(path, index).result();
+        }
+
+        Q_INVOKABLE QFuture<QString> restorePresetsFuture(const QUrl &path);
+        Q_INVOKABLE QString restorePresets(const QUrl &path) {
+            return restorePresetsFuture(path).result();
+        }
+
         void updateTermModel(const std::string &key, const bool cache);
 
       signals:

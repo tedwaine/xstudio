@@ -1,10 +1,8 @@
 // SPDX-License-Identifier: Apache-2.0
-import QtQuick 2.12
-import QtQuick.Controls 2.14
-import QtQuick.Controls.Styles 1.4
-import QtQml.Models 2.14
-import Qt.labs.qmlmodels 1.0
-import QtQuick.Layouts 1.15
+import QtQuick
+
+import QtQuick.Layouts
+import QtQuick.Dialogs
 
 import xStudio 1.0
 
@@ -61,6 +59,7 @@ Item{
     property var select_all_hotkey: hotkey_area.select_all_hotkey
     property var deselect_all_hotkey: hotkey_area.deselect_all_hotkey
     property alias delete_selected: hotkey_area.delete_selected_hotkey
+    property alias reload_selected_media_hotkey: hotkey_area.reload_selected_media_hotkey
 
 
     XsGradientRectangle{

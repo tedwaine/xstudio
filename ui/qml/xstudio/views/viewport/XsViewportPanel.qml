@@ -1,5 +1,5 @@
-import QtQuick 2.12
-import QtQuick.Layouts 1.15
+import QtQuick
+import QtQuick.Layouts
 
 import xStudio 1.0
 import xstudio.qml.viewport 1.0
@@ -117,18 +117,22 @@ Rectangle{
 
     function toggle_dockable_widget(widget_name) {
 
+        console.log("toggle_dockable_widget", widget_name)
         var u = dock_widgets_model
         for (var i = 0; i < u.length; ++i) {
             if (u[i][0] == widget_name) {
                 // found a match. toggle visibility
                 u[i][1] = !u[i][1]
                 dock_widgets_model = u
+                console.log("dock_widgets_model", dock_widgets_model)
+                console.log("dock_widgets_model", JSON.stringify(dock_widgets_model))
                 return
             }
         }
         var new_entry = [widget_name, true, "left"]
         u.push(new_entry)
         dock_widgets_model = u
+        console.log("dock_widgets_model", dock_widgets_model)
 
     }
 

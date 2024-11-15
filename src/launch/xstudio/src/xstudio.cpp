@@ -55,6 +55,7 @@ CAF_PUSH_WARNINGS
 #include <QPalette>
 #include <QString>
 #include <QQuickView>
+#include <QQuickWindow>
 CAF_POP_WARNINGS
 
 #include "xstudio/ui/mouse.hpp"
@@ -1040,10 +1041,11 @@ int main(int argc, char **argv) {
 
                 system.await_actors_before_shutdown(true);
 
-                QCoreApplication::setAttribute(Qt::AA_EnableHighDpiScaling);
                 // QCoreApplication::setAttribute(Qt::AA_ShareOpenGLContexts);
                 // QCoreApplication::setAttribute(Qt::AA_UseOpenGLES);
                 // QCoreApplication::setAttribute(Qt::AA_UseSoftwareOpenGL);
+
+                QQuickWindow::setGraphicsApi(QSGRendererInterface::OpenGL);
 
                 if (l.actions["disable_vsync"]) {
                     QSurfaceFormat format;

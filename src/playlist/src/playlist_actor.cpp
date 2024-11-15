@@ -927,9 +927,13 @@ void PlaylistActor::init() {
             return rp;
         },
 
-        [=](copy_container_atom atom, caf::actor bookmarks) {
-            delegate(
-                actor_cast<caf::actor>(this), atom, std::vector<utility::Uuid>(), bookmarks);
+        [=](copy_container_atom atom, caf::actor bookmarks) -> result<utility::CopyResult> {
+            auto rp = make_response_promise<utility::CopyResult>();
+
+            copy_container(std::vector<utility::Uuid>(), bookmarks, rp);
+            return rp;
+            // delegate(
+            //     actor_cast<caf::actor>(this), atom, std::vector<utility::Uuid>(), bookmarks);
         },
 
         [=](copy_container_atom,

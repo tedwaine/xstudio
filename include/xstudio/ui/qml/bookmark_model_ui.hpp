@@ -57,7 +57,8 @@ class BOOKMARK_QML_EXPORT BookmarkFilterModel : public QSortFilterProxyModel {
 
     Q_PROPERTY(int depth READ depth WRITE setDepth NOTIFY depthChanged)
     Q_PROPERTY(bool showHidden READ showHidden WRITE setShowHidden NOTIFY showHiddenChanged)
-    Q_PROPERTY(QString showUserType READ showUserType WRITE setShowUserType NOTIFY showUserTypeChanged)
+    Q_PROPERTY(
+        QString showUserType READ showUserType WRITE setShowUserType NOTIFY showUserTypeChanged)
     Q_PROPERTY(QStringList excludedCategories READ excludedCategories WRITE
                    setExcludedCategories NOTIFY excludedCategoriesChanged)
     Q_PROPERTY(QStringList includedCategories READ includedCategories WRITE

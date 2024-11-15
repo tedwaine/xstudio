@@ -169,7 +169,8 @@ void GLBlindTex::do_pixel_upload(
     cv_.notify_all();
 
     // std::cerr << "Tex " << to_string(media_key_) << " uploaded in " <<
-    // std::chrono::duration_cast<std::chrono::microseconds>(utility::clock::now()-t0).count() <<
+    // std::chrono::duration_cast<std::chrono::microseconds>(utility::clock::now()-t0).count()
+    // <<
     // "\n";
 }
 

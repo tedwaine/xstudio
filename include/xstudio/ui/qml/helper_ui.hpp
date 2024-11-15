@@ -595,7 +595,8 @@ namespace ui {
                 // convert padding spec to #'s
                 // {:04d}
                 try {
-                    tmp = fmt::format(std::regex_replace(tmp, as_hash_pad, R"({:#<$1})"), "");
+                    tmp = fmt::format(
+                        fmt::runtime(std::regex_replace(tmp, as_hash_pad, R"({:#<$1})")), "");
                 } catch (...) {
                     tmp = std::regex_replace(tmp, as_hash_pad, "#");
                 }
@@ -704,7 +705,7 @@ namespace ui {
 
             Q_INVOKABLE [[nodiscard]] QColor
             saturate(const QColor &color, const double factor = 1.5) const {
-                double h, s, l, a;
+                float h, s, l, a;
                 color.getHslF(&h, &s, &l, &a);
                 s = std::max(0.0, std::min(1.0, s * factor));
                 return QColor::fromHslF(h, s, l, a);
@@ -712,7 +713,7 @@ namespace ui {
 
             Q_INVOKABLE [[nodiscard]] QColor
             luminate(const QColor &color, const double factor = 1.5) const {
-                double h, s, l, a;
+                float h, s, l, a;
                 color.getHslF(&h, &s, &l, &a);
                 l = std::max(0.0, std::min(1.0, l * factor));
                 return QColor::fromHslF(h, s, l, a);
@@ -729,7 +730,7 @@ namespace ui {
                 const QColor &color,
                 const double sfactor = 1.0,
                 const double lfactor = 1.0) const {
-                double h, s, l, a;
+                float h, s, l, a;
                 color.getHslF(&h, &s, &l, &a);
                 s = std::max(0.0, std::min(1.0, s * sfactor));
                 l = std::max(0.0, std::min(1.0, l * lfactor));

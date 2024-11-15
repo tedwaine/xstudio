@@ -152,7 +152,7 @@ namespace media {
             const int frame,
             const std::string &stream_id)
             : std::string(fmt::format(
-                  key_format,
+                  fmt::runtime(key_format),
                   to_string(uri),
                   (frame == std::numeric_limits<int>::min() ? 0 : frame),
                   stream_id)) {}
@@ -194,7 +194,7 @@ namespace media {
         const int frame,
         const std::string &stream_id) {
         return MediaKey(fmt::format(
-            key_format,
+            fmt::runtime(key_format),
             to_string(uri),
             (frame == std::numeric_limits<int>::min() ? 0 : frame),
             stream_id));

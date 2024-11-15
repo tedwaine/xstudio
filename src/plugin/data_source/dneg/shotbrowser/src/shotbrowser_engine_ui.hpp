@@ -221,13 +221,16 @@ namespace ui {
             }
             QFuture<QString> updatePlaylistVersionsFuture(const QUuid &playlist);
 
-            QString refreshPlaylistVersions(const QUuid &playlist) {
-                return refreshPlaylistVersionsFuture(playlist).result();
+            QString
+            refreshPlaylistVersions(const QUuid &playlist, const bool matchOrder = false) {
+                return refreshPlaylistVersionsFuture(playlist, matchOrder).result();
             }
-            QFuture<QString> refreshPlaylistVersionsFuture(const QVariant &playlist) {
-                return refreshPlaylistVersionsFuture(playlist.toUuid());
+            QFuture<QString> refreshPlaylistVersionsFuture(
+                const QVariant &playlist, const bool matchOrder = false) {
+                return refreshPlaylistVersionsFuture(playlist.toUuid(), matchOrder);
             }
-            QFuture<QString> refreshPlaylistVersionsFuture(const QUuid &playlist);
+            QFuture<QString>
+            refreshPlaylistVersionsFuture(const QUuid &playlist, const bool matchOrder = false);
 
             // QString refreshPlaylistNotes(const QUuid &playlist) {
             //     return refreshPlaylistNotesFuture(playlist).result();

@@ -1,5 +1,5 @@
 
-import QtQuick 2.15
+import QtQuick
 import QuickFuture 1.0
 import QuickPromise 1.0
 

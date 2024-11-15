@@ -40,8 +40,8 @@ namespace utility {
 
         absolute_receive_timeout(int msec) { x_ = clock_type::now() + ms(msec); }
 
-        absolute_receive_timeout()                                 = default;
-        absolute_receive_timeout(const absolute_receive_timeout &) = default;
+        absolute_receive_timeout()                                            = default;
+        absolute_receive_timeout(const absolute_receive_timeout &)            = default;
         absolute_receive_timeout &operator=(const absolute_receive_timeout &) = default;
 
         [[nodiscard]] const clock_type::time_point &value() const { return x_; }

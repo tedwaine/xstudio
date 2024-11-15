@@ -837,15 +837,14 @@ void PlayheadActor::init() {
             // skip the playhead position to the start of the next clip, the
             // beginning of the current clip, or if we are already at the beginning
             // of the current clip then the beginning of the preceeding clip
-            request(key_playhead_, infinite, skip_to_clip_atom_v, position(), next_clip).then(
-                [=](const timebase::flicks new_position) mutable {
-                    set_position(new_position);
-                    update_child_playhead_positions(true);
-                    rp.deliver(true);
-                },
-                [=](const caf::error &err) mutable {
-                    rp.deliver(err);
-                });            
+            request(key_playhead_, infinite, skip_to_clip_atom_v, position(), next_clip)
+                .then(
+                    [=](const timebase::flicks new_position) mutable {
+                        set_position(new_position);
+                        update_child_playhead_positions(true);
+                        rp.deliver(true);
+                    },
+                    [=](const caf::error &err) mutable { rp.deliver(err); });
         },
 
         [=](use_loop_range_atom) -> bool { return use_loop_range(); },
@@ -2237,9 +2236,10 @@ void PlayheadActor::hotkey_pressed(
     } else if (hotkey_uuid == jump_to_first_frame_) {
 
         if (loop_start_frame_->value() > 0 && loop_range_enabled_->value()) {
-            anon_send(caf::actor_cast<caf::actor>(this), jump_atom_v, loop_start_frame_->value());
+            anon_send(
+                caf::actor_cast<caf::actor>(this), jump_atom_v, loop_start_frame_->value());
         } else {
-            anon_send(caf::actor_cast<caf::actor>(this), jump_atom_v, 0);            
+            anon_send(caf::actor_cast<caf::actor>(this), jump_atom_v, 0);
         }
 
     } else if (hotkey_uuid == jump_to_last_frame_) {
@@ -2247,16 +2247,19 @@ void PlayheadActor::hotkey_pressed(
         if (loop_end_frame_->value() > 0 && loop_range_enabled_->value()) {
             anon_send(caf::actor_cast<caf::actor>(this), jump_atom_v, loop_end_frame_->value());
         } else {
-            anon_send(caf::actor_cast<caf::actor>(this), jump_atom_v, std::numeric_limits<int>::max());            
+            anon_send(
+                caf::actor_cast<caf::actor>(this),
+                jump_atom_v,
+                std::numeric_limits<int>::max());
         }
 
     } else if (hotkey_uuid == jump_to_next_clip_) {
 
-        anon_send(caf::actor_cast<caf::actor>(this), skip_to_clip_atom_v, true);            
+        anon_send(caf::actor_cast<caf::actor>(this), skip_to_clip_atom_v, true);
 
     } else if (hotkey_uuid == jump_to_previous_clip_) {
-        
-        anon_send(caf::actor_cast<caf::actor>(this), skip_to_clip_atom_v, false);            
+
+        anon_send(caf::actor_cast<caf::actor>(this), skip_to_clip_atom_v, false);
 
     } else {
         PlayheadBase::hotkey_pressed(hotkey_uuid, context, window);

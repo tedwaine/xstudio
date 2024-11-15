@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: Apache-2.0
 
-import QtQuick 2.15
-import QtQuick.Controls 2.15
-import QtQuick.Layouts 1.15
-import QtQuick.Dialogs 1.3
+import QtQuick
+
+import QtQuick.Layouts
+import QtQuick.Dialogs
 
 import xStudio 1.0
 import xstudio.qml.models 1.0
@@ -198,9 +198,9 @@ Item{ id: leftSec
         id: cdl_save_dialog
         title: "Save CDL"
         defaultSuffix: "cdl"
-        folder: shortcuts.home
+        currentFolder: shortcuts.home
         nameFilters:  [ "CDL files (*.cdl)", "CC files (*.cc)", "CCC files (*.ccc)" ]
-        selectExisting: false
+        //selectExisting: false
 
         // TODO: ColSci
         // Add warning if contrast is used?

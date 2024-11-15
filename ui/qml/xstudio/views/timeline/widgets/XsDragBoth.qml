@@ -1,4 +1,4 @@
-import QtQuick 2.12
+import QtQuick
 import QtQuick.Shapes 1.12
 import xStudio 1.0
 

@@ -39,7 +39,7 @@ class IvyDataSource : public DataSource, public module::Module {
         return utility::JsonStore();
     }
 
-    std::string url() const { return "http://pipequery.zro"; }
+    std::string url() const { return "http://pipequery"; }
     std::string path() const { return "/v1/graphql"; }
     std::string show() const { return show_; }
     std::string content_type() const { return "application/graphql"; }
