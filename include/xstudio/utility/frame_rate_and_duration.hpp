@@ -27,7 +27,7 @@ namespace utility {
         // const int den) : rate_(num, den), count_(timebase_ * frames) {}
 
         FrameRateDuration &operator=(const FrameRateDuration &) = default;
-        FrameRateDuration &operator=(FrameRateDuration &&) = default;
+        FrameRateDuration &operator=(FrameRateDuration &&)      = default;
 
         FrameRateDuration &operator+=(const FrameRateDuration &);
         FrameRateDuration &operator-=(const FrameRateDuration &);
@@ -82,7 +82,6 @@ namespace utility {
         template <class Inspector> friend bool inspect(Inspector &f, FrameRateDuration &x) {
             return f.object(x).fields(f.field("rate", x.rate_), f.field("data", x.duration_));
         }
-        friend class EditList;
 
       public:
         FrameRate rate_;

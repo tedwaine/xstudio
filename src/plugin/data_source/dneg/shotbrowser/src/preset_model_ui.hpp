@@ -47,6 +47,7 @@ namespace ui::qml {
             livelinkRole,
             nameRole,
             negatedRole,
+            parentEnabledRole,
             termRole,
             typeRole,
             updateRole,
@@ -99,6 +100,18 @@ namespace ui::qml {
             return exportAsSystemPresetsFuture(path, index).result();
         }
 
+        Q_INVOKABLE QFuture<QString>
+        backupPresetsFuture(const QUrl &path, const QModelIndex &index = QModelIndex()) const;
+        Q_INVOKABLE QString
+        backupPresets(const QUrl &path, const QModelIndex &index = QModelIndex()) const {
+            return backupPresetsFuture(path, index).result();
+        }
+
+        Q_INVOKABLE QFuture<QString> restorePresetsFuture(const QUrl &path);
+        Q_INVOKABLE QString restorePresets(const QUrl &path) {
+            return restorePresetsFuture(path).result();
+        }
+
         void updateTermModel(const std::string &key, const bool cache);
 
       signals:
@@ -125,6 +138,21 @@ namespace ui::qml {
 
         QMap<QString, QObject *> term_models_;
         QueryEngine &query_engine_;
+    };
+
+    class ShotBrowserPresetTreeFilterModel : public QSortFilterProxyModel {
+        Q_OBJECT
+        QML_NAMED_ELEMENT("ShotBrowserSequenceFilterModel")
+
+      public:
+        ShotBrowserPresetTreeFilterModel(QObject *parent = nullptr)
+            : QSortFilterProxyModel(parent) {
+            setDynamicSortFilter(true);
+        }
+
+      protected:
+        [[nodiscard]] bool
+        filterAcceptsRow(int source_row, const QModelIndex &source_parent) const override;
     };
 
     class ShotBrowserPresetFilterModel : public QSortFilterProxyModel {

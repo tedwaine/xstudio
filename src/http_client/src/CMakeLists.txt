@@ -4,6 +4,8 @@ find_package(ZLIB)
 
 SET(LINK_DEPS
 	xstudio::utility
+	xstudio::broadcast
+	xstudio::media
 	caf::core
 	OpenSSL::SSL
 	ZLIB::ZLIB

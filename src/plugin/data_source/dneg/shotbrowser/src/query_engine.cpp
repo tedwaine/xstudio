@@ -69,7 +69,7 @@ QueryEngine::QueryEngine() {
 std::optional<nlohmann::json>
 QueryEngine::find_by_id(const utility::Uuid &uuid, const utility::JsonStore &presets) {
     if (presets.is_object()) {
-        if (presets.count("id") && presets.at("id") == uuid)
+        if (presets.count("id") && presets.at("id").get<utility::Uuid>() == uuid)
             return presets;
         else {
             if (presets.count("children")) {
@@ -266,7 +266,7 @@ utility::JsonStore QueryEngine::validate_presets(
 
         // fix overrides.
         if (ptype == "group") {
-            result.update(R"({"hidden": false, "favourite": false})"_json);
+            result.update(R"({"hidden": true, "favourite": false})"_json);
         }
 
         if (not is_user and (result["update"].is_null() or result["update"] != false)) {
@@ -275,7 +275,7 @@ utility::JsonStore QueryEngine::validate_presets(
             result["update"] = false;
         }
 
-        if (export_as_system and not is_user and result["hidden"] == true)
+        if (export_as_system and not is_user and result["hidden"] == true and ptype != "group")
             result = JsonStore();
         else {
             for (size_t i = 0; i < result["children"].size(); i++)
@@ -344,9 +344,11 @@ void QueryEngine::merge_group(nlohmann::json &destination, const nlohmann::json 
                     i["children"][0] = source.at("children").at(0);
                 }
 
-                // validate group presets.
+                // validate group presets. add or update
+                std::set<utility::Uuid> found_system_presets;
                 for (const auto &gp : source.at("children").at(1).at("children")) {
-                    auto preset_id     = gp.value("id", Uuid());
+                    auto preset_id = gp.value("id", Uuid());
+                    found_system_presets.insert(preset_id);
                     bool preset_exists = false;
 
                     for (auto &up : i["children"][1]["children"]) {
@@ -357,6 +359,7 @@ void QueryEngine::merge_group(nlohmann::json &destination, const nlohmann::json 
                             // validate group preset
                             if (not up.value("update", false) and preset_diff(up, gp)) {
                                 // replace content.. as update flag not set by user change.
+                                up["name"]     = gp.at("name");
                                 up["children"] = gp.at("children");
                             }
                         }
@@ -365,6 +368,39 @@ void QueryEngine::merge_group(nlohmann::json &destination, const nlohmann::json 
                     if (not preset_exists)
                         i["children"][1]["children"].push_back(gp);
                 }
+
+                // do a reverse validation.
+                // if the user has a system preset that hasn't been modified and doesn't exist
+                // in this list.. but this will then break project presets..
+                auto tmp = R"([])"_json;
+
+                for (const auto &up : i["children"][1]["children"]) {
+                    // spdlog::warn("checking {}", up.at("name").get<std::string>());
+                    if (up.contains("update") and not up.at("update").is_null() and
+                        up.at("update") == false) {
+                        // is system preset, check it's in source.
+                        if (found_system_presets.count(up.value("id", Uuid())))
+                            tmp.push_back(up);
+                        else
+                            spdlog::debug(
+                                "Removing retired system preset {}",
+                                up.at("name").get<std::string>());
+                    } else {
+                        // orpahaned system presets should change to user presets.
+                        if (up.contains("update") and not up.at("update").is_null() and
+                            up.at("update") == true and
+                            not found_system_presets.count(up.value("id", Uuid()))) {
+
+                            auto tup      = up;
+                            tup["update"] = nullptr;
+                            tmp.push_back(tup);
+                        } else
+                            tmp.push_back(up);
+                    }
+                }
+
+
+                i["children"][1]["children"] = tmp;
             }
         }
 
@@ -397,7 +433,7 @@ QueryEngine::precache_needed(const int project_id, const utility::JsonStore &loo
     });
 
     static const auto lookup_project_names =
-        std::vector<std::string>({"User", "Unit", "Playlist", "Shot", "Sequence"});
+        std::vector<std::string>({"User", "Unit", "Stage", "Playlist", "Shot", "Sequence"});
 
     for (const auto &i : lookup_names) {
         if (not lookup.count(cache_name(i)))
@@ -455,7 +491,8 @@ bool QueryEngine::preset_diff(const nlohmann::json &a, const nlohmann::json &b) 
     auto result = true;
 
     try { // term count check (quick)
-        if (a.at("children").size() == b.at("children").size()) {
+        if (a.at("name") == b.at("name") and
+            a.at("children").size() == b.at("children").size()) {
             // term comparison..
             bool mismatch = false;
 
@@ -642,7 +679,21 @@ utility::JsonStore QueryEngine::preprocess_terms(
                 query["fields"] = PlaylistFields;
         }
 
+        // duplicate term if array.
+        auto expanded = R"([])"_json;
         for (const auto &i : terms) {
+            if (i.at("value").is_array()) {
+                auto tmp = i;
+                for (const auto &ii : i.at("value")) {
+                    tmp["value"] = ii;
+                    expanded.push_back(tmp);
+                }
+            } else {
+                expanded.push_back(i);
+            }
+        }
+
+        for (const auto &i : expanded) {
             if (i.value("enabled", true)) {
                 auto term = i.value("term", "");
                 if (term == "Operator") {
@@ -786,7 +837,6 @@ utility::JsonStore QueryEngine::preprocess_terms(
         spdlog::warn("{} {}", __PRETTY_FUNCTION__, err.what());
         throw;
     }
-
 
     return result;
 }
@@ -975,6 +1025,11 @@ void QueryEngine::add_playlist_term_to_filter(
         qry->push_back(Number("created_by.HumanUser.id")
                            .is(resolve_query_value(term, JsonStore(value), project_id, lookup)
                                    .get<int>()));
+    } else if (term == "Id") {
+        if (negated)
+            qry->push_back(Number("id").is_not(std::stoi(value)));
+        else
+            qry->push_back(Number("id").is(std::stoi(value)));
     } else if (term == "Filter") {
         qry->push_back(QueryEngine::add_text_value("code", value, negated));
     } else if (term == "Tag") {
@@ -1043,6 +1098,11 @@ void QueryEngine::add_version_term_to_filter(
         qry->push_back(Number("sg_dneg_version").less_than(std::stoi(value)));
     } else if (term == "Newer Version") {
         qry->push_back(Number("sg_dneg_version").greater_than(std::stoi(value)));
+    } else if (term == "Id") {
+        if (negated)
+            qry->push_back(Number("id").is_not(std::stoi(value)));
+        else
+            qry->push_back(Number("id").is(std::stoi(value)));
     } else if (term == "Site") {
         if (negated)
             qry->push_back(Text("sg_location").is_not(value));
@@ -1084,6 +1144,16 @@ void QueryEngine::add_version_term_to_filter(
             qry->push_back(Text("sg_production_status")
                                .is(resolve_query_value(term, JsonStore(value), lookup)
                                        .get<std::string>()));
+    } else if (term == "Unit") {
+        auto tmp  = R"({"type": "CustomEntity24", "id":0})"_json;
+        tmp["id"] = resolve_query_value(term, JsonStore(value), project_id, lookup).get<int>();
+        if (negated)
+            qry->push_back(RelationType("entity.Shot.sg_unit").is_not({JsonStore(tmp)}));
+        else
+            qry->push_back(RelationType("entity.Shot.sg_unit").is({JsonStore(tmp)}));
+
+    } else if (term == "Stage") {
+        qry->push_back(RelationType("sg_client_send_stage").name_is(value));
     } else if (term == "Shot Status") {
         if (negated)
             qry->push_back(Text("entity.Shot.sg_status_list")
@@ -1131,15 +1201,18 @@ void QueryEngine::add_version_term_to_filter(
         qry->push_back(RelationType("entity").is(JsonStore(rel)));
     } else if (term == "Sequence") {
         try {
-            auto seq = R"({"type": "Sequence", "id":0})"_json;
+            auto seq  = R"({"type": "Sequence", "id":0})"_json;
+            auto seqs = std::vector<JsonStore>();
             // if no match force failing query. or we'll get EVERYTHING
             try {
                 seq["id"] =
                     resolve_query_value(term, JsonStore(value), project_id, lookup).get<int>();
+                seqs.push_back(seq);
             } catch (const std::exception &err) {
                 spdlog::warn("{} {}", __PRETTY_FUNCTION__, err.what());
+                seqs.push_back(seq);
             }
-            qry->push_back(RelationType("entity").in(std::vector<JsonStore>({JsonStore(seq)})));
+            qry->push_back(RelationType("entity").in(seqs));
         } catch (const std::exception &err) {
             spdlog::warn("{} {}", __PRETTY_FUNCTION__, err.what());
             throw XStudioError("Invalid query term " + term + " " + value);
@@ -1294,6 +1367,11 @@ void QueryEngine::add_note_term_to_filter(
         qry->push_back(Number("created_by.HumanUser.id")
                            .is(resolve_query_value(term, JsonStore(value), project_id, lookup)
                                    .get<int>()));
+    } else if (term == "Id") {
+        if (negated)
+            qry->push_back(Number("id").is_not(std::stoi(value)));
+        else
+            qry->push_back(Number("id").is(std::stoi(value)));
     } else if (term == "Recipient") {
         auto tmp  = R"({"type": "HumanUser", "id":0})"_json;
         tmp["id"] = resolve_query_value(term, JsonStore(value), project_id, lookup).get<int>();
@@ -1310,15 +1388,18 @@ void QueryEngine::add_note_term_to_filter(
         qry->push_back(RelationType("note_links").in({JsonStore(tmp)}));
     } else if (term == "Sequence") {
         try {
-            auto seq = R"({"type": "Sequence", "id":0})"_json;
+            auto seq  = R"({"type": "Sequence", "id":0})"_json;
+            auto seqs = std::vector<JsonStore>();
             // if no match force failing query. or we'll get EVERYTHING
             try {
                 seq["id"] =
                     resolve_query_value(term, JsonStore(value), project_id, lookup).get<int>();
-            } catch (...) {
+                seqs.push_back(seq);
+            } catch (const std::exception &err) {
+                spdlog::warn("{} {}", __PRETTY_FUNCTION__, err.what());
+                seqs.push_back(seq);
             }
-            qry->push_back(
-                RelationType("note_links").in(std::vector<JsonStore>({JsonStore(seq)})));
+            qry->push_back(RelationType("note_links").in(seqs));
         } catch (const std::exception &err) {
             spdlog::warn("{} {}", __PRETTY_FUNCTION__, err.what());
             throw XStudioError("Invalid query term " + term + " " + value);
@@ -1525,14 +1606,33 @@ void QueryEngine::set_shot_sequence_lookup(
     const std::string &key, const utility::JsonStore &data, utility::JsonStore &lookup) {
     auto tmp = R"({})"_json;
 
+    // build lookup
     try {
+        auto seqmap = std::map<long, nlohmann::json>();
+
         for (const auto &i : data) {
-            auto value       = R"({"id": null, "name": null})"_json;
+            auto value       = R"({"id": null, "name": null, "parent_id": null})"_json;
             value.at("name") = i.at(json::json_pointer("/attributes/code"));
             value.at("id")   = i.at("id");
+            value.at("parent_id") =
+                i.at(json::json_pointer("/relationships/sg_parent/data/id"));
 
-            for (const auto &s : i.at(json::json_pointer("/relationships/shots/data"))) {
-                tmp[std::to_string(s.at("id").get<long>())] = value;
+            seqmap[i.at("id")] = value;
+        }
+
+        for (const auto &i : data) {
+            auto seqvalue = seqmap.at(i.at("id"));
+            auto seqs     = R"([])"_json;
+
+            while (seqvalue.at("parent_id") != seqvalue.at("id")) {
+                seqs.push_back(seqvalue);
+                seqvalue = seqmap.at(seqvalue.at("parent_id"));
+            }
+            seqs.push_back(seqvalue);
+
+            // this is the direct parent of these shots..
+            for (const auto &shot : i.at(json::json_pointer("/relationships/shots/data"))) {
+                tmp[std::to_string(shot.at("id").get<long>())] = seqs;
             }
         }
     } catch (const std::exception &err) {
@@ -1611,17 +1711,20 @@ JsonStore QueryEngine::data_from_field(const JsonStore &data) {
     return JsonStore(result);
 }
 
-std::optional<std::string> QueryEngine::get_sequence_name(
+std::vector<std::string> QueryEngine::get_sequence_name(
     const int project_id, const int shot_id, const utility::JsonStore &lookup) {
-    auto key  = cache_name("ShotSequence", project_id);
-    auto shot = std::to_string(shot_id);
+    auto result = std::vector<std::string>();
+    auto key    = cache_name("ShotSequence", project_id);
+    auto shot   = std::to_string(shot_id);
 
     if (lookup.count(key)) {
-        if (lookup.at(key).count(shot))
-            return lookup.at(key).at(shot).at("name");
+        if (lookup.at(key).count(shot)) {
+            for (const auto &seq : lookup.at(key).at(shot))
+                result.push_back(seq.at("name"));
+        }
     }
 
-    return {};
+    return result;
 }
 
 std::string QueryEngine::get_version_name(const utility::JsonStore &metadata) {
@@ -1741,8 +1844,8 @@ utility::JsonStore QueryEngine::get_livelink_value(
                             .get<int>();
 
                     auto seq_name = get_sequence_name(project_id, shot_id, lookup);
-                    if (seq_name)
-                        result = nlohmann::json(*seq_name);
+                    if (not seq_name.empty())
+                        result = nlohmann::json(seq_name);
                 }
             }
         }

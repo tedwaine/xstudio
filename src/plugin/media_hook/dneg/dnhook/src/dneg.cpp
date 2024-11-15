@@ -143,15 +143,14 @@ class DNegMediaHook : public MediaHook {
             // check for ivy timeline_range
             try {
                 const static auto tcp = json::json_pointer("/metadata/ivy/file/timeline_range");
-                if (jsn.contains(tcp)) {
+                if (jsn.contains(tcp) and jsn.at(tcp).is_string()) {
                     auto ifr = FrameList(jsn.at(tcp).get<std::string>());
 
                     // there is a slate frame ?
-                    if (ifr.count()+1 == result.frame_list().count()) {
+                    if (ifr.count() + 1 == result.frame_list().count()) {
                         // offset ifr start..
                         auto &ifg = ifr.frame_groups();
-                        ifg.at(0).set_start(
-                            ifg.at(0).start() - 1);
+                        ifg.at(0).set_start(ifg.at(0).start() - 1);
                     }
 
                     if (result.timecode().total_frames() != ifr.start()) {

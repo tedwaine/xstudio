@@ -91,6 +91,7 @@ class ShotBrowserResultModel : public JSONTreeModel {
         sequenceRole,
         shotRole,
         siteRole,
+        stageRole,
         stalkUuidRole,
         subjectRole,
         submittedToDailiesRole,

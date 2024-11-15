@@ -94,7 +94,7 @@ void TrackActor::item_event_callback(const utility::JsonStore &event, Item &item
         // spdlog::warn("{} {} {}", child_item_it != base_.item().cend(), not
         // actors_.count(cuuid), not event.at("blind").is_null());
 
-        if (child_item_it != base_.item().cend() and not actors_.count(cuuid) and
+        if (child_item_it != base_.item().end() and not actors_.count(cuuid) and
             not event.at("blind").is_null()) {
             // our child
             // spdlog::warn("RECREATE MATCH");
@@ -112,10 +112,13 @@ void TrackActor::item_event_callback(const utility::JsonStore &event, Item &item
             // spdlog::warn("child_item_it {}", child_item_it->prop().dump(2));
 
             auto actor = deserialise(utility::JsonStore(event.at("blind")), false);
-            add_item(UuidActor(cuuid, actor));
             // spdlog::warn("{}",to_string(caf::actor_cast<caf::actor_addr>(actor)));
             // spdlog::warn("{}",to_string(caf::actor_cast<caf::actor_addr>(child_item_it->actor())));
+
+            // iteraror becomes invalid..
             child_item_it->set_actor_addr(actor);
+
+
             // change item actor addr
             // spdlog::warn("TrackActor create
             // {}",to_string(caf::actor_cast<caf::actor_addr>(child_item_it->actor())));
@@ -123,7 +126,7 @@ void TrackActor::item_event_callback(const utility::JsonStore &event, Item &item
             // item actor_addr will be wrong.. in ancestors
             // send special update..
             send(
-                event_group_,
+                base_.event_group(),
                 event_atom_v,
                 item_atom_v,
                 child_item_it->make_actor_addr_update(),
@@ -195,7 +198,7 @@ TrackActor::TrackActor(caf::actor_config &cfg, const utility::JsonStore &jsn, It
     base_.item().bind_item_post_event_func([this](const utility::JsonStore &event, Item &item) {
         item_event_callback(event, item);
     });
-    pitem = base_.item();
+    pitem = base_.item().clone();
 
     init();
 }
@@ -225,7 +228,7 @@ TrackActor::TrackActor(caf::actor_config &cfg, const Item &item)
 
 TrackActor::TrackActor(caf::actor_config &cfg, const Item &item, Item &nitem)
     : TrackActor(cfg, item) {
-    nitem = base_.item();
+    nitem = base_.item().clone();
 }
 
 
@@ -234,52 +237,14 @@ void TrackActor::on_exit() {
         send_exit(i.second, caf::exit_reason::user_shutdown);
 }
 
-void TrackActor::init() {
-    print_on_create(this, base_.name());
-    print_on_exit(this, base_.name());
+caf::message_handler TrackActor::default_event_handler() {
+    return caf::message_handler()
+        .or_else(NotificationHandler::default_event_handler())
+        .or_else(Container::default_event_handler());
+}
 
-    event_group_ = spawn<broadcast::BroadcastActor>(this);
-    link_to(event_group_);
-    // update_edit_list_ = true;
-
-    set_down_handler([=](down_msg &msg) {
-        // if a child dies we won't have enough information to recreate it.
-        // we still need to report it up the chain though.
-        for (auto it = std::begin(actors_); it != std::end(actors_); ++it) {
-            if (msg.source == it->second) {
-
-                // spdlog::warn("detected death {}", to_string(it->second));
-                demonitor(it->second);
-                actors_.erase(it);
-
-                // remove from base.
-                auto it = find_actor_addr(base_.item().children(), msg.source);
-
-                if (it != base_.item().end()) {
-                    auto jsn  = base_.item().erase(it);
-                    auto more = base_.item().refresh();
-                    if (not more.is_null())
-                        jsn.insert(jsn.begin(), more.begin(), more.end());
-
-                    send(event_group_, event_atom_v, item_atom_v, jsn, false);
-                }
-
-                break;
-            }
-        }
-    });
-
-    behavior_.assign(
-        base_.make_set_name_handler(event_group_, this),
-        base_.make_get_name_handler(),
-        base_.make_last_changed_getter(),
-        base_.make_last_changed_setter(event_group_, this),
-        base_.make_last_changed_event_handler(event_group_, this),
-        base_.make_get_uuid_handler(),
-        base_.make_get_type_handler(),
-        make_get_event_group_handler(event_group_),
-        base_.make_get_detail_handler(this, event_group_),
-
+caf::message_handler TrackActor::message_handler() {
+    return caf::message_handler{
         [=](broadcast::broadcast_down_atom, const caf::actor_addr &) {},
         [=](const group_down_msg & /*msg*/) {},
 
@@ -310,30 +275,30 @@ void TrackActor::init() {
         [=](plugin_manager::enable_atom, const bool value) -> JsonStore {
             auto jsn = base_.item().set_enabled(value);
             if (not jsn.is_null())
-                send(event_group_, event_atom_v, item_atom_v, jsn, false);
+                send(base_.event_group(), event_atom_v, item_atom_v, jsn, false);
             return jsn;
         },
 
-        [=](item_atom) -> Item { return base_.item(); },
+        [=](item_atom) -> Item { return base_.item().clone(); },
 
         [=](item_flag_atom, const std::string &value) -> JsonStore {
             auto jsn = base_.item().set_flag(value);
             if (not jsn.is_null())
-                send(event_group_, event_atom_v, item_atom_v, jsn, false);
+                send(base_.event_group(), event_atom_v, item_atom_v, jsn, false);
             return jsn;
         },
 
         [=](item_lock_atom, const bool value) -> JsonStore {
             auto jsn = base_.item().set_locked(value);
             if (not jsn.is_null())
-                send(event_group_, event_atom_v, item_atom_v, jsn, false);
+                send(base_.event_group(), event_atom_v, item_atom_v, jsn, false);
             return jsn;
         },
 
         [=](item_name_atom, const std::string &value) -> JsonStore {
             auto jsn = base_.item().set_name(value);
             if (not jsn.is_null())
-                send(event_group_, event_atom_v, item_atom_v, jsn, false);
+                send(base_.event_group(), event_atom_v, item_atom_v, jsn, false);
             return jsn;
         },
 
@@ -342,7 +307,7 @@ void TrackActor::init() {
             request(caf::actor_cast<caf::actor>(this), infinite, utility::serialise_atom_v)
                 .then(
                     [=](const JsonStore &jsn) mutable {
-                        rp.deliver(std::make_pair(jsn, base_.item()));
+                        rp.deliver(std::make_pair(jsn, base_.item().clone()));
                     },
                     [=](const caf::error &err) mutable { rp.deliver(err); });
             return rp;
@@ -354,7 +319,7 @@ void TrackActor::init() {
             }
             auto it = base_.item().begin();
             std::advance(it, index);
-            return *it;
+            return (*it).clone();
         },
 
         [=](item_prop_atom,
@@ -369,14 +334,14 @@ void TrackActor::init() {
             }
             auto jsn = base_.item().set_prop(prop);
             if (not jsn.is_null())
-                send(event_group_, event_atom_v, item_atom_v, jsn, false);
+                send(base_.event_group(), event_atom_v, item_atom_v, jsn, false);
             return jsn;
         },
 
         [=](item_prop_atom, const utility::JsonStore &value) -> JsonStore {
             auto jsn = base_.item().set_prop(value);
             if (not jsn.is_null())
-                send(event_group_, event_atom_v, item_atom_v, jsn, false);
+                send(base_.event_group(), event_atom_v, item_atom_v, jsn, false);
             return jsn;
         },
 
@@ -384,17 +349,21 @@ void TrackActor::init() {
 
         [=](utility::rate_atom) -> FrameRate { return base_.item().rate(); },
 
+        [=](utility::rate_atom atom, const media::MediaType media_type) {
+            delegate(caf::actor_cast<caf::actor>(this), atom);
+        },
+
         [=](active_range_atom, const FrameRange &fr) -> JsonStore {
             auto jsn = base_.item().set_active_range(fr);
             if (not jsn.is_null())
-                send(event_group_, event_atom_v, item_atom_v, jsn, false);
+                send(base_.event_group(), event_atom_v, item_atom_v, jsn, false);
             return jsn;
         },
 
         [=](available_range_atom, const FrameRange &fr) -> JsonStore {
             auto jsn = base_.item().set_available_range(fr);
             if (not jsn.is_null())
-                send(event_group_, event_atom_v, item_atom_v, jsn, false);
+                send(base_.event_group(), event_atom_v, item_atom_v, jsn, false);
             return jsn;
         },
 
@@ -428,12 +397,12 @@ void TrackActor::init() {
                 auto more = base_.item().refresh();
                 if (not more.is_null()) {
                     more.insert(more.begin(), update.begin(), update.end());
-                    send(event_group_, event_atom_v, item_atom_v, more, hidden);
+                    send(base_.event_group(), event_atom_v, item_atom_v, more, hidden);
                     return;
                 }
             }
 
-            send(event_group_, event_atom_v, item_atom_v, update, hidden);
+            send(base_.event_group(), event_atom_v, item_atom_v, update, hidden);
         },
 
         [=](history::undo_atom, const JsonStore &hist) -> result<bool> {
@@ -712,7 +681,7 @@ void TrackActor::init() {
 
         [=](utility::event_atom, utility::change_atom) {
             // update_edit_list_ = true;
-            send(event_group_, utility::event_atom_v, utility::change_atom_v);
+            send(base_.event_group(), utility::event_atom_v, utility::change_atom_v);
         },
 
         [=](utility::event_atom, utility::name_atom, const std::string & /*name*/) {},
@@ -797,90 +766,56 @@ void TrackActor::init() {
             jsn["actors"] = {};
 
             return result<JsonStore>(jsn);
+        },
+
+        [=](media::get_media_pointers_atom atom,
+            const media::MediaType media_type,
+            const utility::TimeSourceMode tsm,
+            const utility::FrameRate &override_rate) -> caf::result<media::FrameTimeMapPtr> {
+                
+            // This is required by SubPlayhead actor to make the track
+            // playable.
+            return base_.item().get_all_frame_IDs(
+                media_type,
+                tsm,
+                override_rate);
+
         }
 
-
-        // code for playhead// get edit_list for all tracks/stacks..// this is temporary, it'll
-        // need heavy changes..// also this only returns edit_lists for images, audio may be
-        // different..
-        // [=](media::get_edit_list_atom, const Uuid &uuid) -> result<utility::EditList> {
-        //     if (update_edit_list_) {
-        //         std::vector<caf::actor> actors;
-        //         for (const auto &i : base_.clips())
-        //             actors.push_back(actors_[i]);
-
-        //         if (not actors.empty()) {
-        //             auto rp = make_response_promise<utility::EditList>();
-
-        //             fan_out_request<policy::select_all>(
-        //                 actors, infinite, media::get_edit_list_atom_v, Uuid())
-        //                 .await(
-        //                     [=](std::vector<utility::EditList> sections) mutable {
-        //                         edit_list_.clear();
-        //                         for (const auto &i : base_.clips()) {
-        //                             for (const auto &ii : sections) {
-        //                                 if (not ii.section_list().empty()) {
-        //                                     const auto &[ud, rt, tc] = ii.section_list()[0];
-        //                                     if (ud == i) {
-        //                                         if (uuid.is_null())
-        //                                             edit_list_.push_back(ii.section_list()[0]);
-        //                                         else
-        //                                             edit_list_.push_back({uuid, rt, tc});
-        //                                         break;
-        //                                     }
-        //                                 }
-        //                             }
-        //                         }
-        //                         update_edit_list_ = false;
-        //                         auto edit_list    = edit_list_;
-        //                         if (not uuid.is_null())
-        //                             edit_list.set_uuid(uuid);
-        //                         else
-        //                             edit_list.set_uuid(base_.uuid());
-
-        //                         rp.deliver(edit_list);
-        //                     },
-        //                     [=](error &err) mutable { rp.deliver(std::move(err)); });
-
-        //             return rp;
-        //         } else {
-        //             edit_list_.clear();
-        //             update_edit_list_ = false;
-        //         }
-        //     }
-
-        //     auto edit_list = edit_list_;
-        //     if (not uuid.is_null())
-        //         edit_list.set_uuid(uuid);
-        //     else
-        //         edit_list.set_uuid(base_.uuid());
-
-        //     return result<utility::EditList>(edit_list);
-        // },
-
-        // [=](media::get_media_pointer_atom,
-        //     const int logical_frame) -> result<media::AVFrameID> {
-        //     if (base_.empty())
-        //         return result<media::AVFrameID>(make_error(xstudio_error::error, "No
-        //         media"));
-
-        //     auto rp = make_response_promise<media::AVFrameID>();
-        //     if (update_edit_list_) {
-        //         request(actor_cast<caf::actor>(this), infinite, media::get_edit_list_atom_v)
-        //             .then(
-        //                 [=](const utility::EditList &) mutable {
-        //                     deliver_media_pointer(logical_frame, rp);
-        //                 },
-        //                 [=](error &err) mutable { rp.deliver(std::move(err)); });
-        //     } else {
-        //         deliver_media_pointer(logical_frame, rp);
-        //     }
-
-        //     return rp;
-        // },
+    };
+}
 
 
-    );
+void TrackActor::init() {
+    print_on_create(this, base_.name());
+    print_on_exit(this, base_.name());
+
+    // update_edit_list_ = true;
+
+    set_down_handler([=](down_msg &msg) {
+        // if a child dies we won't have enough information to recreate it.
+        // we still need to report it up the chain though.
+        for (auto it = std::begin(actors_); it != std::end(actors_); ++it) {
+            if (msg.source == it->second) {
+                demonitor(it->second);
+                actors_.erase(it);
+
+                // remove from base.
+                auto it = find_actor_addr(base_.item().children(), msg.source);
+
+                if (it != base_.item().end()) {
+                    auto jsn  = base_.item().erase(it);
+                    auto more = base_.item().refresh();
+                    if (not more.is_null())
+                        jsn.insert(jsn.begin(), more.begin(), more.end());
+
+                    send(base_.event_group(), event_atom_v, item_atom_v, jsn, false);
+                }
+
+                break;
+            }
+        }
+    });
 }
 
 void TrackActor::add_item(const utility::UuidActor &ua) {
@@ -913,7 +848,7 @@ void TrackActor::split_item(
         auto orig_duration = trimmed_range.frame_duration().frames();
         auto orig_end      = orig_start + orig_duration - 1;
 
-        if (frame > orig_start and frame < orig_end) {
+        if (frame > orig_start and frame <= orig_end) {
             // duplicate item to split.
             request(item.actor(), infinite, utility::duplicate_atom_v)
                 .await(
@@ -964,6 +899,8 @@ void TrackActor::split_item(
                     },
                     [=](error &err) mutable { rp.deliver(std::move(err)); });
         } else {
+            // spdlog::warn("{} {} frame {} clip start {} clip end {}", __PRETTY_FUNCTION__,
+            // "Invalid frame to split on", frame, orig_start, orig_end);
             rp.deliver(make_error(xstudio_error::error, "Invalid frame to split on"));
         }
     } else {
@@ -1025,7 +962,7 @@ void TrackActor::insert_items(
                 if (not more.is_null())
                     changes.insert(changes.begin(), more.begin(), more.end());
 
-                send(event_group_, event_atom_v, item_atom_v, changes, false);
+                send(base_.event_group(), event_atom_v, item_atom_v, changes, false);
 
                 rp.deliver(changes);
             },
@@ -1088,11 +1025,16 @@ void TrackActor::remove_items_at_frame(
 
     auto in_point = base_.item().item_at_frame(frame);
 
+    // spdlog::warn("{}",base_.item().size());
+
     if (not in_point)
         rp.deliver(make_error(xstudio_error::error, "Invalid frame"));
     else {
         if (in_point->second != in_point->first->trimmed_frame_start().frames()) {
             // split at in point, and recall function.
+            // spdlog::warn("start split {} {}",
+            // static_cast<int>(std::distance(base_.item().cbegin(), in_point->first)),
+            // static_cast<int>(in_point->second));
             request(
                 caf::actor_cast<caf::actor>(this),
                 infinite,
@@ -1106,10 +1048,15 @@ void TrackActor::remove_items_at_frame(
                     [=](const caf::error &err) mutable { rp.deliver(err); });
 
         } else {
+            // do we need to account for erasing off the end ?
             // split end point...
             auto out_point = base_.item().item_at_frame(frame + duration);
-            if (out_point->second != out_point->first->trimmed_frame_start().frames()) {
+            if (out_point and
+                out_point->second != out_point->first->trimmed_frame_start().frames()) {
                 // split at in point, and recall function.
+                // spdlog::warn("start end {} {}",
+                // static_cast<int>(std::distance(base_.item().cbegin(), out_point->first)),
+                // static_cast<int>(out_point->second));
                 request(
                     caf::actor_cast<caf::actor>(this),
                     infinite,
@@ -1123,8 +1070,15 @@ void TrackActor::remove_items_at_frame(
                         [=](const caf::error &err) mutable { rp.deliver(err); });
             } else {
                 // in and out split now remove items
-                auto first_index = std::distance(base_.item().cbegin(), in_point->first);
-                auto last_index  = std::distance(base_.item().cbegin(), out_point->first);
+                auto first_index = 0;
+                auto last_index  = base_.item().size();
+                if (in_point)
+                    first_index = std::distance(base_.item().cbegin(), in_point->first);
+                if (out_point)
+                    last_index = std::distance(base_.item().cbegin(), out_point->first);
+
+                // spdlog::warn("remove {} {} {}", first_index, last_index, last_index -
+                // first_index);
                 remove_items(rp, first_index, last_index - first_index, add_gap, collapse_gaps);
             }
         }
@@ -1153,7 +1107,7 @@ std::pair<utility::JsonStore, std::vector<timeline::Item>> TrackActor::remove_it
                 auto blind = request_receive<JsonStore>(*sys, item.actor(), serialise_atom_v);
                 auto tmp   = base_.item().erase(it, blind);
                 changes.insert(changes.end(), tmp.begin(), tmp.end());
-                items.push_back(item);
+                items.push_back(item.clone());
 
                 if (add_gap) {
                     if (gap_size.frames()) {
@@ -1206,7 +1160,7 @@ void TrackActor::remove_items(
 
     try {
         auto result = remove_items(index, count, add_gap, collapse_gaps);
-        send(event_group_, event_atom_v, item_atom_v, result.first, false);
+        send(base_.event_group(), event_atom_v, item_atom_v, result.first, false);
         rp.deliver(result);
     } catch (const std::exception &err) {
         rp.deliver(make_error(xstudio_error::error, err.what()));
@@ -1249,7 +1203,7 @@ void TrackActor::erase_items(
 
         // spdlog::warn("{}", result.first.dump(2));
 
-        send(event_group_, event_atom_v, item_atom_v, result.first, false);
+        send(base_.event_group(), event_atom_v, item_atom_v, result.first, false);
         for (const auto &i : result.second)
             send_exit(i.actor(), caf::exit_reason::user_shutdown);
         rp.deliver(result.first);
@@ -1341,7 +1295,7 @@ void TrackActor::move_items(
         if (not more.is_null())
             changes.insert(changes.begin(), more.begin(), more.end());
 
-        send(event_group_, event_atom_v, item_atom_v, changes, false);
+        send(base_.event_group(), event_atom_v, item_atom_v, changes, false);
 
         rp.deliver(changes);
     }
@@ -1383,20 +1337,29 @@ void TrackActor::move_items_at_frame(
         add_gap          = false;
         replace_with_gap = true;
 
-        // spdlog::warn("{} {} {}", frame_, duration_, dest_frame_);
-        // spdlog::warn("{} {} {}", frame, duration, dest_frame);
+        // handle moving off beginning of track
         // spdlog::warn("overwrite_self_end");
+        // spdlog::warn("{} {} {}", frame_, duration_, dest_frame_);
+
+        if (frame < 0) {
+            // spdlog::warn("{} {} {}", frame, duration, dest_frame);
+            duration += -frame - 1;
+            // dest_frame += frame;
+            frame = 0;
+        }
+
+        // spdlog::warn("{} {} {}", frame, duration, dest_frame);
     } else if (overwrite_self_start) {
         dest_frame = frame_;
         frame      = frame_ + duration_;
         duration   = dest_frame_ - frame_;
 
+        // spdlog::warn("overwrite_self_start");
         // spdlog::warn("{} {} {}", frame_, duration_, dest_frame_);
         // spdlog::warn("{} {} {}", frame, duration, dest_frame);
         insert           = true;
         add_gap          = false;
         replace_with_gap = true;
-        // spdlog::warn("overwrite_self_start");
 
         // if were overwriting the end of the track we need to pad it.
         // use track trimmed duration to work out how big a gap we need,
@@ -1551,6 +1514,8 @@ void TrackActor::move_items_at_frame(
                     auto gap_actor = spawn<GapActor>(
                         "Gap", FrameRateDuration(filler, base_.item().rate()), gap_uuid);
 
+                    // spdlog::warn("INSERT GAP {}", filler);
+
                     // insert_items(base_.item().size(), uav_plus_gap, rp);
                     request(
                         caf::actor_cast<caf::actor>(this),
@@ -1576,7 +1541,7 @@ void TrackActor::move_items_at_frame(
                         (not dest and
                          base_.item().trimmed_frame_duration().frames() == dest_frame)) {
 
-                        auto index = std::distance(base_.item().cbegin(), start->first);
+                        auto index     = std::distance(base_.item().cbegin(), start->first);
                         auto end_index = end ? std::distance(base_.item().cbegin(), end->first)
                                              : base_.item().size();
                         auto count =
@@ -1584,17 +1549,21 @@ void TrackActor::move_items_at_frame(
                         auto dst = dest ? std::distance(base_.item().cbegin(), dest->first)
                                         : base_.item().size();
 
+                        // spdlog::warn("move_items index {} count {} dst {}", index, count,
+                        // dst);
+
                         move_items(rp, index, count, dst, add_gap, replace_with_gap);
                     } else {
                         // we need to remove material at destnation
                         // we may need to split at dst+duration
                         auto dst_end = base_.item().item_at_frame(dest_frame + duration);
 
-                        // spdlog::warn(
-                        //     "check dest end {} {} {}",
-                        //     dest_frame + duration,
-                        //     dst_end->first->trimmed_frame_start().frames(),
-                        //     dst_end->second);
+                        // if(dst_end)
+                        //     spdlog::warn(
+                        //         "check dest end {} {} {}",
+                        //         dest_frame + duration,
+                        //         dst_end->first->trimmed_frame_start().frames(),
+                        //         dst_end->second);
 
                         if (dst_end and
                             dst_end->first->trimmed_frame_start().frames() != dst_end->second) {
@@ -1635,6 +1604,7 @@ void TrackActor::move_items_at_frame(
                             if (dest_frame < frame) {
                                 move_from_frame -= duration;
                             }
+                            // spdlog::warn("ERASE {} {}", dest_frame, duration);
 
                             // replace source with gap ?
                             request(
@@ -1714,7 +1684,8 @@ utility::JsonStore TrackActor::merge_gaps() {
                     // get distance from start.
                     auto gip = std::next(it, gap_count - 1);
 
-                    // spdlog::warn("remove index {}", std::distance(base_.item().begin(), gip));
+                    // spdlog::warn("remove index {}", std::distance(base_.item().begin(),
+                    // gip));
 
                     auto item = *gip;
                     demonitor(item.actor());
@@ -1763,30 +1734,7 @@ void TrackActor::merge_gaps(caf::typed_response_promise<utility::JsonStore> rp) 
     auto changes = merge_gaps();
 
     if (changes.size())
-        send(event_group_, event_atom_v, item_atom_v, changes, false);
+        send(base_.event_group(), event_atom_v, item_atom_v, changes, false);
 
     rp.deliver(changes);
 }
-
-
-// void TrackActor::deliver_media_pointer(
-//     const int logical_frame, caf::typed_response_promise<media::AVFrameID> rp) {
-//     // should be able to use edit_list ?
-//     try {
-//         int clip_frame = 0;
-//         utility::EditListSection clip_at_frame =
-//             edit_list_.media_frame(logical_frame, clip_frame);
-//         // send request media atom..
-//         request(
-//             actors_[clip_at_frame.media_uuid_],
-//             infinite,
-//             media::get_media_pointer_atom_v,
-//             clip_frame)
-//             .then(
-//                 [=](const media::AVFrameID &mp) mutable { rp.deliver(mp); },
-//                 [=](error &err) mutable { rp.deliver(std::move(err)); });
-
-//     } catch (const std::exception &e) {
-//         rp.deliver(make_error(xstudio_error::error, e.what()));
-//     }
-// }

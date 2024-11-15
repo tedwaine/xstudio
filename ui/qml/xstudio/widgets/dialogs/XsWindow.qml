@@ -47,6 +47,17 @@ ApplicationWindow {
     // we need to know the window geometry. This function is called from the
     // XsPopupMenu item, passing in the coordinates relative to a reference
     // item where we ideally want the menu to show up.
+    function maxMenuHeight(origMenuHeight) {
+        // limit the maximum menu size to 80% of the height of the window
+        // itself as long as the menu is less than 66% of the window height.
+        // This meeans that you don't get a menu that is shortened by 2 pixels
+        if (origMenuHeight > window.contentItem.height*0.8) {
+            return window.contentItem.height*0.6
+        }
+        return origMenuHeight
+    }
+
+
     function repositionPopupMenu(menu, refItem, refX, refY, altRightEdge) {
 
         var global_pos = refItem.mapToItem(

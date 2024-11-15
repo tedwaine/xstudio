@@ -54,6 +54,10 @@ class CafRequest : public ControllableJob<QMap<int, QString>> {
 
             case SessionModel::Roles::bookmarkUuidsRole:
                 requestBookmarkUuidsRole(type, sys, system_, result);
+
+                break;
+            case SessionModel::Roles::notificationRole:
+                requestNotificationRole(type, sys, system_, result);
                 break;
 
             case SessionModel::Roles::bitDepthRole:
@@ -242,6 +246,32 @@ class CafRequest : public ControllableJob<QMap<int, QString>> {
         }
     }
 
+    void requestNotificationRole(
+        const std::string &type,
+        scoped_actor &sys,
+        caf::actor_system &system_,
+        QMap<int, QString> &result) {
+
+        auto actor = actorFromString(system_, json_.at("actor"));
+
+        if (actor) {
+            // if group is null join it..
+            if (json_.at("group_actor").is_null()) {
+                auto detail =
+                    request_receive<ContainerDetail>(*sys, actor, utility::detail_atom_v);
+
+                result[SessionModel::Roles::groupActorRole] =
+                    QStringFromStd(json(actorToString(system_, detail.group_)).dump());
+            }
+
+            auto n = request_receive<JsonStore>(
+                *sys,
+                actorFromString(system_, json_.at("actor")),
+                utility::notification_atom_v);
+            result[SessionModel::Roles::notificationRole] = QStringFromStd(n.dump());
+        }
+    }
+
     void requestMediaReference(
         const std::string &type,
         scoped_actor &sys,
@@ -276,8 +306,7 @@ class CafRequest : public ControllableJob<QMap<int, QString>> {
         caf::actor_system &system_,
         QMap<int, QString> &result) {
         if (type == "Session" or type == "Playlist" or type == "Subset" or type == "Timeline" or
-            type == "Media" or type == "PlayheadSelection" or type == "Playhead" or
-            type == "Aux Playhead") {
+            type == "Media" or type == "PlayheadSelection" or type == "Playhead") {
 
             auto actor = caf::actor();
 
@@ -299,21 +328,6 @@ class CafRequest : public ControllableJob<QMap<int, QString>> {
                     *sys,
                     actorFromString(system_, json_.at("actor_owner")),
                     playlist::get_playhead_atom_v);
-
-                result[SessionModel::Roles::actorRole] =
-                    QStringFromStd(json(actorToString(system_, playhead.actor())).dump());
-
-                result[SessionModel::Roles::actorUuidRole] =
-                    QStringFromStd(json(to_string(playhead.uuid())).dump());
-
-            } else if (not json_.at("actor_owner").is_null() and type == "Aux Playhead") {
-                // get selection actor from owner
-
-                auto playhead = request_receive<utility::UuidActor>(
-                    *sys,
-                    actorFromString(system_, json_.at("actor_owner")),
-                    playlist::get_playhead_atom_v,
-                    1); // 1 is index of Aux playhead for timelines
 
                 result[SessionModel::Roles::actorRole] =
                     QStringFromStd(json(actorToString(system_, playhead.actor())).dump());
@@ -691,7 +705,7 @@ class CafRequest : public ControllableJob<QMap<int, QString>> {
                 }
                 result[JSONTreeModel::Roles::childrenRole] = QStringFromStd(jsn.dump());
             }
-        } else if (type == "Playhead" || type == "Aux Playhead") {
+        } else if (type == "Playhead") {
             // Playhead has no children
         } else {
             spdlog::warn("CafRequest unhandled ChildrenRole type {} {}", type, json_.dump(2));

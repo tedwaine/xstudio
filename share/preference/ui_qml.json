@@ -210,9 +210,9 @@
 			},
 			"default_playhead_compare_mode": {
 				"path": "/ui/qml/default_playhead_compare_mode",
-				"default_value": "A/B",
+				"default_value": "Off",
 				"description": "Default Compare Mode.",
-				"value": "A/B",
+				"value": "Off",
 				"datatype": "string",
 				"context": ["QML_UI"]
 			},

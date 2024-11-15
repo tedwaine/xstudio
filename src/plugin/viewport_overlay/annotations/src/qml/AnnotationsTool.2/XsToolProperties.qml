@@ -22,13 +22,8 @@ Item{
         height: visible? buttonHeight + itemSpacing : 0
 
         color: "transparent";
-        visible: (currentTool == "Shapes" || currentTool == "Text")
+        visible: (currentTool == "Text")
 
-        XsShapeCategories {
-            id: shapeCategories
-            anchors.fill: parent
-            visible: (currentTool === "Shapes")
-        }
         XsTextCategories {
             id: textCategories
             anchors.fill: parent
@@ -78,7 +73,7 @@ Item{
             visible: enabled
             width: row2_controls.gridItemWidth
             height: visible? buttonHeight : 0
-            text: (currentTool=="Shapes")? "Width" : "Size"
+            text: (currentTool=="Square" || currentTool === "Circle"  || currentTool === "Arrow"  || currentTool === "Line")? "Width" : "Size"
             enabled: isAnyToolSelected
             attr_group_model: annotations_model_data
             attr_title: toolSizeAttrName

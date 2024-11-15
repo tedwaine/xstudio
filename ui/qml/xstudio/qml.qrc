@@ -116,6 +116,7 @@
 	    <file>views/viewport/widgets/XsViewportToolBar.qml</file>
 	    <file>views/viewport/widgets/XsViewportInfoBar.qml</file>
 	    <file>views/viewport/widgets/toolbar/XsViewerAnyMenuButton.qml</file>
+	    <file>views/viewport/widgets/toolbar/XsViewerCompareModeButton.qml</file>		
 	    <file>views/viewport/widgets/toolbar/XsViewerToggleButton.qml</file>
 	    <file>views/viewport/widgets/toolbar/XsViewerSourceSelectorButton.qml</file>
 	    <file>views/viewport/widgets/toolbar/XsViewerHUDButton.qml</file>
@@ -190,6 +191,7 @@
 
 	    <file>widgets/indicators/XsBusyIndicator.qml</file>
 	    <file>widgets/indicators/XsProgressBar.qml</file>
+	    <file>widgets/indicators/XsNotification.qml</file>
 
 	    <file>widgets/labels/XsLabel.qml</file>
 	    <file>widgets/labels/XsText.qml</file>
@@ -272,6 +274,7 @@
 		<file alias="center_focus_strong.svg">assets/icons/center_focus_strong.svg</file>
 		<file alias="center_focus_weak.svg">assets/icons/center_focus_weak.svg</file>
 		<file alias="check.svg">assets/icons/check.svg</file>
+		<file alias="check_circle.svg">assets/icons/check_circle.svg</file>
 		<file alias="check_box_checked.svg">assets/icons/check_box_checked.svg</file>
 		<file alias="check_box_unchecked.svg">assets/icons/check_box_unchecked.svg</file>
 		<file alias="chevron_right.svg">assets/icons/chevron_right.svg</file>
@@ -383,6 +386,7 @@
 		<file alias="volume_off.svg">assets/icons/volume_off.svg</file>
 		<file alias="volume_up.svg">assets/icons/volume_up.svg</file>
 		<file alias="waves.svg">assets/icons/waves.svg</file>
+		<file alias="warning.svg">assets/icons/warning.svg</file>
 		<file alias="width.svg">assets/icons/width.svg</file>
 		<file alias="zoom_in.svg">assets/icons/zoom_in.svg</file>
 	</qresource>

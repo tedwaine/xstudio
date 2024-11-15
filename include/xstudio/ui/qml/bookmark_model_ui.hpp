@@ -57,7 +57,8 @@ class BOOKMARK_QML_EXPORT BookmarkFilterModel : public QSortFilterProxyModel {
 
     Q_PROPERTY(int depth READ depth WRITE setDepth NOTIFY depthChanged)
     Q_PROPERTY(bool showHidden READ showHidden WRITE setShowHidden NOTIFY showHiddenChanged)
-    Q_PROPERTY(QString showUserType READ showUserType WRITE setShowUserType NOTIFY showUserTypeChanged)
+    Q_PROPERTY(
+        QString showUserType READ showUserType WRITE setShowUserType NOTIFY showUserTypeChanged)
     Q_PROPERTY(QStringList excludedCategories READ excludedCategories WRITE
                    setExcludedCategories NOTIFY excludedCategoriesChanged)
     Q_PROPERTY(QStringList includedCategories READ includedCategories WRITE
@@ -143,34 +144,35 @@ class BOOKMARK_QML_EXPORT BookmarkModel : public caf::mixin::actor_object<JSONTr
 
   public:
     enum Roles {
-        enabledRole = JSONTreeModel::Roles::LASTROLE,
-        focusRole,
-        frameRole,
-        frameFromTimecodeRole,
-        startTimecodeRole,
-        endTimecodeRole,
-        durationTimecodeRole,
-        startFrameRole,
-        endFrameRole,
-        hasNoteRole,
-        subjectRole,
-        noteRole,
-        authorRole,
+        authorRole = JSONTreeModel::Roles::LASTROLE,
         categoryRole,
         colourRole,
+        createdEpochRole,
         createdRole,
-        hasAnnotationRole,
-        thumbnailRole,
-        ownerRole,
-        uuidRole,
-        objectRole,
-        startRole,
-        durationRole,
         durationFrameRole,
-        visibleRole,
-        userTypeRole,
+        durationRole,
+        durationTimecodeRole,
+        enabledRole,
+        endFrameRole,
+        endTimecodeRole,
+        focusRole,
+        frameFromTimecodeRole,
+        frameRole,
+        hasAnnotationRole,
+        hasNoteRole,
+        metadataChangedRole,
+        noteRole,
+        objectRole,
+        ownerRole,
+        startFrameRole,
+        startRole,
+        startTimecodeRole,
+        subjectRole,
+        thumbnailRole,
         userDataRole,
-        createdEpochRole
+        userTypeRole,
+        uuidRole,
+        visibleRole,
     };
 
     using super = caf::mixin::actor_object<JSONTreeModel>;
@@ -203,6 +205,12 @@ class BOOKMARK_QML_EXPORT BookmarkModel : public caf::mixin::actor_object<JSONTr
     }
     [[nodiscard]] QFuture<QString>
     getJSONFuture(const QModelIndex &index, const QString &path) const;
+
+    Q_INVOKABLE QVariant getJSONObject(const QModelIndex &index, const QString &path) const {
+        return getJSONObjectFuture(index, path).result();
+    }
+    Q_INVOKABLE QFuture<QVariant>
+    getJSONObjectFuture(const QModelIndex &index, const QString &path) const;
 
   signals:
     void bookmarkActorAddrChanged();

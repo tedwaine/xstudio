@@ -37,7 +37,7 @@ void GradingMaskRenderer::pre_viewport_draw_gpu_hook(
     // 2) The data can be attached to the image as part of the 'plugin_blind_data'.
     // We request plugin data using our plugin UUID and then dynamic cast to
     // get to our 'GradingMaskRenderData' object. (Note that this was set in
-    // GradingTool::prepare_overlay_data).
+    // GradingTool::onscreen_render_data).
     //
     // If we have data via the blind data, this is immediate updated grading data
     // when the user is interacting with the render by painting a mask. The data
@@ -147,7 +147,7 @@ void GradingMaskRenderer::render_layer(
     const Imath::V2i mask_resolution(960, 540);
     const float image_aspect_ratio =
         (1.0f * frame->image_size_in_pixels().x / frame->image_size_in_pixels().y);
-    const float canvas_aspect_ratio = mask_resolution.x / mask_resolution.y;
+    const float canvas_aspect_ratio = 1.0f * mask_resolution.x / mask_resolution.y;
 
     if (data.mask().uuid() != layer.last_canvas_uuid ||
         data.mask().last_change_time() != layer.last_canvas_change_time ||
@@ -165,7 +165,7 @@ void GradingMaskRenderer::render_layer(
             // Mask drawing don't depend on viewport transformation, however we still
             // need to account for the mask texture aspect ratio.
             Imath::M44f to_canvas;
-            to_canvas.setScale(Imath::V3f(1.0f, 16.0f / 9.0f, 1.0f));
+            to_canvas.setScale(Imath::V3f(1.0f, canvas_aspect_ratio, 1.0f));
 
             canvas_renderer_->render_canvas(
                 data.mask(),

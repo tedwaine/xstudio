@@ -28,8 +28,6 @@ endif()
 
 create_component_with_alias(opengl_viewport xstudio::ui::opengl::viewport 0.1.0 "${LINK_DEPS}")
 
-
-
 target_link_libraries(${PROJECT_NAME}
 	PRIVATE
 		freetype

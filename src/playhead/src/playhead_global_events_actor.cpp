@@ -240,6 +240,13 @@ void PlayheadGlobalEventsActor::init() {
                 viewport_name,
                 viewport);
         },
+        [=](playhead::redraw_viewport_atom) { 
+            
+            // force all viewport to do a redraw
+            for (const auto &p: viewports_) {
+                anon_send(p.second.viewport, playhead::redraw_viewport_atom_v);
+            }        
+        },
         [=](ui::viewport::viewport_atom,
             const std::string viewport_name) -> result<caf::actor> {
             // Here we can request a named viewport
@@ -259,7 +266,8 @@ void PlayheadGlobalEventsActor::init() {
             const float scale,
             const Imath::V2f pan,
             const std::string &viewport_name,
-            const std::string &window_id) {
+            const std::string &window_id,
+            const std::string &compare_mode) {
             // viewports tell us when they are zooming/panning, setting fit or mirror mode.
             // We broadcast to all other viewports so that they can track (if they want to)
             for (const auto &p : viewports_) {
@@ -272,7 +280,8 @@ void PlayheadGlobalEventsActor::init() {
                         scale,
                         pan,
                         viewport_name,
-                        window_id);
+                        window_id,
+                        compare_mode);
                 }
             }
         },

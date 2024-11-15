@@ -73,7 +73,13 @@ QMLViewport::QMLViewport(QQuickItem *parent) : QQuickItem(parent), cursor_(Qt::A
         renderer_actor,
         SIGNAL(translationChanged()),
         this,
-        SIGNAL(imageBoundaryInViewportChanged()));
+        SIGNAL(imageBoundariesInViewportChanged()));
+
+    connect(
+        renderer_actor,
+        SIGNAL(resolutionsChanged()),
+        this,
+        SIGNAL(imageResolutionsChanged()));
 
     connect(
         this,
@@ -460,20 +466,12 @@ void QMLViewport::showCursor() {
     }
 }
 
-QSize QMLViewport::imageResolution() {
-    Imath::V2i resolution = renderer_actor->imageResolutionCoords();
-    return QSize(resolution.x, resolution.y);
+QVariantList QMLViewport::imageResolutions() {
+    return renderer_actor->imageResolutions();
 }
 
-QRectF QMLViewport::imageBoundaryInViewport() {
-    QRectF r = renderer_actor->imageBoundsInViewportPixels();
-    return QRectF(
-        r.x() * width(), r.y() * height(), r.width() * width(), r.height() * height());
-}
-
-QVector2D QMLViewport::bboxCornerInViewport(const int min_x, const int min_y) {
-    Imath::V2f corner_in_viewport = renderer_actor->imageCoordsToViewport(min_x, min_y);
-    return QVector2D(corner_in_viewport.x * width(), corner_in_viewport.y * height());
+QVariantList QMLViewport::imageBoundariesInViewport() {
+    return renderer_actor->imageBoundariesInViewport();
 }
 
 class CleanupJob : public QRunnable {

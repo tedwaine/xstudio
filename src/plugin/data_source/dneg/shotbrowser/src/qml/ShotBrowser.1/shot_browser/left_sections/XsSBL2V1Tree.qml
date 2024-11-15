@@ -48,8 +48,25 @@ Item{
                 onIndexSelected: {
                     // possibility of id collisions ?
                     let mid = index.model.get(index, "idRole")
-                    let ti = sequenceSelectionModel.model.searchRecursive(mid, "idRole")
-                    sequenceSelectionModel.select(ti, ItemSelectionModel.ClearAndSelect)
+                    let bi = sequenceBaseModel.searchRecursive(mid, "idRole")
+                    if(bi.valid) {
+                        let fi = sequenceFilterModel.mapFromSource(bi)
+                        if(fi.valid) {
+                            let parents = helpers.getParentIndexes([fi])
+                            for(let i = 0; i< parents.length; i++){
+                                if(parents[i].valid) {
+                                    // find in tree.. Order ?
+                                    let ti = sequenceTreeModel.mapFromModel(parents[i])
+                                    if(ti.valid) {
+                                        sequenceTreeModel.expandRow(ti.row)
+                                    }
+                                }
+                            }
+                            // should now be visible
+                            let ti = sequenceTreeModel.mapFromModel(fi)
+                            sequenceSelectionModel.select(ti, ItemSelectionModel.ClearAndSelect)
+                        }
+                    }
                 }
             }
             Item{
@@ -81,7 +98,7 @@ Item{
                 Layout.preferredWidth: btnWidth
                 Layout.preferredHeight: parent.height
                 imgSrc: "qrc:/icons/filter.svg"
-                isActive: sequenceModel && sequenceModel.hideStatus.length
+                isActive: sequenceFilterModel && sequenceFilterModel.hideStatus.length
                 onClicked: {
                     // searchBtn.isExpanded = false
                     if(shotFilterPopup.visible) {
@@ -103,6 +120,104 @@ Item{
 
             closePolicy: filterBtn.hovered ? Popup.CloseOnEscape :  Popup.CloseOnEscape | Popup.CloseOnPressOutside
 
+            XsMenuModelItem {
+                text: "Show Status"
+                menuItemType: "toggle"
+                menuPath: ""
+                menuItemPosition: 0
+                menuModelName: shotFilterPopup.menu_model_name
+                isChecked: prefs.showStatus
+                onActivated: prefs.showStatus = !prefs.showStatus
+            }
+            XsMenuModelItem {
+                text: "Show Unit"
+                menuItemType: "toggle"
+                menuPath: ""
+                menuItemPosition: 0.1
+                menuModelName: shotFilterPopup.menu_model_name
+                isChecked: prefs.showUnit
+                onActivated: prefs.showUnit = !prefs.showUnit
+            }
+
+            XsMenuModelItem {
+                text: "Hide Empty"
+                menuItemType: "toggle"
+                menuPath: ""
+                menuItemPosition: 0.9
+                menuModelName: shotFilterPopup.menu_model_name
+                isChecked: prefs.hideEmpty
+                onActivated: prefs.hideEmpty = !prefs.hideEmpty
+            }
+
+            XsMenuModelItem {
+                text: "Unit"
+                menuItemType: "divider"
+                menuPath: ""
+                menuItemPosition: 1
+                menuModelName: shotFilterPopup.menu_model_name
+            }
+
+            XsMenuModelItem {
+                text: "No Unit"
+                menuItemType: "toggle"
+                menuPath: ""
+                menuItemPosition: 10
+                menuModelName: shotFilterPopup.menu_model_name
+                isChecked: sequenceFilterModel && sequenceFilterModel.unitFilter.includes("No Unit")
+                onActivated: {
+                    if(isChecked) {
+                        sequenceFilterModel.unitFilter = Array.from(sequenceFilterModel.unitFilter).filter(r => r !== "No Unit")
+                    } else {
+                        let tmp = sequenceFilterModel.unitFilter
+                        tmp.push("No Unit")
+                        sequenceFilterModel.unitFilter = tmp
+                    }
+                }
+            }
+
+            Repeater {
+                model:  DelegateModel {
+                    property var notifyUnitModel: ShotBrowserEngine.presetsModel.termModel("Unit", "Version", projectId)
+                    onNotifyUnitModelChanged: {
+                        if(sequenceFilterModel && projectIndex) {
+                            if( projectIndex.model.get(projectIndex,"nameRole") in prefs.filterUnit)
+                                sequenceFilterModel.unitFilter = prefs.filterUnit[projectIndex.model.get(projectIndex,"nameRole")]
+                            else
+                                sequenceFilterModel.unitFilter = []
+                        }
+                    }
+                    model: notifyUnitModel
+                    delegate :
+                        Item {
+                            XsMenuModelItem {
+                                text: nameRole
+                                menuItemType: "toggle"
+                                menuPath: ""
+                                menuItemPosition: index + 10
+                                menuModelName: shotFilterPopup.menu_model_name
+                                isChecked: sequenceFilterModel && sequenceFilterModel.unitFilter.includes(nameRole)
+                                onActivated: {
+                                    if(isChecked) {
+                                        sequenceFilterModel.unitFilter = Array.from(sequenceFilterModel.unitFilter).filter(r => r !== nameRole)
+                                    } else {
+                                        let tmp = sequenceFilterModel.unitFilter
+                                        tmp.push(nameRole)
+                                        sequenceFilterModel.unitFilter = tmp
+                                    }
+                                }
+                            }
+                        }
+                }
+            }
+
+            XsMenuModelItem {
+                text: "Status"
+                menuItemType: "divider"
+                menuPath: ""
+                menuItemPosition: 100
+                menuModelName: shotFilterPopup.menu_model_name
+            }
+
             Repeater {
                 model:  DelegateModel {
                     property var notifyModel: ShotBrowserEngine.presetsModel.termModel("Shot Status")
@@ -113,17 +228,17 @@ Item{
                                 text: nameRole
                                 menuItemType: "toggle"
                                 menuPath: ""
-                                menuItemPosition: index
+                                menuItemPosition: index + 101
                                 menuModelName: shotFilterPopup.menu_model_name
-                                isChecked: sequenceModel && (sequenceModel.hideStatus.includes(nameRole) || sequenceModel.hideStatus.includes(idRole))
+                                isChecked: (prefs.hideStatus.includes(nameRole) || prefs.hideStatus.includes(idRole))
                                 onActivated: {
                                     if(isChecked) {
-                                        sequenceModel.hideStatus = Array.from(sequenceModel.hideStatus).filter(r => r !== idRole && r !== nameRole)
+                                        prefs.hideStatus = Array.from(prefs.hideStatus).filter(r => r !== idRole && r !== nameRole)
                                     } else {
-                                        let tmp = sequenceModel.hideStatus
+                                        let tmp = prefs.hideStatus
                                         tmp.push(idRole)
                                         tmp.push(nameRole)
-                                        sequenceModel.hideStatus = tmp
+                                        prefs.hideStatus = tmp
                                     }
                                 }
                             }
@@ -137,52 +252,50 @@ Item{
             Layout.fillHeight: true;
             color: panelColor
 
-            Flickable {
+            XsListView {
                 id: sequenceTreeView
                 anchors.fill: parent
-                clip: true
-
-                contentWidth: width
-                contentHeight: tree.height
+                spacing: 1
 
                 ScrollBar.vertical: XsScrollBar{visible: sequenceTreeView.height < sequenceTreeView.contentHeight}
+                property int rightSpacing: sequenceTreeView.height < sequenceTreeView.contentHeight ? 10 : 0
+                Behavior on rightSpacing {NumberAnimation {duration: 150}}
 
-                XsTimer {
-                    id: delayTimer
-                }
+                model: sequenceTreeModel
 
-                function jumpTo(item) {
-                    delayTimer.setTimeout(function() {
-                        jumpToReal(item)
-                    }, 200)
-                }
-
-                function jumpToReal(item) {
-                    // need to wait for expansion of parents.
-
-                    let r = mapFromItem(item, 0,0, item.width, item.height)
-                    let my = contentY+r.y
-
-                    // jump up
-                    if(my < contentY) {
-                        contentY = my - height + r.height
-                    } else if(my + btnHeight - 4 > contentY + sequenceTreeView.parent.height) {
-                        contentY = my
+                Connections {
+                    target: sequenceSelectionModel
+                    function onSelectionChanged(selected, deselected) {
+                        if(selected.length){
+                            sequenceTreeView.positionViewAtIndex(selected[0].topLeft.row, ListView.Visible)
+                        }
                     }
                 }
 
-                XsSBTreeView{
-                    id: tree
-                    property int rightSpacing: sequenceTreeView.height < sequenceTreeView.contentHeight ? 10 : 0
-                    Behavior on rightSpacing {NumberAnimation {duration: 150}}
+                delegate: DelegateChooser {
+                    id: chooser
+                    role: "typeRole"
 
-                    width: sequenceTreeView.width-rightSpacing
-                    treeSequenceModel: sequenceModel
-                    treeSequenceSelectionModel: sequenceSelectionModel
-                    treeSequenceExpandedModel: sequenceExpandedModel
-                    onTreeSequenceModelChanged: {
-                        if(treeSequenceModel != null)
-                            treeRootIndex = treeSequenceModel.index(-1,-1)
+                    DelegateChoice {
+                        roleValue: "Sequence";
+                        XsSBSequenceDelegate{
+                            width: sequenceTreeView.width - sequenceTreeView.rightSpacing
+                            height: btnHeight-4
+                            delegateModel: sequenceTreeModel
+                            selectionModel: sequenceSelectionModel
+                            showStatus: prefs.showStatus
+                        }
+                    }
+                    DelegateChoice {
+                        roleValue: "Shot";
+                        XsSBShotDelegate{
+                            width: sequenceTreeView.width - sequenceTreeView.rightSpacing
+                            height: btnHeight-4
+                            delegateModel: sequenceTreeModel
+                            selectionModel: sequenceSelectionModel
+                            showUnit: prefs.showUnit
+                            showStatus: prefs.showStatus
+                        }
                     }
                 }
             }

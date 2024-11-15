@@ -121,7 +121,6 @@ void ShotBrowserEngine::JSONTreeSendEventFunc(const utility::JsonStore &event) {
     }
 }
 
-
 void ShotBrowserEngine::createGroupModel(const int project_id) {
     const auto key = query_engine_.cache_name("Group", project_id);
 
@@ -143,12 +142,6 @@ void ShotBrowserEngine::createUserCache(const int project_id) {
 void ShotBrowserEngine::createSequenceModels(const int project_id) {
     if (not sequences_tree_map_.count(project_id)) {
         sequences_tree_map_[project_id] = new ShotBrowserSequenceModel(this);
-        auto fmodel                     = new ShotBrowserSequenceFilterModel(this);
-        fmodel->setSourceModel(sequences_tree_map_[project_id]);
-        fmodel->setHideStatus(QStringList({"omt", "na", "del", "omtnto", "omtnwd"}));
-
-        sequences_tree_filter_map_[project_id] = fmodel;
-
         getSequencesFuture(project_id);
     }
 }
@@ -158,17 +151,21 @@ QObject *ShotBrowserEngine::sequenceTreeModel(const int project_id) {
     return sequences_tree_map_[project_id];
 }
 
-QObject *ShotBrowserEngine::sequenceTreeFilterModel(const int project_id) {
-    createSequenceModels(project_id);
-    return sequences_tree_filter_map_[project_id];
-}
-
 void ShotBrowserEngine::createShotCache(const int project_id) {
     const auto key = query_engine_.cache_name("Shot", project_id);
 
     if (not query_engine_.get_lookup(key)) {
         query_engine_.set_lookup(key, R"([])"_json);
         getShotsFuture(project_id);
+    }
+}
+
+void ShotBrowserEngine::createStageCache(const int project_id) {
+    const auto key = query_engine_.cache_name("Stage", project_id);
+
+    if (not query_engine_.get_cache(key)) {
+        query_engine_.set_cache(key, R"([])"_json);
+        getStageFuture(project_id);
     }
 }
 
@@ -199,6 +196,7 @@ void ShotBrowserEngine::cacheProject(const int project_id) {
         createShotCache(project_id);
         createPlaylistCache(project_id);
         createUnitCache(project_id);
+        createStageCache(project_id);
     }
 }
 
@@ -382,6 +380,11 @@ void ShotBrowserEngine::init(caf::actor_system &system) {
                         updateQueryValueCache("Unit", data, project_id);
                         query_engine_.set_cache(
                             query_engine_.cache_name("Unit", project_id), data);
+                    } else if (request.at("type") == "stage") {
+                        const auto project_id = request.at("project_id").get<int>();
+                        updateQueryValueCache("Stage", data, project_id);
+                        query_engine_.set_cache(
+                            query_engine_.cache_name("Stage", project_id), data);
                     } else if (request.at("type") == "production_status") {
                         updateQueryValueCache("Production Status", data);
                         if (not ready_)
@@ -644,6 +647,10 @@ class ShotBrowserUIQml : public QQmlExtensionPlugin {
 
   public:
     void registerTypes(const char *uri) override {
+        qmlRegisterType<ShotBrowserSequenceFilterModel>(
+            uri, 1, 0, "ShotBrowserSequenceFilterModel");
+        qmlRegisterType<ShotBrowserPresetTreeFilterModel>(
+            uri, 1, 0, "ShotBrowserPresetTreeFilterModel");
         qmlRegisterType<ShotBrowserResultModel>(uri, 1, 0, "ShotBrowserResultModel");
         qmlRegisterType<ShotBrowserFilterModel>(uri, 1, 0, "ShotBrowserFilterModel");
         qmlRegisterType<ShotBrowserResultFilterModel>(

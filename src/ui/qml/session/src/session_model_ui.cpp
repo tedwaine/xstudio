@@ -2,7 +2,6 @@
 
 #include "xstudio/media/media.hpp"
 #include "xstudio/session/session_actor.hpp"
-#include "xstudio/tag/tag.hpp"
 #include "xstudio/timeline/item.hpp"
 #include "xstudio/ui/qml/caf_response_ui.hpp"
 #include "xstudio/ui/qml/job_control_ui.hpp"
@@ -705,6 +704,7 @@ void SessionModel::receivedData(
             {Roles::mtimeRole, "mtime"},
             {Roles::nameRole, "name"},
             {Roles::pathRole, "path"},
+            {Roles::notificationRole, "notification"},
             {Roles::timecodeAsFramesRole, "timecode_as_frames"},
             {Roles::pathShakeRole, "path_shake"},
             {Roles::pixelAspectRole, "pixel_aspect"},
@@ -1049,13 +1049,6 @@ nlohmann::json SessionModel::playlistTreeToJson(
                     R"({"type": "Playhead", "actor": null, "actor_owner": null, "actor_uuid": null})"_json));
                 n["children"].back()["actor_owner"] = n["actor"];
 
-                if (type == "Timeline") {
-                    n["children"].push_back(createEntry(
-                        R"({"type": "Aux Playhead", "actor": null, "actor_owner": null, "actor_uuid": null})"_json));
-                    n["children"].back()["actor_owner"] = n["actor"];
-                }
-
-
                 result["children"].emplace_back(n);
             } else {
                 spdlog::warn("{} invalid type {}", __PRETTY_FUNCTION__, type);
@@ -1113,7 +1106,8 @@ nlohmann::json SessionModel::sessionTreeToJson(
                     "expanded": null,
                     "busy": false,
                     "media_count": 0,
-                    "error_count": 0
+                    "error_count": 0,
+                    "notification": null
                 })"_json);
 
                 n["type"]           = i.value().type();
@@ -1300,22 +1294,28 @@ nlohmann::json SessionModel::timelineItemToJson(
     auto active_range    = item.active_range();
     auto available_range = item.available_range();
 
+    result["enabled"]     = item.enabled();
+    result["transparent"] = item.transparent();
+    if (active_range)
+        result["active_range"] = *active_range;
+    if (available_range)
+        result["available_range"] = *available_range;
+
     switch (item.item_type()) {
     case timeline::IT_NONE:
         break;
-
     case timeline::IT_GAP:
+        break;
     case timeline::IT_AUDIO_TRACK:
     case timeline::IT_VIDEO_TRACK:
+        result["notification"] = nullptr;
+        result["group_actor"]  = nullptr;
+        break;
     case timeline::IT_STACK:
+        break;
     case timeline::IT_TIMELINE:
+        break;
     case timeline::IT_CLIP:
-        result["enabled"]     = item.enabled();
-        result["transparent"] = item.transparent();
-        if (active_range)
-            result["active_range"] = *active_range;
-        if (available_range)
-            result["available_range"] = *available_range;
         break;
     }
 

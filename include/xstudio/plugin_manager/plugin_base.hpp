@@ -83,12 +83,6 @@ namespace plugin {
 
         caf::message_handler message_handler_;
 
-        virtual utility::BlindDataObjectPtr prepare_overlay_data(
-            const media_reader::ImageBufPtr & /*image*/, const bool /*offscreen*/
-        ) const {
-            return utility::BlindDataObjectPtr();
-        }
-
         // TODO: deprecate prepare_render_data and use this everywhere
         virtual utility::BlindDataObjectPtr onscreen_render_data(
             const media_reader::ImageBufPtr & /*image*/, const std::string & /*viewport_name*/
@@ -99,7 +93,7 @@ namespace plugin {
         // reimpliment this function to receive the image buffer(s) that are
         // currently being displayed on the given viewport
         virtual void images_going_on_screen(
-            const std::vector<media_reader::ImageBufPtr> & /*images*/,
+            const media_reader::ImageBufDisplaySetPtr & /*image_set*/,
             const std::string /*viewport_name*/,
             const bool /*playhead_playing*/
         ) {}
@@ -145,6 +139,14 @@ namespace plugin {
         /* Use this function to define the qml code that draws information over the xstudio
         viewport. See basic_viewport_masking and pixel_probe plugin examples. */
         void qml_viewport_overlay_code(const std::string &code);
+
+        /* Use this function to create a new bookmark on the given frame (as 
+        per frame_details). See annotations_tool.cpp for example useage. */
+        utility::Uuid create_bookmark_on_frame(
+            const media::AVFrameID &frame_details,
+            const std::string &bookmark_subject,
+            const bookmark::BookmarkDetail &detail,
+            const bool bookmark_entire_duration = false);
 
         /* Use this function to create a new bookmark on the current (on screen) frame
         of for the entire duration for the media currently showing on the given named
@@ -207,8 +209,6 @@ namespace plugin {
         void current_viewed_playhead_changed(caf::actor playhead);
 
         void join_studio_events();
-
-        int playhead_logical_frame_ = {-1};
 
         caf::actor_addr active_viewport_playhead_;
         caf::actor_addr playhead_media_events_group_;

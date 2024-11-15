@@ -51,39 +51,28 @@ the overscan in the data window.
 
 Returns true if a crop is required to meet max overscan requirement*/
 bool crop_data_window(
-        Imath::Box2i &data_window,
-        const Imath::Box2i &display_window,
-        const float overscan_percent
-)
-{
+    Imath::Box2i &data_window,
+    const Imath::Box2i &display_window,
+    const float overscan_percent) {
 
-        const int width = display_window.size().x+1;
-        const int height = display_window.size().y+1;
+    const int width  = display_window.size().x + 1;
+    const int height = display_window.size().y + 1;
 
-        const Imath::Box2i in_data_window = data_window;
+    const Imath::Box2i in_data_window = data_window;
 
-        data_window.min.x = std::max(
-                data_window.min.x,
-                (int)round(-float(width)*overscan_percent/100.0f)
-                );
+    data_window.min.x =
+        std::max(data_window.min.x, (int)round(-float(width) * overscan_percent / 100.0f));
 
-        data_window.max.x = std::min(
-                data_window.max.x,
-                (int)round(float(width)*(overscan_percent/100.0f + 1.0f))
-                );
+    data_window.max.x = std::min(
+        data_window.max.x, (int)round(float(width) * (overscan_percent / 100.0f + 1.0f)));
 
-        data_window.min.y = std::max(
-                data_window.min.y,
-                (int)round(-float(height)*overscan_percent/100.0f)
-                );
+    data_window.min.y =
+        std::max(data_window.min.y, (int)round(-float(height) * overscan_percent / 100.0f));
 
-        data_window.max.y = std::min(
-                data_window.max.y,
-                (int)round(float(height)*(overscan_percent/100.0f + 1.0f))
-                );
+    data_window.max.y = std::min(
+        data_window.max.y, (int)round(float(height) * (overscan_percent / 100.0f + 1.0f)));
 
-        return in_data_window != data_window;
-
+    return in_data_window != data_window;
 }
 
 static Uuid openexr_shader_uuid{"1c9259fc-46a5-11ea-87fe-989096adb429"};
@@ -215,7 +204,7 @@ void OpenEXRMediaReader::update_preferences(const utility::JsonStore &prefs) {
 ImageBufPtr OpenEXRMediaReader::image(const media::AVFrameID &mptr) {
     try {
 
-        std::string path = uri_to_posix_path(mptr.uri_);
+        std::string path = uri_to_posix_path(mptr.uri());
 
         // DebugTimer dd(path);
 
@@ -233,15 +222,15 @@ ImageBufPtr OpenEXRMediaReader::image(const media::AVFrameID &mptr) {
             std::vector<std::string> stream_ids;
             stream_ids_from_exr_part(part_header, stream_ids);
             for (const auto &stream_id : stream_ids) {
-                if (stream_id == mptr.stream_id_) {
+                if (stream_id == mptr.stream_id()) {
                     pix_type = pick_exr_channels_from_stream_id(
-                        part_header, mptr.stream_id_, exr_channels_to_load);
+                        part_header, mptr.stream_id(), exr_channels_to_load);
                     part_idx = prt;
                 }
             }
         }
 
-        if (part_idx == -1 && mptr.stream_id_ == "Main" && input.partComplete(0)) {
+        if (part_idx == -1 && mptr.stream_id() == "Main" && input.partComplete(0)) {
             // Older version of exr reader only provided a stream called "Main".
             // For backwards compatibility map this to the first stream from the
             // first 'part' (which is what you got with the old reader)
@@ -269,11 +258,8 @@ ImageBufPtr OpenEXRMediaReader::image(const media::AVFrameID &mptr) {
         Imath::Box2i display_window = in.header().displayWindow();
 
         // decide the area of the image we want to load
-        const bool cropped_data_window = crop_data_window(
-                 data_window,
-                 display_window,
-                 max_exr_overscan_percent_
-                 );
+        const bool cropped_data_window =
+            crop_data_window(data_window, display_window, max_exr_overscan_percent_);
 
         // compute the size of the buffer we need
         const size_t n_pixels = (data_window.size().x + 1) * (data_window.size().y + 1);
@@ -308,7 +294,7 @@ ImageBufPtr OpenEXRMediaReader::image(const media::AVFrameID &mptr) {
         jsn["pix_type_b"]      = int(pix_type[2]);
         jsn["pix_type_a"]      = int(pix_type[3]);
         jsn["bytes_per_pixel"] = int(bytes_per_pixel);
-        // jsn["path"] = to_string(mptr.uri_);
+        // jsn["path"] = to_string(mptr.uri());
 
         ImageBufPtr buf(new ImageBuffer(openexr_shader_uuid, jsn));
         buf->allocate(buf_size);
@@ -324,9 +310,9 @@ ImageBufPtr OpenEXRMediaReader::image(const media::AVFrameID &mptr) {
             Imath::Box2i(
                 data_window.min, Imath::V2i(data_window.max.x + 1, data_window.max.y + 1)));
 
-        buf->params()["path"]          = to_string(mptr.uri_);
+        buf->params()["path"]          = to_string(mptr.uri());
         buf->params()["channel_names"] = exr_channels_to_load;
-        buf->params()["stream_id"]     = mptr.stream_id_;
+        buf->params()["stream_id"]     = mptr.stream_id();
 
         if (cropped_data_window) {
             // if we are not loading the whole data window, we need to provide a temporary
@@ -686,7 +672,7 @@ xstudio::media::MediaDetail OpenEXRMediaReader::detail(const caf::uri &uri) cons
 thumbnail::ThumbnailBufferPtr
 OpenEXRMediaReader::thumbnail(const media::AVFrameID &mptr, const size_t thumb_size) {
 
-    Imf::RgbaInputFile file(uri_to_posix_path(mptr.uri_).c_str());
+    Imf::RgbaInputFile file(uri_to_posix_path(mptr.uri()).c_str());
 
     if (file.header().hasPreviewImage()) {
         const Imf::PreviewImage &preview = file.header().previewImage();
@@ -725,7 +711,7 @@ OpenEXRMediaReader::thumbnail(const media::AVFrameID &mptr, const size_t thumb_s
 
         return thumb;
     }
-    throw media_corrupt_error("Failed to read preview " + uri_to_posix_path(mptr.uri_));
+    throw media_corrupt_error("Failed to read preview " + uri_to_posix_path(mptr.uri()));
 }
 
 /*

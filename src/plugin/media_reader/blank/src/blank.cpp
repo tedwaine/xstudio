@@ -91,12 +91,12 @@ ImageBufPtr BlankMediaReader::image(const media::AVFrameID &mpr) {
     buf->set_shader(blank_shader);
     buf->set_image_dimensions(Imath::V2i(width, height));
 
-    if (mpr.error_ != "") {
-        buf->set_error(mpr.error_);
+    if (mpr.error() != "") {
+        buf->set_error(mpr.error());
     }
 
-    auto i = mpr.uri_.query().find("colour");
-    if (i != mpr.uri_.query().end()) {
+    auto i = mpr.uri().query().find("colour");
+    if (i != mpr.uri().query().end()) {
         auto c = get_colour(i->second);
         int i  = 0;
         for (byte *b = buf->buffer(); b < (buf->buffer() + size * bytes_per_pixel); b += 4) {
@@ -123,8 +123,8 @@ BlankMediaReader::thumbnail(const media::AVFrameID &mpr, const size_t thumb_size
     auto thumb = std::make_shared<thumbnail::ThumbnailBuffer>(
         thumb_size, thumb_size, thumbnail::TF_RGB24);
 
-    auto i = mpr.uri_.query().find("colour");
-    if (i != mpr.uri_.query().end()) {
+    auto i = mpr.uri().query().find("colour");
+    if (i != mpr.uri().query().end()) {
         auto c = get_colour(i->second);
         auto b = &(thumb->data()[0]);
 

@@ -59,6 +59,41 @@ caf::message_handler ColourPipeline::message_handler_extensions() {
             return rp;
         },
 
+        // This call takes an image ptr, and returns a copy of the image ptr
+        // but with all colour management data filled in.
+        // Note that we do this in two steps. The ColourPipelineDataPtr carries
+        // static colour pipe data, like LUTs and shader code. This data is 
+        // generally expensive to generate and is pre-prepared and cached by
+        // this actor before we need it a draw-time.
+        // The colour_pipe_unirorms is dynamic colour management data - stuff like
+        // the viewer exposure, gamma etc. This should be fast to compute and
+        // is not cached but provided on-demand.
+        [=](get_colour_pipe_data_atom,
+            const media_reader::ImageBufPtr image) -> caf::result<media_reader::ImageBufPtr> {
+
+            auto rp = make_response_promise<media_reader::ImageBufPtr>();
+
+            request(self(), infinite, get_colour_pipe_data_atom_v, image.frame_id()).then(
+                [=](const ColourPipelineDataPtr ptr) mutable {
+                    media_reader::ImageBufPtr result = image;
+                    result.colour_pipe_data_ = ptr;
+
+                    request(self(), infinite, colour_operation_uniforms_atom_v, result).then(
+                        [=](const utility::JsonStore & colour_pipe_uniforms) mutable {
+                            result.colour_pipe_uniforms_ = colour_pipe_uniforms;
+                            rp.deliver(result);
+                        },
+                        [=](caf::error &err) mutable {
+                            rp.deliver(err);
+                        });                    
+                },
+                [=](caf::error &err) mutable {
+                    rp.deliver(err);
+                });
+
+            return rp;
+        },
+
         [=](get_colour_pipe_data_atom,
             const media::AVFrameID &media_ptr) -> caf::result<ColourPipelineDataPtr> {
             auto rp = make_response_promise<ColourPipelineDataPtr>();

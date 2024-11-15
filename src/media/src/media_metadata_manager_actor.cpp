@@ -28,7 +28,7 @@ utility::JsonStore make_metadata_extraction_info_dict(const utility::JsonTree &n
         if (data.contains(k))
             result[k] = data[k];
     }
-    result["children"] = nlohmann::json::parse("[]");
+    result["children"] = R"([])"_json;
 
     for (const auto &i : node.base()) {
         result["children"].push_back(make_metadata_extraction_info_dict(i));

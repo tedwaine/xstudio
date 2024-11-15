@@ -88,8 +88,8 @@ caf::message_handler OCIOColourPipeline::message_handler_extensions() {
                        const utility::JsonStore &attr_value,
                        const std::string &window_id) {
                        // quickview windows DON'T sync OCIO settings
-                       if (window_id_ == "xstudio_quickview_window" ||
-                           window_id == "xstudio_quickview_window")
+                       if (window_id_.find("xstudio_quickview_window") != std::string::npos ||
+                           window_id.find("xstudio_quickview_window") != std::string::npos)
                            return;
 
                        auto attr = get_attribute(attr_title);
@@ -105,8 +105,8 @@ caf::message_handler OCIOColourPipeline::message_handler_extensions() {
                        const utility::JsonStore &attr_value,
                        const std::string &window_id) {
                        // quickview windows DON'T sync OCIO settings
-                       if (window_id_ == "xstudio_quickview_window" ||
-                           window_id == "xstudio_quickview_window")
+                       if (window_id_.find("xstudio_quickview_window") != std::string::npos ||
+                           window_id.find("xstudio_quickview_window") != std::string::npos)
                            return;
 
                        if (ocio_config == current_config_name_) {
@@ -130,7 +130,7 @@ size_t OCIOColourPipeline::fast_display_transform_hash(const media::AVFrameID &m
 
     if (!global_settings_.colour_bypass) {
         // utility::JsonStore media_metadata = patch_media_metadata(media_ptr);
-        hash = m_engine_.compute_hash(media_ptr.params_, display_->value() + view_->value());
+        hash = m_engine_.compute_hash(media_ptr.params(), display_->value() + view_->value());
     }
 
     return hash;
@@ -145,7 +145,7 @@ void OCIOColourPipeline::linearise_op_data(
     rp.delegate(
         worker_pool_,
         colour_pipe_linearise_data_atom_v,
-        media_ptr.params_, // media_metadata
+        media_ptr.params(), // media_metadata
         global_settings_.colour_bypass);
 }
 
@@ -162,7 +162,7 @@ void OCIOColourPipeline::linear_to_display_op_data(
     rp.delegate(
         worker_pool_,
         colour_pipe_display_data_atom_v,
-        media_ptr.params_, // media_metadata
+        media_ptr.params(), // media_metadata
         display_->value(),
         view_->value(),
         global_settings_.colour_bypass);
@@ -209,7 +209,7 @@ void OCIOColourPipeline::process_thumbnail(
     rp.delegate(
         worker_pool_,
         media_reader::process_thumbnail_atom_v,
-        media_ptr.params_, // media_metadata
+        media_ptr.params(), // media_metadata
         buf,
         display_->value(),
         view_->value());
@@ -760,7 +760,7 @@ utility::JsonStore OCIOColourPipeline::patch_media_metadata(const media::AVFrame
     // on screen (when we retrieve from the cache) to when it is off screen (
     // when we pre-compute and store in the cache).
 
-    utility::JsonStore res = media_ptr.params_;
+    utility::JsonStore res = media_ptr.params();
 
     // TODO: Should we check if the auto detected source space is different
     // from the plugin current setting and only set override in that case?
@@ -771,7 +771,7 @@ utility::JsonStore OCIOColourPipeline::patch_media_metadata(const media::AVFrame
     // out of sync issues when updating a media override and having to wait
     // for it to propagate to the media actor metadata and back then here,
     // which results in a visible delay on screen and colour switching twice.
-    if (media_ptr.source_uuid_ == current_source_uuid_) {
+    if (media_ptr.source_uuid() == current_source_uuid_) {
         res["override_input_cs"] = source_colour_space_->value();
         res["override_view"]     = view_->value();
     }

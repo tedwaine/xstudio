@@ -3,12 +3,12 @@
 #include "xstudio/conform/conformer.hpp"
 #include "xstudio/media/media.hpp"
 #include "xstudio/session/session_actor.hpp"
-#include "xstudio/tag/tag.hpp"
 #include "xstudio/timeline/clip_actor.hpp"
 #include "xstudio/timeline/timeline.hpp"
 #include "xstudio/ui/qml/caf_response_ui.hpp"
 #include "xstudio/ui/qml/job_control_ui.hpp"
 #include "xstudio/ui/qml/session_model_ui.hpp"
+#include "xstudio/utility/notification_handler.hpp"
 
 CAF_PUSH_WARNINGS
 #include <QThreadPool>
@@ -21,6 +21,116 @@ using namespace caf;
 using namespace xstudio;
 using namespace xstudio::utility;
 using namespace xstudio::ui::qml;
+
+void SessionModel::removeNotification(const QModelIndex &index, const QUuid &uuid) {
+    if (index.isValid()) {
+        auto actor = actorFromQString(system(), index.data(actorRole).toString());
+        if (actor)
+            anon_send(actor, utility::notification_atom_v, UuidFromQUuid(uuid));
+    }
+}
+
+QUuid SessionModel::infoNotification(
+    const QModelIndex &index,
+    const QString &text,
+    const int seconds,
+    const QUuid &replaceUuid) {
+    auto result       = QUuid();
+    auto replace_uuid = UuidFromQUuid(replaceUuid);
+    if (index.isValid()) {
+        auto actor = actorFromQString(system(), index.data(actorRole).toString());
+        if (actor) {
+            auto n = Notification::InfoNotification(
+                StdFromQString(text), std::chrono::seconds(seconds));
+            if (not replace_uuid.is_null())
+                n.uuid(replace_uuid);
+            result = QUuidFromUuid(n.uuid());
+            anon_send(actor, utility::notification_atom_v, n);
+        }
+    }
+
+    return result;
+}
+
+QUuid SessionModel::warnNotification(
+    const QModelIndex &index,
+    const QString &text,
+    const int seconds,
+    const QUuid &replaceUuid) {
+    auto result       = QUuid();
+    auto replace_uuid = UuidFromQUuid(replaceUuid);
+
+    if (index.isValid()) {
+        auto actor = actorFromQString(system(), index.data(actorRole).toString());
+        if (actor) {
+            auto n = Notification::WarnNotification(
+                StdFromQString(text), std::chrono::seconds(seconds));
+            if (not replace_uuid.is_null())
+                n.uuid(replace_uuid);
+            result = QUuidFromUuid(n.uuid());
+            anon_send(actor, utility::notification_atom_v, n);
+        }
+    }
+
+    return result;
+}
+
+QUuid SessionModel::processingNotification(const QModelIndex &index, const QString &text) {
+    auto result = QUuid();
+    if (index.isValid()) {
+        auto actor = actorFromQString(system(), index.data(actorRole).toString());
+        if (actor) {
+            auto n = Notification::ProcessingNotification(StdFromQString(text));
+            result = QUuidFromUuid(n.uuid());
+            anon_send(actor, utility::notification_atom_v, n);
+        }
+    }
+
+    return result;
+}
+
+QUuid SessionModel::progressPercentageNotification(
+    const QModelIndex &index, const QString &text) {
+    auto result = QUuid();
+    if (index.isValid()) {
+        auto actor = actorFromQString(system(), index.data(actorRole).toString());
+        if (actor) {
+            auto n = Notification::ProgressPercentageNotification(StdFromQString(text));
+            result = QUuidFromUuid(n.uuid());
+            anon_send(actor, utility::notification_atom_v, n);
+        }
+    }
+
+    return result;
+}
+
+QUuid SessionModel::progressRangeNotification(
+    const QModelIndex &index, const QString &text, const float min, const float max) {
+    auto result = QUuid();
+    if (index.isValid()) {
+        auto actor = actorFromQString(system(), index.data(actorRole).toString());
+        if (actor) {
+            auto n =
+                Notification::ProgressRangeNotification(StdFromQString(text), min, min, max);
+            result = QUuidFromUuid(n.uuid());
+            anon_send(actor, utility::notification_atom_v, n);
+        }
+    }
+
+    return result;
+}
+
+
+void SessionModel::updateProgressNotification(
+    const QModelIndex &index, const QUuid &uuid, const float value) {
+    if (index.isValid()) {
+        auto actor = actorFromQString(system(), index.data(actorRole).toString());
+        if (actor) {
+            anon_send(actor, utility::notification_atom_v, UuidFromQUuid(uuid), value);
+        }
+    }
+}
+
 
 QVariant SessionModel::playlists() const {
     // scan model for playlists..
@@ -307,16 +417,6 @@ void SessionModel::setSessionActorAddr(const QString &addr) {
 
             session_actor_               = actorFromQString(system(), addr);
             data["children"][0]["actor"] = StdFromQString(addr);
-
-            try {
-                auto actor =
-                    request_receive<caf::actor>(*sys, session_actor_, tag::get_tag_atom_v);
-                tag_manager_->set_backend(actor);
-                emit tagsChanged();
-
-            } catch (const std::exception &e) {
-                spdlog::warn("{} {}", __PRETTY_FUNCTION__, e.what());
-            }
 
             // clear lookup..
             id_uuid_lookup_.clear();
@@ -1106,35 +1206,6 @@ QFuture<QList<QUuid>> SessionModel::handleOtherDropFuture(
     });
 }
 
-QUuid SessionModel::addTag(
-    const QUuid &quuid,
-    const QString &type,
-    const QString &data,
-    const QString &unique,
-    const bool persistent) {
-    QUuid result;
-
-    try {
-        tag::Tag tag;
-        tag.set_link(UuidFromQUuid(quuid));
-        tag.set_type(StdFromQString(type));
-        tag.set_data(StdFromQString(data));
-        if (not unique.isEmpty())
-            tag.set_unique(StdFromQString(unique));
-        tag.set_persistent(persistent);
-
-        scoped_actor sys{system()};
-        auto tag_actor = request_receive<caf::actor>(*sys, session_actor_, tag::get_tag_atom_v);
-        result         = QUuidFromUuid(
-            request_receive<utility::Uuid>(*sys, tag_actor, tag::add_tag_atom_v, tag));
-
-    } catch (const std::exception &err) {
-        spdlog::warn("{} {}", __PRETTY_FUNCTION__, err.what());
-    }
-
-    return result;
-}
-
 QFuture<bool> SessionModel::importFuture(const QUrl &path, const QVariant &json) {
     return QtConcurrent::run([=]() {
         bool result = false;
@@ -1497,6 +1568,8 @@ void SessionModel::setCurrentMediaContainer(const QModelIndex &index) {
 void SessionModel::setViewportCurrentMediaContainerIndex(const QModelIndex &index) {
 
     try {
+
+        qDebug() << "setViewportCurrentMediaContainerIndex " << index;
 
         if (index != current_playhead_owner_index_) {
 

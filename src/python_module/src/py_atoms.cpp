@@ -18,7 +18,6 @@ using namespace xstudio::bookmark;
 using namespace xstudio::broadcast;
 using namespace xstudio::colour_pipeline;
 using namespace xstudio::data_source;
-using namespace xstudio::event;
 using namespace xstudio::global;
 using namespace xstudio::global_store;
 using namespace xstudio::history;
@@ -34,7 +33,6 @@ using namespace xstudio::playlist;
 using namespace xstudio::plugin_manager;
 using namespace xstudio::session;
 using namespace xstudio::sync;
-using namespace xstudio::tag;
 using namespace xstudio::thumbnail;
 using namespace xstudio::timeline;
 using namespace xstudio::ui;
@@ -364,11 +362,6 @@ void py_config::add_atoms() {
     ADD_ATOM(xstudio::bookmark, bookmark_change_atom);
     ADD_ATOM(xstudio::bookmark, render_annotations_atom);
 
-    ADD_ATOM(xstudio::tag, get_tag_atom);
-    ADD_ATOM(xstudio::tag, get_tags_atom);
-    ADD_ATOM(xstudio::tag, add_tag_atom);
-    ADD_ATOM(xstudio::tag, remove_tag_atom);
-
     ADD_ATOM(xstudio::history, undo_atom);
     ADD_ATOM(xstudio::history, redo_atom);
     ADD_ATOM(xstudio::history, log_atom);
@@ -378,6 +371,7 @@ void py_config::add_atoms() {
     ADD_ATOM(xstudio::ui::viewport, quickview_media_atom);
     ADD_ATOM(xstudio::ui::viewport, viewport_atom);
     ADD_ATOM(xstudio::ui::viewport, hud_settings_atom);
+    ADD_ATOM(xstudio::ui::viewport, viewport_layout_atom);    
 
     ADD_ATOM(xstudio::ui, show_message_box_atom);
 

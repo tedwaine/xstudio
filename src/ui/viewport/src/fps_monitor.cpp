@@ -4,7 +4,6 @@
 #include "xstudio/broadcast/broadcast_actor.hpp"
 #include "xstudio/colour_pipeline/colour_pipeline.hpp"
 #include "xstudio/media_reader/media_reader.hpp"
-#include "xstudio/utility/edit_list.hpp"
 #include "xstudio/utility/helpers.hpp"
 #include "xstudio/utility/logging.hpp"
 #include "xstudio/utility/uuid.hpp"

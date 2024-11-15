@@ -1,6 +1,8 @@
 // SPDX-License-Identifier: Apache-2.0
 #include <algorithm>
 #include <Python.h>
+#define PYBIND11_DETAILED_ERROR_MESSAGES
+
 #include <pybind11/embed.h> // everything needed for embedding
 #include <pybind11_json/pybind11_json.hpp>
 
@@ -438,6 +440,7 @@ void EmbeddedPython::push_caf_message_to_py_callbacks(caf::actor sender, caf::me
         }
 
     } catch (std::exception &e) {
+        std::cerr << "PyError: " << e.what() << "\n";
         PyErr_SetString(PyExc_RuntimeError, e.what());
     }
 }

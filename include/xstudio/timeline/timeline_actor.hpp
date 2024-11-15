@@ -32,7 +32,11 @@ namespace timeline {
         inline static const std::string NAME = "TimelineActor";
         void init();
 
-        caf::behavior make_behavior() override { return behavior_; }
+        caf::message_handler message_handler();
+
+        caf::behavior make_behavior() override {
+            return message_handler().or_else(base_.container_message_handler(this));
+        }
 
         void add_item(const utility::UuidActor &ua);
 
@@ -90,9 +94,13 @@ namespace timeline {
             const std::string &type);
 
       private:
-        caf::behavior behavior_;
         Timeline base_;
-        caf::actor event_group_;
+        caf::actor change_event_group_;
+
+        utility::Uuid history_uuid_;
+        caf::actor history_;
+
+        caf::actor selection_actor_;
 
         utility::UuidActorMap actors_;
         utility::UuidActorMap media_actors_;
@@ -100,11 +108,9 @@ namespace timeline {
         caf::actor_addr playlist_;
         bool content_changed_{false};
         utility::UuidActor playhead_;
-        caf::actor history_;
         // might need to prune.. ?
         std::set<utility::Uuid> events_processed_;
-        // bool update_edit_list_;
-        // utility::EditList edit_list_;
+        utility::UuidActorVector video_tracks_;
     };
 
 } // namespace timeline

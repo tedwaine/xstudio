@@ -18,6 +18,33 @@ using namespace xstudio::utility;
 using namespace xstudio::timeline;
 using namespace caf;
 
+namespace {
+            class DebugTimer {
+          public:
+            DebugTimer(std::string p, int frame) : path_(std::move(p)), frame_(frame) {
+                t1_ = utility::clock::now();
+            }
+
+            ~DebugTimer() {
+                std::cerr << "Reading" << path_ << " @ " << frame_ << " done in "
+                          << double(std::chrono::duration_cast<std::chrono::microseconds>(
+                                        utility::clock::now() - t1_)
+                                        .count()) /
+                                 1000000.0
+                          << " seconds\n";
+            }
+            void gronk() {
+                std::cerr << "BAT\n";
+            }
+          private:
+            utility::time_point t1_;
+            const std::string path_;
+            const int frame_;
+        };
+
+
+}
+
 ClipActor::ClipActor(caf::actor_config &cfg, const JsonStore &jsn)
     : caf::event_based_actor(cfg), base_(static_cast<JsonStore>(jsn.at("base"))) {
     base_.item().set_actor_addr(this);
@@ -31,7 +58,7 @@ ClipActor::ClipActor(caf::actor_config &cfg, const JsonStore &jsn, Item &pitem)
     base_.item().set_actor_addr(this);
     base_.item().set_system(&system());
 
-    pitem = base_.item();
+    pitem = base_.item().clone();
     init();
 }
 
@@ -43,7 +70,7 @@ ClipActor::ClipActor(caf::actor_config &cfg, const Item &item)
 
 ClipActor::ClipActor(caf::actor_config &cfg, const Item &item, Item &nitem)
     : ClipActor(cfg, item) {
-    nitem = base_.item();
+    nitem = base_.item().clone();
 }
 
 ClipActor::ClipActor(
@@ -79,8 +106,9 @@ ClipActor::ClipActor(
                 // base_.item().set_available_range(utility::FrameRange(ref.duration()));
                 auto tc_start = static_cast<int>(ref.timecode().total_frames());
 
-                base_.item().set_available_range(utility::FrameRange(
-                    FrameRateDuration(tc_start, ref.duration().rate()), ref.duration()));
+                auto mfr = utility::FrameRange(
+                    FrameRateDuration(tc_start, ref.duration().rate()), ref.duration());
+                base_.item().set_range(mfr, mfr);
             } else
                 delayed_send(
                     caf::actor_cast<caf::actor>(this),
@@ -110,7 +138,7 @@ void ClipActor::link_media(caf::typed_response_promise<bool> rp, const UuidActor
 
     auto jsn = base_.set_media_uuid(media.uuid());
     if (not jsn.is_null())
-        send(event_group_, event_atom_v, item_atom_v, jsn, false);
+        send(base_.event_group(), event_atom_v, item_atom_v, jsn, false);
 
     // clear ptr cache
     image_ptr_cache_.clear();
@@ -134,33 +162,8 @@ void ClipActor::link_media(caf::typed_response_promise<bool> rp, const UuidActor
     rp.deliver(true);
 }
 
-void ClipActor::init() {
-    print_on_create(this, base_.name());
-    print_on_exit(this, base_.name());
-
-    event_group_ = spawn<broadcast::BroadcastActor>(this);
-    link_to(event_group_);
-
-    // we die if our media dies.
-    set_down_handler([=](down_msg &msg) {
-        if (msg.source == media_) {
-            demonitor(caf::actor_cast<caf::actor>(media_));
-            send_exit(this, caf::exit_reason::user_shutdown);
-        }
-    });
-
-    // monitor changes in media..
-    behavior_.assign(
-        base_.make_set_name_handler(event_group_, this),
-        base_.make_get_name_handler(),
-        base_.make_last_changed_getter(),
-        base_.make_last_changed_setter(event_group_, this),
-        base_.make_last_changed_event_handler(event_group_, this),
-        base_.make_get_uuid_handler(),
-        base_.make_get_type_handler(),
-        make_get_event_group_handler(event_group_),
-        base_.make_get_detail_handler(this, event_group_),
-
+caf::message_handler ClipActor::message_handler() {
+    return caf::message_handler{
         // replace current media..
         [=](link_media_atom, const UuidActor &media) -> result<bool> {
             auto rp = make_response_promise<bool>();
@@ -218,36 +221,41 @@ void ClipActor::init() {
         [=](plugin_manager::enable_atom, const bool value) -> JsonStore {
             auto jsn = base_.item().set_enabled(value);
             if (not jsn.is_null())
-                send(event_group_, event_atom_v, item_atom_v, jsn, false);
+                send(base_.event_group(), event_atom_v, item_atom_v, jsn, false);
             return jsn;
         },
 
         [=](item_name_atom, const std::string &value) -> JsonStore {
             auto jsn = base_.item().set_name(value);
             if (not jsn.is_null())
-                send(event_group_, event_atom_v, item_atom_v, jsn, false);
+                send(base_.event_group(), event_atom_v, item_atom_v, jsn, false);
             return jsn;
         },
 
         [=](item_lock_atom, const bool value) -> JsonStore {
             auto jsn = base_.item().set_locked(value);
             if (not jsn.is_null())
-                send(event_group_, event_atom_v, item_atom_v, jsn, false);
+                send(base_.event_group(), event_atom_v, item_atom_v, jsn, false);
             return jsn;
         },
 
         [=](item_flag_atom, const std::string &value) -> JsonStore {
             auto jsn = base_.item().set_flag(value);
             if (not jsn.is_null())
-                send(event_group_, event_atom_v, item_atom_v, jsn, false);
+                send(base_.event_group(), event_atom_v, item_atom_v, jsn, false);
             return jsn;
         },
+
         [=](utility::rate_atom) -> FrameRate { return base_.item().rate(); },
+
+        [=](utility::rate_atom atom, const media::MediaType media_type) {
+            delegate(caf::actor_cast<caf::actor>(this), atom);
+        },
 
         [=](item_prop_atom, const utility::JsonStore &value) -> JsonStore {
             auto jsn = base_.item().set_prop(value);
             if (not jsn.is_null())
-                send(event_group_, event_atom_v, item_atom_v, jsn, false);
+                send(base_.event_group(), event_atom_v, item_atom_v, jsn, false);
             return jsn;
         },
 
@@ -263,7 +271,7 @@ void ClipActor::init() {
             }
             auto jsn = base_.item().set_prop(prop);
             if (not jsn.is_null())
-                send(event_group_, event_atom_v, item_atom_v, jsn, false);
+                send(base_.event_group(), event_atom_v, item_atom_v, jsn, false);
             return jsn;
         },
 
@@ -272,14 +280,14 @@ void ClipActor::init() {
         [=](active_range_atom, const FrameRange &fr) -> JsonStore {
             auto jsn = base_.item().set_active_range(fr);
             if (not jsn.is_null())
-                send(event_group_, event_atom_v, item_atom_v, jsn, false);
+                send(base_.event_group(), event_atom_v, item_atom_v, jsn, false);
             return jsn;
         },
 
         [=](available_range_atom, const FrameRange &fr) -> JsonStore {
             auto jsn = base_.item().set_available_range(fr);
             if (not jsn.is_null())
-                send(event_group_, event_atom_v, item_atom_v, jsn, false);
+                send(base_.event_group(), event_atom_v, item_atom_v, jsn, false);
             return jsn;
         },
 
@@ -298,7 +306,7 @@ void ClipActor::init() {
             const FrameRange &active) -> JsonStore {
             auto jsn = base_.item().set_range(avail, active);
             if (not jsn.is_null())
-                send(event_group_, event_atom_v, item_atom_v, jsn, false);
+                send(base_.event_group(), event_atom_v, item_atom_v, jsn, false);
             return jsn;
         },
 
@@ -312,14 +320,21 @@ void ClipActor::init() {
             return true;
         },
 
-        [=](item_atom) -> Item { return base_.item(); },
+        [=](utility::event_atom,
+            timeline::item_atom,
+            const utility::JsonStore &update,
+            const bool hidden) {
+            // where is this coming from??
+        },
+
+        [=](item_atom) -> Item { return base_.item().clone(); },
 
         [=](item_atom, const bool with_state) -> result<std::pair<JsonStore, Item>> {
             auto rp = make_response_promise<std::pair<JsonStore, Item>>();
             request(caf::actor_cast<caf::actor>(this), infinite, utility::serialise_atom_v)
                 .then(
                     [=](const JsonStore &jsn) mutable {
-                        rp.deliver(std::make_pair(jsn, base_.item()));
+                        rp.deliver(std::make_pair(jsn, base_.item().clone()));
                     },
                     [=](const caf::error &err) mutable { rp.deliver(err); });
             return rp;
@@ -330,17 +345,6 @@ void ClipActor::init() {
         //     base_.set_duration(duration);
         //     update_edit_list();
         //     return true;
-        // },
-
-        // [=](media::get_edit_list_atom, const Uuid &uuid) -> utility::EditList {
-        //     auto edit_list = clip_edit_list_;
-
-        //     if (not uuid.is_null())
-        //         edit_list.set_uuid(uuid);
-        //     else
-        //         edit_list.set_uuid(base_.uuid());
-
-        //     return edit_list;
         // },
 
         // [=](media::get_media_pointer_atom,
@@ -366,18 +370,6 @@ void ClipActor::init() {
         //     base_.set_start_time(start_time);
         //     update_edit_list();
         //     return true;
-        // },
-
-        // [&](utility::event_atom, utility::change_atom) {
-        //     request(actor_cast<actor>(media_), infinite, media::get_edit_list_atom_v, Uuid())
-        //         .then(
-        //             [&](const utility::EditList &sl) {
-        //                 media_edit_list_ = sl;
-        //                 update_edit_list();
-        //             },
-        //             [=](const error &err) {
-        //                 spdlog::warn("{} {}", __PRETTY_FUNCTION__, to_string(err));
-        //             });
         // },
 
         // [=](utility::event_atom, utility::name_atom, const std::string & /*name*/) {},
@@ -461,7 +453,12 @@ void ClipActor::init() {
                                 // );
 
                                 if (not jsn.is_null())
-                                    send(event_group_, event_atom_v, item_atom_v, jsn, false);
+                                    send(
+                                        base_.event_group(),
+                                        event_atom_v,
+                                        item_atom_v,
+                                        jsn,
+                                        false);
                             } else {
                                 // retry ?
                                 // spdlog::warn("delayed get detail");
@@ -572,9 +569,12 @@ void ClipActor::init() {
             image_ptr_cache_.clear();
             audio_ptr_cache_.clear();
 
-            send(event_group_, utility::event_atom_v, utility::change_atom_v);
+            send(base_.event_group(), utility::event_atom_v, utility::change_atom_v);
         },
-        [=](utility::event_atom, utility::change_atom) {},
+
+        [=](utility::event_atom, utility::change_atom) {
+            send(base_.event_group(), utility::event_atom_v, utility::change_atom_v);
+        },
 
         [=](json_store::update_atom,
             const JsonStore &,
@@ -635,14 +635,17 @@ void ClipActor::init() {
             const media::MediaType media_type,
             const std::vector<FrameRate> &timepoints,
             const FrameRate &override_rate) -> result<media::AVFrameIDs> {
+
             if (media_) {
+
+
+                // TODO: Optimise and refactor this!! Too slow (often over > 1ms to
+                // evaulate)
 
                 // the 'result' here is a vector of std::shared_ptr<const media::AVFrameID> -
                 // one element per frame timepoint. We initialise it with blank frames and
                 // the logic below will fill in actual frames where possible
-                media::AVFrameID blank = *(media::make_blank_frame(media_type));
-                blank.media_uuid_      = base_.media_uuid();
-                blank.clip_uuid_       = base_.uuid();
+                media::AVFrameID blank = *(media::make_blank_frame(media_type, base_.media_uuid(), utility::Uuid(), base_.uuid()));
                 auto blank_ptr         = std::make_shared<const media::AVFrameID>(blank);
 
                 // the result data
@@ -753,7 +756,7 @@ void ClipActor::init() {
 
                                         if (media_type == media::MediaType::MT_IMAGE) {
                                             image_ptr_cache_[ii] = *mp;
-                                            (*result)[ind]       = image_ptr_cache_[ii];
+                                            (*result)[ind]       = *mp;//image_ptr_cache_[ii];
 
                                             // spdlog::warn("{}", (*mp)->key_);
                                         } else if (media_type == media::MediaType::MT_AUDIO) {
@@ -765,6 +768,7 @@ void ClipActor::init() {
                                 }
                                 // spdlog::warn("deliver {}", result->size());
                                 rp.deliver(*result);
+
                             },
                             [=](error &err) mutable {
                                 // can get an error for missing media - instead
@@ -865,27 +869,35 @@ void ClipActor::init() {
             JsonStore jsn;
             jsn["base"] = base_.serialise();
             return jsn;
-        });
+        },
+
+        [=](media::get_media_pointers_atom atom,
+            const media::MediaType media_type,
+            const utility::TimeSourceMode tsm,
+            const utility::FrameRate &override_rate) -> caf::result<media::FrameTimeMapPtr> {
+                
+            // This is required by SubPlayhead actor to make the track
+            // playable.
+            return base_.item().get_all_frame_IDs(
+                media_type,
+                tsm,
+                override_rate);
+
+        }};
 }
 
+void ClipActor::init() {
+    print_on_create(this, base_.name());
+    print_on_exit(this, base_.name());
 
-// void ClipActor::update_edit_list() {
-//     ClipList sl = media_edit_list_.section_list();
-
-//     sl[0].frame_rate_and_duration_ = base_.duration();
-//     sl[0].timecode_                = sl[0].timecode_ + base_.start_time().frames();
-
-//     clip_edit_list_ = EditList(sl);
-
-//     // all we do is adjust the duration ? and the timecode?
-//     // adjust edit_list based off our start_time and duration..
-//     // a media object should really only return one entry, otherwise we've no idea how to
-//     adjust
-//     // the STL start_time we set the uuid to ourself as we're the ones that return
-//     mediapointer.
-//     // remapped to our start_time/duration.
-//     send(event_group_, utility::event_atom_v, utility::change_atom_v);
-// }
+    // we die if our media dies.
+    set_down_handler([=](down_msg &msg) {
+        if (msg.source == media_) {
+            demonitor(caf::actor_cast<caf::actor>(media_));
+            send_exit(this, caf::exit_reason::user_shutdown);
+        }
+    });
+}
 
 // void ClipActor::deliver_media_pointer(
 //     const int logical_frame, caf::typed_response_promise<media::AVFrameID> rp) {

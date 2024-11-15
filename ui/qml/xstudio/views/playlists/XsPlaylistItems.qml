@@ -164,7 +164,21 @@ XsListView { id: playlists
                         {"text/uri-list": data},
                         idx)
                 ).then(function(quuids){
-                    mediaSelectionModel.selectNewMedia(index, quuids)
+                    if (idx) mediaSelectionModel.selectNewMedia(idx, quuids)
+                })
+            } else if (source == "External JSON") {
+
+                // by providing invalid index, backend will create named
+                // playlists for us
+                var idx = theSessionData.index(-1,-1)
+
+                Future.promise(
+                    theSessionData.handleDropFuture(
+                        Qt.CopyAction,
+                        data,
+                        idx)
+                ).then(function(quuids){
+                    if (idx) mediaSelectionModel.selectNewMedia(idx, quuids)
                 })
             } else if (source == "PlayListView") {
 

@@ -37,6 +37,31 @@ function revealMediaInShotgrid(indexes=[]) {
 	}
 }
 
+function resolvePlaylistLink(indexes=[]) {
+	// get metadata from playlists..
+	let resolved = []
+
+	for(let i = 0; i< indexes.length; i++) {
+		let meta = theSessionData.getJSON(theSessionData.getPlaylistIndex(indexes[i]), "/metadata/shotgun/playlist/id")
+		if(meta)
+			resolved.push("http://shotgun/detail/Playlist/"+meta)
+	}
+
+	return resolved
+}
+
+function revealPlaylistInShotgrid(indexes=[]) {
+	let links = resolvePlaylistLink(indexes)
+	for(let i = 0; i< links.length; i++) {
+		if(links[i])
+	        Future.promise(
+	            helpers.openURLFuture(links[i])
+	        ).then(function(result) {
+	        })
+	}
+}
+
+
 function revealInShotgrid(indexes=[]) {
 	if(indexes.length) {
 		indexes = mapIndexesToResultModel(indexes)
@@ -444,6 +469,8 @@ function loadShotGridPlaylist(shotgrid_playlist_id, name, context={}) {
 	// console.log("createPlaylist", name)
 	let plindex = theSessionData.createPlaylist(name)
 
+	let notify_uuid = theSessionData.processingNotification(plindex, "Loading ShotGrid Playlist")
+
 	// mark playlist as busy.
     plindex.model.set(plindex, true, "busyRole")
 
@@ -466,7 +493,7 @@ function loadShotGridPlaylist(shotgrid_playlist_id, name, context={}) {
                     function() {
                     }
                 )
-                Future.promise(plindex.model.setJSONFuture(plindex, JSON.stringify("qrc:/shotbrowser_icons/shot_grid.svg"), "/ui/decorators/shotgrid")).then(
+                Future.promise(plindex.model.setJSONFuture(plindex, JSON.stringify({"icon": "qrc:/shotbrowser_icons/shot_grid.svg", "tooltip": "ShotGrid Playlist"}), "/ui/decorators/shotgrid")).then(
                     function(result) {
                     },
                     function() {
@@ -492,21 +519,22 @@ function loadShotGridPlaylist(shotgrid_playlist_id, name, context={}) {
 						// selects the playlist so it is what's showing in
 						// the viewport
 						sessionSelectionModel.setCurrentIndex(plindex, ItemSelectionModel.ClearAndSelect)
-
+						theSessionData.infoNotification(plindex, "Loaded ShotGrid Playlist", 5, notify_uuid)
                         // ShotgunHelpers.handle_response(json_string)
                     },
                     function() {
-                        plindex.model.set(plindex, false, "busyRole")
+						theSessionData.warnNotification(plindex, "Failed Loading ShotGrid Playlist", 10, notify_uuid)
                     }
                 )
             } else {
-                plindex.model.set(plindex, false, "busyRole")
-                //console.log("loadShotgridPlaylist", json_string)
+				theSessionData.warnNotification(plindex, "Failed Loading ShotGrid Playlist", 10, notify_uuid)
             }
 	        } catch(err) {
-			    plindex.model.set(plindex, false, "busyRole")
-    			console.log("loadShotgridPlaylist", err, json_string)
-		    	dialogHelpers.errorDialogFunc("Load Shotgrid Playlist", err + "\n" + json_string)
+				theSessionData.warnNotification(plindex, "Failed Loading ShotGrid Playlist", 10, notify_uuid)
+
+			    // plindex.model.set(plindex, false, "busyRole")
+    			// console.log("loadShotgridPlaylist", err, json_string)
+		    	// dialogHelpers.errorDialogFunc("Load Shotgrid Playlist", err + "\n" + json_string)
 		}
 	})
 }
@@ -809,30 +837,43 @@ function transferMedia(source, destination, indexes) {
 	}
 }
 
-
-function syncPlaylistFromShotGrid(playlistUuid, callback=console.log) {
+function syncPlaylistFromShotGrid(playlistUuid, matchOrder=false, callback=null) {
     Future.promise(
-        ShotBrowserEngine.refreshPlaylistVersionsFuture(playlistUuid)
-    ).then(function(json_string) {
-    	callback(json_string)
-    })
+        ShotBrowserEngine.refreshPlaylistVersionsFuture(playlistUuid, matchOrder)
+    ).then(
+	    function(json_string) {
+	    	if(callback) {
+		    	callback(json_string)
+		    }
+		},
+	    function() {
+	    	// dialogHelpers.errorDialogFunc("SG Playlist Reloaded", "Failed")
+	    }
+    )
 }
 
 
-function syncPlaylistToShotGrid(playlistUuid, callback=console.log) {
+function syncPlaylistToShotGrid(playlistUuid, callback=null) {
     Future.promise(
         ShotBrowserEngine.updatePlaylistVersionsFuture(playlistUuid)
     ).then(function(json_string) {
-    	callback(json_string)
+    	if(callback)
+	    	callback(json_string)
     })
 }
 
-function publishPlaylistToShotGrid(playlistUuid, projectId, name, location, playlistType, callback=console.log ) {
+function publishPlaylistToShotGrid(playlistUuid, projectId, name, location, playlistType, callback=null ) {
     Future.promise(
         ShotBrowserEngine.createPlaylistFuture(playlistUuid, projectId, name, location, playlistType)
-    ).then(function(json_string) {
-    	callback(json_string)
-    })
+    ).then(
+	    function(json_string) {
+	    	if(callback)
+		    	callback(json_string)
+	    },
+	    function() {
+
+	    }
+    )
 }
 
 function getValidMediaCount(playlistUuid, callback=console.log) {

@@ -71,29 +71,9 @@ XsGradientRectangle{
             Layout.fillWidth: true;
             Layout.fillHeight: true;
             color: panelColor
-            clip: true
 
-            Flickable {
-                id:flick
+            XsSBPresetsView{
                 anchors.fill: parent
-                contentWidth: width
-                contentHeight: tree.height
-
-                ScrollBar.vertical: XsScrollBar{visible: flick.height < flick.contentHeight}
-
-                XsSBPresetsView{
-                    id: tree
-                    width: flick.width
-                    treeSequenceModel: presetsFilterModel
-                    treeSequenceSelectionModel: presetsSelectionModel
-                    treeSequenceExpandedModel: presetsExpandedModel
-                    treeRootIndex: treeSequenceModel ? treeSequenceModel.index(-1,-1) : null
-                    onTreeSequenceModelChanged: {
-                        if(treeSequenceModel) {
-                            treeRootIndex = treeSequenceModel.index(-1,-1)
-                        }
-                    }
-                }
             }
         }
 
@@ -164,6 +144,16 @@ XsGradientRectangle{
         menu_model_name: "moreMenu"+presetView
     }
 
+   XsMenuModelItem {
+        text: qsTr("Only Show Favourites")
+        menuPath: ""
+        menuItemType: "toggle"
+        menuItemPosition: 0.5
+        menuModelName: moreMenu.menu_model_name
+        onActivated: prefs.showOnlyFavourites = !prefs.showOnlyFavourites
+        isChecked: prefs.showOnlyFavourites
+    }
+
     XsMenuModelItem {
         text: "Undo"
         menuPath: ""
@@ -180,21 +170,6 @@ XsGradientRectangle{
         onActivated: ShotBrowserEngine.redo()
     }
 
-   // XsMenuModelItem {
-   //      text: qsTr("Only Show Favourites")
-   //      menuPath: ""
-   //      menuItemType: "toggle"
-   //      menuItemPosition: 3
-   //      menuModelName: moreMenu.menu_model_name
-   //      onActivated: {
-   //          isChecked = !isChecked
-   //          treeModel.setOnlyShowFavourite(isChecked)
-   //          menuModel.setOnlyShowFavourite(isChecked)
-   //          recentModel.setOnlyShowFavourite(isChecked)
-   //      }
-   //      isChecked: false
-   //  }
-
     XsMenuModelItem {
         menuItemType: "divider"
         menuPath: ""
@@ -208,6 +183,63 @@ XsGradientRectangle{
     //     menuItemPosition: 3
     //     menuModelName: moreMenu.menu_model_name
     // }
+    XsMenuModelItem {
+        text: "Backup Presets..."
+        menuPath: ""
+        menuItemPosition: 3.5
+        menuModelName: moreMenu.menu_model_name
+        onActivated: dialogHelpers.showFileDialog(
+                function(fileUrl, undefined, func) {
+                    if(fileUrl)
+                        Future.promise(
+                            ShotBrowserEngine.presetsModel.backupPresetsFuture(
+                                fileUrl
+                            )
+                        ).then(function(string) {
+                                dialogHelpers.errorDialogFunc("Backup Presets", "Backup Presets complete.\n\n" + string)
+                            },
+                            function(err) {
+                                dialogHelpers.errorDialogFunc("Backup Presets", "Backup Presets failed.\n\n" + err)
+                            }
+                        )
+                },
+                file_functions.defaultSessionFolder(),
+                "Backup Presets",
+                "json",
+                ["JSON (*.json)"],
+                false,
+                false
+            )
+    }
+
+    XsMenuModelItem {
+        text: "Restore Presets..."
+        menuPath: ""
+        menuItemPosition: 3.6
+        menuModelName: moreMenu.menu_model_name
+        onActivated: dialogHelpers.showFileDialog(
+                function(fileUrl, button, func) {
+                    if(fileUrl)
+                        Future.promise(
+                            ShotBrowserEngine.presetsModel.restorePresetsFuture(
+                                fileUrl
+                            )
+                        ).then(function(string) {
+                                dialogHelpers.errorDialogFunc("Restore Presets", "Restore Presets complete.\n\n" + string)
+                            },
+                            function(err) {
+                                dialogHelpers.errorDialogFunc("Restore Presets", "Restore Presets failed.\n\n" + err)
+                            }
+                        )
+                },
+                file_functions.defaultSessionFolder(),
+                "Backup Presets",
+                "json",
+                ["JSON (*.json)"],
+                true,
+                false
+            )
+    }
 
     XsMenuModelItem {
         text: "Export As System Presets..."
@@ -216,17 +248,18 @@ XsGradientRectangle{
         menuModelName: moreMenu.menu_model_name
         onActivated: dialogHelpers.showFileDialog(
                 function(fileUrl, undefined, func) {
-                    Future.promise(
-                        ShotBrowserEngine.presetsModel.exportAsSystemPresetsFuture(
-                            fileUrl
+                    if(fileUrl)
+                        Future.promise(
+                            ShotBrowserEngine.presetsModel.exportAsSystemPresetsFuture(
+                                fileUrl
+                            )
+                        ).then(function(string) {
+                                dialogHelpers.errorDialogFunc("Export As System Presets", "Export As System Presets complete.\n\n" + string)
+                            },
+                            function(err) {
+                                dialogHelpers.errorDialogFunc("Export As System Presets", "Export As System Presets failed.\n\n" + err)
+                            }
                         )
-                    ).then(function(string) {
-                            dialogHelpers.errorDialogFunc("Export As System Presets", "Export As System Presets complete.\n\n" + string)
-                        },
-                        function(err) {
-                            dialogHelpers.errorDialogFunc("Export As System Presets", "Export As System Presets failed.\n\n" + err)
-                        }
-                    )
                 },
                 file_functions.defaultSessionFolder(),
                 "Export Presets",

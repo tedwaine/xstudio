@@ -257,6 +257,32 @@ XsPopupMenu {
     }
 
     XsMenuModelItem {
+        text: qsTr("Move Left")
+        menuPath: ""
+        menuItemPosition: 6.1
+        menuModelName: timelineMenu.menu_model_name
+        onActivated: {
+            if(timelineSelection.selectedIndexes.length) {
+                theTimeline.moveItem(timelineSelection.selectedIndexes[0], -1)
+            }
+        }
+        panelContext: timelineMenu.panelContext
+    }
+
+    XsMenuModelItem {
+        text: qsTr("Move Right")
+        menuPath: ""
+        menuItemPosition: 6.2
+        menuModelName: timelineMenu.menu_model_name
+        onActivated: {
+            if(timelineSelection.selectedIndexes.length) {
+                theTimeline.moveItem(timelineSelection.selectedIndexes[0], 1)
+            }
+        }
+        panelContext: timelineMenu.panelContext
+    }
+
+    XsMenuModelItem {
         menuItemType: "divider"
         menuPath: ""
         menuItemPosition: 7

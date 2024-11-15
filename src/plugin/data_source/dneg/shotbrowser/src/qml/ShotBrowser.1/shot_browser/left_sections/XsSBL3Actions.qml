@@ -33,14 +33,17 @@ Rectangle{
     XsModelProperty {
         index: quickModel.rootIndex
         onIndexChanged: {
-            populateModels()
+            if(!index.valid)
+                populateModels()
         }
     }
 
 
     function populateModels() {
         if(ShotBrowserEngine.ready && ShotBrowserEngine.presetsModel.rowCount()) {
-            quickModel.rootIndex = quickModel.notifyModel.mapFromSource(ShotBrowserEngine.presetsModel.searchRecursive("137aa66a-87e2-4c53-b304-44bd7ff9f755", "idRole"))
+            let tmp = quickModel.notifyModel.mapFromSource(ShotBrowserEngine.presetsModel.searchRecursive("137aa66a-87e2-4c53-b304-44bd7ff9f755", "idRole"))
+            if(quickModel.rootIndex != tmp)
+                quickModel.rootIndex = tmp
         }
     }
 
@@ -51,7 +54,14 @@ Rectangle{
 
             let pi = ShotBrowserEngine.presetsModel.termModel("Project").get(projectIndex, "idRole")
             let custom = []
-            let seqsel = sequenceSelectionModel.selectedIndexes
+
+            let seqsel = []
+            for(let i=0;i<sequenceSelectionModel.selectedIndexes.length; i++){
+                let tindex = sequenceSelectionModel.selectedIndexes[i]
+                let findex = tindex.model.mapToModel(tindex)
+                seqsel.push(findex.model.mapToSource(findex))
+            }
+
             for(let i=0;i<seqsel.length;i++) {
                 let t = seqsel[i].model.get(seqsel[i],"typeRole")
                 if(t == "Shot") {
@@ -144,7 +154,7 @@ Rectangle{
     DelegateModel {
         id: quickModel
         property var notifyModel: filterModel
-        rootIndex: filterModel.index(-1,-1)
+        rootIndex: helpers.qModelIndex()
         model: notifyModel
         delegate:  quickCombo.delegate
     }

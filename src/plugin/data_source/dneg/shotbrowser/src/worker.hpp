@@ -4,7 +4,6 @@
 
 #include <caf/all.hpp>
 
-#include "xstudio/event/event.hpp"
 #include "xstudio/utility/frame_rate.hpp"
 #include "xstudio/utility/json_store.hpp"
 #include "xstudio/utility/uuid.hpp"
@@ -22,7 +21,6 @@ class BuildPlaylistMediaJob {
         utility::FrameRate media_rate,
         std::string preferred_visual_source,
         std::string preferred_audio_source,
-        std::shared_ptr<event::Event> event,
         std::shared_ptr<utility::UuidList> ordererd_uuids,
         utility::Uuid before,
         std::string flag_colour,
@@ -37,7 +35,6 @@ class BuildPlaylistMediaJob {
           media_rate_(media_rate),
           preferred_visual_source_(std::move(preferred_visual_source)),
           preferred_audio_source_(std::move(preferred_audio_source)),
-          event_msg_(std::move(event)),
           ordererd_uuids_(std::move(ordererd_uuids)),
           before_(std::move(before)),
           flag_colour_(std::move(flag_colour)),
@@ -90,7 +87,6 @@ class BuildPlaylistMediaJob {
     utility::FrameRate media_rate_;
     std::string preferred_visual_source_;
     std::string preferred_audio_source_;
-    std::shared_ptr<event::Event> event_msg_;
     std::shared_ptr<utility::UuidList> ordererd_uuids_;
     utility::Uuid before_;
     std::string flag_colour_;

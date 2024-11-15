@@ -85,6 +85,8 @@ Rectangle {
 		isSizerDragging: control.isSizerDragging
 		onSizerHovered: setSizerHovered(hovered)
 		onSizerDragging: setSizerDragging(dragging)
+		notificationModel: notificationRole
+
 
 		onEnabledClicked: enabledRole = !enabledRole
 		onLockedClicked: lockedRole = !lockedRole

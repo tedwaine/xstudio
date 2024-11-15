@@ -1,7 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
 
 #include "xstudio/session/session_actor.hpp"
-#include "xstudio/tag/tag.hpp"
 #include "xstudio/timeline/track_actor.hpp"
 #include "xstudio/timeline/stack_actor.hpp"
 #include "xstudio/timeline/gap_actor.hpp"

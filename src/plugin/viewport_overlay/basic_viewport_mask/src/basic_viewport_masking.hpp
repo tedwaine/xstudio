@@ -62,8 +62,8 @@ namespace ui {
           protected:
             void register_hotkeys() override;
 
-            utility::BlindDataObjectPtr prepare_overlay_data(
-                const media_reader::ImageBufPtr &, const bool /*offscreen*/) const override;
+            utility::BlindDataObjectPtr onscreen_render_data(
+                const media_reader::ImageBufPtr &, const std::string &/*viewport_name*/) const override;
 
             plugin::ViewportOverlayRendererPtr make_overlay_renderer() override {
                 return plugin::ViewportOverlayRendererPtr(new BasicMaskRenderer());

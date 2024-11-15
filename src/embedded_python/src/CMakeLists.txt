@@ -6,6 +6,8 @@ find_package(spdlog CONFIG REQUIRED)
 find_package(fmt CONFIG REQUIRED)
 find_package(Imath)
 
+find_package(Python REQUIRED COMPONENTS Interpreter Development)
+
 set(SOURCES
 	embedded_python.cpp
 	embedded_python_actor.cpp
@@ -31,6 +33,7 @@ if(UNIX)
 			xstudio::utility
 			xstudio::broadcast
 			xstudio::global_store
+			xstudio::media
 			Python::Python
 			OTIO::opentime
 			OTIO::opentimelineio

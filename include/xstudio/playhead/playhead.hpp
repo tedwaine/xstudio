@@ -11,7 +11,6 @@
 #include "xstudio/media/media.hpp"
 #include "xstudio/utility/chrono.hpp"
 #include "xstudio/utility/container.hpp"
-#include "xstudio/utility/edit_list.hpp"
 #include "xstudio/utility/json_store.hpp"
 #include "xstudio/utility/logging.hpp"
 #include "xstudio/utility/timecode.hpp"
@@ -20,7 +19,7 @@
 namespace xstudio {
 namespace playhead {
 
-    class PlayheadBase : public utility::Container, public module::Module {
+    class PlayheadBase : public module::Module {
       public:
         typedef std::optional<utility::time_point> OptionalTimePoint;
 
@@ -58,7 +57,7 @@ namespace playhead {
             }
             return playhead::LoopMode::LM_LOOP;
         }
-        [[nodiscard]] CompareMode compare_mode() const;
+        [[nodiscard]] AssemblyMode assemply_mode() const;
         [[nodiscard]] float velocity() const { return velocity_->value(); }
         [[nodiscard]] float velocity_multiplier() const {
             return velocity_multiplier_->value();
@@ -78,6 +77,8 @@ namespace playhead {
         [[nodiscard]] bool use_loop_range() const { return loop_range_enabled_->value(); }
         [[nodiscard]] timebase::flicks duration() const { return duration_; }
         [[nodiscard]] timebase::flicks effective_frame_period() const;
+        [[nodiscard]] AssemblyMode assembly_mode() const { return assembly_mode_; }
+
         timebase::flicks clamp_timepoint_to_loop_range(const timebase::flicks pos) const;
 
         void set_forward(const bool forward = true) { forward_->set_value(forward); }
@@ -101,7 +102,7 @@ namespace playhead {
             playhead_rate_attr_->set_value(rate.to_seconds());
         }
         void set_duration(const timebase::flicks duration);
-        void set_compare_mode(const CompareMode mode);
+        void set_assembly_mode(const AssemblyMode mode);
 
         bool set_use_loop_range(const bool use_loop_range);
         bool set_loop_start(const timebase::flicks loop_start);
@@ -130,14 +131,14 @@ namespace playhead {
         inline static const std::chrono::milliseconds playback_step_increment =
             std::chrono::milliseconds(5);
 
-        inline static const std::vector<std::tuple<CompareMode, std::string, std::string, bool>>
+        /*inline static const std::vector<std::tuple<CompareMode, std::string, std::string, bool>>
             compare_mode_names = {
                 {CM_STRING, "String", "Str", true},
                 {CM_AB, "A/B", "A/B", true},
                 {CM_VERTICAL, "Vertical", "Vert", false},
                 {CM_HORIZONTAL, "Horizontal", "Horiz", false},
                 {CM_GRID, "Grid", "Grid", false},
-                {CM_OFF, "Off", "Off", true}};
+                {CM_OFF, "Off", "Off", true}};*/
 
         void reset() override;
 
@@ -183,9 +184,9 @@ namespace playhead {
 
         utility::time_point last_step_;
         float throttle_{1.0f};
+        AssemblyMode assembly_mode_ = {AssemblyMode::AM_ONE};
 
         module::FloatAttribute *velocity_;
-        module::StringChoiceAttribute *compare_mode_;
         module::QmlCodeAttribute *source_;
         module::StringAttribute *image_source_name_;
         module::StringChoiceAttribute *image_source_;

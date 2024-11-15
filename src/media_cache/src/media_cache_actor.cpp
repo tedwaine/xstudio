@@ -163,7 +163,7 @@ GlobalImageCacheActor::GlobalImageCacheActor(caf::actor_config &cfg)
             const Uuid &uuid) -> media::AVFrameIDsAndTimePoints {
             media::AVFrameIDsAndTimePoints result;
             for (const auto &p : mpts) {
-                if (!cache_.preserve(p.second->key_, p.first, uuid)) {
+                if (!cache_.preserve(p.second->key(), p.first, uuid)) {
                     result.push_back(p);
                 }
             }
@@ -186,7 +186,7 @@ GlobalImageCacheActor::GlobalImageCacheActor(caf::actor_config &cfg)
             std::vector<media_reader::ImageBufPtr> result(mptr_and_timepoints.size());
             auto r = result.begin();
             for (const auto &p : mptr_and_timepoints) {
-                *r                    = cache_.retrieve(p.second->key_, p.first);
+                *r                    = cache_.retrieve(p.second->key(), p.first);
                 (*r).when_to_display_ = p.first;
                 r++;
             }
@@ -354,7 +354,7 @@ GlobalAudioCacheActor::GlobalAudioCacheActor(caf::actor_config &cfg)
             const Uuid &uuid) -> media::AVFrameIDsAndTimePoints {
             media::AVFrameIDsAndTimePoints result;
             for (const auto &p : mpts) {
-                if (!cache_.preserve(p.second->key_, p.first, uuid)) {
+                if (!cache_.preserve(p.second->key(), p.first, uuid)) {
                     result.push_back(p);
                 }
             }
@@ -369,7 +369,7 @@ GlobalAudioCacheActor::GlobalAudioCacheActor(caf::actor_config &cfg)
             std::vector<media_reader::AudioBufPtr> result(mptr_and_timepoints.size());
             auto r = result.begin();
             for (const auto &p : mptr_and_timepoints) {
-                *r                    = cache_.retrieve(p.second->key_, p.first);
+                *r                    = cache_.retrieve(p.second->key(), p.first);
                 (*r).when_to_display_ = p.first;
                 r++;
             }

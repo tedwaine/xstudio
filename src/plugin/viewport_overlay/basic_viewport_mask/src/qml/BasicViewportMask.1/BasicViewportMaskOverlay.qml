@@ -12,22 +12,18 @@ import xstudio.qml.models 1.0
 
 // Our Overlay is based on a transparent rectangle that simply fills the
 // xSTUDIO view. Within this we draw the overlay graphics as required.
-Rectangle {
+Item {
 
     // Note that viewport overlays are instanced by the Viewport QML instance
-    // which has the id 'viewport' and is visible to us here. To learn more
+    // which has the id 'view' and is visible to us here. To learn more
     // about the viewport see files Xsview.qml and qml_view.cpp from
     // the xSTUDIO source code.
 
     id: control
-    color: "transparent"
     width: view.width
     height: view.height
-
-    // The imageBoundaryInViewport property on the xSTUDIO Viewport class
-    // is a rectangle that indicates the pixel coordinates of the image
-    // boundary in the xSTUDIO view.
-    property var imageBox: view.imageBoundaryInViewport
+    property var imageBoxes: view.imageBoundariesInViewport
+    visible: renderMethod == "QML" && maskEnabled
 
     // access the attribute group that contains all the settings for the mask.
     // For HUD plugins this is the name of the plugin ("Mask") plus " Settings"
@@ -109,74 +105,88 @@ Rectangle {
 
     property var safety: safetyPercent/200.0
 
-    property var l: imageBox.x + (imageBox.width)*safety
-    property var b: imageBox.y + (imageBox.height-(imageBox.width*(1.0-safety*maskAspectRatio)/maskAspectRatio))/2.0
-    property var r: imageBox.x + imageBox.width*(1.0 - safety)
-    property var t: imageBox.y + (imageBox.height+(imageBox.width*(1.0-safety*maskAspectRatio)/maskAspectRatio))/2.0
+    Repeater {
 
-    visible: renderMethod == "QML" && maskEnabled
+        model: view.imageBoundariesInViewport
+        Item {
 
-    Rectangle {
-        id: bottom_masking_rect
-        opacity: maskOpacity
-        color: "black"
-        x: 0
-        y: 0
-        width: control.width
-        height: b
-    }
+            // Viewport class provides imageBoxes - the coordinates of each
+            // image within the viewport, in viewport pixels
+            property var imageBox: imageBoxes[index] ? imageBoxes[index] : Qt.QRectF()
 
-    Rectangle {
-        id: top_masking_rect
-        opacity: maskOpacity
-        color: "black"
-        x: 0
-        y: t
-        width: control.width
-        height: control.height-t
-    }
+            x: imageBox.x
+            y: imageBox.y
+            height: imageBox.height
+            width: imageBox.width
 
-    Rectangle {
-        id: left_masking_rect
-        opacity: maskOpacity
-        color: "black"
-        x: 0
-        y: b
-        width: l
-        height: t-b
-    }
+            property var l: width*safety
+            property var b: (height-(width*(1.0-safety*maskAspectRatio)/maskAspectRatio))/2.0
+            property var r: width*(1.0 - safety)
+            property var t: (height+(width*(1.0-safety*maskAspectRatio)/maskAspectRatio))/2.0
 
-    Rectangle {
-        id: right_masking_rect
-        opacity: maskOpacity
-        color: "black"
-        x: r
-        y: b
-        width: control.width-x
-        height: t-b
-    }
+            Rectangle {
+                id: bottom_masking_rect
+                opacity: maskOpacity
+                color: "black"
+                x: 0
+                y: 0
+                width: parent.width
+                height: b
+            }
 
-    Rectangle {
-        id: lines
-        opacity: maskLineOpacity
-        color: "transparent"
-        border.color: "white"
-        border.width: maskLineThickness
-        x: l-maskLineThickness/2
-        y: b-maskLineThickness/2
-        width: r-l+maskLineThickness
-        height: t-b+maskLineThickness
-    }
+            Rectangle {
+                id: top_masking_rect
+                opacity: maskOpacity
+                color: "black"
+                x: 0
+                y: t
+                width: parent.width
+                height: parent.height-t
+            }
 
-    Text {
-        text: mask_name
-        opacity: maskLineOpacity
-        visible: showMaskLabel
-        color: "white"
-        font.pixelSize: labelSize
-        anchors.left: lines.left
-        anchors.bottom: lines.top
-        anchors.bottomMargin: 4
+            Rectangle {
+                id: left_masking_rect
+                opacity: maskOpacity
+                color: "black"
+                x: 0
+                y: b
+                width: l
+                height: t-b
+            }
+
+            Rectangle {
+                id: right_masking_rect
+                opacity: maskOpacity
+                color: "black"
+                x: r
+                y: b
+                width: parent.width-r
+                height: t-b
+            }
+
+            Rectangle {
+                id: lines
+                opacity: maskLineOpacity
+                color: "transparent"
+                border.color: "white"
+                border.width: maskLineThickness
+                x: l-maskLineThickness/2
+                y: b-maskLineThickness/2
+                width: r-l+maskLineThickness
+                height: t-b+maskLineThickness
+            }
+
+            Text {
+                text: mask_name
+                opacity: maskLineOpacity
+                visible: showMaskLabel
+                color: "white"
+                font.pixelSize: labelSize
+                anchors.left: lines.left
+                anchors.bottom: lines.top
+                anchors.bottomMargin: 4
+            }
+        }
     }
 
 }

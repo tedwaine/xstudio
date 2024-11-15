@@ -116,7 +116,7 @@ StackActor::StackActor(caf::actor_config &cfg, const utility::JsonStore &jsn, It
     base_.item().bind_item_post_event_func([this](const utility::JsonStore &event, Item &item) {
         item_event_callback(event, item);
     });
-    pitem = base_.item();
+    pitem = base_.item().clone();
 
     init();
 }
@@ -145,7 +145,7 @@ StackActor::StackActor(caf::actor_config &cfg, const Item &item)
 
 StackActor::StackActor(caf::actor_config &cfg, const Item &item, Item &nitem)
     : StackActor(cfg, item) {
-    nitem = base_.item();
+    nitem = base_.item().clone();
 }
 
 void StackActor::on_exit() {
@@ -163,13 +163,12 @@ void StackActor::item_event_callback(const utility::JsonStore &event, Item &item
         // base_.item().cend(), actors_.count(cuuid), not event["blind"].is_null(),
         // event.dump(2)); needs to be child..
         auto child_item_it = find_uuid(base_.item().children(), cuuid);
-        if (child_item_it != base_.item().cend() and not actors_.count(cuuid) and
+        if (child_item_it != base_.item().end() and not actors_.count(cuuid) and
             not event.at("blind").is_null()) {
             // our child
             // spdlog::warn("RECREATE MATCH");
 
             auto actor = deserialise(utility::JsonStore(event.at("blind")), false);
-            add_item(UuidActor(cuuid, actor));
             // spdlog::warn("{}",to_string(caf::actor_cast<caf::actor_addr>(actor)));
             // spdlog::warn("{}",to_string(caf::actor_cast<caf::actor_addr>(child_item_it->actor())));
             child_item_it->set_actor_addr(actor);
@@ -179,7 +178,7 @@ void StackActor::item_event_callback(const utility::JsonStore &event, Item &item
             // item actor_addr will be wrong.. in ancestors
             // send special update..
             send(
-                event_group_,
+                base_.event_group(),
                 event_atom_v,
                 item_atom_v,
                 child_item_it->make_actor_addr_update(),
@@ -212,51 +211,13 @@ void StackActor::item_event_callback(const utility::JsonStore &event, Item &item
     }
 }
 
-void StackActor::init() {
-    print_on_create(this, base_.name());
-    print_on_exit(this, base_.name());
-
-    event_group_ = spawn<broadcast::BroadcastActor>(this);
-    link_to(event_group_);
-
-    set_down_handler([=](down_msg &msg) {
-        // if a child dies we won't have enough information to recreate it.
-        // we still need to report it up the chain though.
-        for (auto it = std::begin(actors_); it != std::end(actors_); ++it) {
-            if (msg.source == it->second) {
-                demonitor(it->second);
-                actors_.erase(it);
-
-                // remove from base.
-                auto it = find_actor_addr(base_.item().children(), msg.source);
-
-                if (it != base_.item().end()) {
-                    auto jsn  = base_.item().erase(it);
-                    auto more = base_.item().refresh();
-                    if (not more.is_null())
-                        jsn.insert(jsn.begin(), more.begin(), more.end());
-
-                    send(event_group_, event_atom_v, item_atom_v, jsn, false);
-                }
-                break;
-            }
-        }
-    });
-
-    behavior_.assign(
-        base_.make_set_name_handler(event_group_, this),
-        base_.make_get_name_handler(),
-        base_.make_last_changed_getter(),
-        base_.make_last_changed_setter(event_group_, this),
-        base_.make_last_changed_event_handler(event_group_, this),
-        base_.make_get_uuid_handler(),
-        base_.make_get_type_handler(),
-        make_get_event_group_handler(event_group_),
-        base_.make_get_detail_handler(this, event_group_),
-
+caf::message_handler StackActor::message_handler() {
+    return caf::message_handler{
         [=](xstudio::broadcast::broadcast_down_atom, const caf::actor_addr &) {
             // should we handle child down ?
         },
+
+        [=](utility::event_atom, notification_atom, const JsonStore &) {},
 
         [=](link_media_atom, const UuidActorMap &media, const bool force) -> result<bool> {
             auto rp = make_response_promise<bool>();
@@ -287,7 +248,7 @@ void StackActor::init() {
             auto jsn = base_.item().set_markers(markers);
 
             if (not jsn.is_null())
-                send(event_group_, event_atom_v, item_atom_v, jsn, false);
+                send(base_.event_group(), event_atom_v, item_atom_v, jsn, false);
 
             return jsn;
         },
@@ -298,7 +259,7 @@ void StackActor::init() {
             auto jsn = base_.item().set_markers(markers);
 
             if (not jsn.is_null())
-                send(event_group_, event_atom_v, item_atom_v, jsn, false);
+                send(base_.event_group(), event_atom_v, item_atom_v, jsn, false);
 
             return jsn;
         },
@@ -307,12 +268,16 @@ void StackActor::init() {
             auto jsn = base_.item().set_markers(markers);
 
             if (not jsn.is_null())
-                send(event_group_, event_atom_v, item_atom_v, jsn, false);
+                send(base_.event_group(), event_atom_v, item_atom_v, jsn, false);
 
             return jsn;
         },
 
         [=](utility::rate_atom) -> FrameRate { return base_.item().rate(); },
+
+        [=](utility::rate_atom atom, const media::MediaType media_type) {
+            delegate(caf::actor_cast<caf::actor>(this), atom);
+        },
 
         [=](item_marker_atom) -> std::vector<Marker> {
             std::vector<Marker> result(
@@ -320,14 +285,14 @@ void StackActor::init() {
             return result;
         },
 
-        [=](item_atom) -> Item { return base_.item(); },
+        [=](item_atom) -> Item { return base_.item().clone(); },
 
         [=](item_atom, const bool with_state) -> result<std::pair<JsonStore, Item>> {
             auto rp = make_response_promise<std::pair<JsonStore, Item>>();
             request(caf::actor_cast<caf::actor>(this), infinite, utility::serialise_atom_v)
                 .then(
                     [=](const JsonStore &jsn) mutable {
-                        rp.deliver(std::make_pair(jsn, base_.item()));
+                        rp.deliver(std::make_pair(jsn, base_.item().clone()));
                     },
                     [=](const caf::error &err) mutable { rp.deliver(err); });
             return rp;
@@ -336,21 +301,21 @@ void StackActor::init() {
         [=](item_flag_atom, const std::string &value) -> JsonStore {
             auto jsn = base_.item().set_flag(value);
             if (not jsn.is_null())
-                send(event_group_, event_atom_v, item_atom_v, jsn, false);
+                send(base_.event_group(), event_atom_v, item_atom_v, jsn, false);
             return jsn;
         },
 
         [=](item_lock_atom, const bool value) -> JsonStore {
             auto jsn = base_.item().set_locked(value);
             if (not jsn.is_null())
-                send(event_group_, event_atom_v, item_atom_v, jsn, false);
+                send(base_.event_group(), event_atom_v, item_atom_v, jsn, false);
             return jsn;
         },
 
         [=](item_name_atom, const std::string &value) -> JsonStore {
             auto jsn = base_.item().set_name(value);
             if (not jsn.is_null())
-                send(event_group_, event_atom_v, item_atom_v, jsn, false);
+                send(base_.event_group(), event_atom_v, item_atom_v, jsn, false);
             return jsn;
         },
 
@@ -360,13 +325,13 @@ void StackActor::init() {
             }
             auto it = base_.item().cbegin();
             std::advance(it, index);
-            return *it;
+            return (*it).clone();
         },
 
         [=](item_prop_atom, const utility::JsonStore &value) -> JsonStore {
             auto jsn = base_.item().set_prop(value);
             if (not jsn.is_null())
-                send(event_group_, event_atom_v, item_atom_v, jsn, false);
+                send(base_.event_group(), event_atom_v, item_atom_v, jsn, false);
             return jsn;
         },
 
@@ -382,7 +347,7 @@ void StackActor::init() {
             }
             auto jsn = base_.item().set_prop(prop);
             if (not jsn.is_null())
-                send(event_group_, event_atom_v, item_atom_v, jsn, false);
+                send(base_.event_group(), event_atom_v, item_atom_v, jsn, false);
             return jsn;
         },
 
@@ -391,21 +356,21 @@ void StackActor::init() {
         [=](plugin_manager::enable_atom, const bool value) -> JsonStore {
             auto jsn = base_.item().set_enabled(value);
             if (not jsn.is_null())
-                send(event_group_, event_atom_v, item_atom_v, jsn, false);
+                send(base_.event_group(), event_atom_v, item_atom_v, jsn, false);
             return jsn;
         },
 
         [=](active_range_atom, const FrameRange &fr) -> JsonStore {
             auto jsn = base_.item().set_active_range(fr);
             if (not jsn.is_null())
-                send(event_group_, event_atom_v, item_atom_v, jsn, false);
+                send(base_.event_group(), event_atom_v, item_atom_v, jsn, false);
             return jsn;
         },
 
         [=](available_range_atom, const FrameRange &fr) -> JsonStore {
             auto jsn = base_.item().set_available_range(fr);
             if (not jsn.is_null())
-                send(event_group_, event_atom_v, item_atom_v, jsn, false);
+                send(base_.event_group(), event_atom_v, item_atom_v, jsn, false);
             return jsn;
         },
 
@@ -472,12 +437,12 @@ void StackActor::init() {
                 auto more = base_.item().refresh();
                 if (not more.is_null()) {
                     more.insert(more.begin(), update.begin(), update.end());
-                    send(event_group_, event_atom_v, item_atom_v, more, hidden);
+                    send(base_.event_group(), event_atom_v, item_atom_v, more, hidden);
                     return;
                 }
             }
 
-            send(event_group_, event_atom_v, item_atom_v, update, hidden);
+            send(base_.event_group(), event_atom_v, item_atom_v, update, hidden);
         },
 
         [=](insert_item_atom,
@@ -674,7 +639,7 @@ void StackActor::init() {
         },
 
         [=](utility::event_atom, utility::change_atom) {
-            send(event_group_, utility::event_atom_v, utility::change_atom_v);
+            send(base_.event_group(), utility::event_atom_v, utility::change_atom_v);
         },
 
         [=](utility::serialise_atom) -> result<JsonStore> {
@@ -703,7 +668,36 @@ void StackActor::init() {
             jsn["actors"] = {};
 
             return result<JsonStore>(jsn);
-        });
+        }};
+}
+
+void StackActor::init() {
+    print_on_create(this, base_.name());
+    print_on_exit(this, base_.name());
+
+    set_down_handler([=](down_msg &msg) {
+        // if a child dies we won't have enough information to recreate it.
+        // we still need to report it up the chain though.
+        for (auto it = std::begin(actors_); it != std::end(actors_); ++it) {
+            if (msg.source == it->second) {
+                demonitor(it->second);
+                actors_.erase(it);
+
+                // remove from base.
+                auto it = find_actor_addr(base_.item().children(), msg.source);
+
+                if (it != base_.item().end()) {
+                    auto jsn  = base_.item().erase(it);
+                    auto more = base_.item().refresh();
+                    if (not more.is_null())
+                        jsn.insert(jsn.begin(), more.begin(), more.end());
+
+                    send(base_.event_group(), event_atom_v, item_atom_v, jsn, false);
+                }
+                break;
+            }
+        }
+    });
 }
 
 void StackActor::add_item(const utility::UuidActor &ua) {
@@ -771,7 +765,7 @@ void StackActor::insert_items(
                 if (not more.is_null())
                     changes.insert(changes.end(), more.begin(), more.end());
 
-                send(event_group_, event_atom_v, item_atom_v, changes, false);
+                send(base_.event_group(), event_atom_v, item_atom_v, changes, false);
                 rp.deliver(changes);
             },
             [=](const caf::error &err) mutable { rp.deliver(err); });
@@ -824,7 +818,7 @@ StackActor::remove_items(const int index, const int count) {
 
                 auto tmp = base_.item().erase(it, blind);
                 changes.insert(changes.end(), tmp.begin(), tmp.end());
-                items.push_back(item);
+                items.push_back(item.clone());
             }
         }
 
@@ -832,7 +826,7 @@ StackActor::remove_items(const int index, const int count) {
         if (not more.is_null())
             changes.insert(changes.begin(), more.begin(), more.end());
 
-        send(event_group_, event_atom_v, item_atom_v, changes, false);
+        send(base_.event_group(), event_atom_v, item_atom_v, changes, false);
     }
 
     return std::make_pair(changes, items);
@@ -859,7 +853,7 @@ void StackActor::move_items(
         if (not more.is_null())
             changes.insert(changes.begin(), more.begin(), more.end());
 
-        send(event_group_, event_atom_v, item_atom_v, changes, false);
+        send(base_.event_group(), event_atom_v, item_atom_v, changes, false);
         rp.deliver(changes);
     }
 }

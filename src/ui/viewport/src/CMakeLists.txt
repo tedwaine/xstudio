@@ -9,6 +9,7 @@ set(SOURCES
 	fps_monitor.cpp
 	keypress_monitor.cpp
 	video_output_plugin.cpp
+	viewport_layout_plugin.cpp
 )
 
 add_library(${PROJECT_NAME} SHARED ${SOURCES})
@@ -23,6 +24,7 @@ target_link_libraries(${PROJECT_NAME}
 		xstudio::plugin_manager
 		xstudio::utility
 		xstudio::playhead
+		xstudio::ui::opengl::viewport
 		OpenEXR::OpenEXR
 		Imath::Imath
 		caf::core

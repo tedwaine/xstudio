@@ -71,6 +71,9 @@ Rectangle {
     property var conformSourceIndex: null
     property bool have_timeline: true
 
+    property int snapLine: -1
+
+
     signal jumpToStart()
     signal jumpToEnd()
     signal jumpToFrame(int frame, bool center)
@@ -1311,6 +1314,7 @@ Rectangle {
             property var initialPosition: Qt.point(0,0)
             property var initialValue: 0
             property real minScaleX: 0
+            property var snapCacheKey: null
 
             Rectangle {
                 id: region
@@ -1431,7 +1435,20 @@ Rectangle {
             onPositionChanged: {
                 if(isScaling) {
                     // cap min scale to fit timeline.
-                    scaleX = Math.max(minScaleX, initialValue - ((initialPosition.x - mouse.x)/40.0))
+                    // scaleX = Math.max(minScaleX, initialValue - ((initialPosition.x - mouse.x)/40.0))
+                    // if(initialPosition.x - mouse.x > 0)
+                    //     scaleX = Math.max(minScaleX, initialValue + ((initialValue/100) * (initialPosition.x - mouse.x)))
+                    // else
+                    let steps = Math.abs(initialPosition.x - mouse.x)
+                    let initial = initialValue
+                    for(let i=0; i< steps; i++) {
+                        if(initialPosition.x - mouse.x > 0)
+                            initial -= (initial*0.004)
+                        else
+                            initial += (initial*0.004)
+                    }
+                    scaleX = Math.max(minScaleX, initial)
+                        // scaleX = Math.max(minScaleX, initialValue - ((initialValue/100) * (initialPosition.x - mouse.x)))
                     // reset value so increasing works imediately.
                     if(scaleX == minScaleX) {
                         initialPosition = Qt.point(mouse.x, mouse.y)
@@ -1510,56 +1527,81 @@ Rectangle {
                         return
 
                     if("Clip" == item_type)
-                        theSessionData.updateTimelineItemDragFlag([hovered.modelIndex()], editMode == "Roll", rippleMode)
+                        theSessionData.updateTimelineItemDragFlag([hovered.modelIndex()], editMode == "Roll", rippleMode, overwriteMode)
                 }
             }
 
             function draggingStarted(index, item, mode ) {
+                snapCacheKey = helpers.makeQUuid()
                 if(mode == "left")
-                    theSessionData.beginTimelineItemDrag(timelineSelection.selectedIndexes, mode)
+                    theSessionData.beginTimelineItemDrag(timelineSelection.selectedIndexes, mode, rippleMode, overwriteMode)
                 else if(mode == "right")
-                    theSessionData.beginTimelineItemDrag(timelineSelection.selectedIndexes, mode, rippleMode)
+                    theSessionData.beginTimelineItemDrag(timelineSelection.selectedIndexes, mode, rippleMode, overwriteMode)
                 else if(mode == "leftleft")
                     theSessionData.beginTimelineItemDrag(timelineSelection.selectedIndexes, mode)
                 else if(mode == "rightright")
                     theSessionData.beginTimelineItemDrag(timelineSelection.selectedIndexes, mode)
                 else if(mode == "middle")
-                    theSessionData.beginTimelineItemDrag(timelineSelection.selectedIndexes, mode, rippleMode)
+                    theSessionData.beginTimelineItemDrag(timelineSelection.selectedIndexes, mode, rippleMode, overwriteMode)
                 else if(mode == "roll")
                     theSessionData.beginTimelineItemDrag(timelineSelection.selectedIndexes, mode)
             }
 
             function dragging(index, item, mode, x) {
                 if(snapMode) {
-                    let win = 10 / scaleX
+                    let clipStart = theSessionData.startFrameInParent(index)
+                    let matched = []
                     if(mode == "left" || mode == "leftleft") {
-                        let fp = theSessionData.startFrameInParent(index)
-                        let start_dist = list_view.playheadFrame - fp
-
-                        if(start_dist > x - win && start_dist < x + win)
-                            x = start_dist
+                        matched = theSessionData.snapTo(
+                            index, list_view.playheadFrame,
+                            clipStart,
+                            0,
+                            x,
+                            10 / scaleX,
+                            snapCacheKey
+                        )
                     } else if(mode == "middle") {
-                        let fp = theSessionData.startFrameInParent(index)
-                        let start_dist = list_view.playheadFrame - fp
-                        let end_dist = list_view.playheadFrame - (fp + item.currentDurationFrame)
-
-                        if(start_dist > x - win && start_dist < x + win)
-                            x = start_dist
-                        else if(end_dist > x - win && end_dist < x + win)
-                            x = end_dist
+                        matched = theSessionData.snapTo(
+                            index, list_view.playheadFrame,
+                            clipStart,
+                            item.currentDurationFrame,
+                            x,
+                            10 / scaleX,
+                            snapCacheKey
+                        )
                     } else if(mode == "right" || mode == "rightright") {
-                        let fp = theSessionData.startFrameInParent(index)
-                        let end_dist = list_view.playheadFrame - (fp + item.currentDurationFrame)
+                        matched = theSessionData.snapTo(
+                            index, list_view.playheadFrame,
+                            clipStart+item.currentDurationFrame,
+                            0,
+                            x,
+                            10 / scaleX,
+                            snapCacheKey
+                        )
+                    }
 
-                        if(end_dist > x - win && end_dist < x + win)
-                            x = end_dist
+                    if(matched.length) {
+                        x = matched[0]
+                        if(mode == "right" || mode == "rightright") {
+                            if(matched[2])
+                                snapLine = clipStart+item.currentDurationFrame + x
+                            else
+                                snapLine = clipStart+item.currentDurationFrame + item.currentDurationFrame + x
+                        } else {
+                            if(matched[2])
+                                snapLine = clipStart + x
+                            else
+                                snapLine = clipStart + item.currentDurationFrame + x
+                        }
+                    } else {
+                        snapLine = -1
                     }
                 }
 
                 if(mode == "left")
-                    theSessionData.updateTimelineItemDrag(timelineSelection.selectedIndexes, mode, x)
+                    theSessionData.updateTimelineItemDrag(timelineSelection.selectedIndexes, mode, x, rippleMode, overwriteMode)
                 else if(mode == "right")
-                    theSessionData.updateTimelineItemDrag(timelineSelection.selectedIndexes, mode, x, rippleMode)
+                    theSessionData.updateTimelineItemDrag(timelineSelection.selectedIndexes, mode, x, rippleMode, overwriteMode)
                 else if(mode == "leftleft")
                     theSessionData.updateTimelineItemDrag(timelineSelection.selectedIndexes, mode, x)
                 else if(mode == "rightright")
@@ -1582,9 +1624,9 @@ Rectangle {
 
             function draggingStopped(index, item, mode) {
                 if(mode == "left")
-                    theSessionData.endTimelineItemDrag(timelineSelection.selectedIndexes, mode)
+                    theSessionData.endTimelineItemDrag(timelineSelection.selectedIndexes, mode, overwriteMode)
                 else if(mode == "right")
-                    theSessionData.endTimelineItemDrag(timelineSelection.selectedIndexes, mode)
+                    theSessionData.endTimelineItemDrag(timelineSelection.selectedIndexes, mode, overwriteMode)
                 else if(mode == "leftleft")
                     theSessionData.endTimelineItemDrag(timelineSelection.selectedIndexes, mode)
                 else if(mode == "rightright")
@@ -1593,6 +1635,7 @@ Rectangle {
                     theSessionData.endTimelineItemDrag(timelineSelection.selectedIndexes, mode, overwriteMode)
                 else if(mode == "roll")
                     theSessionData.endTimelineItemDrag(timelineSelection.selectedIndexes, mode)
+                snapLine = -1
             }
 
             function isValidSelection(ctype, ntype) {

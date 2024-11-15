@@ -2,7 +2,7 @@
 #include "xstudio/shotgun_client/shotgun_client.hpp"
 #include "xstudio/utility/helpers.hpp"
 #include "xstudio/thumbnail/thumbnail.hpp"
-#include "xstudio/tag/tag.hpp"
+#include "xstudio/utility/notification_handler.hpp"
 
 #include "shotbrowser_plugin.hpp"
 
@@ -137,8 +137,6 @@ void ShotBrowser::create_playlist_notes(
         auto bookmarks =
             request_receive<caf::actor>(*sys, session, bookmark::get_bookmark_atom_v);
 
-        auto tags = request_receive<caf::actor>(*sys, session, xstudio::tag::get_tag_atom_v);
-
         auto count   = notes.size();
         auto failed  = std::make_shared<size_t>(0);
         auto succeed = std::make_shared<size_t>(0);
@@ -174,20 +172,23 @@ void ShotBrowser::create_playlist_notes(
 
                                 // spdlog::warn("note {}", result.dump(2));
                                 // send json to note..
-                                anon_send(
-                                    bookmarks,
-                                    json_store::set_json_atom_v,
-                                    utility::Uuid(j.at("bookmark_uuid")),
-                                    utility::JsonStore(result.at("data")),
-                                    ShotgunMetadataPath + "/note");
 
-                                xstudio::tag::Tag t;
-                                t.set_type("Decorator");
-                                t.set_data(ui);
-                                t.set_link(utility::Uuid(j.at("bookmark_uuid")));
-                                t.set_unique(to_string(t.link()) + t.type() + t.data());
+                                for (const auto &ju : j.at("bookmark_uuid")) {
+                                    anon_send(
+                                        bookmarks,
+                                        json_store::set_json_atom_v,
+                                        ju.get<Uuid>(),
+                                        utility::JsonStore(result.at("data")),
+                                        ShotgunMetadataPath + "/note");
 
-                                anon_send(tags, xstudio::tag::add_tag_atom_v, t);
+                                    // add shotgun decorator to note.
+                                    anon_send(
+                                        bookmarks,
+                                        json_store::set_json_atom_v,
+                                        ju.get<Uuid>(),
+                                        JsonStore(R"({"icon": "qrc:/shotbrowser_icons/shot_grid.svg", "tooltip": "Published to ShotGrid"})"_json),
+                                        "/ui/decorators/shotgrid");
+                                }
 
                                 (*succeed)++;
                             }
@@ -264,6 +265,17 @@ void ShotBrowser::create_playlist(
     // src should be a playlist actor..
     // and we want to update it..
     // retrieve shotgun metadata from playlist, and media items.
+    auto notification_uuid = Uuid();
+    auto playlist          = caf::actor();
+
+    auto failed = [=](const caf::actor &dest, const Uuid &uuid) mutable {
+        if (dest and not uuid.is_null()) {
+            auto notify = Notification::WarnNotification("Publish Playlist Failed");
+            notify.uuid(uuid);
+            anon_send(dest, utility::notification_atom_v, notify);
+        }
+    };
+
     try {
 
         scoped_actor sys{system()};
@@ -279,7 +291,7 @@ void ShotBrowser::create_playlist(
             system().registry().template get<caf::actor>(global_registry),
             session::session_atom_v);
 
-        auto playlist = request_receive<caf::actor>(
+        playlist = request_receive<caf::actor>(
             *sys, session, session::get_playlist_atom_v, playlist_uuid);
 
         auto jsn = R"({
@@ -298,6 +310,11 @@ void ShotBrowser::create_playlist(
 
         // "2021-08-18T19:00:00Z"
 
+        auto notify       = Notification::ProcessingNotification("Publishing Playlist");
+        notification_uuid = notify.uuid();
+        anon_send(playlist, utility::notification_atom_v, notify);
+
+
         // need to capture result to embed in playlist and add any media..
         request(
             shotgun_,
@@ -312,18 +329,23 @@ void ShotBrowser::create_playlist(
                         auto playlist_id = result.at("data").at("id").template get<int>();
                         // update shotgun versions from our source playlist.
                         // return the result..
-                        update_playlist_versions(rp, playlist_uuid, playlist_id);
+                        update_playlist_versions(
+                            rp, playlist_uuid, playlist_id, notification_uuid);
+
                     } catch (const std::exception &err) {
+                        failed(playlist, notification_uuid);
                         spdlog::warn("{} {}", __PRETTY_FUNCTION__, result.dump(2));
                         rp.deliver(make_error(xstudio_error::error, err.what()));
                     }
                 },
                 [=](error &err) mutable {
+                    failed(playlist, notification_uuid);
                     spdlog::warn("{} {}", __PRETTY_FUNCTION__, to_string(err));
                     rp.deliver(err);
                 });
 
     } catch (const std::exception &err) {
+        failed(playlist, notification_uuid);
         rp.deliver(make_error(xstudio_error::error, err.what()));
     }
 }

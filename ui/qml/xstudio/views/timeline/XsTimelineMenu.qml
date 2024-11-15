@@ -24,6 +24,10 @@ XsPopupMenu {
         }
     }
 
+    Component.onCompleted: {
+        helpers.setMenuPathPosition("Time Mode", "timeline_menu_", 1.9)
+    }
+
    XsMenuModelItem {
         text: qsTr("Add Marker")
         menuPath: ""
@@ -49,6 +53,30 @@ XsPopupMenu {
         panelContext: timelineMenu.panelContext
         isChecked: hideMarkers
         onActivated: hideMarkers = !hideMarkers
+    }
+
+   XsMenuModelItem {
+        text: qsTr("Frame")
+        menuPath: "Time Mode"
+        menuItemPosition: 1.0
+        menuModelName: timelineMenu.menu_model_name
+        panelContext: timelineMenu.panelContext
+
+        menuItemType: "toggle"
+        isChecked: timeMode == "frames"
+        onActivated: timeMode = "frames"
+    }
+
+   XsMenuModelItem {
+        text: qsTr("TimeCode")
+        menuPath: "Time Mode"
+        menuItemPosition: 2.0
+        menuModelName: timelineMenu.menu_model_name
+        panelContext: timelineMenu.panelContext
+
+        menuItemType: "toggle"
+        isChecked: timeMode == "timecode"
+        onActivated: timeMode = "timecode"
     }
 
     XsMenuModelItem {

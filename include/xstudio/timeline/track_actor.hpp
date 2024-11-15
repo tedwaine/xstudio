@@ -8,6 +8,7 @@
 #include "xstudio/timeline/track.hpp"
 #include "xstudio/utility/json_store.hpp"
 #include "xstudio/utility/uuid.hpp"
+#include "xstudio/utility/notification_handler.hpp"
 
 namespace xstudio {
 namespace timeline {
@@ -29,11 +30,20 @@ namespace timeline {
         const char *name() const override { return NAME.c_str(); }
         void on_exit() override;
 
+        static caf::message_handler default_event_handler();
+
       private:
         inline static const std::string NAME = "TrackActor";
         void init();
 
-        caf::behavior make_behavior() override { return behavior_; }
+        caf::message_handler message_handler();
+
+        caf::behavior make_behavior() override {
+            return message_handler()
+                .or_else(base_.container_message_handler(this))
+                .or_else(notification_.message_handler(this, base_.event_group()));
+        }
+
         // void deliver_media_pointer(
         //     const int logical_frame, caf::typed_response_promise<media::AVFrameID> rp);
         void add_item(const utility::UuidActor &ua);
@@ -114,15 +124,12 @@ namespace timeline {
         // void merge_gaps(caf::typed_response_promise<utility::JsonStore> rp);
 
       private:
-        caf::behavior behavior_;
         Track base_;
-        caf::actor event_group_;
         std::map<utility::Uuid, caf::actor> actors_;
         // might need to prune.. ?
         std::set<utility::Uuid> events_processed_;
+        utility::NotificationHandler notification_;
 
-        // bool update_edit_list_;
-        // utility::EditList edit_list_;
     };
 } // namespace timeline
 } // namespace xstudio

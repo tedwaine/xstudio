@@ -28,7 +28,12 @@ namespace playhead {
 
         void on_exit() override;
 
-        caf::behavior make_behavior() override { return behavior_; }
+
+        caf::message_handler message_handler();
+
+        caf::behavior make_behavior() override {
+            return message_handler().or_else(base_.container_message_handler(this));
+        }
 
         void select_media(const utility::UuidList &media_uuids, const bool retry = true);
 
@@ -45,8 +50,6 @@ namespace playhead {
 
       private:
         PlayheadSelection base_;
-        caf::behavior behavior_;
-        caf::actor event_group_;
         caf::actor playlist_;
         std::map<utility::Uuid, caf::actor> source_actors_;
         std::string filter_string_;

@@ -29,8 +29,11 @@ namespace timeline {
         inline static const std::string NAME = "StackActor";
         void init();
         void on_exit() override;
+        caf::message_handler message_handler();
 
-        caf::behavior make_behavior() override { return behavior_; }
+        caf::behavior make_behavior() override {
+            return message_handler().or_else(base_.container_message_handler(this));
+        }
 
         void add_item(const utility::UuidActor &ua);
         caf::actor
@@ -64,9 +67,7 @@ namespace timeline {
             const int dst_index);
 
       private:
-        caf::behavior behavior_;
         Stack base_;
-        caf::actor event_group_;
         std::map<utility::Uuid, caf::actor> actors_;
         // might need to prune.. ?
         std::set<utility::Uuid> events_processed_;

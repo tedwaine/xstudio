@@ -122,11 +122,9 @@ namespace session {
         check_media_hook_plugin_version(const utility::JsonStore &jsn, const caf::uri &path);
 
         caf::behavior behavior_;
-        caf::actor event_group_;
         Session base_;
         caf::actor json_store_;
         caf::actor bookmarks_;
-        caf::actor tags_;
         std::map<utility::Uuid, caf::actor> playlists_;
         std::map<caf::actor_addr, std::string> serialise_targets_;
         // std::map<utility::Uuid, caf::actor> players_;

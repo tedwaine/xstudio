@@ -17,13 +17,15 @@ Item {
     property real fps: 24
     property real tickWidth: (control.width / duration)
 
-    readonly property real cursorX: playheadActive ? liveCursorX : stoppedCursorX
+    readonly property real cursorX: playheadActive ? liveCursorX || 0: stoppedCursorX || 0
     readonly property real liveCursorX: ((position-start) * tickWidth) - fractionOffset
     property bool playheadActive: timelinePlayhead.pinnedSourceMode ? currentPlayhead.uuid == timelinePlayhead.uuid : false
     property var stoppedCursorX
     onPlayheadActiveChanged: {
         if (!playheadActive) stoppedCursorX = liveCursorX
     }
+
+    property bool showBobble: true
 
     // layer.enabled: true
     // layer.samples: 4
@@ -40,7 +42,7 @@ Item {
     Rectangle {
         width: 7.0
         color: control.color
-
+        visible: showBobble
         x: cursorX-3
         height: 4
     }

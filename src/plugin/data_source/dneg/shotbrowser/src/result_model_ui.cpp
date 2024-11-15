@@ -57,6 +57,7 @@ ShotBrowserResultModel::ShotBrowserResultModel(QObject *parent) : JSONTreeModel(
          "sequenceRole",
          "shotRole",
          "siteRole",
+         "stageRole",
          "stalkUuidRole",
          "subjectRole",
          "submittedToDailiesRole",
@@ -255,6 +256,11 @@ QVariant ShotBrowserResultModel::data(const QModelIndex &index, int role) const 
             result = QString::fromStdString(j.at("attributes").value("sg_status_list", ""));
             break;
 
+        case Roles::stageRole:
+            result = QString::fromStdString(
+                j.at("relationships").at("sg_client_send_stage").at("data").value("name", ""));
+            break;
+
         case Roles::pipelineStatusFullRole: {
             result = QString::fromStdString(
                 QueryEngine::resolve_attribute_value(
@@ -352,13 +358,13 @@ QVariant ShotBrowserResultModel::data(const QModelIndex &index, int role) const 
             break;
 
         case Roles::otioRole: {
-            auto fspath =
-                fs::path(j.at("attributes").value("sg_path_to_frames", std::string()));
-            // no idea why we have to do parent path twice.. BUG ?
-            auto otiopath = fspath.parent_path().parent_path() /
-                            (fspath.stem().string() + std::string(".otio"));
+            auto path     = j.at("attributes").value("sg_path_to_frames", std::string());
+            auto last_dot = path.find_last_of(".");
+            path          = path.substr(0, last_dot);
+            path += ".otio";
+
             try {
-                auto uri = posix_path_to_uri(otiopath.string());
+                auto uri = posix_path_to_uri(path);
                 result   = QVariant::fromValue(QUrlFromUri(uri));
             } catch (...) {
             }
@@ -373,8 +379,8 @@ QVariant ShotBrowserResultModel::data(const QModelIndex &index, int role) const 
                     j.at("relationships").at("project").at("data").value("id", 0),
                     j.at("relationships").at("entity").at("data").value("id", 0),
                     ShotBrowserEngine::instance()->queryEngine().lookup());
-                if (name)
-                    result = QString::fromStdString(*name);
+                if (not name.empty())
+                    result = QString::fromStdString(name.at(0));
                 else
                     result = QString();
             }

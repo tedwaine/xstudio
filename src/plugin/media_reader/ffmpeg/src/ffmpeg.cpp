@@ -321,19 +321,19 @@ static std::mutex m;
 static int ct = 0;
 
 ImageBufPtr FFMpegMediaReader::image(const media::AVFrameID &mptr) {
-    std::string path = uri_convert(mptr.uri_);
+    std::string path = uri_convert(mptr.uri());
 
-    if (last_decoded_image_ && last_decoded_image_->media_key() == mptr.key_) {
+    if (last_decoded_image_ && last_decoded_image_->media_key() == mptr.key()) {
         return last_decoded_image_;
     }
 
     if (!decoder || decoder->path() != path) {
         decoder.reset(
-            new FFMpegDecoder(path, soundcard_sample_rate_, default_rate_, mptr.stream_id_));
+            new FFMpegDecoder(path, soundcard_sample_rate_, default_rate_, mptr.stream_id()));
     }
 
     ImageBufPtr rt;
-    decoder->decode_video_frame(mptr.frame_, rt);
+    decoder->decode_video_frame(mptr.frame(), rt);
 
     if (rt && !rt->shader_params().is_null()) {
         if (rt->shader_params().value("rgb", 0) != 0) {
@@ -353,19 +353,19 @@ AudioBufPtr FFMpegMediaReader::audio(const media::AVFrameID &mptr) {
 
         // Set the path for the media file. Currently, it's hard-coded to a specific file.
         // This may be updated later to use the URI from the AVFrameID object.
-        std::string path = uri_convert(mptr.uri_);
+        std::string path = uri_convert(mptr.uri());
 
         // If the audio_decoder object doesn't exist or the path it's using differs
         // from the one we're interested in, then create a new audio_decoder.
         if (!audio_decoder || audio_decoder->path() != path) {
             audio_decoder.reset(new FFMpegDecoder(
-                path, soundcard_sample_rate_, default_rate_, mptr.stream_id_));
+                path, soundcard_sample_rate_, default_rate_, mptr.stream_id()));
         }
 
         AudioBufPtr rt;
 
         // Decode the audio frame using the decoder and get the resulting audio buffer.
-        audio_decoder->decode_audio_frame(mptr.frame_, rt);
+        audio_decoder->decode_audio_frame(mptr.frame(), rt);
 
         // If decoding didn't produce an audio buffer (i.e., rt is null), then initialize
         // a new empty audio buffer.
@@ -443,16 +443,16 @@ std::shared_ptr<thumbnail::ThumbnailBuffer>
 FFMpegMediaReader::thumbnail(const media::AVFrameID &mptr, const size_t thumb_size) {
     try {
 
-        std::string path = uri_convert(mptr.uri_);
+        std::string path = uri_convert(mptr.uri());
 
-        // DebugTimer d(path, mptr.frame_);
+        // DebugTimer d(path, mptr.frame());
         if (!thumbnail_decoder || thumbnail_decoder->path() != path) {
             thumbnail_decoder.reset(new FFMpegDecoder(
-                path, soundcard_sample_rate_, default_rate_, mptr.stream_id_));
+                path, soundcard_sample_rate_, default_rate_, mptr.stream_id()));
         }
 
         std::shared_ptr<thumbnail::ThumbnailBuffer> rt =
-            thumbnail_decoder->decode_thumbnail_frame(mptr.frame_, thumb_size);
+            thumbnail_decoder->decode_thumbnail_frame(mptr.frame(), thumb_size);
 
         // for now immediately deleting the decoder to prevent memory hogging
         // when generating many thumbnails. This could make the scrubbable
@@ -502,7 +502,7 @@ PixelInfo FFMpegMediaReader::ffmpeg_buffer_pixel_picker(
         const int half_scale_uvx       = buf.shader_params().value("half_scale_uvx", 0);
         const int bits_per_channel     = buf.shader_params().value("bits_per_channel", 0);
         const Imath::M33f yuv_conv =
-            buf.shader_params().value("yuv_conv", Imath::M33f()).transposed();
+            buf.shader_params().value("yuv_conv", Imath::M33f());
         const Imath::V3i yuv_offsets = buf.shader_params().value("yuv_offsets", Imath::V3i());
         const float norm_coeff       = buf.shader_params().value("norm_coeff", 1.0f);
 

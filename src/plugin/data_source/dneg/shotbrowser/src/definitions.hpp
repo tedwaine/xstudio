@@ -100,7 +100,7 @@ const auto PutUpdatePlaylistVersions =
 const auto UseLoadPlaylist = R"({"operation": "LoadPlaylist", "playlist_id": 0})"_json;
 
 const auto UseRefreshPlaylist =
-    R"({"operation": "RefreshPlaylist", "playlist_uuid": null})"_json;
+    R"({"operation": "RefreshPlaylist", "playlist_uuid": null, "match_order": false})"_json;
 
 // const auto RefreshPlaylistNotesJSON =
 //     R"({"entity":"Playlist", "relationship": "Note", "playlist_uuid": null})"_json;
@@ -108,7 +108,7 @@ const auto UseRefreshPlaylist =
 
 const auto PublishNoteTemplateJSON = R"(
 {
-    "bookmark_uuid": "",
+    "bookmark_uuid": [],
     "shot": "",
     "payload": {
             "project":{ "type": "Project", "id":0 },
@@ -154,6 +154,7 @@ const auto VersionFields = std::vector<std::string>(
      "notes",
      "project",
      "sg_client_filename",
+     "sg_client_send_stage",
      "sg_comp_in",
      "sg_comp_out",
      "sg_comp_range",
@@ -190,6 +191,9 @@ const auto VersionFields = std::vector<std::string>(
      "user",
      "image"});
 
+const auto ProjectFields = std::vector<std::string>(
+    {"id", "created_at", "name", "sg_description", "sg_division", "sg_type"});
+
 const auto NoteFields = std::vector<std::string>(
     {"id",
      "created_by",
@@ -217,8 +221,19 @@ const auto PlaylistFields = std::vector<std::string>(
      "created_by",
      "sg_department_unit"});
 
-const auto ShotFields =
-    std::vector<std::string>({"id", "code", "sg_comp_range", "sg_cut_range", "project"});
+const auto SequenceFields = std::vector<std::string>(
+    {"id", "code", "shots", "type", "sg_parent", "sg_sequence_type", "sg_status_list"});
+const auto SequenceShotFields = std::vector<std::string>({"id", "sg_status_list", "sg_unit"});
+
+const auto ShotFields = std::vector<std::string>(
+    {"id",
+     "code",
+     "sg_comp_range",
+     "sg_cut_range",
+     "project",
+     "sg_unit",
+     "sg_status_list",
+     "sg_current_stage"});
 
 const std::string shotbrowser_datasource_registry{"SHOTBROWSER"};
 

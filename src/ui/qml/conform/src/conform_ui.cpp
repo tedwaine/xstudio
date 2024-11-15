@@ -188,9 +188,12 @@ QFuture<QList<QUuid>> ConformEngineUI::conformItemsFuture(
 
     // get container detail
     QModelIndexList items;
+    auto nofity_item = false;
 
     // maybe media or clip, or track
     auto item_type = StdFromQString(item.data(SessionModel::Roles::typeRole).toString());
+    auto smodel =
+        qobject_cast<SessionModel *>(const_cast<QAbstractItemModel *>(container.model()));
 
     if (item_type == "Media") {
         items.push_back(item);
@@ -201,6 +204,8 @@ QFuture<QList<QUuid>> ConformEngineUI::conformItemsFuture(
     } else if (
         (item_type == "Video Track" or item_type == "Audio Track") and
         not item.data(SessionModel::Roles::lockedRole).toBool()) {
+        nofity_item = true;
+
         item_type = "Clip";
         // iterate of track clips, adding those that are not locked.
         for (int i = 0; i < item.model()->rowCount(item); i++) {
@@ -214,8 +219,6 @@ QFuture<QList<QUuid>> ConformEngineUI::conformItemsFuture(
         }
     }
 
-    auto smodel =
-        qobject_cast<SessionModel *>(const_cast<QAbstractItemModel *>(container.model()));
     auto jmodel = qobject_cast<JSONTreeModel *>(smodel);
 
     auto cactor = actorFromString(
@@ -295,7 +298,16 @@ QFuture<QList<QUuid>> ConformEngineUI::conformItemsFuture(
         return QtConcurrent::run([=]() {
             auto result = QList<QUuid>();
 
+            auto smodel = qobject_cast<SessionModel *>(
+                const_cast<QAbstractItemModel *>(container.model()));
+
             auto pending = std::vector<QFuture<QList<QUuid>>>();
+
+            QUuid notify_uuid;
+
+            if (nofity_item)
+                notify_uuid = smodel->progressRangeNotification(
+                    item, "Conforming Track {}", 0, item_uav.size());
 
             for (size_t i = 0; i < item_uav.size(); i++) {
                 pending.emplace_back(conformItemsFuture(
@@ -308,14 +320,38 @@ QFuture<QList<QUuid>> ConformEngineUI::conformItemsFuture(
                     removeSource));
             }
 
+            if (nofity_item) {
+                std::vector<bool> is_done(item_uav.size());
+                auto done = 0;
+                while (done != item_uav.size()) {
+                    for (size_t i = 0; i < is_done.size(); i++) {
+                        if (not is_done[i] and pending[i].isResultReadyAt(0)) {
+                            is_done[i] = true;
+                            done++;
+                            smodel->updateProgressNotification(item, notify_uuid, done);
+                        }
+                    }
+                    // sleep..
+                    std::this_thread::sleep_for(std::chrono::milliseconds(200));
+                }
+            }
+
             for (auto &i : pending) {
                 auto r = i.result();
                 result.append(r);
             }
 
+            if (nofity_item)
+                smodel->removeNotification(item, notify_uuid);
+
             return result;
         });
     }
+
+    QUuid notify_uuid;
+
+    if (nofity_item)
+        notify_uuid = smodel->processingNotification(item, "Conforming Track");
 
     return conformItemsFuture(
         task,
@@ -324,7 +360,9 @@ QFuture<QList<QUuid>> ConformEngineUI::conformItemsFuture(
         UuidActor(cuuid, cactor),
         item_type,
         before_uv,
-        removeSource);
+        removeSource,
+        QPersistentModelIndex(item),
+        notify_uuid);
 }
 
 
@@ -483,7 +521,9 @@ QFuture<QList<QUuid>> ConformEngineUI::conformItemsFuture(
     const utility::UuidActor &container,
     const std::string &item_type,
     const utility::UuidVector &before,
-    const bool removeSource) const {
+    const bool removeSource,
+    const QPersistentModelIndex &notifyIndex,
+    const QUuid &notifyUuid) const {
 
     return QtConcurrent::run([=]() {
         auto result = QList<QUuid>();
@@ -528,6 +568,12 @@ QFuture<QList<QUuid>> ConformEngineUI::conformItemsFuture(
 
         } catch (const std::exception &err) {
             spdlog::warn("{} {}", __PRETTY_FUNCTION__, err.what());
+        }
+
+        if (not notifyUuid.isNull() and notifyIndex.isValid()) {
+            auto smodel = qobject_cast<SessionModel *>(
+                const_cast<QAbstractItemModel *>(notifyIndex.model()));
+            smodel->removeNotification(notifyIndex, notifyUuid);
         }
 
         return result;

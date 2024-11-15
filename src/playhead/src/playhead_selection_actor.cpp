@@ -64,38 +64,8 @@ PlayheadSelectionActor::~PlayheadSelectionActor() {}
 
 void PlayheadSelectionActor::on_exit() { playlist_ = caf::actor(); }
 
-void PlayheadSelectionActor::init() {
-
-    spdlog::debug("Created PlayheadSelectionActor {}", base_.name());
-    print_on_exit(this, "PlayheadSelectionActor");
-    event_group_ = spawn<broadcast::BroadcastActor>(this);
-    link_to(event_group_);
-
-    caf::scoped_actor sys(system());
-    link_to(playlist_);
-    request(playlist_, infinite, uuid_atom_v)
-        .then(
-            [=](const utility::Uuid &uuid) mutable { base_.set_monitored(uuid); },
-            [=](error &) {});
-    request(playlist_, infinite, playlist::get_change_event_group_atom_v)
-        .then([=](caf::actor grp) mutable { join_broadcast(this, grp); }, [=](error &) {});
-
-    set_down_handler([=](down_msg &msg) {
-        // find removed sources..
-        remove_dead_actor(msg.source);
-    });
-
-    behavior_.assign(
-        base_.make_set_name_handler(event_group_, this),
-        base_.make_get_name_handler(),
-        base_.make_last_changed_getter(),
-        base_.make_last_changed_setter(event_group_, this),
-        base_.make_last_changed_event_handler(event_group_, this),
-        base_.make_get_uuid_handler(),
-        base_.make_get_type_handler(),
-        make_get_event_group_handler(event_group_),
-        base_.make_get_detail_handler(this, event_group_),
-
+caf::message_handler PlayheadSelectionActor::message_handler() {
+    return caf::message_handler{
         [=](broadcast::broadcast_down_atom, const caf::actor_addr &) {},
         [=](const group_down_msg & /*msg*/) {},
 
@@ -179,7 +149,6 @@ void PlayheadSelectionActor::init() {
         [=](playlist::select_all_media_atom) { select_all(); },
 
         [=](playlist::select_media_atom, const UuidList &media_uuids, bool retry) -> bool {
-
             if (media_uuids.empty()) {
                 select_one();
             } else {
@@ -189,7 +158,6 @@ void PlayheadSelectionActor::init() {
         },
 
         [=](playlist::select_media_atom, const UuidList &media_uuids) -> bool {
-
             if (media_uuids.empty()) {
                 select_one();
             } else {
@@ -248,9 +216,28 @@ void PlayheadSelectionActor::init() {
             if (base_.items().empty()) {
                 select_one();
             }
-        }
+        }};
+}
 
-    );
+
+void PlayheadSelectionActor::init() {
+
+    spdlog::debug("Created PlayheadSelectionActor {}", base_.name());
+    print_on_exit(this, "PlayheadSelectionActor");
+
+    caf::scoped_actor sys(system());
+    link_to(playlist_);
+    request(playlist_, infinite, uuid_atom_v)
+        .then(
+            [=](const utility::Uuid &uuid) mutable { base_.set_monitored(uuid); },
+            [=](error &) {});
+    request(playlist_, infinite, playlist::get_change_event_group_atom_v)
+        .then([=](caf::actor grp) mutable { join_broadcast(this, grp); }, [=](error &) {});
+
+    set_down_handler([=](down_msg &msg) {
+        // find removed sources..
+        remove_dead_actor(msg.source);
+    });
 }
 
 void PlayheadSelectionActor::select_media(const UuidList &media_uuids, const bool retry) {
@@ -264,7 +251,7 @@ void PlayheadSelectionActor::select_media(const UuidList &media_uuids, const boo
         source_actors_.clear();
         base_.clear();
         send(
-            event_group_,
+            base_.event_group(),
             utility::event_atom_v,
             playhead::source_atom_v,
             std::vector<caf::actor>());
@@ -274,14 +261,13 @@ void PlayheadSelectionActor::select_media(const UuidList &media_uuids, const boo
         request(playlist_, infinite, playlist::get_media_atom_v)
             .then(
                 [=](const std::vector<UuidActor> &media_actors) mutable {
-
                     // It's possible that a client has told us to select a piece
                     // of media that the playlist hasn't quite got around to
                     // adding yet. e.g. client creates media, adds to playlist
                     // and then tells PlayheadSelectionActor to select it.
                     // Due to async actors the Playlist might not have the new
                     // media quite yet.. in this case order a retry
-                   
+
                     auto media_uas = uuidactor_vect_to_map(media_actors);
                     for (const auto &i : media_uuids) {
                         if (not media_uas.count(i)) {
@@ -315,7 +301,7 @@ void PlayheadSelectionActor::select_media(const UuidList &media_uuids, const boo
                     }
 
                     send(
-                        event_group_,
+                        base_.event_group(),
                         utility::event_atom_v,
                         playhead::source_atom_v,
                         selected_media_actors);

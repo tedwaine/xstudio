@@ -32,6 +32,7 @@ ShotBrowserPresetModel::ShotBrowserPresetModel(QueryEngine &query_engine, QObjec
          "livelinkRole",
          "nameRole",
          "negatedRole",
+         "parentEnabledRole",
          "termRole",
          "typeRole",
          "updateRole",
@@ -188,7 +189,8 @@ QModelIndex ShotBrowserPresetModel::duplicate(const QModelIndex &index) {
         result = ShotBrowserPresetModel::index(index.row() + 1, 0, index.parent());
     }
 
-    setData(result, result.data(nameRole).toString() + " - Copy", nameRole);
+    if (index.data(typeRole) != QVariant::fromValue(QString("term")))
+        setData(result, result.data(nameRole).toString() + " - Copy", nameRole);
 
     return result;
 }
@@ -237,6 +239,19 @@ QVariant ShotBrowserPresetModel::data(const QModelIndex &index, int role) const 
             case Roles::enabledRole:
                 result = j.at("enabled").get<bool>();
                 break;
+
+            case Roles::parentEnabledRole: {
+                auto p = index.parent();
+                result = true;
+                while (p.isValid() and p.data(typeRole) == QVariant("term") and
+                       p.data(termRole) == QVariant("Operator")) {
+                    if (not p.data(enabledRole).toBool()) {
+                        result = false;
+                        break;
+                    }
+                    p = p.parent();
+                }
+            } break;
 
             case Roles::favouriteRole:
                 if (j.count("favourite") and not j.at("favourite").is_null())
@@ -376,7 +391,27 @@ bool ShotBrowserPresetModel::setData(
         switch (role) {
 
         case Roles::enabledRole:
-            result         = baseSetData(index, value, "enabled", QVector<int>({role}), true);
+            result = baseSetData(index, value, "enabled", QVector<int>({role}), true);
+            if (index.data(typeRole) == QVariant("term") and
+                index.data(termRole) == QVariant("Operator")) {
+
+                std::function<void(const QModelIndex &)> changedChild =
+                    [&](const QModelIndex &parent) {
+                        for (auto i = 0; i < rowCount(parent); i++) {
+                            auto child = ShotBrowserPresetModel::index(i, 0, parent);
+                            if (child.isValid() and child.data(typeRole) == QVariant("term") and
+                                child.data(termRole) == QVariant("Operator"))
+                                changedChild(child);
+                        }
+
+                        emit dataChanged(
+                            ShotBrowserPresetModel::index(0, 0, parent),
+                            ShotBrowserPresetModel::index(rowCount(parent) - 1, 0, parent),
+                            QVector<int>({parentEnabledRole}));
+                    };
+
+                changedChild(index);
+            }
             preset_changed = true;
             // if changed mark update field.
             if (result)
@@ -770,6 +805,74 @@ QFuture<QString> ShotBrowserPresetModel::exportAsSystemPresetsFuture(
     });
 }
 
+QFuture<QString>
+ShotBrowserPresetModel::backupPresetsFuture(const QUrl &qpath, const QModelIndex &index) const {
+    return QtConcurrent::run([=]() {
+        auto path = uri_to_posix_path(UriFromQUrl(qpath));
+        if (fs::path(path).extension() != ".json")
+            path += ".json";
+
+        try {
+            // get json from index or the lot
+            auto data = R"({"type": "root", "children": []})"_json;
+
+            if (not index.isValid()) {
+                data = modelData();
+            } else {
+                data["children"].push_back(indexToFullData(index));
+            }
+
+            std::ofstream myfile;
+            myfile.open(path);
+            myfile << data.at("children").dump(2) << std::endl;
+            myfile.close();
+        } catch (const std::exception &err) {
+            spdlog::warn("{} {}", __PRETTY_FUNCTION__, err.what());
+            throw;
+        }
+
+        return QStringFromStd(std::string("Presets Backed up to ") + path);
+    });
+}
+
+QFuture<QString> ShotBrowserPresetModel::restorePresetsFuture(const QUrl &qpath) {
+    return QtConcurrent::run([=]() {
+        auto path = uri_to_posix_path(UriFromQUrl(qpath));
+        if (fs::path(path).extension() != ".json")
+            path += ".json";
+
+        try {
+            // // get json from index or the lot
+            // auto data = R"({"type": "root", "children": []})"_json;
+
+            // if (not index.isValid()) {
+            //     data = modelData();
+            // } else {
+            //     data["children"].push_back(indexToFullData(index));
+            // }
+
+            std::ifstream myfile;
+            std::stringstream filedata;
+
+            myfile.open(path);
+
+            myfile >> filedata.rdbuf();
+
+            auto restored        = RootTemplate;
+            restored["id"]       = Uuid::generate();
+            restored["children"] = nlohmann::json::parse(filedata.str());
+
+            setModelDataBase(restored, true);
+            myfile.close();
+        } catch (const std::exception &err) {
+            spdlog::warn("{} {}", __PRETTY_FUNCTION__, err.what());
+            throw;
+        }
+
+        return QStringFromStd(std::string("Presets restored from ") + path);
+    });
+}
+
 nlohmann::json JSONTreeModel::modelData() const {
     // build json from tree..
     return tree_to_json(data_, children_);
@@ -879,4 +982,10 @@ bool ShotBrowserPresetFilterModel::filterAcceptsRow(
     }
 
     return accept;
+}
+
+bool ShotBrowserPresetTreeFilterModel::filterAcceptsRow(
+    int source_row, const QModelIndex &source_parent) const {
+
+    return true;
 }

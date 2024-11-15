@@ -25,7 +25,11 @@ QMLViewportRenderer::QMLViewportRenderer(QObject *parent)
     init_system();
 }
 
-QMLViewportRenderer::~QMLViewportRenderer() { delete viewport_renderer_; }
+QMLViewportRenderer::~QMLViewportRenderer() { 
+
+    delete viewport_renderer_; 
+
+}
 
 static QQuickWindow *win = nullptr;
 
@@ -61,13 +65,6 @@ void QMLViewportRenderer::paint() {
         glPushClientAttrib(GL_CLIENT_ALL_ATTRIB_BITS);
         viewport_renderer_->render();
         glPopClientAttrib();
-
-        // TODO: this is in the wrong place, we should check this *before* the
-        // redraw
-        const QRectF bounds = imageBoundsInViewportPixels();
-        if (bounds != imageBounds_) {
-            imageBounds_ = bounds;
-        }
 
         m_window->resetOpenGLState();
         if (viewport_renderer_->playing()) {
@@ -131,29 +128,13 @@ void QMLViewportRenderer::make_xstudio_viewport() {
     if (viewport_renderer_)
         delete viewport_renderer_;
 
-    ui::viewport::ViewportRendererPtr gl_renderer;
-    {
-        // we need one OpenGLViewportRenderer per QWindow - xstudio viewports within
-        // the same window can share the OpenGLViewportRenderer instance. This saves
-        // texture/video resources and allows viewports to be created a lot quicker as
-        // resources like shader objects only need to be created once etc.
-        static std::unordered_map<QWindow *, ui::viewport::ViewportRendererPtr> gl_renderers;
-        if (gl_renderers.find(m_window) != gl_renderers.end()) {
-            gl_renderer = gl_renderers[m_window];
-        } else {
-            gl_renderer =
-                ui::viewport::ViewportRendererPtr(new opengl::OpenGLViewportRenderer(false));
-            gl_renderers[m_window] = gl_renderer;
-        }
-    }
-
     utility::JsonStore jsn;
     jsn["base"]      = utility::JsonStore();
     jsn["window_id"] = StdFromQString(m_window->objectName());
 
     /* Here we create the all important Viewport class that actually draws images to the screen
      */
-    viewport_renderer_ = new ui::viewport::Viewport(jsn, as_actor(), gl_renderer);
+    viewport_renderer_ = new ui::viewport::Viewport(jsn, as_actor());
 
     viewport_renderer_->set_visibility(viewport_qml_item_->isVisible());
 
@@ -164,6 +145,9 @@ void QMLViewportRenderer::make_xstudio_viewport() {
     };
     viewport_renderer_->set_change_callback(callback);
 
+    viewport_qml_item_->setPlayheadUuid(
+                QUuidFromUuid(viewport_renderer_->playhead_uuid()));
+                
     /* The Viewport object provides a message handler that will process update events like new
     frame buffers coming from the playhead and so-on. Instead of being an actor itself, the
     Viewport is a regular class but it will process messages received by a parent actor (like
@@ -225,7 +209,6 @@ void QMLViewportRenderer::make_xstudio_viewport() {
     and released */
     keypress_monitor_ = system().registry().template get<caf::actor>(keyboard_events);
 
-    viewport_renderer_->auto_connect_to_global_selected_playhead();
 }
 void QMLViewportRenderer::set_playhead(caf::actor playhead) {
     if (viewport_renderer_)
@@ -256,21 +239,28 @@ bool QMLViewportRenderer::pointerEvent(const PointerEvent &e) {
     return false; // pointer event not used
 }
 
-Imath::V2i QMLViewportRenderer::imageResolutionCoords() {
-    return viewport_renderer_ ? viewport_renderer_->image_resolution() : Imath::V2i();
+QVariantList QMLViewportRenderer::imageResolutions() const {
+    QVariantList v;
+    const auto & image_resolutions = viewport_renderer_->image_resolutions();
+    for (const auto &r: image_resolutions) {        
+        v.append(QSize(r.x ,r.y));
+    }
+    return v;
 }
 
-QRectF QMLViewportRenderer::imageBoundsInViewportPixels() const {
-    Imath::Box2f box = viewport_renderer_
-                           ? viewport_renderer_->image_bounds_in_viewport_pixels()
-                           : Imath::Box2f();
-    return QRectF(box.min.x, box.min.y, box.max.x - box.min.x, box.max.y - box.min.y);
-}
+QVariantList QMLViewportRenderer::imageBoundariesInViewport() const {
 
-Imath::V2f QMLViewportRenderer::imageCoordsToViewport(const int x, const int y) {
-    return viewport_renderer_
-               ? viewport_renderer_->image_coordinate_to_viewport_coordinate(x, y)
-               : Imath::V2f();
+    QVariantList v;
+    const std::vector<Imath::Box2f> image_boxes = viewport_renderer_->image_bounds_in_viewport_pixels();
+    for (const auto &box: image_boxes) {
+        QRectF imageBoundsInViewportPixels(
+            box.min.x,
+            box.min.y,
+            box.max.x - box.min.x,
+            box.max.y - box.min.y);
+        v.append(imageBoundsInViewportPixels);
+    }
+    return v;
 }
 
 bool QMLViewportRenderer::ViewportCoords::set(
@@ -316,6 +306,10 @@ void QMLViewportRenderer::receive_change_notification(Viewport::ChangeCallbackId
             viewport_qml_item_->setPlayheadUuid(
                 QUuidFromUuid(viewport_renderer_->playhead_uuid()));
         }
+    } else if (id == Viewport::ChangeCallbackId::ImageBoundsChanged) {
+        emit translationChanged();
+    } else if (id == Viewport::ChangeCallbackId::ImageResolutionsChanged) {
+        emit resolutionsChanged();
     }
 }
 

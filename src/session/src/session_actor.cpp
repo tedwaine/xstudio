@@ -13,9 +13,7 @@
 #include "xstudio/json_store/json_store_actor.hpp"
 #include "xstudio/bookmark/bookmarks_actor.hpp"
 #include "xstudio/playlist/playlist_actor.hpp"
-#include "xstudio/tag/tag_actor.hpp"
 #include "xstudio/session/session_actor.hpp"
-#include "xstudio/tag/tag_actor.hpp"
 #include "xstudio/utility/helpers.hpp"
 #include "xstudio/utility/logging.hpp"
 #include "xstudio/thumbnail/thumbnail.hpp"
@@ -456,14 +454,6 @@ SessionActor::SessionActor(
     join_event_group(this, bookmarks_);
     link_to(bookmarks_);
 
-    if (not jsn.count("tags") or jsn["tags"].is_null()) {
-        tags_ = spawn<tag::TagActor>();
-    } else {
-        tags_ = spawn<tag::TagActor>(static_cast<JsonStore>(jsn["tags"]));
-    }
-    join_event_group(this, tags_);
-    link_to(tags_);
-
     for (const auto &[key, value] : jsn["actors"].items()) {
         if (value["base"]["container"]["type"] == "Playlist") {
             try {
@@ -511,19 +501,12 @@ SessionActor::SessionActor(caf::actor_config &cfg, const std::string &name)
     join_event_group(this, bookmarks_);
     link_to(bookmarks_);
 
-    tags_ = spawn<tag::TagActor>();
-    join_event_group(this, tags_);
-    link_to(tags_);
-
     init();
 }
 
 void SessionActor::init() {
     print_on_create(this, base_);
     print_on_exit(this, base_);
-
-    event_group_ = spawn<broadcast::BroadcastActor>(this);
-    link_to(event_group_);
 
     // monitor serilise targets.
     set_down_handler([=](down_msg &msg) {
@@ -535,7 +518,7 @@ void SessionActor::init() {
             viewedContainer_ = UuidActor();
             base_.set_viewed_playlist_uuid(utility::Uuid());
             send(
-                event_group_,
+                base_.event_group(),
                 utility::event_atom_v,
                 session::viewport_active_media_container_atom_v,
                 viewedContainer_);
@@ -544,7 +527,7 @@ void SessionActor::init() {
             inspectedContainer_ = UuidActor();
             base_.set_current_playlist_uuid(utility::Uuid());
             send(
-                event_group_,
+                base_.event_group(),
                 utility::event_atom_v,
                 session::active_media_container_atom_v,
                 inspectedContainer_);
@@ -557,9 +540,9 @@ void SessionActor::init() {
     });
 
     behavior_.assign(message_handler()
+                         .or_else(base_.container_message_handler(this))
                          .or_else(bookmark::BookmarksActor::default_event_handler())
-                         .or_else(playlist::PlaylistActor::default_event_handler())
-                         .or_else(tag::TagActor::default_event_handler()));
+                         .or_else(playlist::PlaylistActor::default_event_handler()));
 
     anon_send(caf::actor_cast<caf::actor>(this), bookmark::associate_bookmark_atom_v);
 
@@ -575,17 +558,8 @@ void SessionActor::init() {
 caf::message_handler SessionActor::message_handler() {
     return {
         [=](xstudio::broadcast::broadcast_down_atom, const caf::actor_addr &) {},
-        base_.make_set_name_handler(event_group_, this),
-        base_.make_get_name_handler(),
-        base_.make_last_changed_getter(),
-        base_.make_last_changed_setter(event_group_, this),
-        base_.make_last_changed_event_handler(event_group_, this),
-        base_.make_get_uuid_handler(),
-        base_.make_get_type_handler(),
-        make_get_event_group_handler(event_group_),
-        base_.make_get_detail_handler(this, event_group_),
-        base_.make_ignore_error_handler(),
         make_get_version_handler(),
+        make_ignore_error_handler(),
 
         [=](bookmark::associate_bookmark_atom) -> result<int> {
             auto rp = make_response_promise<int>();
@@ -638,8 +612,6 @@ caf::message_handler SessionActor::message_handler() {
         [=](media_hook::gather_media_sources_atom atom, const caf::actor &media) {
             delegate(caf::actor_cast<caf::actor>(this), atom, media, base_.media_rate());
         },
-
-        [=](tag::get_tag_atom) -> caf::actor { return tags_; },
 
         [=](get_playlist_atom) -> result<caf::actor> {
             // gets the first playlist
@@ -851,8 +823,8 @@ caf::message_handler SessionActor::message_handler() {
 
         [=](media_rate_atom, const FrameRate &rate) {
             base_.set_media_rate(rate);
-            send(event_group_, utility::event_atom_v, media_rate_atom_v, rate);
-            base_.send_changed(event_group_, this);
+            send(base_.event_group(), utility::event_atom_v, media_rate_atom_v, rate);
+            base_.send_changed();
             // force all playlists to ave the same new media rate ?
             for (auto &i : playlists_) {
                 anon_send(i.second, media_rate_atom_v, rate);
@@ -996,6 +968,7 @@ caf::message_handler SessionActor::message_handler() {
                 before,
                 into);
         },
+
         [=](playlist::copy_media_atom,
             const Uuid &dst,
             const UuidVector &media,
@@ -1023,7 +996,7 @@ caf::message_handler SessionActor::message_handler() {
         [=](path_atom, const caf::uri &uri) -> bool {
             base_.set_filepath(uri);
             send(
-                event_group_,
+                base_.event_group(),
                 utility::event_atom_v,
                 path_atom_v,
                 std::make_pair(base_.filepath(), base_.session_file_mtime()));
@@ -1034,8 +1007,10 @@ caf::message_handler SessionActor::message_handler() {
 
         [=](playhead::playhead_rate_atom, const FrameRate &rate) {
             base_.set_playhead_rate(rate);
-            base_.send_changed(event_group_, this);
+            base_.send_changed();
         },
+
+        [=](utility::event_atom, utility::notification_atom, const utility::JsonStore &) {},
 
         [=](playlist::create_divider_atom,
             const std::string &name,
@@ -1043,8 +1018,12 @@ caf::message_handler SessionActor::message_handler() {
             const bool into) -> result<Uuid> {
             auto i = base_.insert_divider(name, uuid_before, into);
             if (i) {
-                base_.send_changed(event_group_, this);
-                send(event_group_, utility::event_atom_v, playlist::create_divider_atom_v, *i);
+                base_.send_changed();
+                send(
+                    base_.event_group(),
+                    utility::event_atom_v,
+                    playlist::create_divider_atom_v,
+                    *i);
                 return *i;
             }
 
@@ -1067,8 +1046,12 @@ caf::message_handler SessionActor::message_handler() {
             const Uuid &uuid_before) -> result<Uuid> {
             auto i = base_.insert_group(name, uuid_before);
             if (i) {
-                base_.send_changed(event_group_, this);
-                send(event_group_, utility::event_atom_v, playlist::create_group_atom_v, *i);
+                base_.send_changed();
+                send(
+                    base_.event_group(),
+                    utility::event_atom_v,
+                    playlist::create_group_atom_v,
+                    *i);
                 return *i;
             }
 
@@ -1273,9 +1256,9 @@ caf::message_handler SessionActor::message_handler() {
             bool changed = base_.move_container(uuid, uuid_before, into);
 
             if (changed) {
-                base_.send_changed(event_group_, this);
+                base_.send_changed();
                 send(
-                    event_group_,
+                    base_.event_group(),
                     utility::event_atom_v,
                     playlist::move_container_atom_v,
                     uuid,
@@ -1290,9 +1273,9 @@ caf::message_handler SessionActor::message_handler() {
             const Uuid &uuid) -> bool {
             bool result = base_.reflag_container(flag, uuid);
             if (result) {
-                base_.send_changed(event_group_, this);
+                base_.send_changed();
                 send(
-                    event_group_,
+                    base_.event_group(),
                     utility::event_atom_v,
                     playlist::reflag_container_atom_v,
                     uuid,
@@ -1340,14 +1323,14 @@ caf::message_handler SessionActor::message_handler() {
             }
 
             if (result) {
-                base_.send_changed(event_group_, this);
+                base_.send_changed();
                 send(
-                    event_group_,
+                    base_.event_group(),
                     utility::event_atom_v,
                     playlist::remove_container_atom_v,
                     cuuid);
                 send(
-                    event_group_,
+                    base_.event_group(),
                     utility::event_atom_v,
                     playlist::remove_container_atom_v,
                     removed_playlist_uuids);
@@ -1366,9 +1349,9 @@ caf::message_handler SessionActor::message_handler() {
                 if (found and playlists_.count((*found)->value().uuid()))
                     anon_send(playlists_[(*found)->value().uuid()], name_atom_v, name);
 
-                base_.send_changed(event_group_, this);
+                base_.send_changed();
                 send(
-                    event_group_,
+                    base_.event_group(),
                     utility::event_atom_v,
                     playlist::rename_container_atom_v,
                     uuid,
@@ -1389,7 +1372,7 @@ caf::message_handler SessionActor::message_handler() {
                 }
                 base_.set_current_playlist_uuid(inspectedContainer_.uuid());
                 send(
-                    event_group_,
+                    base_.event_group(),
                     utility::event_atom_v,
                     session::active_media_container_atom_v,
                     inspectedContainer_);
@@ -1434,6 +1417,7 @@ caf::message_handler SessionActor::message_handler() {
                                     session::session_atom_v)
                                     .then(
                                         [=](caf::actor session) {
+
                                             // If  we are not THE active session. Don't try and
                                             // switch
                                             // the global playhead ...
@@ -1456,7 +1440,7 @@ caf::message_handler SessionActor::message_handler() {
 
 
                                 send(
-                                    event_group_,
+                                    base_.event_group(),
                                     utility::event_atom_v,
                                     ui::viewport::viewport_playhead_atom_v,
                                     playhead.uuid());
@@ -1467,7 +1451,7 @@ caf::message_handler SessionActor::message_handler() {
                 }
                 base_.set_viewed_playlist_uuid(viewedContainer_.uuid());
                 send(
-                    event_group_,
+                    base_.event_group(),
                     utility::event_atom_v,
                     session::viewport_active_media_container_atom_v,
                     playlist);
@@ -1556,7 +1540,7 @@ caf::message_handler SessionActor::message_handler() {
         },
 
         [=](utility::event_atom, playlist::add_media_atom, const UuidActorVector &uav) {
-            send(event_group_, utility::event_atom_v, playlist::add_media_atom_v, uav);
+            send(base_.event_group(), utility::event_atom_v, playlist::add_media_atom_v, uav);
         },
 
         [=](utility::event_atom,
@@ -1641,18 +1625,6 @@ caf::message_handler SessionActor::message_handler() {
                                 [=](error &err) mutable {
                                     spdlog::warn(
                                         "{} bookmarks {}", __PRETTY_FUNCTION__, to_string(err));
-                                    rp.deliver(std::move(err));
-                                });
-
-                        request(tags_, infinite, utility::serialise_atom_v)
-                            .then(
-                                [=](const JsonStore &result) mutable {
-                                    (*stores)["tags"] = result;
-                                    check_save_serialise_payload(stores, rp);
-                                },
-                                [=](error &err) mutable {
-                                    spdlog::warn(
-                                        "{} tags {}", __PRETTY_FUNCTION__, to_string(err));
                                     rp.deliver(std::move(err));
                                 });
 
@@ -1863,8 +1835,6 @@ void SessionActor::check_save_serialise_payload(
         return;
     if (not payload->count("bookmarks"))
         return;
-    if (not payload->count("tags"))
-        return;
     if (not payload->count("media_hook_versions"))
         return;
     if (not payload->count("actors"))
@@ -1877,7 +1847,6 @@ void SessionActor::check_save_serialise_payload(
     jsn["global_store"]        = (*payload)["global_store"];
     jsn["store"]               = (*payload)["store"];
     jsn["bookmarks"]           = (*payload)["bookmarks"];
-    jsn["tags"]                = (*payload)["tags"];
     jsn["media_hook_versions"] = (*payload)["media_hook_versions"];
 
     rp.deliver(jsn);
@@ -1997,9 +1966,9 @@ void SessionActor::create_container(
                 if (not cuuid) {
                     cuuid = base_.insert_container(tmp);
                 }
-                base_.send_changed(event_group_, this);
+                base_.send_changed();
                 send(
-                    event_group_,
+                    base_.event_group(),
                     utility::event_atom_v,
                     add_playlist_atom_v,
                     UuidActor(detail.uuid_, actor));
@@ -2059,7 +2028,7 @@ void SessionActor::duplicate_container(
         base_.insert_container(new_tree, uuid_before, into);
     }
 
-    base_.send_changed(event_group_, this);
+    base_.send_changed();
 
     if (kill_source)
         send_exit(source_session, caf::exit_reason::user_shutdown);
@@ -2078,10 +2047,18 @@ void SessionActor::duplicate_tree(
 
     if (tree.value().type() == "ContainerDivider") {
         tree.value().set_uuid(Uuid::generate());
-        send(event_group_, utility::event_atom_v, playlist::create_divider_atom_v, tree.uuid());
+        send(
+            base_.event_group(),
+            utility::event_atom_v,
+            playlist::create_divider_atom_v,
+            tree.uuid());
     } else if (tree.value().type() == "ContainerGroup") {
         tree.value().set_uuid(Uuid::generate());
-        send(event_group_, utility::event_atom_v, playlist::create_group_atom_v, tree.uuid());
+        send(
+            base_.event_group(),
+            utility::event_atom_v,
+            playlist::create_group_atom_v,
+            tree.uuid());
     } else if (tree.value().type() == "Playlist") {
         // need to issue a duplicate action, as we actors are blackboxes..
         // try not to confuse this with duplicating a container, as opposed to the actor..
@@ -2114,7 +2091,7 @@ void SessionActor::duplicate_tree(
             }
 
             link_to(result.actor());
-            send(event_group_, utility::event_atom_v, add_playlist_atom_v, result);
+            send(base_.event_group(), utility::event_atom_v, add_playlist_atom_v, result);
         } catch (const std::exception &err) {
             spdlog::warn("{} {}", __PRETTY_FUNCTION__, err.what());
             // set to invalid uuid ?
@@ -2334,7 +2311,7 @@ void SessionActor::save_json_to(
         if (update_path) {
             base_.set_filepath(path);
             send(
-                event_group_,
+                base_.event_group(),
                 utility::event_atom_v,
                 path_atom_v,
                 std::make_pair(base_.filepath(), base_.session_file_mtime()));

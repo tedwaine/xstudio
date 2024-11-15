@@ -10,7 +10,6 @@
 #include "xstudio/media_cache/media_cache_actor.hpp"
 #include "xstudio/media_reader/media_reader_actor.hpp"
 #include "xstudio/playlist/playlist_actor.hpp"
-#include "xstudio/utility/edit_list.hpp"
 #include "xstudio/utility/helpers.hpp"
 #include "xstudio/utility/logging.hpp"
 
@@ -115,14 +114,6 @@ TEST(PlayheadActorTest, Test) {
             .actor();
 
     try {
-
-        // EXPECT_EQ(
-        //     request_receive_wait<playhead::CompareMode>(
-        //         *(f.self),
-        //         playhead,
-        //         std::chrono::milliseconds(1000),
-        //         playhead::compare_mode_atom_v),
-        //     playhead::CM_OFF);
 
         request_receive_wait<bool>(
             *(f.self),

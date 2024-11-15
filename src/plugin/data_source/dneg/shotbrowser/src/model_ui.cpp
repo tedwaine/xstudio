@@ -228,10 +228,30 @@ QVariant ShotBrowserListModel::data(const QModelIndex &index, int role) const {
             break;
 
         case Roles::typeRole:
-            try {
+            if (j.contains("type") and j.at("type").is_string())
                 result = QString::fromStdString(j.at("type").get<std::string>());
-            } catch (...) {
-            }
+            break;
+
+        case Roles::descriptionRole:
+            if (j.contains("attributes") and j.at("attributes").contains("sg_description") and
+                j.at("attributes").at("sg_description").is_string())
+                result = QString::fromStdString(
+                    j.at("attributes").at("sg_description").get<std::string>());
+            break;
+
+        case Roles::divisionRole:
+            if (j.contains("attributes") and j.at("attributes").contains("sg_division") and
+                j.at("attributes").at("sg_division").is_string())
+                result = QString::fromStdString(
+                    j.at("attributes").at("sg_division").get<std::string>());
+            break;
+
+        case Roles::createdRole:
+            if (j.contains("attributes") and j.at("attributes").contains("created_at") and
+                j.at("attributes").at("created_at").is_string())
+                result = QDateTime::fromString(
+                    QStringFromStd(j.at("attributes").at("created_at").get<std::string>()),
+                    Qt::ISODate);
             break;
 
         case Roles::nameRole:
@@ -293,16 +313,21 @@ QModelIndex ShotBrowserSequenceFilterModel::searchRecursive(
 
 
 QVariant ShotBrowserSequenceModel::data(const QModelIndex &index, int role) const {
-    auto result = QVariant();
+    auto result                      = QVariant();
+    const static auto sg_status_list = json::json_pointer("/attributes/sg_status_list");
+    const static auto sg_unit        = json::json_pointer("/relationships/sg_unit/data/name");
 
     try {
         const auto &j = indexToData(index);
 
         switch (role) {
         case Roles::statusRole:
-            if (j.contains(json::json_pointer("/attributes/sg_status_list")))
-                result = QString::fromStdString(
-                    j.at("attributes").at("sg_status_list").get<std::string>());
+            if (j.contains(sg_status_list))
+                result = QString::fromStdString(j.at(sg_status_list).get<std::string>());
+            break;
+        case Roles::unitRole:
+            if (j.contains(sg_unit))
+                result = QString::fromStdString(j.at(sg_unit).get<std::string>());
             break;
 
 
@@ -327,6 +352,7 @@ void ShotBrowserSequenceFilterModel::setHideStatus(const QStringList &value) {
         hide_status_ = new_value;
         emit hideStatusChanged();
         invalidateFilter();
+        emit filterChanged();
     }
 }
 
@@ -348,9 +374,39 @@ bool ShotBrowserSequenceFilterModel::filterAcceptsRow(
     if (not hide_status_.empty() and source_index.isValid() and
         hide_status_.count(
             source_index.data(ShotBrowserSequenceModel::Roles::statusRole).toString()))
-        result = false;
+        return false;
 
-    return result;
+    if (not filter_unit_.empty() and sourceModel()) {
+        QModelIndex index = sourceModel()->index(source_row, 0, source_parent);
+        auto value        = index.data(ShotBrowserSequenceModel::Roles::unitRole);
+        auto no_unit      = QVariant::fromValue(QString("No Unit"));
+        auto shot_type    = QVariant::fromValue(QString("Shot"));
+
+        for (const auto &i : filter_unit_)
+            if (i == value)
+                return false;
+            else if (
+                i == no_unit and
+                source_index.data(ShotBrowserListModel::Roles::typeRole) == shot_type and
+                (value.isNull() or value.toString() == QString()))
+                return false;
+    }
+
+    if (hide_empty_ and source_index.isValid() and
+        source_index.data(ShotBrowserListModel::Roles::typeRole) !=
+            QVariant::fromValue(QString("Shot"))) {
+        auto rc = sourceModel()->rowCount(source_index);
+
+        // check all our children haven't been filtered..
+        auto has_child = false;
+        for (auto i = 0; i < rc and not has_child; i++)
+            has_child = filterAcceptsRow(i, source_index);
+
+        if (not has_child)
+            return false;
+    }
+
+    return QSortFilterProxyModel::filterAcceptsRow(source_row, source_parent);
 }
 
 bool ShotBrowserFilterModel::filterAcceptsRow(
@@ -360,6 +416,17 @@ bool ShotBrowserFilterModel::filterAcceptsRow(
         QModelIndex index = sourceModel()->index(source_row, 0, source_parent);
         if (not selection_filter_.contains(index))
             return false;
+    }
+
+    if (not filter_division_.empty() and sourceModel()) {
+        QModelIndex index = sourceModel()->index(source_row, 0, source_parent);
+        auto value        = index.data(ShotBrowserListModel::Roles::divisionRole);
+
+        if (not value.isNull()) {
+            for (const auto &i : filter_division_)
+                if (i == value)
+                    return false;
+        }
     }
 
     return QSortFilterProxyModel::filterAcceptsRow(source_row, source_parent);

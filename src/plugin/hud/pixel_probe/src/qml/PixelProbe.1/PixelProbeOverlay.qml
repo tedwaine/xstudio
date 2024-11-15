@@ -14,7 +14,7 @@ Rectangle {
     color: "transparent"
 
     id: control
-    visible: pixel_info_string != ""//pixel_info_attributes.enabled ? pixel_info_attributes.enabled : false
+    visible: pixel_info_string != "" && pixel_info_viewport == view.name//pixel_info_attributes.enabled ? pixel_info_attributes.enabled : false
 
     XsModuleData {
         id: pixel_info_model_data
@@ -34,6 +34,13 @@ Rectangle {
         model: pixel_info_model_data
     }
     property alias pixel_info_title: __pixel_info_title.value
+
+    XsAttributeValue {
+        id: __pixel_info_viewport
+        attributeTitle: "Current Viewport"
+        model: pixel_info_model_data
+    }
+    property alias pixel_info_viewport: __pixel_info_viewport.value
 
     XsAttributeValue {
         id: __font_size

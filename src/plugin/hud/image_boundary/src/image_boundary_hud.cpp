@@ -109,8 +109,8 @@ plugin::ViewportOverlayRendererPtr ImageBoundaryHUD::make_overlay_renderer() {
 
 ImageBoundaryHUD::~ImageBoundaryHUD() = default;
 
-utility::BlindDataObjectPtr ImageBoundaryHUD::prepare_overlay_data(
-    const media_reader::ImageBufPtr &image, const bool /*offscreen*/) const {
+utility::BlindDataObjectPtr ImageBoundaryHUD::onscreen_render_data(
+    const media_reader::ImageBufPtr &image, const std::string & /*viewport_name*/) const {
 
     auto r = utility::BlindDataObjectPtr();
 

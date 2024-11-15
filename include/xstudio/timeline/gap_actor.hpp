@@ -29,12 +29,15 @@ namespace timeline {
       private:
         inline static const std::string NAME = "GapActor";
         void init();
-        caf::behavior make_behavior() override { return behavior_; }
+
+        caf::message_handler message_handler();
+
+        caf::behavior make_behavior() override {
+            return message_handler().or_else(base_.container_message_handler(this));
+        }
 
       private:
-        caf::behavior behavior_;
         Gap base_;
-        caf::actor event_group_;
     };
 } // namespace timeline
 } // namespace xstudio

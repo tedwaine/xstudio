@@ -7,7 +7,6 @@
 #include "xstudio/audio/audio_output_actor.hpp"
 #include "xstudio/global_store/global_store.hpp"
 #include "xstudio/media_reader/image_buffer.hpp"
-#include "xstudio/utility/edit_list.hpp"
 #include "xstudio/utility/logging.hpp"
 #include "xstudio/utility/helpers.hpp"
 

@@ -88,6 +88,15 @@ Viewport {
         modelDataName: view.name + "_attrs"
     }
 
+    // access the value of the attribute called 'Compare' which is exposed in the
+    // viewport _toolbar. 
+    XsAttributeValue {
+        id: __compare_mode
+        attributeTitle: "Compare"
+        model: viewport_attrs
+    }
+    property alias compare_mode: __compare_mode.value
+    
     XsAttributeValue {
         id: __frame_rate_expr
         attributeTitle: "Frame Rate"

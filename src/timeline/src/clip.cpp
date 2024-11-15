@@ -41,7 +41,7 @@ Clip::Clip(const utility::JsonStore &jsn)
 }
 
 Clip::Clip(const Item &item, const caf::actor &actor)
-    : Container(item.name(), "Clip", item.uuid()), item_(item) {
+    : Container(item.name(), "Clip", item.uuid()), item_(item.clone()) {
     media_uuid_ = item_.prop().value("media_uuid", utility::Uuid());
     item_.set_actor_addr(caf::actor_cast<caf::actor_addr>(actor));
 }

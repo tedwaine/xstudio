@@ -8,7 +8,6 @@
 #include "xstudio/media/media.hpp"
 #include "xstudio/media_reader/media_reader.hpp"
 #include "xstudio/playhead/playhead.hpp"
-#include "xstudio/utility/edit_list.hpp"
 #include "xstudio/utility/json_store.hpp"
 #include "xstudio/utility/timecode.hpp"
 #include "xstudio/utility/uuid.hpp"

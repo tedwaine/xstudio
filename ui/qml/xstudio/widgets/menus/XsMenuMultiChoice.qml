@@ -42,7 +42,7 @@ XsPopup {
         orientation: ListView.Vertical
         spacing: 0
         width: contentWidth
-        height: appWindow.maxMenuHeight(contentHeight)
+        height: maxMenuHeight(contentHeight)
         contentHeight: contentItem.childrenRect.height
         contentWidth: minWidth
         snapMode: ListView.SnapToItem

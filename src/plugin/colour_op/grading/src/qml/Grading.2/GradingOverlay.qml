@@ -24,8 +24,8 @@ Item {
     }
 
     property var viewportName: view.name
-    property var imageBox: view.imageBoundaryInViewport
-    property var imageResolution: view.imageResolution
+    property var imageBox: view.imageBoundariesInViewport
+    property var imageResolution: view.imageResolutions[0]
     property real imageAspectRatio: 1.0
     property real viewportScale: 1.0
     property var viewportOffset: Qt.point(0, 0)

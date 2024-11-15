@@ -462,7 +462,7 @@ ThumbnailDiskCacheActor::ThumbnailDiskCacheActor(caf::actor_config &cfg)
             auto rp       = make_response_promise<ThumbnailBufferPtr>();
             auto thumbkey = ThumbnailKey(mptr, hash, thumb_size);
             // check for file in cache
-            // spdlog::warn("{} {} {} {} {}", to_string(mptr.uri_), mptr.frame_, hash,
+            // spdlog::warn("{} {} {} {} {}", to_string(mptr.uri()), mptr.frame(), hash,
             // thumbkey.hash(), cache_.cache_.count(thumbkey.hash()));
             if (cache_.cache_.count(thumbkey.hash()))
                 request_read_of_thumbnail(rp, thumbkey.hash());

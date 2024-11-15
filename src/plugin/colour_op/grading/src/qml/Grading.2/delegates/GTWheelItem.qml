@@ -116,12 +116,7 @@ Item { id: wheelItem
                 Layout.fillWidth: true
                 Layout.fillHeight: true
 
-                onWidthChanged: {
-                    updateTile(width, height)
-                }
-                onHeightChanged: {
-                    updateTile(width, height)
-                }
+                sourceComponent: GTWheelDivHorz{ anchors.fill: wheelDiv }
             }
 
             Item{
@@ -197,26 +192,5 @@ Item { id: wheelItem
 
     }
 
-
-
-
-    function updateTile(w, h){
-        var minW = 142
-        var minH = 187
-
-        if(w > minW) wheelDiv.sourceComponent = wheelHor
-        else if(h < minH) wheelDiv.sourceComponent = wheelHor
-        else wheelDiv.sourceComponent = wheelHor //wheelVer
-
-    }
-
-    Component{
-        id: wheelHor
-        GTWheelDivHorz{anchors.fill: wheelDiv}
-    }
-    Component{
-        id: wheelVer
-        GTWheelDivVert{anchors.fill: wheelDiv}
-    }
 
 }

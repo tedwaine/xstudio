@@ -15,7 +15,7 @@ endif()
 SET(LINK_DEPS
 	PUBLIC
 	caf::core
-	Imath::Imath	
+	Imath::Imath
 	nlohmann_json::nlohmann_json
 	spdlog::spdlog
 	fmt::fmt
@@ -31,6 +31,7 @@ SET(STATIC_LINK_DEPS
 	fmt::fmt
 	uuid
 	ZLIB::ZLIB
+	xstudio::broadcast_static
 )
 
 if(UNIX AND NOT APPLE)

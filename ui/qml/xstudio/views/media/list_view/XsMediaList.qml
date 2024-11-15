@@ -127,20 +127,21 @@ XsListView {
 
         onDropped: {
 
+            var idx = dragTargetIndex
+            if (idx == undefined || !idx.valid) {
+                idx = mediaListModelDataRoot
+                if (idx == undefined || !idx.valid) {
+                    idx = theSessionData.createPlaylist("New Playlist")
+                } else {
+                    // mediaListModelDataRoot is the 'MediaList' that lives
+                    // underneath a Playist, Subset etc. We want to call
+                    // handleDropFuture with the Playlist/Subset/Timeline index
+                    idx = idx.parent 
+                }
+            }
+
             if (source == "External URIS") {
                 
-                var idx = dragTargetIndex
-                if (idx == undefined || !idx.valid) {
-                    idx = mediaListModelDataRoot
-                    if (idx == undefined || !idx.valid) {
-                        idx = theSessionData.createPlaylist("New Playlist")
-                    } else {
-                        // mediaListModelDataRoot is the 'MediaList' that lives
-                        // underneath a Playist, Subset etc. We want to call
-                        // handleDropFuture with the Playlist/Subset/Timeline index
-                        idx = idx.parent 
-                    }
-                }
 
                 Future.promise(
                     theSessionData.handleDropFuture(
@@ -148,9 +149,20 @@ XsListView {
                         {"text/uri-list": data},
                         idx)
                 ).then(function(quuids){
-                    mediaSelectionModel.selectNewMedia(index, quuids)
+                    if (idx) mediaSelectionModel.selectNewMedia(idx, quuids)
                 })
+                return
 
+            } else if (source == "External JSON") {
+
+                Future.promise(
+                    theSessionData.handleDropFuture(
+                        Qt.CopyAction,
+                        data,
+                        idx)
+                ).then(function(quuids){
+                    if (idx) mediaSelectionModel.selectNewMedia(idx, quuids)
+                })
                 return
             }
 

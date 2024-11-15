@@ -657,7 +657,7 @@ void ShotBrowser::prepare_playlist_notes(
 
                                 auto [ua, jsn] = media_map[detail.owner_->uuid()];
                                 // push to shotgun client..
-                                jsn["bookmark_uuid"] = j.uuid();
+                                jsn["bookmark_uuid"].push_back(j.uuid());
                                 if (not jsn.count("has_annotation"))
                                     jsn["has_annotation"] = R"([])"_json;
 
@@ -761,6 +761,10 @@ void ShotBrowser::prepare_playlist_notes(
                                             merged.erase("shot");
                                             merged.erase("playlist_name");
                                         } else {
+                                            merged["bookmark_uuid"].insert(
+                                                merged["bookmark_uuid"].end(),
+                                                notepayload["bookmark_uuid"].begin(),
+                                                notepayload["bookmark_uuid"].end());
                                             merged["payload"]["content"] =
                                                 merged["payload"]["content"]
                                                     .get<std::string>() +
@@ -877,6 +881,8 @@ void ShotBrowser::get_data(
                 get_data_unit(rp, type, project_id);
             else if (type == "group")
                 get_data_group(rp, type, project_id);
+            else if (type == "stage")
+                get_data_stage(rp, type, project_id);
             else {
                 rp.deliver(make_error(xstudio_error::error, "Unknown type " + type));
             }
@@ -934,14 +940,12 @@ void ShotBrowser::get_data_department(
 void ShotBrowser::get_data_project(
     caf::typed_response_promise<utility::JsonStore> rp, const std::string &type) {
 
-    auto filter = R"(
-    {
-        "logical_operator": "and",
-        "conditions": [
-        ]
-    })"_json;
-
-    request(shotgun_, infinite, shotgun_projects_atom_v)
+    request(
+        shotgun_,
+        infinite,
+        shotgun_projects_atom_v,
+        ProjectFields,
+        std::vector<std::string>({"name"}))
         .then(
             [=](const JsonStore &data) mutable {
                 try {
@@ -1432,6 +1436,55 @@ void ShotBrowser::get_data_unit(
             [=](error &err) mutable { rp.deliver(err); });
 }
 
+void ShotBrowser::get_data_stage(
+    caf::typed_response_promise<utility::JsonStore> rp,
+    const std::string &type,
+    const int project_id) {
+
+    auto filter = R"(
+    {
+        "logical_operator": "and",
+        "conditions": [
+            ["project", "is", {"type":"Project", "id":0}]
+        ]
+    })"_json;
+
+    filter["conditions"][0][2]["id"] = project_id;
+
+    request(
+        shotgun_,
+        infinite,
+        shotgun_entity_search_atom_v,
+        "CustomEntity34",
+        JsonStore(filter),
+        std::vector<std::string>({"code", "id"}),
+        std::vector<std::string>({"code"}),
+        1,
+        4999)
+        .then(
+            [=](const JsonStore &data) mutable {
+                try {
+                    if (not data.count("data"))
+                        rp.deliver(make_error(xstudio_error::error, data.dump(2)));
+                    else {
+                        auto cache_key = QueryEngine::cache_name(type, project_id);
+
+                        engine().set_lookup(
+                            QueryEngine::cache_name("Stage", project_id),
+                            data.at("data"),
+                            engine().lookup());
+                        engine().set_cache(cache_key, data.at("data"));
+
+                        rp.deliver(*engine().get_cache(cache_key));
+                    }
+                } catch (const std::exception &err) {
+                    spdlog::warn("{} {}", __PRETTY_FUNCTION__, err.what());
+                    rp.deliver(make_error(xstudio_error::error, err.what()));
+                }
+            },
+            [=](error &err) mutable { rp.deliver(err); });
+}
+
 void ShotBrowser::get_data_group(
     caf::typed_response_promise<utility::JsonStore> rp,
     const std::string &type,
@@ -1480,8 +1533,7 @@ void ShotBrowser::get_data_sequence(
         shotgun_entity_search_atom_v,
         "Sequences",
         JsonStore(filter),
-        std::vector<std::string>(
-            {"id", "code", "shots", "type", "sg_parent", "sg_sequence_type", "sg_status_list"}),
+        SequenceFields,
         std::vector<std::string>({"code"}),
         page,
         4999)
@@ -1516,7 +1568,7 @@ void ShotBrowser::get_data_sequence(
                                 shotgun_entity_search_atom_v,
                                 "Shots",
                                 JsonStore(statusfilter),
-                                std::vector<std::string>({"id", "sg_status_list"}),
+                                SequenceShotFields,
                                 std::vector<std::string>({"id"}),
                                 1,
                                 4999)
@@ -1816,6 +1868,24 @@ void ShotBrowser::get_precache(
         if (need.count("Shot Status")) {
             auto req    = JsonStore(GetData);
             req["type"] = "shot_status";
+            request(caf::actor_cast<caf::actor>(this), infinite, get_data_atom_v, req)
+                .then(
+                    [=](const JsonStore &) mutable {
+                        (*count) = (*count) - 1;
+                        if (not(*count))
+                            rp.deliver(utility::JsonStore());
+                    },
+                    [=](error &err) mutable {
+                        (*count) = (*count) - 1;
+                        if (not(*count))
+                            rp.deliver(err);
+                    });
+        }
+
+        if (need.count("Stage")) {
+            auto req          = JsonStore(GetData);
+            req["type"]       = "stage";
+            req["project_id"] = project_id;
             request(caf::actor_cast<caf::actor>(this), infinite, get_data_atom_v, req)
                 .then(
                     [=](const JsonStore &) mutable {

@@ -32,10 +32,6 @@ XsPopupMenu {
       id: clipboard
     }
 
-    XsFileFunctions {
-        id: file_functions
-    }
-
     XsPreference {
         id: sessionLinkPrefix
         path: "/core/session/session_link_prefix"
@@ -501,6 +497,7 @@ XsPopupMenu {
         menuModelName: btnMenu.menu_model_name
         onActivated: theSessionData.rescanMedia(mediaSelectionModel.selectedIndexes)
         panelContext: btnMenu.panelContext
+        hotkeyUuid: reload_selected_media_hotkey.uuid
     }
 
     XsMenuModelItem {

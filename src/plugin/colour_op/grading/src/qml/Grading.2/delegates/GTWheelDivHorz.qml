@@ -43,6 +43,7 @@ ColumnLayout { id: wheelDiv
 
             backend_color: value
             wheelSize: defaultWheelSize
+
         }
     }
 
@@ -50,13 +51,13 @@ ColumnLayout { id: wheelDiv
         Layout.fillWidth: true
         Layout.minimumHeight: visible? 4:0
         Layout.fillHeight: true
-        visible: isWider
+        visible: isWider && wheelDiv.height > 150
     }
 
     Item{
         Layout.fillWidth: true
         Layout.preferredHeight: visible? (XsStyleSheet.widgetStdHeight) : 0
-        visible: isWider
+        visible: isWider && wheelDiv.width > 150
 
         GridLayout{ id: rgbGrid
             rows: 1

@@ -6,9 +6,14 @@ import xstudio.qml.viewport 1.0
 import ShotBrowser 1.0
 import xStudio 1.0
 import xstudio.qml.helpers 1.0
+import xstudio.qml.clipboard 1.0
 import QuickFuture 1.0
 
 Item {
+
+    Clipboard {
+      id: clipboard
+    }
 
     // Note: For each instance of the ShotBrowser panel, we will have an
     // instance of THIS item. As such, the 'menu_model_name' needs to be
@@ -17,6 +22,16 @@ Item {
     // multiple instances) is built. See ShotBrowserPanel
 
     // Create a menu 'Some Menu' with an item in it that says 'Do Something'
+
+    XsHotkey {
+        id: reload_playlist
+        sequence: "Alt+r"
+        name: "Reload Playlist"
+        description: "Reload Playlist From ShotGrid Ordered"
+        onActivated: ShotBrowserHelpers.syncPlaylistFromShotGrid(
+            helpers.QUuidFromUuidString(viewedMediaSetProperties.values.actorUuidRole), true
+        )
+    }
 
     XsMenuModelItem {
         text: "Pipeline"
@@ -305,7 +320,20 @@ Item {
         menuItemPosition: 8
         menuPath: "Transfer Selected"
         menuModelName: "media_list_menu_"
-        onActivated: helpers.startDetachedProcess("dnenv-do", [helpers.getEnv("SHOW"), helpers.getEnv("SHOT"), "--", "maketransfer"])
+        onActivated: {
+            let uuids = []
+            if(menuContext.mediaSelection.length) {
+                // get stalk uuids..
+                let m = menuContext.mediaSelection[0].model
+                for(let i =0; i< menuContext.mediaSelection.length; i++) {
+                    let meta = JSON.parse(theSessionData.getJSON(menuContext.mediaSelection[i], "/metadata/shotgun/version/attributes/sg_ivy_dnuuid"))
+                    if(meta)
+                        uuids.push(meta)
+                }
+            }
+
+            helpers.startDetachedProcess("dnenv-do", [helpers.getEnv("SHOW"), helpers.getEnv("SHOT"), "--", "maketransfer"].concat(uuids))
+        }
 
         Component.onCompleted: {
             // we need this so the menu model knows where to insert the
@@ -332,7 +360,19 @@ Item {
         menuItemPosition: 2
         menuModelName: "main menu bar"
         onActivated: ShotBrowserHelpers.syncPlaylistFromShotGrid(
-            helpers.QVariantFromUuidString(viewedMediaSetProperties.values.actorUuidRole)
+            helpers.QUuidFromUuidString(viewedMediaSetProperties.values.actorUuidRole)
+        )
+    }
+
+    XsMenuModelItem {
+        text: "Reload SG Playlist (Ordered)"
+        // enabled: false
+        menuPath: "Pipeline|Playlists"
+        menuItemPosition: 2.5
+        menuModelName: "main menu bar"
+        onActivated: ShotBrowserHelpers.syncPlaylistFromShotGrid(
+            helpers.QUuidFromUuidString(viewedMediaSetProperties.values.actorUuidRole),
+            true
         )
     }
 
@@ -403,9 +443,23 @@ Item {
         menuItemPosition: 2
         menuModelName: "playlist_context_menu"
         onActivated: ShotBrowserHelpers.syncPlaylistFromShotGrid(
-            helpers.QVariantFromUuidString(inspectedMediaSetProperties.values.actorUuidRole)
+            helpers.QUuidFromUuidString(inspectedMediaSetProperties.values.actorUuidRole)
         )
     }
+
+    XsMenuModelItem {
+        text: "Reload SG Playlist (Ordered)"
+        // enabled: false
+        menuPath: "Playlists"
+        menuItemPosition: 2.5
+        menuModelName: "playlist_context_menu"
+        onActivated: ShotBrowserHelpers.syncPlaylistFromShotGrid(
+            helpers.QUuidFromUuidString(viewedMediaSetProperties.values.actorUuidRole),
+            true
+        )
+        hotkeyUuid: reload_playlist.uuid
+    }
+
 
     XsMenuModelItem {
         text: "Push Media To SG Playlist"
@@ -419,6 +473,27 @@ Item {
         }
     }
 
+    XsMenuModelItem {
+        text: "Reveal In Shotgrid"
+        menuPath: "Playlists"
+        menuItemPosition: 4
+        menuModelName: "playlist_context_menu"
+        onActivated: {
+            ShotBrowserEngine.connected = true
+            ShotBrowserHelpers.revealPlaylistInShotgrid(sessionSelectionModel.selectedIndexes)
+        }
+    }
+
+    XsMenuModelItem {
+        text: "SG Playlist Link "
+        menuPath: "Copy To Clipboard"
+        menuItemPosition: 4
+        menuModelName: "playlist_context_menu"
+        onActivated: {
+            ShotBrowserEngine.connected = true
+            clipboard.text = ShotBrowserHelpers.resolvePlaylistLink(sessionSelectionModel.selectedIndexes).join("\n")
+        }
+    }
 
     XsMenuModelItem {
         text: "Publish Playlist Notes"

@@ -68,7 +68,6 @@ namespace ui {
 
             Q_INVOKABLE QObject *presetsModel();
             Q_INVOKABLE QObject *sequenceTreeModel(const int project_id);
-            Q_INVOKABLE QObject *sequenceTreeFilterModel(const int project_id);
 
             Q_INVOKABLE QString getShotgunUserName();
 
@@ -221,13 +220,16 @@ namespace ui {
             }
             QFuture<QString> updatePlaylistVersionsFuture(const QUuid &playlist);
 
-            QString refreshPlaylistVersions(const QUuid &playlist) {
-                return refreshPlaylistVersionsFuture(playlist).result();
+            QString
+            refreshPlaylistVersions(const QUuid &playlist, const bool matchOrder = false) {
+                return refreshPlaylistVersionsFuture(playlist, matchOrder).result();
             }
-            QFuture<QString> refreshPlaylistVersionsFuture(const QVariant &playlist) {
-                return refreshPlaylistVersionsFuture(playlist.toUuid());
-            }
-            QFuture<QString> refreshPlaylistVersionsFuture(const QUuid &playlist);
+            // QFuture<QString> refreshPlaylistVersionsFuture(
+            //     const QVariant &playlist, const bool matchOrder = false) {
+            //     return refreshPlaylistVersionsFuture(playlist.toUuid(), matchOrder);
+            // }
+            QFuture<QString>
+            refreshPlaylistVersionsFuture(const QUuid &playlist, const bool matchOrder = false);
 
             // QString refreshPlaylistNotes(const QUuid &playlist) {
             //     return refreshPlaylistNotesFuture(playlist).result();
@@ -386,6 +388,9 @@ namespace ui {
             QFuture<QString> getCustomEntity24Future(const int project_id);
             void createUnitCache(const int project_id);
 
+            QFuture<QString> getStageFuture(const int project_id);
+            void createStageCache(const int project_id);
+
             QFuture<QString> getPlaylistsFuture(const int project_id);
             void createPlaylistCache(const int project_id);
 
@@ -409,7 +414,6 @@ namespace ui {
             QString name_{"test"};
 
             QMap<int, ShotBrowserSequenceModel *> sequences_tree_map_;
-            QMap<int, ShotBrowserSequenceFilterModel *> sequences_tree_filter_map_;
 
             std::map<std::string, bool> preset_update_pending_;
             int maximum_result_count_{2500};

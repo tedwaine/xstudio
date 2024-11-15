@@ -17,21 +17,23 @@ namespace {
 const char *vertex_shader = R"(
     #version 330 core
     layout (location = 0) in vec4 aPos;
-    out vec2 viewportCoordinate;
+    out vec2 normImageCoordinate;
     uniform mat4 to_coord_system;
     uniform mat4 to_canvas;
+    uniform float image_aspect;
 
     void main()
     {
-        vec4 rpos = aPos*to_coord_system;
-        gl_Position = aPos*to_canvas;
-        viewportCoordinate = rpos.xy;
+        vec4 rpos = aPos;
+        rpos.y = rpos.y/image_aspect;
+        gl_Position = (rpos*to_coord_system*to_canvas);
+        normImageCoordinate = rpos.xy;
     }
     )";
 
 const char *frag_shader = R"(
     #version 330 core
-    in vec2 viewportCoordinate;
+    in vec2 normImageCoordinate;
     out vec4 FragColor;
     uniform float image_aspect;
     uniform float mask_safety;
@@ -74,7 +76,7 @@ const char *frag_shader = R"(
 
     void main(void)
     {
-        vec2 uv = vec2(viewportCoordinate.x, viewportCoordinate.y);
+        vec2 uv = vec2(normImageCoordinate.x, normImageCoordinate.y);
 
         // here the maske is 'fitted' to the image width ... the image is always
         // fitted into the viewport coordinates -1.0 to 1.0
@@ -106,9 +108,11 @@ void BasicMaskRenderer::render_opengl(
     }
 
     utility::JsonStore shader_params;
-    shader_params["to_coord_system"] = transform_viewport_to_image_space;
+    shader_params["to_coord_system"] = transform_viewport_to_image_space.inverse();
     shader_params["to_canvas"]       = transform_window_to_viewport_space;
     shader_params["viewport_du_dx"]  = viewport_du_dpixel;
+    shader_params["image_transform_matrix"]  = frame.layout_transform();
+    shader_params["image_aspect"]  = frame ? frame->image_aspect() : 16.0f/9.0f;
     shader_->set_shader_parameters(shader_params);
 
     shader_->use();
@@ -291,8 +295,8 @@ void BasicViewportMasking::register_hotkeys() {
         "Viewer");
 }
 
-utility::BlindDataObjectPtr BasicViewportMasking::prepare_overlay_data(
-    const media_reader::ImageBufPtr &image, const bool /*offscreen*/) const {
+utility::BlindDataObjectPtr BasicViewportMasking::onscreen_render_data(
+    const media_reader::ImageBufPtr &image, const std::string & /*viewport_name*/) const {
 
     auto r = utility::BlindDataObjectPtr();
     if (visible() && mask_render_method_->value() == "OpenGL" && image) {

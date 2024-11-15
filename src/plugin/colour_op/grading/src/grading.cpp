@@ -249,8 +249,8 @@ GradingTool::GradingTool(caf::actor_config &cfg, const utility::JsonStore &init_
         )");
 }
 
-utility::BlindDataObjectPtr GradingTool::prepare_overlay_data(
-    const media_reader::ImageBufPtr &image, const bool offscreen) const {
+utility::BlindDataObjectPtr GradingTool::onscreen_render_data(
+    const media_reader::ImageBufPtr &image, const std::string & /*viewport_name*/) const {
 
     // This callback is made just before viewport redraw. We want to check
     // if the image to be drawn is from the same media to which a grade is
@@ -290,7 +290,7 @@ AnnotationBasePtr GradingTool::build_annotation(const utility::JsonStore &data) 
 }
 
 void GradingTool::images_going_on_screen(
-    const std::vector<media_reader::ImageBufPtr> &images,
+    const media_reader::ImageBufDisplaySetPtr &images,
     const std::string viewport_name,
     const bool playhead_playing) {
 

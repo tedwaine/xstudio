@@ -91,11 +91,6 @@ ApplicationWindow {
         }
     }
 
-    XsFileFunctions {
-        id: file_functions
-    }
-    property alias file_functions: file_functions
-
     // if we want to show a pop-up in a particular place, we need to work out
     // the pop-up coordinates relative to it's parent. This can be a bit awkward
     // if we are doing it relative to some button that is not the parent of
@@ -304,6 +299,24 @@ ApplicationWindow {
         id: conform_tool
     }
 
+    // inhibit screensaver on playback
+    Connections {
+        target: sessionData.current_playhead
+        function onPlayingChanged() {
+            if(sessionData.current_playhead.playing)
+                helpers.inhibitScreenSaver()
+            else
+                helpers.inhibitScreenSaver(false)
+        }
+    }
+
+    // pause playback on minimise
+    onVisibilityChanged: {
+        if(visibility == 3) { // QWindow::Minimized
+            sessionData.current_playhead.playing = false
+        }
+    }
+
     // Makes these important global items visible in child contexts
     property alias conformTool: conform_tool
     property alias theSessionData: sessionData.session
@@ -338,6 +351,11 @@ ApplicationWindow {
 
     property var layouts_model
     property var layouts_model_root_index
+
+    XsFileFunctions {
+        id: file_functions
+    }
+    property alias file_functions: file_functions
 
     ColumnLayout {
 

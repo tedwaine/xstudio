@@ -50,13 +50,11 @@ target_link_libraries(${PROJECT_NAME}
 		xstudio::ui::qml::bookmark
 		xstudio::ui::qml::conform
 		xstudio::ui::qml::embedded_python
-		xstudio::ui::qml::event
 		xstudio::ui::qml::global_store
 		xstudio::ui::qml::helper
 		xstudio::ui::qml::log
 		xstudio::ui::qml::session
 		xstudio::ui::qml::studio
-		xstudio::ui::qml::tag
 		xstudio::ui::qml::viewport
 		xstudio::ui::qt::viewport_widget
 		xstudio::ui::viewport
@@ -66,6 +64,7 @@ target_link_libraries(${PROJECT_NAME}
 		fmt::fmt
 		spdlog::spdlog
 		caf::core
+		caf::io
 		$<$<BOOL:${NVIDIA_HACK}>:GLdispatch>
 		# quickfuture
 		Qt5::Core

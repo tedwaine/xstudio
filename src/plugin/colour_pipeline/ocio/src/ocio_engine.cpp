@@ -236,14 +236,14 @@ void OCIOEngine::extend_pixel_info(
 
     auto raw_info = pixel_info.raw_channels_info();
 
-    if (compute_hash(frame_id.params_) != last_pixel_probe_source_hash_) {
+    if (compute_hash(frame_id.params()) != last_pixel_probe_source_hash_) {
         OCIO::GradingPrimary primary = OCIO::GradingPrimary(OCIO::GRADING_LIN);
         auto display_proc =
-            make_display_processor(frame_id.params_, false, primary, display, view);
+            make_display_processor(frame_id.params(), false, primary, display, view);
         pixel_probe_to_display_proc_ = display_proc->getDefaultCPUProcessor();
         pixel_probe_to_lin_proc_ =
-            make_to_lin_processor(frame_id.params_, false)->getDefaultCPUProcessor();
-        last_pixel_probe_source_hash_ = compute_hash(frame_id.params_);
+            make_to_lin_processor(frame_id.params(), false)->getDefaultCPUProcessor();
+        last_pixel_probe_source_hash_ = compute_hash(frame_id.params());
     }
 
     // Update Dynamic Properties on the CPUProcessor instance
@@ -272,7 +272,7 @@ void OCIOEngine::extend_pixel_info(
 
     // Source
 
-    std::string source_cs = detect_source_colourspace(frame_id.params_);
+    std::string source_cs = detect_source_colourspace(frame_id.params());
     if (!source_cs.empty()) {
 
         pixel_info.set_raw_colourspace_name(
@@ -292,7 +292,7 @@ void OCIOEngine::extend_pixel_info(
         pixel_info.add_linear_channel_info(raw_info[2].channel_name, RGB[2]);
 
         pixel_info.set_linear_colourspace_name(
-            std::string("Scene Linear (") + working_space(frame_id.params_) + std::string(")"));
+            std::string("Scene Linear (") + working_space(frame_id.params()) + std::string(")"));
     }
 
     // Display output

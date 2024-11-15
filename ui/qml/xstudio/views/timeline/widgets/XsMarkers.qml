@@ -26,7 +26,7 @@ Rectangle {
             property real thickness: 2
             visible: x >=0
             x: (((startRole / rateRole) - start ) * tickWidth) - fractionOffset
-            y: -layerRole // *shape.height
+            y: -layerRole * (shape.height * 0.5)
             height: control.height
             containsMode: Shape.FillContains
             property var color: helpers.saturate(flagRole, 0.4)

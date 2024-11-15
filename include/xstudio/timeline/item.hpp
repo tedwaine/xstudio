@@ -11,7 +11,7 @@
 #include "xstudio/utility/uuid.hpp"
 #include "xstudio/timeline/enums.hpp"
 #include "xstudio/timeline/marker.hpp"
-#include "xstudio/media/enums.hpp"
+#include "xstudio/media/media.hpp"
 
 namespace xstudio {
 namespace timeline {
@@ -99,6 +99,7 @@ namespace timeline {
         }
         Item(const utility::JsonStore &jsn, caf::actor_system *system = nullptr);
 
+
         // Item(const Item& a);
         // Item& operator=(const Item&);
 
@@ -128,6 +129,12 @@ namespace timeline {
         using Items::push_front;
         using Items::splice;
 
+
+        [[nodiscard]] Item clone() const {
+            Item item = *this;
+            item.unbind();
+            return item;
+        }
 
         [[nodiscard]] const Items &children() const { return *this; }
         [[nodiscard]] Items &children() { return *this; }
@@ -207,7 +214,7 @@ namespace timeline {
         [[nodiscard]] utility::JsonStore prop() const { return prop_; }
         [[nodiscard]] bool transparent() const;
         [[nodiscard]] utility::UuidActorVector
-        find_all_uuid_actors(const ItemType item_type) const;
+        find_all_uuid_actors(const ItemType item_type, const bool only_enabled_items = false) const;
 
         [[nodiscard]] std::vector<std::reference_wrapper<const Item>>
         find_all_items(const ItemType item_type, const ItemType track_type = IT_NONE) const;
@@ -315,6 +322,15 @@ namespace timeline {
 
         bool has_dirty(const utility::JsonStore &event);
 
+        // This method allows an Item to produce a 'FrameTimeMap' which is the
+        // data a playhead needs to do playback
+        caf::typed_response_promise<media::FrameTimeMapPtr> get_all_frame_IDs(
+            const media::MediaType media_type,
+            const utility::TimeSourceMode tsm,
+            const utility::FrameRate &override_rate,
+            const utility::UuidSet &focus_list = utility::UuidSet()
+            );
+
       private:
         bool process_event(const utility::JsonStore &event);
         void splice_direct(
@@ -342,6 +358,9 @@ namespace timeline {
         [[nodiscard]] caf::actor_system &system() const { return *the_system_; }
 
       private:
+
+        friend class BuildFrameIDsHelper;
+
         ItemType item_type_{IT_NONE};
         utility::UuidActorAddr uuid_addr_;
         utility::FrameRange available_range_;
@@ -362,6 +381,15 @@ namespace timeline {
         bool recursive_bind_pre_{false};
         bool recursive_bind_post_{false};
     };
+
+    inline utility::UuidVector get_event_id(const utility::JsonStore &event) {
+        auto result = utility::UuidVector();
+
+        for (const auto &i : event)
+            result.push_back(i.at("redo").at("event_id"));
+
+        return result;
+    }
 
     inline std::optional<Items::const_iterator>
     find_item(const Items &items, const utility::Uuid &uuid) {
@@ -565,6 +593,7 @@ namespace timeline {
         }
         return str;
     }
+
 
 } // namespace timeline
 } // namespace xstudio

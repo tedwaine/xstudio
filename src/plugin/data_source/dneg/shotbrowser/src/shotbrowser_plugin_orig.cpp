@@ -194,7 +194,7 @@ void ShotBrowser::hotkey_released(
 }
 
 void ShotBrowser::images_going_on_screen(
-    const std::vector<media_reader::ImageBufPtr> &images,
+    const media_reader::ImageBufDisplaySetPtr &images,
     const std::string viewport_name,
     const bool playhead_playing) {
 

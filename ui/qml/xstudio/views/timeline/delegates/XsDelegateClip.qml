@@ -17,7 +17,7 @@ RowLayout {
 
 	property var config: ListView.view || control.parent
 
-	width: (durationFrame + adjustPreceedingGap + adjustAnteceedingGap) * config.scaleX
+	width: (isFloating ? trimmedDurationRole : durationFrame + adjustPreceedingGap + adjustAnteceedingGap) * config.scaleX
 	height: config.scaleY * config.itemHeight
 
 	property bool showDragLeft: "show_drag_left" in userDataRole ? userDataRole.show_drag_left : false
@@ -35,6 +35,8 @@ RowLayout {
 
 	property int moveX: "move_x" in userDataRole ? userDataRole.move_x : 0
 	property int moveY: "move_y" in userDataRole ? userDataRole.move_y : 0
+
+	property bool isFloating: "is_floating" in userDataRole ? userDataRole.is_floating : false
 
 	property int dragValue: "drag_value" in userDataRole ? userDataRole.drag_value : 0
 
@@ -124,6 +126,20 @@ RowLayout {
 		duration: adjustPreceedingGap
 	}
 
+	onIsFloatingChanged: {
+		if(isFloating) {
+	    	let new_parent = control.parent.parent.parent.parent
+			let orig = clip.mapFromItem(new_parent, clip.x, clip.y)
+			clip.parent = new_parent
+			clip.mappedX = -orig.x
+			clip.mappedY = -orig.y
+		} else {
+			clip.parent = control
+			clip.mappedX = 0
+			clip.mappedY = 0
+		}
+	}
+
 	XsClipItem {
 		id: clip
 
@@ -133,7 +149,9 @@ RowLayout {
 		property real mappedX: 0
 		property real mappedY: 0
 
-		Layout.preferredWidth: durationFrame * scaleX
+		Layout.minimumWidth: durationFrame * scaleX
+		Layout.maximumWidth: durationFrame * scaleX
+		width: durationFrame * scaleX
 		Layout.fillHeight: true
 
 		isHovered: hoveredItem == control || isAdjustingStart || isAdjustingDuration
@@ -176,24 +194,24 @@ RowLayout {
 	    	control.draggingStarted(modelIndex(), control, mode)
 	    	isDragging = true
 
-	    	if(mode == "middle" && !rippleMode) {
-		    	let new_parent = control.parent.parent.parent.parent
-				let orig = mapFromItem(new_parent, x, y)
-				clip.parent = new_parent
-				mappedX = -orig.x
-				mappedY = -orig.y
-			}
+	  //   	if(mode == "middle" && !rippleMode) {
+		 //    	let new_parent = control.parent.parent.parent.parent
+			// 	let orig = mapFromItem(new_parent, x, y)
+			// 	clip.parent = new_parent
+			// 	mappedX = -orig.x
+			// 	mappedY = -orig.y
+			// }
 	    }
 		onDragging: control.dragging(modelIndex(), control, mode, x / scaleX)
 		onDoubleTapped: control.doubleTapped(control, mode)
 		onDraggingStopped: {
 			control.draggingStopped(modelIndex(), control, mode)
 	    	isDragging = false
-			if(mode == "middle" && !rippleMode) {
-				clip.parent = control
-				mappedX = 0
-				mappedY = 0
-			}
+			// if(mode == "middle" && !rippleMode) {
+			// 	clip.parent = control
+			// 	mappedX = 0
+			// 	mappedY = 0
+			// }
 		}
 
 	    Connections {

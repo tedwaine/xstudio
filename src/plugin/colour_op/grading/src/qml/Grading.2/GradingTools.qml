@@ -68,17 +68,86 @@ Item { id: dialog
         sortbyCreated: true
     }
 
-    XsSplitView {
-        anchors.fill: parent
 
-        GTLeftSection{ id: leftSection
-            SplitView.minimumWidth: 280
-            SplitView.preferredWidth: 280
-            SplitView.fillHeight: true
+    property alias bookmarkList: listDiv.bookmarkList
+    
+    ColumnLayout { id: leftView
+        anchors.fill: parent
+        anchors.margins: panelPadding
+        spacing: panelPadding
+
+        Sec1Header{
+            Layout.fillWidth: true
+            Layout.preferredHeight: btnHeight
         }
-        GTRightSection{
-            SplitView.fillWidth: true
-            SplitView.fillHeight: true
+
+        GridLayout { id: itemsGrid
+            property bool isVertical: false
+    
+            Layout.fillWidth: true
+            Layout.fillHeight: true
+    
+            flow: GridLayout.TopToBottom
+            rowSpacing: 1
+            columnSpacing: 1
+            rows: itemsGrid.isVertical? 3: 1
+            columns: itemsGrid.isVertical? 6:18
+    
+            Behavior on width {NumberAnimation{ duration: 250 }}
+            onWidthChanged: {
+                if(width < 850) {
+                    itemsGrid.isVertical = true
+                } else {
+                    itemsGrid.isVertical = false
+                }
+            }
+        
+            Sec2LayerList{ id: listDiv
+                Layout.fillWidth: true
+                Layout.fillHeight: true
+                Layout.columnSpan: 3
+            }
+
+            Sec3MaskTools{
+                Layout.fillWidth: true
+                Layout.fillHeight: true
+                Layout.preferredWidth: itemsGrid.isVertical? itemsGrid.width/2 : 100
+                Layout.maximumWidth: itemsGrid.isVertical? itemsGrid.width/2 : 100
+                Layout.columnSpan: 3
+            }
+            
+            GTSliderItem {
+                Layout.fillWidth: true
+                Layout.preferredWidth: itemsGrid.isVertical? itemsGrid.width/2 : itemsGrid.width/6
+                Layout.maximumWidth: itemsGrid.isVertical? itemsGrid.width/2 : itemsGrid.width/6
+                Layout.fillHeight: true
+                Layout.columnSpan: 3
+            }
+
+            Repeater{
+                model: attrs.grading_wheels_model
+
+                GTWheelItem {
+                    Layout.fillWidth: true
+                    Layout.fillHeight: true
+                    Layout.preferredWidth: itemsGrid.isVertical? itemsGrid.width/2 : itemsGrid.width/6
+                    Layout.maximumWidth: itemsGrid.isVertical? itemsGrid.width/2 : itemsGrid.width/6
+                    Layout.columnSpan: 3
+                }
+            }
+
         }
+
+
     }
+
+
+
+    
+
+
+
+
+
+
 }

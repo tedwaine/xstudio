@@ -99,6 +99,7 @@ void TimelineActor::item_post_event_callback(const utility::JsonStore &event, It
 
             auto actor = deserialise(utility::JsonStore(event.at("blind")), false);
             add_item(UuidActor(cuuid, actor));
+            child_item_it = find_uuid(base_.item().children(), cuuid);
             // spdlog::warn("{}",to_string(caf::actor_cast<caf::actor_addr>(actor)));
             // spdlog::warn("{}",to_string(caf::actor_cast<caf::actor_addr>(child_item_it->actor())));
             child_item_it->set_actor_addr(actor);
@@ -108,7 +109,7 @@ void TimelineActor::item_post_event_callback(const utility::JsonStore &event, It
             // item actor_addr will be wrong.. in ancestors
             // send special update..
             send(
-                event_group_,
+                base_.event_group(),
                 event_atom_v,
                 item_atom_v,
                 child_item_it->make_actor_addr_update(),
@@ -232,12 +233,12 @@ void TimelineActor::item_pre_event_callback(const utility::JsonStore &event, Ite
                             media_uuid);
                         add_media(mactor, media_uuid, Uuid());
                         send(
-                            event_group_,
+                            base_.event_group(),
                             utility::event_atom_v,
                             playlist::add_media_atom_v,
                             UuidActorVector({UuidActor(media_uuid, mactor)}));
-                        base_.send_changed(event_group_, this);
-                        send(event_group_, utility::event_atom_v, change_atom_v);
+                        base_.send_changed();
+                        send(base_.event_group(), utility::event_atom_v, change_atom_v);
                     } catch (const std::exception &err) {
                         spdlog::warn("{} {}", __PRETTY_FUNCTION__, err.what());
                     }
@@ -1154,80 +1155,12 @@ caf::message_handler TimelineActor::default_event_handler() {
     };
 }
 
-
-void TimelineActor::init() {
-    print_on_create(this, base_.name());
-    print_on_exit(this, base_.name());
-
-    event_group_ = spawn<broadcast::BroadcastActor>(this);
-    link_to(event_group_);
-
-    auto change_event_group_ = spawn<broadcast::BroadcastActor>(this);
-    link_to(change_event_group_);
-
-    auto history_uuid = Uuid::generate();
-    auto history_ = spawn<history::HistoryMapActor<sys_time_point, JsonStore>>(history_uuid);
-    link_to(history_);
-
-    auto selection_actor_ = spawn<playhead::PlayheadSelectionActor>(
-        "SubsetPlayheadSelectionActor", caf::actor_cast<caf::actor>(this));
-    link_to(selection_actor_);
-
-    set_down_handler([=](down_msg &msg) {
-        // find in playhead list..
-        for (auto it = std::begin(actors_); it != std::end(actors_); ++it) {
-            // if a child dies we won't have enough information to recreate it.
-            // we still need to report it up the chain though.
-
-            if (msg.source == it->second) {
-                demonitor(it->second);
-
-                // if media..
-                if (base_.remove_media(it->first)) {
-                    send(event_group_, utility::event_atom_v, change_atom_v);
-                    send(
-                        event_group_,
-                        utility::event_atom_v,
-                        playlist::remove_media_atom_v,
-                        UuidVector({it->first}));
-                    base_.send_changed(event_group_, this);
-                }
-
-                actors_.erase(it);
-
-                // remove from base.
-                auto it = find_actor_addr(base_.item().children(), msg.source);
-
-                if (it != base_.item().end()) {
-                    auto jsn  = base_.item().erase(it);
-                    auto more = base_.item().refresh();
-                    if (not more.is_null())
-                        jsn.insert(jsn.begin(), more.begin(), more.end());
-
-                    send(event_group_, event_atom_v, item_atom_v, jsn, false);
-                }
-                break;
-            }
-        }
-    });
-
-    // update_edit_list_ = true;
-
-    behavior_.assign(
-        base_.make_set_name_handler(event_group_, this),
-        base_.make_get_name_handler(),
-        base_.make_last_changed_getter(),
-        base_.make_last_changed_setter(event_group_, this),
-        base_.make_last_changed_event_handler(event_group_, this),
-        base_.make_get_uuid_handler(),
-        base_.make_get_type_handler(),
-        make_get_event_group_handler(event_group_),
-        base_.make_get_detail_handler(this, event_group_),
-
+caf::message_handler TimelineActor::message_handler() {
+    return caf::message_handler{
         [=](broadcast::broadcast_down_atom, const caf::actor_addr &) {},
         [=](const group_down_msg & /*msg*/) {},
 
-        [=](history::history_atom) -> UuidActor { return UuidActor(history_uuid, history_); },
+        [=](history::history_atom) -> UuidActor { return UuidActor(history_uuid_, history_); },
 
         [=](link_media_atom, const bool force) -> result<bool> {
             auto rp = make_response_promise<bool>();
@@ -1277,7 +1210,7 @@ void TimelineActor::init() {
         [=](active_range_atom, const FrameRange &fr) -> JsonStore {
             auto jsn = base_.item().set_active_range(fr);
             if (not jsn.is_null()) {
-                send(event_group_, event_atom_v, item_atom_v, jsn, false);
+                send(base_.event_group(), event_atom_v, item_atom_v, jsn, false);
                 anon_send(history_, history::log_atom_v, __sysclock_now(), jsn);
             }
             return jsn;
@@ -1286,28 +1219,28 @@ void TimelineActor::init() {
         [=](item_flag_atom, const std::string &value) -> JsonStore {
             auto jsn = base_.item().set_flag(value);
             if (not jsn.is_null())
-                send(event_group_, event_atom_v, item_atom_v, jsn, false);
+                send(base_.event_group(), event_atom_v, item_atom_v, jsn, false);
             return jsn;
         },
 
         [=](item_lock_atom, const bool value) -> JsonStore {
             auto jsn = base_.item().set_locked(value);
             if (not jsn.is_null())
-                send(event_group_, event_atom_v, item_atom_v, jsn, false);
+                send(base_.event_group(), event_atom_v, item_atom_v, jsn, false);
             return jsn;
         },
 
         [=](item_name_atom, const std::string &value) -> JsonStore {
             auto jsn = base_.item().set_name(value);
             if (not jsn.is_null())
-                send(event_group_, event_atom_v, item_atom_v, jsn, false);
+                send(base_.event_group(), event_atom_v, item_atom_v, jsn, false);
             return jsn;
         },
 
         [=](item_prop_atom, const utility::JsonStore &value) -> JsonStore {
             auto jsn = base_.item().set_prop(value);
             if (not jsn.is_null())
-                send(event_group_, event_atom_v, item_atom_v, jsn, false);
+                send(base_.event_group(), event_atom_v, item_atom_v, jsn, false);
             return jsn;
         },
 
@@ -1323,7 +1256,7 @@ void TimelineActor::init() {
             }
             auto jsn = base_.item().set_prop(prop);
             if (not jsn.is_null())
-                send(event_group_, event_atom_v, item_atom_v, jsn, false);
+                send(base_.event_group(), event_atom_v, item_atom_v, jsn, false);
             return jsn;
         },
 
@@ -1332,7 +1265,7 @@ void TimelineActor::init() {
         [=](available_range_atom, const FrameRange &fr) -> JsonStore {
             auto jsn = base_.item().set_available_range(fr);
             if (not jsn.is_null()) {
-                send(event_group_, event_atom_v, item_atom_v, jsn, false);
+                send(base_.event_group(), event_atom_v, item_atom_v, jsn, false);
                 anon_send(history_, history::log_atom_v, __sysclock_now(), jsn);
             }
             return jsn;
@@ -1348,12 +1281,12 @@ void TimelineActor::init() {
 
         [=](trimmed_range_atom) -> utility::FrameRange { return base_.item().trimmed_range(); },
 
-        [=](item_atom) -> Item { return base_.item(); },
+        [=](item_atom) -> Item { return base_.item().clone(); },
 
         [=](plugin_manager::enable_atom, const bool value) -> JsonStore {
             auto jsn = base_.item().set_enabled(value);
             if (not jsn.is_null()) {
-                send(event_group_, event_atom_v, item_atom_v, jsn, false);
+                send(base_.event_group(), event_atom_v, item_atom_v, jsn, false);
                 anon_send(history_, history::log_atom_v, sysclock::now(), jsn);
             }
             return jsn;
@@ -1365,23 +1298,43 @@ void TimelineActor::init() {
             }
             auto it = base_.item().cbegin();
             std::advance(it, index);
-            return *it;
+            return (*it).clone();
         },
 
         // search for item in children.
         [=](item_atom, const utility::Uuid &id) -> result<Item> {
             auto item = find_item(base_.item().children(), id);
             if (item)
-                return **item;
+                return (**item).clone();
 
             return make_error(xstudio_error::error, "Invalid uuid");
         },
 
         [=](utility::event_atom, utility::change_atom, const bool) {
             content_changed_ = false;
-            // send(event_group_, event_atom_v, item_atom_v, base_.item());
-            send(event_group_, utility::event_atom_v, change_atom_v);
+            // send(base_.event_group(), event_atom_v, item_atom_v, base_.item());
+            send(base_.event_group(), utility::event_atom_v, change_atom_v);
             send(change_event_group_, utility::event_atom_v, utility::change_atom_v);
+
+
+
+            // Ted - TODO - this WIP stuff allows comparing of video tracks within
+            // a timeline.
+            auto video_tracks = base_.item().find_all_uuid_actors(IT_VIDEO_TRACK, true);
+            if (video_tracks != video_tracks_) {
+                video_tracks_ = video_tracks;
+                if (playhead_) {
+                    // now set this (and its video tracks) as the source for 
+                    // the timeple playhead                    
+
+                    anon_send(
+                        playhead_.actor(),
+                        playhead::source_atom_v,
+                        utility::UuidActor(base_.uuid(), caf::actor_cast<caf::actor>(this)),
+                        video_tracks_
+                    );
+                }
+            }
         },
 
         [=](utility::event_atom, utility::change_atom) {
@@ -1425,7 +1378,7 @@ void TimelineActor::init() {
                 auto more = base_.item().refresh();
                 if (not more.is_null()) {
                     more.insert(more.begin(), update.begin(), update.end());
-                    send(event_group_, event_atom_v, item_atom_v, more, hidden);
+                    send(base_.event_group(), event_atom_v, item_atom_v, more, hidden);
                     if (not hidden)
                         anon_send(history_, history::log_atom_v, __sysclock_now(), more);
 
@@ -1434,7 +1387,7 @@ void TimelineActor::init() {
                 }
             }
 
-            send(event_group_, event_atom_v, item_atom_v, update, hidden);
+            send(base_.event_group(), event_atom_v, item_atom_v, update, hidden);
             if (not hidden)
                 anon_send(history_, history::log_atom_v, __sysclock_now(), update);
 
@@ -1566,14 +1519,14 @@ void TimelineActor::init() {
             base_.item().undo(hist);
 
             auto inverted = R"([])"_json;
-            for(auto it = hist.crbegin(); it != hist.crend(); ++it) {
+            for (auto it = hist.crbegin(); it != hist.crend(); ++it) {
                 auto ev    = R"({})"_json;
                 ev["redo"] = it->at("undo");
                 ev["undo"] = it->at("redo");
                 inverted.emplace_back(ev);
             }
 
-            // send(event_group_, event_atom_v, item_atom_v, JsonStore(inverted), true);
+            // send(base_.event_group(), event_atom_v, item_atom_v, JsonStore(inverted), true);
 
             if (not actors_.empty()) {
                 // push to children..
@@ -1583,7 +1536,7 @@ void TimelineActor::init() {
                         [=](std::vector<bool> updated) mutable {
                             anon_send(this, link_media_atom_v, media_actors_, false);
                             send(
-                                event_group_,
+                                base_.event_group(),
                                 event_atom_v,
                                 item_atom_v,
                                 JsonStore(inverted),
@@ -1592,7 +1545,7 @@ void TimelineActor::init() {
                         },
                         [=](error &err) mutable { rp.deliver(std::move(err)); });
             } else {
-                send(event_group_, event_atom_v, item_atom_v, JsonStore(inverted), true);
+                send(base_.event_group(), event_atom_v, item_atom_v, JsonStore(inverted), true);
                 rp.deliver(true);
             }
             return rp;
@@ -1602,7 +1555,7 @@ void TimelineActor::init() {
             auto rp = make_response_promise<bool>();
             base_.item().redo(hist);
 
-            // send(event_group_, event_atom_v, item_atom_v, hist, true);
+            // send(base_.event_group(), event_atom_v, item_atom_v, hist, true);
 
             if (not actors_.empty()) {
                 // push to children..
@@ -1613,11 +1566,11 @@ void TimelineActor::init() {
                             rp.deliver(true);
                             anon_send(this, link_media_atom_v, media_actors_, false);
 
-                            send(event_group_, event_atom_v, item_atom_v, hist, true);
+                            send(base_.event_group(), event_atom_v, item_atom_v, hist, true);
                         },
                         [=](error &err) mutable { rp.deliver(std::move(err)); });
             } else {
-                send(event_group_, event_atom_v, item_atom_v, hist, true);
+                send(base_.event_group(), event_atom_v, item_atom_v, hist, true);
                 rp.deliver(true);
             }
 
@@ -1788,63 +1741,10 @@ void TimelineActor::init() {
             const int sort_column_index,
             const bool ascending) { sort_by_media_display_info(sort_column_index, ascending); },
 
-        [=](media::get_edit_list_atom, media::MediaType, const Uuid &) -> utility::EditList {
-            // Edit list actor (from A/B compare in PlaheadActor) sends this
-            // message, we will return empty edit list as getting Timelines to
-            // construct EditLists seems pointless at this stage and instead we
-            // will get rid of EditListActor
-            return utility::EditList();
-        },
-
-        [=](media::source_offset_frames_atom) -> int {
-            // needed when retime actor wraps a timeline
-            return 0;
-        },
-
-        [=](media::source_offset_frames_atom, const int) -> bool {
-            // needed when retime actor wraps a timeline
-            return false;
-        },
-
         [=](timeline::duration_atom, const timebase::flicks &new_duration) -> bool {
             // attempt by playhead to force trim the duration (to support compare
             // modes for sources of different lenght). Here we ignore it.
             return false;
-        },
-
-        [=](media::get_edit_list_atom, const Uuid &uuid) -> result<utility::EditList> {
-            std::vector<caf::actor> actors;
-            for (const auto &i : base_.media())
-                actors.push_back(actors_[i]);
-
-            if (not actors.empty()) {
-                auto rp = make_response_promise<utility::EditList>();
-
-                fan_out_request<policy::select_all>(
-                    actors, infinite, media::get_edit_list_atom_v, Uuid())
-                    .then(
-                        [=](std::vector<utility::EditList> sections) mutable {
-                            utility::EditList ordered_sections;
-                            for (const auto &i : base_.media()) {
-                                for (const auto &ii : sections) {
-                                    const auto &[ud, rt, tc] = ii.section_list()[0];
-                                    if (ud == i) {
-                                        if (uuid.is_null())
-                                            ordered_sections.push_back(ii.section_list()[0]);
-                                        else
-                                            ordered_sections.push_back({uuid, rt, tc});
-                                        break;
-                                    }
-                                }
-                            }
-                            rp.deliver(ordered_sections);
-                        },
-                        [=](error &err) mutable { rp.deliver(std::move(err)); });
-
-                return rp;
-            }
-
-            return result<utility::EditList>(utility::EditList());
         },
 
         [=](media::get_media_pointer_atom,
@@ -1888,12 +1788,12 @@ void TimelineActor::init() {
                             add_media(m.actor(), m.uuid(), uuid_before);
                         }
                         send(
-                            event_group_,
+                            base_.event_group(),
                             utility::event_atom_v,
                             playlist::add_media_atom_v,
                             new_media);
-                        base_.send_changed(event_group_, this);
-                        send(event_group_, utility::event_atom_v, change_atom_v);
+                        base_.send_changed();
+                        send(base_.event_group(), utility::event_atom_v, change_atom_v);
                         send(
                             change_event_group_, utility::event_atom_v, utility::change_atom_v);
                         rp.deliver(new_media);
@@ -1942,13 +1842,13 @@ void TimelineActor::init() {
 
                         // just one vent to trigger rebuild ?
                         send(
-                            event_group_,
+                            base_.event_group(),
                             utility::event_atom_v,
                             playlist::add_media_atom_v,
                             UuidActorVector({UuidActor(uav[0].uuid(), uav[0].actor())}));
 
-                        base_.send_changed(event_group_, this);
-                        send(event_group_, utility::event_atom_v, change_atom_v);
+                        base_.send_changed();
+                        send(base_.event_group(), utility::event_atom_v, change_atom_v);
                         send(
                             change_event_group_, utility::event_atom_v, utility::change_atom_v);
                     },
@@ -1986,10 +1886,10 @@ void TimelineActor::init() {
                             actor,
                             before_uuid);
                         // add_media(actor, uuid, before_uuid);
-                        // send(event_group_, utility::event_atom_v, change_atom_v);
-                        // send(change_event_group_, utility::event_atom_v,
+                        // send(base_.event_group(), utility::event_atom_v, change_atom_v);
+                        // send(change_base_.event_group(), utility::event_atom_v,
                         // utility::change_atom_v); send(
-                        //     event_group_,
+                        //     base_.event_group(),
                         //     utility::event_atom_v,
                         //     playlist::add_media_atom_v,
                         //     UuidActorVector({UuidActor(uuid, actor)}));
@@ -2011,12 +1911,12 @@ void TimelineActor::init() {
             try {
                 add_media(actor, uuid, before_uuid);
                 send(
-                    event_group_,
+                    base_.event_group(),
                     utility::event_atom_v,
                     playlist::add_media_atom_v,
                     UuidActorVector({UuidActor(uuid, actor)}));
-                base_.send_changed(event_group_, this);
-                send(event_group_, utility::event_atom_v, change_atom_v);
+                base_.send_changed();
+                send(base_.event_group(), utility::event_atom_v, change_atom_v);
                 send(change_event_group_, utility::event_atom_v, utility::change_atom_v);
             } catch (const std::exception &err) {
                 spdlog::warn("{} {}", __PRETTY_FUNCTION__, err.what());
@@ -2258,13 +2158,14 @@ void TimelineActor::init() {
             // driven by the selection actor
             anon_send(playhead_actor, playlist::selection_actor_atom_v, selection_actor_);
 
-            // now make this timeline the (only) source for the playhead
+            // now make this timeline and its vide tracks the source for the playhead
+            video_tracks_ = base_.item().find_all_uuid_actors(IT_VIDEO_TRACK, true);
             anon_send(
                 playhead_actor,
                 playhead::source_atom_v,
-                std::vector<caf::actor>({caf::actor_cast<caf::actor>(this)}),
-                true // this special flag tells the playhead that the source is a timeline
-            );
+                utility::UuidActor(base_.uuid(), caf::actor_cast<caf::actor>(this)),
+                video_tracks_
+                );
 
             playhead_ = UuidActor(uuid, playhead_actor);
             return playhead_;
@@ -2272,11 +2173,6 @@ void TimelineActor::init() {
 
         [=](playlist::get_playhead_atom) {
             delegate(caf::actor_cast<caf::actor>(this), playlist::create_playhead_atom_v);
-        },
-
-        [=](playlist::get_playhead_atom, const int index) {
-            delegate(
-                caf::actor_cast<caf::actor>(this), playlist::create_playhead_atom_v, index);
         },
 
         [=](playlist::get_change_event_group_atom) -> caf::actor {
@@ -2357,14 +2253,14 @@ void TimelineActor::init() {
                 result |= base_.move_media(uuid, uuid_before);
             }
             if (result) {
-                base_.send_changed(event_group_, this);
+                base_.send_changed();
                 send(
-                    event_group_,
+                    base_.event_group(),
                     utility::event_atom_v,
                     playlist::move_media_atom_v,
                     media_uuids,
                     uuid_before);
-                send(event_group_, utility::event_atom_v, change_atom_v);
+                send(base_.event_group(), utility::event_atom_v, change_atom_v);
                 send(change_event_group_, utility::event_atom_v, utility::change_atom_v);
             }
             return result;
@@ -2420,14 +2316,14 @@ void TimelineActor::init() {
             }
 
             if (not removed.empty()) {
-                send(event_group_, utility::event_atom_v, change_atom_v);
+                send(base_.event_group(), utility::event_atom_v, change_atom_v);
                 send(
-                    event_group_,
+                    base_.event_group(),
                     utility::event_atom_v,
                     playlist::remove_media_atom_v,
                     removed);
                 send(change_event_group_, utility::event_atom_v, utility::change_atom_v);
-                base_.send_changed(event_group_, this);
+                base_.send_changed();
             }
             return not removed.empty();
         },
@@ -2441,51 +2337,6 @@ void TimelineActor::init() {
             actors_.clear();
             return true;
         },
-        // // code for playhead// get edit_list for all tracks/stacks..// this is temporary,
-        // it'll
-        // // need heavy changes..// also this only returns edit_lists for images, audio may be
-        // // different..
-        // [=](media::get_edit_list_atom, const Uuid &uuid) -> result<utility::EditList> {
-        //     if (update_edit_list_) {
-        //         std::vector<caf::actor> actors;
-        //         for (const auto &i : base_.tracks())
-        //             actors.push_back(actors_[i]);
-
-        //         if (not actors.empty()) {
-        //             auto rp = make_response_promise<utility::EditList>();
-
-        //             fan_out_request<policy::select_all>(
-        //                 actors, infinite, media::get_edit_list_atom_v, Uuid())
-        //                 .await(
-        //                     [=](std::vector<utility::EditList> sections) mutable {
-        //                         edit_list_.clear();
-        //                         for (const auto &i : base_.tracks()) {
-        //                             for (const auto &ii : sections) {
-        //                                 for (const auto &section : ii.section_list()) {
-        //                                     const auto &[ud, rt, tc] = section;
-        //                                     if (ud == i) {
-        //                                         if (uuid.is_null())
-        //                                             edit_list_.push_back(section);
-        //                                         else
-        //                                             edit_list_.push_back({uuid, rt, tc});
-        //                                     }
-        //                                 }
-        //                             }
-        //                         }
-        //                         update_edit_list_ = false;
-        //                         rp.deliver(edit_list_);
-        //                     },
-        //                     [=](error &err) mutable { rp.deliver(std::move(err)); });
-
-        //             return rp;
-        //         } else {
-        //             edit_list_.clear();
-        //             update_edit_list_ = false;
-        //         }
-        //     }
-
-        //     return result<utility::EditList>(edit_list_);
-        // },
 
         // [=](media::get_media_pointer_atom,
         //     const int logical_frame) -> result<media::AVFrameID> {
@@ -2529,6 +2380,10 @@ void TimelineActor::init() {
         // [=](utility::event_atom, utility::name_atom, const std::string & /*name*/) {},
 
         [=](utility::rate_atom) -> FrameRate { return base_.item().rate(); },
+
+        [=](utility::rate_atom atom, const media::MediaType media_type) {
+            delegate(caf::actor_cast<caf::actor>(this), atom);
+        },
 
         // [=](utility::rate_atom, const FrameRate &rate) { base_.set_rate(rate); },
 
@@ -2637,7 +2492,7 @@ void TimelineActor::init() {
         [=](timeline::focus_atom, const UuidVector &list) {
             base_.set_focus_list(list);
             // both ?
-            send(event_group_, utility::event_atom_v, change_atom_v);
+            send(base_.event_group(), utility::event_atom_v, change_atom_v);
             send(change_event_group_, utility::event_atom_v, utility::change_atom_v);
         },
 
@@ -2706,7 +2561,7 @@ void TimelineActor::init() {
                             media_actors_)
                             .await(
                                 [=](std::vector<bool> items) mutable {
-                                    base_.send_changed(event_group_, this);
+                                    base_.send_changed();
                                     rp.deliver(true);
                                 },
                                 [=](error &err) mutable {
@@ -2757,220 +2612,16 @@ void TimelineActor::init() {
         [=](media::get_media_pointers_atom atom,
             const media::MediaType media_type,
             const utility::TimeSourceMode tsm,
-            const utility::FrameRate &override_rate) -> caf::result<media::FrameTimeMap> {
+            const utility::FrameRate &override_rate) -> caf::result<media::FrameTimeMapPtr> {
+
             // This is required by SubPlayhead actor to make the timeline
             // playable.
-
-            auto rp = make_response_promise<media::FrameTimeMap>();
-
-            if (!base_.item().available_range()) {
-                rp.deliver(media::FrameTimeMap());
-                return rp;
-            }
-
-            // Should this be trimmed_range, active_range or available_range or
-            // something else?
-            const int start_frame =
-                (*base_.item().available_range()).frame_start().frames(base_.rate());
-            const int end_frame =
-                start_frame +
-                (*base_.item().available_range()).frame_duration().frames(base_.rate());
-
-            // request the sequential AVFrameIDs for this timeline
-            request(
-                caf::actor_cast<caf::actor>(this),
-                infinite,
-                atom,
+            return base_.item().get_all_frame_IDs(
                 media_type,
-                media::LogicalFrameRanges({{
-                    start_frame,
-                    end_frame,
-                }}),
-                base_.rate())
-                .then(
-                    [=](const media::AVFrameIDs &frame_ids) mutable {
-                        auto time_point = timebase::flicks(0);
-                        media::FrameTimeMap reslt;
-                        int logical_frame = 0;
-                        for (const auto &frame_id : frame_ids) {
-                            auto frame_id_cpy = std::make_shared<media::AVFrameID>(*frame_id);
-                            frame_id_cpy->playhead_logical_frame_ = logical_frame++;
+                tsm,
+                override_rate,
+                base_.focus_list());
 
-                            // use the base rate to set the frame rate - this
-                            // could be varied within this function if it fits
-                            // with the timeline model. For example, supporting
-                            // media of different frame rates in one timeline?
-                            frame_id_cpy->rate_ = base_.rate();
-                            reslt[time_point]   = frame_id_cpy;
-
-                            // This is where the frame rate for the current
-                            // frame is actually applied. We can increment
-                            // by anything which allows playheads to play
-                            // media of different rates.
-                            time_point += frame_id_cpy->rate_.to_flicks();
-                        }
-                        rp.deliver(reslt);
-                    },
-                    [=](error &err) mutable { rp.deliver(std::move(err)); });
-
-            return rp;
-        },
-
-        [=](media::get_media_pointers_atom atom,
-            const media::MediaType media_type,
-            const media::LogicalFrameRanges &ranges,
-            const FrameRate & /*override_rate*/) -> caf::result<media::AVFrameIDs> {
-            auto num_frames = 0;
-            for (const auto &i : ranges)
-                num_frames += (i.second - i.first) + 1;
-
-
-            auto result = std::make_shared<media::AVFrameIDs>(num_frames);
-            auto count  = std::make_shared<int>();
-            *count      = 0;
-            // spdlog::warn("{} {} {} {}", media_type, num_frames, start_frame,
-            // override_rate.to_fps());
-
-            // N.B. !! We do not use 'override_rate' - the time base for the
-            // whole timeline is base_.rate() - that means if the timeline is
-            // 30fps but some media is 60fps, it will show every other frame
-            // from that media, for example.
-            const FrameRate base_frame_rate = base_.rate();
-
-            caf::scoped_actor sys(system());
-
-            auto item_tp = std::vector<std::optional<ResolvedItem>>();
-            item_tp.reserve(num_frames);
-
-            // spdlog::stopwatch sw;
-            for (const auto &r : ranges) {
-                for (auto i = r.first; i <= r.second; i++) {
-                    auto ii = base_.item().resolve_time(
-                        FrameRate(i * base_frame_rate.to_flicks()),
-                        media_type,
-                        base_.focus_list());
-                    if (ii) {
-                        item_tp.emplace_back(*ii);
-                        (*count)++;
-                    } else {
-                        item_tp.emplace_back();
-                    }
-                }
-            }
-
-            // spdlog::error("resolve_time elapsed {:.3}", sw);
-
-            //  only blank fraems
-            auto bf = media::make_blank_frame(media_type);
-            if (not *count) {
-                for (auto i = 0; i < num_frames; i++)
-                    (*result)[i] = bf;
-                // spdlog::error("blank output elapsed {:.3}", sw);
-                return *result;
-            }
-
-            auto rp = make_response_promise<media::AVFrameIDs>();
-
-            auto start = 0;
-            auto end   = 0;
-            auto tps   = std::vector<FrameRate>();
-            auto act   = caf::actor();
-
-            for (auto i = 0; i < num_frames; i++) {
-                auto item = item_tp[i];
-
-                // dispatch on actor change
-                if (not tps.empty() and (not item or item->first.actor() != act)) {
-                    request(
-                        act,
-                        infinite,
-                        media::get_media_pointer_atom_v,
-                        media_type,
-                        tps,
-                        base_frame_rate)
-                        .then(
-                            [=, s = start, e = end](const media::AVFrameIDs &mps) mutable {
-                                for (auto ii = s; ii <= e; ii++) {
-                                    (*result)[ii] = mps[ii - s];
-                                    (*count)--;
-                                    // spdlog::error("s {} e {} ii {} c {}", s, e, ii, *count);
-                                    if (not *count) {
-                                        rp.deliver(*result);
-                                        // spdlog::error("get_media_pointers_atom elapsed
-                                        // {:.3}", sw);
-                                    }
-                                }
-                            },
-
-                            [=, s = start, e = end](error &err) mutable {
-                                for (auto ii = s; ii <= e; ii++) {
-                                    (*result)[ii] = bf;
-                                    (*count)--;
-                                    // spdlog::error("s {} e {} ii {} c {}", s, e, ii, *count);
-                                    if (not *count) {
-                                        rp.deliver(*result);
-                                        // spdlog::error("get_media_pointers_atom elapsed
-                                        // {:.3}", sw);
-                                    }
-                                }
-                            });
-
-                    start = end = i;
-                    tps.clear();
-                    act = (item ? item->first.actor() : caf::actor());
-                }
-
-                if (not item) {
-                    (*result)[i] = bf;
-                } else {
-                    if (tps.empty()) {
-                        start = i;
-                        act   = item->first.actor();
-                    }
-                    end = i;
-                    tps.push_back(item->second);
-                }
-            }
-
-            // catch all
-            if (not tps.empty()) {
-                request(
-                    act,
-                    infinite,
-                    media::get_media_pointer_atom_v,
-                    media_type,
-                    tps,
-                    base_frame_rate)
-                    .then(
-                        [=, s = start, e = end](const media::AVFrameIDs &mps) mutable {
-                            for (auto ii = s; ii <= e; ii++) {
-                                (*result)[ii] = mps[ii - s];
-                                (*count)--;
-                                // spdlog::error("s {} e {} ii {} c {}", s, e, ii, *count);
-                                if (not *count) {
-                                    rp.deliver(*result);
-                                    // spdlog::error("get_media_pointers_atom elapsed {:.3}",
-                                    // sw);
-                                }
-                            }
-                        },
-
-                        [=, s = start, e = end](error &err) mutable {
-                            for (auto ii = s; ii <= e; ii++) {
-                                (*result)[ii] = bf;
-                                (*count)--;
-                                // spdlog::error("s {} e {} ii {} c {}", s, e, ii, *count);
-                                if (not *count) {
-                                    rp.deliver(*result);
-                                    // spdlog::error("get_media_pointers_atom elapsed {:.3}",
-                                    // sw);
-                                }
-                            }
-                        });
-            }
-
-            // spdlog::error("get_media_pointers dispatched elapsed {:.3}", sw);
-            return rp;
         },
 
         // [=](media::get_edit_list_atom, const Uuid &uuid) -> result<utility::EditList> {
@@ -3099,7 +2750,64 @@ void TimelineActor::init() {
 
 #endif
             return rp;
-        });
+        }};
+}
+
+
+void TimelineActor::init() {
+    print_on_create(this, base_.name());
+    print_on_exit(this, base_.name());
+
+    change_event_group_ = spawn<broadcast::BroadcastActor>(this);
+    link_to(change_event_group_);
+
+    history_uuid_ = Uuid::generate();
+    history_      = spawn<history::HistoryMapActor<sys_time_point, JsonStore>>(history_uuid_);
+    link_to(history_);
+
+    selection_actor_ = spawn<playhead::PlayheadSelectionActor>(
+        "SubsetPlayheadSelectionActor", caf::actor_cast<caf::actor>(this));
+    link_to(selection_actor_);
+
+    set_down_handler([=](down_msg &msg) {
+        // find in playhead list..
+        for (auto it = std::begin(actors_); it != std::end(actors_); ++it) {
+            // if a child dies we won't have enough information to recreate it.
+            // we still need to report it up the chain though.
+
+            if (msg.source == it->second) {
+                demonitor(it->second);
+
+                // if media..
+                if (base_.remove_media(it->first)) {
+                    send(base_.event_group(), utility::event_atom_v, change_atom_v);
+                    send(
+                        base_.event_group(),
+                        utility::event_atom_v,
+                        playlist::remove_media_atom_v,
+                        UuidVector({it->first}));
+                    base_.send_changed();
+                }
+
+                actors_.erase(it);
+
+                // remove from base.
+                auto it = find_actor_addr(base_.item().children(), msg.source);
+
+                if (it != base_.item().end()) {
+                    auto jsn  = base_.item().erase(it);
+                    auto more = base_.item().refresh();
+                    if (not more.is_null())
+                        jsn.insert(jsn.begin(), more.begin(), more.end());
+
+                    send(base_.event_group(), event_atom_v, item_atom_v, jsn, false);
+                }
+                break;
+            }
+        }
+    });
+
+    // update_edit_list_ = true;
 }
 
 void TimelineActor::add_item(const utility::UuidActor &ua) {
@@ -3163,12 +2871,12 @@ void TimelineActor::add_media(
 
         add_media(actor, ua.uuid(), before_uuid);
         send(
-            event_group_,
+            base_.event_group(),
             utility::event_atom_v,
             playlist::add_media_atom_v,
             UuidActorVector({ua}));
-        base_.send_changed(event_group_, this);
-        send(event_group_, utility::event_atom_v, change_atom_v);
+        base_.send_changed();
+        send(base_.event_group(), utility::event_atom_v, change_atom_v);
 
         // send(change_event_group_, utility::event_atom_v, utility::change_atom_v);
 
@@ -3370,7 +3078,7 @@ void TimelineActor::insert_items(
                 if (not more.is_null())
                     changes.insert(changes.begin(), more.begin(), more.end());
 
-                send(event_group_, event_atom_v, item_atom_v, changes, false);
+                send(base_.event_group(), event_atom_v, item_atom_v, changes, false);
                 anon_send(history_, history::log_atom_v, __sysclock_now(), changes);
                 send(this, utility::event_atom_v, change_atom_v);
 
@@ -3400,7 +3108,7 @@ TimelineActor::remove_items(const int index, const int count) {
 
                 auto tmp = base_.item().erase(it, blind);
                 changes.insert(changes.end(), tmp.begin(), tmp.end());
-                items.push_back(item);
+                items.push_back(item.clone());
             }
         }
 
@@ -3409,7 +3117,7 @@ TimelineActor::remove_items(const int index, const int count) {
             changes.insert(changes.begin(), more.begin(), more.end());
 
         // why was this commented out ?
-        // send(event_group_, event_atom_v, item_atom_v, changes, false);
+        // send(base_.event_group(), event_atom_v, item_atom_v, changes, false);
 
         anon_send(history_, history::log_atom_v, __sysclock_now(), changes);
 

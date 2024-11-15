@@ -27,7 +27,7 @@ Stack::Stack(const JsonStore &jsn)
       item_(static_cast<utility::JsonStore>(jsn.at("item"))) {}
 
 Stack::Stack(const Item &item, const caf::actor &actor)
-    : Container(item.name(), "Stack", item.uuid()), item_(item) {
+    : Container(item.name(), "Stack", item.uuid()), item_(item.clone()) {
     item_.set_actor_addr(caf::actor_cast<caf::actor_addr>(actor));
 }
 

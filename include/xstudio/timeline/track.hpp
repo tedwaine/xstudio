@@ -8,7 +8,6 @@
 #include "xstudio/media/media.hpp"
 #include "xstudio/utility/container.hpp"
 #include "xstudio/utility/frame_range.hpp"
-#include "xstudio/utility/edit_list.hpp"
 #include "xstudio/utility/json_store.hpp"
 #include "xstudio/utility/uuid.hpp"
 #include "xstudio/timeline/item.hpp"
@@ -47,6 +46,8 @@ namespace timeline {
         }
 
         utility::JsonStore refresh_item() { return item_.refresh(); }
+
+        utility::FrameRate rate() const { return item_.rate(); }
 
       private:
         media::MediaType media_type_;

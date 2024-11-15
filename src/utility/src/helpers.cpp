@@ -354,16 +354,17 @@ xstudio::utility::uri_framelist_as_sequence(const caf::uri &uri, const FrameList
         auto fl = frame_list.frames();
         uris.reserve(fl.size());
         for (const auto i : fl) {
-            auto new_uri =
-                caf::make_uri(uri_encode(fmt::format(uri_decode(to_string(uri)), i)));
+            auto new_uri = caf::make_uri(
+                uri_encode(fmt::format(fmt::runtime(uri_decode(to_string(uri))), i)));
             if (not new_uri) {
                 spdlog::warn(
                     "{} {} {}",
                     to_string(uri),
                     uri_decode(to_string(uri)),
-                    uri_encode(fmt::format(uri_decode(to_string(uri)), i)));
+                    uri_encode(fmt::format(fmt::runtime(uri_decode(to_string(uri))), i)));
                 throw std::runtime_error(
-                    "Invalid uri " + uri_encode(fmt::format(uri_decode(to_string(uri)), i)));
+                    "Invalid uri " +
+                    uri_encode(fmt::format(fmt::runtime(uri_decode(to_string(uri))), i)));
             }
 
             uris.push_back(*new_uri);

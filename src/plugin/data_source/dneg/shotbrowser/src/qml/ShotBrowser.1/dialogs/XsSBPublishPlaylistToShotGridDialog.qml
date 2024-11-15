@@ -78,26 +78,25 @@ XsWindow {
 			project_id,
 			playlist_name,
 			site_name,
-			playlist_type,
-			openOnCreate
+			playlist_type
 		)
 		close()
     }
 
-    function openOnCreate(json) {
-        try {
-            var data = JSON.parse(json)
-            if(data["data"]["id"]){
-            	ShotBrowserHelpers.loadShotGridPlaylist(data["data"]["id"], data["data"]["attributes"]["code"])
-            } else {
-                console.log(err)
-                dialogHelpers.errorDialogFunc("Publish Playlist To ShotGrid", "Publishing of Playlist to ShotGrid failed.\n\n" + data)
-            }
-        } catch(err) {
-        	console.log(err)
-            dialogHelpers.errorDialogFunc("Publish Playlist To ShotGrid", "Publishing of Playlist to ShotGrid failed.\n\n" + json)
-        }
-    }
+    // function openOnCreate(json) {
+    //     try {
+    //         var data = JSON.parse(json)
+    //         if(data["data"]["id"]){
+    //         	ShotBrowserHelpers.loadShotGridPlaylist(data["data"]["id"], data["data"]["attributes"]["code"])
+    //         } else {
+    //             console.log(err)
+    //             dialogHelpers.errorDialogFunc("Publish Playlist To ShotGrid", "Publishing of Playlist to ShotGrid failed.\n\n" + data)
+    //         }
+    //     } catch(err) {
+    //     	console.log(err)
+    //         dialogHelpers.errorDialogFunc("Publish Playlist To ShotGrid", "Publishing of Playlist to ShotGrid failed.\n\n" + json)
+    //     }
+    // }
 
     ColumnLayout {
         anchors.fill: parent

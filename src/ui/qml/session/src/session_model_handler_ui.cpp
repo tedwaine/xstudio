@@ -3,7 +3,6 @@
 
 #include "xstudio/media/media.hpp"
 #include "xstudio/session/session_actor.hpp"
-#include "xstudio/tag/tag.hpp"
 #include "xstudio/timeline/item.hpp"
 #include "xstudio/thumbnail/thumbnail.hpp"
 #include "xstudio/ui/qml/caf_response_ui.hpp"
@@ -154,6 +153,17 @@ void SessionModel::init(caf::actor_system &_system) {
                     // src_str); search from index..
                     receivedData(
                         json(src_str), actorRole, QModelIndex(), mediaStatusRole, json(status));
+                } catch (...) {
+                }
+            },
+
+            [=](utility::event_atom, utility::notification_atom, const JsonStore &digest) {
+                try {
+                    auto src     = caf::actor_cast<caf::actor>(self()->current_sender());
+                    auto src_str = actorToString(system(), src);
+                    // src_str); search from index..
+                    receivedData(
+                        json(src_str), actorRole, QModelIndex(), notificationRole, digest);
                 } catch (...) {
                 }
             },

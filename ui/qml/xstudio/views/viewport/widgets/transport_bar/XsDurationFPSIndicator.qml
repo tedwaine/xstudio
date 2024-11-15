@@ -55,7 +55,7 @@ XsViewerTextDisplay
             case 0:
                 if(isNaN(viewportPlayhead.durationFrames))
                     return "----"
-                return pad("" + viewportPlayhead.durationFrames, 4);
+                return String(viewportPlayhead.durationFrames).padStart(4, '0')
             case 1:
                 return timeStr(viewportPlayhead.durationSeconds);
             case 2:
@@ -71,12 +71,12 @@ XsViewerTextDisplay
                 if(isNaN(viewportPlayhead.durationFrames) || isNaN(viewportPlayhead.logicalFrame))
                     return "----"
                 else
-                    return pad("" + viewportPlayhead.durationFrames-viewportPlayhead.logicalFrame, 4);
+                    return String(viewportPlayhead.durationFrames-viewportPlayhead.logicalFrame-1).padStart(4, '0')
             case 1:
                 return timeStr(viewportPlayhead.durationSeconds - viewportPlayhead.positionSeconds);
             case 2:
                 return getTimeCodeStr(
-                    viewportPlayhead.durationFrames - viewportPlayhead.logicalFrame,
+                    viewportPlayhead.durationFrames - viewportPlayhead.logicalFrame-1,
                     Math.round(1.0/viewportPlayhead.frameRate));
         }
         return "--"
@@ -85,12 +85,6 @@ XsViewerTextDisplay
 
     text: selected == 0 ? duration : selected == 1 ? remaining : fps
 
-    function pad(n, width, z) {
-        z = z || '0';
-        n = n + '';
-        return n.length >= width ? n : new Array(width - n.length + 1).join(z) + n;
-    }
-
     function timeStr(tt) {
         let result = "--:--:--"
 
@@ -98,8 +92,8 @@ XsViewerTextDisplay
             var seconds = Math.floor(tt)
             var minutes = Math.floor(seconds / 60)
             var hours = Math.floor(minutes / 60)
-            var SS = pad(seconds % 60, 2)
-            var MM = pad(minutes % 60, 2)
+            var SS = String(seconds % 60).padStart(2, '0')
+            var MM = String(minutes % 60).padStart(2, '0')
             if (hours > 0) {
                 var HH = hours % 24
                 result = HH + ':' + MM + ':' + SS
@@ -121,10 +115,11 @@ XsViewerTextDisplay
             var seconds = Math.floor(displayValue / fps)
             var minutes = Math.floor(seconds / 60)
             var hours = Math.floor(minutes / 60)
-            var FF = pad(frames, 2)
-            var SS = pad(seconds % 60, 2)
-            var MM = pad(minutes % 60, 2)
-            var HH = pad(hours, 2)
+            var FF = String(frames).padStart(2, '0')
+
+            var SS = String(seconds % 60).padStart(2, '0')
+            var MM = String(minutes % 60).padStart(2, '0')
+            var HH = String(hours).padStart(2, '0')
             result = HH + ':' + MM + ':' + SS + ':' + FF
         }
 

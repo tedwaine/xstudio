@@ -61,6 +61,7 @@ Item{
     property var select_all_hotkey: hotkey_area.select_all_hotkey
     property var deselect_all_hotkey: hotkey_area.deselect_all_hotkey
     property alias delete_selected: hotkey_area.delete_selected_hotkey
+    property alias reload_selected_media_hotkey: hotkey_area.reload_selected_media_hotkey
 
 
     XsGradientRectangle{

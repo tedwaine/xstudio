@@ -121,31 +121,6 @@ class Playhead(ModuleBase):
         self.connection.send(self.remote, loop_atom(), x)
 
     @property
-    def compare_mode(self):
-        """Playhead compare mode.
-
-        Returns:
-            compare_mode(str): Current compare mode.
-        """
-        self.connection.send(self.remote, attribute_value_atom(), "Compare")
-        result = self.connection.dequeue_message()
-        return result[0]
-
-    @compare_mode.setter
-    def compare_mode(self, x):
-        """Set compare mode.
-
-        Args:
-            mode(str): Set compare mode.
-        """
-        self.connection.send(
-            self.remote,
-            change_attribute_value_atom(),
-            "Compare",
-            JsonStore(x)
-            )
-
-    @property
     def play_forward(self):
         """Is playing forwards.
 

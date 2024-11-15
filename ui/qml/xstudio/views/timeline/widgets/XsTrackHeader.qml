@@ -23,6 +23,7 @@ Item {
 
 	property bool isSizerHovered: false
 	property bool isSizerDragging: false
+	property var notificationModel: []
 
 	signal sizerHovered(bool hovered)
 	signal sizerDragging(bool dragging)
@@ -91,6 +92,22 @@ Item {
 				text: control.text == "" ? control.title : control.text
 	        	font.pixelSize: XsStyleSheet.fontSize *1.1
 
+		    }
+
+		    Repeater {
+		        Layout.fillHeight: true
+		        Layout.alignment: Qt.AlignRight
+		        model: notificationModel
+
+		        // notify widget
+		        XsNotification {
+		            Layout.fillHeight: true
+		            Layout.preferredWidth: height
+			        Layout.alignment: Qt.AlignRight
+		            text: modelData.text
+		            type: modelData.type
+		            percentage: modelData.progress_percent || 0.0
+		        }
 		    }
 
 		    GridLayout {

@@ -22,18 +22,13 @@ Item{
 
 	XsConformEngine	{
 		id: engine
-        onModelReset:{
+
+        onRowsInserted: {
             replaceModel.notifyModel = engine
             replaceModel.rootIndex = engine.index(-1,-1)
             compareModel.notifyModel = engine
             compareModel.rootIndex = engine.index(-1,-1)
         }
-		onJsonChanged: {
-			replaceModel.notifyModel = engine
-			replaceModel.rootIndex = engine.index(-1,-1)
-			compareModel.notifyModel = engine
-			compareModel.rootIndex = engine.index(-1,-1)
-		}
 	}
 
     XsHotkey {
@@ -41,30 +36,27 @@ Item{
         sequence: "Alt+n"
         name: "Next Version"
         description: "Replace With Next Version"
-        // context: "" + mediaList
-        // onActivated: {
-        //     selectAll()
-        // }
+        onActivated: {
+            replaceSelection("Next Version", mediaSelectionModel.selectedIndexes)
+        }
     }
     XsHotkey {
         id: previous_version_hotkey
         sequence: "Alt+p"
         name: "Previous Version"
         description: "Replace With Previous Version"
-        // context: "" + mediaList
-        // onActivated: {
-        //     selectAll()
-        // }
+        onActivated: {
+            replaceSelection("Previous Version", mediaSelectionModel.selectedIndexes)
+        }
     }
     XsHotkey {
         id: latest_version_hotkey
         sequence: "Alt+l"
         name: "Latest Version"
         description: "Replace With Latest Version"
-        // context: "" + mediaList
-        // onActivated: {
-        //     selectAll()
-        // }
+        onActivated: {
+            replaceSelection("Latest Version", mediaSelectionModel.selectedIndexes)
+        }
     }
 
     function removeDuplicates(selection) {
@@ -307,9 +299,9 @@ Item{
             if(["Audio Track", "Video Track"].includes(type)) {
                 let task = selectedIndexes[i].model.get(selectedIndexes[i], "nameRole")
                 // make sure the task is valid..
-                let task_index = engine.search(task, "nameRole")
-                if(task_index.valid)
-                    autoConformSelectionTimeline(task, conformSourceIndex, selectedIndexes[i])
+                // let task_index = engine.search(task, "nameRole")
+                // if(task_index.valid)
+                autoConformSelectionTimeline(task, conformSourceIndex, selectedIndexes[i])
             }
         }
     }

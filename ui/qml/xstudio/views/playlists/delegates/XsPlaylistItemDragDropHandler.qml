@@ -149,8 +149,20 @@ XsDragDropHandler {
             Future.promise(
                 theSessionData.handleDropFuture(Qt.CopyAction, {"text/uri-list": data}, modelIndex)
             ).then(function(quuids){
-                mediaSelectionModel.selectNewMedia(index, quuids)
+                mediaSelectionModel.selectNewMedia(modelIndex, quuids)
             })
+        } else if (source == "External JSON") {
+
+            Future.promise(
+                theSessionData.handleDropFuture(
+                    Qt.CopyAction,
+                    data,
+                    modelIndex)
+            ).then(function(quuids){
+                mediaSelectionModel.selectNewMedia(modelIndex, quuids)
+            })
+            return
+
         } else if (source == "PlayList" && canReceiveDrag) {
             var ids = []
             for (var i in data) {

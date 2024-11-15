@@ -10,6 +10,7 @@
 #include <queue>
 
 #include "xstudio/utility/helpers.hpp"
+#include "xstudio/utility/frame_rate.hpp"
 #include "xstudio/utility/logging.hpp"
 #include "xstudio/utility/json_store.hpp"
 #include "xstudio/plugin_manager/plugin_utility.hpp"
@@ -91,7 +92,7 @@ class DNRun : public Utility {
             fds_[0].events = POLLIN;
             nfds_          = 1;
 
-            spdlog::info("DNRun port created: {}", port_name_v1_.c_str());
+            spdlog::debug("DNRun port created: {}", port_name_v1_.c_str());
         } catch (const std::exception &err) {
             if (sock_ >= 0)
                 close(sock_);

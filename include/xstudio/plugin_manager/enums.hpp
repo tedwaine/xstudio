@@ -12,10 +12,11 @@ namespace plugin_manager {
         PF_COLOUR_OPERATION  = 1 << 5,
         PF_DATA_SOURCE       = 1 << 6,
         PF_VIEWPORT_OVERLAY  = 1 << 7,
-        PF_HEAD_UP_DISPLAY   = 1 << 8,
-        PF_UTILITY           = 1 << 9,
-        PF_CONFORM           = 1 << 10,
-        PF_VIDEO_OUTPUT      = 1 << 11,
+        PF_VIEWPORT_RENDERER = 1 << 8,
+        PF_HEAD_UP_DISPLAY   = 1 << 9,
+        PF_UTILITY           = 1 << 10,
+        PF_CONFORM           = 1 << 11,
+        PF_VIDEO_OUTPUT      = 1 << 12,
     } PluginFlags;
 
     typedef unsigned int PluginType;

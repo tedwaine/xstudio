@@ -595,7 +595,8 @@ namespace ui {
                 // convert padding spec to #'s
                 // {:04d}
                 try {
-                    tmp = fmt::format(std::regex_replace(tmp, as_hash_pad, R"({:#<$1})"), "");
+                    tmp = fmt::format(
+                        fmt::runtime(std::regex_replace(tmp, as_hash_pad, R"({:#<$1})")), "");
                 } catch (...) {
                     tmp = std::regex_replace(tmp, as_hash_pad, "#");
                 }
@@ -654,6 +655,15 @@ namespace ui {
             QVariantFromUuidString(const QString &uuid) const {
                 return QVariant::fromValue(QUuidFromUuid(utility::Uuid(StdFromQString(uuid))));
             }
+
+            Q_INVOKABLE [[nodiscard]] QUuid makeQUuid() const {
+                return QUuidFromUuid(utility::Uuid::generate());
+            }
+
+            Q_INVOKABLE [[nodiscard]] QUuid QUuidFromUuidString(const QString &uuid) const {
+                return QUuidFromUuid(utility::Uuid(StdFromQString(uuid)));
+            }
+
             Q_INVOKABLE [[nodiscard]] QString QUuidToQString(const QUuid &uuid) const {
                 return uuid.toString(QUuid::WithoutBraces);
             }
@@ -665,6 +675,12 @@ namespace ui {
             createItemSelection(const QModelIndex &tl, const QModelIndex &br) const {
                 return QItemSelection(tl, br);
             }
+
+            Q_INVOKABLE [[nodiscard]] QModelIndexList
+            createListFromRange(const QItemSelectionRange &r) const {
+                return r.indexes();
+            }
+
             Q_INVOKABLE [[nodiscard]] QItemSelection
             createItemSelection(const QModelIndexList &l) const {
                 auto s = QItemSelection();
@@ -751,6 +767,8 @@ namespace ui {
                 return QString("0x%1").arg(
                     reinterpret_cast<qlonglong>(obj), QT_POINTER_SIZE * 2, 16, QChar('0'));
             }
+
+            Q_INVOKABLE void inhibitScreenSaver(const bool inhibit = true) const;
 
           private:
             QQmlEngine *engine_;

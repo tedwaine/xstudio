@@ -29,6 +29,7 @@
 #include "xstudio/thumbnail/thumbnail_manager_actor.hpp"
 #include "xstudio/ui/model_data/model_data_actor.hpp"
 #include "xstudio/ui/viewport/keypress_monitor.hpp"
+#include "xstudio/ui/viewport/viewport_layout_plugin.hpp"
 #include "xstudio/utility/helpers.hpp"
 #include "xstudio/utility/logging.hpp"
 
@@ -110,6 +111,7 @@ void GlobalActor::init(const utility::JsonStore &prefs) {
     auto pa              = spawn<embedded_python::EmbeddedPythonActor>("Python");
     auto scanner         = spawn<scanner::ScannerActor>();
     auto conform         = spawn<conform::ConformManagerActor>();
+    auto vpmgr           = spawn<ui::viewport::ViewportLayoutManager>();
 
     link_to(audio);
     link_to(colour);
@@ -131,6 +133,7 @@ void GlobalActor::init(const utility::JsonStore &prefs) {
     link_to(metadata_mgr);
     link_to(thumbnail);
     link_to(ui_models);
+    link_to(vpmgr);
 
     // Make default audio output
 #ifdef __linux__

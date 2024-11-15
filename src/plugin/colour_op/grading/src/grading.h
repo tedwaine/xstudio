@@ -24,15 +24,15 @@ class GradingTool : public plugin::StandardPlugin {
     GradingTool(caf::actor_config &cfg, const utility::JsonStore &init_settings);
     ~GradingTool() override = default;
 
-    utility::BlindDataObjectPtr prepare_overlay_data(
-        const media_reader::ImageBufPtr &, const bool offscreen) const override;
+    utility::BlindDataObjectPtr onscreen_render_data(
+        const media_reader::ImageBufPtr &, const std::string & /*viewport_name*/) const override;
 
     // Annotations (grading)
 
     bookmark::AnnotationBasePtr build_annotation(const utility::JsonStore &data) override;
 
     void images_going_on_screen(
-        const std::vector<media_reader::ImageBufPtr> & images,
+        const media_reader::ImageBufDisplaySetPtr &images,
         const std::string viewport_name,
         const bool playhead_playing
     ) override;

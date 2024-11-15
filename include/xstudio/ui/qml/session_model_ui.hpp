@@ -5,10 +5,10 @@
 #include "xstudio/ui/qml/session_qml_export.h"
 
 #include <caf/all.hpp>
+#include <queue>
 
 #include "xstudio/ui/qml/helper_ui.hpp"
 #include "xstudio/ui/qml/json_tree_model_ui.hpp"
-#include "xstudio/ui/qml/tag_ui.hpp"
 #include "xstudio/timeline/item.hpp"
 
 
@@ -31,7 +31,6 @@ class SESSION_QML_EXPORT SessionModel : public caf::mixin::actor_object<JSONTree
     Q_PROPERTY(QString sessionActorAddr READ sessionActorAddr WRITE setSessionActorAddr NOTIFY
                    sessionActorAddrChanged)
 
-    Q_PROPERTY(QQmlPropertyMap *tags READ tags NOTIFY tagsChanged)
     Q_PROPERTY(bool modified READ modified WRITE setModified NOTIFY modifiedChanged)
     Q_PROPERTY(QString bookmarkActorAddr READ bookmarkActorAddr NOTIFY bookmarkActorAddrChanged)
     Q_PROPERTY(
@@ -84,6 +83,7 @@ class SESSION_QML_EXPORT SessionModel : public caf::mixin::actor_object<JSONTree
         metadataChangedRole,
         mtimeRole,
         nameRole,
+        notificationRole,
         pathRole,
         pathShakeRole,
         pixelAspectRole,
@@ -106,8 +106,6 @@ class SESSION_QML_EXPORT SessionModel : public caf::mixin::actor_object<JSONTree
     using super = caf::mixin::actor_object<JSONTreeModel>;
     explicit SessionModel(QObject *parent = nullptr);
     virtual void init(caf::actor_system &system);
-
-    QQmlPropertyMap *tags() { return tag_manager_->attrs_map_; }
 
     [[nodiscard]] QVariant
     data(const QModelIndex &index, int role = Qt::DisplayRole) const override;
@@ -186,10 +184,16 @@ class SESSION_QML_EXPORT SessionModel : public caf::mixin::actor_object<JSONTree
 
     Q_INVOKABLE void resetTimelineItemDragFlag(const QModelIndexList &items);
     Q_INVOKABLE void updateTimelineItemDragFlag(
-        const QModelIndexList &items, const bool isRolling, const bool isRipple);
+        const QModelIndexList &items,
+        const bool isRolling,
+        const bool isRipple,
+        const bool isOverwrite);
 
     Q_INVOKABLE void beginTimelineItemDrag(
-        const QModelIndexList &items, const QString &mode, const bool isRipple = false);
+        const QModelIndexList &items,
+        const QString &mode,
+        const bool isRipple    = false,
+        const bool isOverwrite = false);
     Q_INVOKABLE void updateTimelineItemDrag(
         const QModelIndexList &items,
         const QString &mode,
@@ -210,6 +214,19 @@ class SESSION_QML_EXPORT SessionModel : public caf::mixin::actor_object<JSONTree
     getTimelineClipIndexes(const QModelIndex &timelineIndex, const QModelIndex &mediaIndex);
 
     Q_INVOKABLE int startFrameInParent(const QModelIndex &timelineItemIndex);
+
+    Q_INVOKABLE QVariantList snapTo(
+        const QModelIndex &ignore,
+        const int cursor,
+        const int clipStart,
+        const int clipDuration,
+        const int currentOffset,
+        const int window,
+        const QUuid &key = QUuid());
+
+    // return all gap/clip items boundaries in timeline frames.
+    Q_INVOKABLE QVariantList boundaryFramesInTimeline(const QModelIndexList &indexes);
+
 
     Q_INVOKABLE QModelIndexList getIndexesByName(
         const QModelIndex &idx, const QString &name, const QString &type = "") const;
@@ -277,6 +294,26 @@ class SESSION_QML_EXPORT SessionModel : public caf::mixin::actor_object<JSONTree
 
     // end timeline operations
 
+    // notification methods
+    Q_INVOKABLE void removeNotification(const QModelIndex &index, const QUuid &uuid);
+    Q_INVOKABLE QUuid infoNotification(
+        const QModelIndex &index,
+        const QString &text,
+        const int seconds        = 10,
+        const QUuid &replaceUuid = QUuid());
+    Q_INVOKABLE QUuid warnNotification(
+        const QModelIndex &index,
+        const QString &text,
+        const int seconds        = 10,
+        const QUuid &replaceUuid = QUuid());
+    Q_INVOKABLE QUuid processingNotification(const QModelIndex &index, const QString &text);
+    Q_INVOKABLE QUuid
+    progressPercentageNotification(const QModelIndex &index, const QString &text);
+    Q_INVOKABLE QUuid progressRangeNotification(
+        const QModelIndex &index, const QString &text, const float min, const float max);
+    Q_INVOKABLE void
+    updateProgressNotification(const QModelIndex &index, const QUuid &uuid, const float value);
+
 
     [[nodiscard]] QString sessionActorAddr() const { return session_actor_addr_; };
     void setSessionActorAddr(const QString &addr);
@@ -332,15 +369,6 @@ class SESSION_QML_EXPORT SessionModel : public caf::mixin::actor_object<JSONTree
     Q_INVOKABLE bool import(const QUrl &path, const QVariant &json) {
         return importFuture(path, json).result();
     }
-
-
-    Q_INVOKABLE QUuid addTag(
-        const QUuid &quuid,
-        const QString &type,
-        const QString &data,
-        const QString &unique = "",
-        const bool persistent = false);
-
 
     Q_INVOKABLE QFuture<QUrl> getThumbnailURLFuture(const QModelIndex &index, const int frame);
     Q_INVOKABLE QFuture<QUrl>
@@ -443,7 +471,6 @@ class SESSION_QML_EXPORT SessionModel : public caf::mixin::actor_object<JSONTree
     void sessionActorAddrChanged();
     void mediaAdded(const QModelIndex &index);
     void mediaStatusChanged(const QModelIndex &playlist_index);
-    void tagsChanged();
     void modifiedChanged();
     void playlistsChanged();
     void currentMediaContainerChanged();
@@ -565,6 +592,10 @@ class SESSION_QML_EXPORT SessionModel : public caf::mixin::actor_object<JSONTree
     void add_string_lookup(const std::string &str, const QModelIndex &index);
     void add_lookup(const utility::JsonTree &tree, const QModelIndex &index);
     void item_event_callback(const utility::JsonStore &event, timeline::Item &item);
+    void add_processed_event(const utility::Uuid &uuid);
+    bool wait_for_event(
+        const utility::Uuid &uuid,
+        const std::chrono::milliseconds &timeout = std::chrono::milliseconds(1000));
 
   private:
     QString session_actor_addr_;
@@ -572,7 +603,6 @@ class SESSION_QML_EXPORT SessionModel : public caf::mixin::actor_object<JSONTree
     QUuid on_screen_playhead_uuid_;
 
     caf::actor session_actor_;
-    TagManagerUI *tag_manager_{nullptr};
 
     utility::time_point saved_time_;
     utility::time_point last_changed_;
@@ -592,6 +622,8 @@ class SESSION_QML_EXPORT SessionModel : public caf::mixin::actor_object<JSONTree
     QPersistentModelIndex current_playhead_owner_index_;
 
     QMap<QString, QImage> media_thumbnails_; // key is actor string
+    utility::UuidSet processed_events_;
+    std::queue<utility::Uuid> processed_events_queue_;
 };
 
 } // namespace xstudio::ui::qml

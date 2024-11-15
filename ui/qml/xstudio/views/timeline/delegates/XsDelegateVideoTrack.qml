@@ -83,6 +83,7 @@ Rectangle {
 		isConformSource: control.isConformSource
 		isSizerHovered: control.isSizerHovered
 		isSizerDragging: control.isSizerDragging
+		notificationModel: notificationRole
 
 		onSizerHovered: setSizerHovered(hovered)
 		onSizerDragging: setSizerDragging(dragging)

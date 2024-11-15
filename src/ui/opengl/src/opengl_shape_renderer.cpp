@@ -25,7 +25,7 @@ const char *vertex_shader = R"(
 
     void main() {
         gl_Position = vec4(positions[gl_VertexID].xy, 0.0, 1.0);
-        coords = vec2(gl_Position.x, -gl_Position.y / scale_ar);
+        coords = vec2(gl_Position.x, -gl_Position.y * scale_ar);
     }
 )";
 
@@ -101,8 +101,6 @@ const char *frag_shader = R"(
     uniform int quads_count;
     uniform int ellipses_count;
     uniform int polygons_count;
-
-    uniform float canvas_aspectratio;
 
     in vec2 coords;
     out vec4 color;
@@ -193,19 +191,12 @@ const char *frag_shader = R"(
     {
         float rad = radians(degrees);
 
-        mat2 scale_fwd = mat2(
-            1.0f, 0.0,
-            0.0, canvas_aspectratio
-        );
-        mat2 scale_inv = mat2(
-            1.0f, 0.0,
-            0.0, 1.0f / canvas_aspectratio
-        );
         mat2 rotation_mat = mat2(
             cos(rad),-sin(rad),
             sin(rad), cos(rad)
         );
-        return coord * scale_inv * rotation_mat * scale_fwd;
+
+        return coord * rotation_mat;
     }
 
     void main()
@@ -464,20 +455,23 @@ void OpenGLShapeRenderer::render_shapes(
 
     utility::JsonStore shader_params;
 
-    shader_params["scale_ar"] = image_aspectratio / transform_window_to_viewport_space[1][1];
-    shader_params["canvas_aspectratio"] = transform_window_to_viewport_space[1][1];
-    shader_params["quads_count"]        = quads.size();
-    shader_params["ellipses_count"]     = ellipses.size();
-    shader_params["polygons_count"]     = polygons.size();
+    shader_params["scale_ar"]       = 1.0f / image_aspectratio;
+    shader_params["quads_count"]    = quads.size();
+    shader_params["ellipses_count"] = ellipses.size();
+    shader_params["polygons_count"] = polygons.size();
+
+    // Transform every shape coordinates back into a square aspect ratio to ease
+    // shader computations and produce soft blur that behaves isotropically.
+    const float inv_canvas_ar = 1.0f / transform_window_to_viewport_space[1][1];
 
     std::vector<GLQuad> gl_quads;
     for (int i = 0; i < quads.size(); ++i) {
         gl_quads.push_back({
             {quads[i].colour.r, quads[i].colour.g, quads[i].colour.b, 1.0f},
-            {quads[i].tl.x, quads[i].tl.y},
-            {quads[i].tr.x, quads[i].tr.y},
-            {quads[i].br.x, quads[i].br.y},
-            {quads[i].bl.x, quads[i].bl.y},
+            {quads[i].tl.x, quads[i].tl.y * inv_canvas_ar},
+            {quads[i].tr.x, quads[i].tr.y * inv_canvas_ar},
+            {quads[i].br.x, quads[i].br.y * inv_canvas_ar},
+            {quads[i].bl.x, quads[i].bl.y * inv_canvas_ar},
             quads[i].opacity / 100.0f,
             quads[i].softness / 500.0f,
             quads[i].invert ? -1.f : 1.f,
@@ -488,8 +482,8 @@ void OpenGLShapeRenderer::render_shapes(
     for (int i = 0; i < ellipses.size(); ++i) {
         gl_ellipses.push_back({
             {ellipses[i].colour.r, ellipses[i].colour.g, ellipses[i].colour.b, 1.0f},
-            {ellipses[i].center.x, ellipses[i].center.y},
-            {ellipses[i].radius.x, ellipses[i].radius.y},
+            {ellipses[i].center.x, ellipses[i].center.y * inv_canvas_ar},
+            {ellipses[i].radius.x, ellipses[i].radius.y * inv_canvas_ar},
             ellipses[i].angle,
             ellipses[i].opacity / 100.0f,
             ellipses[i].softness / 500.0f,
@@ -509,7 +503,8 @@ void OpenGLShapeRenderer::render_shapes(
             polygons[i].invert ? -1.f : 1.f,
         });
         for (int j = 0; j < polygons[i].points.size(); ++j) {
-            gl_points.push_back({{polygons[i].points[j].x, polygons[i].points[j].y}});
+            gl_points.push_back(
+                {{polygons[i].points[j].x, polygons[i].points[j].y * inv_canvas_ar}});
         }
     }
 

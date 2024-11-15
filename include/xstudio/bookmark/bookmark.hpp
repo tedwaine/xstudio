@@ -84,6 +84,7 @@ namespace bookmark {
         BookmarkDetail(const Bookmark &bm) { *this = bm; }
 
         utility::Uuid uuid_;
+        caf::actor_addr actor_addr_;
 
         std::optional<utility::UuidActor> owner_;
         std::optional<bool> enabled_;
@@ -113,6 +114,7 @@ namespace bookmark {
         template <class Inspector> friend bool inspect(Inspector &f, BookmarkDetail &x) {
             return f.object(x).fields(
                 f.field("uui", x.uuid_),
+                f.field("act", x.actor_addr_),
                 f.field("own", x.owner_),
                 f.field("ena", x.enabled_),
                 f.field("foc", x.has_focus_),

@@ -249,7 +249,7 @@ void register_mediakey_class(py::module &m, const std::string &name) {
 
 void register_jsonstore_class(py::module &m, const std::string &name) {
     auto str_impl = [](const utility::JsonStore &x) -> std::string {
-        return std::string("basket");
+        return x.dump();
     };
     auto get_preferences_impl = [](const utility::JsonStore &x,
                                    const std::set<std::string> &context =
@@ -334,7 +334,8 @@ void register_FrameRateDuration_class(py::module &m, const std::string &name) {
 
 void register_actor_class(py::module &m, const std::string &name) {
     auto str_impl = [](const caf::actor &x) { return to_string(x); };
-    py::class_<caf::actor>(m, name.c_str()).def(py::init())
+    py::class_<caf::actor>(m, name.c_str())
+        .def(py::init())
         .def("__bool__", [](const caf::actor &x) { return bool(x); })
         .def("__str__", str_impl);
 }

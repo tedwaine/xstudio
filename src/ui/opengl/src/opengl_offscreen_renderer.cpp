@@ -12,9 +12,12 @@ OpenGLOffscreenRenderer::OpenGLOffscreenRenderer(GLint color_format)
 OpenGLOffscreenRenderer::~OpenGLOffscreenRenderer() { cleanup(); }
 
 void OpenGLOffscreenRenderer::resize(const Imath::V2f &dims) {
+
     if (dims == fbo_dims_) {
         return;
     }
+
+    glGetIntegerv(GL_FRAMEBUFFER_BINDING, &restore_fbo_id_);
 
     cleanup();
 
@@ -33,6 +36,7 @@ void OpenGLOffscreenRenderer::resize(const Imath::V2f &dims) {
     glGenRenderbuffers(1, &rbo_id_);
     glBindRenderbuffer(GL_RENDERBUFFER, rbo_id_);
     glRenderbufferStorage(GL_RENDERBUFFER, GL_DEPTH24_STENCIL8, w, h);
+    glBindRenderbuffer(GL_RENDERBUFFER, 0);
 
     glGenFramebuffers(1, &fbo_id_);
     glBindFramebuffer(GL_FRAMEBUFFER, fbo_id_);
@@ -41,7 +45,7 @@ void OpenGLOffscreenRenderer::resize(const Imath::V2f &dims) {
     glFramebufferRenderbuffer(
         GL_FRAMEBUFFER, GL_DEPTH_STENCIL_ATTACHMENT, GL_RENDERBUFFER, rbo_id_);
 
-    glBindFramebuffer(GL_FRAMEBUFFER, 0);
+    glBindFramebuffer(GL_FRAMEBUFFER, restore_fbo_id_);
 }
 
 void OpenGLOffscreenRenderer::begin() {
@@ -49,15 +53,15 @@ void OpenGLOffscreenRenderer::begin() {
     unsigned int w = fbo_dims_.x;
     unsigned int h = fbo_dims_.y;
 
+    glGetIntegerv(GL_FRAMEBUFFER_BINDING, &restore_fbo_id_);
     glGetIntegerv(GL_VIEWPORT, vp_state_.data());
-    glViewport(0, 0, w, h);
-
     glBindFramebuffer(GL_FRAMEBUFFER, fbo_id_);
+    glViewport(0, 0, w, h);
 }
 
 void OpenGLOffscreenRenderer::end() {
-    glBindFramebuffer(GL_FRAMEBUFFER, 0);
-
+    // restore bound FB
+    glBindFramebuffer(GL_FRAMEBUFFER, restore_fbo_id_);
     // Restore viewport state
     glViewport(vp_state_[0], vp_state_[1], vp_state_[2], vp_state_[3]);
 }

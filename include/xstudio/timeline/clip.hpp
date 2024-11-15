@@ -8,7 +8,6 @@
 #include "xstudio/media/media.hpp"
 #include "xstudio/timeline/item.hpp"
 #include "xstudio/utility/container.hpp"
-#include "xstudio/utility/edit_list.hpp"
 #include "xstudio/utility/json_store.hpp"
 #include "xstudio/utility/media_reference.hpp"
 #include "xstudio/utility/uuid.hpp"

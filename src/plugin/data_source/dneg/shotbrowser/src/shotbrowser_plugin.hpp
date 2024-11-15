@@ -75,10 +75,12 @@ namespace shotbrowser {
         void update_playlist_versions(
             caf::typed_response_promise<utility::JsonStore> rp,
             const utility::Uuid &playlist_uuid,
-            const int playlist_id = 0);
+            const int playlist_id            = 0,
+            const utility::Uuid &notify_uuid = utility::Uuid());
         void refresh_playlist_versions(
             caf::typed_response_promise<utility::JsonStore> rp,
-            const utility::Uuid &playlist_uuid);
+            const utility::Uuid &playlist_uuid,
+            const bool match_order = false);
         // void refresh_playlist_notes(caf::typed_response_promise<utility::JsonStore> rp, const
         // utility::Uuid &playlist_uuid);
         void create_playlist(
@@ -135,12 +137,20 @@ namespace shotbrowser {
         //     const utility::Uuid &playlist_uuid,
         //     const utility::Uuid &before
         // );
+
+        void reorder_playlist(
+            caf::typed_response_promise<bool> rp,
+            const caf::actor &playlist,
+            const utility::JsonStore &sg_playlist);
+
         void add_media_to_playlist(
             caf::typed_response_promise<std::vector<utility::UuidActor>> rp,
             const utility::JsonStore &data,
+            const bool create_playlist,
             utility::Uuid playlist_uuid,
             caf::actor playlist,
-            const utility::Uuid &before);
+            const utility::Uuid &before,
+            const utility::FrameRate &media_rate);
         void get_valid_media_count(
             caf::typed_response_promise<utility::JsonStore> rp, const utility::Uuid &uuid);
         void link_media(
@@ -193,6 +203,11 @@ namespace shotbrowser {
         void get_pipe_step(caf::typed_response_promise<utility::JsonStore> rp);
 
         void get_data_unit(
+            caf::typed_response_promise<utility::JsonStore> rp,
+            const std::string &type,
+            const int project_id);
+
+        void get_data_stage(
             caf::typed_response_promise<utility::JsonStore> rp,
             const std::string &type,
             const int project_id);
@@ -272,7 +287,8 @@ namespace shotbrowser {
         void use_action(
             caf::typed_response_promise<utility::UuidActorVector> rp,
             const caf::uri &uri,
-            const utility::FrameRate &media_rate);
+            const utility::FrameRate &media_rate,
+            const bool create_playlist);
 
         void get_action(
             caf::typed_response_promise<utility::JsonStore> rp,

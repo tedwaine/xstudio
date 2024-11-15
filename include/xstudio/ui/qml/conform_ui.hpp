@@ -79,7 +79,9 @@ namespace ui {
                 const utility::UuidActor &container,
                 const std::string &item_type,
                 const utility::UuidVector &before,
-                const bool removeSource) const;
+                const bool removeSource,
+                const QPersistentModelIndex &notifyIndex = QPersistentModelIndex(),
+                const QUuid &notifyUuid                  = QUuid()) const;
 
             utility::Uuid conform_uuid_;
             caf::actor conform_events_;

@@ -52,7 +52,7 @@ Item {
 
             } else if (retry) {
                 updateCurrentMediaContainerIndexFromBackend()
-                updateViewportCurrentMediaContainerIndexFromBackend()                
+                updateViewportCurrentMediaContainerIndexFromBackend()
                 // backend actor may have told us the current playlist has
                 // changed, but the playlist hasn't been added to the UI model
                 // yet. Check back in 200 ms.
@@ -68,25 +68,25 @@ Item {
         onCurrentMediaContainerChanged: {
 
             checkCurrentMediaContainer(true);
-    
+
             // get the index of the PlayheadSelection node for the inspected playlist
             let ind = session.searchRecursive("PlayheadSelection", "typeRole", currentMediaContainerIndex)
-    
+
             if (ind.valid) {
                 // make the 'mediaSelectionModel' track the PlayheadSelection
                 playheadSelectionIndex = helpers.makePersistent(ind)
-    
+
             }
 
             // if currentMediaContainerIndex is a Subset or Timeline, get
             // it's parent playlist
             let pl = session.getPlaylistIndex(currentMediaContainerIndex)
-    
+
             // if indeed currentMediaContainerIndex is a Subset or Timeline
             // we want to ensure that the parent playist is expanded
             if(pl != currentMediaContainerIndex)
                 session.set(pl, true, "expandedRole")
-                
+
         }
 
         function createPlaylist(name, sync=true) {
@@ -136,11 +136,8 @@ Item {
                 var selectedType = sessionData.get(currentMediaContainerIndex, "typeRole")
                 var result
                 if (selectedType== "Playlist") {
-
                     // A playlist is selected. Add as a child.
                     result = createPlaylistChild(name, type, currentMediaContainerIndex)
-
-
                 } else if (["Subset", "Timeline", "ContactSheet"].includes(type)) {
                     // Subset or similar is selected. Insert after
                     result = createPlaylistChild(
@@ -232,7 +229,7 @@ Item {
 
     property alias currentMediaContainerIndex: sessionData.currentMediaContainerIndex
     property alias viewportCurrentMediaContainerIndex: sessionData.viewportCurrentMediaContainerIndex
-    
+
     EmbeddedPython {
         id: embeddedPython
         property string text: ""
@@ -369,7 +366,7 @@ Item {
         // this method is called by some functions that load media into a playlist.
         // The idea is that when the loading is complete, we want to select the
         // first item in the playlist for display. However .... what happens if
-        // the user has already selected something before the playlist has 
+        // the user has already selected something before the playlist has
         // finished building? In that case, we don't want to override their
         // selection.
         // As such we make a note of the mediacontainer index when the user does
@@ -385,7 +382,7 @@ Item {
 
             // see note above, we don't want to change the selection automatically if
             // the user has made their own selection
-            if (lastContainerWithUserSelection == currentMediaContainerIndex) return;
+            if (lastContainerWithUserSelection != currentMediaContainerIndex) return;
 
             let type = index.model.get(index,"typeRole")
             if(quuids.length && ["Playlist", "Subset", "Timeline", "ContactSheet"].includes(type)) {

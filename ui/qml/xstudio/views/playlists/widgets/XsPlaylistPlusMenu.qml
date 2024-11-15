@@ -11,10 +11,6 @@ XsPopupMenu {
     menu_model_name: "playlist_plus_button_menu"
     property var path: ""
 
-    XsFileFunctions {
-        id: file_functions
-    }
-
     // property idenfies the 'panel' that is the anticedent of this
     // menu instance. As this menu is instanced multiple times in the
     // xstudio interface we use this context property to ensure our

@@ -64,6 +64,7 @@ XsElideLabel              1.0 ../views/timeline/widgets/XsElideLabel.qml
 
 XsViewport                1.0 ../views/viewport/XsViewport.qml
 XsViewportPanel           1.0 ../views/viewport/XsViewportPanel.qml
+XsViewerCompareModeButton  1.0 ../views/viewport/widgets/toolbar/XsViewerCompareModeButton.qml
 XsViewerMenuButton        1.0 ../views/viewport/widgets/toolbar/XsViewerMenuButton.qml
 XsViewerSourceSelectorButton 1.0 ../views/viewport/widgets/toolbar/XsViewerSourceSelectorButton.qml
 XsViewerHUDButton         1.0 ../views/viewport/widgets/toolbar/XsViewerHUDButton.qml
@@ -114,6 +115,7 @@ XsPreferencesDialog       1.0 ../widgets/dialogs/preferences/XsPreferencesDialog
 XsHotkeysDialog           1.0 ../widgets/dialogs/hotkeys/XsHotkeysDialog.qml
 
 XsBusyIndicator           1.0 ../widgets/indicators/XsBusyIndicator.qml
+XsNotification            1.0 ../widgets/indicators/XsNotification.qml
 XsProgressBar             1.0 ../widgets/indicators/XsProgressBar.qml
 
 XsLabel                   1.0 ../widgets/labels/XsLabel.qml

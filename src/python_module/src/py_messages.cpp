@@ -65,8 +65,8 @@ void py_config::add_messages() {
         "PluginDetail", "xstudio::plugin_manager::PluginDetail", &register_plugindetail_class);
     add_message_type<std::vector<plugin_manager::PluginDetail>>(
         "PluginDetailVec", "std::vector<xstudio::plugin_manager::PluginDetail>", nullptr);
-    add_message_type<playhead::CompareMode>(
-        "CompareMode", "xstudio::playhead::CompareMode", nullptr);
+    add_message_type<playhead::AssemblyMode>(
+        "AssemblyMode", "xstudio::playhead::AssemblyMode", nullptr);
     add_message_type<global::StatusType>("StatusType", "xstudio::global::StatusType", nullptr);
     add_message_type<playhead::LoopMode>("LoopMode", "xstudio::playhead::LoopMode", nullptr);
     add_message_type<playhead::OverflowMode>(

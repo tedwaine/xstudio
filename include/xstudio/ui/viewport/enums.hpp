@@ -8,12 +8,6 @@ namespace ui {
         enum MirrorMode { Off, Flip, Flop, Both };
         enum GraphicsAPI { None, OpenGL, Metal, Vulkan, DirectX };
         enum ImageFormat { RGBA_8, RGBA_10_10_10_2, RGBA_16, RGBA_16F, RGBA_32F };
-        enum ViewportSyncMode {
-            ViewportSyncOff,
-            ViewportSyncMirrorMode = 1,
-            ViewportSyncZoomAndPan = 2,
-            ViewportSyncFitMode    = 4
-        };
     } // namespace viewport
 } // namespace ui
 } // namespace xstudio

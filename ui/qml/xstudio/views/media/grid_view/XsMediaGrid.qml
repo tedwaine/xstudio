@@ -122,27 +122,39 @@ XsGridView {
 
         onDropped: {
 
-            if (source == "External URIS") {
-
-                var idx = dragTargetIndex
+            var idx = dragTargetIndex
+            if (idx == undefined || !idx.valid) {
+                idx = mediaListModelDataRoot
                 if (idx == undefined || !idx.valid) {
-                    idx = mediaListModelDataRoot
-                    if (idx == undefined || !idx.valid) {
-                        idx = theSessionData.createPlaylist("New Playlist")
-                    } else {
-                        idx = idx.parent // mediaListModelDataRoot is the 'MediaList' underneath a Playist, Subset etc.
-                    }
+                    idx = theSessionData.createPlaylist("New Playlist")
+                } else {
+                    idx = idx.parent // mediaListModelDataRoot is the 'MediaList' underneath a Playist, Subset etc.
                 }
+            }
 
+            if (source == "External URIS") {
+        
                 Future.promise(
                     theSessionData.handleDropFuture(
                         Qt.CopyAction,
                         {"text/uri-list": data},
                         idx)
                 ).then(function(quuids){
-                    mediaSelectionModel.selectNewMedia(index, quuids)
+                    if (idx) mediaSelectionModel.selectNewMedia(idx, quuids)
                 })
 
+                return
+
+            } else if (source == "External JSON") {
+
+                Future.promise(
+                    theSessionData.handleDropFuture(
+                        Qt.CopyAction,
+                        data,
+                        idx)
+                ).then(function(quuids){
+                    if (idx) mediaSelectionModel.selectNewMedia(idx, quuids)
+                })
                 return
             }
 
