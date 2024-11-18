@@ -76,9 +76,13 @@ namespace ui {
              *  @brief Render the viewport.
              *
              *  @details Render the image data into some initialised graphics resource (e.g.
-             *  an active OpenGL context)
+             *  an active OpenGL context). Thread safe, as required by QML integration where
+             *  render thread is separate to main GUI thread.
+             *
+             *  prepare_render_data should be called from GUI thread before calling this 
+             *  method.
              */
-            void render();
+            void render() const;
 
             /**
              *  @brief Render the viewport, for a specific display time measured as a system
@@ -90,6 +94,8 @@ namespace ui {
              *  offscreen viewport that delivers an image to be displayed on an SDI device
              *  like a projector, and the buffering in the SDI card results in a 250ms delay
              *  then 'when_going_on_screen' should be clock::now() + milliseconds(250)
+             *
+             *  Calling prepare_render_data is not required before using this method.
              */
             void render(const utility::time_point &when_going_on_screen);
 
@@ -98,8 +104,19 @@ namespace ui {
              *
              *  @details Render the image data into some initialised graphics resource (e.g.
              *  an active OpenGL context)
+             *
+             *  Calling prepare_render_data is not required before using this method.
              */
             void render(const media_reader::ImageBufPtr &image_buf);
+
+            /**
+             *  @brief Any pre-render interaction with Viewport state data etc. must be done
+             *  in this function. All necessary data for rendering the viewport must be gatherered
+             *  and finalised within this function. The data should be made thread safe, as the
+             *  rendering can/will be executed in a separate thread to the main GUI thread that
+             *  the Viewport lives in.                    
+             */
+            void prepare_render_data(const utility::time_point &when_going_on_screen = utility::time_point());
 
             /**
              *  @brief Initialise the viewport.
@@ -262,7 +279,7 @@ namespace ui {
              */
             media_reader::ImageBufDisplaySetPtr get_frames_for_display(
                 const bool force_playhead_sync                  = false,
-                const utility::time_point &when_being_displayed = utility::time_point());
+                const utility::time_point &when_being_displayed = utility::time_point()) const;
 
             void instance_renderer_plugins();
 
@@ -288,6 +305,15 @@ namespace ui {
                 float scale_          = {0.0f};
             } previous_fit_zoom_state_;
 
+            struct RenderData {
+                media_reader::ImageBufDisplaySetPtr images;
+                Imath::M44f projection_matrix;
+                Imath::M44f window_to_viewport_matrix;
+                ViewportRendererPtr renderer;
+                std::map<utility::Uuid, plugin::ViewportOverlayRendererPtr> overlay_renderers;
+            };
+            std::shared_ptr<const RenderData> render_data_;
+
             Imath::M44f projection_matrix_;
             Imath::M44f inv_projection_matrix_;
             Imath::M44f interact_start_projection_matrix_;
@@ -305,6 +331,8 @@ namespace ui {
 
             void setup_menus();
 
+            void event_callback(const ChangeCallbackId ev);
+
             void quickview_media(
                 std::vector<caf::actor> &media_items,
                 std::string compare_mode,
@@ -312,7 +340,7 @@ namespace ui {
                 const int out_pt = -1);
 
             media_reader::ImageBufDisplaySetPtr prepare_image_for_display(
-                const media_reader::ImageBufPtr &image_buf);
+                const media_reader::ImageBufPtr &image_buf) const;
 
             void calc_image_bounds_in_viewport_pixels();
 
@@ -355,6 +383,8 @@ namespace ui {
             bool done_init_  = {false};
             bool playing_    = {false};
             bool is_visible_ = {false};
+            size_t last_images_hash_ = {false};
+            bool needs_redraw_ = {true};
             std::set<int> held_keys_;
             std::vector<Imath::Box2f> image_bounds_in_viewport_pixels_;
             std::vector<Imath::V2i> image_resolutions_;
@@ -362,7 +392,6 @@ namespace ui {
             std::map<utility::Uuid, caf::actor> overlay_plugin_instances_;
             std::map<utility::Uuid, caf::actor> hud_plugin_instances_;
             std::map<utility::Uuid, plugin::ViewportOverlayRendererPtr> viewport_overlay_renderers_;
-
 
             module::BooleanAttribute *zoom_mode_toggle_;
             module::BooleanAttribute *pan_mode_toggle_;

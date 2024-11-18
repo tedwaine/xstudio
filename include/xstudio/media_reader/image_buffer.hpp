@@ -108,7 +108,8 @@ namespace media_reader {
               frame_id_(o.frame_id_),
               bookmarks_(o.bookmarks_),
               intrinsic_transform_(o.intrinsic_transform_),
-              layout_transform_(o.layout_transform_) {}
+              layout_transform_(o.layout_transform_),
+              playhead_logical_frame_(o.playhead_logical_frame_) {}
 
         ImageBufPtr &operator=(const ImageBufPtr &o) {
             Base &b               = static_cast<Base &>(*this);
@@ -122,6 +123,7 @@ namespace media_reader {
             bookmarks_            = o.bookmarks_;
             intrinsic_transform_  = o.intrinsic_transform_;
             layout_transform_     = o.layout_transform_;
+            playhead_logical_frame_ = o.playhead_logical_frame_;
             return *this;
         }
 

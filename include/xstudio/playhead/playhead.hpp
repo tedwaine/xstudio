@@ -78,6 +78,7 @@ namespace playhead {
         [[nodiscard]] timebase::flicks duration() const { return duration_; }
         [[nodiscard]] timebase::flicks effective_frame_period() const;
         [[nodiscard]] AssemblyMode assembly_mode() const { return assembly_mode_; }
+        [[nodiscard]] const utility::time_point & last_playhead_set_timepoint() const { return position_set_tp_; }
 
         timebase::flicks clamp_timepoint_to_loop_range(const timebase::flicks pos) const;
 
@@ -129,7 +130,7 @@ namespace playhead {
             const utility::JsonStore &menu_item_data, const std::string &user_data) override;
 
         inline static const std::chrono::milliseconds playback_step_increment =
-            std::chrono::milliseconds(5);
+            std::chrono::milliseconds(1);
 
         /*inline static const std::vector<std::tuple<CompareMode, std::string, std::string, bool>>
             compare_mode_names = {
@@ -182,7 +183,7 @@ namespace playhead {
 
         void add_attributes();
 
-        utility::time_point last_step_;
+        utility::time_point last_step_, position_set_tp_;
         float throttle_{1.0f};
         AssemblyMode assembly_mode_ = {AssemblyMode::AM_ONE};
 

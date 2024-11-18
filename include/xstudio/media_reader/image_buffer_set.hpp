@@ -76,6 +76,7 @@ namespace media_reader {
             [[nodiscard]] int num_future_images(const int sub_playhead_index) const { 
                 return int(image_set(sub_playhead_index)->future_images.size());
             }
+            [[nodiscard]] size_t images_keys_hash() const { return images_hash_; }
             [[nodiscard]] int num_onscreen_images() const { return int(sub_playhead_sets_.size()); }
             [[nodiscard]] bool empty() const { return sub_playhead_sets_.empty(); }
             [[nodiscard]] float layout_aspect() const { return layout_data_ ? layout_data_->layout_aspect_ : 16.0f/9.0f; }
@@ -151,6 +152,7 @@ namespace media_reader {
 
             utility::JsonStore as_json_;
             int64_t hash_ = {0};
+            size_t images_hash_ = {0};
 
     };
 

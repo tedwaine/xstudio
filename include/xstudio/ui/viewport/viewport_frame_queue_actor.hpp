@@ -121,6 +121,8 @@ namespace ui {
             caf::actor viewport_;
             std::string viewport_layout_mode_name_;
 
+            double playhead_velocity_ = {1.0};
+
         };
 
     } // namespace viewport

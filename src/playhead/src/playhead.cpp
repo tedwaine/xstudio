@@ -487,10 +487,10 @@ void PlayheadBase::set_playing(const bool play) {
 
             if (forward()) {
                 if (position_ == out)
-                    position_ = in;
+                    set_position(in);
             } else {
                 if (position_ == in)
-                    position_ = out;
+                    set_position(out);
             }
         }
 
@@ -556,7 +556,10 @@ timebase::flicks PlayheadBase::clamp_timepoint_to_loop_range(const timebase::fli
     return rt;
 }
 
-void PlayheadBase::set_position(const timebase::flicks p) { position_ = p; }
+void PlayheadBase::set_position(const timebase::flicks p) { 
+    position_ = p; 
+    position_set_tp_ = utility::clock::now();
+}
 
 bool PlayheadBase::set_use_loop_range(const bool use_loop_range) {
 

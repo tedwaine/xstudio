@@ -139,6 +139,8 @@ void SubPlayhead::init() {
 
     behavior_.assign(
 
+        [=](utility::uuid_atom) -> utility::Uuid { return uuid_; },
+
         [=](get_event_group_atom) -> caf::actor { return event_group_; },
 
         [=](actual_playback_rate_atom) -> result<utility::FrameRate> {
@@ -434,13 +436,34 @@ void SubPlayhead::init() {
         },
 
         [=](first_frame_media_pointer_atom) -> result<media::AVFrameID> {
-            if (retimed_frames_.size()) {
-                if (!retimed_frames_.begin()->second) {
-                    return make_error(xstudio_error::error, "Empty frame");
+            if (up_to_date_) {
+                if (retimed_frames_.size()) {
+                    if (!retimed_frames_.begin()->second) {
+                        return make_error(xstudio_error::error, "Empty frame");
+                    }
+                    return *(retimed_frames_.begin()->second);
+                } else {
+                    return make_error(xstudio_error::error, "No frames");
                 }
-                return *(retimed_frames_.begin()->second);
             }
-            return make_error(xstudio_error::error, "No Frames");
+            // not up to date, we need to get the timeline frames list from
+            // the source
+            auto rp = make_response_promise<media::AVFrameID>();
+            request(caf::actor_cast<caf::actor>(this), infinite, source_atom_v)
+                .then(
+                    [=](caf::actor) mutable {
+                        if (retimed_frames_.size()) {
+                            if (!retimed_frames_.begin()->second) {
+                                rp.deliver(make_error(xstudio_error::error, "Empty frame"));
+                            } else {
+                                rp.deliver(*(retimed_frames_.begin()->second));
+                            }
+                        } else {
+                            rp.deliver(make_error(xstudio_error::error, "No frames"));
+                        }
+                    },
+                    [=](const error &err) mutable { rp.deliver(err); });
+            return rp;
         },
 
         [=](last_frame_media_pointer_atom) -> result<media::AVFrameID> {
@@ -975,17 +998,17 @@ void SubPlayhead::set_position(
                 logical_frame_);
         }
 
-        if (playing) {
+        /*if (playing) {
             if (read_ahead_frames_ < 1 || force_updates) {
                 auto rp = make_response_promise<bool>();
                 update_playback_precache_requests(rp);
-                read_ahead_frames_ = 8;
+                read_ahead_frames_ = pre_cache_read_ahead_frames_/4;
             } else {
                 read_ahead_frames_--;
             }
         } else {
-            read_ahead_frames_ = 0;
-        }
+            read_ahead_frames_ = int(drand48()*double(pre_cache_read_ahead_frames_)/4.0);
+        }*/
 
         previous_frame_ = frame;
     }
@@ -1209,7 +1232,9 @@ std::vector<timebase::flicks> SubPlayhead::get_lookahead_frame_pointers(
         tt += std::chrono::duration_cast<std::chrono::microseconds>(
             frame_duration / playback_velocity_);
 
-        if (frame->second && !frame->second->source_uuid().is_null()) {
+        bool repeat_frame = result.size() && result.back().second == frame->second;
+
+        if (frame->second && !frame->second->source_uuid().is_null() && !repeat_frame) {
             // we don't send pre-read requests for 'blank' frames where
             // source_uuid is null
             result.emplace_back(tt, frame->second);
@@ -1265,8 +1290,6 @@ void SubPlayhead::request_future_frames() {
 
 void SubPlayhead::update_playback_precache_requests(caf::typed_response_promise<bool> &rp) {
 
-    auto tt = utility::clock::now();
-
     // get the AVFrameID iterator for the current frame
     media::AVFrameIDsAndTimePoints requests;
     get_lookahead_frame_pointers(requests, pre_cache_read_ahead_frames_);
@@ -1276,7 +1299,9 @@ void SubPlayhead::update_playback_precache_requests(caf::typed_response_promise<
     request(
         pre_reader_, infinite, media_reader::playback_precache_atom_v, requests, uuid_)
         .then(
-            [=](const bool requests_processed) mutable { rp.deliver(requests_processed); },
+            [=](const bool requests_processed) mutable { 
+                rp.deliver(requests_processed); 
+            },
             [=](const error &err) mutable { rp.deliver(err); });
 }
 

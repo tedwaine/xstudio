@@ -128,10 +128,10 @@ ViewportFrameQueueActor::ViewportFrameQueueActor(
         [=](ui::fps_monitor::framebuffer_swapped_atom,
             const utility::time_point &message_send_tp,
             const timebase::flicks video_refresh_rate_hint) {
+
             // this incoming message originates from the video layer and 'message_send_tp'
             // should be, as accurately as possible, the actual time that the framebuffer was
             // swapped to the screen.
-
             if (playing_) {
                 video_refresh_data_.refresh_history_.push_back(message_send_tp);
                 if (video_refresh_data_.refresh_history_.size() > 128) {
@@ -140,6 +140,7 @@ ViewportFrameQueueActor::ViewportFrameQueueActor(
             }
             video_refresh_data_.refresh_rate_hint_  = video_refresh_rate_hint;
             video_refresh_data_.last_video_refresh_ = message_send_tp;
+            
         },
 
         [=](playhead::show_atom,
@@ -234,7 +235,9 @@ ViewportFrameQueueActor::ViewportFrameQueueActor(
                 media_actor,
                 media_uuid);
         },
-
+        [=](utility::event_atom, playhead::velocity_atom, const float velocity) {
+            playhead_velocity_ = velocity;
+        },
         [=](const error &err) mutable { aout(this) << err << std::endl; });
 }
 
@@ -605,27 +608,28 @@ ViewportFrameQueueActor::predicted_playhead_position(const utility::time_point &
         // The key is that we only change this phase adjustment occasionally as the phase
         // between the playhead and the video refresh beats drifts.
 
+        const long playhead_velocity_ct = long(double(video_refresh_period.count())*playhead_velocity_);
         timebase::flicks phase_adjusted_tp =
             estimate_playhead_position_at_next_redraw + playhead_vid_sync_phase_adjust_;
         timebase::flicks rounded_phase_adjusted_tp = timebase::flicks(
-            video_refresh_period.count() *
-            (phase_adjusted_tp.count() / video_refresh_period.count()));
+            playhead_velocity_ct *
+            (phase_adjusted_tp.count() / playhead_velocity_ct));
         const double phase =
             timebase::to_seconds(phase_adjusted_tp - rounded_phase_adjusted_tp) /
             timebase::to_seconds(video_refresh_period);
 
         if (phase < 0.1 || phase > 0.9) {
             playhead_vid_sync_phase_adjust_ = timebase::flicks(
-                video_refresh_period.count() / 2 -
+                playhead_velocity_ct / 2 -
                 estimate_playhead_position_at_next_redraw.count() +
-                video_refresh_period.count() *
+                playhead_velocity_ct *
                     (estimate_playhead_position_at_next_redraw.count() /
-                     video_refresh_period.count()));
+                     playhead_velocity_ct));
             phase_adjusted_tp =
                 estimate_playhead_position_at_next_redraw + playhead_vid_sync_phase_adjust_;
             rounded_phase_adjusted_tp = timebase::flicks(
-                video_refresh_period.count() *
-                (phase_adjusted_tp.count() / video_refresh_period.count()));
+                playhead_velocity_ct *
+                (phase_adjusted_tp.count() / playhead_velocity_ct));
         }
         return rounded_phase_adjusted_tp;
 
@@ -829,6 +833,11 @@ caf::typed_response_promise<bool> ViewportFrameQueueActor::set_playhead(caf::act
                     // which needs to do some set-up.
                     send(playhead_, playhead::media_source_atom_v, true, true);
                     send(playhead_, playhead::jump_atom_v);
+                    request(playhead_, infinite, playhead::velocity_atom_v).then(
+                        [=](float v) {
+                            playhead_velocity_ = v;
+                        },
+                        [=](caf::error &err) {});
 
                     if (curr_playhead_uuids.empty()) return;
                     current_key_sub_playhead_id_ = curr_playhead_uuids.back();

@@ -158,6 +158,7 @@ namespace playhead {
         float step_keypress_event_id_                   = {0};
         bool precacheing_enabled_                       = {true};
         bool wrap_sources_                              = {false};
+        int sub_playhead_precache_idx_                  = {0};
 
         utility::UuidActorVector to_uuid_actor_vec(const std::vector<caf::actor> &actors);
     };

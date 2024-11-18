@@ -203,9 +203,6 @@ PointerEvent QMLViewport::makePointerEvent(
         renderer_actor->std_name());
 }
 
-static QOpenGLContext *__aa = nullptr;
-static QOpenGLContext *__bb = nullptr;
-
 void QMLViewport::sync() {
 
     // TODO: this is a little clunky. Can we do this somewhere else?
@@ -232,21 +229,8 @@ void QMLViewport::sync() {
         window()->size(),
         window()->devicePixelRatio());
 
-    /*static bool share = false;
-    if (window() && !share) {
-        // //qDebug() << this << " OGL CONTEXT " << window()->openglContext() << "\n";
-        if (window()->openglContext()) {
-            if (!__aa)
-                __aa = window()->openglContext();
-            if (__aa && __aa != window()->openglContext()) {
-                __bb = window()->openglContext();
-                window()->openglContext()->setShareContext(__aa);
-                share = true;
-            }
-            //qDebug() << this << " SHARE " << window()->openglContext()->shareContext() <<
-    "\n";
-        }
-    }*/
+    renderer_actor->prepareRenderData();
+
 }
 
 void QMLViewport::cleanup() {

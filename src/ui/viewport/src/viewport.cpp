@@ -547,6 +547,11 @@ void Viewport::setup_menus() {
     insert_menu_item(context_menu_model_name, "", "", 10.5f, nullptr, true);
 }
 
+void Viewport::event_callback(const ChangeCallbackId ev) {
+    needs_redraw_ = true;
+    event_callback_(ev);
+}
+
 xstudio::utility::JsonStore Viewport::serialise() const {
     utility::JsonStore jsn;
     jsn["settings"]             = settings_;
@@ -815,13 +820,13 @@ void Viewport::set_fit_mode(const FitMode md, const bool sync) {
         fit_mode_->set_value("Off");
 
     update_matrix();
-    event_callback_(Redraw);
+    event_callback(Redraw);
 }
 
 void Viewport::set_mirror_mode(const MirrorMode md) {
     state_.mirror_mode_ = md;
     update_matrix();
-    event_callback_(Redraw);
+    event_callback(Redraw);
 }
 
 void Viewport::revert_fit_zoom_to_previous(const bool synced) {
@@ -846,7 +851,7 @@ void Viewport::revert_fit_zoom_to_previous(const bool synced) {
         fit_mode_->set_value("Off", false);
 
     update_matrix();
-    event_callback_(Redraw);
+    event_callback(Redraw);
 }
 
 void Viewport::switch_mirror_mode() {
@@ -922,7 +927,7 @@ void Viewport::calc_image_bounds_in_viewport_pixels() {
     if (!on_screen_frames_ || !on_screen_frames_->layout_data()) {
         if (!image_bounds_in_viewport_pixels_.empty()) {
             image_bounds_in_viewport_pixels_.clear();
-            event_callback_(ImageBoundsChanged);
+            event_callback(ImageBoundsChanged);
         }
         return;
     }
@@ -957,7 +962,7 @@ void Viewport::calc_image_bounds_in_viewport_pixels() {
     }
 
     if (old != image_bounds_in_viewport_pixels_) {
-        event_callback_(ImageBoundsChanged);
+        event_callback(ImageBoundsChanged);
     }
 }
 
@@ -966,7 +971,7 @@ void Viewport::update_image_resolutions() {
     if (!on_screen_frames_ || !on_screen_frames_->layout_data()) {
         if (!image_resolutions_.empty()) {
             image_resolutions_.clear();
-            event_callback_(ImageResolutionsChanged);
+            event_callback(ImageResolutionsChanged);
         }
         return;
     }
@@ -982,7 +987,7 @@ void Viewport::update_image_resolutions() {
         }
     }
     if (image_resolutions_ != old) {
-        event_callback_(ImageResolutionsChanged);
+        event_callback(ImageResolutionsChanged);
     }
 
 }
@@ -1018,7 +1023,7 @@ caf::message_handler Viewport::message_handler() {
                             bottomleft,
                             scene_size,
                             devicePixelRatio)) {
-                        event_callback_(Redraw);
+                        event_callback(Redraw);
                     }
                 },
                 [=](xstudio::broadcast::broadcast_down_atom, const caf::actor_addr &) {},
@@ -1067,7 +1072,7 @@ caf::message_handler Viewport::message_handler() {
                         }
                         broadcast_fit_details_ = true;
 
-                        event_callback_(Redraw);
+                        event_callback(Redraw);
                     }
                 },
 
@@ -1079,7 +1084,7 @@ caf::message_handler Viewport::message_handler() {
                     if (!playing || (playing != playing_)) {
                         playing_ = playing;
                     }
-                    event_callback_(Redraw);
+                    event_callback(Redraw);
                 },
 
                 [=](utility::event_atom,
@@ -1096,7 +1101,7 @@ caf::message_handler Viewport::message_handler() {
 
                 [=](viewport_pan_atom, const Imath::V2f pan) {
                     set_pan(pan.x, pan.y);
-                    event_callback_(Redraw);
+                    event_callback(Redraw);
                 },
 
                 [=](viewport_pan_atom,
@@ -1110,7 +1115,7 @@ caf::message_handler Viewport::message_handler() {
                     if (sync_to_main_viewport_->value() && 
                         (window_id == "xstudio_popout_window" || window_id == "xstudio_main_window")) {
                         set_pan(xpan, ypan);
-                        event_callback_(Redraw);
+                        event_callback(Redraw);
                     }
                 },
 
@@ -1128,7 +1133,7 @@ caf::message_handler Viewport::message_handler() {
 
                 [=](viewport_scale_atom, float scale) {
                     set_scale(scale);
-                    event_callback_(Redraw);
+                    event_callback(Redraw);
                 },
 
                 [=](viewport_scale_atom,
@@ -1140,7 +1145,7 @@ caf::message_handler Viewport::message_handler() {
                     if (sync_to_main_viewport_->value() && 
                         (window_id == "xstudio_popout_window" || window_id == "xstudio_main_window")) {
                         set_scale(scale);
-                        event_callback_(Redraw);
+                        event_callback(Redraw);
                     }
                 },
 
@@ -1163,7 +1168,7 @@ caf::message_handler Viewport::message_handler() {
                 [=](ui::fps_monitor::framebuffer_swapped_atom,
                     const utility::time_point swap_time) { framebuffer_swapped(swap_time); },
 
-                [=](playhead::redraw_viewport_atom) { event_callback_(Redraw); },
+                [=](playhead::redraw_viewport_atom) { event_callback(Redraw); },
 
                 [=](turn_off_overlay_interaction_atom, const utility::Uuid &requester_id) {
                     // send a message to overlays to disable themselves
@@ -1251,7 +1256,7 @@ void Viewport::set_playhead(caf::actor playhead, const bool wait_for_refresh) {
         if (!playhead) {
             playhead_addr_ = caf::actor_addr();
             playhead_uuid_ = utility::Uuid();
-            event_callback_(PlayheadChanged);
+            event_callback(PlayheadChanged);
             return;
         }
 
@@ -1339,7 +1344,7 @@ void Viewport::set_playhead(caf::actor playhead, const bool wait_for_refresh) {
 
     // trigger stuff in the UI layer if necessary, like connecting the playheadUI
     // to the new viewport playhead
-    event_callback_(PlayheadChanged);
+    event_callback(PlayheadChanged);
 }
 
 void Viewport::attribute_changed(const utility::Uuid &attr_uuid, const int role) {
@@ -1387,7 +1392,7 @@ void Viewport::attribute_changed(const utility::Uuid &attr_uuid, const int role)
                 active_renderer_->set_render_hints(std::get<0>(opt));
             }
         }
-        event_callback_(Redraw);
+        event_callback(Redraw);
 
     } else if (attr_uuid == hud_toggle_->uuid() && role != module::Attribute::UIDataModels) {
 
@@ -1484,7 +1489,7 @@ void Viewport::attribute_changed(const utility::Uuid &attr_uuid, const int role)
                 window_id_);
 
             update_matrix();
-            event_callback_(Redraw);
+            event_callback(Redraw);
 
         } catch (std::exception &e) {
             spdlog::warn("{} {}", __PRETTY_FUNCTION__, e.what());
@@ -1575,6 +1580,8 @@ media_reader::ImageBufPtr Viewport::get_onscreen_image(const bool force_playhead
 void Viewport::update_onscreen_frame_info(const media_reader::ImageBufDisplaySetPtr &images) {
 
     on_screen_frames_ = images;
+    last_images_hash_ = images ? images->images_keys_hash() : 0;
+    needs_redraw_ = false;
 
     if (images && images->image_characteristics_hash() != image_bounds_hash_) {
         calc_image_bounds_in_viewport_pixels();
@@ -1619,7 +1626,6 @@ void Viewport::framebuffer_swapped(const utility::time_point swap_time) {
     if (next_on_screen_hero_frame_ != on_screen_hero_frame_) {
 
         on_screen_hero_frame_ = next_on_screen_hero_frame_;
-
         anon_send(
             fps_monitor(),
             ui::fps_monitor::framebuffer_swapped_atom_v,
@@ -1633,7 +1639,7 @@ void Viewport::framebuffer_swapped(const utility::time_point swap_time) {
 
 media_reader::ImageBufDisplaySetPtr Viewport::get_frames_for_display(
     const bool force_playhead_sync,
-    const utility::time_point &when_being_displayed) {
+    const utility::time_point &when_being_displayed) const {
 
     media_reader::ImageBufDisplaySetPtr result;
 
@@ -1670,7 +1676,7 @@ media_reader::ImageBufDisplaySetPtr Viewport::get_frames_for_display(
     return result;
 }
 
-media_reader::ImageBufDisplaySetPtr Viewport::prepare_image_for_display(const media_reader::ImageBufPtr &image_buf) {
+media_reader::ImageBufDisplaySetPtr Viewport::prepare_image_for_display(const media_reader::ImageBufPtr &image_buf) const {
 
     media_reader::ImageBufDisplaySetPtr result;
 
@@ -1975,30 +1981,50 @@ utility::JsonStore ViewportRenderer::core_shader_params(
     return shader_params;
 }
 
-void Viewport::render() {
-    try {
-        media_reader::ImageBufDisplaySetPtr images = get_frames_for_display();
-        update_onscreen_frame_info(images);
-            auto r = active_renderer_;
-            if (r) r->render(
-                images, window_to_viewport_matrix(), projection_matrix(), viewport_overlay_renderers_);
-    } catch (std::exception & e) {
-        spdlog::warn("{} {}", __PRETTY_FUNCTION__, e.what());
+void Viewport::render() const {
+    
+    if (render_data_ && render_data_->renderer) {
+        render_data_->renderer->render(
+            render_data_->images,
+            render_data_->window_to_viewport_matrix,
+            render_data_->projection_matrix,
+            render_data_->overlay_renderers
+            );
     }
 }
 
 void Viewport::render(const utility::time_point &when_going_on_screen) {
-    media_reader::ImageBufDisplaySetPtr images = get_frames_for_display();
-    update_onscreen_frame_info(images);
-    auto r = active_renderer_;
-    if (r) r->render(
-        images, window_to_viewport_matrix(), projection_matrix(), viewport_overlay_renderers_);
+    // rendering in the same thread, with estimate of when image goes
+    // on screen - used by offscreen renderer
+    prepare_render_data(when_going_on_screen);
+    render();
 }
 
 void Viewport::render(const media_reader::ImageBufPtr &image_buf) {
-    media_reader::ImageBufDisplaySetPtr images = prepare_image_for_display(image_buf);
-    update_onscreen_frame_info(images);
-    auto r = active_renderer_;
-    if (r)  r->render(
-        images, window_to_viewport_matrix(), projection_matrix(), viewport_overlay_renderers_);
+
+    // rendering in the same thread, rendering a single image 
+    // - used by offscreen renderer
+
+    RenderData * rdata = new RenderData;
+    rdata->images = prepare_image_for_display(image_buf);
+    update_onscreen_frame_info(rdata->images);
+    rdata->window_to_viewport_matrix = window_to_viewport_matrix();
+    rdata->projection_matrix = projection_matrix();
+    rdata->overlay_renderers = viewport_overlay_renderers_;
+    rdata->renderer = active_renderer_;
+    render_data_.reset(rdata);
+
+    render();
+}
+
+void Viewport::prepare_render_data(const utility::time_point &when_going_on_screen) {
+    // here we make data for rendering in separate thread
+    RenderData * rdata = new RenderData;
+    rdata->images = get_frames_for_display(false, when_going_on_screen);
+    update_onscreen_frame_info(rdata->images);
+    rdata->window_to_viewport_matrix = window_to_viewport_matrix();
+    rdata->projection_matrix = projection_matrix();
+    rdata->overlay_renderers = viewport_overlay_renderers_;
+    rdata->renderer = active_renderer_;
+    render_data_.reset(rdata);
 }

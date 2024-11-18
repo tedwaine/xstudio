@@ -210,7 +210,7 @@ namespace module {
 
         caf::scoped_actor home_system() { return self()->home_system(); }
 
-        caf::actor self() { return caf::actor_cast<caf::actor>(parent_actor_addr_); }
+        caf::actor self() const { return caf::actor_cast<caf::actor>(parent_actor_addr_); }
 
         // re-implement to receive callback when the on-screen media changes. To
         virtual void on_screen_media_changed(caf::actor media) {}

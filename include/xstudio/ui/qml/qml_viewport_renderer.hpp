@@ -36,6 +36,8 @@ namespace ui {
                 const QSize sceneSize,
                 const float devicePixelRatio);
 
+            void prepareRenderData();
+
             void init_system();
             void join_playhead(caf::actor group) {
                 scoped_actor sys{system()};

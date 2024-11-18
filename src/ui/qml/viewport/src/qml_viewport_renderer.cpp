@@ -115,6 +115,10 @@ void QMLViewportRenderer::setSceneCoordinates(
     }
 }
 
+void QMLViewportRenderer::prepareRenderData() {
+    if (viewport_renderer_) viewport_renderer_->prepare_render_data();
+}
+
 void QMLViewportRenderer::init_system() {
     QMLActor::init(CafSystemObject::get_actor_system());
 
