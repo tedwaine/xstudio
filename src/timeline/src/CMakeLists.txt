@@ -12,7 +12,7 @@ find_package(fmt REQUIRED)
 
 if(WIN32)
 	SET(LINK_DEPS
-		xstudio::playhead
+		#xstudio::playhead
 		xstudio::utility
 		caf::core
 		Imath::Imath
@@ -20,7 +20,7 @@ if(WIN32)
 	)
 else()
 	SET(LINK_DEPS
-		xstudio::playhead
+		#xstudio::playhead
 		xstudio::utility
 		caf::core
 		Imath::Imath

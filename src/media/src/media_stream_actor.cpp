@@ -46,29 +46,8 @@ MediaStreamActor::MediaStreamActor(
     init();
 }
 
-void MediaStreamActor::init() {
-    // only parial..
-    // spdlog::debug(
-    //     "Created MediaStreamActor {} {} {}",
-    //     base_.name(),
-    //     to_readable_string(base_.media_type()),
-    //     to_string(base_.duration()));
-    print_on_create(this, base_);
-    print_on_exit(this, base_);
-
-    auto event_group_ = spawn<broadcast::BroadcastActor>(this);
-    link_to(event_group_);
-
-    behavior_.assign(
-        base_.make_set_name_handler(event_group_, this),
-        base_.make_get_name_handler(),
-        base_.make_last_changed_getter(),
-        base_.make_last_changed_setter(event_group_, this),
-        base_.make_last_changed_event_handler(event_group_, this),
-        base_.make_get_uuid_handler(),
-        base_.make_get_type_handler(),
-        make_get_event_group_handler(event_group_),
-        base_.make_get_detail_handler(this, event_group_),
+caf::message_handler MediaStreamActor::message_handler() {
+    return caf::message_handler{
         [=](xstudio::broadcast::broadcast_down_atom, const caf::actor_addr &) {},
 
         [=](get_media_type_atom) -> MediaType { return base_.media_type(); },
@@ -88,15 +67,15 @@ void MediaStreamActor::init() {
         [=](json_store::set_json_atom atom, const JsonStore &json) {
             delegate(json_store_, atom, json);
             // metadata changed - need to broadcast an update
-            base_.send_changed(event_group_, this);
-            send(event_group_, utility::event_atom_v, change_atom_v);
+            base_.send_changed();
+            send(base_.event_group(), utility::event_atom_v, change_atom_v);
         },
 
         [=](json_store::set_json_atom atom, const JsonStore &json, const std::string &path) {
             delegate(json_store_, atom, json, path);
             // metadata changed - need to broadcast an update
-            base_.send_changed(event_group_, this);
-            send(event_group_, utility::event_atom_v, change_atom_v);
+            base_.send_changed();
+            send(base_.event_group(), utility::event_atom_v, change_atom_v);
         },
 
         [=](utility::duplicate_atom) -> UuidActor {
@@ -115,12 +94,12 @@ void MediaStreamActor::init() {
             const std::string &path,
             const JsonStore &full) {
             if (current_sender() == json_store_)
-                send(event_group_, json_store::update_atom_v, change, path, full);
+                send(base_.event_group(), json_store::update_atom_v, change, path, full);
         },
 
         [=](json_store::update_atom, const JsonStore &full) mutable {
             if (current_sender() == json_store_)
-                send(event_group_, json_store::update_atom_v, full);
+                send(base_.event_group(), json_store::update_atom_v, full);
         },
 
         [=](utility::serialise_atom) -> result<JsonStore> {
@@ -135,5 +114,17 @@ void MediaStreamActor::init() {
                 });
 
             return rp;
-        });
+        }};
+}
+
+
+void MediaStreamActor::init() {
+    // only parial..
+    // spdlog::debug(
+    //     "Created MediaStreamActor {} {} {}",
+    //     base_.name(),
+    //     to_readable_string(base_.media_type()),
+    //     to_string(base_.duration()));
+    print_on_create(this, base_);
+    print_on_exit(this, base_);
 }

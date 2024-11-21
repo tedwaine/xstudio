@@ -16,28 +16,119 @@ using namespace xstudio;
 using namespace xstudio::utility;
 using namespace xstudio::contact_sheet;
 using namespace xstudio::playlist;
+using namespace xstudio::subset;
 
 ContactSheetActor::ContactSheetActor(
     caf::actor_config &cfg, caf::actor playlist, const utility::JsonStore &jsn)
-    : caf::event_based_actor(cfg),
-      playlist_(caf::actor_cast<actor_addr>(playlist)),
-      base_(static_cast<utility::JsonStore>(jsn["base"])) {
+    : SubsetActor(cfg, playlist, jsn) {
 
-    anon_send(this, playhead::source_atom_v, playlist, UuidUuidMap());
-
-    // need to scan playlist to relink our media..
+    if (jsn.contains("playhead")) {
+        playhead_serialisation_ = jsn["playhead"];
+    }
     init();
 }
 
 ContactSheetActor::ContactSheetActor(
     caf::actor_config &cfg, caf::actor playlist, const std::string &name)
-    : caf::event_based_actor(cfg),
-      playlist_(caf::actor_cast<actor_addr>(playlist)),
-      base_(name) {
+    : SubsetActor(cfg, playlist, name, "ContactSheet") 
+{
     init();
 }
 
-void ContactSheetActor::add_media(
+void ContactSheetActor::init() {
+
+    // here we join our own events channel. The 'change_event_group' just emits
+    // change events when the underlying container (i.e. the SubSet base class)
+    // changes, i.e. when media is added, removed or re-ordered
+    request(caf::actor_cast<caf::actor>(this), infinite, get_change_event_group_atom_v).then(
+        [=](caf::actor grp) {
+            join_broadcast(this, grp);
+        },
+        [=](caf::error &err) {
+            spdlog::warn("{} {}", __PRETTY_FUNCTION__, to_string(err));
+        });
+
+
+    override_behaviour_ = caf::message_handler {
+
+        [=](playlist::create_playhead_atom) -> UuidActor {
+
+            if (playhead_)
+                return playhead_;
+            auto uuid  = utility::Uuid::generate();
+            auto actor = spawn<playhead::PlayheadActor>(
+                std::string("Contact Sheet Playhead"),
+                selection_actor_,
+                uuid,
+                caf::actor_cast<caf::actor_addr>(this));
+            link_to(actor);
+
+            anon_send(actor, playhead::playhead_rate_atom_v, base_.playhead_rate());
+            
+            playhead_ = UuidActor(uuid, actor);
+
+            // now get the playhead to load our media 
+            request(caf::actor_cast<caf::actor>(this), infinite, playlist::get_media_atom_v).then(
+                [=](const UuidActorVector &media) mutable {
+                    request(playhead_.actor(), infinite, playhead::source_atom_v, media).then(
+                        [=](bool) mutable {
+
+                            // restore the playhead state, if we have serialisation data
+                            if (!playhead_serialisation_.is_null()) {
+                                anon_send(playhead_.actor(), module::deserialise_atom_v, playhead_serialisation_);
+                            } else {
+                                anon_send(playhead_.actor(), playhead::compare_mode_atom_v, "Grid");
+                            }
+
+                        },
+                        [=](caf::error &err) {
+                            spdlog::warn("{} {}", __PRETTY_FUNCTION__, to_string(err));
+                        });
+                },
+                [=](caf::error &err) {
+                    spdlog::warn("{} {}", __PRETTY_FUNCTION__, to_string(err));
+                });
+
+            return playhead_;
+
+        },
+        [=](utility::event_atom, utility::change_atom) {
+            if (!playhead_) return;
+            request(caf::actor_cast<caf::actor>(this), infinite, playlist::get_media_atom_v).then(
+                [=](const UuidActorVector &media) mutable {
+                    anon_send(playhead_.actor(), playhead::source_atom_v, media);
+                },
+                [=](caf::error &err) {
+                    spdlog::warn("{} {}", __PRETTY_FUNCTION__, to_string(err));
+                });
+
+        },
+        [=](utility::serialise_atom) -> result<JsonStore> {
+            auto rp = make_response_promise<JsonStore>();
+            JsonStore j;
+            j["base"] = SubsetActor::serialise();
+            if (playhead_) {
+                request(playhead_.actor(), infinite, utility::serialise_atom_v).then(
+                    [=](const utility::JsonStore &playhead_state) mutable {
+                        playhead_serialisation_ = playhead_state;
+                        j["playhead"] = playhead_state;
+                        rp.deliver(j);
+                    },
+                    [=](caf::error &err) mutable {
+                        spdlog::warn("{} {}", __PRETTY_FUNCTION__, to_string(err));
+                        rp.deliver(j);
+                    });
+
+            } else if (!playhead_serialisation_.is_null()) {
+                j["playhead"] = playhead_serialisation_;
+                rp.deliver(j);
+            }
+            return rp;
+        }
+        };
+}
+
+/*void ContactSheetActor::add_media(
     caf::actor actor, const utility::Uuid &uuid, const utility::Uuid &before_uuid) {
     if (not base_.contains_media(uuid)) {
         base_.insert_media(uuid, before_uuid);
@@ -58,44 +149,8 @@ bool ContactSheetActor::remove_media(caf::actor actor, const utility::Uuid &uuid
     return result;
 }
 
-
-void ContactSheetActor::init() {
-    print_on_create(this, base_);
-    print_on_exit(this, base_);
-
-    auto event_group_        = spawn<broadcast::BroadcastActor>(this);
-    auto change_event_group_ = spawn<broadcast::BroadcastActor>(this);
-    link_to(event_group_);
-    link_to(change_event_group_);
-
-    auto selection_actor_ = spawn<playhead::PlayheadSelectionActor>(
-        "ContactSheetPlayheadSelectionActor", caf::actor_cast<caf::actor>(this));
-    link_to(selection_actor_);
-
-    set_down_handler([=](down_msg &msg) {
-        // find in playhead list..
-        for (auto it = std::begin(actors_); it != std::end(actors_); ++it) {
-            if (msg.source == it->second) {
-                spdlog::debug("Remove media {}", to_string(it->first));
-                remove_media(it->second, it->first);
-                send(event_group_, utility::event_atom_v, change_atom_v);
-                base_.send_changed(event_group_, this);
-                break;
-            }
-        }
-    });
-
-
-    behavior_.assign(
-        base_.make_set_name_handler(event_group_, this),
-        base_.make_get_name_handler(),
-        base_.make_last_changed_getter(),
-        base_.make_last_changed_setter(event_group_, this),
-        base_.make_last_changed_event_handler(event_group_, this),
-        base_.make_get_uuid_handler(),
-        base_.make_get_type_handler(),
-        make_get_event_group_handler(event_group_),
-        base_.make_get_detail_handler(this, event_group_),
+caf::message_handler ContactSheetActor::message_handler() {
+    return caf::message_handler{
         [=](xstudio::broadcast::broadcast_down_atom, const caf::actor_addr &) {},
 
         [=](get_change_event_group_atom) -> caf::actor { return change_event_group_; },
@@ -129,46 +184,11 @@ void ContactSheetActor::init() {
             return make_error(xstudio_error::error, "Invalid uuid");
         },
 
-        [=](media::get_edit_list_atom, const Uuid &uuid) -> result<utility::EditList> {
-            std::vector<caf::actor> actors;
-            for (const auto &i : base_.media())
-                actors.push_back(actors_[i]);
-
-            if (not actors.empty()) {
-                auto rp = make_response_promise<utility::EditList>();
-
-                fan_out_request<policy::select_all>(
-                    actors, infinite, media::get_edit_list_atom_v, Uuid())
-                    .then(
-                        [=](std::vector<utility::EditList> sections) mutable {
-                            utility::EditList ordered_sections;
-                            for (const auto &i : base_.media()) {
-                                for (const auto &ii : sections) {
-                                    const auto &[ud, rt, tc] = ii.section_list()[0];
-                                    if (ud == i) {
-                                        if (uuid.is_null())
-                                            ordered_sections.push_back(ii.section_list()[0]);
-                                        else
-                                            ordered_sections.push_back({uuid, rt, tc});
-                                        break;
-                                    }
-                                }
-                            }
-                            rp.deliver(ordered_sections);
-                        },
-                        [=](error &err) mutable { rp.deliver(std::move(err)); });
-
-                return rp;
-            }
-
-            return result<utility::EditList>(utility::EditList());
-        },
-
         [=](playhead::playhead_rate_atom) -> FrameRate { return base_.playhead_rate(); },
 
         [=](playhead::playhead_rate_atom, const FrameRate &rate) {
             base_.set_playhead_rate(rate);
-            base_.send_changed(event_group_, this);
+            base_.send_changed();
         },
 
         [=](playlist::selection_actor_atom) -> caf::actor { return selection_actor_; },
@@ -219,7 +239,7 @@ void ContactSheetActor::init() {
                 spdlog::error("Failed to init ContactSheet {}", e.what());
                 base_.clear();
             }
-            base_.send_changed(event_group_, this);
+            base_.send_changed();
             return true;
         },
 
@@ -237,12 +257,12 @@ void ContactSheetActor::init() {
                     uuid);
                 add_media(actor, uuid, before_uuid);
                 send(
-                    event_group_,
+                    base_.event_group(),
                     utility::event_atom_v,
                     playlist::add_media_atom_v,
                     UuidActorVector({UuidActor(uuid, actor)}));
-                base_.send_changed(event_group_, this);
-                send(event_group_, utility::event_atom_v, change_atom_v);
+                base_.send_changed();
+                send(base_.event_group(), utility::event_atom_v, change_atom_v);
                 send(change_event_group_, utility::event_atom_v, utility::change_atom_v);
             } catch (const std::exception &err) {
                 spdlog::warn("{} {}", __PRETTY_FUNCTION__, err.what());
@@ -262,15 +282,15 @@ void ContactSheetActor::init() {
                 .then(
                     [=](caf::actor actor) mutable {
                         add_media(actor, uuid, before_uuid);
-                        send(event_group_, utility::event_atom_v, change_atom_v);
+                        send(base_.event_group(), utility::event_atom_v, change_atom_v);
                         send(
                             change_event_group_, utility::event_atom_v, utility::change_atom_v);
                         send(
-                            event_group_,
+                            base_.event_group(),
                             utility::event_atom_v,
                             playlist::add_media_atom_v,
                             UuidActorVector({UuidActor(uuid, actor)}));
-                        base_.send_changed(event_group_, this);
+                        base_.send_changed();
                         rp.deliver(true);
                     },
                     [=](error &err) mutable {
@@ -297,7 +317,7 @@ void ContactSheetActor::init() {
                                     changed = true;
                                     add_media(ii.actor(), i, uuid_before);
                                     send(
-                                        event_group_,
+                                        base_.event_group(),
                                         utility::event_atom_v,
                                         playlist::add_media_atom_v,
                                         UuidActorVector({UuidActor(i, ii.actor())}));
@@ -307,12 +327,12 @@ void ContactSheetActor::init() {
                         }
 
                         if (changed) {
-                            send(event_group_, utility::event_atom_v, change_atom_v);
+                            send(base_.event_group(), utility::event_atom_v, change_atom_v);
                             send(
                                 change_event_group_,
                                 utility::event_atom_v,
                                 utility::change_atom_v);
-                            base_.send_changed(event_group_, this);
+                            base_.send_changed();
                         }
                         rp.deliver(changed);
                     },
@@ -331,10 +351,14 @@ void ContactSheetActor::init() {
             for (const auto &i : media_actors) {
                 add_media(i.actor(), i.uuid(), uuid_before);
             }
-            send(event_group_, utility::event_atom_v, playlist::add_media_atom_v, media_actors);
-            send(event_group_, utility::event_atom_v, change_atom_v);
+            send(
+                base_.event_group(),
+                utility::event_atom_v,
+                playlist::add_media_atom_v,
+                media_actors);
+            send(base_.event_group(), utility::event_atom_v, change_atom_v);
             send(change_event_group_, utility::event_atom_v, utility::change_atom_v);
-            base_.send_changed(event_group_, this);
+            base_.send_changed();
             return true;
         },
 
@@ -435,8 +459,8 @@ void ContactSheetActor::init() {
                 result |= base_.move_media(uuid, uuid_before);
             }
             if (result) {
-                base_.send_changed(event_group_, this);
-                send(event_group_, utility::event_atom_v, change_atom_v);
+                base_.send_changed();
+                send(base_.event_group(), utility::event_atom_v, change_atom_v);
                 send(change_event_group_, utility::event_atom_v, utility::change_atom_v);
             }
             return result;
@@ -463,9 +487,9 @@ void ContactSheetActor::init() {
                 }
             }
             if (changed) {
-                send(event_group_, utility::event_atom_v, change_atom_v);
+                send(base_.event_group(), utility::event_atom_v, change_atom_v);
                 send(change_event_group_, utility::event_atom_v, utility::change_atom_v);
-                base_.send_changed(event_group_, this);
+                base_.send_changed();
             }
             return changed;
         },
@@ -533,7 +557,33 @@ void ContactSheetActor::init() {
             JsonStore jsn;
             jsn["base"] = base_.serialise();
             return jsn;
-        });
+        }};
+}
+
+
+void ContactSheetActor::init() {
+    print_on_create(this, base_);
+    print_on_exit(this, base_);
+
+    change_event_group_ = spawn<broadcast::BroadcastActor>(this);
+    link_to(change_event_group_);
+
+    selection_actor_ = spawn<playhead::PlayheadSelectionActor>(
+        "ContactSheetPlayheadSelectionActor", caf::actor_cast<caf::actor>(this));
+    link_to(selection_actor_);
+
+    set_down_handler([=](down_msg &msg) {
+        // find in playhead list..
+        for (auto it = std::begin(actors_); it != std::end(actors_); ++it) {
+            if (msg.source == it->second) {
+                spdlog::debug("Remove media {}", to_string(it->first));
+                remove_media(it->second, it->first);
+                send(base_.event_group(), utility::event_atom_v, change_atom_v);
+                base_.send_changed();
+                break;
+            }
+        }
+    });
 }
 
 void ContactSheetActor::sort_by_media_display_info(
@@ -586,3 +636,4 @@ void ContactSheetActor::sort_by_media_display_info(
                 });
     }
 }
+*/

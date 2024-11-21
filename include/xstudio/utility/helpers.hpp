@@ -85,6 +85,10 @@ namespace utility {
 
     std::vector<std::byte> read_file(const std::string &path);
 
+    inline auto make_ignore_error_handler() {
+        return [=](const caf::error) {};
+    }
+
     inline auto make_get_event_group_handler(caf::actor grp) {
         return [=](get_event_group_atom) -> caf::actor { return grp; };
     }

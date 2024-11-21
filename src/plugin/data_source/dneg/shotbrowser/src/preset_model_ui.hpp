@@ -47,6 +47,7 @@ namespace ui::qml {
             livelinkRole,
             nameRole,
             negatedRole,
+            parentEnabledRole,
             termRole,
             typeRole,
             updateRole,
@@ -137,6 +138,21 @@ namespace ui::qml {
 
         QMap<QString, QObject *> term_models_;
         QueryEngine &query_engine_;
+    };
+
+    class ShotBrowserPresetTreeFilterModel : public QSortFilterProxyModel {
+        Q_OBJECT
+        QML_NAMED_ELEMENT("ShotBrowserSequenceFilterModel")
+
+      public:
+        ShotBrowserPresetTreeFilterModel(QObject *parent = nullptr)
+            : QSortFilterProxyModel(parent) {
+            setDynamicSortFilter(true);
+        }
+
+      protected:
+        [[nodiscard]] bool
+        filterAcceptsRow(int source_row, const QModelIndex &source_parent) const override;
     };
 
     class ShotBrowserPresetFilterModel : public QSortFilterProxyModel {

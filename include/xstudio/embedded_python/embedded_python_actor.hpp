@@ -32,8 +32,10 @@ namespace embedded_python {
         void init();
 
         void refresh_snippets(const std::vector<caf::uri> &paths);
-        nlohmann::json
-        refresh_snippet(const std::filesystem::path &path, const std::string &menu_path = "");
+        nlohmann::json refresh_snippet(
+            const std::filesystem::path &path,
+            const std::string &menu_path    = "",
+            const std::string &snippet_type = "");
         void update_preferences(const utility::JsonStore &);
 
       private:

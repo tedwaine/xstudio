@@ -111,7 +111,7 @@ void VideoOutputPlugin::send_status(const utility::JsonStore &data) {
     anon_send(caf::actor_cast<caf::actor>(this), data);
 }
 
-void VideoOutputPlugin::viewport_geometry_sync_mode(int mode) {
+void VideoOutputPlugin::sync_geometry_to_main_viewport(const bool sync) {
 
     caf::scoped_actor sys(system());
     try {
@@ -121,10 +121,10 @@ void VideoOutputPlugin::viewport_geometry_sync_mode(int mode) {
             offscreen_viewport_,
             module::change_attribute_value_atom_v,
             "Sync To Main Viewport",
-            utility::JsonStore(mode),
+            utility::JsonStore(sync),
             true);
 
-        if (!(mode & ViewportSyncMode::ViewportSyncZoomAndPan)) {
+        if (!sync) {
             anon_send(offscreen_viewport_, ui::viewport::fit_mode_atom_v, previous_fit_mode_);
             return;
         }

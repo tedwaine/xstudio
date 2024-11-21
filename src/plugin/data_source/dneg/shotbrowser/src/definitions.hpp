@@ -108,7 +108,7 @@ const auto UseRefreshPlaylist =
 
 const auto PublishNoteTemplateJSON = R"(
 {
-    "bookmark_uuid": "",
+    "bookmark_uuid": [],
     "shot": "",
     "payload": {
             "project":{ "type": "Project", "id":0 },
@@ -154,6 +154,7 @@ const auto VersionFields = std::vector<std::string>(
      "notes",
      "project",
      "sg_client_filename",
+     "sg_client_send_stage",
      "sg_comp_in",
      "sg_comp_out",
      "sg_comp_range",
@@ -225,7 +226,14 @@ const auto SequenceFields = std::vector<std::string>(
 const auto SequenceShotFields = std::vector<std::string>({"id", "sg_status_list", "sg_unit"});
 
 const auto ShotFields = std::vector<std::string>(
-    {"id", "code", "sg_comp_range", "sg_cut_range", "project", "sg_unit", "sg_status_list"});
+    {"id",
+     "code",
+     "sg_comp_range",
+     "sg_cut_range",
+     "project",
+     "sg_unit",
+     "sg_status_list",
+     "sg_current_stage"});
 
 const std::string shotbrowser_datasource_registry{"SHOTBROWSER"};
 

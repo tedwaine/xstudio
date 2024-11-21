@@ -25,7 +25,6 @@ target_link_libraries(${PROJECT_NAME}
 		xstudio::audio_output
 		xstudio::conform
 		xstudio::embedded_python
-		xstudio::event
 		xstudio::global_store
 		xstudio::media
 		xstudio::media_cache

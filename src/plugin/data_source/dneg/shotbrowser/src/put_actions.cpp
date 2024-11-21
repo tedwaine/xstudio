@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 #include "xstudio/shotgun_client/shotgun_client.hpp"
 #include "xstudio/utility/helpers.hpp"
+#include "xstudio/utility/notification_handler.hpp"
 
 #include "shotbrowser_plugin.hpp"
 
@@ -12,10 +13,32 @@ using namespace xstudio::utility;
 void ShotBrowser::update_playlist_versions(
     caf::typed_response_promise<JsonStore> rp,
     const utility::Uuid &playlist_uuid,
-    const int playlist_id) {
+    const int playlist_id,
+    const utility::Uuid &notification_uuid_) {
     // src should be a playlist actor..
     // and we want to update it..
     // retrieve shotgun metadata from playlist, and media items.
+
+    auto playlist          = caf::actor();
+    auto notification_uuid = notification_uuid_;
+
+    auto failed = [=](const caf::actor &dest, const Uuid &uuid) mutable {
+        if (dest and not uuid.is_null()) {
+            auto notify = Notification::WarnNotification("Publish Playlist Failed");
+            notify.uuid(uuid);
+            anon_send(dest, utility::notification_atom_v, notify);
+        }
+    };
+
+    auto succeeded = [=](const caf::actor &dest, const Uuid &uuid) mutable {
+        if (dest and not uuid.is_null()) {
+            auto notify = Notification::InfoNotification(
+                "Publish Playlist Succeeded", std::chrono::seconds(5));
+            notify.uuid(uuid);
+            anon_send(dest, utility::notification_atom_v, notify);
+        }
+    };
+
     try {
 
         scoped_actor sys{system()};
@@ -25,8 +48,14 @@ void ShotBrowser::update_playlist_versions(
             system().registry().template get<caf::actor>(global_registry),
             session::session_atom_v);
 
-        auto playlist = request_receive<caf::actor>(
+        playlist = request_receive<caf::actor>(
             *sys, session, session::get_playlist_atom_v, playlist_uuid);
+
+        if (notification_uuid.is_null()) {
+            auto notify       = Notification::ProcessingNotification("Publishing Playlist");
+            notification_uuid = notify.uuid();
+            anon_send(playlist, utility::notification_atom_v, notify);
+        }
 
         auto pl_id = playlist_id;
         if (not pl_id) {
@@ -147,13 +176,17 @@ void ShotBrowser::update_playlist_versions(
                         anon_send(
                             playlist,
                             json_store::set_json_atom_v,
-                            JsonStore(nlohmann::json("qrc:/shotbrowser_icons/shot_grid.svg")),
+                            JsonStore(
+                                R"({"icon": "qrc:/shotbrowser_icons/shot_grid.svg", "tooltip": "ShotGrid Playlist"})"_json),
                             "/ui/decorators/shotgrid");
                     }
+                    succeeded(playlist, notification_uuid);
+
                     rp.deliver(result);
                 },
                 [=](error &err) mutable {
                     spdlog::warn("{} {}", __PRETTY_FUNCTION__, to_string(err));
+                    failed(playlist, notification_uuid);
                     rp.deliver(err);
                 });
 
@@ -167,6 +200,7 @@ void ShotBrowser::update_playlist_versions(
         // get media actors.
         // get media shotgun metadata.
     } catch (const std::exception &err) {
+        failed(playlist, notification_uuid);
         rp.deliver(make_error(xstudio_error::error, err.what()));
     }
 }

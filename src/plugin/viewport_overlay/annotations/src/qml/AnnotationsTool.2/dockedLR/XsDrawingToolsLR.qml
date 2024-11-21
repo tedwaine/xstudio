@@ -126,7 +126,7 @@ Item {
             toolSizeAttrName = "Text Size"
 
         }
-        else if(currentTool === "Shapes")
+        else if(currentTool === "Square" || currentTool === "Circle"  || currentTool === "Arrow"  || currentTool === "Line")
         {
             currentColorPresetModel = shapesColourPresetsModel
             toolSizeAttrName = "Shapes Pen Size"
@@ -144,7 +144,7 @@ Item {
         {
             currentErasePenSize = penSize
         }
-        else if(currentTool === "Shapes")
+        else if(currentTool === "Square" || currentTool === "Circle"  || currentTool === "Arrow"  || currentTool === "Line")
         {
             currentShapePenSize = penSize
         }

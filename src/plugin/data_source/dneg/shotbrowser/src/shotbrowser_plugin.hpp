@@ -75,7 +75,8 @@ namespace shotbrowser {
         void update_playlist_versions(
             caf::typed_response_promise<utility::JsonStore> rp,
             const utility::Uuid &playlist_uuid,
-            const int playlist_id = 0);
+            const int playlist_id            = 0,
+            const utility::Uuid &notify_uuid = utility::Uuid());
         void refresh_playlist_versions(
             caf::typed_response_promise<utility::JsonStore> rp,
             const utility::Uuid &playlist_uuid,
@@ -202,6 +203,11 @@ namespace shotbrowser {
         void get_pipe_step(caf::typed_response_promise<utility::JsonStore> rp);
 
         void get_data_unit(
+            caf::typed_response_promise<utility::JsonStore> rp,
+            const std::string &type,
+            const int project_id);
+
+        void get_data_stage(
             caf::typed_response_promise<utility::JsonStore> rp,
             const std::string &type,
             const int project_id);

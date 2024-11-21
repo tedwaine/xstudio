@@ -26,7 +26,7 @@ Item {
 
     Repeater {
         model: DelegateModel {
-            model: embeddedPython
+            model: embeddedPython.applicationMenuModel
             delegate: Item {XsMenuModelItem {
                 text: nameRole
                 menuPath: menuPathRole

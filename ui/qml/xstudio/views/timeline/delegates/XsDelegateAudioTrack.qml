@@ -34,6 +34,7 @@ Rectangle {
     property var dragging: ListView.view.dragging
     property var draggingStopped: ListView.view.draggingStopped
     property var doubleTapped: ListView.view.doubleTapped
+    property var tapped: ListView.view.tapped
 
 	width: ListView.view.width
 	height: itemHeight * scaleY
@@ -83,6 +84,8 @@ Rectangle {
 		isSizerDragging: control.isSizerDragging
 		onSizerHovered: setSizerHovered(hovered)
 		onSizerDragging: setSizerDragging(dragging)
+		notificationModel: notificationRole
+
 
 		onEnabledClicked: enabledRole = !enabledRole
 		onLockedClicked: lockedRole = !lockedRole
@@ -128,6 +131,7 @@ Rectangle {
             property var dragging: control.dragging
             property var draggingStopped: control.draggingStopped
 		    property var doubleTapped: control.doubleTapped
+		    property var tapped: control.tapped
 
 			property bool isParentLocked: lockedRole
 	        property bool isParentEnabled: enabledRole

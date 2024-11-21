@@ -191,7 +191,14 @@ Item {
         model: playhead_attrs_model
     }            
 
-    
+        // access the value of the attribute called 'Compare' which is exposed in the
+    // viewport _toolbar. 
+    XsAttributeValue {
+        id: __compare_mode
+        attributeTitle: "Compare"
+        model: playhead_attrs_model
+    }
+
 
     property alias logicalFrame: __playheadLogicalFrame.value
     property alias mediaFrame: __playheadMediaFrame.value
@@ -222,6 +229,7 @@ Item {
     property alias mediaTransitionFrames: __mediaTransitionFrames.value
     property alias sourceOffsetFrames: __sourceOffsetFrames.value
     property alias pinnedSourceMode: __pinnedSourceMode.value
+    property alias compare_mode: __compare_mode.value
 
     /* This gives us a 'model' with one row - the row is the attribute data
     for the "Auto Align" attribute of the current playhead. We use it below

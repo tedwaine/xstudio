@@ -48,7 +48,7 @@ namespace ui {
             build_annotation(const utility::JsonStore &anno_data) override;
 
             void images_going_on_screen(
-                const std::vector<media_reader::ImageBufPtr> &images,
+                const media_reader::ImageBufDisplaySetPtr &images,
                 const std::string viewport_name,
                 const bool playhead_playing) override;
 
@@ -61,7 +61,7 @@ namespace ui {
           private:
             bool is_laser_mode() const;
 
-            void start_editing(const std::string &viewport_name);
+            void start_editing(const std::string &viewport_name, const Imath::V2f &pointer_position = Imath::V2f(-1e6f, -1e6f));
 
             void start_stroke(const Imath::V2f &point);
             void update_stroke(const Imath::V2f &point);
@@ -86,18 +86,21 @@ namespace ui {
             void restore_onscreen_annotations();
             void clear_edited_annotation();
             void update_bookmark_annotation_data();
+            Imath::V2f image_transformed_ptr_pos(const Imath::V2f &p) const;
 
           private:
-            enum Tool { Draw, Shapes, Text, Erase, Laser, None };
-            enum ShapeTool { Square, Circle, Arrow, Line };
+            enum Tool { Draw, Laser, Square, Circle, Arrow, Line, Text, Erase, None };
             enum DisplayMode { OnlyWhenPaused, Always, WithDrawTool };
 
             const std::map<int, std::string> tool_names_ = {
                 {Draw, "Draw"},
-                {Shapes, "Shapes"},
+                {Laser, "Laser"},
+                {Square, "Square"},
+                {Circle, "Circle"},
+                {Arrow, "Arrow"},
+                {Line, "Line"},
                 {Text, "Text"},
-                {Erase, "Erase"},
-                {Laser, "Laser"}};
+                {Erase, "Erase"}};
 
             module::StringChoiceAttribute *active_tool_{nullptr};
 
@@ -112,7 +115,6 @@ namespace ui {
 
             module::BooleanAttribute *text_cursor_blink_attr_{nullptr};
             module::StringAttribute *action_attribute_{nullptr};
-            module::IntegerAttribute *shape_tool_{nullptr};
             module::IntegerAttribute *moving_scaling_text_attr_{nullptr};
             module::StringChoiceAttribute *font_choice_{nullptr};
 
@@ -153,8 +155,10 @@ namespace ui {
             std::string last_tool_ = {"Draw"};
 
             bool fade_looping_{false};
-            std::map<std::string, std::vector<media_reader::ImageBufPtr>>
+            std::map<std::string, media_reader::ImageBufDisplaySetPtr>
                 viewport_current_images_;
+            media_reader::ImageBufPtr image_being_annotated_;
+
         };
 
     } // namespace viewport

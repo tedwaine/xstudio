@@ -24,15 +24,15 @@ class GradingTool : public plugin::StandardPlugin {
     GradingTool(caf::actor_config &cfg, const utility::JsonStore &init_settings);
     ~GradingTool() override = default;
 
-    utility::BlindDataObjectPtr prepare_overlay_data(
-        const media_reader::ImageBufPtr &, const bool offscreen) const override;
+    utility::BlindDataObjectPtr onscreen_render_data(
+        const media_reader::ImageBufPtr &, const std::string & /*viewport_name*/) const override;
 
     // Annotations (grading)
 
     bookmark::AnnotationBasePtr build_annotation(const utility::JsonStore &data) override;
 
     void images_going_on_screen(
-        const std::vector<media_reader::ImageBufPtr> & images,
+        const media_reader::ImageBufDisplaySetPtr &images,
         const std::string viewport_name,
         const bool playhead_playing
     ) override;
@@ -41,14 +41,6 @@ class GradingTool : public plugin::StandardPlugin {
         caf::actor,
         const utility::MediaReference &,
         const utility::JsonStore &
-    ) override;
-
-    void on_screen_frame_changed(
-        const timebase::flicks playhead_position,
-        const int playhead_logical_frame,
-        const int media_frame,
-        const int media_logical_frame,
-        const utility::Timecode & timecode
     ) override;
 
     // Interactions
@@ -158,9 +150,9 @@ class GradingTool : public plugin::StandardPlugin {
 
     // Current media info (eg. for Bookmark creation)
     bool playhead_is_playing_ {false};
-    int playhead_media_frame_ {0};
+    int playhead_media_frame_ = {0};
 
-    std::string current_viewport_;
+    media_reader::ImageBufDisplaySetPtr viewport_current_images_;
 
     // Grading
     ui::viewport::GradingData grading_data_;

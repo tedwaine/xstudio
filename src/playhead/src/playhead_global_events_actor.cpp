@@ -21,6 +21,13 @@ PlayheadGlobalEventsActor::PlayheadGlobalEventsActor(caf::actor_config &cfg)
     init();
 }
 
+void PlayheadGlobalEventsActor::on_exit() {
+    global_active_playhead_ = caf::actor();
+    viewports_.clear();
+    system().registry().erase(global_playhead_events_actor);
+
+}
+
 void PlayheadGlobalEventsActor::init() {
 
     spdlog::debug("Created PlayheadGlobalEventsActor {}", name());
@@ -239,6 +246,13 @@ void PlayheadGlobalEventsActor::init() {
                 ui::viewport::viewport_atom_v,
                 viewport_name,
                 viewport);
+        },
+        [=](playhead::redraw_viewport_atom) { 
+            
+            // force all viewport to do a redraw
+            for (const auto &p: viewports_) {
+                anon_send(p.second.viewport, playhead::redraw_viewport_atom_v);
+            }        
         },
         [=](ui::viewport::viewport_atom,
             const std::string viewport_name) -> result<caf::actor> {

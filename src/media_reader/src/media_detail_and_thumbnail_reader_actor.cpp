@@ -129,8 +129,8 @@ void MediaDetailAndThumbnailReaderActor::get_thumbnail(
             plugins_,
             infinite,
             media_reader::supported_atom_v,
-            mptr.uri_,
-            utility::get_signature(mptr.uri_))
+            mptr.uri(),
+            utility::get_signature(mptr.uri()))
             .then(
                 [=](std::vector<std::pair<xstudio::utility::Uuid, MRCertainty>> supt) mutable {
                     // find the best media reader plugin to read this file ...
@@ -181,8 +181,8 @@ void MediaDetailAndThumbnailReaderActor::get_thumbnail_from_reader_plugin(
                             },
                             [=](const caf::error &err) mutable { rp.deliver(err); });
                 } else {
-                    if (mptr.actor_addr_) {
-                        auto dest = caf::actor_cast<caf::actor>(mptr.actor_addr_);
+                    if (mptr.actor_addr()) {
+                        auto dest = caf::actor_cast<caf::actor>(mptr.actor_addr());
                         if (dest)
                             anon_send(dest, media_status_atom_v, MediaStatus::MS_UNSUPPORTED);
                     }

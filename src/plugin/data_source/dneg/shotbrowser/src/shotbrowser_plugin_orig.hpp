@@ -29,7 +29,7 @@ namespace shotbrowser {
         void hotkey_released(const utility::Uuid &uuid, const std::string &context) override;
 
         void images_going_on_screen(
-            const std::vector<media_reader::ImageBufPtr> &images,
+            const media_reader::ImageBufDisplaySetPtr &images,
             const std::string viewport_name,
             const bool playhead_playing) override;
 

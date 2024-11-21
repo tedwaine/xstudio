@@ -249,7 +249,7 @@ void register_mediakey_class(py::module &m, const std::string &name) {
 
 void register_jsonstore_class(py::module &m, const std::string &name) {
     auto str_impl = [](const utility::JsonStore &x) -> std::string {
-        return std::string("basket");
+        return x.dump();
     };
     auto get_preferences_impl = [](const utility::JsonStore &x,
                                    const std::set<std::string> &context =

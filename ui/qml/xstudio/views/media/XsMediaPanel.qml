@@ -136,7 +136,8 @@ Item{
     property var cycleSelection: media_list_functions.cycleSelection
     property var addToNewSequence: media_list_functions.addToNewSequence
     property var addToNewSubset: media_list_functions.addToNewSubset
-
+    property var addToNewContactSheet: media_list_functions.addToNewContactSheet
+    
     Loader {
         id: menu_loader_plus
     }

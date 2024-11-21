@@ -77,17 +77,14 @@ namespace plugin {
         }
 
       protected:
+
+        void on_exit() override;
+
         virtual caf::message_handler message_handler_extensions() {
             return caf::message_handler();
         }
 
         caf::message_handler message_handler_;
-
-        virtual utility::BlindDataObjectPtr prepare_overlay_data(
-            const media_reader::ImageBufPtr & /*image*/, const bool /*offscreen*/
-        ) const {
-            return utility::BlindDataObjectPtr();
-        }
 
         // TODO: deprecate prepare_render_data and use this everywhere
         virtual utility::BlindDataObjectPtr onscreen_render_data(
@@ -99,7 +96,7 @@ namespace plugin {
         // reimpliment this function to receive the image buffer(s) that are
         // currently being displayed on the given viewport
         virtual void images_going_on_screen(
-            const std::vector<media_reader::ImageBufPtr> & /*images*/,
+            const media_reader::ImageBufDisplaySetPtr & /*image_set*/,
             const std::string /*viewport_name*/,
             const bool /*playhead_playing*/
         ) {}
@@ -119,16 +116,6 @@ namespace plugin {
             return bookmark::AnnotationBasePtr();
         }
 
-        /* Function signature for on screen frame change callback - reimplement to
-        receive this event. Call join_playhead_events() to activate. */
-        virtual void on_screen_frame_changed(
-            const timebase::flicks,   // playhead position
-            const int,                // playhead logical frame
-            const int,                // media frame
-            const int,                // media logical frame
-            const utility::Timecode & // media frame timecode
-        ) {}
-
         /* Function signature for on screen annotation change - reimplement to
         receive this event. Call join_playhead_events() to activate. */
         virtual void on_screen_media_changed(
@@ -145,6 +132,14 @@ namespace plugin {
         /* Use this function to define the qml code that draws information over the xstudio
         viewport. See basic_viewport_masking and pixel_probe plugin examples. */
         void qml_viewport_overlay_code(const std::string &code);
+
+        /* Use this function to create a new bookmark on the given frame (as 
+        per frame_details). See annotations_tool.cpp for example useage. */
+        utility::Uuid create_bookmark_on_frame(
+            const media::AVFrameID &frame_details,
+            const std::string &bookmark_subject,
+            const bookmark::BookmarkDetail &detail,
+            const bool bookmark_entire_duration = false);
 
         /* Use this function to create a new bookmark on the current (on screen) frame
         of for the entire duration for the media currently showing on the given named
@@ -208,13 +203,18 @@ namespace plugin {
 
         void join_studio_events();
 
-        int playhead_logical_frame_ = {-1};
+        void __images_going_on_screen(
+            const media_reader::ImageBufDisplaySetPtr & image_set,
+            const std::string viewport_name,
+            const bool playhead_playing
+        );
 
         caf::actor_addr active_viewport_playhead_;
         caf::actor_addr playhead_media_events_group_;
         caf::actor bookmark_manager_;
         caf::actor playhead_events_actor_;
         bool joined_playhead_events_ = {false};
+        std::map<std::string, utility::Uuid> last_source_uuid_;
 
         module::BooleanAttribute *viewport_overlay_qml_code_ = nullptr;
     };

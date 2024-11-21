@@ -43,8 +43,8 @@ XsSBPresetEditItem          1.0 shot_browser/left_sections/viewItems/XsSBPresetE
 XsSBPresetEditNewItem       1.0 shot_browser/left_sections/viewItems/XsSBPresetEditNewItem.qml
 XsSBPresetEditPopup         1.0 shot_browser/left_sections/viewItems/XsSBPresetEditPopup.qml
 XsSBPresetsView             1.0 shot_browser/left_sections/viewItems/XsSBPresetsView.qml
-XsSBPresetsViewGroupDelegate 1.0 shot_browser/left_sections/viewItems/XsSBPresetsViewGroupDelegate.qml
-XsSBPresetsViewItemDelegate 1.0 shot_browser/left_sections/viewItems/XsSBPresetsViewItemDelegate.qml
+XsSBPresetGroupDelegate 	1.0 shot_browser/left_sections/viewItems/XsSBPresetGroupDelegate.qml
+XsSBPresetDelegate 			1.0 shot_browser/left_sections/viewItems/XsSBPresetDelegate.qml
 XsSBR1Tools                 1.0 shot_browser/right_sections/XsSBR1Tools.qml
 XsSBR2Views                 1.0 shot_browser/right_sections/XsSBR2Views.qml
 XsSBR3Actions               1.0 shot_browser/right_sections/XsSBR3Actions.qml
@@ -52,9 +52,11 @@ XsSBRightSection            1.0 shot_browser/XsSBRightSection.qml
 XsSBRPlaylistResultPopup    1.0 shot_browser/right_sections/XsSBRPlaylistResultPopup.qml
 XsSBRPlaylistViewDelegate   1.0 shot_browser/right_sections/viewItems/XsSBRPlaylistViewDelegate.qml
 XsSBTreeSearchButton        1.0 shot_browser/widgets/XsSBTreeSearchButton.qml
-XsSBTreeView                1.0 shot_browser/left_sections/viewItems/XsSBTreeView.qml
-XsSBTreeViewDelegate        1.0 shot_browser/left_sections/viewItems/XsSBTreeViewDelegate.qml
+XsSBSequenceDelegate        1.0 shot_browser/left_sections/viewItems/XsSBSequenceDelegate.qml
+XsSBShotDelegate            1.0 shot_browser/left_sections/viewItems/XsSBShotDelegate.qml
 
 plugin shotbrowser
 classname ShotBrowserEngine
 classname ShotBrowserResultModel
+classname ShotBrowserSequenceFilterModel
+classname ShotBrowserPresetTreeFilterModel

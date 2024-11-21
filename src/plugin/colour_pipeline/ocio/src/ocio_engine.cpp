@@ -236,14 +236,14 @@ void OCIOEngine::extend_pixel_info(
 
     auto raw_info = pixel_info.raw_channels_info();
 
-    if (compute_hash(frame_id.params_) != last_pixel_probe_source_hash_) {
+    if (compute_hash(frame_id.params()) != last_pixel_probe_source_hash_) {
         OCIO::GradingPrimary primary = OCIO::GradingPrimary(OCIO::GRADING_LIN);
         auto display_proc =
-            make_display_processor(frame_id.params_, false, primary, display, view);
+            make_display_processor(frame_id.params(), false, primary, display, view);
         pixel_probe_to_display_proc_ = display_proc->getDefaultCPUProcessor();
         pixel_probe_to_lin_proc_ =
-            make_to_lin_processor(frame_id.params_, false)->getDefaultCPUProcessor();
-        last_pixel_probe_source_hash_ = compute_hash(frame_id.params_);
+            make_to_lin_processor(frame_id.params(), false)->getDefaultCPUProcessor();
+        last_pixel_probe_source_hash_ = compute_hash(frame_id.params());
     }
 
     // Update Dynamic Properties on the CPUProcessor instance
@@ -272,7 +272,7 @@ void OCIOEngine::extend_pixel_info(
 
     // Source
 
-    std::string source_cs = detect_source_colourspace(frame_id.params_);
+    std::string source_cs = detect_source_colourspace(frame_id.params());
     if (!source_cs.empty()) {
 
         pixel_info.set_raw_colourspace_name(
@@ -292,7 +292,7 @@ void OCIOEngine::extend_pixel_info(
         pixel_info.add_linear_channel_info(raw_info[2].channel_name, RGB[2]);
 
         pixel_info.set_linear_colourspace_name(
-            std::string("Scene Linear (") + working_space(frame_id.params_) + std::string(")"));
+            std::string("Scene Linear (") + working_space(frame_id.params()) + std::string(")"));
     }
 
     // Display output
@@ -499,14 +499,26 @@ OCIO::ConstConfigRcPtr OCIOEngine::display_transform(
 
     // Turns per shot CDLs into dynamic transform
 
-    std::string view_looks = ocio_config->getDisplayViewLooks(display.c_str(), view.c_str());
+    // Instanciate a processor and query its metadata to get the
+    // underlying looks used. This is more robust than simply asking
+    // the view for it looks, as a look could use another look in its
+    // definition.
+    auto proc = ocio_config->getProcessor(
+        context, "scene_linear", display.c_str(), view.c_str(), OCIO::TRANSFORM_DIR_FORWARD);
+    auto proc_meta = proc->getProcessorMetadata();
+    std::vector<std::string> proc_looks;
+    for (int i = 0; i < proc_meta->getNumLooks(); ++i) {
+        proc_looks.push_back(proc_meta->getLook(i));
+    }
+
     std::string dynamic_look;
     std::string dynamic_file;
 
     if (src_colour_mgmt_metadata.contains("dynamic_cdl")) {
         if (src_colour_mgmt_metadata["dynamic_cdl"].is_object()) {
             for (auto &item : src_colour_mgmt_metadata["dynamic_cdl"].items()) {
-                if (view_looks.find(item.key()) != std::string::npos) {
+                if (std::find(proc_looks.begin(), proc_looks.end(), item.key()) !=
+                    proc_looks.end()) {
                     dynamic_look = item.key();
                     dynamic_file = item.value();
                 }

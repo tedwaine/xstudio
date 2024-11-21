@@ -301,25 +301,20 @@ Item {
             uris = uris + String(item) +"\n"
         })
 
-        if(!theSessionData.valid) {
+        var index = currentMediaContainerIndex
+
+        if(!index.valid) {
             // create new playlist..
-            var index = theSessionData.createPlaylist("New Playlist")
-            callbackTimer.setTimeout(function(capture) { return function(){
-                Future.promise(
-                    capture.model.handleDropFuture(Qt.CopyAction, {"text/uri-list": uris}, capture)
-                ).then(function(quuids){
-                    mediaSelectionModel.selectFirstNewMedia(index, quuids)
-                }) }}(index), 100
-            );
-
-        } else {
-
-            Future.promise(theSessionData.handleDropFuture(Qt.CopyAction, {"text/uri-list": uris}, theSessionData)).then(
-                function(quuids){
-                    mediaSelectionModel.selectFirstNewMedia(theSessionData, quuids)
-                }
-            )
+            index = theSessionData.createPlaylist("New Playlist")
         }
+
+        callbackTimer.setTimeout(function(capture) { return function(){
+            Future.promise(
+                capture.model.handleDropFuture(Qt.CopyAction, {"text/uri-list": uris}, capture)
+            ).then(function(quuids){
+                mediaSelectionModel.selectFirstNewMedia(index, quuids)
+            }) }}(index), 100
+        );
 
         defaultMediaFolder = folder
     }
@@ -446,6 +441,25 @@ Item {
             old.pop(old.length - 10)
 
         recentFiles = old
+
+    }
+
+    XsPreference {
+        id: sessionLinkPrefix
+        path: "/core/session/session_link_prefix"
+    }
+
+    function doCopySessionLink() {
+        clipboard.text = sessionLinkPrefix.value + "xstudio://open_session?uri=" + sessionPath
+    }
+
+    function copySessionLink() {
+
+        if(theSessionData.modified) {
+            saveSessionCheck(doCopySessionLink)
+        } else {
+            doCopySessionLink()
+        }
 
     }
 

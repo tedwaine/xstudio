@@ -7,8 +7,7 @@
 
 #include <caf/type_id.hpp>
 #include <caf/uri.hpp>
-
-#include "xstudio/utility/edit_list.hpp"
+#include <nlohmann/json.hpp>
 
 namespace xstudio {
 namespace utility {

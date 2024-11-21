@@ -47,9 +47,9 @@ XsViewerTextDisplay
 
     property string timecode: viewportPlayhead.timecode ? viewportPlayhead.timecode : "--:--:--:--"
 
-    property string timecodeFrame: isNaN(viewportPlayhead.timecodeAsFrame) ? "----" : pad(""+viewportPlayhead.timecodeAsFrame, 4)
+    property string timecodeFrame: isNaN(viewportPlayhead.timecodeAsFrame) ? "----" : String(viewportPlayhead.timecodeAsFrame).padStart(4, '0')
 
-    property string frame: isNaN(viewportPlayhead.logicalFrame) ? "----" : pad("" + viewportPlayhead.logicalFrame, 4)
+    property string frame: isNaN(viewportPlayhead.logicalFrame) ? "----" : String(viewportPlayhead.logicalFrame+1).padStart(4, '0')
 
     property string seconds: {
         let result = "--:--:--"
@@ -57,8 +57,8 @@ XsViewerTextDisplay
             var seconds = Math.floor(viewportPlayhead.positionSeconds)
             var minutes = Math.floor(seconds / 60)
             var hours = Math.floor(minutes / 60)
-            var SS = pad(seconds % 60, 2)
-            var MM = pad(minutes % 60, 2)
+            var SS = String(seconds % 60).padStart(2, '0')
+            var MM = String(minutes % 60).padStart(2, '0')
             if (hours > 0) {
                 var HH = hours % 24
                 result = HH + ':' + MM + ':' + SS
@@ -70,11 +70,4 @@ XsViewerTextDisplay
     }
 
     text: selected == 0 ? frame : selected == 1 ? seconds : selected == 2 ? timecode : timecodeFrame
-
-    function pad(n, width, z) {
-        z = z || '0';
-        n = n + '';
-        return n.length >= width ? n : new Array(width - n.length + 1).join(z) + n;
-    }
-
 }

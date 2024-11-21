@@ -35,26 +35,115 @@ using namespace xstudio::ui::qml;
 namespace fs = std::filesystem;
 
 namespace {
-static void threaded_memcpy(void *_dst, void *_src, size_t n, int n_threads) {
 
-    std::vector<std::thread> memcpy_threads;
-    size_t step = ((n / n_threads) / 4096) * 4096;
+// Simple class to split large memcopy across a pool of threads.
+//
+// More testing needed to check when this actually benefits us and on what
+// platforms, but for copying from memory mapped texture buffers into CPU
+// RAM it is required for high frame-rate offscreen rendering (e.g. 4k 60Hz
+// display on SDI card) 
+//
+class ThreadedMemCopy {
+    public:
 
-    uint8_t *dst = (uint8_t *)_dst;
-    uint8_t *src = (uint8_t *)_src;
-
-    for (int i = 0; i < n_threads; ++i) {
-        memcpy_threads.emplace_back(memcpy, dst, src, std::min(n, step));
-        dst += step;
-        src += step;
-        n -= step;
+    ThreadedMemCopy() : num_threads_(8) {
+        for (int i = 0; i < num_threads_; ++i) {
+            threads_.emplace_back(std::thread(&ThreadedMemCopy::run, this));
+        }
     }
 
-    // ensure any threads still running to copy data to this texture are done
-    for (auto &t : memcpy_threads) {
-        if (t.joinable())
+    ~ThreadedMemCopy() {
+
+        for (auto &t: threads_) {
+            // when any thread picks up an em
+            {
+                std::lock_guard lk(m);
+                queue.emplace_back(nullptr, nullptr, 0);
+            }
+            cv.notify_one();
+        }
+
+        for (auto &t: threads_) {
             t.join();
+        }
     }
+
+    std::vector<std::thread> threads_;
+
+    struct Job {
+        Job(void *d, void *s, size_t _n) : dst(d), src(s), n(_n) {}
+        Job(const Job &o) = default;
+        void *dst;
+        void *src;
+        size_t n;
+
+        void do_job() {
+            memcpy(dst, src, n);
+        }
+    };
+
+    Job get_job() {
+        std::unique_lock lk(m);
+        if (queue.empty()) {
+            cv.wait(lk, [=]{ return !queue.empty(); });
+        }
+        auto rt = queue.front();
+        queue.pop_front();
+        return rt;
+    }
+
+    void do_memcpy(void *_dst, void *_src, size_t n) {
+
+        size_t step = (((n / num_threads_) / 4096)+1) * 4096;
+
+        uint8_t *dst = (uint8_t *)_dst;
+        uint8_t *src = (uint8_t *)_src;
+
+        while (1) {
+            {
+                std::lock_guard lk(m);
+                queue.emplace_back(dst, src, std::min(n, step));
+            }
+            cv.notify_one();
+            dst += step;
+            src += step;
+            if (n < step) break;
+            n -= step;
+        }
+
+        std::unique_lock lk(m);
+        if (!queue.empty()) {
+            cv2.wait(lk, [=]{ return queue.empty(); });
+        }
+
+    }
+
+    void run()
+    {
+        while(1)  {
+            
+            // this blocks until there is something in queue for us
+            Job j = get_job();
+            if (!j.dst) break; // exit 
+            j.do_job();            
+            cv2.notify_one();
+
+        }
+    }
+
+    std::mutex m;
+    std::condition_variable cv, cv2;
+    std::deque<Job> queue;
+    const int num_threads_;
+};
+
+static ThreadedMemCopy threaded_memcopy;
+static std::mutex threaded_memcopy_m;
+
+static void threaded_memcpy(void *_dst, void *_src, size_t n) {
+
+    std::unique_lock lk(threaded_memcopy_m);
+    threaded_memcopy.do_memcpy(_dst, _src, n);
 }
 
 static std::map<ImageFormat, GLint> format_to_gl_tex_format = {
@@ -99,7 +188,7 @@ OffscreenViewport::OffscreenViewport(const std::string name, bool include_qml_ov
     jsn["base"]        = utility::JsonStore();
     jsn["window_id"]   = name;
     viewport_renderer_ = new Viewport(
-        jsn, as_actor(), ViewportRendererPtr(new opengl::OpenGLViewportRenderer(false)), name);
+        jsn, as_actor(), name);
 
     /* Provide a callback so the Viewport can tell this class when some property of the viewport
     has changed and such events can be propagated to other QT components, for example */
@@ -546,10 +635,6 @@ void OffscreenViewport::setupTextureAndFrameBuffer(
     tex_height_     = height;
     vid_out_format_ = format;
 
-    utility::JsonStore j;
-    j["pack_rgb_10_bit"] = format == RGBA_10_10_10_2;
-    viewport_renderer_->set_aux_shader_uniforms(j);
-
     // create texture
     glGenTextures(1, &texId_);
     glBindTexture(GL_TEXTURE_2D, texId_);
@@ -698,7 +783,6 @@ void OffscreenViewport::renderToImageBuffer(
 
     auto t1 = utility::clock::now();
 
-
     // Clearup before render, probably useless for a new buffer
     glViewport(0, 0, w, h);
 
@@ -734,23 +818,32 @@ void OffscreenViewport::renderToImageBuffer(
         root_qml_overlays_item_->setHeight(h);
 
         // convert the image boundary in the viewport into plain pixels
-        Imath::Box2f box = viewport_renderer_->image_bounds_in_viewport_pixels();
-        QRectF imageBoundsInViewportPixels(
-            (box.min.x) * float(w),
-            box.min.y * float(h),
-            (box.max.x - box.min.x) * float(w),
-            (box.max.y - box.min.y) * float(h));
+        const std::vector<Imath::Box2f> image_boxes = viewport_renderer_->image_bounds_in_viewport_pixels();
+        QVariantList v;
+        for (const auto &box: image_boxes) {
+            QRectF imageBoundsInViewportPixels(
+                box.min.x,
+                box.min.y,
+                box.max.x - box.min.x,
+                box.max.y - box.min.y);
+            v.append(imageBoundsInViewportPixels);
+        }
         // these properties on XsOffscreenViewportOverlays mirror the same
         // properties provided by XsViewport - some overlay/HUD QML items access
         // these properties so they know how to compute their geometrty in
         // the QML coordinates to overlay the xSTUDIO image.
         root_qml_overlays_item_->setProperty(
-            "imageBoundaryInViewport", imageBoundsInViewportPixels);
+            "imageBoundariesInViewport", v);
+
+        const std::vector<Imath::V2i> resolutions = viewport_renderer_->image_resolutions();
+        QVariantList rs;
+        for (const auto &r: resolutions) {
+            rs.append(QSize(r.x, r.y));
+        }
         root_qml_overlays_item_->setProperty(
-            "imageResolution",
-            QSize(
-                viewport_renderer_->image_resolution().x,
-                viewport_renderer_->image_resolution().y));
+            "imageResolutions",
+            rs);
+
         root_qml_overlays_item_->setProperty("sessionActorAddr", session_actor_addr_);
         quick_win_->setWidth(w);
         quick_win_->setHeight(h);
@@ -813,7 +906,7 @@ void OffscreenViewport::renderToImageBuffer(
 
     auto t4 = utility::clock::now();
 
-    threaded_memcpy(image->buffer(), mappedBuffer, pix_buf_size, 8);
+    threaded_memcpy(image->buffer(), mappedBuffer, pix_buf_size);
 
 
     // now mapped buffer contains the pixel data

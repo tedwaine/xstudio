@@ -17,20 +17,13 @@ Item{
     property var root
         
     Rectangle{ id: row1_categories 
-        width: visible? currentTool == "Shapes"? 
-                    row2_controls.gridItemWidth*1.5 :
-                    row2_controls.gridItemWidth*1 : 0
+        width: visible? row2_controls.gridItemWidth*1 : 0
         height: XsStyleSheet.primaryButtonStdHeight
         anchors.verticalCenter: parent.verticalCenter
 
         color: "transparent"
-        visible: (currentTool == "Shapes" || currentTool == "Text")
+        visible: (currentTool == "Text")
 
-        XsShapeCategoriesTB {
-            id: shapeCategories
-            anchors.fill: parent
-            visible: (currentTool === "Shapes")
-        }
         XsTextCategoriesTB {
             id: textCategories
             anchors.fill: parent
@@ -80,7 +73,7 @@ Item{
             visible: enabled
             width: row2_controls.gridItemWidth
             height: visible? XsStyleSheet.primaryButtonStdHeight : 0
-            text: (currentTool=="Shapes")? "Width" : "Size"
+            text: (currentTool=="Square" || currentTool === "Circle"  || currentTool === "Arrow"  || currentTool === "Line")? "Width" : "Size"
             enabled: isAnyToolSelected
             attr_group_model: annotations_model_data
             attr_title: toolSizeAttrName

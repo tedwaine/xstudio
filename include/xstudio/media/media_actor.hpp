@@ -31,7 +31,11 @@ namespace media {
             caf::actor_config &cfg, const utility::JsonStore &jsn, const bool async = false);
         ~MediaActor() override = default;
 
-        caf::behavior make_behavior() override { return behavior_; }
+        caf::message_handler message_handler();
+
+        caf::behavior make_behavior() override {
+            return message_handler().or_else(base_.container_message_handler(this));
+        }
         const char *name() const override { return NAME.c_str(); }
         static caf::message_handler default_event_handler();
 
@@ -75,10 +79,8 @@ namespace media {
             caf::actor src_bookmarks,
             caf::actor dst_bookmarks);
 
-        caf::behavior behavior_;
         Media base_;
         caf::actor json_store_;
-        caf::actor event_group_;
         std::map<utility::Uuid, caf::actor> media_sources_;
         utility::UuidList bookmark_uuids_;
         bool pending_change_{false};
@@ -113,7 +115,11 @@ namespace media {
 
         static caf::message_handler default_event_handler();
 
-        caf::behavior make_behavior() override { return behavior_; }
+        caf::message_handler message_handler();
+
+        caf::behavior make_behavior() override {
+            return message_handler().or_else(base_.container_message_handler(this));
+        }
 
         const char *name() const override { return NAME.c_str(); }
 
@@ -147,13 +153,11 @@ namespace media {
 
         inline static const std::string NAME = "MediaSourceActor";
         void init();
-        caf::behavior behavior_;
         MediaSource base_;
         caf::actor json_store_;
         std::map<utility::Uuid, caf::actor> media_streams_;
         caf::actor_addr parent_;
         utility::Uuid parent_uuid_;
-        caf::actor event_group_;
         std::vector<caf::typed_response_promise<bool>> pending_stream_detail_requests_;
     };
 
@@ -165,15 +169,17 @@ namespace media {
             const utility::Uuid &uuid = utility::Uuid());
         MediaStreamActor(caf::actor_config &cfg, const utility::JsonStore &jsn);
         ~MediaStreamActor() override = default;
+        caf::message_handler message_handler();
 
-        caf::behavior make_behavior() override { return behavior_; }
+        caf::behavior make_behavior() override {
+            return message_handler().or_else(base_.container_message_handler(this));
+        }
 
         const char *name() const override { return NAME.c_str(); }
 
       private:
         inline static const std::string NAME = "MediaStreamActor";
         void init();
-        caf::behavior behavior_;
         MediaStream base_;
         caf::actor json_store_;
     };

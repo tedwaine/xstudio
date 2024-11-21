@@ -3,7 +3,7 @@
 #include <filesystem>
 
 #include "xstudio/plugin_manager/plugin_base.hpp"
-#include "xstudio/media_reader/image_buffer.hpp"
+#include "xstudio/media_reader/image_buffer_set.hpp"
 #include "xstudio/global_store/global_store.hpp"
 #include "xstudio/utility/blind_data.hpp"
 #include "xstudio/utility/helpers.hpp"
@@ -106,13 +106,8 @@ AnnotationsTool::AnnotationsTool(
 
     active_tool_ = add_string_choice_attribute(
         "Active Tool", "Active Tool", "None", utility::map_value_to_vec(tool_names_));
-
     active_tool_->expose_in_ui_attrs_group("annotations_tool_settings");
     active_tool_->expose_in_ui_attrs_group("annotations_tool_types");
-
-    shape_tool_ = add_integer_attribute("Shape Tool", "Shape Tool", 0, 0, 2);
-    shape_tool_->expose_in_ui_attrs_group("annotations_tool_settings");
-    shape_tool_->set_preference_path("/plugin/annotations/shape_tool");
 
     action_attribute_ = add_string_attribute("action_attribute", "action_attribute", "");
     action_attribute_->expose_in_ui_attrs_group("annotations_tool_settings");
@@ -423,41 +418,43 @@ bool AnnotationsTool::pointer_event(const ui::PointerEvent &e) {
         is_laser_mode()) {
         if (e.type() == ui::Signature::EventType::ButtonDown &&
             e.buttons() == ui::Signature::Button::Left) {
-            start_editing(e.context());
-            start_stroke(pointer_pos);
+            start_editing(e.context(), pointer_pos);
+            start_stroke(image_transformed_ptr_pos(pointer_pos));
         } else if (
             e.type() == ui::Signature::EventType::Drag &&
             e.buttons() == ui::Signature::Button::Left) {
-            update_stroke(pointer_pos);
+            update_stroke(image_transformed_ptr_pos(pointer_pos));
         } else if (e.type() == ui::Signature::EventType::ButtonRelease) {
             end_drawing();
         }
-    } else if (active_tool_->value() == "Shapes") {
+    } else if (
+        active_tool_->value() == "Square" || active_tool_->value() == "Circle" ||
+        active_tool_->value() == "Arrow" || active_tool_->value() == "Line") {
         if (e.type() == ui::Signature::EventType::ButtonDown &&
             e.buttons() == ui::Signature::Button::Left) {
-            start_editing(e.context());
-            start_shape(pointer_pos);
+            start_editing(e.context(), pointer_pos);
+            start_shape(image_transformed_ptr_pos(pointer_pos));
         } else if (
             e.type() == ui::Signature::EventType::Drag &&
             e.buttons() == ui::Signature::Button::Left) {
-            update_shape(pointer_pos);
+            update_shape(image_transformed_ptr_pos(pointer_pos));
         } else if (e.type() == ui::Signature::EventType::ButtonRelease) {
             end_drawing();
         }
     } else if (active_tool_->value() == "Text") {
         if (e.type() == ui::Signature::EventType::ButtonDown &&
             e.buttons() == ui::Signature::Button::Left) {
-            start_editing(e.context());
-            start_or_edit_caption(pointer_pos, e.viewport_pixel_scale());
+            start_editing(e.context(), pointer_pos);
+            start_or_edit_caption(image_transformed_ptr_pos(pointer_pos), e.viewport_pixel_scale());
             grab_mouse_focus();
         } else if (
             e.type() == ui::Signature::EventType::Drag &&
             e.buttons() == ui::Signature::Button::Left) {
-            start_editing(e.context());
-            update_caption_action(pointer_pos);
+            start_editing(e.context(), pointer_pos);
+            update_caption_action(image_transformed_ptr_pos(pointer_pos));
             update_caption_handle();
         } else if (e.buttons() == ui::Signature::Button::None) {
-            redraw = update_caption_hovered(pointer_pos, e.viewport_pixel_scale());
+            redraw = update_caption_hovered(image_transformed_ptr_pos(pointer_pos), e.viewport_pixel_scale());
         }
     } else {
         redraw = false;
@@ -467,6 +464,15 @@ bool AnnotationsTool::pointer_event(const ui::PointerEvent &e) {
         redraw_viewport();
 
     return false;
+}
+
+Imath::V2f AnnotationsTool::image_transformed_ptr_pos(const Imath::V2f &p) const {
+    if (image_being_annotated_) {
+        Imath::V4f pt(p.x, p.y, 0.0f, 1.0f);
+        pt *= image_being_annotated_.layout_transform().inverse();
+        return Imath::V2f(pt.x/pt.w, pt.y/pt.w);
+    }
+    return p;
 }
 
 void AnnotationsTool::text_entered(const std::string &text, const std::string &context) {
@@ -516,26 +522,20 @@ utility::BlindDataObjectPtr AnnotationsTool::onscreen_render_data(
         }
     }
 
-    std::string onscreen_interaction_frame;
-    auto p = viewport_current_images_.find(current_interaction_viewport_name_);
-    if (p != viewport_current_images_.end() && p->second.size()) {
-        onscreen_interaction_frame = to_string(p->second.front().frame_id().key_);
-    }
-
     // As noted elsewhere, interaction_canvas_ (class = Canvas) is read/write
     // thread safe so we take a reference to it ready for render time.
     auto immediate_render_data = new AnnotationRenderDataSet(
         interaction_canvas_, // note a reference is taken here
         current_bookmark_uuid_,
         handle_state_,
-        onscreen_interaction_frame);
+        image_being_annotated_ ? to_string(image_being_annotated_->media_key()) : "");
 
     return utility::BlindDataObjectPtr(
         static_cast<utility::BlindDataObject *>(immediate_render_data));
 }
 
 void AnnotationsTool::images_going_on_screen(
-    const std::vector<media_reader::ImageBufPtr> &images,
+    const media_reader::ImageBufDisplaySetPtr &images,
     const std::string viewport_name,
     const bool playhead_playing) {
 
@@ -555,22 +555,31 @@ void AnnotationsTool::images_going_on_screen(
     if (!playhead_playing)
         viewport_current_images_[viewport_name] = images;
     else
-        viewport_current_images_[viewport_name].clear();
+        viewport_current_images_[viewport_name].reset();
 
     if (!interaction_canvas_.empty() && !current_bookmark_uuid_.is_null() &&
         current_interaction_viewport_name_ == viewport_name) {
 
         bool edited_anno_is_onscreen = false;
-        // looks like we are editing an annotation. Is the annotation
-        for (auto &image : images) {
-            for (auto &bookmark : image.bookmarks()) {
+        // looks like we are editing an annotation. Is the annotation still on
+        // screen (i.e. has the user scrubbed away from it)
+        if (images) {
+            const auto & im_idx = images->layout_data()->image_draw_order_hint_;
+            for (auto &idx: im_idx) {
+                // loop over onscreen images. Check if the current bookmark is
+                // visible on any of them.
+                const auto & cim = images->onscreen_image(idx);
+                for (auto &bookmark : cim.bookmarks()) {
 
-                auto anno = dynamic_cast<Annotation *>(bookmark->annotation_.get());
-                if (bookmark->detail_.uuid_ == current_bookmark_uuid_) {
-                    edited_anno_is_onscreen = true;
+                    auto anno = dynamic_cast<Annotation *>(bookmark->annotation_.get());
+                    if (bookmark->detail_.uuid_ == current_bookmark_uuid_) {
+                        edited_anno_is_onscreen = true;
+                        break;
+                    }
                 }
             }
         }
+
         if (!edited_anno_is_onscreen) {
             // the annotation that we were editing is no longer on-screen. The
             // user must have scrubbed away from it in the timeline. Thus we
@@ -613,13 +622,67 @@ void AnnotationsTool::viewport_dockable_widget_deactivated(std::string &widget_n
 
 void AnnotationsTool::turn_off_overlay_interaction() { active_tool_->set_value("None"); }
 
-void AnnotationsTool::start_editing(const std::string &viewport_name) {
+void AnnotationsTool::start_editing(const std::string &viewport_name, const Imath::V2f &pointer_position) {
 
     // ensure playback is stopped
     start_stop_playback(viewport_name, false);
 
     if (is_laser_mode())
         return;
+
+
+    // if the viewport is in grid mode, with multiple images laid out, which one
+    // was clicked in ?
+    auto before = image_being_annotated_;
+    media_reader::ImageBufPtr new_image_to_annotate;
+    auto p = viewport_current_images_.find(viewport_name);
+    if (p != viewport_current_images_.end() && p->second) {
+
+        // first, check if pointer_position lands on one of the images in
+        // the viewport
+        bool curr_im_is_onscreen = false;
+        const media_reader::ImageBufDisplaySetPtr &onscreen_image_set = p->second;
+        const auto & im_idx = onscreen_image_set->layout_data()->image_draw_order_hint_;
+        for (auto &idx: im_idx) {
+            // loop over onscreen images. translate pointer position to image
+            // space coords
+            const auto & cim = onscreen_image_set->onscreen_image(idx);
+
+            if (cim) {
+
+                Imath::V4f pt(pointer_position.x, pointer_position.y, 0.0f, 1.0f);
+                pt *= cim.layout_transform().inverse();
+
+                // does the pointer land on the image?
+                float a = 1.0f/cim->image_aspect();
+                if (pt.x/pt.w >= -1.0f && pt.x/pt.w <= 1.0f && 
+                    pt.y/pt.w >= -a && pt.y/pt.w <= a) {
+                    new_image_to_annotate = cim;
+                }
+                // check if image_being_annotated_ (from last time we entered this
+                // method) is in the onscreen set
+                if (image_being_annotated_ == cim) curr_im_is_onscreen = true;
+            }
+
+        }
+
+        if (new_image_to_annotate) {
+            image_being_annotated_ = new_image_to_annotate;
+        } else if (!curr_im_is_onscreen) {
+            image_being_annotated_ = onscreen_image_set->hero_image();
+        } else {
+            // image_being_annotated_ is unchanged, as it belongs in the
+            // onscreen iamge set but we just haven't clicked inside any
+            // other images
+        }
+    } else {
+        image_being_annotated_ = media_reader::ImageBufPtr();
+    }
+
+    if (image_being_annotated_ != before) {
+        // looks like we are starting a new annotation
+        current_bookmark_uuid_ = utility::Uuid();
+    }
 
     if (!current_bookmark_uuid_.is_null() &&
         current_interaction_viewport_name_ == viewport_name) {
@@ -631,25 +694,21 @@ void AnnotationsTool::start_editing(const std::string &viewport_name) {
     Annotation *to_edit    = nullptr;
     current_bookmark_uuid_ = utility::Uuid();
     utility::Uuid first_bookmark_uuid;
-    auto p = viewport_current_images_.find(viewport_name);
-    if (p != viewport_current_images_.end()) {
-        for (auto &image : p->second) {
-            for (auto &bookmark : image.bookmarks()) {
+    if (image_being_annotated_) {
 
-                auto anno = dynamic_cast<Annotation *>(bookmark->annotation_.get());
-                if (anno) {
-                    to_edit                = anno;
-                    current_bookmark_uuid_ = bookmark->detail_.uuid_;
-                    break;
-                } else if (first_bookmark_uuid.is_null() && !bookmark->annotation_) {
-                    // note if bookmark->annotation_ is set then its annotation data
-                    // from some other plugin (like grading tool) so we only use
-                    // existing empty bookmark if there's not annotation data on it
-                    first_bookmark_uuid = bookmark->detail_.uuid_;
-                }
-            }
-            if (to_edit)
+        for (auto &bookmark : image_being_annotated_.bookmarks()) {
+
+            auto anno = dynamic_cast<Annotation *>(bookmark->annotation_.get());
+            if (anno) {
+                to_edit                = anno;
+                current_bookmark_uuid_ = bookmark->detail_.uuid_;
                 break;
+            } else if (first_bookmark_uuid.is_null() && !bookmark->annotation_) {
+                // note if bookmark->annotation_ is set then its annotation data
+                // from some other plugin (like grading tool) so we only use
+                // existing empty bookmark if there's not annotation data on it
+                first_bookmark_uuid = bookmark->detail_.uuid_;
+            }
         }
     }
 
@@ -692,28 +751,28 @@ void AnnotationsTool::start_shape(const Imath::V2f &p) {
 
     shape_anchor_ = p;
 
-    if (shape_tool_->value() == Square) {
+    if (active_tool_->value() == "Square") {
 
         interaction_canvas_.start_square(
             pen_colour_->value(),
             shapes_pen_size_->value() / PEN_STROKE_THICKNESS_SCALE,
             pen_opacity_->value() / 100.0f);
 
-    } else if (shape_tool_->value() == Circle) {
+    } else if (active_tool_->value() == "Circle") {
 
         interaction_canvas_.start_circle(
             pen_colour_->value(),
             shapes_pen_size_->value() / PEN_STROKE_THICKNESS_SCALE,
             pen_opacity_->value() / 100.0f);
 
-    } else if (shape_tool_->value() == Arrow) {
+    } else if (active_tool_->value() == "Arrow") {
 
         interaction_canvas_.start_arrow(
             pen_colour_->value(),
             shapes_pen_size_->value() / PEN_STROKE_THICKNESS_SCALE,
             pen_opacity_->value() / 100.0f);
 
-    } else if (shape_tool_->value() == Line) {
+    } else if (active_tool_->value() == "Line") {
 
         interaction_canvas_.start_line(
             pen_colour_->value(),
@@ -726,20 +785,20 @@ void AnnotationsTool::start_shape(const Imath::V2f &p) {
 
 void AnnotationsTool::update_shape(const Imath::V2f &pointer_pos) {
 
-    if (shape_tool_->value() == Square) {
+    if (active_tool_->value() == "Square") {
 
         interaction_canvas_.update_square(shape_anchor_, pointer_pos);
 
-    } else if (shape_tool_->value() == Circle) {
+    } else if (active_tool_->value() == "Circle") {
 
         interaction_canvas_.update_circle(
             shape_anchor_, (shape_anchor_ - pointer_pos).length());
 
-    } else if (shape_tool_->value() == Arrow) {
+    } else if (active_tool_->value() == "Arrow") {
 
         interaction_canvas_.update_arrow(shape_anchor_, pointer_pos);
 
-    } else if (shape_tool_->value() == Line) {
+    } else if (active_tool_->value() == "Line") {
 
         interaction_canvas_.update_line(shape_anchor_, pointer_pos);
     }
@@ -919,19 +978,20 @@ void AnnotationsTool::update_bookmark_annotation_data() {
         // current frame for us
 
         std::string note_name = "Annotated Frame";
-        auto p = viewport_current_images_.find(current_interaction_viewport_name_);
-        if (p != viewport_current_images_.end() && p->second.size()) {
-            const media::AVFrameID &id = p->second.front().frame_id();
-            note_name = fs::path(utility::uri_to_posix_path(id.uri_)).stem().string();
+        if (image_being_annotated_) {
+            const media::AVFrameID &id = image_being_annotated_.frame_id();
+            note_name = fs::path(utility::uri_to_posix_path(id.uri())).stem().string();
             if (note_name.find(".") != std::string::npos) {
                 note_name = std::string(note_name, 0, note_name.find("."));
             }
+            current_bookmark_uuid_ = StandardPlugin::create_bookmark_on_frame(
+                image_being_annotated_.frame_id(), note_name, bookmark::BookmarkDetail(), false);
+
         }
 
-        current_bookmark_uuid_ = StandardPlugin::create_bookmark_on_current_media(
-            current_interaction_viewport_name_, note_name, bookmark::BookmarkDetail(), false);
         if (!current_bookmark_uuid_.is_null())
             update_bookmark_annotation_data();
+
     }
 }
 

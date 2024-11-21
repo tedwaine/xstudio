@@ -44,9 +44,9 @@ namespace ui {
             Q_OBJECT
 
             Q_PROPERTY(QPointF mousePosition READ mousePosition NOTIFY mousePositionChanged)
-            Q_PROPERTY(QRectF imageBoundaryInViewport READ imageBoundaryInViewport NOTIFY
-                           imageBoundaryInViewportChanged)
-            Q_PROPERTY(QSize imageResolution READ imageResolution NOTIFY imageResolutionChanged)
+            Q_PROPERTY(QVariantList imageBoundariesInViewport READ imageBoundariesInViewport NOTIFY
+                           imageBoundariesInViewportChanged)
+            Q_PROPERTY(QVariantList imageResolutions READ imageResolutions NOTIFY imageResolutionsChanged)
             Q_PROPERTY(QString name READ name NOTIFY nameChanged)
             Q_PROPERTY(QUuid playheadUuid READ playheadUuid NOTIFY playheadUuidChanged)
 
@@ -89,9 +89,8 @@ namespace ui {
 
             void hideCursor();
             void showCursor();
-            QSize imageResolution();
-            QVector2D bboxCornerInViewport(const int min_x, const int min_y);
-            QRectF imageBoundaryInViewport();
+            QVariantList imageResolutions();
+            QVariantList imageBoundariesInViewport();
             void sendResetShortcut();
             void setOverrideCursor(const QString &name, const bool centerOffset);
             void setOverrideCursor(const Qt::CursorShape cname);
@@ -111,8 +110,8 @@ namespace ui {
             void mousePress(Qt::MouseButtons buttons);
             void mousePositionChanged(QPointF position);
 
-            void imageBoundaryInViewportChanged();
-            void imageResolutionChanged();
+            void imageBoundariesInViewportChanged();
+            void imageResolutionsChanged();
             void doSnapshot(QString, QString, int, int, bool);
             void nameChanged();
             void quickViewSource(

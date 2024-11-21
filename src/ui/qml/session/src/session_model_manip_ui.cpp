@@ -1,7 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
 
 #include "xstudio/session/session_actor.hpp"
-#include "xstudio/tag/tag.hpp"
 #include "xstudio/timeline/track_actor.hpp"
 #include "xstudio/timeline/stack_actor.hpp"
 #include "xstudio/timeline/gap_actor.hpp"
@@ -37,7 +36,7 @@ SessionModel::removeRows(int row, int count, const bool deep, const QModelIndex 
             if (index.isValid()) {
                 nlohmann::json &j = indexToData(index);
                 if (j.at("type") == "ContainerDivider" or j.at("type") == "Subset" or
-                    j.at("type") == "Timeline") {
+                    j.at("type") == "Timeline" or j.at("type") == "ContactSheet") {
                     auto pactor = actorFromIndex(index.parent(), true);
                     if (pactor) {
                         if (j.at("type") == "ContainerDivider" and pactor == session_actor_) {
@@ -177,7 +176,7 @@ bool SessionModel::duplicateRows(int row, int count, const QModelIndex &parent) 
                     nlohmann::json &j = indexToData(index);
 
                     if (j.at("type") == "ContainerDivider" or j.at("type") == "Subset" or
-                        j.at("type") == "Timeline" or j.at("type") == "Playlist") {
+                        j.at("type") == "Timeline" or j.at("type") == "Playlist" or j.at("type") == "ContactSheet") {
                         auto pactor = actorFromIndex(index.parent(), true);
 
                         if (pactor) {
@@ -479,7 +478,7 @@ QModelIndexList SessionModel::insertRows(
             // spdlog::warn("{}", j.dump(2));
 
             if (type == "ContainerDivider" or type == "Subset" or type == "Timeline" or
-                type == "Playlist") {
+                type == "Playlist" or type == "ContactSheet") {
                 auto before    = Uuid();
                 auto insertrow = index(row, 0, parent);
                 auto actor     = caf::actor();
@@ -545,6 +544,33 @@ QModelIndexList SessionModel::insertRows(
                         for (auto i = 0; i < count; i++) {
                             anon_send(
                                 actor, playlist::create_subset_atom_v, name, before, false);
+                            result.push_back(index(row + i, 0, parent));
+                        }
+                    }
+                } else if (type == "ContactSheet") {
+                    actor = j.count("actor_owner") and not j.at("actor_owner").is_null()
+                                ? actorFromString(system(), j.at("actor_owner"))
+                                : caf::actor();
+
+                    if (actor) {
+                        if (before.is_null())
+                            row = rowCount(parent);
+
+                        JSONTreeModel::insertRows(
+                            row,
+                            count,
+                            parent,
+                            R"({
+                                "type": "ContactSheet", "placeholder": true, "container_uuid": null, "actor_uuid": null, "actor": null
+                            })"_json);
+
+                        // spdlog::warn(
+                        //     "JSONTreeModel::insertRows Subset ({}, {}, parent);", row,
+                        //     count);
+
+                        for (auto i = 0; i < count; i++) {
+                            anon_send(
+                                actor, playlist::create_contact_sheet_atom_v, name, before, false);
                             result.push_back(index(row + i, 0, parent));
                         }
                     }
@@ -690,6 +716,8 @@ QModelIndexList SessionModel::insertRows(
     } catch (const std::exception &err) {
         spdlog::warn("{} {}", __PRETTY_FUNCTION__, err.what());
     }
+
+    qDebug() << "result " << result << "\n";
 
     return result;
 }

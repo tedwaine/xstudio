@@ -63,6 +63,15 @@ XsPlaylistItemBase {
 
         DelegateChoice {
 
+            roleValue: "ContactSheet"
+            XsContactSheetItemDelegate{
+                modelIndex: helpers.makePersistent(subItemsModel.modelIndex(index))
+                Layout.fillWidth: true
+            }
+        }
+
+        DelegateChoice {
+
             roleValue: "Timeline"
             XsTimelineItemDelegate{
                 modelIndex: helpers.makePersistent(subItemsModel.modelIndex(index))

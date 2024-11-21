@@ -8,6 +8,7 @@
 #include "xstudio/shotgun_client/shotgun_client_actor.hpp"
 #include "xstudio/utility/chrono.hpp"
 #include "xstudio/utility/helpers.hpp"
+#include "xstudio/utility/notification_handler.hpp"
 
 #include "shotbrowser_plugin.hpp"
 
@@ -1070,6 +1071,28 @@ void ShotBrowser::refresh_playlist_versions(
     const utility::Uuid &playlist_uuid,
     const bool match_order) {
     // grab playlist id, get versions compare/load into playlist
+
+    auto notification_uuid = Uuid();
+    auto playlist          = caf::actor();
+
+    auto failed = [=](const caf::actor &dest, const Uuid &uuid) mutable {
+        if (dest and not uuid.is_null()) {
+            auto notify = Notification::WarnNotification("Reloading Playlist Failed");
+            notify.uuid(uuid);
+            anon_send(dest, utility::notification_atom_v, notify);
+        }
+    };
+
+    auto succeeded = [=](const caf::actor &dest, const Uuid &uuid) mutable {
+        if (dest and not uuid.is_null()) {
+            auto notify = Notification::InfoNotification(
+                "Reloading Playlist Succeeded", std::chrono::seconds(5));
+            notify.uuid(uuid);
+            anon_send(dest, utility::notification_atom_v, notify);
+        }
+    };
+
+
     try {
 
         scoped_actor sys{system()};
@@ -1079,8 +1102,14 @@ void ShotBrowser::refresh_playlist_versions(
             system().registry().template get<caf::actor>(global_registry),
             session::session_atom_v);
 
-        auto playlist = request_receive<caf::actor>(
+        playlist = request_receive<caf::actor>(
             *sys, session, session::get_playlist_atom_v, playlist_uuid);
+
+        if (playlist) {
+            auto notify       = Notification::ProcessingNotification("Reloading Playlist");
+            notification_uuid = notify.uuid();
+            anon_send(playlist, utility::notification_atom_v, notify);
+        }
 
         auto plsg = request_receive<JsonStore>(
             *sys, playlist, json_store::get_json_atom_v, ShotgunMetadataPath + "/playlist");
@@ -1148,6 +1177,7 @@ void ShotBrowser::refresh_playlist_versions(
                                     JsonStore(result["data"]));
                             }
 
+                            succeeded(playlist, notification_uuid);
                             rp.deliver(result);
                             return;
                         }
@@ -1198,28 +1228,33 @@ void ShotBrowser::refresh_playlist_versions(
 
                                         // return this as the result.
                                         rp.deliver(result);
-
+                                        succeeded(playlist, notification_uuid);
                                     } catch (const std::exception &err) {
+                                        failed(playlist, notification_uuid);
                                         rp.deliver(
                                             make_error(xstudio_error::error, err.what()));
                                     }
                                 },
 
                                 [=](error &err) mutable {
+                                    failed(playlist, notification_uuid);
                                     spdlog::warn("{} {}", __PRETTY_FUNCTION__, to_string(err));
                                     rp.deliver(err);
                                 });
                     } catch (const std::exception &err) {
+                        failed(playlist, notification_uuid);
                         rp.deliver(make_error(xstudio_error::error, err.what()));
                     }
                 },
                 [=](error &err) mutable {
                     spdlog::warn("{} {}", __PRETTY_FUNCTION__, to_string(err));
+                    failed(playlist, notification_uuid);
                     rp.deliver(err);
                 });
 
 
     } catch (const std::exception &err) {
+        failed(playlist, notification_uuid);
         rp.deliver(make_error(xstudio_error::error, err.what()));
     }
 }
@@ -1255,7 +1290,7 @@ void ShotBrowser::add_media_to_playlist(
     if (versions.empty())
         return rp.deliver(std::vector<UuidActor>());
 
-    auto event_msg = std::shared_ptr<event::Event>();
+    // auto event_msg = std::shared_ptr<event::Event>();
 
 
     // get uuid for playlist
@@ -1305,16 +1340,16 @@ void ShotBrowser::add_media_to_playlist(
         }
     }
 
-    if (not playlist_uuid.is_null()) {
-        event_msg = std::make_shared<event::Event>(
-            "Loading ShotGrid Playlist Media {}",
-            0,
-            0,
-            versions.size(), // we increment progress once per version loaded - ivy leafs are
-                             // added after progress hits 100%
-            std::set<utility::Uuid>({playlist_uuid}));
-        event::send_event(this, *event_msg);
-    }
+    // if (not playlist_uuid.is_null()) {
+    //     event_msg = std::make_shared<event::Event>(
+    //         "Loading ShotGrid Playlist Media {}",
+    //         0,
+    //         0,
+    //         versions.size(), // we increment progress once per version loaded - ivy leafs are
+    //                          // added after progress hits 100%
+    //         std::set<utility::Uuid>({playlist_uuid}));
+    //     event::send_event(this, *event_msg);
+    // }
 
     try {
         auto media_rate = media_rate_;
@@ -1361,7 +1396,6 @@ void ShotBrowser::add_media_to_playlist(
                 media_rate,
                 visual_source,
                 audio_source,
-                event_msg,
                 ordered_uuids,
                 before,
                 flag_colour,
@@ -1377,10 +1411,10 @@ void ShotBrowser::add_media_to_playlist(
 
     } catch (const std::exception &err) {
         spdlog::warn("{} {}", __PRETTY_FUNCTION__, err.what());
-        if (not playlist_uuid.is_null()) {
-            event_msg->set_complete();
-            event::send_event(this, *event_msg);
-        }
+        // if (not playlist_uuid.is_null()) {
+        //     event_msg->set_complete();
+        //     event::send_event(this, *event_msg);
+        // }
         rp.deliver(make_error(xstudio_error::error, err.what()));
     }
 }
@@ -1519,12 +1553,9 @@ void ShotBrowser::load_playlist(
                                         anon_send(
                                             playlist.actor(),
                                             json_store::set_json_atom_v,
-                                            JsonStore(nlohmann::json(
-                                                "qrc:/shotbrowser_icons/shot_grid.svg")),
+                                            JsonStore(
+                                                R"({"icon": "qrc:/shotbrowser_icons/shot_grid.svg", "tooltip": "ShotGrid Playlist"})"_json),
                                             "/ui/decorators/shotgrid");
-
-                                        // addDecorator(playlist.uuid)
-                                        // addMenusFull(playlist.uuid)
 
                                         anon_send(
                                             caf::actor_cast<caf::actor>(this),
@@ -1597,10 +1628,10 @@ void ShotBrowser::do_add_media_sources_from_shotgun(
     auto continue_processing_job_queue = [=]() {
         build_tasks_in_flight_--;
         delayed_send(this, JOB_DISPATCH_DELAY, playlist::add_media_atom_v);
-        if (build_media_task_data->event_msg_) {
-            build_media_task_data->event_msg_->increment_progress();
-            event::send_event(this, *(build_media_task_data->event_msg_));
-        }
+        // if (build_media_task_data->event_msg_) {
+        //     build_media_task_data->event_msg_->increment_progress();
+        //     event::send_event(this, *(build_media_task_data->event_msg_));
+        // }
     };
 
     // now we get our worker pool to build media sources and add them to the

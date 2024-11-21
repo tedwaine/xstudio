@@ -315,7 +315,6 @@ class ModuleBase(ActorConnection):
         Args:
             handler(Callable): Call back function
         """
-        print ("OIOI", handler)
         self.__attribute_changed = handler
 
     def subscribe_to_playhead_events(self, playhead_event_callback=None):

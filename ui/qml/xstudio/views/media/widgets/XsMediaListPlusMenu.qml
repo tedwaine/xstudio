@@ -13,10 +13,6 @@ XsPopupMenu {
     visible: false
     menu_model_name: "medialist_plus_button_menu"
 
-    XsFileFunctions {
-        id: file_functions
-    }
-
     // property idenfies the 'panel' that is the anticedent of this
     // menu instance. As this menu is instanced multiple times in the
     // xstudio interface we use this context property to ensure our
@@ -81,9 +77,13 @@ XsPopupMenu {
         menuPath: ""
         menuItemPosition: 3
         menuModelName: plusMenu.menu_model_name
-        enabled: false
         onActivated: {
-
+            dialogHelpers.textInputDialog(
+                plusMenu.addContactSheet,
+                "Add Contact Sheet",
+                "Enter a name for the new contact sheet.",
+                "New Contact Sheet",
+                ["Cancel", "Add"])
         }
         panelContext: plusMenu.panelContext
     }
@@ -119,6 +119,12 @@ XsPopupMenu {
             addToNewSubset(new_name)
         }
     }
+
+    function addContactSheet(new_name, button) {
+        if (button == "Add") {
+            addToNewContactSheet(new_name)
+        }
+    }    
 
     function addTimeline(new_name, button) {
         if (button == "Add") {

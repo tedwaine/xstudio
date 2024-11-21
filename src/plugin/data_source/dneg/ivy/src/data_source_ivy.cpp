@@ -10,7 +10,6 @@
 #include "xstudio/global_store/global_store.hpp"
 #include "xstudio/utility/helpers.hpp"
 #include "xstudio/utility/uuid.hpp"
-#include "xstudio/event/event.hpp"
 #include "xstudio/utility/chrono.hpp"
 #include "xstudio/http_client/http_client_actor.hpp"
 
@@ -299,7 +298,7 @@ IvyDataSourceActor<T>::IvyDataSourceActor(caf::actor_config &cfg, const utility:
                 media)
                 .then(
                     [=](const std::pair<utility::Uuid, std::string> &uuid_show) mutable {
-                        spdlog::warn("{} {}", to_string(uuid_show.first), uuid_show.second);
+                        // spdlog::warn("{} {}", to_string(uuid_show.first), uuid_show.second);
                         // we've got a uuid
                         // get ivy data..
                         if (uuid_show.first.is_null())
@@ -654,7 +653,7 @@ void IvyMediaWorker::get_show_stalk_uuid(
                         break;
                 }
 
-                spdlog::warn("{} {}", to_string(dnuuid), show);
+                // spdlog::warn("{} {}", to_string(dnuuid), show);
                 rp.deliver(std::make_pair(dnuuid, show));
             },
             [=](const error &err) mutable {

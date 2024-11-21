@@ -35,7 +35,7 @@ Track::Track(const JsonStore &jsn)
 }
 
 Track::Track(const Item &item, const caf::actor &actor)
-    : Container(item.name(), "Track", item.uuid()), item_(item) {
+    : Container(item.name(), "Track", item.uuid()), item_(item.clone()) {
     item_.set_actor_addr(caf::actor_cast<caf::actor_addr>(actor));
     media_type_ =
         (item_.item_type() == ItemType::IT_VIDEO_TRACK ? MediaType::MT_IMAGE

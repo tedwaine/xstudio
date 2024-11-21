@@ -1,7 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
 
 #include "xstudio/session/session_actor.hpp"
-#include "xstudio/tag/tag.hpp"
 #include "xstudio/media/media.hpp"
 #include "xstudio/ui/qml/job_control_ui.hpp"
 #include "xstudio/ui/qml/session_model_ui.hpp"
@@ -22,7 +21,6 @@ using namespace xstudio::ui::qml;
 
 
 SessionModel::SessionModel(QObject *parent) : super(parent) {
-    tag_manager_ = new TagManagerUI(this);
     init(CafSystemObject::get_actor_system());
 
     auto role_names = std::vector<std::string>(
@@ -55,6 +53,7 @@ SessionModel::SessionModel(QObject *parent) : super(parent) {
          {"metadataChangedRole"},
          {"mtimeRole"},
          {"nameRole"},
+         {"notificationRole"},
          {"pathRole"},
          {"pathShakeRole"},
          {"pixelAspectRole"},
@@ -475,6 +474,30 @@ QVariant SessionModel::data(const QModelIndex &index, int role) const {
             case propertyRole:
                 if (j.count("prop")) {
                     result = QVariant::fromValue(mapFromValue(j.at("prop")));
+                }
+                break;
+
+            case notificationRole:
+                if (j.count("notification")) {
+                    auto type = j.value("type", "");
+                    if (j.at("notification").is_null()) {
+                        if (type == "Audio Track" or type == "Video Track")
+                            requestData(
+                                QVariant::fromValue(QUuidFromUuid(j.at("id"))),
+                                idRole,
+                                index,
+                                index,
+                                role);
+                        else
+                            requestData(
+                                QVariant::fromValue(QUuidFromUuid(j.at("actor_uuid"))),
+                                actorUuidRole,
+                                getPlaylistIndex(index),
+                                index,
+                                role);
+                    } else {
+                        result = QVariant::fromValue(mapFromValue(j.at("notification")));
+                    }
                 }
                 break;
 
@@ -1260,7 +1283,7 @@ bool SessionModel::setData(const QModelIndex &index, const QVariant &qvalue, int
 
             case nameRole:
                 if (j.count("name") and j["name"] != value) {
-                    if ((type == "Session" or type == "Subset" or type == "Timeline" or
+                    if ((type == "Session" or type == "ContactSheet" or type == "Subset" or type == "Timeline" or
                          type == "Playlist") and
                         actor) {
                         // spdlog::warn("Send update {} {}", j["name"], value);
@@ -1347,7 +1370,7 @@ bool SessionModel::setData(const QModelIndex &index, const QVariant &qvalue, int
                         }
                     } else if (
                         type == "ContainerDivider" or type == "Subset" or type == "Timeline" or
-                        type == "Playlist") {
+                        type == "Playlist" or type == "ContactSheet") {
                         auto p = index.parent();
                         if (p.isValid()) {
                             nlohmann::json &pj = indexToData(p);

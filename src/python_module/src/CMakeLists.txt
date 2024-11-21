@@ -41,6 +41,7 @@ target_link_libraries(
 		xstudio::global_store_static
 		xstudio::json_store_static
 		xstudio::timeline_static
+		xstudio::media_static
 		caf::core
 		caf::io
 )

@@ -4,6 +4,8 @@
 #include <caf/all.hpp>
 #include <list>
 #include <memory>
+#define PYBIND11_DETAILED_ERROR_MESSAGES
+
 #include <pybind11/embed.h> // everything needed for embedding
 #include <string>
 

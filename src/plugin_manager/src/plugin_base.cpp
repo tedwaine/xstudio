@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 #include "xstudio/plugin_manager/plugin_base.hpp"
 #include "xstudio/utility/helpers.hpp"
-#include "xstudio/media_reader/image_buffer.hpp"
+#include "xstudio/media_reader/image_buffer_set.hpp"
 
 using namespace xstudio;
 using namespace xstudio::bookmark;
@@ -31,11 +31,6 @@ StandardPlugin::StandardPlugin(
                 playhead_media_events_group_ = caf::actor_addr();
             }
         },
-        [=](ui::viewport::prepare_overlay_render_data_atom,
-            const media_reader::ImageBufPtr &image,
-            const bool offscreen) -> utility::BlindDataObjectPtr {
-            return prepare_overlay_data(image, offscreen);
-        },
 
         [=](ui::viewport::prepare_overlay_render_data_atom,
             const media_reader::ImageBufPtr &image,
@@ -44,9 +39,12 @@ StandardPlugin::StandardPlugin(
         },
 
         [=](playhead::show_atom,
-            const std::vector<media_reader::ImageBufPtr> &images,
+            const media_reader::ImageBufDisplaySetPtr &image_set,
             const std::string &viewport_name,
-            const bool playing) { images_going_on_screen(images, viewport_name, playing); },
+            const bool playing) { 
+                __images_going_on_screen(image_set, viewport_name, playing); 
+                images_going_on_screen(image_set, viewport_name, playing); 
+            },
 
         [=](ui::viewport::overlay_render_function_atom) -> ViewportOverlayRendererPtr {
             return make_overlay_renderer();
@@ -88,13 +86,6 @@ StandardPlugin::StandardPlugin(
             const int media_frame,
             const int media_logical_frame,
             const utility::Timecode &timecode) {
-            on_screen_frame_changed(
-                playhead_position,
-                playhead_logical_frame,
-                media_frame,
-                media_logical_frame,
-                timecode);
-            playhead_logical_frame_ = playhead_logical_frame;
         },
 
         [=](utility::event_atom,
@@ -135,6 +126,10 @@ StandardPlugin::StandardPlugin(
                 turn_off_overlay_interaction();
             }
         }};
+}
+
+void StandardPlugin::on_exit() {
+    playhead_events_actor_ = caf::actor();
 }
 
 void StandardPlugin::on_screen_media_changed(caf::actor media) {
@@ -194,6 +189,9 @@ void StandardPlugin::join_studio_events() {
             return;
         }
 
+        playhead_events_actor_ =
+            system().registry().template get<caf::actor>(global_playhead_events_actor);
+
         // join studio events, so we know when a new session has been created
         auto grp = utility::request_receive<caf::actor>(
             *sys,
@@ -208,9 +206,6 @@ void StandardPlugin::join_studio_events() {
             system().registry().template get<caf::actor>(studio_registry),
             session::session_atom_v));
 
-        playhead_events_actor_ =
-            system().registry().template get<caf::actor>(global_playhead_events_actor);
-
         anon_send(
             playhead_events_actor_,
             broadcast::join_broadcast_atom_v,
@@ -221,6 +216,29 @@ void StandardPlugin::join_studio_events() {
     }
 }
 
+void StandardPlugin::__images_going_on_screen(
+    const media_reader::ImageBufDisplaySetPtr & image_set,
+    const std::string viewport_name,
+    const bool playhead_playing
+) {
+
+    // skip viewports whose name doesn't start with 'viewport' - this lets us
+    // ignore offscreen and quickview viewports
+    if (viewport_name.find("viewport") != 0) return;
+
+    if (image_set && image_set->hero_image().frame_id().source_uuid() != last_source_uuid_[viewport_name]) {
+
+        last_source_uuid_[viewport_name] = image_set->hero_image().frame_id().source_uuid();
+        auto media_source = caf::actor_cast<caf::actor>(image_set->hero_image().frame_id().actor_addr());
+        request(media_source, infinite, utility::parent_atom_v).then(
+            [=](caf::actor media_actor) {
+                on_screen_media_changed(media_actor);
+            },
+            [=](caf::error &err) {});
+    }
+}
+
+
 void StandardPlugin::listen_to_playhead_events(const bool listen) {
 
     // fetch the current viewed playhead from the viewport so we can 'listen' to it
@@ -228,8 +246,6 @@ void StandardPlugin::listen_to_playhead_events(const bool listen) {
 
     // join the global playhead events group - this tells us when the playhead that should
     // be on screen changes, among other things
-    playhead_events_actor_ =
-        self()->home_system().registry().template get<caf::actor>(global_playhead_events_actor);
     joined_playhead_events_ = listen;
     if (listen) {
 
@@ -323,14 +339,6 @@ void StandardPlugin::current_viewed_playhead_changed(caf::actor viewed_playhead)
                     // spdlog::warn("{} {}", __PRETTY_FUNCTION__, to_string(err));
                 });
 
-        // make sure we have synced the bookmarks info from the playhead
-        try {
-            scoped_actor sys{system()};
-            playhead_logical_frame_ = utility::request_receive<int>(
-                *sys, viewed_playhead, playhead::logical_frame_atom_v);
-        } catch ([[maybe_unused]] std::exception &e) {
-            // spdlog::warn("{} {}", __PRETTY_FUNCTION__, e.what());
-        }
     }
 }
 
@@ -345,6 +353,71 @@ void StandardPlugin::qml_viewport_overlay_code(const std::string &code) {
     }
 }
 
+utility::Uuid StandardPlugin::create_bookmark_on_frame(
+    const media::AVFrameID &frame_details,
+    const std::string &bookmark_subject,
+    const bookmark::BookmarkDetail &detail,
+    const bool bookmark_entire_duration) {
+
+    utility::Uuid result;
+
+    scoped_actor sys{system()};
+    try {
+
+        auto media_source = caf::actor_cast<caf::actor>(frame_details.actor_addr());
+        auto media = utility::request_receive<caf::actor>(*sys, media_source, utility::parent_atom_v);
+
+        if (media) {
+
+            auto media_uuid = frame_details.media_uuid();
+
+            auto media_ref =
+                utility::request_receive<std::pair<utility::Uuid, utility::MediaReference>>(
+                    *sys, media, media::media_reference_atom_v, media_uuid)
+                    .second;
+
+            auto new_bookmark = utility::request_receive<utility::UuidActor>(
+                *sys,
+                bookmark_manager_,
+                bookmark::add_bookmark_atom_v,
+                utility::UuidActor(media_uuid, media));
+
+            bookmark::BookmarkDetail bmd = detail;
+
+            if (bookmark_entire_duration) {
+
+                bmd.start_    = timebase::k_flicks_low;
+                bmd.duration_ = timebase::k_flicks_max;
+
+            } else {
+
+                // this will make a bookmark of single frame duration on the current frame
+                bmd.start_    = (frame_details.frame()-frame_details.first_frame())*media_ref.rate().to_flicks();
+                bmd.duration_ = timebase::flicks(0);
+            }
+
+            bmd.subject_ = bookmark_subject;
+
+            if (!bmd.category_) {
+
+                auto default_category = utility::request_receive<std::string>(
+                    *sys, bookmark_manager_, bookmark::default_category_atom_v);
+                bmd.category_ = default_category;
+            }
+
+            utility::request_receive<bool>(
+                *sys, new_bookmark.actor(), bookmark::bookmark_detail_atom_v, bmd);
+
+            result = new_bookmark.uuid();
+        }
+
+    } catch (std::exception &e) {
+        spdlog::warn("{} {}", __PRETTY_FUNCTION__, e.what());
+    }
+    return result;
+}
+
+
 utility::Uuid StandardPlugin::create_bookmark_on_current_media(
     const std::string &viewport_name,
     const std::string &bookmark_subject,
@@ -354,21 +427,20 @@ utility::Uuid StandardPlugin::create_bookmark_on_current_media(
     utility::Uuid result;
 
     scoped_actor sys{system()};
-    auto ph_events = system().registry().template get<caf::actor>(global_playhead_events_actor);
     try {
 
 
         caf::actor playhead;
         try {
             auto vp = utility::request_receive<caf::actor>(
-                *sys, ph_events, ui::viewport::viewport_atom_v, viewport_name);
+                *sys, playhead_events_actor_, ui::viewport::viewport_atom_v, viewport_name);
             playhead = utility::request_receive<caf::actor>(
                 *sys, vp, ui::viewport::viewport_playhead_atom_v);
         } catch (...) {
             // couldn't find the specified viewport or its playhead. Instead
             // get the 'global active' playhead from the global_playhead_events_actor
             playhead = utility::request_receive<caf::actor>(
-                *sys, ph_events, ui::viewport::viewport_playhead_atom_v);
+                *sys, playhead_events_actor_, ui::viewport::viewport_playhead_atom_v);
         }
 
         if (!playhead) {
@@ -433,9 +505,8 @@ utility::Uuid StandardPlugin::create_bookmark_on_current_media(
 
 void StandardPlugin::cancel_other_drawing_tools() {
 
-    auto ph_events = system().registry().template get<caf::actor>(global_playhead_events_actor);
     // get all viewports
-    request(ph_events, infinite, ui::viewport::viewport_atom_v)
+    request(playhead_events_actor_, infinite, ui::viewport::viewport_atom_v)
         .then(
             [=](const std::vector<caf::actor> &viewports) {
                 for (auto &vp : viewports) {
@@ -453,10 +524,9 @@ StandardPlugin::get_bookmarks_on_current_media(const std::string &viewport_name)
     utility::UuidList result;
 
     scoped_actor sys{system()};
-    auto ph_events = system().registry().template get<caf::actor>(global_playhead_events_actor);
     try {
         auto vp = utility::request_receive<caf::actor>(
-            *sys, ph_events, ui::viewport::viewport_atom_v, viewport_name);
+            *sys, playhead_events_actor_, ui::viewport::viewport_atom_v, viewport_name);
         auto playhead = utility::request_receive<caf::actor>(
             *sys, vp, ui::viewport::viewport_playhead_atom_v);
         auto media_actor =

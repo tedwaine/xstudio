@@ -294,34 +294,35 @@ BookmarkModel::BookmarkModel(QObject *parent) : super(parent) {
     init(CafSystemObject::get_actor_system());
 
     setRoleNames(std::vector<std::string>(
-        {"enabledRole",
-         "focusRole",
-         "frameRole",
-         "frameFromTimecodeRole",
-         "startTimecodeRole",
-         "endTimecodeRole",
-         "durationTimecodeRole",
-         "startFrameRole",
-         "endFrameRole",
-         "hasNoteRole",
-         "subjectRole",
-         "noteRole",
-         "authorRole",
+        {"authorRole",
          "categoryRole",
          "colourRole",
+         "createdEpochRole",
          "createdRole",
-         "hasAnnotationRole",
-         "thumbnailRole",
-         "ownerRole",
-         "uuidRole",
-         "objectRole",
-         "startRole",
-         "durationRole",
          "durationFrameRole",
-         "visibleRole",
-         "userTypeRole",
+         "durationRole",
+         "durationTimecodeRole",
+         "enabledRole",
+         "endFrameRole",
+         "endTimecodeRole",
+         "focusRole",
+         "frameFromTimecodeRole",
+         "frameRole",
+         "hasAnnotationRole",
+         "hasNoteRole",
+         "metadataChangedRole",
+         "noteRole",
+         "objectRole",
+         "ownerRole",
+         "startFrameRole",
+         "startRole",
+         "startTimecodeRole",
+         "subjectRole",
+         "thumbnailRole",
          "userDataRole",
-         "createdEpochRole"}));
+         "userTypeRole",
+         "uuidRole",
+         "visibleRole"}));
 }
 
 // don't optimise yet.
@@ -354,6 +355,29 @@ BookmarkModel::getJSONFuture(const QModelIndex &index, const QString &path) cons
     });
 }
 
+// special handing for media!!
+QFuture<QVariant>
+BookmarkModel::getJSONObjectFuture(const QModelIndex &index, const QString &path) const {
+    return QtConcurrent::run([=]() {
+        if (bookmark_actor_) {
+            std::string path_string = StdFromQString(path);
+            try {
+                scoped_actor sys{system()};
+                auto addr   = UuidFromQUuid(index.data(uuidRole).toUuid());
+                auto result = request_receive<JsonStore>(
+                    *sys, bookmark_actor_, json_store::get_json_atom_v, addr, path_string);
+
+                return mapFromValue(result);
+
+            } catch ([[maybe_unused]] const std::exception &err) {
+                // spdlog::warn("{} {}", __PRETTY_FUNCTION__,  err.what());
+                return QVariant(); // QStringFromStd(err.what());
+            }
+        }
+        return QVariant();
+    });
+}
+
 void BookmarkModel::init(caf::actor_system &_system) {
     super::init(_system);
 
@@ -365,6 +389,8 @@ void BookmarkModel::init(caf::actor_system &_system) {
             [=](broadcast::broadcast_down_atom, const caf::actor_addr &) {},
             [=](const group_down_msg &) {},
             [=](utility::event_atom, utility::change_atom) {},
+            [=](utility::event_atom, utility::name_atom, const std::string &) {},
+            [=](utility::event_atom, bookmark::bookmark_change_atom, const utility::Uuid &) {},
 
             [=](utility::event_atom,
                 bookmark::bookmark_change_atom,
@@ -411,6 +437,7 @@ void BookmarkModel::init(caf::actor_system &_system) {
                     bookmarks_.erase(uuid);
                     emit lengthChanged();
                 }
+                // may need to unsubscribe!!
             },
             [=](utility::event_atom,
                 bookmark::add_bookmark_atom,
@@ -419,9 +446,18 @@ void BookmarkModel::init(caf::actor_system &_system) {
                 // spdlog::warn("bookmark::add_bookmark_atom {}", data_.dump(2) );
                 auto ind = searchRecursive(QUuidFromUuid(ua.uuid()), "uuidRole");
 
+
                 if (not ind.isValid()) {
+                    // join events from bookmark.
+                    scoped_actor sys{system()};
+
                     // request detail.
                     try {
+                        auto adetail =
+                            request_receive<ContainerDetail>(*sys, ua.actor(), detail_atom_v);
+                        request_receive<bool>(
+                            *sys, adetail.group_, broadcast::join_broadcast_atom_v, as_actor());
+
                         auto detail = getDetail(ua.actor());
 
                         if (JSONTreeModel::insertRows(rowCount(), 1)) {
@@ -440,12 +476,6 @@ void BookmarkModel::init(caf::actor_system &_system) {
                 }
                 // populateBookmarks();
             },
-
-            [=](utility::event_atom, utility::name_atom, const std::string &) {},
-            [=](json_store::update_atom,
-                const JsonStore & /*change*/,
-                const std::string &,
-                const JsonStore &) {},
 
             [=](media_reader::get_thumbnail_atom,
                 const bookmark::BookmarkDetail &detail,
@@ -469,7 +499,41 @@ void BookmarkModel::init(caf::actor_system &_system) {
                 }
             },
 
-            [=](json_store::update_atom, const JsonStore &) {},
+            [=](json_store::update_atom,
+                const JsonStore & /*change*/,
+                const std::string &,
+                const JsonStore &) {
+                // copied from session model..
+                try {
+                    auto src = caf::actor_cast<caf::actor_addr>(self()->current_sender());
+
+                    for (const auto &i : bookmarks_) {
+                        if (i.second.actor_addr_ == src) {
+                            auto ind = searchRecursive(QUuidFromUuid(i.first), "uuidRole");
+                            if (ind.isValid())
+                                emit dataChanged(ind, ind, QVector<int>({metadataChangedRole}));
+                            break;
+                        }
+                    }
+                } catch (...) {
+                }
+            },
+            [=](json_store::update_atom, const JsonStore &) {
+                // // emit metadata changed if we get an event from a bookmark
+                try {
+                    auto src = caf::actor_cast<caf::actor_addr>(self()->current_sender());
+
+                    for (const auto &i : bookmarks_) {
+                        if (i.second.actor_addr_ == src) {
+                            auto ind = searchRecursive(QUuidFromUuid(i.first), "uuidRole");
+                            if (ind.isValid())
+                                emit dataChanged(ind, ind, QVector<int>({metadataChangedRole}));
+                            break;
+                        }
+                    }
+                } catch (...) {
+                }
+            },
 
         };
     });
@@ -551,6 +615,12 @@ nlohmann::json BookmarkModel::jsonFromBookmarks() {
 
             // we now need to build json data from these...
             for (const auto &i : details) {
+
+                auto adetail = request_receive<ContainerDetail>(
+                    *sys, caf::actor_cast<caf::actor>(i.actor_addr_), detail_atom_v);
+                request_receive<bool>(
+                    *sys, adetail.group_, broadcast::join_broadcast_atom_v, as_actor());
+
                 bookmarks_[i.uuid_] = i;
                 result.emplace_back(createJsonFromDetail(i));
             }
@@ -820,6 +890,10 @@ bool BookmarkModel::setData(const QModelIndex &index, const QVariant &value, int
                 }
                 break;
 
+            case metadataChangedRole:
+                result = true;
+                break;
+
             case endFrameRole:
                 if (detail.media_reference_) {
                     auto new_end = value.toInt() * (*(detail.media_reference_)).rate();
@@ -1010,6 +1084,11 @@ Q_INVOKABLE bool BookmarkModel::insertRows(int row, int count, const QModelIndex
                     auto ua = request_receive<utility::UuidActor>(
                         *sys, bookmark_actor_, bookmark::add_bookmark_atom_v);
                     auto detail = getDetail(ua.actor());
+
+                    auto adetail =
+                        request_receive<ContainerDetail>(*sys, ua.actor(), detail_atom_v);
+                    request_receive<bool>(
+                        *sys, adetail.group_, broadcast::join_broadcast_atom_v, as_actor());
 
                     bookmarks_[ua.uuid()] = detail;
                     auto ind              = index(row + i, 0);

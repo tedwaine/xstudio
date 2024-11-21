@@ -540,6 +540,8 @@ void QTreeModelToTableModel::collapseRecursively(int row) {
         collapseHelp(collapseHelp, index);
 }
 
+#include "xstudio/utility/logging.hpp"
+
 void QTreeModelToTableModel::collapseRow(int n) {
     if (!m_model || !isExpanded(n))
         return;
@@ -567,20 +569,29 @@ int QTreeModelToTableModel::lastChildIndex(const QModelIndex &index) const {
     // This means that if index is not expanded, the last child will simply be index itself.
     // Otherwise, since the tree underneath index can be of any depth, it will instead find
     // the first sibling of N, get its table row, and simply return the row above.
+
+    // index is last direct child of item being collapsed
+
     if (!m_expandedItems.contains(index))
         return itemIndex(index);
 
-    QModelIndex parent = index.parent();
+    // last child is expanded, we need to find last child of it..
+    // this is recursive..
+
+    // item being collapsed
+    QModelIndex parent = index;
     QModelIndex nextSiblingIndex;
-    while (parent.isValid()) {
-        nextSiblingIndex = parent.sibling(parent.row() + 1, 0);
-        if (nextSiblingIndex.isValid())
-            break;
-        parent = parent.parent();
+
+    int firstIndex;
+
+    while (parent.isValid() and m_expandedItems.contains(parent)) {
+        // last child of parent
+        nextSiblingIndex = m_model->index(m_model->rowCount(parent) - 1, 0, parent);
+        firstIndex       = itemIndex(nextSiblingIndex);
+        parent           = nextSiblingIndex;
     }
 
-    int firstIndex = nextSiblingIndex.isValid() ? itemIndex(nextSiblingIndex) : m_items.size();
-    return firstIndex - 1;
+    return firstIndex;
 }
 
 void QTreeModelToTableModel::removeVisibleRows(
@@ -855,11 +866,17 @@ void QTreeModelToTableModel::modelRowsAboutToBeMoved(
         int depthDifference = -1;
         if (destinationParent.isValid()) {
             int destParentIndex = itemIndex(destinationParent);
-            depthDifference     = m_items.at(destParentIndex).depth;
+            if (destParentIndex >= 0)
+                depthDifference = m_items.at(destParentIndex).depth;
+            else
+                depthDifference = 0;
         }
         if (sourceParent.isValid()) {
             int sourceParentIndex = itemIndex(sourceParent);
-            depthDifference -= m_items.at(sourceParentIndex).depth;
+            if (sourceParentIndex >= 0)
+                depthDifference -= m_items.at(sourceParentIndex).depth;
+            else
+                depthDifference = 0;
         } else {
             depthDifference++;
         }

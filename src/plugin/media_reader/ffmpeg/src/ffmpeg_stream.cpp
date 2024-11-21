@@ -173,18 +173,8 @@ void set_shader_pix_format_info(
     }
     }
 
-    jsn["yuv_conv"] = {
-        "mat3",
-        1,
-        yuv_to_rgb[0][0],
-        yuv_to_rgb[0][1],
-        yuv_to_rgb[0][2],
-        yuv_to_rgb[1][0],
-        yuv_to_rgb[1][1],
-        yuv_to_rgb[1][2],
-        yuv_to_rgb[2][0],
-        yuv_to_rgb[2][1],
-        yuv_to_rgb[2][2]};
+    jsn["yuv_conv"] = yuv_to_rgb.transposed();
+
 }
 
 

@@ -78,7 +78,7 @@ Item{
                 Layout.preferredHeight: parent.height
                 imgSrc: "qrc:/icons/chevron_right.svg"
                 imageDiv.rotation: 180
-                enabled: list.count ? bookmarkFilterModel.previousBookmark(currentPlayhead.mediaFrame, currentOnScreenMediaData.values.actorUuidRole).valid : false
+                enabled: list.count && currentOnScreenMediaData.values.actorUuidRole ? bookmarkFilterModel.previousBookmark(currentPlayhead.mediaFrame, currentOnScreenMediaData.values.actorUuidRole).valid : false
                 onClicked: {
                     let ind = bookmarkFilterModel.previousBookmark(currentPlayhead.mediaFrame, currentOnScreenMediaData.values.actorUuidRole)
                     if(ind.valid) {
@@ -99,7 +99,7 @@ Item{
                 Layout.preferredWidth: btnWidth
                 Layout.preferredHeight: parent.height
                 imgSrc: "qrc:/icons/chevron_right.svg"
-                enabled: list.count ? bookmarkFilterModel.nextBookmark(currentPlayhead.mediaFrame, currentOnScreenMediaData.values.actorUuidRole).valid : false
+                enabled: list.count && currentOnScreenMediaData.values.actorUuidRole ? bookmarkFilterModel.nextBookmark(currentPlayhead.mediaFrame, currentOnScreenMediaData.values.actorUuidRole).valid : false
                 onClicked: {
                     let ind = bookmarkFilterModel.nextBookmark(currentPlayhead.mediaFrame, currentOnScreenMediaData.values.actorUuidRole)
                     if(ind.valid) {

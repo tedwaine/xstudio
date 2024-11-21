@@ -85,8 +85,6 @@ void GlobalStoreModel::init(caf::actor_system &_system) {
         spdlog::warn("{} {}", __PRETTY_FUNCTION__, err.what());
     }
 
-    // self()->join(system.groups().get_local(global_event_group));
-
     set_message_handler([=](caf::actor_companion * /*self*/) -> caf::message_handler {
         return {
             [=](json_store::update_atom,
@@ -396,8 +394,6 @@ void PublicPreferencesModel::init(caf::actor_system &_system) {
     } catch (const std::exception &err) {
         spdlog::warn("{} {}", __PRETTY_FUNCTION__, err.what());
     }
-
-    // self()->join(system.groups().get_local(global_event_group));
 
     set_message_handler([=](caf::actor_companion * /*self*/) -> caf::message_handler {
         return {

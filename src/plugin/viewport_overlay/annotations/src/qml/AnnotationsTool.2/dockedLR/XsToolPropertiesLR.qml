@@ -18,17 +18,11 @@ Item{
 
     Rectangle{ id: row1_categories
         width: toolProperties.width - framePadding*2 
-        height: visible? currentTool == "Shapes"? buttonHeight*2 + itemSpacing :
-                                                buttonHeight + itemSpacing*2 : 0
+        height: visible? buttonHeight + itemSpacing*2 : 0
 
         color: "transparent";
-        visible: (currentTool == "Shapes" || currentTool == "Text")
+        visible: (currentTool == "Text")
 
-        XsShapeCategoriesLR {
-            id: shapeCategories
-            anchors.fill: parent
-            visible: (currentTool === "Shapes")
-        }
         XsTextCategoriesLR {
             id: textCategories
             anchors.fill: parent
@@ -57,7 +51,7 @@ Item{
         id: draw_pen_size
         role: "value"
     }
-
+ 
     property alias drawPenSize: draw_pen_size.value
 
     Grid{id: row2_controls
@@ -78,7 +72,7 @@ Item{
             visible: enabled
             width: row2_controls.gridItemWidth
             height: visible? buttonHeight : 0
-            text: (currentTool=="Shapes")? "Width" : "Size"
+            text: (currentTool=="Square" || currentTool === "Circle"  || currentTool === "Arrow"  || currentTool === "Line")? "Width" : "Size"
             enabled: isAnyToolSelected
             attr_group_model: annotations_model_data
             attr_title: toolSizeAttrName

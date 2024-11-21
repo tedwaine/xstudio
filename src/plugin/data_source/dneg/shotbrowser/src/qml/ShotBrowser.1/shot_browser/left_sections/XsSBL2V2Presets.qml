@@ -72,32 +72,9 @@ XsGradientRectangle{
             Layout.fillWidth: true;
             Layout.fillHeight: true;
             color: panelColor
-            clip: true
 
-            Flickable {
-                id: flick
+            XsSBPresetsView{
                 anchors.fill: parent
-                contentWidth: width
-                contentHeight: tree.height
-
-                ScrollBar.vertical: XsScrollBar{visible: flick.height < flick.contentHeight}
-
-                property int rightSpacing: flick.height < flick.contentHeight ? 12 : 0
-                Behavior on rightSpacing {NumberAnimation {duration: 150}}
-
-                XsSBPresetsView{
-                    id: tree
-                    width: flick.width - flick.rightSpacing
-                    treeSequenceModel: presetsFilterModel
-                    treeSequenceSelectionModel: presetsSelectionModel
-                    treeSequenceExpandedModel: presetsExpandedModel
-                    treeRootIndex: treeSequenceModel ? treeSequenceModel.index(-1,-1) : null
-                    onTreeSequenceModelChanged: {
-                        if(treeSequenceModel) {
-                            treeRootIndex = treeSequenceModel.index(-1,-1)
-                        }
-                    }
-                }
             }
         }
 
@@ -168,6 +145,16 @@ XsGradientRectangle{
         menu_model_name: "moreMenu"+presetView
     }
 
+   XsMenuModelItem {
+        text: qsTr("Only Show Favourites")
+        menuPath: ""
+        menuItemType: "toggle"
+        menuItemPosition: 0.5
+        menuModelName: moreMenu.menu_model_name
+        onActivated: prefs.showOnlyFavourites = !prefs.showOnlyFavourites
+        isChecked: prefs.showOnlyFavourites
+    }
+
     XsMenuModelItem {
         text: "Undo"
         menuPath: ""
@@ -183,21 +170,6 @@ XsGradientRectangle{
         menuModelName: moreMenu.menu_model_name
         onActivated: ShotBrowserEngine.redo()
     }
-
-   // XsMenuModelItem {
-   //      text: qsTr("Only Show Favourites")
-   //      menuPath: ""
-   //      menuItemType: "toggle"
-   //      menuItemPosition: 3
-   //      menuModelName: moreMenu.menu_model_name
-   //      onActivated: {
-   //          isChecked = !isChecked
-   //          treeModel.setOnlyShowFavourite(isChecked)
-   //          menuModel.setOnlyShowFavourite(isChecked)
-   //          recentModel.setOnlyShowFavourite(isChecked)
-   //      }
-   //      isChecked: false
-   //  }
 
     XsMenuModelItem {
         menuItemType: "divider"

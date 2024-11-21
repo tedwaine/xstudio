@@ -5,7 +5,6 @@
 
 #include "xstudio/atoms.hpp"
 #include "xstudio/media/media.hpp"
-#include "xstudio/utility/edit_list.hpp"
 #include "xstudio/utility/helpers.hpp"
 #include "xstudio/utility/json_store.hpp"
 

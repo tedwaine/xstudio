@@ -23,6 +23,16 @@ Item {
 
     // Create a menu 'Some Menu' with an item in it that says 'Do Something'
 
+    XsHotkey {
+        id: reload_playlist
+        sequence: "Alt+r"
+        name: "Reload Playlist"
+        description: "Reload Playlist From ShotGrid Ordered"
+        onActivated: ShotBrowserHelpers.syncPlaylistFromShotGrid(
+            helpers.QUuidFromUuidString(viewedMediaSetProperties.values.actorUuidRole), true
+        )
+    }
+
     XsMenuModelItem {
         text: "Pipeline"
         menuItemType: "divider"
@@ -350,7 +360,7 @@ Item {
         menuItemPosition: 2
         menuModelName: "main menu bar"
         onActivated: ShotBrowserHelpers.syncPlaylistFromShotGrid(
-            helpers.QVariantFromUuidString(viewedMediaSetProperties.values.actorUuidRole)
+            helpers.QUuidFromUuidString(viewedMediaSetProperties.values.actorUuidRole)
         )
     }
 
@@ -361,7 +371,7 @@ Item {
         menuItemPosition: 2.5
         menuModelName: "main menu bar"
         onActivated: ShotBrowserHelpers.syncPlaylistFromShotGrid(
-            helpers.QVariantFromUuidString(viewedMediaSetProperties.values.actorUuidRole),
+            helpers.QUuidFromUuidString(viewedMediaSetProperties.values.actorUuidRole),
             true
         )
     }
@@ -433,7 +443,7 @@ Item {
         menuItemPosition: 2
         menuModelName: "playlist_context_menu"
         onActivated: ShotBrowserHelpers.syncPlaylistFromShotGrid(
-            helpers.QVariantFromUuidString(inspectedMediaSetProperties.values.actorUuidRole)
+            helpers.QUuidFromUuidString(inspectedMediaSetProperties.values.actorUuidRole)
         )
     }
 
@@ -444,9 +454,10 @@ Item {
         menuItemPosition: 2.5
         menuModelName: "playlist_context_menu"
         onActivated: ShotBrowserHelpers.syncPlaylistFromShotGrid(
-            helpers.QVariantFromUuidString(viewedMediaSetProperties.values.actorUuidRole),
+            helpers.QUuidFromUuidString(viewedMediaSetProperties.values.actorUuidRole),
             true
         )
+        hotkeyUuid: reload_playlist.uuid
     }
 
 

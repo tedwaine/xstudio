@@ -6,16 +6,32 @@ import QtQuick.Controls
 
 import xStudio 1.0
 import ShotBrowser 1.0
+import xstudio.qml.helpers 1.0
 
 
 XsSplitView { id: viewDiv
-    property var presetsFilterModel: {
+    QTreeModelToTableModel {
+        id: treePresetsTreeModel
+        model: treeModel
+    }
+
+    QTreeModelToTableModel {
+        id: recentPresetsTreeModel
+        model: recentModel
+    }
+
+    QTreeModelToTableModel {
+        id: menuPresetsTreeModel
+        model: menuModel
+    }
+
+    property var presetsTreeModel: {
         if(!ShotBrowserEngine.ready)
             return null
         else {
-            if(currentCategory == "Tree") return treeModel
-            else if(currentCategory == "Recent") return recentModel
-            else return menuModel
+            if(currentCategory == "Tree") return treePresetsTreeModel
+            else if(currentCategory == "Recent") return recentPresetsTreeModel
+            else return menuPresetsTreeModel
         }
     }
 

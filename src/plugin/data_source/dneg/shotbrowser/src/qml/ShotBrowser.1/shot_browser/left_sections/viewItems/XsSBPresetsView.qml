@@ -9,29 +9,87 @@ import ShotBrowser 1.0
 import xstudio.qml.helpers 1.0
 import xstudio.qml.models 1.0
 
-Column {
+XsListView {
 	id: control
-	property var treeSequenceModel: null
-	property var treeSequenceSelectionModel: null
-	property var treeSequenceExpandedModel: null
-	property var treeRootIndex: null
 
-	Repeater {
-		model:DelegateModel {
-	        id: tmpmodel
-	        property var notifyModel: treeSequenceModel
-	        model: notifyModel
-	        rootIndex: treeRootIndex
+    spacing:1
 
-	        delegate: XsSBPresetsViewGroupDelegate{
-	        	width: control.width
-	            delegateModel: tmpmodel
-	            selectionModel: treeSequenceSelectionModel
-	            expandedModel: treeSequenceExpandedModel
-	        }
-	    }
-	}
+    property int rightSpacing: control.height < control.contentHeight ? 12 : 0
+    Behavior on rightSpacing {NumberAnimation {duration: 150}}
 
+    model: presetsTreeModel
+
+    delegate: DelegateChooser {
+        id: chooser
+        role: "typeRole"
+
+        DelegateChoice {
+            roleValue: "group";
+            XsSBPresetGroupDelegate{
+                width: control.width - control.rightSpacing
+                height: btnHeight-2
+                delegateModel: control.model
+                expandedModel: presetsExpandedModel
+                selectionModel: presetsSelectionModel
+            }
+        }
+        DelegateChoice {
+            roleValue: "preset";
+            XsSBPresetDelegate{
+                x: height
+                width: control.width - height - control.rightSpacing
+                height: btnHeight-2
+                delegateModel: control.model
+                selectionModel: presetsSelectionModel
+            }
+        }
+        DelegateChoice {
+            roleValue: "presets";
+            Rectangle {
+                visible: false
+                width: control.width - control.rightSpacing
+                height: -1
+            }
+        }
+        DelegateChoice {
+            roleValue: "term";
+            Rectangle {
+                visible: true
+                width: control.width - control.rightSpacing
+                height: btnHeight-2
+            }
+        }
+    }
+
+    Connections {
+        target: presetsExpandedModel
+        function onSelectionChanged(selected, deselected) {
+            // console.log("presetsExpandedModel onSelectionChanged")
+            // update tree model with expand
+            // map to from.. ack..
+            for(let i = 0; i<selected.length;i++) {
+                let ri = helpers.createListFromRange(selected[i])
+                for(let ii =0;ii < ri.length; ii++) {
+                    let fi = presetsTreeModel.model.mapFromSource(ri[ii])
+                    let ti = presetsTreeModel.mapFromModel(fi)
+                    if(ti.valid) {
+                        presetsTreeModel.expandRow(ti.row)
+                    }
+                }
+            }
+
+            for(let i = 0; i<deselected.length;i++) {
+                let ri = helpers.createListFromRange(deselected[i])
+                for(let ii =0;ii < ri.length; ii++) {
+                    let fi = presetsTreeModel.model.mapFromSource(ri[ii])
+                    let ti = presetsTreeModel.mapFromModel(fi)
+                    if(ti.valid) {
+                        presetsTreeModel.collapseRow(ti.row)
+                    }
+                }
+            }
+        }
+    }
 
     XsSBPresetEditPopup {
         id: presetEditPopup
@@ -51,8 +109,8 @@ Column {
             menuModelName: presetMenu.menu_model_name
             onActivated: {
                 let indexs = []
-                for(let i=0;i<treeSequenceSelectionModel.selectedIndexes.length; i++)
-                    indexs.push(helpers.makePersistent(treeSequenceSelectionModel.selectedIndexes[i]))
+                for(let i=0;i<presetsSelectionModel.selectedIndexes.length; i++)
+                    indexs.push(helpers.makePersistent(presetsSelectionModel.selectedIndexes[i]))
 
                 for(let i=0;i<indexs.length; i++)
                     ShotBrowserEngine.presetsModel.duplicate(indexs[i])
@@ -64,7 +122,7 @@ Column {
             menuItemPosition: 2
             menuPath: ""
             menuModelName: presetMenu.menu_model_name
-            onActivated: clipboard.text = JSON.stringify(ShotBrowserEngine.presetsModel.copy(treeSequenceSelectionModel.selectedIndexes))
+            onActivated: clipboard.text = JSON.stringify(ShotBrowserEngine.presetsModel.copy(presetsSelectionModel.selectedIndexes))
         }
 
         XsMenuModelItem {
@@ -85,8 +143,8 @@ Column {
             menuModelName: presetMenu.menu_model_name
             onActivated: {
                 let indexs = []
-                for(let i=0;i<treeSequenceSelectionModel.selectedIndexes.length; i++)
-                    indexs.push(helpers.makePersistent(treeSequenceSelectionModel.selectedIndexes[i]))
+                for(let i=0;i<presetsSelectionModel.selectedIndexes.length; i++)
+                    indexs.push(helpers.makePersistent(presetsSelectionModel.selectedIndexes[i]))
 
                 for(let i=0;i<indexs.length; i++) {
                     let m = indexs[i].model
@@ -117,8 +175,8 @@ Column {
                 // because we use a view, the previous item in the base model isn't
                 // the previous in the view..
                 let indexs = []
-                for(let i=0;i<treeSequenceSelectionModel.selectedIndexes.length; i++)
-                    indexs.push(helpers.makePersistent(presetMenu.filterModelIndex.model.mapFromSource(treeSequenceSelectionModel.selectedIndexes[i])))
+                for(let i=0;i<presetsSelectionModel.selectedIndexes.length; i++)
+                    indexs.push(helpers.makePersistent(presetMenu.filterModelIndex.model.mapFromSource(presetsSelectionModel.selectedIndexes[i])))
 
                 indexs.sort((a, b) =>  a.row - b.row)
 
@@ -144,8 +202,8 @@ Column {
                 // because we use a view, the previous item in the base model isn't
                 // the previous in the view..
                 let indexs = []
-                for(let i=0;i<treeSequenceSelectionModel.selectedIndexes.length; i++)
-                    indexs.push(helpers.makePersistent(presetMenu.filterModelIndex.model.mapFromSource(treeSequenceSelectionModel.selectedIndexes[i])))
+                for(let i=0;i<presetsSelectionModel.selectedIndexes.length; i++)
+                    indexs.push(helpers.makePersistent(presetMenu.filterModelIndex.model.mapFromSource(presetsSelectionModel.selectedIndexes[i])))
 
                 indexs.sort((a, b) =>  b.row - a.row)
 
@@ -268,8 +326,12 @@ Column {
                 let rpi = groupMenu.filterModelIndex.model.mapToSource(
                 	groupMenu.filterModelIndex.model.index(groupMenu.filterModelIndex.row-1,0,groupMenu.filterModelIndex.parent)
                 )
-                	// delegateModel.modelIndex(index-1)
+
+                let oldy = control.contentY
                 ShotBrowserEngine.presetsModel.moveRows(p, groupMenu.presetModelIndex.row, 1, p, rpi.row)
+                control.contentY = oldy
+
+
             }
         }
 
@@ -285,7 +347,9 @@ Column {
                 let rpi = groupMenu.filterModelIndex.model.mapToSource(
                 	groupMenu.filterModelIndex.model.index(groupMenu.filterModelIndex.row+1,0,groupMenu.filterModelIndex.parent)
                 )
+                let oldy = control.contentY
                 ShotBrowserEngine.presetsModel.moveRows(p, groupMenu.presetModelIndex.row, 1, p, rpi.row+1)
+                control.contentY = oldy
             }
         }
         // XsMenuModelItem {

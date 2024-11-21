@@ -235,6 +235,7 @@ Item {
         menuItemPosition: 8
         menuModelName: "main menu bar"
         onActivated: {
+            file_functions.copySessionLink()
         }
     }
 

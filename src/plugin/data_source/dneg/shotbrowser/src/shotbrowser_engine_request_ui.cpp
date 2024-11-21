@@ -258,6 +258,10 @@ QFuture<QString> ShotBrowserEngine::getCustomEntity24Future(const int project_id
     return getDataFuture(QString("unit"), project_id);
 }
 
+QFuture<QString> ShotBrowserEngine::getStageFuture(const int project_id) {
+    return getDataFuture(QString("stage"), project_id);
+}
+
 QFuture<QString> ShotBrowserEngine::addVersionsToPlaylistFuture(
     const QVariantMap &versions, const QUuid &playlist, const QUuid &before) {
 

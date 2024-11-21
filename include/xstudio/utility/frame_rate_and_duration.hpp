@@ -82,7 +82,6 @@ namespace utility {
         template <class Inspector> friend bool inspect(Inspector &f, FrameRateDuration &x) {
             return f.object(x).fields(f.field("rate", x.rate_), f.field("data", x.duration_));
         }
-        friend class EditList;
 
       public:
         FrameRate rate_;

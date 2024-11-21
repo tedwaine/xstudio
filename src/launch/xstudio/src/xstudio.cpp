@@ -36,7 +36,6 @@
 #include "xstudio/timeline/gap_actor.hpp"
 #include "xstudio/timeline/stack_actor.hpp"
 #include "xstudio/utility/caf_helpers.hpp"
-#include "xstudio/utility/edit_list.hpp"
 #include "xstudio/utility/frame_list.hpp"
 #include "xstudio/utility/sequence.hpp"
 #include "xstudio/utility/helpers.hpp"
@@ -62,7 +61,6 @@ CAF_POP_WARNINGS
 #include "xstudio/ui/qml/bookmark_model_ui.hpp"      //NOLINT
 #include "xstudio/ui/qml/conform_ui.hpp"             //NOLINT
 #include "xstudio/ui/qml/embedded_python_ui.hpp"     //NOLINT
-#include "xstudio/ui/qml/event_ui.hpp"               //NOLINT
 #include "xstudio/ui/qml/QTreeModelToTableModel.hpp" //NOLINT
 #include "xstudio/ui/qml/global_store_model_ui.hpp"  //NOLINT
 #include "xstudio/ui/qml/helper_ui.hpp"              //NOLINT
@@ -371,10 +369,19 @@ struct Launcher {
             if (uri_request == "open_session") {
                 actions["open_session"] = true;
                 auto p                  = uri_params.find("path");
+                auto u                  = uri_params.find("uri");
                 if (p != uri_params.end())
                     actions["open_session_path"] = p->second;
-                else {
-                    spdlog::error("Open session failed, path= required");
+                else if (u != uri_params.end()) {
+                    auto uri = caf::make_uri(u->second);
+                    if (uri)
+                        actions["open_session_path"] = uri_to_posix_path(*uri);
+                    else {
+                        spdlog::error("Open session failed, invalid URI {}", u->second);
+                        std::exit(EXIT_FAILURE);
+                    }
+                } else {
+                    spdlog::error("Open session failed, path= or uri= required");
                     std::exit(EXIT_FAILURE);
                 }
             } else if (uri_request == "add_media") {
@@ -1109,8 +1116,6 @@ int main(int argc, char **argv) {
                 qmlRegisterType<MarkerModel>("xstudio.qml.helpers", 1, 0, "XsMarkerModel");
                 qmlRegisterType<PropertyFollower>(
                     "xstudio.qml.helpers", 1, 0, "XsPropertyFollower");
-
-                qmlRegisterType<EventAttrs>("xstudio.qml.event", 1, 0, "XsEvent");
 
                 qmlRegisterType<GlobalStoreModel>(
                     "xstudio.qml.global_store_model", 1, 0, "XsGlobalStoreModel");

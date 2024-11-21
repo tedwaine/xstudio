@@ -28,7 +28,6 @@ const std::string colour_cache_registry{"COLOURCACHE"};
 const std::string colour_pipeline_registry{"COLOURPIPELINE"};
 const std::string conform_registry{"CONFORM"};
 const std::string embedded_python_registry{"EMBEDDEDPYTHON"};
-const std::string global_event_group{"XSTUDIO_EVENTS"};
 const std::string global_registry{"GLOBAL"};
 const std::string global_playhead_events_actor{"GLOBALPLAYHEADEVENTS"};
 const std::string global_store_registry{"GLOBALSTORE"};
@@ -48,6 +47,8 @@ const std::string thumbnail_manager_registry{"THUMBNAIL"};
 const std::string global_ui_model_data_registry{"GLOBALUIMODELDATA"};
 const std::string global_media_metadata_manager_registry{"MEDIAMETADATAMANAGER"};
 const std::string pc_audio_output_registry{"PC_AUDIO_OUTPUT"};
+const std::string viewport_layouts_manager{"GLOBALVIEWPORT_LAYOUTS_MGR"};
+
 
 namespace bookmark {
     class AnnotationBase;
@@ -56,14 +57,6 @@ namespace bookmark {
     typedef std::shared_ptr<const BookmarkAndAnnotation> BookmarkAndAnnotationPtr;
 } // namespace bookmark
 
-namespace event {
-    class Event;
-}
-
-namespace tag {
-    class Tag;
-}
-
 namespace timeline {
     class Item;
     class Marker;
@@ -71,17 +64,17 @@ namespace timeline {
 
 namespace utility {
     class BlindDataObject;
-    class ContainerTree;
-    class EditList;
     class FrameList;
     class FrameRange;
     class FrameRate;
     class FrameRateDuration;
     class JsonStore;
     class MediaReference;
+    class Notification;
     class PlaylistTree;
     class Timecode;
     class UuidActor;
+
     struct absolute_receive_timeout;
     struct ContainerDetail;
     struct CopyResult;
@@ -100,7 +93,7 @@ namespace media {
     class MediaKey;
     class AVFrameID;
     class StreamDetail;
-    typedef std::map<timebase::flicks, std::shared_ptr<const AVFrameID>> FrameTimeMap;
+    typedef std::shared_ptr<const std::map<timebase::flicks, std::shared_ptr<const AVFrameID>>> FrameTimeMapPtr;
     typedef std::vector<std::pair<utility::time_point, std::shared_ptr<const AVFrameID>>>
         AVFrameIDsAndTimePoints;
     typedef std::vector<std::shared_ptr<const AVFrameID>> AVFrameIDs;
@@ -117,6 +110,10 @@ namespace media_reader {
     class AudioBuffer;
     class AudioBufPtr;
     class ImageBufPtr;
+    class ImageBufDisplaySet;
+    class ImageSetLayoutData;
+    typedef std::shared_ptr<const ImageBufDisplaySet> ImageBufDisplaySetPtr;
+    typedef std::shared_ptr<const ImageSetLayoutData> ImageSetLayoutDataPtr;    
     class MediaReaderManager;
     class PixelInfo;
 } // namespace media_reader
@@ -138,6 +135,9 @@ namespace ui {
     namespace viewport {
         class GPUShader;
         typedef std::shared_ptr<const GPUShader> GPUShaderPtr;
+        class ViewportRenderer;
+        typedef std::shared_ptr<ViewportRenderer> ViewportRendererPtr;
+
     } // namespace viewport
 
 } // namespace ui
@@ -182,15 +182,19 @@ CAF_ALLOW_UNSAFE_MESSAGE_TYPE(std::shared_ptr<xstudio::plugin::GPUPreDrawHook>)
 CAF_ALLOW_UNSAFE_MESSAGE_TYPE(xstudio::bookmark::BookmarkAndAnnotationPtr)
 CAF_ALLOW_UNSAFE_MESSAGE_TYPE(xstudio::colour_pipeline::ColourOperationDataPtr)
 CAF_ALLOW_UNSAFE_MESSAGE_TYPE(xstudio::colour_pipeline::ColourPipelineDataPtr)
-CAF_ALLOW_UNSAFE_MESSAGE_TYPE(xstudio::media::FrameTimeMap)
+CAF_ALLOW_UNSAFE_MESSAGE_TYPE(xstudio::media::FrameTimeMapPtr)
+CAF_ALLOW_UNSAFE_MESSAGE_TYPE(xstudio::media::AVFrameID)
 CAF_ALLOW_UNSAFE_MESSAGE_TYPE(xstudio::media::AVFrameIDs)
 CAF_ALLOW_UNSAFE_MESSAGE_TYPE(xstudio::media::AVFrameIDsAndTimePoints)
 CAF_ALLOW_UNSAFE_MESSAGE_TYPE(xstudio::media_reader::AudioBuffer)
 CAF_ALLOW_UNSAFE_MESSAGE_TYPE(xstudio::media_reader::AudioBufPtr)
 CAF_ALLOW_UNSAFE_MESSAGE_TYPE(xstudio::media_reader::ImageBufPtr)
+CAF_ALLOW_UNSAFE_MESSAGE_TYPE(xstudio::media_reader::ImageBufDisplaySetPtr)
+CAF_ALLOW_UNSAFE_MESSAGE_TYPE(xstudio::media_reader::ImageSetLayoutDataPtr)
 CAF_ALLOW_UNSAFE_MESSAGE_TYPE(xstudio::media_reader::PixelInfo)
 CAF_ALLOW_UNSAFE_MESSAGE_TYPE(xstudio::ui::Hotkey)
 CAF_ALLOW_UNSAFE_MESSAGE_TYPE(xstudio::ui::viewport::GPUShaderPtr)
+CAF_ALLOW_UNSAFE_MESSAGE_TYPE(xstudio::ui::viewport::ViewportRendererPtr)
 
 // clang-format off
 // offset first_custom_type_id by first custom qt event
@@ -209,13 +213,12 @@ CAF_BEGIN_TYPE_ID_BLOCK(xstudio_simple_types, FIRST_CUSTOM_ID)
     CAF_ADD_TYPE_ID(xstudio_simple_types, (xstudio::bookmark::BookmarkAndAnnotationPtr))
     CAF_ADD_TYPE_ID(xstudio_simple_types, (xstudio::colour_pipeline::ColourOperationDataPtr))
     CAF_ADD_TYPE_ID(xstudio_simple_types, (xstudio::colour_pipeline::ColourPipelineDataPtr))
-    CAF_ADD_TYPE_ID(xstudio_simple_types, (xstudio::event::Event))
     CAF_ADD_TYPE_ID(xstudio_simple_types, (xstudio::global::StatusType))
     CAF_ADD_TYPE_ID(xstudio_simple_types, (xstudio::http_client::http_client_error))
     CAF_ADD_TYPE_ID(xstudio_simple_types, (xstudio::media::AVFrameID))
     CAF_ADD_TYPE_ID(xstudio_simple_types, (xstudio::media::AVFrameIDs))
     CAF_ADD_TYPE_ID(xstudio_simple_types, (xstudio::media::AVFrameIDsAndTimePoints))
-    CAF_ADD_TYPE_ID(xstudio_simple_types, (xstudio::media::FrameTimeMap))
+    CAF_ADD_TYPE_ID(xstudio_simple_types, (xstudio::media::FrameTimeMapPtr))    
     CAF_ADD_TYPE_ID(xstudio_simple_types, (xstudio::media::media_error))
     CAF_ADD_TYPE_ID(xstudio_simple_types, (xstudio::media::MediaDetail))
     CAF_ADD_TYPE_ID(xstudio_simple_types, (xstudio::media::MediaKey))
@@ -225,9 +228,11 @@ CAF_BEGIN_TYPE_ID_BLOCK(xstudio_simple_types, FIRST_CUSTOM_ID)
     CAF_ADD_TYPE_ID(xstudio_simple_types, (xstudio::media_metadata::MMCertainty))
     CAF_ADD_TYPE_ID(xstudio_simple_types, (xstudio::media_reader::AudioBufPtr))
     CAF_ADD_TYPE_ID(xstudio_simple_types, (xstudio::media_reader::ImageBufPtr))
+    CAF_ADD_TYPE_ID(xstudio_simple_types, (xstudio::media_reader::ImageBufDisplaySetPtr))    
+    CAF_ADD_TYPE_ID(xstudio_simple_types, (xstudio::media_reader::ImageSetLayoutDataPtr))        
     CAF_ADD_TYPE_ID(xstudio_simple_types, (xstudio::media_reader::MRCertainty))
     CAF_ADD_TYPE_ID(xstudio_simple_types, (xstudio::media_reader::PixelInfo))
-    CAF_ADD_TYPE_ID(xstudio_simple_types, (xstudio::playhead::CompareMode))
+    CAF_ADD_TYPE_ID(xstudio_simple_types, (xstudio::playhead::AssemblyMode))
     CAF_ADD_TYPE_ID(xstudio_simple_types, (xstudio::playhead::LoopMode))
     CAF_ADD_TYPE_ID(xstudio_simple_types, (xstudio::playhead::OverflowMode))
     CAF_ADD_TYPE_ID(xstudio_simple_types, (xstudio::plugin_manager::PluginDetail))
@@ -236,7 +241,6 @@ CAF_BEGIN_TYPE_ID_BLOCK(xstudio_simple_types, FIRST_CUSTOM_ID)
     CAF_ADD_TYPE_ID(xstudio_simple_types, (xstudio::shotgun_client::AuthenticateShotgun))
     CAF_ADD_TYPE_ID(xstudio_simple_types, (xstudio::shotgun_client::AUTHENTICATION_METHOD))
     CAF_ADD_TYPE_ID(xstudio_simple_types, (xstudio::shotgun_client::shotgun_client_error))
-    CAF_ADD_TYPE_ID(xstudio_simple_types, (xstudio::tag::Tag))
     CAF_ADD_TYPE_ID(xstudio_simple_types, (xstudio::thumbnail::DiskCacheStat))
     CAF_ADD_TYPE_ID(xstudio_simple_types, (xstudio::thumbnail::THUMBNAIL_FORMAT))
     CAF_ADD_TYPE_ID(xstudio_simple_types, (xstudio::thumbnail::ThumbnailBuffer))
@@ -248,10 +252,11 @@ CAF_BEGIN_TYPE_ID_BLOCK(xstudio_simple_types, FIRST_CUSTOM_ID)
     CAF_ADD_TYPE_ID(xstudio_simple_types, (xstudio::ui::viewport::FitMode))
     CAF_ADD_TYPE_ID(xstudio_simple_types, (xstudio::ui::viewport::MirrorMode))
     CAF_ADD_TYPE_ID(xstudio_simple_types, (xstudio::ui::viewport::GPUShaderPtr))
+    CAF_ADD_TYPE_ID(xstudio_simple_types, (xstudio::ui::viewport::GraphicsAPI))    
+    CAF_ADD_TYPE_ID(xstudio_simple_types, (xstudio::ui::viewport::ViewportRendererPtr))    
     CAF_ADD_TYPE_ID(xstudio_simple_types, (xstudio::utility::absolute_receive_timeout))
     CAF_ADD_TYPE_ID(xstudio_simple_types, (xstudio::utility::ContainerDetail))
     CAF_ADD_TYPE_ID(xstudio_simple_types, (xstudio::utility::CopyResult))
-    CAF_ADD_TYPE_ID(xstudio_simple_types, (xstudio::utility::EditList))
     CAF_ADD_TYPE_ID(xstudio_simple_types, (xstudio::utility::FrameList))
     CAF_ADD_TYPE_ID(xstudio_simple_types, (xstudio::utility::FrameRange))
     CAF_ADD_TYPE_ID(xstudio_simple_types, (xstudio::utility::FrameRate))
@@ -267,6 +272,8 @@ CAF_BEGIN_TYPE_ID_BLOCK(xstudio_simple_types, FIRST_CUSTOM_ID)
     CAF_ADD_TYPE_ID(xstudio_simple_types, (xstudio::xstudio_error))
     CAF_ADD_TYPE_ID(xstudio_simple_types, (xstudio::ui::viewport::ImageFormat))
     CAF_ADD_TYPE_ID(xstudio_simple_types, (xstudio::timeline::Marker))
+    CAF_ADD_TYPE_ID(xstudio_simple_types, (xstudio::utility::NotificationType))
+    CAF_ADD_TYPE_ID(xstudio_simple_types, (xstudio::utility::Notification))
 
 CAF_END_TYPE_ID_BLOCK(xstudio_simple_types)
 
@@ -321,7 +328,6 @@ CAF_BEGIN_TYPE_ID_BLOCK(xstudio_complex_types, FIRST_CUSTOM_ID + 200)
     CAF_ADD_TYPE_ID(xstudio_complex_types, (std::vector<std::pair<int, int>>))
     CAF_ADD_TYPE_ID(xstudio_complex_types, (std::vector<std::pair<int, xstudio::utility::time_point>>))
     CAF_ADD_TYPE_ID(xstudio_complex_types, (std::vector<std::pair<xstudio::media::MediaKey, xstudio::utility::time_point>>))
-    CAF_ADD_TYPE_ID(xstudio_complex_types, (std::vector<std::pair<xstudio::utility::EditList, caf::actor>>))
     CAF_ADD_TYPE_ID(xstudio_complex_types, (std::vector<std::pair<xstudio::utility::Uuid, std::string>>))
     CAF_ADD_TYPE_ID(xstudio_complex_types, (std::vector<std::pair<xstudio::utility::Uuid,xstudio::utility::UuidActorVector>>))
     CAF_ADD_TYPE_ID(xstudio_complex_types, (std::vector<std::pair<xstudio::utility::UuidActor, xstudio::utility::UuidActor>>))
@@ -338,11 +344,9 @@ CAF_BEGIN_TYPE_ID_BLOCK(xstudio_complex_types, FIRST_CUSTOM_ID + 200)
     CAF_ADD_TYPE_ID(xstudio_complex_types, (std::vector<xstudio::media_reader::AudioBufPtr>))
     CAF_ADD_TYPE_ID(xstudio_complex_types, (std::vector<xstudio::media_reader::ImageBufPtr>))
     CAF_ADD_TYPE_ID(xstudio_complex_types, (std::vector<xstudio::plugin_manager::PluginDetail>))
-    CAF_ADD_TYPE_ID(xstudio_complex_types, (std::vector<xstudio::tag::Tag>))
     CAF_ADD_TYPE_ID(xstudio_complex_types, (std::vector<xstudio::ui::Hotkey>))
     CAF_ADD_TYPE_ID(xstudio_complex_types, (std::vector<xstudio::ui::viewport::GPUShaderPtr>))
     CAF_ADD_TYPE_ID(xstudio_complex_types, (std::vector<xstudio::utility::ContainerDetail>))
-    CAF_ADD_TYPE_ID(xstudio_complex_types, (std::vector<xstudio::utility::EditList>))
     CAF_ADD_TYPE_ID(xstudio_complex_types, (std::vector<xstudio::utility::FrameRate>))
     CAF_ADD_TYPE_ID(xstudio_complex_types, (std::vector<xstudio::utility::JsonStore>))
     CAF_ADD_TYPE_ID(xstudio_complex_types, (std::vector<xstudio::utility::MediaReference>))
@@ -367,6 +371,9 @@ CAF_BEGIN_TYPE_ID_BLOCK(xstudio_complex_types, FIRST_CUSTOM_ID + 200)
     CAF_ADD_TYPE_ID(xstudio_complex_types, (std::pair<xstudio::utility::UuidActor, std::pair<xstudio::utility::UuidActor,xstudio::utility::UuidActor>>))
     CAF_ADD_TYPE_ID(xstudio_complex_types, (std::vector<std::pair<xstudio::utility::UuidActor, std::pair<xstudio::utility::UuidActor,xstudio::utility::UuidActor>>>))
     CAF_ADD_TYPE_ID(xstudio_complex_types, (std::pair<xstudio::utility::UuidActor, std::pair<std::string, xstudio::utility::UuidActor>>))
+
+    CAF_ADD_TYPE_ID(xstudio_complex_types, (std::vector<std::pair<std::string, xstudio::playhead::AssemblyMode>>))
+    CAF_ADD_TYPE_ID(xstudio_complex_types, (std::pair<float, std::vector<Imath::M44f>>))
 
 CAF_END_TYPE_ID_BLOCK(xstudio_complex_types)
 
@@ -461,6 +468,8 @@ CAF_BEGIN_TYPE_ID_BLOCK(xstudio_framework_atoms, FIRST_CUSTOM_ID + (200 * 2))
     CAF_ADD_ATOM(xstudio_framework_atoms, xstudio::module, module_add_menu_item_atom)
     CAF_ADD_ATOM(xstudio_framework_atoms, xstudio::module, module_remove_menu_item_atom)
     CAF_ADD_ATOM(xstudio_framework_atoms, xstudio::module, remove_attribute_atom)
+
+    CAF_ADD_ATOM(xstudio_framework_atoms, xstudio::utility, notification_atom)
 
 CAF_END_TYPE_ID_BLOCK(xstudio_framework_atoms)
 
@@ -623,10 +632,6 @@ CAF_BEGIN_TYPE_ID_BLOCK(xstudio_session_atoms, FIRST_CUSTOM_ID + (200 * 4))
     CAF_ADD_ATOM(xstudio_session_atoms, xstudio::session, remove_serialise_target_atom)
     CAF_ADD_ATOM(xstudio_session_atoms, xstudio::session, session_atom)
     CAF_ADD_ATOM(xstudio_session_atoms, xstudio::session, session_request_atom)
-    CAF_ADD_ATOM(xstudio_session_atoms, xstudio::tag, add_tag_atom)
-    CAF_ADD_ATOM(xstudio_session_atoms, xstudio::tag, get_tag_atom)
-    CAF_ADD_ATOM(xstudio_session_atoms, xstudio::tag, get_tags_atom)
-    CAF_ADD_ATOM(xstudio_session_atoms, xstudio::tag, remove_tag_atom)
     CAF_ADD_ATOM(xstudio_session_atoms, xstudio::timeline, active_range_atom)
     CAF_ADD_ATOM(xstudio_session_atoms, xstudio::timeline, available_range_atom)
     CAF_ADD_ATOM(xstudio_session_atoms, xstudio::timeline, duration_atom)
@@ -812,6 +817,8 @@ CAF_BEGIN_TYPE_ID_BLOCK(xstudio_ui_atoms,  FIRST_CUSTOM_ID + (200 * 6))
     CAF_ADD_ATOM(xstudio_ui_atoms, xstudio::ui::viewport, quickview_media_atom)
     CAF_ADD_ATOM(xstudio_ui_atoms, xstudio::ui::viewport, connect_to_viewport_toolbar_atom)
     CAF_ADD_ATOM(xstudio_ui_atoms, xstudio::ui::viewport, viewport_visibility_atom)
+    CAF_ADD_ATOM(xstudio_ui_atoms, xstudio::ui::viewport, viewport_renderer_atom)
+    CAF_ADD_ATOM(xstudio_ui_atoms, xstudio::ui::viewport, viewport_layout_atom)
 
     CAF_ADD_ATOM(xstudio_ui_atoms, xstudio::ui, open_quickview_window_atom)
     CAF_ADD_ATOM(xstudio_ui_atoms, xstudio::ui, show_message_box_atom)
@@ -824,7 +831,6 @@ CAF_BEGIN_TYPE_ID_BLOCK(xstudio_ui_atoms,  FIRST_CUSTOM_ID + (200 * 6))
 
     CAF_ADD_ATOM(xstudio_ui_atoms, xstudio::ui, offscreen_viewport_atom)
     CAF_ADD_ATOM(xstudio_ui_atoms, xstudio::ui, video_output_actor_atom)
-    CAF_ADD_ATOM(xstudio_ui_atoms, xstudio::ui::viewport, aux_shader_uniforms_atom)
     CAF_ADD_ATOM(xstudio_ui_atoms, xstudio::ui::viewport, turn_off_overlay_interaction_atom)
 
 CAF_END_TYPE_ID_BLOCK(xstudio_ui_atoms)

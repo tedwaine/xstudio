@@ -69,6 +69,12 @@ Rectangle {
     property var conformSourceIndex: null
     property bool have_timeline: true
 
+    property int snapLine: -1
+    property int cutLine: -1
+
+    property var snapCacheKey: null
+
+
     signal jumpToStart()
     signal jumpToEnd()
     signal jumpToFrame(int frame, bool center)
@@ -1324,27 +1330,28 @@ Rectangle {
                 property int clickY: 0
                 property var mode: null
 
-                function setClick(mouse) {
-                    clickX = mouse.x
-                    clickY = mouse.y
-                    mode = mouse.modifiers
-                    update(mouse)
+                function setClick(mouseX, mouseY, modifiers) {
+                    clickX = mouseX
+                    clickY = mouseY
+                    mode = modifiers
+                    update(mouseX, mouseY)
                 }
-                function update(mouse) {
-                    if(mouse.x < clickX) {
-                        x = mouse.x
+
+                function update(mouseX, mouseY) {
+                    if(mouseX < clickX) {
+                        x = mouseX
                         width = clickX - x
                     } else {
                         x = clickX
-                        width = mouse.x - x
+                        width = mouseX - x
                     }
 
-                    if(mouse.y < clickY) {
-                        y = mouse.y
+                    if(mouseY < clickY) {
+                        y = mouseY
                         height = clickY - y
                     } else {
                         y = clickY
-                        height = mouse.y - y
+                        height = mouseY - y
                     }
                 }
             }
@@ -1356,45 +1363,58 @@ Rectangle {
                 }
             }
 
-            onPressed: {
-                if(mouse.button == Qt.RightButton) {
+            function mousePressed(button, mouseX, mouseY, modifiers, pressed=false) {
+                if(button == Qt.RightButton) {
                     if(editMode != "Select")
-                        adjustSelection(mouse)
+                        adjustSelection(button, mouseX, mouseY, modifiers)
 
                     if(!hovered || !hovered.isSelected) {
-                        adjustSelection(mouse)
+                        adjustSelection(button, mouseX, mouseY, modifiers)
                     }
 
                     if(!timelineSelection.selectedIndexes.length) {
-                        showTimelineMenu(mouse.x, mouse.y)
+                        showTimelineMenu(mouseX, mouseY)
                     } else {
                         // check current hovered is part of selection..
                         let ctype = timelineSelection.selectedIndexes[0].model.get(timelineSelection.selectedIndexes[0], "typeRole")
                         if(ctype == "Clip")
-                            showClipMenu(mouse.x, mouse.y)//-timelineMenu.height)
+                            showClipMenu(mouseX, mouseY)//-timelineMenu.height)
                         else if (["Audio Track", "Video Track"].includes(ctype))
-                            showTrackMenu(mouse.x, mouse.y)//-timelineMenu.height)
+                            showTrackMenu(mouseX, mouseY)//-timelineMenu.height)
                     }
-                } else if(mouse.button == Qt.LeftButton) {
-                    if(scalingModeActive) {
+                } else if(button == Qt.LeftButton) {
+                    if(pressed && scalingModeActive) {
                         isScaling = scalingModeActive
                         minScaleX = ((list_view.width - trackHeaderWidth) / theSessionData.timelineRect([timeline_items.rootIndex]).width)/2
                         initialValue = scaleX
-                        initialPosition = Qt.point(mouse.x, mouse.y)
-                    } else if(scrollingModeActive) {
+                        initialPosition = Qt.point(mouseX, mouseY)
+                    } else if(pressed && scrollingModeActive) {
                         isScrolling = scrollingModeActive
                         initialValue = list_view.itemAtIndex(0).currentPosition()
-                        initialPosition = Qt.point(mouse.x, mouse.y)
-                    } else if(mouse.x > trackHeaderWidth) {
-                        region.setClick(mouse)
+                        initialPosition = Qt.point(mouseX, mouseY)
+                    } else if(pressed && editMode == "Cut" && modifiers == Qt.NoModifier && hovered.itemTypeRole == "Clip") {
+                        if(!theTimeline.timelineSelection.selectedIndexes.includes(hovered.modelIndex()))
+                            adjustSelection(button, mouseX, mouseY, modifiers)
+                        splitClips(theTimeline.timelineSelection.selectedIndexes, cutLine)
+                        snapCacheKey = helpers.makeQUuid()
+                    } else if(pressed && mouseX > trackHeaderWidth) {
+                        region.setClick(mouseX, mouseY, modifiers)
                         isRegionSelection = true
                     } else {
-                        adjustSelection(mouse)
+                        adjustSelection(button, mouseX, mouseY, modifiers)
                     }
                 }
+
             }
 
-            onDoubleClicked: {
+            onPressed: mousePressed(mouse.button, mouse.x, mouse.y, mouse.modifiers, true)
+
+            function tapped(button, mouseX, mouseY, modifiers, item=null) {
+                let l = mapFromGlobal(mouseX, mouseY)
+                mousePressed(button, l.x, l.y, modifiers)
+            }
+
+            function doubleTapped(item=null, mode=null) {
                 // jump to playlist and show media.
                 if(hovered && hovered.mediaUuid) {
 
@@ -1412,6 +1432,8 @@ Rectangle {
                 }
             }
 
+            onDoubleClicked: doubleTapped()
+
             onReleased: {
                 isScaling = false
                 isScrolling = false
@@ -1419,7 +1441,7 @@ Rectangle {
                 if(isRegionSelection) {
                     isRegionSelection = false
                     if(region.width < 5 && region.height < 5) {
-                        adjustSelection(mouse)
+                        adjustSelection(mouse.button, mouse.x, mouse.y, mouse.modifiers)
                     }
                 }
 
@@ -1429,7 +1451,20 @@ Rectangle {
             onPositionChanged: mouse => {
                 if(isScaling) {
                     // cap min scale to fit timeline.
-                    scaleX = Math.max(minScaleX, initialValue - ((initialPosition.x - mouse.x)/40.0))
+                    // scaleX = Math.max(minScaleX, initialValue - ((initialPosition.x - mouse.x)/40.0))
+                    // if(initialPosition.x - mouse.x > 0)
+                    //     scaleX = Math.max(minScaleX, initialValue + ((initialValue/100) * (initialPosition.x - mouse.x)))
+                    // else
+                    let steps = Math.abs(initialPosition.x - mouse.x)
+                    let initial = initialValue
+                    for(let i=0; i< steps; i++) {
+                        if(initialPosition.x - mouse.x > 0)
+                            initial -= (initial*0.004)
+                        else
+                            initial += (initial*0.004)
+                    }
+                    scaleX = Math.max(minScaleX, initial)
+                        // scaleX = Math.max(minScaleX, initialValue - ((initialValue/100) * (initialPosition.x - mouse.x)))
                     // reset value so increasing works imediately.
                     if(scaleX == minScaleX) {
                         initialPosition = Qt.point(mouse.x, mouse.y)
@@ -1447,13 +1482,35 @@ Rectangle {
                     }
                 } else {
                     if(isRegionSelection) {
-                        region.update(mouse)
+                        region.update(mouse.x, mouse.y)
                         updateRegionTimer.region = region
                         if(!updateRegionTimer.running)
                             updateRegionTimer.start()
                     } else {
                         if(editMode == "Move" || editMode == "Roll") {
                             showHandles(mouse.x, mouse.y)
+                        } else if(editMode == "Cut") {
+                            // calculate timeline frame posisiton.
+                            // from mouse position.
+                            let stackItem = list_view.itemAtIndex(0)
+                            let newCut = stackItem.cursor.start + (((mouse.x - trackHeaderWidth) + stackItem.cursor.fractionOffset) / stackItem.cursor.tickWidth)
+
+                            if(snapMode) {
+                                let matched = theSessionData.snapTo(
+                                    timeline_items.rootIndex,
+                                    list_view.playheadFrame,
+                                    newCut, 0, 0, 10 / scaleX, snapCacheKey)
+                                if(matched.length) {
+                                    newCut += matched[0]
+                                }
+                            }
+
+                            cutLine = newCut
+                            let [item, item_type, local_x, local_y] = resolveItem(mouse.x, mouse.y)
+
+                            if(hovered != item)
+                                hovered = item
+
                         } else {
                             let [item, item_type, local_x, local_y] = resolveItem(mouse.x, mouse.y)
 
@@ -1501,88 +1558,107 @@ Rectangle {
                     if(hovered && hovered.itemTypeRole == "Clip")
                         theSessionData.resetTimelineItemDragFlag([hovered.modelIndex()]);
                     hovered = item
-                }
 
-                if(hovered) {
-                    if(["Select"].includes(editMode))
-                        return
+                    if(hovered) {
+                        if(["Select"].includes(editMode))
+                            return
 
-                    if("Clip" == item_type)
-                        theSessionData.updateTimelineItemDragFlag([hovered.modelIndex()], editMode == "Roll", rippleMode)
+                        if("Clip" == item_type)
+                            theSessionData.updateTimelineItemDragFlag([hovered.modelIndex()], editMode == "Roll", rippleMode, overwriteMode)
+                    }
                 }
             }
 
-            function draggingStarted(index, item, mode ) {
+            function draggingStarted(index, item, mode) {
+                if(!timelineSelection.selectedIndexes.includes(index)) {
+                    timelineSelection.select(index, ItemSelectionModel.ClearAndSelect)
+                }
+
+                snapCacheKey = helpers.makeQUuid()
                 if(mode == "left")
-                    theSessionData.beginTimelineItemDrag(timelineSelection.selectedIndexes, mode)
+                    theSessionData.beginTimelineItemDrag(timelineSelection.selectedIndexes, mode, rippleMode, overwriteMode)
                 else if(mode == "right")
-                    theSessionData.beginTimelineItemDrag(timelineSelection.selectedIndexes, mode, rippleMode)
+                    theSessionData.beginTimelineItemDrag(timelineSelection.selectedIndexes, mode, rippleMode, overwriteMode)
                 else if(mode == "leftleft")
                     theSessionData.beginTimelineItemDrag(timelineSelection.selectedIndexes, mode)
                 else if(mode == "rightright")
                     theSessionData.beginTimelineItemDrag(timelineSelection.selectedIndexes, mode)
                 else if(mode == "middle")
-                    theSessionData.beginTimelineItemDrag(timelineSelection.selectedIndexes, mode, rippleMode)
+                    theSessionData.beginTimelineItemDrag(timelineSelection.selectedIndexes, mode, rippleMode, overwriteMode)
                 else if(mode == "roll")
                     theSessionData.beginTimelineItemDrag(timelineSelection.selectedIndexes, mode)
             }
 
-            function dragging(index, item, mode, x) {
+            function dragging(index, item, mode, x, y) {
                 if(snapMode) {
-                    let win = 10 / scaleX
+                    let clipStart = theSessionData.startFrameInParent(index)
+                    let matched = []
                     if(mode == "left" || mode == "leftleft") {
-                        let fp = theSessionData.startFrameInParent(index)
-                        let start_dist = list_view.playheadFrame - fp
-
-                        if(start_dist > x - win && start_dist < x + win)
-                            x = start_dist
+                        matched = theSessionData.snapTo(
+                            index, list_view.playheadFrame,
+                            clipStart,
+                            0,
+                            x,
+                            10 / scaleX,
+                            snapCacheKey
+                        )
                     } else if(mode == "middle") {
-                        let fp = theSessionData.startFrameInParent(index)
-                        let start_dist = list_view.playheadFrame - fp
-                        let end_dist = list_view.playheadFrame - (fp + item.currentDurationFrame)
-
-                        if(start_dist > x - win && start_dist < x + win)
-                            x = start_dist
-                        else if(end_dist > x - win && end_dist < x + win)
-                            x = end_dist
+                        matched = theSessionData.snapTo(
+                            index, list_view.playheadFrame,
+                            clipStart,
+                            item.currentDurationFrame,
+                            x,
+                            10 / scaleX,
+                            snapCacheKey
+                        )
                     } else if(mode == "right" || mode == "rightright") {
-                        let fp = theSessionData.startFrameInParent(index)
-                        let end_dist = list_view.playheadFrame - (fp + item.currentDurationFrame)
+                        matched = theSessionData.snapTo(
+                            index, list_view.playheadFrame,
+                            clipStart+item.currentDurationFrame,
+                            0,
+                            x,
+                            10 / scaleX,
+                            snapCacheKey
+                        )
+                    }
 
-                        if(end_dist > x - win && end_dist < x + win)
-                            x = end_dist
+                    if(matched.length) {
+                        x = matched[0]
+                        if(mode == "right" || mode == "rightright") {
+                            if(matched[2])
+                                snapLine = clipStart+item.currentDurationFrame + x
+                            else
+                                snapLine = clipStart+item.currentDurationFrame + item.currentDurationFrame + x
+                        } else {
+                            if(matched[2])
+                                snapLine = clipStart + x
+                            else
+                                snapLine = clipStart + item.currentDurationFrame + x
+                        }
+                    } else {
+                        snapLine = -1
                     }
                 }
 
                 if(mode == "left")
-                    theSessionData.updateTimelineItemDrag(timelineSelection.selectedIndexes, mode, x)
+                    theSessionData.updateTimelineItemDrag(timelineSelection.selectedIndexes, mode, x, 0, rippleMode, overwriteMode)
                 else if(mode == "right")
-                    theSessionData.updateTimelineItemDrag(timelineSelection.selectedIndexes, mode, x, rippleMode)
+                    theSessionData.updateTimelineItemDrag(timelineSelection.selectedIndexes, mode, x, 0, rippleMode, overwriteMode)
                 else if(mode == "leftleft")
-                    theSessionData.updateTimelineItemDrag(timelineSelection.selectedIndexes, mode, x)
+                    theSessionData.updateTimelineItemDrag(timelineSelection.selectedIndexes, mode, x, 0)
                 else if(mode == "rightright")
-                    theSessionData.updateTimelineItemDrag(timelineSelection.selectedIndexes, mode, x)
+                    theSessionData.updateTimelineItemDrag(timelineSelection.selectedIndexes, mode, x, 0)
                 else if(mode == "middle")
-                    theSessionData.updateTimelineItemDrag(timelineSelection.selectedIndexes, mode, x, rippleMode, overwriteMode)
+                    theSessionData.updateTimelineItemDrag(timelineSelection.selectedIndexes, mode, x, y, rippleMode, overwriteMode)
                 else if(mode == "roll")
-                    theSessionData.updateTimelineItemDrag(timelineSelection.selectedIndexes, mode, x)
-            }
-
-            function doubleTapped(item, mode) {
-                // console.log("doubleTapped", item, mode)
-                /*if(mode == "middle") {
-                    currentMediaContainerIndex = viewedMediaSetIndex
-                    theSessionData.setPlayheadTo(
-                        viewedMediaSetIndex,
-                        inspectedMediaSetProperties.values.typeRole == "Timeline")
-                }*/
+                    theSessionData.updateTimelineItemDrag(timelineSelection.selectedIndexes, mode, x, 0)
             }
 
             function draggingStopped(index, item, mode) {
                 if(mode == "left")
-                    theSessionData.endTimelineItemDrag(timelineSelection.selectedIndexes, mode)
+                    theSessionData.endTimelineItemDrag(timelineSelection.selectedIndexes, mode, overwriteMode)
                 else if(mode == "right")
-                    theSessionData.endTimelineItemDrag(timelineSelection.selectedIndexes, mode)
+                    theSessionData.endTimelineItemDrag(timelineSelection.selectedIndexes, mode, overwriteMode)
                 else if(mode == "leftleft")
                     theSessionData.endTimelineItemDrag(timelineSelection.selectedIndexes, mode)
                 else if(mode == "rightright")
@@ -1591,6 +1667,7 @@ Rectangle {
                     theSessionData.endTimelineItemDrag(timelineSelection.selectedIndexes, mode, overwriteMode)
                 else if(mode == "roll")
                     theSessionData.endTimelineItemDrag(timelineSelection.selectedIndexes, mode)
+                snapLine = -1
             }
 
             function isValidSelection(ctype, ntype) {
@@ -1603,14 +1680,14 @@ Rectangle {
                 return ctype == ntype
             }
 
-            function adjustSelection(mouse) {
+            function adjustSelection(button, x, y, modifiers) {
                 if(hovered != null) {
-                    if(mouse.button == Qt.RightButton && hovered.isSelected) {
+                    if(button == Qt.RightButton && hovered.isSelected) {
                         // ignored
-                    } else if(mouse.button == Qt.RightButton && mouse.modifiers != Qt.ControlModifier) {
+                    } else if(button == Qt.RightButton && modifiers != Qt.ControlModifier) {
                         selectItem()
                     } else {
-                        if (mouse.modifiers == Qt.ShiftModifier) {
+                        if (modifiers == Qt.ShiftModifier) {
                             // validate selection, we don't allow mixed items..
                             let isValid = true
                             if(timelineSelection.selectedIndexes.length) {
@@ -1640,19 +1717,19 @@ Rectangle {
                                     selectItem()
                                 }
                             }
-                        } else if (mouse.modifiers == Qt.ControlModifier) {
+                        } else if (modifiers == Qt.ControlModifier) {
                             // validate selection, we don't allow mixed items..
                             let isValid = true
                             if(timelineSelection.selectedIndexes.length) {
                                 let ctype = timelineSelection.selectedIndexes[0].model.get(timelineSelection.selectedIndexes[0], "typeRole")
                                 isValid = isValidSelection(ctype, hovered.itemTypeRole)
                             }
-                            if(isValid && mouse.button != Qt.RightButton) {
+                            if(isValid && button != Qt.RightButton) {
                                 let new_state = hovered.isSelected  ? ItemSelectionModel.Deselect : ItemSelectionModel.Select
                                 if(["Clip","Audio Track", "Video Track"].includes(hovered.itemTypeRole))
                                     timelineSelection.select(hovered.modelIndex(), new_state)
                             }
-                        } else if(mouse.modifiers == Qt.NoModifier) {
+                        } else if(modifiers == Qt.NoModifier) {
                             selectItem()
                         }
                     }
@@ -1725,6 +1802,7 @@ Rectangle {
                 property var dragging: ma.dragging
                 property var draggingStopped: ma.draggingStopped
                 property var doubleTapped: ma.doubleTapped
+                property var tapped: ma.tapped
 
                 onPlayheadFrameChanged: {
                     if (itemAtIndex(0))

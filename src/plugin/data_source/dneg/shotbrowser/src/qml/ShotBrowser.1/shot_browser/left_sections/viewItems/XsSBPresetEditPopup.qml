@@ -21,8 +21,7 @@ XsWindow{
     property int itemHeight: 24
 
     property int dragWidth: btnWidth/2
-    property int enableWidth: itemHeight
-    property int termWidth: btnWidth*4.2
+    property int termWidth: btnWidth*4
     property int modeWidth: itemHeight
     property int closeWidth: btnWidth
 
@@ -34,7 +33,6 @@ XsWindow{
 
     onPresetIndexChanged: {
         if(presetIndex && presetIndex.valid) {
-            presetTermModel.model = ShotBrowserEngine.presetsModel
             presetTermModel.rootIndex = presetIndex
             presetList.model.newTermParent = presetIndex
         }
@@ -42,6 +40,7 @@ XsWindow{
 
     QTreeModelToTableModel {
         id: presetTermModel
+        model: ShotBrowserEngine.presetsModel
     }
 
     ColumnLayout { id: coln
@@ -63,7 +62,7 @@ XsWindow{
                     Layout.fillHeight: true
                 }
                 Item {
-                    Layout.preferredWidth: enableWidth
+                    Layout.preferredWidth: height
                     Layout.fillHeight: true
                 }
                 XsText{
@@ -135,7 +134,6 @@ XsWindow{
                     XsSBPresetEditNewItem{
                         anchors.fill: parent
                         anchors.topMargin: 1
-                        delegateModel: presetDelegateModel
                         termModel: ShotBrowserEngine.presetsModel.termLists[entityType]
                 }
             }
@@ -161,5 +159,166 @@ XsWindow{
             }
         }
     }
+
+    XsPopupMenu {
+        id: equationMenu
+        visible: false
+        menu_model_name: "equationMenu"+presetEditPopup
+        property var termModelIndex: helpers.qModelIndex()
+
+        property var isLiveLink: ShotBrowserEngine.presetsModel.get(termModelIndex, "livelinkRole")
+        property var isNegate: ShotBrowserEngine.presetsModel.get(termModelIndex, "negatedRole")
+        property bool isEqual: !isLiveLink && !isNegate
+
+        XsMenuModelItem {
+            text: "Equals"
+            menuPath: ""
+            menuModelName: equationMenu.menu_model_name
+            enabled: !equationMenu.isEqual
+
+            onActivated: {
+                if(equationMenu.isNegate != undefined && equationMenu.isNegate)
+                    ShotBrowserEngine.presetsModel.set(equationMenu.termModelIndex, false, "negatedRole")
+                if(equationMenu.isLiveLink != undefined && equationMenu.isLiveLink)
+                    ShotBrowserEngine.presetsModel.set(equationMenu.termModelIndex, false, "livelinkRole")
+            }
+        }
+        XsMenuModelItem {
+            text: "Negates"
+            menuPath: ""
+            menuModelName: equationMenu.menu_model_name
+            enabled: equationMenu.isNegate != undefined && !equationMenu.isNegate
+
+            onActivated: {
+                if(equationMenu.isLiveLink != undefined && equationMenu.isLiveLink)
+                    ShotBrowserEngine.presetsModel.set(equationMenu.termModelIndex, false, "livelinkRole")
+                ShotBrowserEngine.presetsModel.set(equationMenu.termModelIndex, true, "negatedRole")
+            }
+        }
+        XsMenuModelItem {
+            text: "Live Link"
+            menuPath: ""
+            menuModelName: equationMenu.menu_model_name
+            enabled: equationMenu.isLiveLink != undefined && !equationMenu.isLiveLink
+
+            onActivated: {
+                ShotBrowserEngine.presetsModel.set(equationMenu.termModelIndex, true, "livelinkRole")
+
+                if(equationMenu.isNegate != undefined && equationMenu.isNegate)
+                    ShotBrowserEngine.presetsModel.set(equationMenu.termModelIndex, false, "negatedRole")
+            }
+        }
+    }
+
+    XsPopupMenu {
+        id: termTypeMenu
+        visible: false
+        menu_model_name: "termTypeMenu"+presetEditPopup
+        property var termModelIndex: helpers.qModelIndex()
+
+        Repeater {
+            model: ShotBrowserEngine.presetsModel.termLists[entityType]
+            Item {
+                XsMenuModelItem {
+                    menuItemType: "button"
+                    text: modelData
+                    menuPath: ""
+                    menuItemPosition: index
+                    menuModelName: termTypeMenu.menu_model_name
+                    onActivated: {
+                        let row = ShotBrowserEngine.presetsModel.rowCount(termTypeMenu.termModelIndex)
+                        let i = ShotBrowserEngine.presetsModel.insertTerm(
+                            modelData,
+                            row,
+                            termTypeMenu.termModelIndex
+                        )
+
+                        if(i.valid) {
+                            let t = ShotBrowserEngine.presetsModel.get(i, "termRole")
+                            let tm = ShotBrowserEngine.presetsModel.termModel(t, entityType, projectId)
+                            if(tm.length && tm.get(tm.index(0,0), "nameRole") == "True") {
+                                ShotBrowserEngine.presetsModel.set(i, "True", "valueRole")
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    XsPopupMenu {
+        id: termMenu
+        visible: false
+        menu_model_name: "termMenu"+presetEditPopup
+        property var termModelIndex: helpers.qModelIndex()
+
+
+        Clipboard{
+          id: clipboard
+        }
+
+        XsMenuModelItem {
+            text: "Move Up"
+            menuPath: ""
+            menuModelName: termMenu.menu_model_name
+            menuItemPosition: 1
+            enabled: termMenu.termModelIndex.valid && termMenu.termModelIndex.row
+            onActivated: {
+                let i = termMenu.termModelIndex
+                ShotBrowserEngine.presetsModel.moveRows(i.parent, i.row, 1, i.parent, i.row-1)
+            }
+        }
+        XsMenuModelItem {
+            text: "Move Down"
+            menuPath: ""
+            menuModelName: termMenu.menu_model_name
+            menuItemPosition: 2
+            enabled: termMenu.termModelIndex.valid && termMenu.termModelIndex.row < termMenu.termModelIndex.model.rowCount(termMenu.termModelIndex.parent)-1
+            onActivated: {
+                let i = termMenu.termModelIndex
+                ShotBrowserEngine.presetsModel.moveRows(i.parent, i.row, 1, i.parent, i.row+2)
+            }
+        }
+        XsMenuModelItem {
+            menuItemType: "divider"
+            menuPath: ""
+            menuItemPosition: 3
+            menuModelName: termMenu.menu_model_name
+        }
+        XsMenuModelItem {
+            text: "Duplicate"
+            menuPath: ""
+            menuItemPosition: 4
+            menuModelName: termMenu.menu_model_name
+            onActivated: ShotBrowserEngine.presetsModel.duplicate(termMenu.termModelIndex)
+        }
+        XsMenuModelItem {
+            text: "Paste Values From Clipboard"
+            menuPath: ""
+            menuModelName: termMenu.menu_model_name
+            menuItemPosition: 5
+            onActivated: {
+                let values = clipboard.text.split("\n")
+                if(values.length) {
+                    let first = values[0].trim()
+                    values = values.reverse()
+
+                    for(let i = 0;i<values.length;i++) {
+                        let v = values[i].trim()
+                        if(v.length) {
+                            if(v == first) {
+                                ShotBrowserEngine.presetsModel.set(ShotBrowserEngine.presetsModel.index(termMenu.termModelIndex.row, 0, termMenu.termModelIndex.parent), v, "valueRole")
+                            } else {
+                                ShotBrowserEngine.presetsModel.duplicate(termMenu.termModelIndex)
+                                ShotBrowserEngine.presetsModel.set(ShotBrowserEngine.presetsModel.index(termMenu.termModelIndex.row+1, 0, termMenu.termModelIndex.parent), v, "valueRole")
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+
 }
 

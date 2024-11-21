@@ -32,6 +32,7 @@ ShotBrowserPresetModel::ShotBrowserPresetModel(QueryEngine &query_engine, QObjec
          "livelinkRole",
          "nameRole",
          "negatedRole",
+         "parentEnabledRole",
          "termRole",
          "typeRole",
          "updateRole",
@@ -188,7 +189,8 @@ QModelIndex ShotBrowserPresetModel::duplicate(const QModelIndex &index) {
         result = ShotBrowserPresetModel::index(index.row() + 1, 0, index.parent());
     }
 
-    setData(result, result.data(nameRole).toString() + " - Copy", nameRole);
+    if (index.data(typeRole) != QVariant::fromValue(QString("term")))
+        setData(result, result.data(nameRole).toString() + " - Copy", nameRole);
 
     return result;
 }
@@ -237,6 +239,19 @@ QVariant ShotBrowserPresetModel::data(const QModelIndex &index, int role) const 
             case Roles::enabledRole:
                 result = j.at("enabled").get<bool>();
                 break;
+
+            case Roles::parentEnabledRole: {
+                auto p = index.parent();
+                result = true;
+                while (p.isValid() and p.data(typeRole) == QVariant("term") and
+                       p.data(termRole) == QVariant("Operator")) {
+                    if (not p.data(enabledRole).toBool()) {
+                        result = false;
+                        break;
+                    }
+                    p = p.parent();
+                }
+            } break;
 
             case Roles::favouriteRole:
                 if (j.count("favourite") and not j.at("favourite").is_null())
@@ -376,7 +391,27 @@ bool ShotBrowserPresetModel::setData(
         switch (role) {
 
         case Roles::enabledRole:
-            result         = baseSetData(index, value, "enabled", QVector<int>({role}), true);
+            result = baseSetData(index, value, "enabled", QVector<int>({role}), true);
+            if (index.data(typeRole) == QVariant("term") and
+                index.data(termRole) == QVariant("Operator")) {
+
+                std::function<void(const QModelIndex &)> changedChild =
+                    [&](const QModelIndex &parent) {
+                        for (auto i = 0; i < rowCount(parent); i++) {
+                            auto child = ShotBrowserPresetModel::index(i, 0, parent);
+                            if (child.isValid() and child.data(typeRole) == QVariant("term") and
+                                child.data(termRole) == QVariant("Operator"))
+                                changedChild(child);
+                        }
+
+                        emit dataChanged(
+                            ShotBrowserPresetModel::index(0, 0, parent),
+                            ShotBrowserPresetModel::index(rowCount(parent) - 1, 0, parent),
+                            QVector<int>({parentEnabledRole}));
+                    };
+
+                changedChild(index);
+            }
             preset_changed = true;
             // if changed mark update field.
             if (result)
@@ -947,4 +982,10 @@ bool ShotBrowserPresetFilterModel::filterAcceptsRow(
     }
 
     return accept;
+}
+
+bool ShotBrowserPresetTreeFilterModel::filterAcceptsRow(
+    int source_row, const QModelIndex &source_parent) const {
+
+    return true;
 }

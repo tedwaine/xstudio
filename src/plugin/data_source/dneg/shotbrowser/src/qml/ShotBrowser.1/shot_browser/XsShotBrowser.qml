@@ -36,7 +36,7 @@ Item{
 
     property int projectId: -1
     property var projectIndex: null
-    property var sequenceModel: null
+    property var sequenceBaseModel: null
     property var currentPresetIndex: ShotBrowserEngine.presetsModel.index(-1,-1)
 
     property var categoryPreset: (new Map())
@@ -134,9 +134,25 @@ Item{
                     projectIndex = getProjectIndexFromName(pname)
                 }
 
-                let si = sequenceModel.searchRecursive(sname)
-                if(si.valid)
-                    sequenceSelectionModel.select(si, ItemSelectionModel.ClearAndSelect)
+                let bi = sequenceBaseModel.searchRecursive(sname)
+                if(bi.valid) {
+                    let fi = sequenceFilterModel.mapFromSource(bi)
+                    if(fi.valid) {
+                        let parents = helpers.getParentIndexes([fi])
+                        for(let i = 0; i< parents.length; i++){
+                            if(parents[i].valid) {
+                                // find in tree.. Order ?
+                                let ti = sequenceTreeModel.mapFromModel(parents[i])
+                                if(ti.valid) {
+                                    sequenceTreeModel.expandRow(ti.row)
+                                }
+                            }
+                        }
+                        // should now be visible
+                        let ti = sequenceTreeModel.mapFromModel(fi)
+                        sequenceSelectionModel.select(ti, ItemSelectionModel.ClearAndSelect)
+                    }
+                }
             }
         }
     }
@@ -201,7 +217,19 @@ Item{
         property int treePanelWidth: 200
         property string category: "Tree"
         property string quickLoad: ""
+        property bool hideEmpty: false
+        property bool showUnit: false
+        property bool showOnlyFavourites: false
+        property bool showStatus: true
+        property var hideStatus: ["omt", "na", "del", "omtnto", "omtnwd"]
         property var filterProjects: []
+        property var filterUnit: (new Map())
+
+        onShowOnlyFavouritesChanged: {
+            treeModel.setOnlyShowFavourite(showOnlyFavourites)
+            menuModel.setOnlyShowFavourite(showOnlyFavourites)
+            recentModel.setOnlyShowFavourite(showOnlyFavourites)
+        }
 
         XsStoredPanelProperties {
 
@@ -210,32 +238,40 @@ Item{
                 "treePlusResultPanelWidth",
                 "treePanelWidth",
                 "category",
+                "showOnlyFavourites",
+                "hideEmpty",
+                "showUnit",
+                "hideStatus",
+                "showStatus",
                 "quickLoad",
+                "filterUnit",
                 "filterProjects"]
-
         }
 
     }
 
-    ItemSelectionModel {
-        id: sequenceExpandedModel
-        model: sequenceModel
+    ShotBrowserSequenceFilterModel {
+        id: sequenceFilterModel
+        sourceModel: sequenceBaseModel
+        hideStatus: prefs.hideStatus
+        hideEmpty: prefs.hideEmpty
+        // unitFilter:
+        onUnitFilterChanged: {
+            let tmp = prefs.filterUnit
+            tmp[projectIndex.model.get(projectIndex,"nameRole")] = unitFilter
+            prefs.filterUnit = tmp
+        }
+    }
+
+    QTreeModelToTableModel {
+        id: sequenceTreeModel
+        model: sequenceFilterModel
     }
 
     ItemSelectionModel {
         id: sequenceSelectionModel
-        model: sequenceModel
-        onSelectionChanged: {
-            // check parents are expanded..
-            // build list of parents..
-            sequenceExpandedModel.select(
-                helpers.createItemSelection(
-                    helpers.getParentIndexesFromRange(selected)
-                ),
-                ItemSelectionModel.Select
-            )
-            executeQuery()
-        }
+        model: sequenceTreeModel
+        onSelectionChanged: executeQuery()
     }
 
     ItemSelectionModel {
@@ -377,7 +413,7 @@ Item{
             let m = ShotBrowserEngine.presetsModel.termModel("Project")
             let i = m.get(projectIndex, "idRole")
             ShotBrowserEngine.cacheProject(i)
-            sequenceModel = ShotBrowserEngine.sequenceTreeFilterModel(i)
+            sequenceBaseModel = ShotBrowserEngine.sequenceTreeModel(i)
 
             projectPref.value = m.get(projectIndex, "nameRole")
             projectId = i
@@ -391,8 +427,8 @@ Item{
         property bool treePlusActive: currentCategory == "Tree" && sequenceTreeShowPresets
 
         readonly property int minimumResultWidth: 600
-        readonly property int minimumPresetWidth: 300
-        readonly property int minimumTreeWidth: 200
+        readonly property int minimumPresetWidth: 330
+        readonly property int minimumTreeWidth: 230
 
         XsSBLeftSection{ id: leftSection
             SplitView.fillHeight: true
@@ -493,7 +529,14 @@ Item{
                     })
             } else {
                 let custom = []
-                let seqsel = sequenceSelectionModel.selectedIndexes
+                // convert to base model.
+                let seqsel = []
+                for(let i=0;i<sequenceSelectionModel.selectedIndexes.length; i++){
+                    let tindex = sequenceSelectionModel.selectedIndexes[i]
+                    let findex = tindex.model.mapToModel(tindex)
+                    seqsel.push(findex.model.mapToSource(findex))
+                }
+
                 for(let i=0;i<seqsel.length;i++) {
                     let t = seqsel[i].model.get(seqsel[i],"typeRole")
                     if(t == "Shot") {

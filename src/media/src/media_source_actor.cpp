@@ -258,7 +258,7 @@ void MediaSourceActor::acquire_detail(
                             }
 
                             send(
-                                event_group_,
+                                base_.event_group(),
                                 utility::event_atom_v,
                                 add_media_stream_atom_v,
                                 UuidActor(uuid, stream));
@@ -293,8 +293,8 @@ void MediaSourceActor::acquire_detail(
                                     anon_send(this, media_hook::get_media_hook_atom_v);
                                 });
 
-                        base_.send_changed(event_group_, this);
-                        send(event_group_, utility::event_atom_v, change_atom_v);
+                        base_.send_changed();
+                        send(base_.event_group(), utility::event_atom_v, change_atom_v);
 
                         for (auto &_rp : pending_stream_detail_requests_) {
                             _rp.deliver(true);
@@ -307,8 +307,8 @@ void MediaSourceActor::acquire_detail(
                         // base_.media_reference().set_duration(
                         //     FrameRateDuration(1, base_.media_reference().duration().rate()));
                         spdlog::debug("{} {}", __PRETTY_FUNCTION__, to_string(err));
-                        base_.send_changed(event_group_, this);
-                        send(event_group_, utility::event_atom_v, change_atom_v);
+                        base_.send_changed();
+                        send(base_.event_group(), utility::event_atom_v, change_atom_v);
                         base_.set_error_detail(to_string(err));
                         for (auto &_rp : pending_stream_detail_requests_) {
                             _rp.deliver(false);
@@ -339,41 +339,10 @@ void MediaSourceActor::update_media_status() {
     }
 }
 
-void MediaSourceActor::init() {
-    print_on_create(this, base_);
-    print_on_exit(this, base_);
-
-    update_media_status();
-
-    event_group_ = spawn<broadcast::BroadcastActor>(this);
-    link_to(event_group_);
-
-    // set an empty dict for colour_pipeline, as we request this at various
-    // times and need a placeholder or we get warnings if it's not there
-    request(json_store_, infinite, json_store::get_json_atom_v, "/colour_pipeline")
-        .then(
-            [=](const JsonStore &) {},
-            [=](const error &) {
-                // we'll get this error if there is no dict already
-                anon_send(
-                    json_store_,
-                    json_store::set_json_atom_v,
-                    utility::JsonStore(),
-                    "/colour_pipeline");
-            });
-
+caf::message_handler MediaSourceActor::message_handler() {
     auto thumbnail_manager = system().registry().get<caf::actor>(thumbnail_manager_registry);
 
-    behavior_.assign(
-        base_.make_set_name_handler(event_group_, this),
-        base_.make_get_name_handler(),
-        base_.make_last_changed_getter(),
-        base_.make_last_changed_setter(event_group_, this),
-        base_.make_last_changed_event_handler(event_group_, this),
-        base_.make_get_uuid_handler(),
-        base_.make_get_type_handler(),
-        make_get_event_group_handler(event_group_),
-        base_.make_get_detail_handler(this, event_group_),
+    return caf::message_handler{
         [=](xstudio::broadcast::broadcast_down_atom, const caf::actor_addr &) {},
 
         [=](json_store::update_atom,
@@ -381,19 +350,20 @@ void MediaSourceActor::init() {
             const std::string &path,
             const JsonStore &full) {
             if (current_sender() == json_store_)
-                send(event_group_, json_store::update_atom_v, change, path, full);
+                send(base_.event_group(), json_store::update_atom_v, change, path, full);
         },
 
         [=](json_store::update_atom, const JsonStore &full) mutable {
             if (current_sender() == json_store_)
-                send(event_group_, json_store::update_atom_v, full);
+                send(base_.event_group(), json_store::update_atom_v, full);
         },
 
         [=](acquire_media_detail_atom) -> result<bool> {
             auto rp = make_response_promise<bool>();
             acquire_detail(base_.media_reference().rate(), rp);
             // why ?
-            // send(event_group_, utility::event_atom_v, utility::name_atom_v, base_.name());
+            // send(base_.event_group(), utility::event_atom_v, utility::name_atom_v,
+            // base_.name());
             return rp;
         },
 
@@ -401,7 +371,8 @@ void MediaSourceActor::init() {
             auto rp = make_response_promise<bool>();
             acquire_detail(rate, rp);
             // why ?
-            // send(event_group_, utility::event_atom_v, utility::name_atom_v, base_.name());
+            // send(base_.event_group(), utility::event_atom_v, utility::name_atom_v,
+            // base_.name());
             return rp;
         },
 
@@ -410,8 +381,8 @@ void MediaSourceActor::init() {
         [=](media_status_atom, const MediaStatus status) -> bool {
             if (base_.media_status() != status) {
                 base_.set_media_status(status);
-                base_.send_changed(event_group_, this);
-                send(event_group_, utility::event_atom_v, media_status_atom_v, status);
+                base_.send_changed();
+                send(base_.event_group(), utility::event_atom_v, media_status_atom_v, status);
             }
             return true;
         },
@@ -444,9 +415,9 @@ void MediaSourceActor::init() {
                         link_to(media_stream.actor());
                         media_streams_[media_stream.uuid()] = media_stream.actor();
                         base_.add_media_stream(mt, media_stream.uuid());
-                        base_.send_changed(event_group_, this);
+                        base_.send_changed();
                         send(
-                            event_group_,
+                            base_.event_group(),
                             utility::event_atom_v,
                             add_media_stream_atom_v,
                             media_stream);
@@ -462,8 +433,8 @@ void MediaSourceActor::init() {
 
         [=](colour_pipeline::set_colour_pipe_params_atom, const utility::JsonStore &params) {
             delegate(json_store_, json_store::set_json_atom_v, params, "/colour_pipeline");
-            base_.send_changed(event_group_, this);
-            send(event_group_, utility::event_atom_v, change_atom_v);
+            base_.send_changed();
+            send(base_.event_group(), utility::event_atom_v, change_atom_v);
         },
 
         [=](current_media_stream_atom, const MediaType media_type) -> result<UuidActor> {
@@ -484,8 +455,8 @@ void MediaSourceActor::init() {
         [=](current_media_stream_atom, const MediaType media_type, const Uuid &uuid) -> bool {
             auto result = base_.set_current(media_type, uuid);
             if (result) {
-                base_.send_changed(event_group_, this);
-                send(event_group_, utility::event_atom_v, change_atom_v);
+                base_.send_changed();
+                send(base_.event_group(), utility::event_atom_v, change_atom_v);
             }
             return result;
         },
@@ -537,8 +508,8 @@ void MediaSourceActor::init() {
                     stream_detail.media_type_ == media_type) {
                     auto result = base_.set_current(media_type, strm.first);
                     if (result) {
-                        base_.send_changed(event_group_, this);
-                        send(event_group_, utility::event_atom_v, change_atom_v);
+                        base_.send_changed();
+                        send(base_.event_group(), utility::event_atom_v, change_atom_v);
                     }
                     return result;
                 }
@@ -546,258 +517,65 @@ void MediaSourceActor::init() {
             return false;
         },
 
-        [=](get_edit_list_atom,
+        [=](get_media_pointer_atom atom,
             const MediaType media_type,
-            const Uuid &uuid) -> result<utility::EditList> {
-            auto rp = make_response_promise<utility::EditList>();
+            const int logical_frame) -> caf::result<media::AVFrameID> {
+
+            auto rp = make_response_promise<media::AVFrameID>();
             request(caf::actor_cast<caf::actor>(this), infinite, acquire_media_detail_atom_v)
                 .then(
                     [=](bool) mutable {
                         if (base_.current(media_type).is_null()) {
                             rp.deliver(make_error(xstudio_error::error, "No streams"));
                         }
-
-                        if (uuid.is_null())
-                            rp.deliver(utility::EditList({EditListSection(
-                                base_.uuid(),
-                                base_.media_reference(base_.current(media_type)).duration(),
-                                base_.media_reference(base_.current(media_type)).timecode())}));
-                        return rp.deliver(utility::EditList({EditListSection(
-                            uuid,
-                            base_.media_reference(base_.current(media_type)).duration(),
-                            base_.media_reference(base_.current(media_type)).timecode())}));
+                        auto dur = base_.media_reference(base_.current(media_type)).duration();
+                        LogicalFrameRanges ranges;
+                        ranges.emplace_back(logical_frame, logical_frame);
+                        request(caf::actor_cast<caf::actor>(this), infinite, get_media_pointers_atom_v, media_type, ranges).then(
+                            [=](const media::AVFrameIDs &ids) mutable{
+                                if (ids.size() && ids[0]) {
+                                    rp.deliver(*(ids[0]));
+                                } else {
+                                    rp.deliver(make_error(xstudio_error::error, "No frame"));
+                                }
+                            },
+                            [=](const error &err) mutable { rp.deliver(err); });
                     },
                     [=](const error &err) mutable { rp.deliver(err); });
             return rp;
+
         },
 
-        [=](get_media_pointer_atom,
-            const MediaType media_type) -> result<std::vector<media::AVFrameID>> {
-            auto rp = make_response_promise<std::vector<media::AVFrameID>>();
-
-            if (base_.current(media_type).is_null()) {
-                rp.deliver(make_error(xstudio_error::error, "No streams"));
-                return rp;
-            }
-
-            request(
-                media_streams_.at(base_.current(media_type)),
-                infinite,
-                get_stream_detail_atom_v)
-                .then(
-                    [=](const StreamDetail &detail) mutable {
-                        auto timecode =
-                            base_.media_reference(base_.current(media_type)).timecode();
-                        if (media_type == MT_IMAGE) {
-                            request(
-                                json_store_,
-                                infinite,
-                                json_store::get_json_atom_v,
-                                "/colour_pipeline")
-                                .then(
-                                    [=](const JsonStore &meta) mutable {
-                                        try {
-                                            std::vector<AVFrameID> results;
-                                            auto first_frame = *(
-                                                base_.media_reference(base_.current(media_type))
-                                                    .frame(0));
-                                            for (const auto &i :
-                                                 base_
-                                                     .media_reference(base_.current(media_type))
-                                                     .uris()) {
-                                                results.emplace_back(media::AVFrameID(
-                                                    i.first,
-                                                    i.second,
-                                                    first_frame,
-                                                    base_
-                                                        .media_reference(
-                                                            base_.current(media_type))
-                                                        .rate(),
-                                                    detail.name_,
-                                                    detail.key_format_,
-                                                    base_.reader(),
-                                                    caf::actor_cast<caf::actor_addr>(this),
-                                                    meta,
-                                                    base_.uuid(),
-                                                    parent_uuid_,
-                                                    utility::Uuid(), // clip id
-                                                    media_type));
-                                                results.back().timecode_ = timecode;
-                                                timecode                 = timecode + 1;
-                                            }
-
-                                            rp.deliver(results);
-                                        } catch (const std::exception &e) {
-                                            rp.deliver(
-                                                make_error(xstudio_error::error, e.what()));
-                                        }
-                                    },
-                                    [=](error &) mutable {
-                                        try {
-                                            std::vector<AVFrameID> results;
-                                            auto first_frame = *(
-                                                base_.media_reference(base_.current(media_type))
-                                                    .frame(0));
-                                            for (const auto &i :
-                                                 base_
-                                                     .media_reference(base_.current(media_type))
-                                                     .uris()) {
-                                                results.emplace_back(media::AVFrameID(
-                                                    i.first,
-                                                    i.second,
-                                                    first_frame,
-                                                    base_
-                                                        .media_reference(
-                                                            base_.current(media_type))
-                                                        .rate(),
-                                                    detail.name_,
-                                                    detail.key_format_,
-                                                    base_.reader(),
-                                                    caf::actor_cast<caf::actor_addr>(this),
-                                                    utility::JsonStore(),
-                                                    utility::Uuid(),
-                                                    parent_uuid_,
-                                                    utility::Uuid(), // clip id
-                                                    media_type));
-                                                results.back().timecode_ = timecode;
-                                                timecode                 = timecode + 1;
-                                            }
-
-                                            rp.deliver(results);
-                                        } catch (const std::exception &e) {
-                                            rp.deliver(
-                                                make_error(xstudio_error::error, e.what()));
-                                        }
-                                    });
-                        } else {
-
-                            std::vector<AVFrameID> results;
-                            auto first_frame =
-                                *(base_.media_reference(base_.current(media_type)).frame(0));
-                            for (const auto &i :
-                                 base_.media_reference(base_.current(media_type)).uris()) {
-                                results.emplace_back(media::AVFrameID(
-                                    i.first,
-                                    i.second,
-                                    first_frame,
-                                    base_.media_reference(base_.current(media_type)).rate(),
-                                    detail.name_,
-                                    detail.key_format_,
-                                    base_.reader(),
-                                    caf::actor_cast<caf::actor_addr>(this),
-                                    utility::JsonStore(),
-                                    base_.uuid(),
-                                    parent_uuid_,
-                                    utility::Uuid(), // clip uuid
-                                    media_type));
-                                results.back().timecode_ = timecode;
-                                timecode                 = timecode + 1;
-                            }
-
-                            rp.deliver(results);
-                        }
-                    },
-                    [=](error &err) mutable { rp.deliver(std::move(err)); });
-            return rp;
-        },
-
-        [=](get_media_pointer_atom,
+        [=](get_media_pointers_atom atom,
             const MediaType media_type,
-            const int logical_frame) -> result<media::AVFrameID> {
-            auto rp = make_response_promise<media::AVFrameID>();
+            const utility::TimeSourceMode tsm,
+            const utility::FrameRate &override_rate) -> caf::result<media::FrameTimeMapPtr> {
 
-            if (base_.current(media_type).is_null()) {
-                rp.deliver(make_error(xstudio_error::error, "No streams"));
-                return rp;
-            }
-
-            request(
-                media_streams_.at(base_.current(media_type)),
-                infinite,
-                get_stream_detail_atom_v)
+            auto rp = make_response_promise<media::FrameTimeMapPtr>();
+            request(caf::actor_cast<caf::actor>(this), infinite, acquire_media_detail_atom_v)
                 .then(
-                    [=](const StreamDetail &detail) mutable {
-                        try {
-                            int frame;
-                            auto _uri = base_.media_reference(base_.current(media_type))
-                                            .uri(logical_frame, frame);
-                            if (not _uri) {
-                                throw std::runtime_error("Invalid frame index");
-                            }
-
-                            if (media_type == MT_IMAGE) {
-                                // get colours params
-                                request(
-                                    json_store_,
-                                    infinite,
-                                    json_store::get_json_atom_v,
-                                    "/colour_pipeline")
-                                    .then(
-                                        [=](const JsonStore &meta) mutable {
-                                            rp.deliver(media::AVFrameID(
-                                                *_uri,
-                                                frame,
-                                                *(base_
-                                                      .media_reference(
-                                                          base_.current(media_type))
-                                                      .frame(0)),
-                                                base_.media_reference(base_.current(media_type))
-                                                    .rate(),
-                                                detail.name_,
-                                                detail.key_format_,
-                                                base_.reader(),
-                                                caf::actor_cast<caf::actor_addr>(this),
-                                                meta,
-                                                base_.uuid(),
-                                                parent_uuid_,
-                                                utility::Uuid(), // clip uuid
-                                                media_type));
-                                        },
-                                        [=](error &) mutable {
-                                            rp.deliver(media::AVFrameID(
-                                                *_uri,
-                                                frame,
-                                                *(base_
-                                                      .media_reference(
-                                                          base_.current(media_type))
-                                                      .frame(0)),
-                                                base_.media_reference(base_.current(media_type))
-                                                    .rate(),
-                                                detail.name_,
-                                                detail.key_format_,
-                                                base_.reader(),
-                                                caf::actor_cast<caf::actor_addr>(this),
-                                                utility::JsonStore(),
-                                                utility::Uuid(),
-                                                parent_uuid_,
-                                                utility::Uuid(),
-                                                media_type));
-                                        });
-                            } else {
-
-                                rp.deliver(media::AVFrameID(
-                                    *_uri,
-                                    frame,
-                                    *(base_.media_reference(base_.current(media_type))
-                                          .frame(0)),
-                                    base_.media_reference(base_.current(media_type)).rate(),
-                                    detail.name_,
-                                    detail.key_format_,
-                                    base_.reader(),
-                                    caf::actor_cast<caf::actor_addr>(this),
-                                    utility::JsonStore(),
-                                    base_.uuid(),
-                                    parent_uuid_,
-                                    utility::Uuid(), // clip uuid
-                                    media_type));
-                            }
-                        } catch (const std::exception &e) {
-                            rp.deliver(make_error(xstudio_error::error, e.what()));
+                    [=](bool) mutable {
+                        if (base_.current(media_type).is_null()) {
+                            rp.deliver(make_error(xstudio_error::error, "No streams"));
                         }
+                        const auto dur = base_.media_reference(base_.current(media_type)).duration();
+                        LogicalFrameRanges ranges;
+                        ranges.emplace_back(0, dur.frames()-1);
+                        request(caf::actor_cast<caf::actor>(this), infinite, atom, media_type, ranges).then(
+                            [=](const media::AVFrameIDs ids) mutable {
+                                media::FrameTimeMap * result = new media::FrameTimeMap;
+                                timebase::flicks t(0);
+                                for (const auto &fid: ids) {
+                                    (*result)[t] = fid;
+                                    t += dur.rate().to_flicks();
+                                }
+                                rp.deliver(media::FrameTimeMapPtr(result));
+                            },
+                            [=](const error &err) mutable { rp.deliver(err); });
                     },
-                    [=](error &err) mutable { rp.deliver(std::move(err)); });
-
+                    [=](const error &err) mutable { rp.deliver(err); });
             return rp;
+
         },
 
         [=](get_media_pointers_atom,
@@ -850,7 +628,7 @@ void MediaSourceActor::init() {
                             thumbnail_manager, infinite, media_reader::get_thumbnail_atom_v, mp)
                             .then(
                                 [=](const thumbnail::ThumbnailBufferPtr &buf) mutable {
-                                    // send(event_group_, utility::event_atom_v,
+                                    // send(base_.event_group(), utility::event_atom_v,
                                     // media_reader::get_thumbnail_atom_v, buf);
                                     rp.deliver(buf);
                                 },
@@ -866,8 +644,8 @@ void MediaSourceActor::init() {
             base_.set_media_reference(mr);
             // update state..
             update_media_status();
-            base_.send_changed(event_group_, this);
-            send(event_group_, utility::event_atom_v, change_atom_v);
+            base_.send_changed();
+            send(base_.event_group(), utility::event_atom_v, change_atom_v);
             return true;
         },
 
@@ -1026,22 +804,22 @@ void MediaSourceActor::init() {
         [=](json_store::set_json_atom atom, const JsonStore &json) {
             delegate(json_store_, atom, json);
             // metadata changed - need to broadcast an update
-            base_.send_changed(event_group_, this);
-            send(event_group_, utility::event_atom_v, change_atom_v);
+            base_.send_changed();
+            send(base_.event_group(), utility::event_atom_v, change_atom_v);
         },
 
         [=](json_store::merge_json_atom atom, const JsonStore &json) {
             delegate(json_store_, atom, json);
             // metadata changed - need to broadcast an update
-            base_.send_changed(event_group_, this);
-            send(event_group_, utility::event_atom_v, change_atom_v);
+            base_.send_changed();
+            send(base_.event_group(), utility::event_atom_v, change_atom_v);
         },
 
         [=](json_store::set_json_atom atom, const JsonStore &json, const std::string &path) {
             delegate(json_store_, atom, json, path);
             // metadata changed - need to broadcast an update
-            base_.send_changed(event_group_, this);
-            send(event_group_, utility::event_atom_v, change_atom_v);
+            base_.send_changed();
+            send(base_.event_group(), utility::event_atom_v, change_atom_v);
         },
 
         [=](media::invalidate_cache_atom) -> caf::result<media::MediaKeyVector> {
@@ -1177,7 +955,7 @@ void MediaSourceActor::init() {
                                                 rp.deliver(done);
                                                 // notify any watchers that metadata is updated
                                                 send(
-                                                    event_group_,
+                                                    base_.event_group(),
                                                     utility::event_atom_v,
                                                     get_metadata_atom_v,
                                                     meta.first);
@@ -1205,7 +983,7 @@ void MediaSourceActor::init() {
                                                             if(i == frames.size()-1) {
                                                                     rp.deliver(done);
                                                                     // notify any watchers that
-                    metadata is updated send(event_group_, utility::event_atom_v,
+                    metadata is updated send(base_.event_group(), utility::event_atom_v,
                     get_metadata_atom_v, meta.first);
                                                             }
                                                     },
@@ -1239,7 +1017,7 @@ void MediaSourceActor::init() {
                                             rp.deliver(done);
                                             // notify any watchers that metadata is updated
                                             send(
-                                                event_group_,
+                                                base_.event_group(),
                                                 utility::event_atom_v,
                                                 get_metadata_atom_v,
                                                 meta.first);
@@ -1310,7 +1088,7 @@ void MediaSourceActor::init() {
             auto old_size = base_.checksum().second;
             if (base_.checksum(checksum) and old_size) {
                 send(
-                    event_group_,
+                    base_.event_group(),
                     utility::event_atom_v,
                     media_status_atom_v,
                     base_.media_status());
@@ -1393,7 +1171,7 @@ void MediaSourceActor::init() {
         [=](utility::parent_atom, const UuidActor &parent) {
             parent_uuid_ = parent.uuid();
             parent_      = actor_cast<actor_addr>(parent.actor());
-            base_.send_changed(event_group_, this);
+            base_.send_changed();
         },
 
         // deprecated
@@ -1403,7 +1181,7 @@ void MediaSourceActor::init() {
                     [=](const utility::Uuid &parent_uuid) { parent_uuid_ = parent_uuid; },
                     ERR_HANDLER_FUNC);
             parent_ = actor_cast<actor_addr>(parent);
-            base_.send_changed(event_group_, this);
+            base_.send_changed();
         },
 
         [=](utility::serialise_atom) -> result<JsonStore> {
@@ -1443,7 +1221,29 @@ void MediaSourceActor::init() {
                     },
                     [=](error &err) mutable { rp.deliver(std::move(err)); });
             return rp;
-        });
+        }};
+}
+
+
+void MediaSourceActor::init() {
+    print_on_create(this, base_);
+    print_on_exit(this, base_);
+
+    update_media_status();
+
+    // set an empty dict for colour_pipeline, as we request this at various
+    // times and need a placeholder or we get warnings if it's not there
+    request(json_store_, infinite, json_store::get_json_atom_v, "/colour_pipeline")
+        .then(
+            [=](const JsonStore &) {},
+            [=](const error &) {
+                // we'll get this error if there is no dict already
+                anon_send(
+                    json_store_,
+                    json_store::set_json_atom_v,
+                    utility::JsonStore(),
+                    "/colour_pipeline");
+            });
 }
 
 void MediaSourceActor::get_media_pointers_for_frames(
@@ -1458,11 +1258,12 @@ void MediaSourceActor::get_media_pointers_for_frames(
     // on disk, this is guaranteed to happen. We still want the frameIDs to
     // include the media uuid, media source uuid & source actor address so
     // we know stuff about the media source that is *supposed* to be onscreen.
-    media::AVFrameID blank = *(media::make_blank_frame(media_type));
-    blank.media_uuid_      = parent_uuid_;
-    blank.source_uuid_     = base_.uuid();
-    blank.clip_uuid_       = clip_uuid;
-    blank.actor_addr_      = caf::actor_cast<caf::actor_addr>(this);
+    media::AVFrameID blank = *(media::make_blank_frame(
+        media_type,
+        parent_uuid_,
+        base_.uuid(),
+        clip_uuid,
+        caf::actor_cast<caf::actor_addr>(this)));
 
     if (base_.current(media_type).is_null()) {
 
@@ -1493,8 +1294,9 @@ void MediaSourceActor::get_media_pointers_for_frames(
                     get_stream_detail_atom_v)
                     .then(
                         [=](const StreamDetail &detail) mutable {
+
                             media::AVFrameIDs result;
-                            media::AVFrameID mptr;
+                            media::AVFrameID base_frame_id;
                             auto timecode =
                                 base_.media_reference(base_.current(media_type)).timecode();
 
@@ -1524,8 +1326,9 @@ void MediaSourceActor::get_media_pointers_for_frames(
                                         if (not _uri)
                                             throw std::runtime_error("Time out of range");
 
-                                        if (mptr.is_nil()) {
-                                            mptr = media::AVFrameID(
+                                        if (base_frame_id.is_nil()) {
+                                            // TODO: less hideous creation of AVFrameID
+                                            base_frame_id = media::AVFrameID(
                                                 *_uri,
                                                 frame,
                                                 *(base_
@@ -1542,20 +1345,20 @@ void MediaSourceActor::get_media_pointers_for_frames(
                                                 base_.uuid(),
                                                 parent_uuid_,
                                                 clip_uuid,
-                                                media_type);
-                                        } else {
-                                            mptr.uri_   = *_uri;
-                                            mptr.frame_ = frame;
-                                            mptr.key_   = media::MediaKey(
-                                                detail.key_format_, *_uri, frame, detail.name_);
+                                                media_type,
+                                                timecode);
                                         }
-
-                                        mptr.timecode_               = timecode;
-                                        mptr.playhead_logical_frame_ = logical_frame;
-                                        timecode                     = timecode + 1;
+                                        
                                         result.emplace_back(
-                                            std::shared_ptr<const media::AVFrameID>(
-                                                new media::AVFrameID(mptr)));
+                                                new media::AVFrameID(
+                                                    base_frame_id,
+                                                    *_uri,
+                                                    frame,
+                                                    detail.key_format_,
+                                                    timecode));
+
+                                        timecode = timecode + 1;
+
                                     } catch ([[maybe_unused]] const std::exception &e) {
                                         // spdlog::warn("{}", e.what());
                                         result.emplace_back(blank_ptr);

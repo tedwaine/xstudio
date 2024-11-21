@@ -11,10 +11,6 @@ XsPopupMenu {
     menu_model_name: "playlist_plus_button_menu"
     property var path: ""
 
-    XsFileFunctions {
-        id: file_functions
-    }
-
     // property idenfies the 'panel' that is the anticedent of this
     // menu instance. As this menu is instanced multiple times in the
     // xstudio interface we use this context property to ensure our
@@ -79,9 +75,13 @@ XsPopupMenu {
         menuPath: path
         menuItemPosition: 3
         menuModelName: plusMenu.menu_model_name
-        enabled: false
         onActivated: {
-
+            dialogHelpers.textInputDialog(
+                plusMenu.addContactSheet,
+                "Add Contact Sheet",
+                "Enter a name for the new contact sheet.",
+                "New Contact Sheet",
+                ["Cancel", "Add"])
         }
         panelContext: plusMenu.panelContext
     }
@@ -152,6 +152,12 @@ XsPopupMenu {
     function addSubset(new_name, button) {
         if (button == "Add") {
             theSessionData.createSubItem(new_name, "Subset")
+        }
+    }
+
+    function addContactSheet(new_name, button) {
+        if (button == "Add") {
+            theSessionData.createSubItem(new_name, "ContactSheet")
         }
     }
 

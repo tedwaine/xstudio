@@ -40,16 +40,14 @@ XsGradientRectangle {
     property alias theTimeline: theTimeline
 
     property bool hideMarkers: false
+    property string timeMode: "timecode"
     property real verticalScale: 1.0
 
     property bool isPlayheadActive: timelinePlayhead.pinnedSourceMode ? currentPlayhead.uuid == timelinePlayhead.uuid : false
 
-    opacity: isPlayheadActive ? 1.0 : 0.4
-    Behavior on opacity {NumberAnimation {duration: 150}}
-
     // persist these properties between sessions
     XsStoredPanelProperties {
-        propertyNames: ["hideMarkers", "verticalScale"]
+        propertyNames: ["hideMarkers", "verticalScale", "timeMode"]
     }
 
     XsModelPropertyMap {
@@ -172,6 +170,18 @@ XsGradientRectangle {
     MouseArea {
         anchors.fill: parent
         hoverEnabled: true
+        onClicked: {
+            if(!isPlayheadActive) {
+                viewportCurrentMediaContainerIndex = theTimeline.timelineModel.rootIndex.parent
+
+                // we ensure the timeline playhead is back in 'pinned' mode. This
+                // means, regardless of the media selection, the playhead source
+                // is pinned to the timeline itslef and isn't going to use the
+                // selected media as it's source (which is usual behaviour)
+                timelinePlayhead.pinnedSourceMode = true
+
+            }
+        }
         onExited: {
             if(theTimeline.scrollingModeActive || theTimeline.scalingModeActive)
                 helpers.restoreOverrideCursor()
@@ -187,289 +197,302 @@ XsGradientRectangle {
         anchors.fill: parent
         anchors.margins: 4
 
-        RowLayout{
-            spacing: 2
+        Rectangle{
             Layout.maximumHeight: btnHeight
             Layout.minimumHeight: btnHeight
             Layout.fillWidth: true
             Layout.leftMargin: btnWidth + 4
+            color: bgColorNormal
+
             enabled: theTimeline.have_timeline
+            opacity: isPlayheadActive ? 1.0 : (enabled ? 0.4 : 1.0)
+            Behavior on opacity {NumberAnimation {duration: 150}}
 
-            XsPrimaryButton{ id: deleteBtn
-                Layout.preferredWidth: btnWidth
-                Layout.preferredHeight: parent.height
-                imgSrc: "qrc:/icons/delete.svg"
-                text: "Delete"
-                onClicked: theTimeline.deleteItems(theTimeline.timelineSelection.selectedIndexes)
-                enabled: theTimeline.timelineSelection.selectedIndexes.length
-            }
-            XsPrimaryButton{
-                Layout.preferredWidth: btnWidth
-                Layout.preferredHeight: parent.height
-                imgSrc: "qrc:/icons/undo.svg"
-                text: "Undo"
-                onClicked: theTimeline.undo(viewedMediaSetProperties.index)
-            }
-            XsPrimaryButton{
-                Layout.preferredWidth: btnWidth
-                Layout.preferredHeight: parent.height
-                imgSrc: "qrc:/icons/redo.svg"
-                text: "Redo"
-                onClicked:  theTimeline.redo(viewedMediaSetProperties.index)
-            }
-            XsSearchButton{ id: searchBtn
-                Layout.preferredWidth: isExpanded? btnWidth*6 : btnWidth
-                Layout.preferredHeight: parent.height
-                isExpanded: false
-                hint: "Search..."
-                onTextChanged: {
-                    if(text.length)
-                        theTimeline.timelineSelection.select(
-                            helpers.createItemSelection(
-                                theSessionData.getIndexesByName(
-                                    theTimeline.timelineModel.rootIndex, text, "Clip"
-                                )
-                            ),
-                            ItemSelectionModel.ClearAndSelect
-                        )
+            RowLayout{
+                spacing: 2
+                anchors.fill: parent
 
+                XsPrimaryButton{ id: deleteBtn
+                    Layout.preferredWidth: btnWidth
+                    Layout.preferredHeight: parent.height
+                    imgSrc: "qrc:/icons/delete.svg"
+                    text: "Delete"
+                    onClicked: theTimeline.deleteItems(theTimeline.timelineSelection.selectedIndexes)
+                    enabled: theTimeline.timelineSelection.selectedIndexes.length
                 }
-                onEditingCompleted: {
-                    // jump to first clip
-                    if(theTimeline.timelineSelection.selectedIndexes.length) {
-                        let frame = theSessionData.startFrameInParent(theTimeline.timelineSelection.selectedIndexes[0])
-                        timelinePlayhead.logicalFrame = frame
+                XsPrimaryButton{
+                    Layout.preferredWidth: btnWidth
+                    Layout.preferredHeight: parent.height
+                    imgSrc: "qrc:/icons/undo.svg"
+                    text: "Undo"
+                    onClicked: theTimeline.undo(viewedMediaSetProperties.index)
+                }
+                XsPrimaryButton{
+                    Layout.preferredWidth: btnWidth
+                    Layout.preferredHeight: parent.height
+                    imgSrc: "qrc:/icons/redo.svg"
+                    text: "Redo"
+                    onClicked:  theTimeline.redo(viewedMediaSetProperties.index)
+                }
+                XsSearchButton{ id: searchBtn
+                    Layout.preferredWidth: isExpanded? btnWidth*6 : btnWidth
+                    Layout.preferredHeight: parent.height
+                    isExpanded: false
+                    hint: "Search..."
+                    onTextChanged: {
+                        if(text.length)
+                            theTimeline.timelineSelection.select(
+                                helpers.createItemSelection(
+                                    theSessionData.getIndexesByName(
+                                        theTimeline.timelineModel.rootIndex, text, "Clip"
+                                    )
+                                ),
+                                ItemSelectionModel.ClearAndSelect
+                            )
+
                     }
-                    forceActiveFocus(panel)
-                }
-            }
-            Item{
-                Layout.fillWidth: true
-            }
-
-            XsPrimaryButton{
-                Layout.leftMargin: 16
-                Layout.preferredWidth: iconTextBtnWidth
-                Layout.preferredHeight: parent.height
-                imgSrc: "qrc:/icons/crop_free.svg"
-                text: "Fit All"
-                toolTip: "Fit All"
-                showBoth: true
-                font.pixelSize: XsStyleSheet.fontSize
-                onClicked:  theTimeline.fitItems()
-            }
-            XsPrimaryButton{
-                Layout.preferredWidth: iconTextBtnWidth
-                Layout.preferredHeight: parent.height
-                imgSrc: "qrc:/icons/fit_screen.svg"
-                text: "Selected"
-                toolTip: "Fit Selected"
-                showBoth: true
-                font.pixelSize: XsStyleSheet.fontSize
-                enabled: theTimeline.timelineSelection.selectedIndexes.length
-                onClicked:  theTimeline.fitItems(theTimeline.timelineSelection.selectedIndexes)
-            }
-            XsPrimaryButton{
-                Layout.preferredWidth: iconTextBtnWidth
-                Layout.preferredHeight: parent.height
-                imgSrc: "qrc:/icons/laps.svg"
-                text: "Loop"
-                toolTip: "Loop Selection"
-                showBoth: true
-                font.pixelSize: XsStyleSheet.fontSize
-                onClicked: theTimeline.loopSelection = !theTimeline.loopSelection
-                isActive: theTimeline.loopSelection
-            }
-            XsPrimaryButton{
-                Layout.preferredWidth: iconTextBtnWidth
-                Layout.preferredHeight: parent.height
-                imgSrc: "qrc:/icons/center_focus_weak.svg"
-                text: "Focus"
-                toolTip: "Focus Selection"
-                showBoth: true
-                font.pixelSize: XsStyleSheet.fontSize
-                onClicked: theTimeline.focusSelection = !theTimeline.focusSelection
-                isActive: theTimeline.focusSelection
-            }
-            Item{
-                Layout.fillWidth: true
-                Layout.minimumWidth: 0
-                Layout.maximumWidth: 24
-            }
-
-            XsPrimaryButton{
-                Layout.leftMargin: 16
-                Layout.preferredWidth: iconTextBtnWidth
-                Layout.preferredHeight: parent.height
-                imgSrc: "qrc:/icons/stacks.svg"
-                text: "Flatten"
-                toolTip: "Flatten Selected Tracks"
-                showBoth: true
-                font.pixelSize: XsStyleSheet.fontSize
-                enabled: theTimeline.timelineSelection.selectedIndexes.length
-                onClicked: {
-                    theSessionData.bakeTimelineItems(theTimeline.timelineSelection.selectedIndexes)
-                    theTimeline.deleteItems(theTimeline.timelineSelection.selectedIndexes)
-                }
-            }
-            XsPrimaryButton{
-                Layout.preferredWidth: iconTextBtnWidth
-                Layout.preferredHeight: parent.height
-                imgSrc: "qrc:/icons/splitscreen_add.svg"
-                text: "Insert"
-                toolTip: "Insert Track Above"
-                showBoth: true
-                font.pixelSize: XsStyleSheet.fontSize
-                enabled: theTimeline.timelineSelection.selectedIndexes.length
-                onClicked:  theTimeline.insertTrackAbove(theTimeline.timelineSelection.selectedIndexes)
-            }
-            XsPrimaryButton{
-                Layout.preferredWidth: iconTextBtnWidth
-                Layout.preferredHeight: parent.height
-                imgSrc: "qrc:/icons/library_add.svg"
-                text: "Duplicate"
-                toolTip: "Duplicate Selected"
-                showBoth: true
-                font.pixelSize: XsStyleSheet.fontSize
-                onClicked: theTimeline.duplicate(theTimeline.timelineSelection.selectedIndexes)
-                enabled: theTimeline.timelineSelection.selectedIndexes.length
-            }
-            Item{
-                Layout.fillWidth: true
-                Layout.minimumWidth: 0
-                Layout.maximumWidth: 24
-            }
-
-            XsPrimaryButton{
-                Layout.leftMargin: 16
-                Layout.preferredWidth: iconTextBtnWidth
-                Layout.preferredHeight: parent.height
-                imgSrc: "qrc:/icons/waves.svg"
-                text: "Ripple"
-                toolTip: "Ripple"
-                showBoth: true
-                font.pixelSize: XsStyleSheet.fontSize
-                isActive: theTimeline.rippleMode
-                onClicked: theTimeline.rippleMode = !theTimeline.rippleMode
-            }
-            XsPrimaryButton{
-                Layout.preferredWidth: iconTextBtnWidth
-                Layout.preferredHeight: parent.height
-                visible: true
-                imgSrc: "qrc:/icons/waves.svg"
-                text: "Overwrite (test)"
-                toolTip: "Overwrite"
-                showBoth: true
-                font.pixelSize: XsStyleSheet.fontSize
-                isActive: theTimeline.overwriteMode
-                onClicked: theTimeline.overwriteMode = !theTimeline.overwriteMode
-            }
-            XsPrimaryButton{
-                Layout.preferredWidth: iconTextBtnWidth
-                Layout.preferredHeight: parent.height
-                imgSrc: "qrc:/icons/vertical_align_center.svg"
-                imageDiv.rotation: 90
-                text: "Snap"
-                toolTip: "Snap"
-                showBoth: true
-                font.pixelSize: XsStyleSheet.fontSize
-                isActive: theTimeline.snapMode
-                onClicked: theTimeline.snapMode = !theTimeline.snapMode
-            }
-            Item{
-                Layout.fillWidth: true
-            }
-
-
-            RowLayout {
-                Layout.preferredWidth: btnWidth*5
-                Layout.maximumWidth: btnWidth*5
-                Layout.fillHeight: true
-
-                ColumnLayout {
-                    Layout.preferredWidth: btnWidth*1.8
-                    Layout.maximumWidth: btnWidth*1.8
-                    Layout.fillHeight: true
-
-                    XsText{
-                        Layout.fillWidth: true
-                        Layout.fillHeight: true
-                        elide: Text.ElideMiddle
-                        text: "Cut Range:"
-                        horizontalAlignment: Text.AlignRight
-                    }
-
-                    XsText{
-                        Layout.fillWidth: true
-                        Layout.fillHeight: true
-                        elide: Text.ElideMiddle
-                        text: "Handles:"
-                        horizontalAlignment: Text.AlignRight
+                    onEditingCompleted: {
+                        // jump to first clip
+                        if(theTimeline.timelineSelection.selectedIndexes.length) {
+                            let frame = theSessionData.startFrameInParent(theTimeline.timelineSelection.selectedIndexes[0])
+                            timelinePlayhead.logicalFrame = frame
+                        }
+                        forceActiveFocus(panel)
                     }
                 }
 
-                ColumnLayout {
+                XsPrimaryButton{
+                    Layout.leftMargin: 16
+                    Layout.preferredWidth: iconTextBtnWidth
+                    Layout.preferredHeight: parent.height
+                    imgSrc: "qrc:/icons/waves.svg"
+                    text: "Ripple"
+                    toolTip: "Ripple"
+                    showBoth: true
+                    font.pixelSize: XsStyleSheet.fontSize
+                    isActive: theTimeline.rippleMode
+                    onClicked: {
+                        theTimeline.rippleMode = !theTimeline.rippleMode
+                        theTimeline.overwriteMode = false
+                    }
+                }
+                XsPrimaryButton{
+                    Layout.preferredWidth: iconTextBtnWidth
+                    Layout.preferredHeight: parent.height
+                    visible: true
+                    imgSrc: "qrc:/icons/filter_none.svg"
+                    text: "Overwrite"
+                    toolTip: "Overwrite"
+                    showBoth: true
+                    font.pixelSize: XsStyleSheet.fontSize
+                    isActive: theTimeline.overwriteMode
+                    onClicked: {
+                        theTimeline.overwriteMode = !theTimeline.overwriteMode
+                        theTimeline.rippleMode = false
+                    }
+                }
+                XsPrimaryButton{
+                    Layout.preferredWidth: iconTextBtnWidth
+                    Layout.preferredHeight: parent.height
+                    imgSrc: "qrc:/icons/vertical_align_center.svg"
+                    imageDiv.rotation: 90
+                    text: "Snap"
+                    toolTip: "Snap"
+                    showBoth: true
+                    font.pixelSize: XsStyleSheet.fontSize
+                    isActive: theTimeline.snapMode
+                    onClicked: theTimeline.snapMode = !theTimeline.snapMode
+                }
+
+                Item{
                     Layout.fillWidth: true
-                    Layout.fillHeight: true
-
-                    XsText{
-                        Layout.fillWidth: true
-                        Layout.fillHeight: true
-                        font.bold: true
-                        font.family: XsStyleSheet.fixedWidthFontFamily
-                        elide: Text.ElideMiddle
-                        text: currentClipRange.length ? currentClipRange[0] : ""
-                        horizontalAlignment: Text.AlignRight
-                    }
-
-                    XsText{
-                        Layout.fillWidth: true
-                        Layout.fillHeight: true
-                        font.bold: true
-                        font.family: XsStyleSheet.fixedWidthFontFamily
-                        elide: Text.ElideMiddle
-                        text: currentClipHandles.length ? (Math.abs(currentClipHandles[0]) + (currentClipHandles[0] < 0 ? " -" : "")) : ""
-                        horizontalAlignment: Text.AlignRight
-                    }
+                    Layout.minimumWidth: 0
+                    Layout.maximumWidth: 24
                 }
 
-                ColumnLayout {
+                XsPrimaryButton{
+                    Layout.leftMargin: 16
+                    Layout.preferredWidth: iconTextBtnWidth
+                    Layout.preferredHeight: parent.height
+                    imgSrc: "qrc:/icons/crop_free.svg"
+                    text: "Fit All"
+                    toolTip: "Fit All"
+                    showBoth: true
+                    font.pixelSize: XsStyleSheet.fontSize
+                    onClicked:  theTimeline.fitItems()
+                }
+                XsPrimaryButton{
+                    Layout.preferredWidth: iconTextBtnWidth
+                    Layout.preferredHeight: parent.height
+                    imgSrc: "qrc:/icons/fit_screen.svg"
+                    text: "Selected"
+                    toolTip: "Fit Selected"
+                    showBoth: true
+                    font.pixelSize: XsStyleSheet.fontSize
+                    enabled: theTimeline.timelineSelection.selectedIndexes.length
+                    onClicked:  theTimeline.fitItems(theTimeline.timelineSelection.selectedIndexes)
+                }
+                XsPrimaryButton{
+                    Layout.preferredWidth: iconTextBtnWidth
+                    Layout.preferredHeight: parent.height
+                    imgSrc: "qrc:/icons/laps.svg"
+                    text: "Loop"
+                    toolTip: "Loop Selection"
+                    showBoth: true
+                    font.pixelSize: XsStyleSheet.fontSize
+                    onClicked: theTimeline.loopSelection = !theTimeline.loopSelection
+                    isActive: theTimeline.loopSelection
+                }
+                XsPrimaryButton{
+                    Layout.preferredWidth: iconTextBtnWidth
+                    Layout.preferredHeight: parent.height
+                    imgSrc: "qrc:/icons/center_focus_weak.svg"
+                    text: "Focus"
+                    toolTip: "Focus Selection"
+                    showBoth: true
+                    font.pixelSize: XsStyleSheet.fontSize
+                    onClicked: theTimeline.focusSelection = !theTimeline.focusSelection
+                    isActive: theTimeline.focusSelection
+                }
+                Item{
                     Layout.fillWidth: true
-                    Layout.fillHeight: true
-
-                    XsText{
-                        Layout.fillHeight: true
-                        text: " - "
-                    }
-
-                    XsText{
-                        Layout.fillHeight: true
-                        text: " / "
-                    }
+                    Layout.minimumWidth: 0
+                    Layout.maximumWidth: 24
                 }
 
-                ColumnLayout {
+                XsPrimaryButton{
+                    Layout.leftMargin: 16
+                    Layout.preferredWidth: iconTextBtnWidth
+                    Layout.preferredHeight: parent.height
+                    imgSrc: "qrc:/icons/stacks.svg"
+                    text: "Flatten"
+                    toolTip: "Flatten Selected Tracks"
+                    showBoth: true
+                    font.pixelSize: XsStyleSheet.fontSize
+                    enabled: theTimeline.timelineSelection.selectedIndexes.length
+                    onClicked: {
+                        theSessionData.bakeTimelineItems(theTimeline.timelineSelection.selectedIndexes)
+                        theTimeline.deleteItems(theTimeline.timelineSelection.selectedIndexes)
+                    }
+                }
+                XsPrimaryButton{
+                    Layout.preferredWidth: iconTextBtnWidth
+                    Layout.preferredHeight: parent.height
+                    imgSrc: "qrc:/icons/splitscreen_add.svg"
+                    text: "Insert"
+                    toolTip: "Insert Track Above"
+                    showBoth: true
+                    font.pixelSize: XsStyleSheet.fontSize
+                    enabled: theTimeline.timelineSelection.selectedIndexes.length
+                    onClicked:  theTimeline.insertTrackAbove(theTimeline.timelineSelection.selectedIndexes)
+                }
+                XsPrimaryButton{
+                    Layout.preferredWidth: iconTextBtnWidth
+                    Layout.preferredHeight: parent.height
+                    imgSrc: "qrc:/icons/library_add.svg"
+                    text: "Duplicate"
+                    toolTip: "Duplicate Selected"
+                    showBoth: true
+                    font.pixelSize: XsStyleSheet.fontSize
+                    onClicked: theTimeline.duplicate(theTimeline.timelineSelection.selectedIndexes)
+                    enabled: theTimeline.timelineSelection.selectedIndexes.length
+                }
+
+                Item{
                     Layout.fillWidth: true
+                }
+
+
+                RowLayout {
+                    Layout.preferredWidth: btnWidth*5
+                    Layout.maximumWidth: btnWidth*5
                     Layout.fillHeight: true
 
-                    XsText{
-                        Layout.fillWidth: true
+                    ColumnLayout {
+                        Layout.preferredWidth: btnWidth*1.8
+                        Layout.maximumWidth: btnWidth*1.8
                         Layout.fillHeight: true
-                        font.bold: true
-                        elide: Text.ElideMiddle
-                        text: currentClipRange.length ? currentClipRange[1] : ""
-                        font.family: XsStyleSheet.fixedWidthFontFamily
-                        horizontalAlignment: Text.AlignLeft
+
+                        XsText{
+                            Layout.fillWidth: true
+                            Layout.fillHeight: true
+                            elide: Text.ElideMiddle
+                            text: "Cut Range:"
+                            horizontalAlignment: Text.AlignRight
+                        }
+
+                        XsText{
+                            Layout.fillWidth: true
+                            Layout.fillHeight: true
+                            elide: Text.ElideMiddle
+                            text: "Handles:"
+                            horizontalAlignment: Text.AlignRight
+                        }
                     }
 
-                    XsText{
+                    ColumnLayout {
                         Layout.fillWidth: true
                         Layout.fillHeight: true
-                        font.bold: true
-                        elide: Text.ElideMiddle
-                        font.family: XsStyleSheet.fixedWidthFontFamily
-                        text: currentClipHandles.length ? (Math.abs(currentClipHandles[1]) + (currentClipHandles[1] < 0 ? " -" : "")): ""
-                        horizontalAlignment: Text.AlignLeft
+
+                        XsText{
+                            Layout.fillWidth: true
+                            Layout.fillHeight: true
+                            font.bold: true
+                            font.family: XsStyleSheet.fixedWidthFontFamily
+                            elide: Text.ElideMiddle
+                            text: currentClipRange.length ? currentClipRange[0] : ""
+                            horizontalAlignment: Text.AlignRight
+                        }
+
+                        XsText{
+                            Layout.fillWidth: true
+                            Layout.fillHeight: true
+                            font.bold: true
+                            font.family: XsStyleSheet.fixedWidthFontFamily
+                            elide: Text.ElideMiddle
+                            text: currentClipHandles.length ? (Math.abs(currentClipHandles[0]) + (currentClipHandles[0] < 0 ? " -" : "")) : ""
+                            horizontalAlignment: Text.AlignRight
+                        }
+                    }
+
+                    ColumnLayout {
+                        Layout.fillWidth: true
+                        Layout.fillHeight: true
+
+                        XsText{
+                            Layout.fillHeight: true
+                            text: " - "
+                        }
+
+                        XsText{
+                            Layout.fillHeight: true
+                            text: " / "
+                        }
+                    }
+
+                    ColumnLayout {
+                        Layout.fillWidth: true
+                        Layout.fillHeight: true
+
+                        XsText{
+                            Layout.fillWidth: true
+                            Layout.fillHeight: true
+                            font.bold: true
+                            elide: Text.ElideMiddle
+                            text: currentClipRange.length ? currentClipRange[1] : ""
+                            font.family: XsStyleSheet.fixedWidthFontFamily
+                            horizontalAlignment: Text.AlignLeft
+                        }
+
+                        XsText{
+                            Layout.fillWidth: true
+                            Layout.fillHeight: true
+                            font.bold: true
+                            elide: Text.ElideMiddle
+                            font.family: XsStyleSheet.fixedWidthFontFamily
+                            text: currentClipHandles.length ? (Math.abs(currentClipHandles[1]) + (currentClipHandles[1] < 0 ? " -" : "")): ""
+                            horizontalAlignment: Text.AlignLeft
+                        }
                     }
                 }
             }
@@ -479,6 +502,10 @@ XsGradientRectangle {
             Layout.fillWidth: true
             Layout.fillHeight: true
             color: theTimeline.trackBackground
+
+            enabled: theTimeline.have_timeline
+            opacity: isPlayheadActive ? 1.0 : (enabled ? 0.4 : 1.0)
+            Behavior on opacity {NumberAnimation {duration: 150}}
 
             RowLayout {
                 anchors.fill: parent
@@ -491,8 +518,6 @@ XsGradientRectangle {
                     ColumnLayout {
                         anchors.fill: parent
                         spacing: 2
-                        enabled: theTimeline.have_timeline
-
 
                         XsPrimaryButton{
                             Layout.minimumHeight: btnHeight
@@ -534,9 +559,13 @@ XsGradientRectangle {
                             Layout.maximumHeight: btnHeight
                             Layout.fillWidth: true
                             text: "Cut"
-                            // isActiveIndicatorAtLeft: true
+                            isActiveIndicatorAtLeft: true
                             imgSrc: "qrc:/icons/content_cut.svg"
-                            onClicked: theTimeline.splitClips(theTimeline.timelineSelection.selectedIndexes)
+                            isActive: theTimeline.editMode == text
+                            onClicked: {
+                                theTimeline.editMode = text
+                                theTimeline.snapCacheKey = helpers.makeQUuid()
+                            }
                         }
 
                         XsPrimaryButton{

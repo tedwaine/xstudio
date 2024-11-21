@@ -325,10 +325,21 @@ PluginManagerActor::PluginManagerActor(caf::actor_config &cfg) : caf::event_base
                 base_plugins_[name] = spawn<plugin::StandardPlugin>(name, json);
                 link_to(base_plugins_[name]);
             }*/
+            auto rp = make_response_promise<caf::actor>();
             if (class_name == "HUDPlugin") {
-                return spawn<plugin::HUDPluginBase>(name, json); // base_plugins_[name];
+                rp.deliver(spawn<plugin::HUDPluginBase>(name, json)); // base_plugins_[name];
+            } else if (class_name == "ViewportLayoutPlugin") {
+                // slightly awkward. We want to spawn an instance of
+                // ViewportLayoutPlugin class to back a Python plugin for
+                // managing viewport layouts. To avoid making the plugin_manager
+                // component link-dependent on the ui::viewport component we
+                // spawn via the viewport_layouts_manager
+                auto layouts_manager =
+                   system().registry().template get<caf::actor>(viewport_layouts_manager);            
+                rp.delegate(layouts_manager, spawn_plugin_base_atom_v, name, json);
             }
-            return spawn<plugin::StandardPlugin>(name, json); // base_plugins_[name];
+            rp.deliver(spawn<plugin::StandardPlugin>(name, json)); // base_plugins_[name];
+            return rp;
         },
 
         [=](spawn_plugin_base_atom, const std::string name) -> result<caf::actor> {

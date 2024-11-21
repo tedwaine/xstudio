@@ -4,7 +4,6 @@
 #include "definitions.hpp"
 
 #include "xstudio/atoms.hpp"
-#include "xstudio/event/event.hpp"
 #include "xstudio/media/media_actor.hpp"
 #include "xstudio/utility/helpers.hpp"
 #include "xstudio/utility/json_store.hpp"
@@ -49,8 +48,8 @@ void MediaWorker::add_media_step_2(
                 // check to see if what we've got..
                 // failed...
                 if (movie_source.uuid().is_null() and image_source.uuid().is_null()) {
-                    spdlog::warn("{} No valid sources {}", __PRETTY_FUNCTION__, jsn.dump(2));
-                    rp.deliver(false);
+                    // spdlog::warn("{} No valid sources", __PRETTY_FUNCTION__);
+                    add_media_step_3(rp, media, jsn, UuidActorVector());
                 } else {
                     try {
                         UuidActorVector srcs;
@@ -96,7 +95,8 @@ void MediaWorker::add_media_step_3(
                     media,
                     json_store::set_json_atom_v,
                     utility::Uuid(),
-                    JsonStore(nlohmann::json("qrc:/shotbrowser_icons/shot_grid.svg")),
+                    JsonStore(
+                        R"({"icon": "qrc:/shotbrowser_icons/shot_grid.svg", "tooltip": "ShotGrid Version"})"_json),
                     "/ui/decorators/shotgrid");
 
                 // dispatch delayed shot data.

@@ -6,6 +6,7 @@
 
 #include "xstudio/playlist/playlist.hpp"
 #include "xstudio/utility/uuid.hpp"
+#include "xstudio/utility/notification_handler.hpp"
 
 namespace xstudio {
 
@@ -39,7 +40,13 @@ namespace playlist {
 
         void init();
 
-        caf::behavior make_behavior() override { return behavior_; }
+        caf::message_handler message_handler();
+
+        caf::behavior make_behavior() override {
+            return message_handler()
+                .or_else(base_.container_message_handler(this))
+                .or_else(notification_.message_handler(this, base_.event_group()));
+        }
 
         void add_media(
             utility::UuidActor &ua,
@@ -93,9 +100,12 @@ namespace playlist {
       private:
         caf::behavior behavior_;
         Playlist base_;
+        utility::NotificationHandler notification_;
+
         caf::actor_addr session_;
         utility::UuidActor playhead_;
-        caf::actor event_group_, change_event_group_;
+        caf::actor change_event_group_;
+        caf::actor global_prefs_actor_;
         std::map<utility::Uuid, caf::actor> media_;
         std::map<utility::Uuid, caf::actor> container_;
         bool is_in_viewer_ = {false};

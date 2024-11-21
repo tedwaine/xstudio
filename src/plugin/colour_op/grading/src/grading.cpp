@@ -5,6 +5,7 @@
 #include "xstudio/ui/opengl/shader_program_base.hpp"
 #include "xstudio/utility/helpers.hpp"
 #include "xstudio/utility/string_helpers.hpp"
+#include "xstudio/media_reader/image_buffer_set.hpp"
 
 #include "grading.h"
 #include "grading_mask_render_data.h"
@@ -249,8 +250,8 @@ GradingTool::GradingTool(caf::actor_config &cfg, const utility::JsonStore &init_
         )");
 }
 
-utility::BlindDataObjectPtr GradingTool::prepare_overlay_data(
-    const media_reader::ImageBufPtr &image, const bool offscreen) const {
+utility::BlindDataObjectPtr GradingTool::onscreen_render_data(
+    const media_reader::ImageBufPtr &image, const std::string & /*viewport_name*/) const {
 
     // This callback is made just before viewport redraw. We want to check
     // if the image to be drawn is from the same media to which a grade is
@@ -290,7 +291,7 @@ AnnotationBasePtr GradingTool::build_annotation(const utility::JsonStore &data) 
 }
 
 void GradingTool::images_going_on_screen(
-    const std::vector<media_reader::ImageBufPtr> &images,
+    const media_reader::ImageBufDisplaySetPtr &images,
     const std::string viewport_name,
     const bool playhead_playing) {
 
@@ -300,7 +301,19 @@ void GradingTool::images_going_on_screen(
         return;
     }
 
-    current_viewport_ = viewport_name;
+    // It's useful to keep a hold of the images that are on-screen so if the
+    // user starts drawing when there is a bookmark on screen then we can
+    // add the strokes to that existing bookmark instead of making a brand
+    // new note
+    if (!playhead_playing && images) {
+ 
+        viewport_current_images_ = images;
+        playhead_media_frame_ = images->hero_image().frame_id().frame() - images->hero_image().frame_id().first_frame();
+
+    } else {
+        viewport_current_images_.reset();
+    }
+
 }
 
 void GradingTool::on_screen_media_changed(
@@ -319,17 +332,7 @@ void GradingTool::on_screen_media_changed(
 
     working_space_->set_value(working_space);
     media_colour_managed_->set_value(!is_unmanaged);
-}
 
-void GradingTool::on_screen_frame_changed(
-    const timebase::flicks /*playhead_position*/,
-    const int /*playhead_logical_frame*/,
-    const int media_frame,
-    const int /*media_logical_frame*/,
-    const utility::Timecode & /*timecode*/
-) {
-
-    playhead_media_frame_ = media_frame;
 }
 
 void GradingTool::attribute_changed(const utility::Uuid &attribute_uuid, const int role) {
@@ -1057,17 +1060,17 @@ utility::Uuid GradingTool::current_bookmark() const {
 
 utility::UuidList GradingTool::current_clip_bookmarks() {
 
-    const utility::UuidList bookmarks_list = get_bookmarks_on_current_media(current_viewport_);
+    //const utility::UuidList bookmarks_list = get_bookmarks_on_current_media(current_viewport_);
     utility::UuidList filtered_list;
-    std::copy_if(
-        bookmarks_list.begin(),
-        bookmarks_list.end(),
-        std::back_inserter(filtered_list),
-        [this](const auto &uuid) {
-            auto bmd = get_bookmark_detail(uuid);
-            return bmd.user_type_.value_or("") == "Grading";
-        });
+    if (viewport_current_images_ && viewport_current_images_->hero_image()) {
 
+        for (auto &bookmark : viewport_current_images_->hero_image().bookmarks()) {
+
+            if (bookmark->detail_.user_type_.value_or("") == "Grading") {
+                filtered_list.push_back(bookmark->detail_.uuid_);
+            }
+        }
+    }
     return filtered_list;
 }
 
@@ -1080,35 +1083,38 @@ void GradingTool::create_bookmark_if_empty() {
 
 void GradingTool::create_bookmark() {
 
-    bookmark::BookmarkDetail bmd;
-    // Hides bookmark from timeline
-    bmd.colour_    = "transparent";
-    bmd.visible_   = false;
-    bmd.user_type_ = "Grading";
+    if (viewport_current_images_ && viewport_current_images_->hero_image()) {
 
-    utility::JsonStore user_data;
-    user_data["grade_active"] = true;
-    user_data["mask_active"]  = false;
+        bookmark::BookmarkDetail bmd;
+        // Hides bookmark from timeline
+        bmd.colour_    = "transparent";
+        bmd.visible_   = false;
+        bmd.user_type_ = "Grading";
 
-    auto clip_layers        = current_clip_bookmarks();
-    user_data["layer_name"] = "Grade Layer " + std::to_string(clip_layers.size() + 1);
+        utility::JsonStore user_data;
+        user_data["grade_active"] = true;
+        user_data["mask_active"]  = false;
 
-    bmd.user_data_ = user_data;
+        auto clip_layers        = current_clip_bookmarks();
+        user_data["layer_name"] = "Grade Layer " + std::to_string(clip_layers.size() + 1);
 
-    auto uuid = StandardPlugin::create_bookmark_on_current_media(
-        "",             // viewport_name
-        "Grading Note", // bookmark_subject
-        bmd,            // detail
-        true            // bookmark_entire_duration
-    );
+        bmd.user_data_ = user_data;
 
-    grading_data_.bookmark_uuid_ = uuid;
-    grading_data_.set_colour_space(working_space_->value());
-    grading_bookmark_->set_value(utility::to_string(uuid), false);
+        auto uuid = StandardPlugin::create_bookmark_on_frame(
+            viewport_current_images_->hero_image().frame_id(),
+            "Grading Note", // bookmark_subject
+            bmd,            // detail
+            true            // bookmark_entire_duration
+        );
 
-    refresh_ui_from_current_grade();
+        grading_data_.bookmark_uuid_ = uuid;
+        grading_data_.set_colour_space(working_space_->value());
+        grading_bookmark_->set_value(utility::to_string(uuid), false);
 
-    // spdlog::warn("Created bookmark {}", utility::to_string(grading_data_.bookmark_uuid_));
+        refresh_ui_from_current_grade();
+    }
+
+    spdlog::debug("Created bookmark {}", utility::to_string(grading_data_.bookmark_uuid_));
 }
 
 void GradingTool::select_bookmark(const utility::Uuid &uuid) {

@@ -15,7 +15,7 @@ import xstudio.qml.helpers 1.0
 Item{
     id: toolSetBg
 
-    property int colItemCount: 3
+    property int colItemCount: 4
     property int rowItemCount: 2
 
     property alias toolSet: toolSet
@@ -52,14 +52,16 @@ Item{
 
     property var toolImages: [
         "qrc:///anno_icons/draw_brush.svg",
-        "qrc:///anno_icons/draw_shapes.svg",
+        "qrc:///anno_icons/draw_laser.svg",
+        "qrc:///anno_icons/draw_shape_square.svg",
+        "qrc:///anno_icons/draw_shape_circle.svg",
+        "qrc:///anno_icons/draw_shape_arrow.svg",
+        "qrc:///anno_icons/draw_shape_line.svg",
         "qrc:///anno_icons/draw_text.svg",
-        "qrc:///anno_icons/draw_eraser.svg",
-        "qrc:///anno_icons/draw_laser.svg"
+        "qrc:///anno_icons/draw_eraser.svg"
     ]
 
     GridView{
-
         id: toolSet
 
         x: framePadding
@@ -88,17 +90,15 @@ Item{
                 width: toolSet.cellWidth
                 height: toolSet.cellHeight
                 color: "transparent"
-                property bool isEnabled: index!=5 && index!=6
 
                 XsPrimaryButton{ id: toolBtn
 
-                    width: index == toolImages.length-1? parent.width*2 : parent.width - itemSpacing
+                    width: parent.width - itemSpacing //index == toolImages.length-1? parent.width*2 : parent.width - itemSpacing
                     height: parent.height - itemSpacing
 
                     clip: true
                     isToolTipEnabled: false
 
-                    imageDiv.opacity: isEnabled ? 1.0 : 0.33
                     isActive: current_tool===text
                     anchors.top: parent.top
 
@@ -106,7 +106,6 @@ Item{
                     imgSrc: toolImages[index]
 
                     onClicked: {
-                        if (!isEnabled) return;
                         if(isActive)
                         {
                             //Disables tool by setting the 'value' of the 'active tool'

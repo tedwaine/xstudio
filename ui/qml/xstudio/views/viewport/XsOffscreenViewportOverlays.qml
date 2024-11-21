@@ -19,8 +19,8 @@ Item  {
     height: 1080
     id: view
     property var name: "BMDecklinkPlugin viewport"
-    property var imageBoundaryInViewport
-    property var imageResolution
+    property var imageBoundariesInViewport
+    property var imageResolutions
     property var sessionActorAddr
     property var helpers
 

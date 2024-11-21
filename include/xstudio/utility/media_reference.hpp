@@ -5,8 +5,8 @@
 #include <caf/uri.hpp>
 #include <limits>
 
-#include "xstudio/utility/edit_list.hpp"
 #include "xstudio/utility/frame_list.hpp"
+#include "xstudio/utility/frame_rate_and_duration.hpp"
 #include "xstudio/utility/json_store.hpp"
 #include "xstudio/utility/timecode.hpp"
 

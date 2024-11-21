@@ -26,7 +26,7 @@ void AnnotationsRenderer::render_opengl(
     const bool have_alpha_buffer) {
 
     utility::BlindDataObjectPtr render_data =
-        frame.plugin_blind_data2(AnnotationsTool::PLUGIN_UUID);
+        frame.plugin_blind_data(AnnotationsTool::PLUGIN_UUID);
     const auto *data = dynamic_cast<const AnnotationRenderDataSet *>(render_data.get());
 
     if (!data) {
@@ -39,6 +39,7 @@ void AnnotationsRenderer::render_opengl(
     // it is 'lazer' pen strokes
     bool draw_interaction_canvas = data && data->current_edited_bookmark_uuid_.is_null();
 
+
     // the xstudio playhead takes care of attaching bookmark data to the
     // ImageBufPtr that we receive here. The bookmark data may have annotations
     // data attached which we can draw to screen....
@@ -50,7 +51,7 @@ void AnnotationsRenderer::render_opengl(
         // annotation are already cloned into 'interaction_canvas_' which we
         // draw below.
         if (anno->detail_.uuid_ == data->current_edited_bookmark_uuid_ &&
-            data->interaction_frame_key_ == to_string(frame.frame_id().key_)) {
+            data->interaction_frame_key_ == to_string(frame.frame_id().key())) {
             draw_interaction_canvas = true;
             continue;
         }

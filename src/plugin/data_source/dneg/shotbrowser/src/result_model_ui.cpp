@@ -58,6 +58,7 @@ ShotBrowserResultModel::ShotBrowserResultModel(QObject *parent) : JSONTreeModel(
          "sequenceRole",
          "shotRole",
          "siteRole",
+         "stageRole",
          "stalkUuidRole",
          "subjectRole",
          "submittedToDailiesRole",
@@ -256,6 +257,11 @@ QVariant ShotBrowserResultModel::data(const QModelIndex &index, int role) const 
             result = QString::fromStdString(j.at("attributes").value("sg_status_list", ""));
             break;
 
+        case Roles::stageRole:
+            result = QString::fromStdString(
+                j.at("relationships").at("sg_client_send_stage").at("data").value("name", ""));
+            break;
+
         case Roles::pipelineStatusFullRole: {
             result = QString::fromStdString(
                 QueryEngine::resolve_attribute_value(
@@ -374,8 +380,8 @@ QVariant ShotBrowserResultModel::data(const QModelIndex &index, int role) const 
                     j.at("relationships").at("project").at("data").value("id", 0),
                     j.at("relationships").at("entity").at("data").value("id", 0),
                     ShotBrowserEngine::instance()->queryEngine().lookup());
-                if (name)
-                    result = QString::fromStdString(*name);
+                if (not name.empty())
+                    result = QString::fromStdString(name.at(0));
                 else
                     result = QString();
             }

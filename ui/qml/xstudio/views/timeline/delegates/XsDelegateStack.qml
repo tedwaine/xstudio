@@ -37,6 +37,7 @@ Rectangle {
     property var dragging: ListView.view.dragging
     property var draggingStopped: ListView.view.draggingStopped
     property var doubleTapped: ListView.view.doubleTapped
+    property var tapped: ListView.view.tapped
 
     property string itemFlag: flagColourRole != "" ? flagColourRole : ListView.view.itemFlag
 
@@ -52,6 +53,7 @@ Rectangle {
     property var hoveredItem: ListView.view.hoveredItem
 
     property alias markerModel: marker_model
+    property alias cursor: cursor
 
     property var itemTypeRole: typeRole
     property alias list_view_video: list_view_video
@@ -285,6 +287,50 @@ Rectangle {
 		visible: cursorX >= 0 && cursorX < frameTrack.width
 	}
 
+	// snapline
+	XsTimelineCursor {
+		z:10
+		anchors.left: parent.left
+		anchors.leftMargin: trackHeaderWidth
+		anchors.right: parent.right
+		anchors.top: parent.top
+		height: control.height
+
+		color: "black"
+		showBobble: false
+
+		tickWidth: tickWidget.tickWidth
+		secondOffset: tickWidget.secondOffset
+		fractionOffset: tickWidget.fractionOffset
+		start: tickWidget.start
+		duration: tickWidget.duration
+		fps: tickWidget.fps
+		position: snapLine
+		visible: snapLine != -1
+	}
+
+	// cutline
+	XsTimelineCursor {
+		z:10
+		anchors.left: parent.left
+		anchors.leftMargin: trackHeaderWidth
+		anchors.right: parent.right
+		anchors.top: parent.top
+		height: control.height
+
+		color: "red"
+		showBobble: false
+
+		tickWidth: tickWidget.tickWidth
+		secondOffset: tickWidget.secondOffset
+		fractionOffset: tickWidget.fractionOffset
+		start: tickWidget.start
+		duration: tickWidget.duration
+		fps: tickWidget.fps
+		position: cutLine
+		visible: editMode == "Cut" && cutLine != -1
+	}
+
     XsScrollBar {
         id: hbar
         hoverEnabled: true
@@ -327,6 +373,17 @@ Rectangle {
     				Layout.preferredHeight: timelineHeaderHeight
     				Layout.preferredWidth: trackHeaderWidth
 
+		            HoverHandler {
+		                cursorShape: Qt.PointingHandCursor
+		            }
+
+		            TapHandler {
+		                acceptedButtons: Qt.LeftButton
+		                onTapped: {
+		                	timeMode = timeMode == "timecode" ? "frames" : "timecode"
+		                }
+		            }
+
 		            XsText {
 		                XsModelPropertyMap {
 		                    id: timelineDetail
@@ -357,7 +414,7 @@ Rectangle {
 		                // text: timelinePlayhead.currentSourceTimecode ? timelinePlayhead.currentSourceTimecode : "00:00:00:00"
 
 		                anchors.fill: parent
-		                text: ttc.timeCode ? ttc.timeCode : "00:00:00:00"
+		                text: timeMode == "timecode" ? (ttc.timeCode ? ttc.timeCode : "00:00:00:00") : String(ttc.totalFrames+1).padStart(6, '0')
 		                font.pixelSize: XsStyleSheet.fontSize + 6
 		                font.weight: Font.Bold
 		                font.family: XsStyleSheet.fixedWidthFontFamily
@@ -422,7 +479,7 @@ Rectangle {
 		    		Rectangle {
 		    			color: XsStyleSheet.accentColor
 		    			opacity: 0.3
-		    			visible: timelinePlayhead.enableLoopRange
+		    			visible: timelinePlayhead && timelinePlayhead.enableLoopRange
 		    			anchors.fill: parent
 		    			property int start: (timelinePlayhead.loopStartFrame - (frameTrack.offset  / control.scaleX)) * control.scaleX
 		    			property int end: (timelinePlayhead.loopEndFrame - (frameTrack.offset  / control.scaleX)) * control.scaleX
@@ -478,6 +535,7 @@ Rectangle {
                     property var dragging: control.dragging
 		            property var draggingStopped: control.draggingStopped
 				    property var doubleTapped: control.doubleTapped
+				    property var tapped: control.tapped
 
         			footerPositioning: ListView.InlineFooter
 			        footer: Rectangle {
@@ -590,6 +648,7 @@ Rectangle {
                     property var dragging: control.dragging
 		            property var draggingStopped: control.draggingStopped
 				    property var doubleTapped: control.doubleTapped
+				    property var tapped: control.tapped
 
 			        displaced: Transition {
 			            NumberAnimation {

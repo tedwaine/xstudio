@@ -10,6 +10,7 @@
 #include <queue>
 
 #include "xstudio/utility/helpers.hpp"
+#include "xstudio/utility/frame_rate.hpp"
 #include "xstudio/utility/logging.hpp"
 #include "xstudio/utility/json_store.hpp"
 #include "xstudio/plugin_manager/plugin_utility.hpp"

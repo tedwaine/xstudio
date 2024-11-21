@@ -1,3 +1,8 @@
+// SPDX-License-Identifier: Apache-2.0
+
+import QtQuick
+import Qt.labs.qmlmodels
+
 import xstudio.qml.models 1.0
 import xStudio 1.0
 
@@ -23,6 +28,18 @@ XsPopupMenu {
             lockedClip.isChecked= m.get(currentClipIndex, "lockedRole")
         }
     }
+
+    Component.onCompleted: {
+        // need to reorder snippet menus..
+        let rc = embeddedPython.clipMenuModel.rowCount();
+        for(let i=0; i < embeddedPython.clipMenuModel.rowCount(); i++) {
+            let fi = embeddedPython.clipMenuModel.index(i, 0)
+            let si = embeddedPython.clipMenuModel.mapToSource(fi)
+            let mp = si.model.get(si, "menuPathRole")
+            helpers.setMenuPathPosition(mp,"timeline_clip_menu_", 81 + ((1.0/rc)*i) )
+        }
+    }
+
 
     function updateItemSelectionHorizontal(l,r) {
         timelineSelection.select(helpers.createItemSelection(
@@ -257,6 +274,32 @@ XsPopupMenu {
     }
 
     XsMenuModelItem {
+        text: qsTr("Move Left")
+        menuPath: ""
+        menuItemPosition: 6.1
+        menuModelName: timelineMenu.menu_model_name
+        onActivated: {
+            if(timelineSelection.selectedIndexes.length) {
+                theTimeline.moveItem(timelineSelection.selectedIndexes[0], -1)
+            }
+        }
+        panelContext: timelineMenu.panelContext
+    }
+
+    XsMenuModelItem {
+        text: qsTr("Move Right")
+        menuPath: ""
+        menuItemPosition: 6.2
+        menuModelName: timelineMenu.menu_model_name
+        onActivated: {
+            if(timelineSelection.selectedIndexes.length) {
+                theTimeline.moveItem(timelineSelection.selectedIndexes[0], 1)
+            }
+        }
+        panelContext: timelineMenu.panelContext
+    }
+
+    XsMenuModelItem {
         menuItemType: "divider"
         menuPath: ""
         menuItemPosition: 7
@@ -301,10 +344,32 @@ XsPopupMenu {
         panelContext: timelineMenu.panelContext
     }
 
+
+    XsMenuModelItem {
+        text: "Snippet"
+        menuItemType: "divider"
+        menuItemPosition: 80
+        menuPath: ""
+        menuModelName: timelineMenu.menu_model_name
+    }
+
+    Repeater {
+        model: DelegateModel {
+            model: embeddedPython.clipMenuModel
+            delegate: Item {XsMenuModelItem {
+                text: nameRole
+                menuPath: menuPathRole
+                menuItemPosition: (index*0.01)+80
+                menuModelName: timelineMenu.menu_model_name
+                onActivated: embeddedPython.pyEvalFile(scriptPathRole)
+            }}
+        }
+    }
+
     XsMenuModelItem {
         menuItemType: "divider"
         menuPath: ""
-        menuItemPosition: 12
+        menuItemPosition: 90
         menuModelName: timelineMenu.menu_model_name
     }
 
@@ -312,7 +377,7 @@ XsPopupMenu {
     XsMenuModelItem {
         text: qsTr("Remove Clips")
         menuPath: ""
-        menuItemPosition: 13
+        menuItemPosition: 91
         menuModelName: timelineMenu.menu_model_name
         onActivated: theTimeline.deleteItems(timelineSelection.selectedIndexes)
         panelContext: timelineMenu.panelContext
@@ -322,7 +387,7 @@ XsPopupMenu {
         id: debug_menu
         text: qsTr("Dump JSON")
         menuPath: ""
-        menuItemPosition: 14
+        menuItemPosition: 95
         menuModelName: timelineMenu.menu_model_name
         onActivated: {
             for(let i=0;i<timelineSelection.selectedIndexes.length;i++) {

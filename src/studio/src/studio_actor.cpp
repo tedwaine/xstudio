@@ -28,31 +28,9 @@ StudioActor::StudioActor(caf::actor_config &cfg, const std::string &name)
     init();
 }
 
-void StudioActor::init() {
-    // launch global actors..
-    // preferences first..
-    // this will need more configuration
-    spdlog::debug("Created StudioActor {}", base_.name());
-
-    session_ = spawn<session::SessionActor>("New Session");
-    link_to(session_);
-
-    system().registry().put(studio_registry, this);
-
-    auto event_group_ = spawn<broadcast::BroadcastActor>(this);
-    link_to(event_group_);
-
-    behavior_.assign(
+caf::message_handler StudioActor::message_handler() {
+    return caf::message_handler{
         [=](xstudio::broadcast::broadcast_down_atom, const caf::actor_addr &) {},
-        base_.make_set_name_handler(event_group_, this),
-        base_.make_get_name_handler(),
-        base_.make_last_changed_getter(),
-        base_.make_last_changed_setter(event_group_, this),
-        base_.make_last_changed_event_handler(event_group_, this),
-        base_.make_get_uuid_handler(),
-        base_.make_get_type_handler(),
-        make_get_event_group_handler(event_group_),
-        base_.make_get_detail_handler(this, event_group_),
         make_get_version_handler(),
 
         [=](session::session_atom) -> caf::actor { return session_; },
@@ -64,7 +42,7 @@ void StudioActor::init() {
             send_exit(session_, caf::exit_reason::user_shutdown);
             session_ = session;
             link_to(session_);
-            send(event_group_, utility::event_atom_v, session::session_atom_v, session_);
+            send(base_.event_group(), utility::event_atom_v, session::session_atom_v, session_);
             return true;
         },
 
@@ -73,7 +51,11 @@ void StudioActor::init() {
             const JsonStore &js) -> bool {
             // need to chat to UI ?
             send(
-                event_group_, utility::event_atom_v, session::session_request_atom_v, path, js);
+                base_.event_group(),
+                utility::event_atom_v,
+                session::session_request_atom_v,
+                path,
+                js);
             return true;
         },
 
@@ -176,7 +158,20 @@ void StudioActor::init() {
                     r.out_point);
             }
             quickview_requests_.clear();
-        });
+        }};
+}
+
+
+void StudioActor::init() {
+    // launch global actors..
+    // preferences first..
+    // this will need more configuration
+    spdlog::debug("Created StudioActor {}", base_.name());
+
+    session_ = spawn<session::SessionActor>("New Session");
+    link_to(session_);
+
+    system().registry().put(studio_registry, this);
 }
 
 void StudioActor::on_exit() {

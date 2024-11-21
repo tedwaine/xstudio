@@ -108,13 +108,10 @@ namespace ui {
             void send_status(const utility::JsonStore &status_data);
 
             // Set whether the offscreen viewport tracks the mirror mode, zoom and
-            // pan and/or the FitMode of the 'main' viewport in the xstudio interface
-            // Combine one or more of the ViewportSyncMode enumerators:
-            //
-            // ViewportSyncMode { Off, MirrorMode=1, ZoomAndPan=2, FitMode=4 };
-            //
+            // pan andr the FitMode of the 'main' viewport in the xstudio interface
+            //            //
             // This method can be safely called from any thread
-            void viewport_geometry_sync_mode(int mode);
+            void sync_geometry_to_main_viewport(const bool sync);
 
             // Call this method to inform the viewport about what sort of display it is driving.
             // This information is passed onto the colour management system so that it can

@@ -76,8 +76,12 @@ namespace ui::qml {
         Q_PROPERTY(
             QStringList hideStatus READ hideStatus WRITE setHideStatus NOTIFY hideStatusChanged)
 
+        Q_PROPERTY(bool hideEmpty READ hideEmpty WRITE setHideEmpty NOTIFY hideEmptyChanged)
+
         Q_PROPERTY(QVariantList unitFilter READ unitFilter WRITE setUnitFilter NOTIFY
                        unitFilterChanged)
+
+        QML_NAMED_ELEMENT("ShotBrowserSequenceFilterModel")
 
       public:
         ShotBrowserSequenceFilterModel(QObject *parent = nullptr)
@@ -93,16 +97,27 @@ namespace ui::qml {
             const int start           = 0,
             const int depth           = -1);
 
-        QStringList hideStatus() const;
+        [[nodiscard]] bool hideEmpty() const { return hide_empty_; }
+        [[nodiscard]] QStringList hideStatus() const;
         [[nodiscard]] QVariantList unitFilter() const { return filter_unit_; }
 
         void setHideStatus(const QStringList &value);
+
+        void setHideEmpty(const bool value) {
+            if (hide_empty_ != value) {
+                hide_empty_ = value;
+                emit hideEmptyChanged();
+                invalidateFilter();
+                emit filterChanged();
+            }
+        }
 
         void setUnitFilter(const QVariantList &filter) {
             if (filter_unit_ != filter) {
                 filter_unit_ = filter;
                 emit unitFilterChanged();
                 invalidateFilter();
+                emit filterChanged();
             }
         }
 
@@ -110,6 +125,8 @@ namespace ui::qml {
       signals:
         void hideStatusChanged();
         void unitFilterChanged();
+        void hideEmptyChanged();
+        void filterChanged();
 
       protected:
         [[nodiscard]] bool
@@ -119,6 +136,7 @@ namespace ui::qml {
       private:
         std::set<QString> hide_status_;
         QVariantList filter_unit_;
+        bool hide_empty_{false};
     };
 
 

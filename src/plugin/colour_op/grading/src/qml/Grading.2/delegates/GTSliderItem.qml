@@ -32,7 +32,6 @@ Item {
             Row{
                 Layout.minimumWidth: (parent.width-(dividerWidth*(repeater.count-1)))/repeater.count + dividerWidth
                 Layout.preferredWidth: (parent.width-(dividerWidth*(repeater.count-1)))/repeater.count + dividerWidth
-                Layout.maximumWidth: (parent.width-(dividerWidth*(repeater.count-1)))/repeater.count + dividerWidth
                 Layout.fillHeight: true
 
                 GTSliderDiv{
@@ -52,7 +51,7 @@ Item {
             Layout.fillWidth: true
             Layout.fillHeight: true
             Layout.minimumHeight: 0
-        }
+        } 
     }
 
 }

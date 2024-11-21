@@ -3,7 +3,6 @@ SET(LINK_DEPS
 	Qt6::Core
 	Qt6::Test
 	xstudio::ui::qml::helper
-	xstudio::ui::qml::tag
 	xstudio::timeline
 	xstudio::utility
 	xstudio::session

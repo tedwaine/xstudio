@@ -113,23 +113,23 @@ XsWindow {
                 Layout.fillHeight: true
                 Layout.bottomMargin: 10
 
-                function onSyncCallback(json) {
-                    try {
-                        var data = JSON.parse(json)
-                        if(data["data"]["id"]){
-                            ShotBrowserHelpers.loadShotGridPlaylist(data["data"]["id"], data["data"]["attributes"]["code"])
-                        } else {
-                            console.log(err)
-                            dialogHelpers.errorDialogFunc("Sync Playlist To ShotGrid", "Sync of Playlist to ShotGrid failed.\n\n" + data)
-                        }
-                    } catch(err) {
-                        console.log(err)
-                        dialogHelpers.errorDialogFunc("Sync Playlist To ShotGrid", "Sync of Playlist to ShotGrid failed.\n\n" + json)
-                    }
-                }
+                // function onSyncCallback(json) {
+                //     try {
+                //         var data = JSON.parse(json)
+                //         if(data["data"]["id"]){
+                //             ShotBrowserHelpers.loadShotGridPlaylist(data["data"]["id"], data["data"]["attributes"]["code"])
+                //         } else {
+                //             console.log(err)
+                //             dialogHelpers.errorDialogFunc("Sync Playlist To ShotGrid", "Sync of Playlist to ShotGrid failed.\n\n" + data)
+                //         }
+                //     } catch(err) {
+                //         console.log(err)
+                //         dialogHelpers.errorDialogFunc("Sync Playlist To ShotGrid", "Sync of Playlist to ShotGrid failed.\n\n" + json)
+                //     }
+                // }
 
                 onClicked: {
-                    ShotBrowserHelpers.syncPlaylistToShotGrid(helpers.QVariantFromUuidString(playlistProperties.values.actorUuidRole), onSyncCallback)
+                    ShotBrowserHelpers.syncPlaylistToShotGrid(helpers.QVariantFromUuidString(playlistProperties.values.actorUuidRole))
                     close()
                 }
             }

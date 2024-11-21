@@ -9,6 +9,7 @@
 #include <iostream>
 
 #include "xstudio/media_reader/media_reader.hpp"
+#include "xstudio/media_reader/image_buffer_set.hpp"
 #include "xstudio/thumbnail/thumbnail.hpp"
 #include "xstudio/utility/helpers.hpp"
 #include "xstudio/utility/logging.hpp"
@@ -154,6 +155,30 @@ xstudio::media_reader::byte *ImageBuffer::allocate(const size_t _size) {
     return Buffer::allocate(padded_size);
 }
 
+void ImageBufDisplaySet::finalise() {
+    
+    utility::JsonStore image_info = nlohmann::json::parse("[]");
+    images_hash_ = 0;
+    for (int i = 0; i < num_onscreen_images(); ++i) {
+        const auto & im = onscreen_image(i);
+        nlohmann::json r;
+        if (im) {
+            r["image_size_in_pixels"] = im->image_size_in_pixels();
+            //r["image_pixels_bounding_box"] = im->image_pixels_bounding_box();
+            r["pixel_aspect"] = im->pixel_aspect();
+            images_hash_ += im.frame_id().key().hash();
+        }
+        image_info.push_back(r);
+    }
+
+    as_json_.clear();
+    as_json_["image_info"] = image_info;
+    as_json_["hero_image_index"] = hero_sub_playhead_index_;
+    as_json_["prev_hero_image_index"] = previous_hero_sub_playhead_index_;
+    hash_ = int64_t(std::hash<std::string>{}(as_json_.dump()));
+
+}
+
 MediaReader::MediaReader(std::string name, const utility::JsonStore &)
     : name_(std::move(name)) {}
 
@@ -165,7 +190,7 @@ AudioBufPtr MediaReader::audio(const media::AVFrameID &) { return AudioBufPtr();
 
 thumbnail::ThumbnailBufferPtr MediaReader::thumbnail(const media::AVFrameID &mp, const size_t) {
     throw std::runtime_error(
-        "Thumbnail generation not supported for this format. " + mp.reader_);
+        "Thumbnail generation not supported for this format. " + mp.reader());
     return thumbnail::ThumbnailBufferPtr();
 }
 

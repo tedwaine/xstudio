@@ -71,6 +71,7 @@
 	    <file>views/playlists/delegates/XsPlaylistItemDelegate.qml</file>
 	    <file>views/playlists/delegates/XsPlaylistDividerDelegate.qml</file>
 	    <file>views/playlists/delegates/XsPlaylistItemDragDropHandler.qml</file>
+	    <file>views/playlists/delegates/XsContactSheetItemDelegate.qml</file>
 	    <file>views/playlists/delegates/XsSubsetItemDelegate.qml</file>
 	    <file>views/playlists/delegates/XsTimelineItemDelegate.qml</file>
 	    <file>views/playlists/widgets/XsPlaylistPlusMenu.qml</file>
@@ -83,6 +84,9 @@
 	    <file>views/timeline/delegates/XsDelegateStack.qml</file>
 	    <file>views/timeline/delegates/XsDelegateVideoTrack.qml</file>
 	    <file>views/timeline/widgets/XsClipItem.qml</file>
+	    <file>views/timeline/widgets/XsClipDragBoth.qml</file>
+	    <file>views/timeline/widgets/XsClipDragLeft.qml</file>
+	    <file>views/timeline/widgets/XsClipDragRight.qml</file>
 	    <file>views/timeline/widgets/XsDragBoth.qml</file>
 	    <file>views/timeline/widgets/XsDragLeft.qml</file>
 	    <file>views/timeline/widgets/XsDragRight.qml</file>
@@ -93,13 +97,13 @@
 	    <file>views/timeline/widgets/XsTickWidget.qml</file>
 	    <file>views/timeline/widgets/XsTimelineCursor.qml</file>
 	    <file>views/timeline/widgets/XsTrackHeader.qml</file>
+	    <file>views/timeline/XsMarkerMenu.qml</file>
+	    <file>views/timeline/XsNewTrackMenu.qml</file>
 	    <file>views/timeline/XsTimeline.qml</file>
 	    <file>views/timeline/XsTimelineClipMenu.qml</file>
-	    <file>views/timeline/XsMarkerMenu.qml</file>
 	    <file>views/timeline/XsTimelineMenu.qml</file>
 	    <file>views/timeline/XsTimelinePanel.qml</file>
 	    <file>views/timeline/XsTimelineTrackMenu.qml</file>
-	    <file>views/timeline/XsNewTrackMenu.qml</file>
 
 	    <file>views/python/XsPythonPanel.qml</file>
 	    <file>views/log/XsLogPanel.qml</file>
@@ -116,6 +120,7 @@
 	    <file>views/viewport/widgets/XsViewportToolBar.qml</file>
 	    <file>views/viewport/widgets/XsViewportInfoBar.qml</file>
 	    <file>views/viewport/widgets/toolbar/XsViewerAnyMenuButton.qml</file>
+	    <file>views/viewport/widgets/toolbar/XsViewerCompareModeButton.qml</file>		
 	    <file>views/viewport/widgets/toolbar/XsViewerToggleButton.qml</file>
 	    <file>views/viewport/widgets/toolbar/XsViewerSourceSelectorButton.qml</file>
 	    <file>views/viewport/widgets/toolbar/XsViewerHUDButton.qml</file>
@@ -190,6 +195,7 @@
 
 	    <file>widgets/indicators/XsBusyIndicator.qml</file>
 	    <file>widgets/indicators/XsProgressBar.qml</file>
+	    <file>widgets/indicators/XsNotification.qml</file>
 
 	    <file>widgets/labels/XsLabel.qml</file>
 	    <file>widgets/labels/XsText.qml</file>
@@ -274,6 +280,7 @@
 		<file alias="check.svg">assets/icons/check.svg</file>
 		<file alias="check_box_checked.svg">assets/icons/check_box_checked.svg</file>
 		<file alias="check_box_unchecked.svg">assets/icons/check_box_unchecked.svg</file>
+		<file alias="check_circle.svg">assets/icons/check_circle.svg</file>
 		<file alias="chevron_right.svg">assets/icons/chevron_right.svg</file>
 		<file alias="close.svg">assets/icons/close.svg</file>
 		<file alias="cloud-download.svg">assets/icons/cloud-download.svg</file>
@@ -301,6 +308,7 @@
 		<file alias="fit_select.svg">assets/icons/fit_select.svg</file>
 		<file alias="format_size.svg">assets/icons/format_size.svg</file>
 		<file alias="frame_inspect.svg">assets/icons/frame_inspect.svg</file>
+		<file alias="grid_view.svg">assets/icons/grid_view.svg</file>
 		<file alias="help.svg">assets/icons/help.svg</file>
 		<file alias="ink_pen.svg">assets/icons/ink_pen.svg</file>
 		<file alias="input.svg">assets/icons/input.svg</file>
@@ -308,6 +316,8 @@
 		<file alias="keyboard_arrow_up.svg">assets/icons/keyboard_arrow_up.svg</file>
 		<file alias="keyboard_tab.svg">assets/icons/keyboard_tab.svg</file>
 		<file alias="laps.svg">assets/icons/laps.svg</file>
+		<file alias="left_drag.svg">assets/icons/left_drag.svg</file>
+		<file alias="left_right_drag.svg">assets/icons/left_right_drag.svg</file>
 		<file alias="library_add.svg">assets/icons/library_add.svg</file>
 		<file alias="library_music.svg">assets/icons/library_music.svg</file>
 		<file alias="link.svg">assets/icons/link.svg</file>
@@ -340,6 +350,7 @@
 		<file alias="reset_image.svg">assets/icons/reset_image.svg</file>
 		<file alias="reset_tv.svg">assets/icons/reset_tv.svg</file>
 		<file alias="restart.svg">assets/icons/restart.svg</file>
+		<file alias="right_drag.svg">assets/icons/right_drag.svg</file>
 		<file alias="rotate-ccw.svg">assets/icons/rotate-ccw.svg</file>
 		<file alias="search.svg">assets/icons/search.svg</file>
 		<file alias="search_off.svg">assets/icons/search_off.svg</file>
@@ -351,6 +362,7 @@
 		<file alias="skip_previous.svg">assets/icons/skip_previous.svg</file>
 		<file alias="sort.svg">assets/icons/sort.svg</file>
 		<file alias="sort_flipped.png">assets/icons/sort_flipped.png</file>
+		<file alias="split_scene.svg">assets/icons/split_scene.svg</file>
 		<file alias="splitscreen.svg">assets/icons/splitscreen.svg</file>
 		<file alias="splitscreen2.svg">assets/icons/splitscreen2.svg</file>
 		<file alias="splitscreen_add.svg">assets/icons/splitscreen_add.svg</file>
@@ -382,6 +394,7 @@
 		<file alias="volume_no_sound.svg">assets/icons/volume_no_sound.svg</file>
 		<file alias="volume_off.svg">assets/icons/volume_off.svg</file>
 		<file alias="volume_up.svg">assets/icons/volume_up.svg</file>
+		<file alias="warning.svg">assets/icons/warning.svg</file>
 		<file alias="waves.svg">assets/icons/waves.svg</file>
 		<file alias="width.svg">assets/icons/width.svg</file>
 		<file alias="zoom_in.svg">assets/icons/zoom_in.svg</file>

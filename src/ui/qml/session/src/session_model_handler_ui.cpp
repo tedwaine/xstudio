@@ -3,7 +3,6 @@
 
 #include "xstudio/media/media.hpp"
 #include "xstudio/session/session_actor.hpp"
-#include "xstudio/tag/tag.hpp"
 #include "xstudio/timeline/item.hpp"
 #include "xstudio/thumbnail/thumbnail.hpp"
 #include "xstudio/ui/qml/caf_response_ui.hpp"
@@ -158,6 +157,17 @@ void SessionModel::init(caf::actor_system &_system) {
                 }
             },
 
+            [=](utility::event_atom, utility::notification_atom, const JsonStore &digest) {
+                try {
+                    auto src     = caf::actor_cast<caf::actor>(self()->current_sender());
+                    auto src_str = actorToString(system(), src);
+                    // src_str); search from index..
+                    receivedData(
+                        json(src_str), actorRole, QModelIndex(), notificationRole, digest);
+                } catch (...) {
+                }
+            },
+
             [=](utility::event_atom, utility::name_atom, const std::string &name) {
                 // find this actor... in our data..
                 // we need to map this to a string..
@@ -272,7 +282,7 @@ void SessionModel::init(caf::actor_system &_system) {
 
                     if (index.isValid()) {
                         const nlohmann::json &j = indexToData(index);
-                        if (j.at("type") == "Subset" or j.at("type") == "Timeline" or
+                        if (j.at("type") == "ContactSheet" or j.at("type") == "Subset" or j.at("type") == "Timeline" or
                             j.at("type") == "Playlist") {
                             // get media container index
                             index                    = index.model()->index(0, 0, index);
@@ -963,7 +973,7 @@ void SessionModel::init(caf::actor_system &_system) {
                     if (index.isValid()) {
                         const nlohmann::json &j = indexToData(index);
                         // spdlog::warn("{}", j.dump(2));
-                        if (j.at("type") == "Subset" or j.at("type") == "Timeline") {
+                        if (j.at("type") == "Subset" or j.at("type") == "Timeline" or j.at("type") == "ContactSheet") {
                             const auto tree = *(indexToTree(index)->child(0));
                             auto media_id   = tree.data().at("id");
                             requestData(
@@ -1034,6 +1044,13 @@ void SessionModel::init(caf::actor_system &_system) {
                     auto index = searchRecursive(
                         QVariant::fromValue(QStringFromStd(src_str)), actorRole);
 
+                    /*spdlog::info(
+                        "create_subset_atom {} {} {}",
+                        to_string(src),
+                        src_str,
+                        to_string(ua.uuid()));*/
+
+
                     if (index.isValid()) {
                         const nlohmann::json &j = indexToData(index);
                         // request update of containers.
@@ -1103,7 +1120,45 @@ void SessionModel::init(caf::actor_system &_system) {
             },
             [=](utility::event_atom,
                 playlist::create_contact_sheet_atom,
-                const utility::UuidActor &) {},
+                const utility::UuidActor &ua) {
+                
+                try {
+                    auto src     = caf::actor_cast<caf::actor>(self()->current_sender());
+                    auto src_str = actorToString(system(), src);
+                    auto index = searchRecursive(
+                        QVariant::fromValue(QStringFromStd(src_str)), actorRole);
+
+                    /*spdlog::info(
+                        "create_contact_sheet_atom {} {} {}",
+                        to_string(src),
+                        src_str,
+                        to_string(ua.uuid()));*/
+                    // find container owner..
+
+                    if (index.isValid()) {
+                        const nlohmann::json &j = indexToData(index);
+                        // request update of containers.
+                        try {
+                            if (j.at("type") == "Playlist") {
+                                index = SessionModel::index(2, 0, index);
+                                if (index.isValid()) {
+                                    const nlohmann::json &jj = indexToData(index);
+                                    requestData(
+                                        QVariant::fromValue(QUuidFromUuid(jj.at("id"))),
+                                        idRole,
+                                        index,
+                                        index,
+                                        JSONTreeModel::Roles::childrenRole);
+                                }
+                            }
+                        } catch (const std::exception &err) {
+                            spdlog::warn("{} {}", __PRETTY_FUNCTION__, err.what());
+                        }
+                    }
+                } catch (const std::exception &err) {
+                    spdlog::warn("{} {}", __PRETTY_FUNCTION__, err.what());
+                }
+            },
 
             [=](broadcast::broadcast_down_atom, const caf::actor_addr &) {},
 

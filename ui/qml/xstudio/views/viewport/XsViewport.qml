@@ -87,7 +87,7 @@ Viewport {
         id: viewport_attrs
         modelDataName: view.name + "_attrs"
     }
-
+    
     XsAttributeValue {
         id: __frame_rate_expr
         attributeTitle: "Frame Rate"

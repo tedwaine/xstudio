@@ -1,3 +1,7 @@
+// SPDX-License-Identifier: Apache-2.0
+
+import QtQuick
+import Qt.labs.qmlmodels
 import xstudio.qml.models 1.0
 import xStudio 1.0
 import xstudio.qml.helpers 1.0
@@ -16,6 +20,18 @@ XsPopupMenu {
     property var currentTrackIndex: timelineSelection.selectedIndexes.length ? timelineSelection.selectedIndexes[0] : null
 
     onVisibleChanged: visible && updateFlags()
+
+
+    Component.onCompleted: {
+        // need to reorder snippet menus..
+        let rc = embeddedPython.trackMenuModel.rowCount();
+        for(let i=0; i < embeddedPython.trackMenuModel.rowCount(); i++) {
+            let fi = embeddedPython.trackMenuModel.index(i, 0)
+            let si = embeddedPython.trackMenuModel.mapToSource(fi)
+            let mp = si.model.get(si, "menuPathRole")
+            helpers.setMenuPathPosition(mp,"timeline_track_menu_", 33 + ((1.0/rc)*i) )
+        }
+    }
 
 
     function updateItemSelectionHorizontal(l,r) {
@@ -264,6 +280,27 @@ XsPopupMenu {
         menuModelName: timelineMenu.menu_model_name
         onActivated: theTimeline.moveItems(timelineSelection.selectedIndexes, 1)
         panelContext: timelineMenu.panelContext
+    }
+
+    XsMenuModelItem {
+        text: "Snippet"
+        menuItemType: "divider"
+        menuItemPosition: 32.5
+        menuPath: ""
+        menuModelName: timelineMenu.menu_model_name
+    }
+
+    Repeater {
+        model: DelegateModel {
+            model: embeddedPython.trackMenuModel
+            delegate: Item {XsMenuModelItem {
+                text: nameRole
+                menuPath: menuPathRole
+                menuItemPosition: (index*0.01)+32.5
+                menuModelName: timelineMenu.menu_model_name
+                onActivated: embeddedPython.pyEvalFile(scriptPathRole)
+            }}
+        }
     }
 
     XsMenuModelItem {

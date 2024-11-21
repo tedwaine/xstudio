@@ -15,7 +15,7 @@ import xstudio.qml.helpers 1.0
 Item{
     id: toolSetBg
 
-    property int rowItemCount: 5
+    property int rowItemCount: 4 //5
     property real itemWidth: (width-framePadding*2)/rowItemCount
     onItemWidthChanged: {
         buttonWidth = itemWidth
@@ -43,15 +43,17 @@ Item{
 
     property alias current_tool: tool_types_value.value
 
-    // Un-comment this when Laser is implemented in combo_box_options
     property alias tool_choices: tool_types_choices.value
 
     property var toolImages: [
         "qrc:///anno_icons/draw_brush.svg",
-        "qrc:///anno_icons/draw_shapes.svg",
+        "qrc:///anno_icons/draw_laser.svg",
+        "qrc:///anno_icons/draw_shape_square.svg",
+        "qrc:///anno_icons/draw_shape_circle.svg",
+        "qrc:///anno_icons/draw_shape_arrow.svg",
+        "qrc:///anno_icons/draw_shape_line.svg",
         "qrc:///anno_icons/draw_text.svg",
-        "qrc:///anno_icons/draw_eraser.svg",
-        "qrc:///anno_icons/draw_laser.svg"
+        "qrc:///anno_icons/draw_eraser.svg"
     ]
 
     GridView{
@@ -62,7 +64,7 @@ Item{
         y: framePadding
 
         width: itemWidth*rowItemCount
-        height: itemHeight
+        height: itemHeight * 2
 
         cellWidth: itemWidth
         cellHeight: itemHeight
@@ -85,18 +87,15 @@ Item{
                 width: toolSet.cellWidth
                 height: toolSet.cellHeight
                 color: "transparent"
-                property bool isEnabled: index!=5 && index!=6
 
                 XsPrimaryButton{ id: toolBtn
 
-                    x: index>=rowItemCount? width/2:0
-                    width: index==(rowItemCount-1)? parent.width : parent.width - itemSpacing
+                    // x: index>=rowItemCount? width/2:0
+                    width: parent.width - itemSpacing //index==(rowItemCount-1)? parent.width : parent.width - itemSpacing
                     height: parent.height - itemSpacing
 
                     clip: true
                     isToolTipEnabled: false
-
-                    imageDiv.opacity: isEnabled ? 1.0 : 0.33
                     isActive: current_tool===text
                     anchors.top: parent.top
 
@@ -104,7 +103,6 @@ Item{
                     imgSrc: toolImages[index]
 
                     onClicked: {
-                        if (!isEnabled) return;
                         if(isActive)
                         {
                             //Disables tool by setting the 'value' of the 'active tool'

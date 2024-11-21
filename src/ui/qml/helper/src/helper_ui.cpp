@@ -388,11 +388,69 @@ QModelIndexList Helpers::getParentIndexes(const QModelIndexList &l) const {
     for (auto i : l) {
         while (i.isValid()) {
             i = i.parent();
-            result.push_back(i);
+            result.push_front(i);
         }
     }
 
     return result;
+}
+
+#ifdef __linux__
+#include <QtDBus/QtDBus>
+#endif
+
+void Helpers::inhibitScreenSaver(const bool inhibit) const {
+    // quint32 screensaver_cookie_{0};
+
+    spdlog::debug("inhibitScreenSaver {}", inhibit);
+
+#ifdef __linux__
+    const int MAX_SERVICES = 1;
+
+    QDBusConnection bus = QDBusConnection::sessionBus();
+    if (bus.isConnected()) {
+        QString services[MAX_SERVICES] = {
+            "org.freedesktop.ScreenSaver",
+            // "org.gnome.SessionManager"
+        };
+        QString paths[MAX_SERVICES] = {
+            "/org/freedesktop/ScreenSaver",
+            // "/org/gnome/SessionManager"
+        };
+
+        static quint32 cookies[2] = {0, 0};
+
+        for (int i = 0; i < MAX_SERVICES; i++) {
+            QDBusInterface screenSaverInterface(services[i], paths[i], services[i], bus);
+
+            if (!screenSaverInterface.isValid())
+                continue;
+
+            QDBusReply<uint> reply;
+
+            if (inhibit)
+                reply = screenSaverInterface.call("Inhibit", "xStudio", "Playing");
+            else if (cookies[i]) {
+                reply      = screenSaverInterface.call("UnInhibit", cookies[i]);
+                cookies[i] = 0;
+            }
+
+            if (inhibit) {
+                if (reply.isValid())
+                    cookies[i] = reply.value();
+                else {
+                    QDBusError error = reply.error();
+                    spdlog::warn(
+                        "{} {} {}",
+                        __PRETTY_FUNCTION__,
+                        StdFromQString(error.message()),
+                        StdFromQString(error.name()));
+                }
+            }
+        }
+    }
+
+#endif
 }
 
 

@@ -205,12 +205,13 @@ Item {
             // Put the content of the playlist into the media browser etc.
             // but don't put it on screen.
             if (mouse.modifiers == Qt.ControlModifier) {
-
                 if (!(sessionSelectionModel.selectedIndexes.length == 1 &&
                     sessionSelectionModel.selectedIndexes[0] == modelIndex)) {
                     sessionSelectionModel.select(modelIndex, ItemSelectionModel.Toggle)
-                    if (sessionSelectionModel.isSelected(modelIndex)) {
-                        sessionSelectionModel.setCurrentIndex(modelIndex, ItemSelectionModel.NoUpdate)
+
+                    // only change current selection if there is one item in selection.
+                    if(sessionSelectionModel.selectedIndexes.length == 1) {
+                        sessionSelectionModel.setCurrentIndex(sessionSelectionModel.selectedIndexes[0], ItemSelectionModel.NoUpdate)
                     }
                 }
 
@@ -240,11 +241,16 @@ Item {
                         helpers.createItemSelection(indexes),
                         ItemSelectionModel.Select
                     )
-                    sessionSelectionModel.setCurrentIndex(modelIndex, ItemSelectionModel.NoUpdate)
+                    // sessionSelectionModel.setCurrentIndex(modelIndex, ItemSelectionModel.NoUpdate)
 
                 } else {
-                    sessionSelectionModel.setCurrentIndex(modelIndex, ItemSelectionModel.ClearAndSelect)
+                    // sessionSelectionModel.setCurrentIndex(modelIndex, ItemSelectionModel.ClearAndSelect)
                 }
+
+                if(sessionSelectionModel.selectedIndexes.length == 1) {
+                    sessionSelectionModel.setCurrentIndex(sessionSelectionModel.selectedIndexes[0], ItemSelectionModel.NoUpdate)
+                }
+
 
             } else if (!isSelected) {
                 sessionSelectionModel.setCurrentIndex(modelIndex, ItemSelectionModel.ClearAndSelect)
@@ -341,6 +347,20 @@ Item {
             toolTipWidth: contentDiv.width*2
         }
 
+        Repeater {
+            Layout.fillHeight: true
+            model: notificationRole
+
+            // notify widget
+            XsNotification {
+                Layout.fillHeight: true
+                Layout.preferredWidth: height
+                text: modelData.text
+                type: modelData.type
+                percentage: modelData.progress_percent || 0.0
+            }
+        }
+
         XsImage {
             id: inspect_icon
             source: "qrc:/icons/desktop_windows.svg"
@@ -352,17 +372,21 @@ Item {
         }
 
         Repeater {
-            Layout.fillHeight: true
+            // Layout.fillHeight: true
             model: decoratorModel
 
-            XsImage {
-                source: modelData[1]
-                imgOverlayColor: hintColor
-                height: parent.height-8
-                width: height
+            XsPrimaryButton {
+                Layout.margins: 2
+                Layout.fillHeight: true
+                Layout.preferredWidth: height
+
+                imgSrc: modelData[1].icon || modelData[1]
+                background: Item{}
+                imgOverlayColor: XsStyleSheet.hintColor
+                toolTip: modelData[1].tooltip || ""
+
             }
         }
-
         /*Item {
 
             Layout.fillHeight: true

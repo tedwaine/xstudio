@@ -93,13 +93,12 @@ RowLayout{
         id: combo
         model: ShotBrowserFilterModel {
             divisionFilter: prefs.filterProjects
-
         }
 
         Connections {
             target: ShotBrowserEngine
             function onReadyChanged() {
-                if(ShotBrowserEngine.ready)
+                if(ShotBrowserEngine.ready && combo.model.sourceModel != ShotBrowserEngine.presetsModel.termModel("Project"))
                     combo.model.sourceModel = ShotBrowserEngine.presetsModel.termModel("Project")
             }
         }
@@ -127,6 +126,9 @@ RowLayout{
             }
         }
         Component.onCompleted: {
+            if(ShotBrowserEngine.ready)
+                combo.model.sourceModel = ShotBrowserEngine.presetsModel.termModel("Project")
+
             if(projectIndex && projectIndex.valid && combo.currentIndex != model.mapFromSource(projectIndex).row) {
                 combo.currentIndex = model.mapFromSource(projectIndex).row
             }

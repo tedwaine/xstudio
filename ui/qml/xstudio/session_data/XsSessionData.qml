@@ -135,11 +135,8 @@ Item {
                 var selectedType = sessionData.get(currentMediaContainerIndex, "typeRole")
                 var result
                 if (selectedType== "Playlist") {
-
                     // A playlist is selected. Add as a child.
                     result = createPlaylistChild(name, type, currentMediaContainerIndex)
-
-
                 } else if (["Subset", "Timeline", "ContactSheet"].includes(type)) {
                     // Subset or similar is selected. Insert after
                     result = createPlaylistChild(

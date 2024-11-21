@@ -96,6 +96,7 @@ const auto ValidTerms = R"_({
         "Flag Media",
         "Has Contents",
         "Has Notes",
+        "Id",
         "Lookback",
         "Order By",
         "Playlist Type",
@@ -116,6 +117,7 @@ const auto ValidTerms = R"_({
         "Filter",
         "Flag Media",
         "Has Attachments",
+        "Id",
         "Lookback",
         "Newer Version",
         "Note Type",
@@ -147,6 +149,7 @@ const auto ValidTerms = R"_({
         "Filter",
         "Flag Media",
         "Has Notes",
+        "Id",
         "Is Hero",
         "Latest Version",
         "Lookback",
@@ -169,6 +172,7 @@ const auto ValidTerms = R"_({
         "Sequence",
         "Shot Status",
         "Shot",
+        "Stage",
         "Tag",
         "Tag (Version)",
         "Twig Name",
@@ -252,10 +256,15 @@ const auto SourceTermValues = R"([
         { "name": "main_proxy2" },
         { "name": "main_proxy3" },
         { "name": "movie_client" },
+        { "name": "movie_diagnostic" },
         { "name": "movie_dneg" },
         { "name": "movie_dneg_editorial" },
         { "name": "movie_scqt" },
         { "name": "movie_scqt_prores" },
+        { "name": "orig_proxy0" },
+        { "name": "orig_proxy1" },
+        { "name": "orig_proxy2" },
+        { "name": "orig_proxy3" },
         { "name": "orig_main_proxy0" },
         { "name": "orig_main_proxy1" },
         { "name": "orig_main_proxy2" },
@@ -278,6 +287,7 @@ const auto TermProperties = R"_({
     "Has Attachments": { "negated": null, "livelink": null },
     "Has Contents": { "negated": null, "livelink": null },
     "Has Notes": { "negated": null, "livelink": null },
+    "Id": { "negated": false, "livelink": null },
     "Is Hero": { "negated": null, "livelink": null },
     "Latest Version": { "negated": null, "livelink": null },
     "Lookback": { "negated": null, "livelink": null },
@@ -306,6 +316,7 @@ const auto TermProperties = R"_({
     "Shot Status": { "negated": false, "livelink": null },
     "Shot": { "negated": false, "livelink": false },
     "Site": { "negated": false, "livelink": null },
+    "Stage": { "negated": null, "livelink": null },
     "Tag": { "negated": false, "livelink": null },
     "Tag (Version)": { "negated": false, "livelink": null },
     "Twig Name": { "negated": false, "livelink": false },
@@ -319,6 +330,7 @@ const std::set<std::string> TermHasProjectKey = {
     "sequence",
     "playlist",
     "unit",
+    "stage",
     "user",
     "group",
     "Group",
@@ -326,6 +338,7 @@ const std::set<std::string> TermHasProjectKey = {
     "ShotSequence",
     "ShotSequenceList",
     "Sequence",
+    "Stage",
     "Unit",
     "User",
     "Author",
@@ -337,6 +350,7 @@ const std::set<std::string> TermHasNoModel = {
     "dnTag",
     "Entity",
     "Filter",
+    "Id",
     "Newer Version",
     "Older Version",
     "Tag (Version)",
@@ -425,7 +439,7 @@ class QueryEngine {
     static std::string cache_name_auto(const std::string &type, const int project_id);
     static utility::JsonStore data_from_field(const utility::JsonStore &data);
 
-    static std::optional<std::string> get_sequence_name(
+    static std::vector<std::string> get_sequence_name(
         const int project_id, const int shot_id, const utility::JsonStore &lookup);
 
     static utility::JsonStore get_livelink_value(

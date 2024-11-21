@@ -352,6 +352,7 @@ void ShotBrowserSequenceFilterModel::setHideStatus(const QStringList &value) {
         hide_status_ = new_value;
         emit hideStatusChanged();
         invalidateFilter();
+        emit filterChanged();
     }
 }
 
@@ -378,22 +379,34 @@ bool ShotBrowserSequenceFilterModel::filterAcceptsRow(
     if (not filter_unit_.empty() and sourceModel()) {
         QModelIndex index = sourceModel()->index(source_row, 0, source_parent);
         auto value        = index.data(ShotBrowserSequenceModel::Roles::unitRole);
+        auto no_unit      = QVariant::fromValue(QString("No Unit"));
+        auto shot_type    = QVariant::fromValue(QString("Shot"));
 
-        if (not value.isNull()) {
-            auto found = false;
-            for (const auto &i : filter_unit_)
-                if (i == value) {
-                    found = true;
-                    break;
-                }
-
-            if (not found)
+        for (const auto &i : filter_unit_)
+            if (i == value)
                 return false;
-        }
+            else if (
+                i == no_unit and
+                source_index.data(ShotBrowserListModel::Roles::typeRole) == shot_type and
+                (value.isNull() or value.toString() == QString()))
+                return false;
+    }
+
+    if (hide_empty_ and source_index.isValid() and
+        source_index.data(ShotBrowserListModel::Roles::typeRole) !=
+            QVariant::fromValue(QString("Shot"))) {
+        auto rc = sourceModel()->rowCount(source_index);
+
+        // check all our children haven't been filtered..
+        auto has_child = false;
+        for (auto i = 0; i < rc and not has_child; i++)
+            has_child = filterAcceptsRow(i, source_index);
+
+        if (not has_child)
+            return false;
     }
 
     return QSortFilterProxyModel::filterAcceptsRow(source_row, source_parent);
-    ;
 }
 
 bool ShotBrowserFilterModel::filterAcceptsRow(
