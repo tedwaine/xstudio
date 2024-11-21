@@ -176,7 +176,8 @@ void ShotBrowser::update_playlist_versions(
                         anon_send(
                             playlist,
                             json_store::set_json_atom_v,
-                            JsonStore(R"({"icon": "qrc:/shotbrowser_icons/shot_grid.svg", "tooltip": "ShotGrid Playlist"})"_json),
+                            JsonStore(
+                                R"({"icon": "qrc:/shotbrowser_icons/shot_grid.svg", "tooltip": "ShotGrid Playlist"})"_json),
                             "/ui/decorators/shotgrid");
                     }
                     succeeded(playlist, notification_uuid);

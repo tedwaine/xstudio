@@ -28,7 +28,7 @@ static int II = 0;
 SubPlayhead::SubPlayhead(
     caf::actor_config &cfg,
     const std::string &name,
-    caf::actor source,
+    utility::UuidActor source,
     caf::actor parent,
     const bool source_is_timeline,
     const timebase::flicks loop_in_point,
@@ -56,7 +56,7 @@ SubPlayhead::~SubPlayhead() {}
 
 void SubPlayhead::on_exit() {
     parent_              = caf::actor();
-    source_              = caf::actor();
+    source_              = utility::UuidActor();
     current_media_actor_ = caf::actor();
 }
 
@@ -97,13 +97,13 @@ void SubPlayhead::init() {
         throw std::runtime_error("Creating child playhead actor without a source.");
     }
 
-    monitor(source_);
+    monitor(source_.actor());
 
     set_down_handler([=](down_msg &msg) {
         // is source down?
-        if (msg.source == source_) {
+        if (msg.source == source_.actor()) {
             spdlog::debug("ChildPlayhead source down: {}", to_string(msg.reason));
-            source_ = caf::actor();
+            source_ = utility::UuidActor();
         }
     });
 
@@ -131,7 +131,7 @@ void SubPlayhead::init() {
 
     // we need a snwsible default rate to pad out frames if we have to extend
     // our duration
-    request(source_, infinite, utility::rate_atom_v, media_type_).then(
+    request(source_.actor(), infinite, utility::rate_atom_v, media_type_).then(
         [=](const utility::FrameRate &r) mutable {
             default_rate_ = r;
         },
@@ -165,6 +165,10 @@ void SubPlayhead::init() {
             // unsubscribe();
         },
 
+        [=](source_atom, bool uuid) -> utility::Uuid {
+            return source_.uuid();
+        },
+
         [=](source_atom, utility::time_point update_tp) -> result<caf::actor> {
             // the message will be sent with a delay - the time it was sent
             // is update_tp, which, if it matches last_change_timepoint_, then
@@ -186,6 +190,7 @@ void SubPlayhead::init() {
             get_full_timeline_frame_list(rp);
             return rp;
         },
+        
         [=](utility::event_atom, playlist::add_media_atom, const utility::UuidActorVector &) {},
 
         [=](utility::event_atom, playlist::remove_media_atom, const utility::UuidVector &) {},
@@ -205,6 +210,7 @@ void SubPlayhead::init() {
         [=](timeline::duration_atom, const timebase::flicks &new_duration) -> result<bool> {
             forced_duration_ = new_duration;
             update_retiming();
+            anon_send(this, bookmark::get_bookmarks_atom_v, true);
             return true;
         },
 
@@ -430,6 +436,7 @@ void SubPlayhead::init() {
             if (offset != frame_offset_) {
                 frame_offset_ = offset;
                 update_retiming();
+                anon_send(this, bookmark::get_bookmarks_atom_v, true);
                 return true;
             }
             return false;
@@ -1406,7 +1413,7 @@ void SubPlayhead::get_full_timeline_frame_list(
     caf::typed_response_promise<caf::actor> rp, const bool retry) {
 
     if (up_to_date_) {
-        rp.deliver(source_);
+        rp.deliver(source_.actor());
         return;
     }
 
@@ -1425,7 +1432,7 @@ void SubPlayhead::get_full_timeline_frame_list(
     auto ttt = utility::clock::now();
 
     request(
-        source_,
+        source_.actor(),
         infinite,
         media::get_media_pointers_atom_v,
         media_type_,
@@ -1467,7 +1474,7 @@ void SubPlayhead::get_full_timeline_frame_list(
 
                             // rp.deliver(source_);
                             for (auto &rprm : inflight_update_requests_) {
-                                rprm.deliver(source_);
+                                rprm.deliver(source_.actor());
                             }
 
                             send(
@@ -1690,8 +1697,10 @@ void SubPlayhead::update_retiming() {
     } else if (frame_offset_ < 0) {
 
         // negative offset means we extend the beginning with held frames, 
-        // i.e. duplicate the first frame
-        auto first_frame = retimed_frames.begin()->second;
+        // i.e. duplicate the first frame - unless we are timeline (where we
+        // want a blank frame, not held frame, or audio where we want silence)
+        auto first_frame = (source_is_timeline_ || media_type_ == media::MT_AUDIO) ? media::make_blank_frame(retimed_frames.begin()->second->rate(), media_type_) : retimed_frames.begin()->second;
+
         timebase::flicks frame_duration = override_frame_rate_;
         if (time_source_mode_ != TimeSourceMode::FIXED && first_frame) {
             frame_duration = first_frame->rate();
@@ -1723,8 +1732,9 @@ void SubPlayhead::update_retiming() {
         // if forced_duration_ extends beyond the last entry in retimed_frames_,
         // we duplicate the last frame until this is no longer the case, 
         // i.e. held frame behaviour. UNLESS the source is a timeline, in whcih
-        // case we want blank frames
-        auto last_frame = source_is_timeline_ ? media::make_blank_frame(retimed_frames_.rbegin()->second->rate(), media_type_) : retimed_frames_.rbegin()->second;
+        // case we want blank frames, or if we're audio playhead in which case
+        // we want silence
+        auto last_frame = (source_is_timeline_ || media_type_ == media::MT_AUDIO) ? media::make_blank_frame(retimed_frames_.rbegin()->second->rate(), media_type_) : retimed_frames_.rbegin()->second;
         timebase::flicks frame_duration = override_frame_rate_;
         if (time_source_mode_ != TimeSourceMode::FIXED && last_frame) {
             frame_duration = last_frame->rate();
@@ -1845,6 +1855,11 @@ void SubPlayhead::full_bookmarks_update(caf::typed_response_promise<bool> done) 
     // Note that the same bookmark can appear twice in the case where the same
     // piece of media appears twice in a timeline, say
 
+    // TODO: This code works but it is really hard to understand. This is a
+    // downside of our async requests to bookmark and building the bookmarks
+    // in the context of the playback timeline. We can massively simplify it
+    // by getting the MediaActors to deliver their bookmark ranges via the
+    // AVFrameID struct instead.
 
     if (all_media_uuids_.empty()) {
         fetch_bookmark_annotations(BookmarkRanges(), done);
@@ -1959,6 +1974,10 @@ void SubPlayhead::extend_bookmark_frame(
 
 void SubPlayhead::fetch_bookmark_annotations(
     BookmarkRanges bookmark_ranges, caf::typed_response_promise<bool> rp) {
+
+
+    // TODO: this bookmark evaluation code is horrible! refactor.
+
     if (!bookmark_ranges.size()) {
         bookmark_ranges_.clear();
         bookmarks_.clear();

@@ -17,6 +17,14 @@ namespace playhead {
 
     class PlayheadActor : public caf::event_based_actor, public PlayheadBase {
       public:
+
+        PlayheadActor(
+            caf::actor_config &cfg,
+            const utility::JsonStore &jsn,
+            caf::actor playlist_selection   = caf::actor(),
+            const utility::Uuid uuid        = utility::Uuid::generate(),
+            caf::actor_addr parent_playlist = caf::actor_addr());
+
         PlayheadActor(
             caf::actor_config &cfg,
             const std::string &name,
@@ -41,7 +49,7 @@ namespace playhead {
 
         void clear_all_precache_requests(caf::typed_response_promise<bool> rp);
         void clear_child_playheads();
-        caf::actor make_child_playhead(caf::actor source);
+        caf::actor make_child_playhead(utility::UuidActor source);
         void make_audio_child_playhead(const int source_index);
         void rebuild_from_timeline_sources();
         void rebuild_from_dynamic_sources();
@@ -101,6 +109,7 @@ namespace playhead {
         void
         hotkey_released(const utility::Uuid &hotkey_uuid, const std::string &context) override;
         bool timeline_mode() const { return pinned_source_mode_->value() && timeline_actor_; }
+        bool contact_sheet_mode() const { return contact_sheet_mode_; }
         void connected_to_ui_changed() override;
         void check_if_loop_range_makes_sense();
         void make_source_menu_model();
@@ -108,7 +117,7 @@ namespace playhead {
         caf::message_handler behavior_;
 
         caf::actor playlist_selection_;
-        caf::actor empty_clip_;
+        utility::UuidActor empty_clip_;
         caf::actor broadcast_;
         caf::actor fps_moniotor_group_;
         caf::actor viewport_events_group_;
@@ -118,7 +127,7 @@ namespace playhead {
         utility::UuidActor hero_sub_playhead_;
         utility::UuidActorVector sub_playheads_;
 
-        caf::actor video_string_out_actor_;
+        utility::UuidActor video_string_out_actor_;
         utility::UuidActor timeline_actor_;
         utility::UuidActorVector source_actors_;
         utility::UuidActorVector timeline_track_actors_;
@@ -139,11 +148,13 @@ namespace playhead {
         utility::Uuid previous_source_uuid_;
         utility::Uuid current_source_uuid_;
         std::map<utility::Uuid, int> media_frame_per_media_uuid_;
-        std::map<utility::Uuid, int> switch_key_playhead_hotkeys_;
+        std::map<utility::Uuid, int> switch_key_playhead_hotkeys_;        
         utility::Uuid move_selection_up_hotkey_;
         utility::Uuid move_selection_down_hotkey_;
         utility::Uuid jump_to_previous_note_hotkey_;
         utility::Uuid jump_to_next_note_hotkey_;
+
+        std::map<utility::Uuid, int64_t> source_offsets_;
 
         // std::map<utility::Uuid, timebase::flicks> media_frame_per_media_uuid_;
         std::vector<std::tuple<utility::Uuid, std::string, int, int>> bookmark_frames_ranges_;
@@ -158,6 +169,7 @@ namespace playhead {
         float step_keypress_event_id_                   = {0};
         bool precacheing_enabled_                       = {true};
         bool wrap_sources_                              = {false};
+        bool contact_sheet_mode_                        = {false};
         int sub_playhead_precache_idx_                  = {0};
 
         utility::UuidActorVector to_uuid_actor_vec(const std::vector<caf::actor> &actors);

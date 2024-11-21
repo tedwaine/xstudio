@@ -172,7 +172,7 @@ void SessionModel::forcePopulate(
 
     // spdlog::warn("{} {}", type, item.dump(2));
     // if subset or playlist, trigger auto population of children
-    if (type == "Playlist" or type == "Subset" or type == "Timeline") {
+    if (type == "Playlist" or type == "ContactSheet" or type == "Subset" or type == "Timeline") {
         try {
 
             requestData(
@@ -1006,7 +1006,7 @@ nlohmann::json SessionModel::playlistTreeToJson(
                 n["actor_uuid"]     = i.value().uuid();
                 n["container_uuid"] = i.uuid();
                 result["children"].emplace_back(n);
-            } else if (type == "Subset" or type == "Timeline") {
+            } else if (type == "Subset" or type == "Timeline" or type == "ContactSheet") {
                 auto n = createEntry(R"({
                     "name": null,
                     "actor_uuid": null,

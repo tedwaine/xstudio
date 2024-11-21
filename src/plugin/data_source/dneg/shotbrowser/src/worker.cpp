@@ -95,7 +95,8 @@ void MediaWorker::add_media_step_3(
                     media,
                     json_store::set_json_atom_v,
                     utility::Uuid(),
-                    JsonStore(R"({"icon": "qrc:/shotbrowser_icons/shot_grid.svg", "tooltip": "ShotGrid Version"})"_json),
+                    JsonStore(
+                        R"({"icon": "qrc:/shotbrowser_icons/shot_grid.svg", "tooltip": "ShotGrid Version"})"_json),
                     "/ui/decorators/shotgrid");
 
                 // dispatch delayed shot data.

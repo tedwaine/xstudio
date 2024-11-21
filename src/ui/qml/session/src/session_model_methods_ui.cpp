@@ -642,6 +642,9 @@ QFuture<QList<QUuid>> SessionModel::handleMediaIdDropFuture(
                     if (type == "Playlist") {
                         target      = actorFromString(system(), ij.at("actor"));
                         target_uuid = ij.at("actor_uuid").get<Uuid>();
+                    } else if (type == "ContactSheet") {
+                        target      = actorFromIndex(index.parent(), true);
+                        target_uuid = ij.at("actor_uuid").get<Uuid>();
                     } else if (type == "Subset") {
                         target      = actorFromIndex(index.parent(), true);
                         target_uuid = ij.at("actor_uuid").get<Uuid>();
@@ -951,6 +954,10 @@ QFuture<QList<QUuid>> SessionModel::handleUriListDropFuture(
                 if (type == "Playlist") {
                     actor  = ij.at("actor");
                     target = actorFromString(system(), actor);
+                } else if (type == "ContactSheet") {
+                    actor      = ij.at("actor");
+                    target     = actorFromIndex(index.parent(), true);
+                    sub_target = actorFromString(system(), actor);
                 } else if (type == "Subset") {
                     actor      = ij.at("actor");
                     target     = actorFromIndex(index.parent(), true);
@@ -1095,6 +1102,9 @@ QFuture<QList<QUuid>> SessionModel::handleOtherDropFuture(
                 if (type == "Playlist") {
                     target = actorFromString(system(), ij.at("actor"));
                 } else if (type == "Subset") {
+                    target     = actorFromIndex(index.parent(), true);
+                    sub_target = actorFromString(system(), ij.at("actor"));
+                } else if (type == "ContactSheet") {
                     target     = actorFromIndex(index.parent(), true);
                     sub_target = actorFromString(system(), ij.at("actor"));
                 } else if (type == "Timeline") {
@@ -1342,7 +1352,7 @@ void SessionModel::gatherMediaFor(const QModelIndex &index, const QModelIndexLis
         if (index.isValid()) {
             nlohmann::json &j = indexToData(index);
 
-            if (j.at("type") == "Playlist" or j.at("type") == "Subset" or
+            if (j.at("type") == "Playlist" or j.at("type") == "ContactSheet" or j.at("type") == "Subset" or
                 j.at("type") == "Timeline") {
                 auto actor = actorFromString(system(), j.at("actor"));
                 if (actor) {
@@ -1532,7 +1542,7 @@ void SessionModel::sortByMediaDisplayInfo(
             nlohmann::json &j = indexToData(index);
             auto actor        = actorFromString(system(), j.at("actor"));
             auto type         = j.at("type").get<std::string>();
-            if (actor and (type == "Subset" or type == "Playlist" or type == "Timeline")) {
+            if (actor and (type == "Subset" or type == "ContactSheet" or type == "Playlist" or type == "Timeline")) {
                 anon_send(
                     actor,
                     playlist::sort_by_media_display_info_atom_v,

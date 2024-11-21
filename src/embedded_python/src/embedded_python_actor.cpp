@@ -741,7 +741,9 @@ void EmbeddedPythonActor::refresh_snippets(const std::vector<caf::uri> &paths) {
 }
 
 nlohmann::json EmbeddedPythonActor::refresh_snippet(
-    const std::filesystem::path &path, const std::string &menu_path) {
+    const std::filesystem::path &path,
+    const std::string &menu_path_,
+    const std::string &snippet_type) {
     auto result = R"([])"_json;
 
     if (!fs::is_directory(path))
@@ -751,19 +753,42 @@ nlohmann::json EmbeddedPythonActor::refresh_snippet(
         for (const auto &entry : fs::directory_iterator(path)) {
             if (fs::is_regular_file(entry.status()) and entry.path().extension() == ".py") {
                 auto item =
-                    R"({"id": null, "type": "script", "name": null, "script_path":null})"_json;
-                item["id"] = Uuid::generate();
-
-                item["name"]        = title_case(entry.path().stem().string());
-                item["script_path"] = to_string(posix_path_to_uri(entry.path().string()));
-                item["menu_path"]   = menu_path;
+                    R"({"id": null, "type": "script", "snippet_type": null, "name": null, "script_path":null})"_json;
+                item["id"]           = Uuid::generate();
+                item["snippet_type"] = snippet_type.empty() ? "Application" : snippet_type;
+                item["name"]         = title_case(entry.path().stem().string());
+                item["script_path"]  = to_string(posix_path_to_uri(entry.path().string()));
+                item["menu_path"]    = menu_path_;
                 result.push_back(item);
             } else if (fs::is_directory(entry.status())) {
-                for (const auto &i : refresh_snippet(
-                         entry.path(),
-                         menu_path.empty()
-                             ? title_case(entry.path().stem().string())
-                             : menu_path + "|" + title_case(entry.path().stem().string())))
+                auto change_type = snippet_type;
+                auto menu_path =
+                    menu_path_.empty()
+                        ? title_case(entry.path().stem().string())
+                        : menu_path_ + "|" + title_case(entry.path().stem().string());
+
+                if (change_type.empty()) {
+                    if (entry.path().stem() == "media") {
+                        change_type = "Media";
+                        menu_path   = "";
+                    } else if (entry.path().stem() == "playlist") {
+                        change_type = "Playlist";
+                        menu_path   = "";
+                    } else if (entry.path().stem() == "sequence") {
+                        change_type = "Sequence";
+                        menu_path   = "";
+                    } else if (entry.path().stem() == "track") {
+                        change_type = "Track";
+                        menu_path   = "";
+                    } else if (entry.path().stem() == "clip") {
+                        change_type = "Clip";
+                        menu_path   = "";
+                    } else {
+                        change_type = "Application";
+                    }
+                }
+
+                for (const auto &i : refresh_snippet(entry.path(), menu_path, change_type))
                     result.push_back(i);
 
                 // auto item = R"({"id": null, "type": "script","name": null,

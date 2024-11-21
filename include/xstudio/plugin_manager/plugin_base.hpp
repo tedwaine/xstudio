@@ -77,6 +77,9 @@ namespace plugin {
         }
 
       protected:
+
+        void on_exit() override;
+
         virtual caf::message_handler message_handler_extensions() {
             return caf::message_handler();
         }
@@ -112,16 +115,6 @@ namespace plugin {
         build_annotation(const utility::JsonStore &anno_data) {
             return bookmark::AnnotationBasePtr();
         }
-
-        /* Function signature for on screen frame change callback - reimplement to
-        receive this event. Call join_playhead_events() to activate. */
-        virtual void on_screen_frame_changed(
-            const timebase::flicks,   // playhead position
-            const int,                // playhead logical frame
-            const int,                // media frame
-            const int,                // media logical frame
-            const utility::Timecode & // media frame timecode
-        ) {}
 
         /* Function signature for on screen annotation change - reimplement to
         receive this event. Call join_playhead_events() to activate. */
@@ -210,11 +203,18 @@ namespace plugin {
 
         void join_studio_events();
 
+        void __images_going_on_screen(
+            const media_reader::ImageBufDisplaySetPtr & image_set,
+            const std::string viewport_name,
+            const bool playhead_playing
+        );
+
         caf::actor_addr active_viewport_playhead_;
         caf::actor_addr playhead_media_events_group_;
         caf::actor bookmark_manager_;
         caf::actor playhead_events_actor_;
         bool joined_playhead_events_ = {false};
+        std::map<std::string, utility::Uuid> last_source_uuid_;
 
         module::BooleanAttribute *viewport_overlay_qml_code_ = nullptr;
     };

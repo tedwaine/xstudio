@@ -282,23 +282,6 @@ Viewport::Viewport(
             window_id_ == "xstudio_main_window" || window_id_ == "xstudio_popout_window"
             );
 
-
-    // Compare mode needs custom QML code for instatiation into the toolbar as
-    // the choices are determined through viewport layout plugins
-    compare_mode_ = add_string_attribute(
-        "Compare",
-        "Compare",
-        "");
-    compare_mode_->set_tool_tip("Access compare mode controls");
-    if (sync_to_main_viewport_->value()) {
-        compare_mode_->set_preference_path("/ui/qml/default_playhead_compare_mode");
-        compare_mode_->set_role_data(module::Attribute::Type, "QmlCode");
-        compare_mode_->set_role_data(
-            module::Attribute::QmlCode,
-            R"(import xStudio 1.0
-                XsViewerCompareModeButton {})");
-    }
-
     filter_mode_preference_ = add_string_choice_attribute(
         "Viewport Filter Mode", "Vp. Filtering", ViewportRenderer::pixel_filter_mode_names);
     filter_mode_preference_->set_preference_path("/ui/viewport/filter_mode");
@@ -352,7 +335,6 @@ Viewport::Viewport(
     pan_mode_toggle_->set_role_data(module::Attribute::ToolbarPosition, 6.0f);
     fit_mode_->set_role_data(module::Attribute::ToolbarPosition, 7.0f);
     mirror_mode_->set_role_data(module::Attribute::ToolbarPosition, 8.0f);
-    compare_mode_->set_role_data(module::Attribute::ToolbarPosition, 9.0f);
 
     frame_rate_expr_    = add_string_attribute("Frame Rate", "Frame Rate", "--/--");
     custom_cursor_name_ = add_string_attribute("Custom Cursor Name", "Custom Cursor Name", "");
@@ -407,11 +389,6 @@ Viewport::Viewport(
     make_attribute_visible_in_viewport_toolbar(mirror_mode_);
     make_attribute_visible_in_viewport_toolbar(hud_toggle_);
 
-    if (sync_to_main_viewport_->value()) {
-        // compare mode not relevant for quickview viewports (for now)
-        make_attribute_visible_in_viewport_toolbar(compare_mode_);
-    }
-
     module::QmlCodeAttribute *source_selector = add_qml_code_attribute(
         "Source Selector",
         R"(
@@ -432,7 +409,6 @@ Viewport::Viewport(
     expose_attribute_in_model_data(frame_rate_expr_, other_attrs_model);
     expose_attribute_in_model_data(custom_cursor_name_, other_attrs_model);
     expose_attribute_in_model_data(frame_error_message_, other_attrs_model);
-    expose_attribute_in_model_data(compare_mode_, other_attrs_model);
 
     // we call this base-class method to set-up our attributes so that they
     // show up in our toolbar
@@ -450,6 +426,7 @@ Viewport::~Viewport() {
     if (quickview_playhead_) {
         sys->send_exit(quickview_playhead_, caf::exit_reason::user_shutdown);
     }
+    sys->send_exit(display_frames_queue_actor_, caf::exit_reason::user_shutdown);
     display_frames_queue_actor_ = caf::actor();
 }
 
@@ -537,8 +514,6 @@ void Viewport::setup_menus() {
     insert_menu_item(context_menu_model_name, "Mirror", "", 8.0f, mirror_mode_, false);
 
     insert_menu_item(context_menu_model_name, "Fit", "", 9.0f, fit_mode_, false);
-
-    insert_menu_item(context_menu_model_name, "Compare", "", 9.5f, compare_mode_, false);
 
     reset_menu_item_ = insert_menu_item(
         context_menu_model_name, "Reset Viewer", "", 10.0f, nullptr, false, reset_hotkey_);
@@ -892,8 +867,7 @@ void Viewport::update_matrix() {
             state_.scale_,
             pan(),
             name(),
-            window_id_,
-            compare_mode_->value());
+            window_id_);
     }
 
     const float flipFactor = (state_.mirror_mode_ & MirrorMode::Flip) ? -1.0f : 1.0f;
@@ -1038,8 +1012,7 @@ caf::message_handler Viewport::message_handler() {
                     const float scale,
                     const Imath::V2f pan,
                     const std::string &viewport_name,
-                    const std::string &window_id,
-                    const std::string &compare_mode) {
+                    const std::string &window_id) {
 
                     if (viewport_name == name())
                         return;
@@ -1048,8 +1021,6 @@ caf::message_handler Viewport::message_handler() {
                         (window_id == "xstudio_popout_window" || window_id == "xstudio_main_window")) {
 
                         broadcast_fit_details_ = false;
-
-                        compare_mode_->set_value(compare_mode);
 
                         if (mode == FitMode::Free) {
                             state_.translate_ = Imath::V3f(pan.x, pan.y, 0.0f);
@@ -1204,6 +1175,12 @@ caf::message_handler Viewport::message_handler() {
                         serialNumber);
                 },
 
+                [=](playhead::compare_mode_atom, const std::string & compare_mode) {
+                    // the message comes from current playhead when compare mode
+                    // is changed
+                    set_compare_mode(compare_mode);
+                },
+
                 [=](const error &err) mutable { std::cerr << "ERR " << to_string(err) << "\n"; }
 
                })
@@ -1276,6 +1253,7 @@ void Viewport::set_playhead(caf::actor playhead, const bool wait_for_refresh) {
         playhead_uuid_ =
             utility::request_receive<utility::Uuid>(*sys, playhead, utility::uuid_atom_v);
 
+
         // Let the fps monitor join the new playhead too
         sys->anon_send(fps_monitor_, fps_monitor::connect_to_playhead_atom_v, playhead);
 
@@ -1315,6 +1293,8 @@ void Viewport::set_playhead(caf::actor playhead, const bool wait_for_refresh) {
                     caf::actor_cast<caf::actor_addr>(playhead));
             }
         }
+
+        set_compare_mode(utility::request_receive<std::string>(*sys, playhead, playhead::compare_mode_atom_v));
 
         // tell the playhead events actor that the on-screen playhead has changed
         anon_send(
@@ -1446,56 +1426,7 @@ void Viewport::attribute_changed(const utility::Uuid &attr_uuid, const int role)
         else
             set_mirror_mode(MirrorMode::Off);
 
-    } else if (attr_uuid == compare_mode_->uuid()) {
-
-        try {
-
-            caf::scoped_actor sys(self()->home_system());
-
-            auto layouts_manager =
-                    self()->home_system().registry().template get<caf::actor>(viewport_layouts_manager);
-
-            // get the actor that provides the layout
-            auto layout_actor = request_receive<caf::actor>(
-                *sys,
-                layouts_manager,
-                viewport_layout_atom_v,
-                compare_mode_->value(),
-                sync_to_main_viewport_->value(),
-                name()
-                );
-
-            // get the playhead mode for the new compare mode
-            auto mode = request_receive<playhead::AssemblyMode>(
-                *sys,
-                layouts_manager,
-                playhead::compare_mode_atom_v,
-                compare_mode_->value());
-
-            // pass it over to the frame queue actor, which sends the image
-            // set to the layout actor to do the actual layout
-            anon_send(
-                display_frames_queue_actor_,
-                viewport_layout_atom_v,
-                layout_actor,
-                compare_mode_->value(),
-                mode);
-
-            // get the viewport renderer for the layout/compare mode
-            active_renderer_ = request_receive<ViewportRendererPtr>(
-                *sys,
-                layout_actor,
-                viewport_renderer_atom_v,
-                window_id_);
-
-            update_matrix();
-            event_callback(Redraw);
-
-        } catch (std::exception &e) {
-            spdlog::warn("{} {}", __PRETTY_FUNCTION__, e.what());
-        }
-
-    }
+    } 
 }
 
 void Viewport::menu_item_activated(
@@ -1580,13 +1511,12 @@ media_reader::ImageBufPtr Viewport::get_onscreen_image(const bool force_playhead
 void Viewport::update_onscreen_frame_info(const media_reader::ImageBufDisplaySetPtr &images) {
 
     on_screen_frames_ = images;
-    last_images_hash_ = images ? images->images_keys_hash() : 0;
     needs_redraw_ = false;
 
-    if (images && images->image_characteristics_hash() != image_bounds_hash_) {
+    if (images && images->images_layout_hash() != image_bounds_hash_) {
         calc_image_bounds_in_viewport_pixels();
         update_image_resolutions();
-        image_bounds_hash_ = images->image_characteristics_hash();
+        image_bounds_hash_ = images->images_layout_hash();
     }
 
     // this should be called by the subclass of this Viewport class just
@@ -1639,7 +1569,7 @@ void Viewport::framebuffer_swapped(const utility::time_point swap_time) {
 
 media_reader::ImageBufDisplaySetPtr Viewport::get_frames_for_display(
     const bool force_playhead_sync,
-    const utility::time_point &when_being_displayed) const {
+    const utility::time_point &when_being_displayed) {
 
     media_reader::ImageBufDisplaySetPtr result;
 
@@ -1663,9 +1593,13 @@ media_reader::ImageBufDisplaySetPtr Viewport::get_frames_for_display(
                                 viewport_get_next_frames_for_display_atom_v,
                                 when_being_displayed);
 
-        // pass on-screen images to overlay plugins
-        for (auto p : overlay_plugin_instances_) {
-            anon_send(p.second, playhead::show_atom_v, result, name(), playing_);
+        size_t image_set_hash = result ? result->images_layout_hash() + result->images_keys_hash() : 0;
+        if (last_images_hash_ !=image_set_hash) {
+            last_images_hash_ = image_set_hash;
+            // pass on-screen images to overlay plugins
+            for (auto p : overlay_plugin_instances_) {
+                anon_send(p.second, playhead::show_atom_v, result, name(), playing_);
+            }
         }
 
     } catch (const std::exception &e) {
@@ -1752,7 +1686,7 @@ void Viewport::instance_overlay_plugins() {
                     *sys, overlay_actor, pre_render_gpu_hook_atom_v);
 
                 if (pre_render_hook) {
-                    if (active_renderer_) active_renderer_->add_pre_renderer_hook(pd.uuid_, pre_render_hook);
+                    overlay_pre_render_hooks_[pd.uuid_] = pre_render_hook;
                 }
 
                 overlay_plugin_instances_[pd.uuid_] = overlay_actor;
@@ -1793,7 +1727,7 @@ void Viewport::instance_overlay_plugins() {
                     *sys, overlay_actor, pre_render_gpu_hook_atom_v);
 
                 if (pre_render_hook) {
-                    if (active_renderer_) active_renderer_->add_pre_renderer_hook(pd.uuid_, pre_render_hook);
+                    overlay_pre_render_hooks_[pd.uuid_] = pre_render_hook;
                 }
 
                 overlay_plugin_instances_[pd.uuid_] = overlay_actor;
@@ -1818,11 +1752,6 @@ void Viewport::instance_overlay_plugins() {
     auto a = caf::actor_cast<caf::event_based_actor *>(self());
     a->link_to(display_frames_queue_actor_);
 
-    // intialise the compare mode with default behaviour. This is important in 
-    // order to establish which viewport renderer is active.
-    if (compare_mode_->value() == "") {
-        compare_mode_->set_value("Off");
-    }
 }
 
 void Viewport::get_colour_pipeline() {
@@ -1845,9 +1774,7 @@ void Viewport::get_colour_pipeline() {
             auto colour_pipe_gpu_hook = request_receive<plugin::GPUPreDrawHookPtr>(
                 *sys, colour_pipeline_, pre_render_gpu_hook_atom_v);
             if (colour_pipe_gpu_hook) {
-                if (active_renderer_) active_renderer_->add_pre_renderer_hook(
-                    utility::Uuid("4aefe9d8-a53d-46a3-9237-9ff686790c46"),
-                    colour_pipe_gpu_hook);
+                overlay_pre_render_hooks_[utility::Uuid("4aefe9d8-a53d-46a3-9237-9ff686790c46")] = colour_pipe_gpu_hook;
             }
         }
 
@@ -1939,7 +1866,6 @@ void Viewport::quickview_media(
 
     quickview_playhead_ = playhead;
 
-    compare_mode_->set_value(compare_mode);
 }
 
 void Viewport::set_visibility(bool is_visible) {
@@ -1982,7 +1908,7 @@ utility::JsonStore ViewportRenderer::core_shader_params(
 }
 
 void Viewport::render() const {
-    
+
     if (render_data_ && render_data_->renderer) {
         render_data_->renderer->render(
             render_data_->images,
@@ -2027,4 +1953,51 @@ void Viewport::prepare_render_data(const utility::time_point &when_going_on_scre
     rdata->overlay_renderers = viewport_overlay_renderers_;
     rdata->renderer = active_renderer_;
     render_data_.reset(rdata);
+}
+
+void Viewport::set_compare_mode(const std::string &compare_mode) {
+
+    if (compare_mode_ == compare_mode) return;
+
+    try {
+
+        caf::scoped_actor sys(self()->home_system());
+
+        auto layouts_manager =
+                self()->home_system().registry().template get<caf::actor>(viewport_layouts_manager);
+
+        // get the actor that provides the layout
+        auto layout_actor = request_receive<caf::actor>(
+            *sys,
+            layouts_manager,
+            viewport_layout_atom_v,
+            compare_mode,
+            sync_to_main_viewport_->value(),
+            name()
+            );
+
+        // pass it over to the frame queue actor, which sends the image
+        // set to the layout actor to do the actual layout
+        anon_send(
+            display_frames_queue_actor_,
+            viewport_layout_atom_v,
+            layout_actor,
+            compare_mode);
+
+        // get the viewport renderer for the layout/compare mode
+        active_renderer_ = request_receive<ViewportRendererPtr>(
+            *sys,
+            layout_actor,
+            viewport_renderer_atom_v,
+            window_id_);
+
+        active_renderer_->set_pre_renderer_hooks(overlay_pre_render_hooks_);
+
+        update_matrix();
+        event_callback(Redraw);
+
+    } catch (std::exception &e) {
+        spdlog::warn("{} {}", __PRETTY_FUNCTION__, e.what());
+    }
+
 }

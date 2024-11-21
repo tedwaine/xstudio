@@ -30,6 +30,8 @@ namespace ui {
                 __bind(tex_index, dims);
             }
 
+
+            [[nodiscard]] const media::MediaKey &pending_media_key() const { return pending_media_key_; }
             [[nodiscard]] const media::MediaKey &media_key() const { return media_key_; }
             [[nodiscard]] const utility::time_point &when_last_used() const {
                 return when_last_used_;
@@ -43,7 +45,7 @@ namespace ui {
 
           protected:
 
-            virtual uint8_t *map_buffer_for_upload()             = 0;
+            virtual uint8_t *map_buffer_for_upload(const size_t buffer_size)             = 0;
             virtual void __bind(int tex_index, Imath::V2i &dims) = 0;
             virtual size_t tex_size_bytes() const                = 0;
 
@@ -54,8 +56,8 @@ namespace ui {
             media::MediaKey media_key_;
             media_reader::ImageBufPtr source_frame_;
 
-            media::MediaKey uploaded_media_key_;
-            media_reader::ImageBufPtr uploaded_source_frame_;
+            media::MediaKey pending_media_key_;
+            media_reader::ImageBufPtr pending_source_frame_;
 
             uint8_t * gpu_mapped_mem_ = nullptr;
 

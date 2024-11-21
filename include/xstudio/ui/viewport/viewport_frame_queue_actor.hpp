@@ -35,6 +35,10 @@ namespace ui {
                 const std::string &viewport_name, 
                 caf::actor colour_pipeline);
 
+            ~ViewportFrameQueueActor() override;
+
+            void on_exit() override;
+
           private:
             caf::behavior make_behavior() override { return behavior_; }
 

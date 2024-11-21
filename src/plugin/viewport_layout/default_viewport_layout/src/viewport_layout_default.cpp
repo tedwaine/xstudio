@@ -24,6 +24,7 @@ DefaultViewportLayout::DefaultViewportLayout(
     // play in sequence.
     add_layout_mode("Off", playhead::AssemblyMode::AM_ONE);
     add_layout_mode("String", playhead::AssemblyMode::AM_STRING);
+    add_layout_mode("A/B", playhead::AssemblyMode::AM_TEN);
 
 }
 

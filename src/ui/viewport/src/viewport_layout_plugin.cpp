@@ -39,8 +39,28 @@ ViewportLayoutPlugin::ViewportLayoutPlugin(
         },
         [=](viewport_layout_atom,
             const std::string &layout_mode,
+            const JsonStore &python_plugin_layout) {        
+
+            // this comes in from Python - we can't get exchange size_t between
+            // C++ and python, PyBind and caf get their knickers in a twist trying
+            // to infer the integer type, so the hash is stringified at both
+            // ends.
+            try {
+                
+                size_t hash;
+                auto h = python_plugin_layout["hash"].get<std::string>();
+                sscanf(h.c_str(), "%zu", &hash);
+                delegate(caf::actor_cast<caf::actor>(this), viewport_layout_atom_v, layout_mode, python_plugin_layout, hash);
+
+            } catch ( std::exception & e ) {
+                spdlog::warn("{} {}", __PRETTY_FUNCTION__, e.what());
+            }
+            
+        },
+        [=](viewport_layout_atom,
+            const std::string &layout_mode,
             const JsonStore &python_plugin_layout,
-            int64_t hash) {        
+            size_t hash) {        
 
             media_reader::ImageSetLayoutDataPtr layout_data = python_layout_data_to_ours(python_plugin_layout);
             if (layout_data) {
@@ -59,7 +79,7 @@ ViewportLayoutPlugin::ViewportLayoutPlugin(
             const std::string &layout_mode,
             const media_reader::ImageBufDisplaySetPtr &image_set) -> result<media_reader::ImageSetLayoutDataPtr> {
             auto rp = make_response_promise<media_reader::ImageSetLayoutDataPtr>();
-            auto p = layouts_cache_[layout_mode].find(image_set->image_characteristics_hash());
+            auto p = layouts_cache_[layout_mode].find(image_set->images_layout_hash());
             if (p == layouts_cache_[layout_mode].end()) {
                 __do_layout(layout_mode, image_set, rp);
             } else {
@@ -85,8 +105,8 @@ ViewportLayoutPlugin::ViewportLayoutPlugin(
 }
 
 void ViewportLayoutPlugin::on_exit() {
-    std::cerr << "Exiting " << this << " " << module::Module::name() << "\n";
     layouts_manager_ = caf::actor();
+    gobal_playhead_events_ = caf::actor();
     plugin::StandardPlugin::on_exit();
 }
 
@@ -130,8 +150,20 @@ void ViewportLayoutPlugin::__do_layout(
     // plugin for doing viewport layouts. We send a message to the event_group_
     // which calls the do_layout' function of
     if (is_python_plugin_ && event_group_) {
-        send(event_group_, viewport_layout_atom_v, layout_mode, image_set->as_json(), image_set->image_characteristics_hash());
-        pending_responses_[image_set->image_characteristics_hash()].push_back(rp);
+        // We need python side to receive the hash for the image layout inputs (image sizes and pixel aspects)
+        // but the hash is size_t which we can't interchange directly with python as it handles integers
+        // differently, so we stringify the hash. Python plugin then sends back the layout data
+        // with the hash as a string which we need to decode to size_t again.
+        send(
+            event_group_,
+            viewport_layout_atom_v,
+            layout_mode,
+            image_set->as_json(),
+            fmt::format("{}",
+            image_set->images_layout_hash())
+            );
+
+        pending_responses_[image_set->images_layout_hash()].push_back(rp);
         return;
     }
 
@@ -147,7 +179,7 @@ void ViewportLayoutPlugin::__do_layout(
 
     auto r = media_reader::ImageSetLayoutDataPtr(layout_data);
     rp.deliver(r);
-    layouts_cache_[layout_mode][image_set->image_characteristics_hash()] = r;
+    layouts_cache_[layout_mode][image_set->images_layout_hash()] = r;
 
 }
 
@@ -345,11 +377,9 @@ ViewportLayoutManager::ViewportLayoutManager(caf::actor_config &cfg) : caf::even
 }
 
 ViewportLayoutManager::~ViewportLayoutManager() {
-    std::cerr << "GOODBYE ViewportLayoutManager\n";
 }
 
 void ViewportLayoutManager::on_exit() {
-    std::cerr << "on_exit ViewportLayoutManager\n";
     viewport_layouts_.clear();
     caf::event_based_actor::on_exit();
 }

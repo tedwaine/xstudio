@@ -145,16 +145,16 @@ WipeViewportLayout::WipeViewportLayout(
     const utility::JsonStore &init_settings)
     : ViewportLayoutPlugin(cfg, "Wipe Viewport Layout", false, init_settings) {
 
-    wipe_position_ = add_vec4f_attribute("Wipe", "Wipe", Imath::V4f(0.5f,0.5f,0.0f,1.0f));
+    wipe_position_ = add_vec4f_attribute("Wipe Position", "Wipe Position", Imath::V4f(0.5f,0.5f,0.0f,1.0f));
     wipe_position_->set_redraw_viewport_on_change(true);
     wipe_position_->set_role_data(module::Attribute::ToolTip, "Spacing between images in grid layout as a % of image size.");
-    add_layout_settings_attribute(wipe_position_, "A/B");
+    add_layout_settings_attribute(wipe_position_, "Wipe");
     wipe_position_->expose_in_ui_attrs_group("wipe_layout_attrs");
 
-    add_layout_mode("A/B", playhead::AssemblyMode::AM_ALL);
+    add_layout_mode("Wipe", playhead::AssemblyMode::AM_TEN);
 
     add_viewport_layout_qml_overlay(
-        "A/B",
+        "Wipe",
         R"(
             import WipeLayoutOverlay 1.0
             WipeLayoutOverlay {

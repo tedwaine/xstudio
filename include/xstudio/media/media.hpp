@@ -151,16 +151,16 @@ namespace media {
             const int frame,
             const std::string &stream_id);
 
-        bool operator==(const MediaKey &o) const {
-            return o.hash_ == hash_;
+        bool operator!=(const MediaKey &o) const {
+            return static_cast<const std::string&>(*this) != static_cast<const std::string &>(o);
         }
 
-        bool operator!=(const MediaKey &o) const {
-            return o.hash_ != hash_;
+        bool operator==(const MediaKey &o) const {
+            return static_cast<const std::string&>(*this) == static_cast<const std::string &>(o);
         }
 
         bool operator<(const MediaKey &o) const {
-            return o.hash_ < hash_;
+            return static_cast<const std::string&>(*this) < static_cast<const std::string &>(o);
         }
 
         [[nodiscard]] size_t hash() const { return hash_; }
@@ -512,7 +512,7 @@ namespace media {
 namespace std {
 template <> struct hash<xstudio::media::MediaKey> {
     size_t operator()(const xstudio::media::MediaKey &k) const {
-        return hash<std::string>()(to_string(k));
+        return k.hash();
     }
 };
 } // namespace std

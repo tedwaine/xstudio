@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 #include "xstudio/plugin_manager/plugin_base.hpp"
 #include "xstudio/utility/helpers.hpp"
-#include "xstudio/media_reader/image_buffer.hpp"
+#include "xstudio/media_reader/image_buffer_set.hpp"
 
 using namespace xstudio;
 using namespace xstudio::bookmark;
@@ -41,7 +41,10 @@ StandardPlugin::StandardPlugin(
         [=](playhead::show_atom,
             const media_reader::ImageBufDisplaySetPtr &image_set,
             const std::string &viewport_name,
-            const bool playing) { images_going_on_screen(image_set, viewport_name, playing); },
+            const bool playing) { 
+                __images_going_on_screen(image_set, viewport_name, playing); 
+                images_going_on_screen(image_set, viewport_name, playing); 
+            },
 
         [=](ui::viewport::overlay_render_function_atom) -> ViewportOverlayRendererPtr {
             return make_overlay_renderer();
@@ -83,12 +86,6 @@ StandardPlugin::StandardPlugin(
             const int media_frame,
             const int media_logical_frame,
             const utility::Timecode &timecode) {
-            on_screen_frame_changed(
-                playhead_position,
-                playhead_logical_frame,
-                media_frame,
-                media_logical_frame,
-                timecode);
         },
 
         [=](utility::event_atom,
@@ -129,6 +126,10 @@ StandardPlugin::StandardPlugin(
                 turn_off_overlay_interaction();
             }
         }};
+}
+
+void StandardPlugin::on_exit() {
+    playhead_events_actor_ = caf::actor();
 }
 
 void StandardPlugin::on_screen_media_changed(caf::actor media) {
@@ -214,6 +215,29 @@ void StandardPlugin::join_studio_events() {
         spdlog::warn("{} {}", __PRETTY_FUNCTION__, err.what());
     }
 }
+
+void StandardPlugin::__images_going_on_screen(
+    const media_reader::ImageBufDisplaySetPtr & image_set,
+    const std::string viewport_name,
+    const bool playhead_playing
+) {
+
+    // skip viewports whose name doesn't start with 'viewport' - this lets us
+    // ignore offscreen and quickview viewports
+    if (viewport_name.find("viewport") != 0) return;
+
+    if (image_set && image_set->hero_image().frame_id().source_uuid() != last_source_uuid_[viewport_name]) {
+
+        last_source_uuid_[viewport_name] = image_set->hero_image().frame_id().source_uuid();
+        auto media_source = caf::actor_cast<caf::actor>(image_set->hero_image().frame_id().actor_addr());
+        request(media_source, infinite, utility::parent_atom_v).then(
+            [=](caf::actor media_actor) {
+                on_screen_media_changed(media_actor);
+            },
+            [=](caf::error &err) {});
+    }
+}
+
 
 void StandardPlugin::listen_to_playhead_events(const bool listen) {
 

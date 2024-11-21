@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
 import QtQuick 2.12
+import QtQml.Models 2.12
 
 import xStudio 1.0
 import xstudio.qml.models 1.0
@@ -34,6 +35,14 @@ XsPopupMenu {
         helpers.setMenuPathPosition("Copy To Clipboard", "playlist_context_menu", 0.8)
         helpers.setMenuPathPosition("Cleanup", "playlist_context_menu", 22.0)
         helpers.setMenuPathPosition("Export", "playlist_context_menu", 4.0)
+        // need to reorder snippet menus..
+        let rc = embeddedPython.playlistMenuModel.rowCount();
+        for(let i=0; i < embeddedPython.playlistMenuModel.rowCount(); i++) {
+            let fi = embeddedPython.playlistMenuModel.index(i, 0)
+            let si = embeddedPython.playlistMenuModel.mapToSource(fi)
+            let mp = si.model.get(si, "menuPathRole")
+            helpers.setMenuPathPosition(mp,"playlist_context_menu", 9 + ((1.0/rc)*i) )
+        }
     }
 
     // property idenfies the 'panel' that is the anticedent of this
@@ -192,6 +201,27 @@ XsPopupMenu {
         menuPath: "Export"
         onActivated: {
             file_functions.exportSequencePath(function(result){if(result) {dialogHelpers.errorDialogFunc("Export Sequence Succeeded", "OTIO Exported")} else {dialogHelpers.errorDialogFunc("Export Sequence Failed", result)} })
+        }
+    }
+
+    XsMenuModelItem {
+        text: "Snippet"
+        menuItemType: "divider"
+        menuItemPosition: 8
+        menuPath: ""
+        menuModelName: contextMenu.menu_model_name
+    }
+
+    Repeater {
+        model: DelegateModel {
+            model: embeddedPython.playlistMenuModel
+            delegate: Item {XsMenuModelItem {
+                text: nameRole
+                menuPath: menuPathRole
+                menuItemPosition: (index*0.01)+8
+                menuModelName: contextMenu.menu_model_name
+                onActivated: embeddedPython.pyEvalFile(scriptPathRole)
+            }}
         }
     }
 

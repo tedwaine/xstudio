@@ -20,7 +20,7 @@ namespace ui {
             GLBlindRGBA8bitTex() = default;
             virtual ~GLBlindRGBA8bitTex();
 
-            uint8_t *map_buffer_for_upload() override;
+            uint8_t *map_buffer_for_upload(const size_t buffer_size) override;
             void __bind(int tex_index, Imath::V2i &dims) override;
 
           private:

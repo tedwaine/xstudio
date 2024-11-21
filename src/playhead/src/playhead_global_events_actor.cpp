@@ -21,6 +21,13 @@ PlayheadGlobalEventsActor::PlayheadGlobalEventsActor(caf::actor_config &cfg)
     init();
 }
 
+void PlayheadGlobalEventsActor::on_exit() {
+    global_active_playhead_ = caf::actor();
+    viewports_.clear();
+    system().registry().erase(global_playhead_events_actor);
+
+}
+
 void PlayheadGlobalEventsActor::init() {
 
     spdlog::debug("Created PlayheadGlobalEventsActor {}", name());
@@ -266,8 +273,7 @@ void PlayheadGlobalEventsActor::init() {
             const float scale,
             const Imath::V2f pan,
             const std::string &viewport_name,
-            const std::string &window_id,
-            const std::string &compare_mode) {
+            const std::string &window_id) {
             // viewports tell us when they are zooming/panning, setting fit or mirror mode.
             // We broadcast to all other viewports so that they can track (if they want to)
             for (const auto &p : viewports_) {
@@ -280,8 +286,7 @@ void PlayheadGlobalEventsActor::init() {
                         scale,
                         pan,
                         viewport_name,
-                        window_id,
-                        compare_mode);
+                        window_id);
                 }
             }
         },

@@ -1553,7 +1553,8 @@ void ShotBrowser::load_playlist(
                                         anon_send(
                                             playlist.actor(),
                                             json_store::set_json_atom_v,
-                                            JsonStore(R"({"icon": "qrc:/shotbrowser_icons/shot_grid.svg", "tooltip": "ShotGrid Playlist"})"_json),
+                                            JsonStore(
+                                                R"({"icon": "qrc:/shotbrowser_icons/shot_grid.svg", "tooltip": "ShotGrid Playlist"})"_json),
                                             "/ui/decorators/shotgrid");
 
                                         anon_send(

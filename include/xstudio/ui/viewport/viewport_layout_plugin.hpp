@@ -38,8 +38,6 @@ namespace viewport {
             bool is_python_plugin,
             const utility::JsonStore &init_settings);
 
-        ~ViewportLayoutPlugin() override = default;
-
       protected:
 
         /**

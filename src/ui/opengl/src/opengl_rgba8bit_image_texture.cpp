@@ -92,11 +92,11 @@ void GLBlindRGBA8bitTex::resize(const size_t required_size_bytes) {
     glBindBuffer(GL_PIXEL_UNPACK_BUFFER, 0);
 }
 
-uint8_t *GLBlindRGBA8bitTex::map_buffer_for_upload() {
+uint8_t *GLBlindRGBA8bitTex::map_buffer_for_upload(const size_t buffer_size) {
 
     glEnable(GL_TEXTURE_RECTANGLE);
 
-    resize(source_frame_->size());
+    resize(buffer_size);
 
     glNamedBufferData(
         pixel_buf_object_id_,

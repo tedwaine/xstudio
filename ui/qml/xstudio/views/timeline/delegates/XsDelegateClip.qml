@@ -43,7 +43,7 @@ RowLayout {
 	property int adjustDuration: "adjust_duration" in userDataRole ? userDataRole.adjust_duration : 0
 	property bool isAdjustingDuration: "is_adjusting_duration" in userDataRole ? userDataRole.is_adjusting_duration : false
 	property int adjustStart: "adjust_start" in userDataRole ? userDataRole.adjust_start : 0
-	property bool isAdjustingStart: "is_adjusting_start" in userDataRole ? userDataRole.is_adjusting_start : false
+	property bool isAdjustingStart: "is_adjusting_start" in userDataRole && userDataRole.is_adjusting_start != null ? userDataRole.is_adjusting_start : false
 
 	property int startFrame: isAdjustingStart ? trimmedStartRole + adjustStart : trimmedStartRole
 	property int durationFrame: isAdjustingDuration ? trimmedDurationRole + adjustDuration : trimmedDurationRole
@@ -65,6 +65,7 @@ RowLayout {
     property var dragging: config.dragging
     property var draggingStopped: config.draggingStopped
     property var doubleTapped: config.doubleTapped
+    property var tapped: config.tapped
 
     property string itemFlag: flagColourRole != "" ? flagColourRole : config.itemFlag
 
@@ -163,11 +164,11 @@ RowLayout {
 		isInvalidRange: !activeRangeValidRole
 
 		showRolling: isSelected && isHovered && control.showRolling && !isParentLocked && !lockedRole
-		showDragLeft: isSelected && isHovered && control.showDragLeft && !isParentLocked && !lockedRole
-		showDragRight: isSelected && isHovered && control.showDragRight && !isParentLocked && !lockedRole
-		showDragMiddle: isSelected && isHovered && control.showDragMiddle && !isParentLocked && !lockedRole
-		showDragLeftLeft: isSelected && isHovered && control.showDragLeftLeft && !isParentLocked && !lockedRole
-		showDragRightRight: isSelected && isHovered && control.showDragRightRight && !isParentLocked && !lockedRole
+		showDragLeft: (isSelected || isHovered) && control.showDragLeft && !isParentLocked && !lockedRole
+		showDragRight: (isSelected || isHovered) && control.showDragRight && !isParentLocked && !lockedRole
+		showDragMiddle: (isSelected || isHovered) && control.showDragMiddle && !isParentLocked && !lockedRole
+		showDragLeftLeft: (isSelected || isHovered) && control.showDragLeftLeft && !isParentLocked && !lockedRole
+		showDragRightRight: (isSelected || isHovered) && control.showDragRightRight && !isParentLocked && !lockedRole
 
 		name: nameRole
 		dragValue: control.dragValue
@@ -202,8 +203,9 @@ RowLayout {
 			// 	mappedY = -orig.y
 			// }
 	    }
-		onDragging: control.dragging(modelIndex(), control, mode, x / scaleX)
+		onDragging: control.dragging(modelIndex(), control, mode, x / scaleX, y / scaleY)
 		onDoubleTapped: control.doubleTapped(control, mode)
+		onTapped: control.tapped(button, x, y, modifiers, control)
 		onDraggingStopped: {
 			control.draggingStopped(modelIndex(), control, mode)
 	    	isDragging = false

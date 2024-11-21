@@ -499,14 +499,26 @@ OCIO::ConstConfigRcPtr OCIOEngine::display_transform(
 
     // Turns per shot CDLs into dynamic transform
 
-    std::string view_looks = ocio_config->getDisplayViewLooks(display.c_str(), view.c_str());
+    // Instanciate a processor and query its metadata to get the
+    // underlying looks used. This is more robust than simply asking
+    // the view for it looks, as a look could use another look in its
+    // definition.
+    auto proc = ocio_config->getProcessor(
+        context, "scene_linear", display.c_str(), view.c_str(), OCIO::TRANSFORM_DIR_FORWARD);
+    auto proc_meta = proc->getProcessorMetadata();
+    std::vector<std::string> proc_looks;
+    for (int i = 0; i < proc_meta->getNumLooks(); ++i) {
+        proc_looks.push_back(proc_meta->getLook(i));
+    }
+
     std::string dynamic_look;
     std::string dynamic_file;
 
     if (src_colour_mgmt_metadata.contains("dynamic_cdl")) {
         if (src_colour_mgmt_metadata["dynamic_cdl"].is_object()) {
             for (auto &item : src_colour_mgmt_metadata["dynamic_cdl"].items()) {
-                if (view_looks.find(item.key()) != std::string::npos) {
+                if (std::find(proc_looks.begin(), proc_looks.end(), item.key()) !=
+                    proc_looks.end()) {
                     dynamic_look = item.key();
                     dynamic_file = item.value();
                 }

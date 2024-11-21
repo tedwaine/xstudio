@@ -95,10 +95,12 @@ class ViewportLayoutPlugin(PluginBase):
                 "transforms": layout[0],
                 "image_draw_order": layout[1],
                 "layout_aspect_ratio": layout[2],
+                "hash": args[3]
                 }
+            # horrible. The has is an int64 ... JsonStore won't convert.
+            j = json.loads(json.dumps(j))
             self.connection.send(
                 self.remote,
                 viewport_layout_atom(),
                 args[1],
-                JsonStore(j),
-                int(args[3]))
+                JsonStore(j))

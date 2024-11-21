@@ -58,6 +58,8 @@ xstudio_sessions = {}
 
 void EmbeddedPython::finalize() {
     try {
+        message_handler_callbacks_.clear();
+        message_conversion_function_.clear();
         if (Py_IsInitialized() and inited_ and PyGILState_Check()) {
             py::finalize_interpreter();
             inited_ = false;

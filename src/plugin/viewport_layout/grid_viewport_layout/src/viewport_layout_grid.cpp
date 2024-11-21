@@ -20,6 +20,20 @@ GridViewportLayout::GridViewportLayout(
     spacing_->set_role_data(module::Attribute::ToolTip, "Spacing between images in grid layout as a % of image size.");
     add_layout_settings_attribute(spacing_, "Grid");
 
+    aspect_mode_ = add_string_choice_attribute(
+        "Cell Aspect",
+        "Cell Aspect",
+        "Auto",
+        std::vector<std::string>({"Auto", "Hero", "16:9", "1.89"}));
+    aspect_mode_->set_redraw_viewport_on_change(true);
+    aspect_mode_->set_role_data(
+        module::Attribute::ToolTip,
+R"(Set how the cell aspect is set. Auto means the most common image aspect in the 
+set of images being displayed is used. Hero means that the current 'hero' image
+sets the aspect of all cells in the layout. 16:9 or 1.89 forces equivalent aspect.)");
+    add_layout_settings_attribute(aspect_mode_, "Grid");
+    aspect_mode_->set_preference_path("/plugin/viewport_layout/grid_layout_aspect_mode");
+
     add_layout_mode("Grid", playhead::AssemblyMode::AM_ALL);
     add_layout_mode("Horizontal", playhead::AssemblyMode::AM_ALL);
     add_layout_mode("Vertical", playhead::AssemblyMode::AM_ALL);
@@ -37,8 +51,37 @@ void GridViewportLayout::do_layout(
         return;
     }
 
-    const auto hero_image = image_set->onscreen_image(image_set->hero_sub_playhead_index());
-    const float hero_aspect = hero_image ? hero_image->image_aspect() : 16.0f/9.0f;
+    if (!image_set) return;
+
+    const auto hero_image = image_set->hero_image();
+    
+    float hero_aspect = hero_image ? hero_image->image_aspect() : 16.0f/9.0f;
+    if (aspect_mode_->value() == "Auto") {
+        std::map<float, int> aspects;
+        for (int i = 0; i < num_images; ++i) {
+            const auto & im = image_set->onscreen_image(i);
+            if (im) {
+                float a = im->image_aspect();
+                if (aspects.count(a)) {
+                    aspects[a]++;
+                } else {
+                    aspects[a] = 1;
+                }
+            }
+        }
+        int c = 0;
+        for (const auto &p: aspects) {
+            if (p.second > c) {
+                c = p.second;
+                hero_aspect = p.first;
+            }
+        }
+    } else if (hero_aspect && aspect_mode_->value() == "Hero") {
+    } else if (aspect_mode_->value() == "16:9") {
+        hero_aspect = 16.0f/9.0f;
+    } else if (aspect_mode_->value() == "1.89") {
+        hero_aspect = 2048.0f/1080.0f;
+    }
 
     layout_data.image_transforms_.resize(image_set->num_onscreen_images());
 

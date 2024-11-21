@@ -40,9 +40,9 @@ namespace xstudio {
 namespace utility {
     template <typename K, typename V> class TimeCache {
       public:
-        using cache_type     = std::map<K, V>;
-        using uuid_type      = std::map<K, std::set<utility::Uuid>>;
-        using timepoint_type = std::map<K, std::set<time_point>>;
+        using cache_type     = std::unordered_map<K, V>;
+        using uuid_type      = std::unordered_map<K, std::unordered_set<utility::Uuid>>;
+        using timepoint_type = std::unordered_map<K, std::set<time_point>>;
 
         TimeCache(
             const size_t max_size  = std::numeric_limits<size_t>::max(),
@@ -114,6 +114,8 @@ namespace utility {
 
         [[nodiscard]] size_t size() const { return size_; }
         [[nodiscard]] size_t count() const { return count_; }
+        [[nodiscard]] bool empty() const { return count_ == 0; }
+
 
         [[nodiscard]] size_t max_size() const { return max_size_; }
         [[nodiscard]] size_t max_count() const { return max_count_; }
@@ -187,7 +189,7 @@ namespace utility {
         if (timepoint_cache_.count(key))
             timepoint_cache_[key].insert(time);
         else
-            timepoint_cache_[key] = std::set<time_point>{time};
+            timepoint_cache_.emplace(key, std::set<time_point>{time});
     }
 
     template <typename K, typename V>
@@ -202,7 +204,7 @@ namespace utility {
         cache_[key] = value;
         call_change_callback({key}, {});
 
-        uuid_cache_[key] = std::set<utility::Uuid>{};
+        uuid_cache_.emplace(key, std::unordered_set<utility::Uuid>{});
         add_timepoint_reference(key, time, uuid);
     }
 
@@ -365,6 +367,7 @@ namespace utility {
     template <typename K, typename V>
     std::vector<K> TimeCache<K, V>::erase(const std::vector<K> &keys) {
         std::vector<K> result;
+        result.reserve(keys.size());
         for (const auto &i : keys) {
             if (erase(i))
                 result.push_back(i);
@@ -479,24 +482,21 @@ namespace utility {
         K key;
 
         long int maxx = 0;
-        std::vector<time_point> bb;
+
         for (const auto &i : timepoint_cache_) {
 
             // calculate offset in time from now,
             long int ctt = std::numeric_limits<long int>::max();
-            std::vector<time_point> cc;
             for (const auto &tp : i.second) {
                 ctt = std::min(
                     ctt,
                     static_cast<long int>(std::chrono::duration_cast<std::chrono::milliseconds>(
                                               out_of_date_time - tp)
                                               .count()));
-                cc.push_back(tp);
             }
             if (ctt > maxx) {
                 maxx = ctt;
                 key  = i.first;
-                bb   = cc;
             }
         }
         // valid key ?
@@ -505,6 +505,7 @@ namespace utility {
             ptr = it->second;
             erase(it);
         }
+
         return ptr;
     }
 
@@ -541,6 +542,7 @@ namespace utility {
 
     template <typename K, typename V> std::vector<K> TimeCache<K, V>::keys() const {
         std::vector<K> _keys;
+        _keys.reserve(cache_.size());
         for (const auto &i : cache_)
             _keys.push_back(i.first);
         return _keys;
@@ -587,9 +589,9 @@ namespace utility {
             if (uuid_cache_[it->first].count(uuid) && timepoint_cache_.count(it->first)) {
                 std::set<time_point> ntp;
                 for (const auto &tp : timepoint_cache_[it->first]) {
-                    ntp.insert(tp - std::chrono::hours(1));
+                    ntp.emplace(tp - std::chrono::hours(1));
                 }
-                timepoint_cache_[it->first] = ntp;
+                timepoint_cache_.emplace(it->first, ntp);
             }
             it++;
         }
@@ -610,7 +612,7 @@ namespace utility {
                 ++i;
         }
         if (newest != time_point())
-            timepoint_cache_[key].insert(newest);
+            timepoint_cache_[key].emplace(newest);
     }
 } // namespace utility
 } // namespace xstudio

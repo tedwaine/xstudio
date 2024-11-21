@@ -116,6 +116,7 @@ namespace ui {
             const std::string window_id_;
             bool use_ssbo_ = {false};
             bool use_alpha_ = {false};
+            std::array<int, 4> scissor_coords_;
         };
     } // namespace opengl
 } // namespace ui

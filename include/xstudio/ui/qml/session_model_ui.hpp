@@ -198,6 +198,7 @@ class SESSION_QML_EXPORT SessionModel : public caf::mixin::actor_object<JSONTree
         const QModelIndexList &items,
         const QString &mode,
         int frameChange,
+        int trackChange,
         const bool isRipple    = false,
         const bool isOverwrite = false);
     Q_INVOKABLE void endTimelineItemDrag(

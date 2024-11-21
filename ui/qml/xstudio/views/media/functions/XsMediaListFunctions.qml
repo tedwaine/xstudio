@@ -187,4 +187,11 @@ Item {
         let sub = theSessionData.createPlaylistChild(name, "Subset", theSessionData.getPlaylistIndex(mediaSelectionModel.selectedIndexes[0]))
         theSessionData.copyRows(mediaSelectionModel.selectedIndexes, 0, sub)
     }
+
+    function addToNewContactSheet(name) {
+        let sub = theSessionData.createPlaylistChild(name, "ContactSheet", theSessionData.getPlaylistIndex(mediaSelectionModel.selectedIndexes[0]))
+        theSessionData.copyRows(mediaSelectionModel.selectedIndexes, 0, sub)
+    }
+
+    
 }

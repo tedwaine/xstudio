@@ -12,10 +12,14 @@ namespace subset {
     class SubsetActor : public caf::event_based_actor {
       public:
         SubsetActor(caf::actor_config &cfg, caf::actor playlist, const utility::JsonStore &jsn);
-        SubsetActor(caf::actor_config &cfg, caf::actor playlist, const std::string &name);
+        SubsetActor(caf::actor_config &cfg, caf::actor playlist, const std::string &name, const std::string &override_type = "Subset");
         ~SubsetActor() override = default;
 
         const char *name() const override { return NAME.c_str(); }
+
+        caf::behavior make_behavior() override {
+            return message_handler().or_else(base_.container_message_handler(this));
+        }
 
       private:
         inline static const std::string NAME = "SubsetActor";
@@ -23,9 +27,6 @@ namespace subset {
 
         caf::message_handler message_handler();
 
-        caf::behavior make_behavior() override {
-            return message_handler().or_else(base_.container_message_handler(this));
-        }
 
         void deliver_media_pointer(
             const int logical_frame, caf::typed_response_promise<media::AVFrameID> rp);
@@ -42,7 +43,10 @@ namespace subset {
             const utility::Uuid &before_uuid = utility::Uuid());
         bool remove_media(caf::actor actor, const utility::Uuid &uuid);
 
-      private:
+      protected:
+
+        utility::JsonStore serialise() const { return base_.serialise(); }
+
         caf::behavior behavior_;
         caf::actor_addr playlist_;
         caf::actor change_event_group_;

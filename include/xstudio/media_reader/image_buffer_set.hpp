@@ -77,8 +77,8 @@ namespace media_reader {
                 return int(image_set(sub_playhead_index)->future_images.size());
             }
             [[nodiscard]] size_t images_keys_hash() const { return images_hash_; }
-            [[nodiscard]] int num_onscreen_images() const { return int(sub_playhead_sets_.size()); }
-            [[nodiscard]] bool empty() const { return sub_playhead_sets_.empty(); }
+            [[nodiscard]] int num_onscreen_images() const { return int(sub_playhead_ids_.size()); }
+            [[nodiscard]] bool empty() const { return sub_playhead_ids_.empty(); }
             [[nodiscard]] float layout_aspect() const { return layout_data_ ? layout_data_->layout_aspect_ : 16.0f/9.0f; }
             [[nodiscard]] int hero_sub_playhead_index() const { return hero_sub_playhead_index_; }
             [[nodiscard]] int previous_hero_sub_playhead_index() const { return previous_hero_sub_playhead_index_; }
@@ -94,7 +94,7 @@ namespace media_reader {
                 return image_set(sub_playhead_index)->on_screen_image;
             }
             [[nodiscard]] const utility::JsonStore & as_json() const { return as_json_; }
-            [[nodiscard]] int64_t image_characteristics_hash() const { return hash_; }
+            [[nodiscard]] size_t images_layout_hash() const { return hash_; }
 
             void set_layout_data(const ImageSetLayoutDataPtr &layout_data) { layout_data_ = layout_data; }
             void set_hero_sub_playhead_index(const int idx) { hero_sub_playhead_index_ = idx; }
@@ -151,7 +151,7 @@ namespace media_reader {
             ImageSetLayoutDataPtr layout_data_;
 
             utility::JsonStore as_json_;
-            int64_t hash_ = {0};
+            size_t hash_ = {0};
             size_t images_hash_ = {0};
 
     };

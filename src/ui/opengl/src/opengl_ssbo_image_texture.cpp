@@ -36,12 +36,12 @@ void GLSsboTex::__bind(int /*tex_index*/, Imath::V2i & /*dims*/) {
     }
 }
 
-uint8_t *GLSsboTex::map_buffer_for_upload() {
+uint8_t *GLSsboTex::map_buffer_for_upload(const size_t buffer_size) {
 
     if (!ssbo_id_) {
         glGenBuffers(1, &ssbo_id_);
     }
-    compute_size(source_frame_->size());
+    compute_size(buffer_size);
     glBindBuffer(GL_SHADER_STORAGE_BUFFER, ssbo_id_);
     glNamedBufferData(ssbo_id_, tex_size_bytes(), nullptr, GL_DYNAMIC_DRAW);
     auto rt = (uint8_t *)glMapNamedBuffer(ssbo_id_, GL_WRITE_ONLY);

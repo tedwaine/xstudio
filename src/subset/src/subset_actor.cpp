@@ -29,10 +29,10 @@ SubsetActor::SubsetActor(
     init();
 }
 
-SubsetActor::SubsetActor(caf::actor_config &cfg, caf::actor playlist, const std::string &name)
+SubsetActor::SubsetActor(caf::actor_config &cfg, caf::actor playlist, const std::string &name, const std::string &override_type)
     : caf::event_based_actor(cfg),
       playlist_(caf::actor_cast<actor_addr>(playlist)),
-      base_(name) {
+      base_(name, override_type) {
     init();
 }
 

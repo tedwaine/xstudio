@@ -36,7 +36,7 @@ class TextureTransferWorker {
     public:
 
     TextureTransferWorker(GLDoubleBufferedTexture * owner) {
-        for (int i = 0; i < 4; ++i) {
+        for (int i = 0; i < 8; ++i) {
             threads_.emplace_back(std::thread(&TextureTransferWorker::run, this));
         }
         owner_ = owner;
@@ -112,7 +112,7 @@ GLDoubleBufferedTexture::GLDoubleBufferedTexture() {
 
 void GLDoubleBufferedTexture::bind(const media_reader::ImageBufPtr &image, int &tex_index, Imath::V2i &dims) {
 
-    auto p = textures_.find(image);
+    auto p = textures_.find_pending(image);
     if (p != textures_.end()) {
         // the image is already uploaded to one of our unused textures
         (*p)->bind(tex_index, dims);
@@ -138,16 +138,18 @@ void GLDoubleBufferedTexture::queue_image_set_for_upload(
 
     const std::vector<int> & draw_order = image_set->layout_data()->image_draw_order_hint_;    
 
+    auto available_textures = textures_;
+
     for (const auto &i: draw_order) {
         auto im = image_set->onscreen_image(i);
-        if (im) image_queue_.push_back(im);
+        queue_for_upload(available_textures, im);
     }
 
     // now queue images the we'll need in the *next* redraw
     for (const auto &i: draw_order) {
         if (image_set->future_images(i).size()) {
             auto im = image_set->future_images(i)[0];
-            if (im) image_queue_.push_back(im);
+            queue_for_upload(available_textures, im);
         }
     }
 
@@ -155,50 +157,29 @@ void GLDoubleBufferedTexture::queue_image_set_for_upload(
     for (const auto &i: draw_order) {
         if (image_set->future_images(i).size() > 1) {
             auto im = image_set->future_images(i)[1];
-            if (im) image_queue_.push_back(im);
+            queue_for_upload(available_textures, im);
         }
-    }
-
-
-    // Now we check our textures, and see which images at the front of the 
-    // queue are already uploaded. 
-    auto available_textures = textures_;
-    auto p = image_queue_.begin();
-    while (p != image_queue_.end()) {
-
-        auto q = available_textures.find(*p);
-        if (q != available_textures.end()) {
-            // this image is already loaded into a texture. Take it out of the
-            // queue and take the corresponding texture out of available_textures
-            available_textures.erase(q);
-            p = image_queue_.erase(p);
-        } else {
-            // we've got to an image in the queue that isn't uploaded. Now 
-            // we start scheduling uploads
-            break;
-        }
-
-    }
-
-    // keep going until we've either run out of available textures or the
-    // queue is empty
-    while (available_textures.size() && image_queue_.size()) {
-
-        // has the image at the front of the queue aleady been uploaded to
-        // a texture in available_textures?
-        auto im = image_queue_.front();
-        auto q = available_textures.find(im);
-        if (q == available_textures.end()) {
-            // no it hasn't. Assign the image to the first available texture
-            q = available_textures.begin();
-            (*q)->prepare_for_upload(im);
-            worker_->add_job(*q);
-        }
-        available_textures.erase(q);
-        image_queue_.pop_front();
-
     }
            
+}
+
+void GLDoubleBufferedTexture::queue_for_upload(
+    GLDoubleBufferedTexture::TexSet &available_textures,
+    const media_reader::ImageBufPtr &image
+    ) 
+{ 
+    if (!image) return;
+    auto q = available_textures.find_pending(image);
+    if (q != available_textures.end()) {
+        available_textures.erase(q);
+    } else if (available_textures.size()) {
+         q = available_textures.begin();
+        (*q)->prepare_for_upload(image);
+        worker_->add_job(*q);
+        available_textures.erase(q);
+    } else {
+        image_queue_.push_back(image);
+    }
 }
 
 void GLDoubleBufferedTexture::release(const media_reader::ImageBufPtr &image) { 
@@ -213,6 +194,8 @@ void GLDoubleBufferedTexture::release(const media_reader::ImageBufPtr &image) {
             (*q)->prepare_for_upload(im);
             worker_->add_job(*q);
             image_queue_.pop_front();
+        } else {
+            //std::cerr << "Didn't release\n";
         }
     }
 

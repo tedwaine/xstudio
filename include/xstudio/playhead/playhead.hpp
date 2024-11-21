@@ -26,11 +26,12 @@ namespace playhead {
         PlayheadBase(
             const std::string &name  = "PlayheadBase",
             const utility::Uuid uuid = utility::Uuid::generate());
-        PlayheadBase(const utility::JsonStore &jsn);
 
         virtual ~PlayheadBase();
 
         [[nodiscard]] utility::JsonStore serialise() const override;
+
+        void deserialise(const utility::JsonStore &jsn);
 
         OptionalTimePoint play_step();
 
@@ -130,16 +131,7 @@ namespace playhead {
             const utility::JsonStore &menu_item_data, const std::string &user_data) override;
 
         inline static const std::chrono::milliseconds playback_step_increment =
-            std::chrono::milliseconds(1);
-
-        /*inline static const std::vector<std::tuple<CompareMode, std::string, std::string, bool>>
-            compare_mode_names = {
-                {CM_STRING, "String", "Str", true},
-                {CM_AB, "A/B", "A/B", true},
-                {CM_VERTICAL, "Vertical", "Vert", false},
-                {CM_HORIZONTAL, "Horizontal", "Horiz", false},
-                {CM_GRID, "Grid", "Grid", false},
-                {CM_OFF, "Off", "Off", true}};*/
+            std::chrono::milliseconds(5);
 
         void reset() override;
 
@@ -228,7 +220,8 @@ namespace playhead {
         module::BooleanAttribute *loop_range_enabled_;
         module::BooleanAttribute *user_is_frame_scrubbing_;
         module::BooleanAttribute *pinned_source_mode_;
-
+        module::StringAttribute *compare_mode_;
+        module::IntegerVecAttribute *source_alignment_values_;
 
         bool was_playing_when_scrub_started_ = {false};
         std::set<std::string> active_viewports_;

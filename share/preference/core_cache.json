@@ -20,6 +20,16 @@
 				"context": ["APPLICATION","SESSION"],
 				"category": "General",
 				"display_name": "Video Cache Size / Mb"
+			},
+			"release_on_idle": {
+				"path": "/core/image_cache/release_on_idle",
+				"default_value": 0,
+				"description": "This setting will release the memory used by the cache if the app has been idle for X minutes, 0 disables this.",
+				"value": 0,
+				"datatype": "int",
+				"context": ["APPLICATION","SESSION"],
+				"category": "General",
+				"display_name": "Video Cache Idle Clear"
 			}
 		},
 		"audio_cache":{
@@ -40,6 +50,14 @@
 				"value": 512,
 				"datatype": "int",
 				"context": ["APPLICATION"]
+			},
+			"release_on_idle": {
+				"path": "/core/image_cache/release_on_idle",
+				"default_value": 0,
+				"description": "This setting will release the memory used by the cache if the app has been idle for X minutes, 0 disables this.",
+				"value": 0,
+				"datatype": "int",
+				"context": ["APPLICATION","SESSION"]
 			}
 		}
 	}

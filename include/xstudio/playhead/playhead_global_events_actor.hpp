@@ -18,7 +18,6 @@ namespace playhead {
     class PlayheadGlobalEventsActor : public caf::event_based_actor {
       public:
         PlayheadGlobalEventsActor(caf::actor_config &cfg);
-        ~PlayheadGlobalEventsActor() override = default;
 
         const char *name() const override { return NAME.c_str(); }
 
@@ -36,6 +35,9 @@ namespace playhead {
         caf::behavior make_behavior() override { return behavior_; }
 
       protected:
+
+        void on_exit() override;
+
         caf::behavior behavior_;
         caf::actor event_group_;
         caf::actor fine_grain_events_group_;

@@ -1451,6 +1451,7 @@ caf::message_handler PlaylistActor::message_handler() {
 
         // create a new timeline, attach it to new playhead.
         [=](playlist::create_playhead_atom) -> result<utility::UuidActor> {
+            
             if (playhead_)
                 return playhead_;
 
@@ -1461,6 +1462,7 @@ caf::message_handler PlaylistActor::message_handler() {
                 ss.str(), selection_actor_, uuid, caf::actor_cast<caf::actor_addr>(this));
             anon_send(actor, playhead::playhead_rate_atom_v, base_.playhead_rate());
             playhead_ = UuidActor(uuid, actor);
+            link_to(playhead_.actor());
 
             monitor(actor);
             base_.send_changed();

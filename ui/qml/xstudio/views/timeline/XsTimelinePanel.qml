@@ -264,8 +264,54 @@ XsGradientRectangle{
                         forceActiveFocus(panel)
                     }
                 }
+
+                XsPrimaryButton{
+                    Layout.leftMargin: 16
+                    Layout.preferredWidth: iconTextBtnWidth
+                    Layout.preferredHeight: parent.height
+                    imgSrc: "qrc:/icons/waves.svg"
+                    text: "Ripple"
+                    toolTip: "Ripple"
+                    showBoth: true
+                    font.pixelSize: XsStyleSheet.fontSize
+                    isActive: theTimeline.rippleMode
+                    onClicked: {
+                        theTimeline.rippleMode = !theTimeline.rippleMode
+                        theTimeline.overwriteMode = false
+                    }
+                }
+                XsPrimaryButton{
+                    Layout.preferredWidth: iconTextBtnWidth
+                    Layout.preferredHeight: parent.height
+                    visible: true
+                    imgSrc: "qrc:/icons/filter_none.svg"
+                    text: "Overwrite"
+                    toolTip: "Overwrite"
+                    showBoth: true
+                    font.pixelSize: XsStyleSheet.fontSize
+                    isActive: theTimeline.overwriteMode
+                    onClicked: {
+                        theTimeline.overwriteMode = !theTimeline.overwriteMode
+                        theTimeline.rippleMode = false
+                    }
+                }
+                XsPrimaryButton{
+                    Layout.preferredWidth: iconTextBtnWidth
+                    Layout.preferredHeight: parent.height
+                    imgSrc: "qrc:/icons/vertical_align_center.svg"
+                    imageDiv.rotation: 90
+                    text: "Snap"
+                    toolTip: "Snap"
+                    showBoth: true
+                    font.pixelSize: XsStyleSheet.fontSize
+                    isActive: theTimeline.snapMode
+                    onClicked: theTimeline.snapMode = !theTimeline.snapMode
+                }
+
                 Item{
                     Layout.fillWidth: true
+                    Layout.minimumWidth: 0
+                    Layout.maximumWidth: 24
                 }
 
                 XsPrimaryButton{
@@ -355,54 +401,7 @@ XsGradientRectangle{
                     onClicked: theTimeline.duplicate(theTimeline.timelineSelection.selectedIndexes)
                     enabled: theTimeline.timelineSelection.selectedIndexes.length
                 }
-                Item{
-                    Layout.fillWidth: true
-                    Layout.minimumWidth: 0
-                    Layout.maximumWidth: 24
-                }
 
-                XsPrimaryButton{
-                    Layout.leftMargin: 16
-                    Layout.preferredWidth: iconTextBtnWidth
-                    Layout.preferredHeight: parent.height
-                    imgSrc: "qrc:/icons/waves.svg"
-                    text: "Ripple"
-                    toolTip: "Ripple"
-                    showBoth: true
-                    font.pixelSize: XsStyleSheet.fontSize
-                    isActive: theTimeline.rippleMode
-                    onClicked: {
-                        theTimeline.rippleMode = !theTimeline.rippleMode
-                        theTimeline.overwriteMode = false
-                    }
-                }
-                XsPrimaryButton{
-                    Layout.preferredWidth: iconTextBtnWidth
-                    Layout.preferredHeight: parent.height
-                    visible: true
-                    imgSrc: "qrc:/icons/filter_none.svg"
-                    text: "Overwrite"
-                    toolTip: "Overwrite"
-                    showBoth: true
-                    font.pixelSize: XsStyleSheet.fontSize
-                    isActive: theTimeline.overwriteMode
-                    onClicked: {
-                        theTimeline.overwriteMode = !theTimeline.overwriteMode
-                        theTimeline.rippleMode = false
-                    }
-                }
-                XsPrimaryButton{
-                    Layout.preferredWidth: iconTextBtnWidth
-                    Layout.preferredHeight: parent.height
-                    imgSrc: "qrc:/icons/vertical_align_center.svg"
-                    imageDiv.rotation: 90
-                    text: "Snap"
-                    toolTip: "Snap"
-                    showBoth: true
-                    font.pixelSize: XsStyleSheet.fontSize
-                    isActive: theTimeline.snapMode
-                    onClicked: theTimeline.snapMode = !theTimeline.snapMode
-                }
                 Item{
                     Layout.fillWidth: true
                 }
@@ -564,9 +563,13 @@ XsGradientRectangle{
                             Layout.maximumHeight: btnHeight
                             Layout.fillWidth: true
                             text: "Cut"
-                            // isActiveIndicatorAtLeft: true
+                            isActiveIndicatorAtLeft: true
                             imgSrc: "qrc:/icons/content_cut.svg"
-                            onClicked: theTimeline.splitClips(theTimeline.timelineSelection.selectedIndexes)
+                            isActive: theTimeline.editMode == text
+                            onClicked: {
+                                theTimeline.editMode = text
+                                theTimeline.snapCacheKey = helpers.makeQUuid()
+                            }
                         }
 
                         XsPrimaryButton{

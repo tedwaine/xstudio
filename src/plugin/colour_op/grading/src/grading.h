@@ -43,14 +43,6 @@ class GradingTool : public plugin::StandardPlugin {
         const utility::JsonStore &
     ) override;
 
-    void on_screen_frame_changed(
-        const timebase::flicks playhead_position,
-        const int playhead_logical_frame,
-        const int media_frame,
-        const int media_logical_frame,
-        const utility::Timecode & timecode
-    ) override;
-
     // Interactions
 
     void attribute_changed(
@@ -158,9 +150,9 @@ class GradingTool : public plugin::StandardPlugin {
 
     // Current media info (eg. for Bookmark creation)
     bool playhead_is_playing_ {false};
-    int playhead_media_frame_ {0};
+    int playhead_media_frame_ = {0};
 
-    std::string current_viewport_;
+    media_reader::ImageBufDisplaySetPtr viewport_current_images_;
 
     // Grading
     ui::viewport::GradingData grading_data_;

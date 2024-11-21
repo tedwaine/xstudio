@@ -1283,7 +1283,7 @@ bool SessionModel::setData(const QModelIndex &index, const QVariant &qvalue, int
 
             case nameRole:
                 if (j.count("name") and j["name"] != value) {
-                    if ((type == "Session" or type == "Subset" or type == "Timeline" or
+                    if ((type == "Session" or type == "ContactSheet" or type == "Subset" or type == "Timeline" or
                          type == "Playlist") and
                         actor) {
                         // spdlog::warn("Send update {} {}", j["name"], value);
@@ -1370,7 +1370,7 @@ bool SessionModel::setData(const QModelIndex &index, const QVariant &qvalue, int
                         }
                     } else if (
                         type == "ContainerDivider" or type == "Subset" or type == "Timeline" or
-                        type == "Playlist") {
+                        type == "Playlist" or type == "ContactSheet") {
                         auto p = index.parent();
                         if (p.isValid()) {
                             nlohmann::json &pj = indexToData(p);

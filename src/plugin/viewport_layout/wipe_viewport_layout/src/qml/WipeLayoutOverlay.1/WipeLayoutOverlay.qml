@@ -31,7 +31,7 @@ Item {
     y: wipe_position.y*parent.height-crosshair_size/2
     property bool hovered: ma.containsMouse || ma.pressed
 
-    visible: title == view.compare_mode && viewportPlayhead.numSubPlayheads > 1
+    visible: title == viewportPlayhead.compare_mode && viewportPlayhead.numSubPlayheads > 1
 
     WipeShadowLine {
         height: crosshair_size/2-circle_size/2
@@ -116,7 +116,7 @@ Item {
     // Here we make an alias to attach to the Wipe attr that we need
     XsAttributeValue {
         id: __wipe_position
-        attributeTitle: "Wipe"
+        attributeTitle: "Wipe Position"
         model: wipe_attrs
     }
     property alias wipe_position: __wipe_position.value

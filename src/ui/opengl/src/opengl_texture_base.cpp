@@ -28,10 +28,10 @@ void GLBlindTex::do_pixel_upload() {
     std::unique_lock lk(mutex_);
     in_progress_ = true;
     lk.unlock();
-    if (source_frame_) {
+    if (pending_source_frame_) {
 
-        uint8_t * xstudio_pixel_buffer = (uint8_t *)source_frame_->buffer();
-        size_t copy_size = std::min(tex_size_bytes(), source_frame_->size());
+        uint8_t * xstudio_pixel_buffer = (uint8_t *)pending_source_frame_->buffer();
+        size_t copy_size = std::min(tex_size_bytes(), pending_source_frame_->size());
 
         // just a memcpy!
         if (gpu_mapped_mem_ && xstudio_pixel_buffer && copy_size) {
@@ -41,8 +41,8 @@ void GLBlindTex::do_pixel_upload() {
     lk.lock();
     pending_upload_ = false;
     in_progress_ = false;
-    uploaded_media_key_ = media_key_;
-    uploaded_source_frame_ = source_frame_;
+    media_key_ = pending_media_key_;
+    source_frame_ = pending_source_frame_;
     lk.unlock();
     cv_.notify_one();
 
@@ -65,9 +65,10 @@ void GLBlindTex::cancel_upload() {
         cv_.wait(lk);
     }
     pending_upload_ = false;
-    /*media_key_ = uploaded_media_key_;
-    source_frame_ = uploaded_source_frame_;*/
+    pending_media_key_ = media::MediaKey();
+    pending_source_frame_.reset();
 }
+
 
 void GLBlindTex::prepare_for_upload(const media_reader::ImageBufPtr &frame) {
 
@@ -77,16 +78,16 @@ void GLBlindTex::prepare_for_upload(const media_reader::ImageBufPtr &frame) {
     // make sure we're not still uploading pixels from a previous request
     wait_on_upload_pixels();
 
-    media_key_ = frame->media_key();
-    source_frame_ = frame;
+    pending_media_key_ = frame->media_key();
+    pending_source_frame_ = frame;
 
-    if (source_frame_->size()) {
+    if (pending_source_frame_ && pending_source_frame_->size()) {
 
-        gpu_mapped_mem_ = map_buffer_for_upload();
+        gpu_mapped_mem_ = map_buffer_for_upload(pending_source_frame_->size());
         if (!gpu_mapped_mem_) {
             spdlog::warn("Failed to map buffer for frame {} ", to_string(media_key_));
             media_key_ = media::MediaKey();
-            source_frame_.reset();
+            pending_source_frame_.reset();
             return;
         }
 

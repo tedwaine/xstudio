@@ -256,6 +256,7 @@ const auto SourceTermValues = R"([
         { "name": "main_proxy2" },
         { "name": "main_proxy3" },
         { "name": "movie_client" },
+        { "name": "movie_diagnostic" },
         { "name": "movie_dneg" },
         { "name": "movie_dneg_editorial" },
         { "name": "movie_scqt" },

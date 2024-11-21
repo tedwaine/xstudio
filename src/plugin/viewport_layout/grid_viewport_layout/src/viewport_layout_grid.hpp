@@ -34,6 +34,7 @@ namespace viewport {
             media_reader::ImageSetLayoutData &layout_data) override;
 
         module::FloatAttribute * spacing_;
+        module::StringChoiceAttribute * aspect_mode_;
 
 
     };

@@ -45,6 +45,15 @@ XsPopupMenu {
         helpers.setMenuPathPosition("Reveal Source", "media_list_menu_", 15)
         helpers.setMenuPathPosition("Advanced", "media_list_menu_", 30)
         //helpers.setMenuPathPosition("Set Media Source", "media_list_menu_", 15.5)
+
+        // need to reorder snippet menus..
+        let rc = embeddedPython.mediaMenuModel.rowCount();
+        for(let i=0; i < embeddedPython.mediaMenuModel.rowCount(); i++) {
+            let fi = embeddedPython.mediaMenuModel.index(i, 0)
+            let si = embeddedPython.mediaMenuModel.mapToSource(fi)
+            let mp = si.model.get(si, "menuPathRole")
+            helpers.setMenuPathPosition(mp,"media_list_menu_", 17 + ((1.0/rc)*i) )
+        }
     }
 
     XsMenuModelItem {
@@ -98,8 +107,19 @@ XsPopupMenu {
         menuPath: "Add Media To"
         menuItemPosition: 3
         menuModelName: btnMenu.menu_model_name
-        enabled: false
         panelContext: btnMenu.panelContext
+        onActivated: {
+            dialogHelpers.textInputDialog(
+                function(name, button) {
+                    if(button == "Add Media") {
+                        addToNewContactSheet(name)
+                    }
+                },
+                "Add To New Contact Sheet",
+                "Enter New Contact Sheet Name",
+                "Untitled Contact Sheet",
+                ["Cancel", "Add Media"])
+        }
     }
 
     XsMenuModelItem {
@@ -363,6 +383,27 @@ XsPopupMenu {
         customMenuQml: "import xStudio 1.0; XsMediaListSwitchSourceMenu {}"
 
     }*/
+    XsMenuModelItem {
+        text: "Snippet"
+        menuItemType: "divider"
+        menuItemPosition: 16
+        menuPath: ""
+        menuModelName: btnMenu.menu_model_name
+    }
+
+    Repeater {
+        model: DelegateModel {
+            model: embeddedPython.mediaMenuModel
+            delegate: Item {XsMenuModelItem {
+                text: nameRole
+                menuPath: menuPathRole
+                menuItemPosition: (index*0.01)+16
+                menuModelName: btnMenu.menu_model_name
+                onActivated: embeddedPython.pyEvalFile(scriptPathRole)
+            }}
+        }
+    }
+
 
     XsMenuModelItem {
         menuItemType: "divider"
@@ -370,8 +411,6 @@ XsPopupMenu {
         menuPath: ""
         menuModelName: btnMenu.menu_model_name
     }
-
-
 
     XsMenuModelItem {
         text: "Dump Metadata"

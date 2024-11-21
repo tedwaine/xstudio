@@ -186,7 +186,8 @@ void ShotBrowser::create_playlist_notes(
                                         bookmarks,
                                         json_store::set_json_atom_v,
                                         ju.get<Uuid>(),
-                                        JsonStore(R"({"icon": "qrc:/shotbrowser_icons/shot_grid.svg", "tooltip": "Published to ShotGrid"})"_json),
+                                        JsonStore(
+                                            R"({"icon": "qrc:/shotbrowser_icons/shot_grid.svg", "tooltip": "Published to ShotGrid"})"_json),
                                         "/ui/decorators/shotgrid");
                                 }
 

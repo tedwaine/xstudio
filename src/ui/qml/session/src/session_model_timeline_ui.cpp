@@ -2207,12 +2207,18 @@ void SessionModel::updateTimelineItemDragFlag(
     const bool isRolling,
     const bool isRipple,
     const bool isOverwrite) {
+
+    // spdlog::warn("updateTimelineItemDragFlag {} {} {} {}", isRolling, isRipple, isOverwrite,
+    // items.size());
+
     for (const auto &i : items) {
         if (not i.isValid())
             continue;
 
         auto orig_data = mapFromValue(i.data(userDataRole));
-        auto data      = orig_data;
+        // spdlog::warn("{}", orig_data.dump(2));
+
+        auto data = orig_data;
 
         if (isRolling) {
             data["show_rolling"] = true;
@@ -2227,8 +2233,8 @@ void SessionModel::updateTimelineItemDragFlag(
                 auto pre_index  = index(i.row() - 1, 0, i.parent());
                 auto ante_index = index(i.row() + 1, 0, i.parent());
 
-                if (ante_index.isValid() and
-                    ante_index.data(typeRole).toString() == QString("Clip"))
+                if (pre_index.isValid() and
+                    pre_index.data(typeRole).toString() == QString("Clip"))
                     data["show_drag_left_left"] = true;
 
                 if (ante_index.isValid() and
@@ -2237,8 +2243,10 @@ void SessionModel::updateTimelineItemDragFlag(
             }
         }
 
-        if (orig_data != data)
+        if (orig_data != data) {
+            // spdlog::warn("{}", data.dump(2));
             setData(i, mapFromValue(data), userDataRole);
+        }
     }
 }
 
@@ -2267,6 +2275,7 @@ void SessionModel::beginTimelineItemDrag(
         data["is_adjusting_preceeding"]  = false;
         data["is_adjusting_anteceeding"] = false;
         data["is_anteceeding_track"]     = false;
+        data["adjust_track"]             = 0;
         data["adjust_preceeding_gap"]    = 0;
         data["adjust_anteceeding_gap"]   = 0;
         data["move_x"]                   = 0;
@@ -2410,6 +2419,7 @@ void SessionModel::updateTimelineItemDrag(
     const QModelIndexList &items,
     const QString &mode,
     int frameChange,
+    int trackChange,
     const bool isRipple,
     const bool isOverwrite) {
     for (const auto &i : items) {
@@ -2563,6 +2573,7 @@ void SessionModel::endTimelineItemDrag(
             data["is_anteceeding_track"]     = false;
             data["adjust_preceeding_gap"]    = 0;
             data["adjust_anteceeding_gap"]   = 0;
+            data["adjust_track"]             = 0;
             data["move_x"]                   = 0;
             data["move_Y"]                   = 0;
             data["is_floating"]              = false;

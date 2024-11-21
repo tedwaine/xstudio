@@ -85,6 +85,7 @@ ViewportFrameQueueActor::ViewportFrameQueueActor(
                         // and set the playhead ID if it's come via a message that came
                         // *after* the last time we set the current_key_sub_playhead_id_
                         if (tp >= last_playhead_set_tp_) {
+
                             queue_image_buffer_for_drawing(intial_frame, sub_playhead.uuid());
                             if (current_key_sub_playhead_id_ != sub_playhead.uuid()) {
                                 previous_key_sub_playhead_id_ = current_key_sub_playhead_id_;
@@ -154,6 +155,7 @@ ViewportFrameQueueActor::ViewportFrameQueueActor(
             queue_image_buffer_for_drawing(buf, playhead_uuid);
             drop_old_frames(utility::clock::now() - std::chrono::milliseconds(100));
             anon_send(viewport_, playhead::redraw_viewport_atom_v);
+
         },
 
         // these are frame bufs that we expect to draw in the very near future
@@ -215,13 +217,9 @@ ViewportFrameQueueActor::ViewportFrameQueueActor(
             return rp;
         },
 
-        [=](viewport_layout_atom, caf::actor layout_manager, const std::string & layout_name, playhead::AssemblyMode playhead_mode) {
-            playhead_mode_ = playhead_mode;
+        [=](viewport_layout_atom, caf::actor layout_manager, const std::string & layout_name) {
             viewport_layout_manager_ = layout_manager;
             viewport_layout_mode_name_ = layout_name;
-            if (playhead_) {
-                send(playhead_, playhead::compare_mode_atom_v, playhead_mode);
-            }
         },
 
         [=](utility::event_atom,
@@ -239,6 +237,15 @@ ViewportFrameQueueActor::ViewportFrameQueueActor(
             playhead_velocity_ = velocity;
         },
         [=](const error &err) mutable { aout(this) << err << std::endl; });
+}
+
+ViewportFrameQueueActor::~ViewportFrameQueueActor() {
+}
+
+void ViewportFrameQueueActor::on_exit() {
+    viewport_layout_manager_ = caf::actor();
+    playhead_ = caf::actor();
+    caf::event_based_actor::on_exit();
 }
 
 xstudio::media_reader::ImageBufPtr ViewportFrameQueueActor::get_least_old_image_in_set(
@@ -822,8 +829,6 @@ caf::typed_response_promise<bool> ViewportFrameQueueActor::set_playhead(caf::act
                     if (playhead_)
                         demonitor(playhead_);
                     playhead_ = playhead;
-                    if (playhead_)
-                        send(playhead_, playhead::compare_mode_atom_v, playhead_mode_);
                     monitor(playhead_);
 
                     // this message will make the playhead re-broadcaset the media_source_atom

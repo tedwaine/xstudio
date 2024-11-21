@@ -23,8 +23,22 @@ EmbeddedPythonUI::EmbeddedPythonUI(QObject *parent) : super(parent) {
         "nameRole",
         "menuPathRole",
         "scriptPathRole",
+        "snippetTypeRole",
         "typeRole",
     }));
+}
+
+
+bool SnippetFilterModel::filterAcceptsRow(
+    int source_row, const QModelIndex &source_parent) const {
+    auto result       = true;
+    auto source_index = sourceModel()->index(source_row, 0, source_parent);
+
+    if (not snippet_type_.isEmpty() and
+        source_index.data(EmbeddedPythonUI::Roles::snippetTypeRole).toString() != snippet_type_)
+        result = false;
+
+    return result;
 }
 
 void EmbeddedPythonUI::set_backend(caf::actor backend) {
@@ -314,6 +328,10 @@ QVariant EmbeddedPythonUI::data(const QModelIndex &index, int role) const {
                 result = QString::fromStdString(j.at("type"));
             break;
 
+        case Roles::snippetTypeRole:
+            if (j.count("snippet_type"))
+                result = QString::fromStdString(j.at("snippet_type"));
+            break;
 
         case Roles::menuPathRole:
             if (j.count("menu_path"))

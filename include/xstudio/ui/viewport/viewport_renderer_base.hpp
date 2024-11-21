@@ -62,10 +62,9 @@ namespace ui {
             virtual void set_prefs(const utility::JsonStore &prefs) = 0;
 
             void
-            add_pre_renderer_hook(const utility::Uuid &uuid, plugin::GPUPreDrawHookPtr hook) {
-                pre_render_gpu_hooks_[uuid] = hook;
+            set_pre_renderer_hooks(const std::map<utility::Uuid, plugin::GPUPreDrawHookPtr> &hooks) {
+                pre_render_gpu_hooks_ = hooks;
             }
-
 
             void set_render_hints(RenderHints hint) { render_hints_ = hint; }
 

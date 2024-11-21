@@ -23,22 +23,6 @@ PlayheadBase::PlayheadBase(const std::string &name, const utility::Uuid uuid)
     add_attributes();
 }
 
-PlayheadBase::PlayheadBase(const JsonStore &jsn)
-    : Module("PlayheadBase"),
-      play_rate_mode_(jsn["play_rate_mode"]),
-      playhead_rate_(timebase::k_flicks_24fps),
-      position_(jsn["position"]),
-      loop_start_(jsn["loop_start"]),
-      loop_end_(jsn["loop_end"])
-// load, unwanted behaviour
-{
-    add_attributes();
-    if (jsn.find("module") != jsn.end()) {
-        Module::deserialise(jsn["module"]);
-    }
-    // set_loop(jsn["loop"]);
-}
-
 PlayheadBase::~PlayheadBase() {}
 
 void PlayheadBase::add_attributes() {
@@ -115,6 +99,8 @@ void PlayheadBase::add_attributes() {
 
     media_transition_frames_ = add_int_vec_attribute("Media Transition Frames");
 
+    source_alignment_values_ = add_int_vec_attribute("Source Alignment Frames");
+
     current_frame_timecode_ = add_string_attribute("Timecode", "Timecode", "");
 
     current_frame_timecode_as_frame_ =
@@ -148,21 +134,44 @@ void PlayheadBase::add_attributes() {
 
     source_offset_frames_ =
         add_integer_attribute("Source Offset Frames", "Source Offset Frames", 0);
+
+    // Compare mode needs custom QML code for instatiation into the toolbar as
+    // the choices are determined through viewport layout plugins
+    compare_mode_ = add_string_attribute(
+        "Compare",
+        "Compare",
+        "Off");
+    compare_mode_->set_tool_tip("Access compare mode controls");
+    compare_mode_->set_role_data(module::Attribute::Type, "QmlCode");
+    compare_mode_->set_role_data(
+        module::Attribute::QmlCode,
+        R"(import xStudio 1.0
+            XsViewerCompareModeButton {})");
+    compare_mode_->set_role_data(module::Attribute::ToolbarPosition, 9.0f);
+
 }
 
 
 JsonStore PlayheadBase::serialise() const {
+
     JsonStore jsn;
-
-    jsn["position"]       = position_.count();
-    jsn["loop"]           = loop_mode_->value();
-    jsn["play_rate_mode"] = play_rate_mode_;
-    jsn["loop_start"]     = loop_start_.count();
-    jsn["loop_end"]       = loop_end_.count();
-    jsn["use_loop_range"] = use_loop_range();
-    jsn["module"]         = Module::serialise();
-
+    jsn["name"] = Module::name();
+    jsn["velocity"] = velocity_->value();
+    jsn["position"] = position_.count();
+    jsn["compare_mode"] = compare_mode_->value();
+    jsn["auto_align_mode"] = auto_align_mode_->value();
+    jsn["source_alignment_values"] = source_alignment_values_->value();    
     return jsn;
+}
+
+void PlayheadBase::deserialise(const JsonStore &jsn) {
+
+    if (jsn.is_null()) return;
+    velocity_->set_value(jsn.value("velocity", velocity_->value()));
+    compare_mode_->set_value(jsn.value("compare_mode", compare_mode_->value()));
+    auto_align_mode_->set_value(jsn.value("auto_align_mode", auto_align_mode_->value()));
+    source_alignment_values_->set_value(jsn.value("source_alignment_values", source_alignment_values_->value()));
+    position_ = timebase::flicks(jsn.value("position", position_.count()));
 }
 
 PlayheadBase::OptionalTimePoint PlayheadBase::play_step() {
@@ -782,6 +791,8 @@ void PlayheadBase::connect_to_viewport(
         audio_source_, viewport_toolbar_name + "_audio_source", connect);
 
     expose_attribute_in_model_data(velocity_, viewport_toolbar_name, connect);
+
+    expose_attribute_in_model_data(compare_mode_, viewport_toolbar_name, connect);
 
     // Here we can add attrs to show up in the viewer context menu (right click)
 

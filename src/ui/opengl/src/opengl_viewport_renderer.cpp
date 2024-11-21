@@ -213,20 +213,26 @@ void OpenGLViewportRenderer::clear_viewport_area(const Imath::M44f &window_to_vi
     botomleft *= 1.0f / botomleft.w;
     topright *= 1.0f / topright.w;
 
+    float left  = 0.5f * (botomleft.x + 1.0f) * float(vp[2]);
     float bottom = 0.5f * (botomleft.y + 1.0f) * float(vp[3]);
     float top    = 0.5f * (topright.y + 1.0f) * float(vp[3]);
-
-    float left  = 0.5f * (botomleft.x + 1.0f) * float(vp[2]);
     float right = 0.5f * (topright.x + 1.0f) * float(vp[2]);
+
+    scissor_coords_[0] = (int)round(left);
+    scissor_coords_[1] = (int)round(bottom);
+    scissor_coords_[2] = (int)round(right - left);
+    scissor_coords_[3] = (int)round(top - bottom);
 
     glEnable(GL_SCISSOR_TEST);
     glScissor(
-        (int)round(left),
-        (int)round(bottom),
-        (int)round(right - left),
-        (int)round(top - bottom));
-    glClearColor(0.0f, 0.0f, 0.0f, 0.0f);
+        scissor_coords_[0],
+        scissor_coords_[1],
+        scissor_coords_[2],
+        scissor_coords_[3]);
+    glClearColor(0.0f, 0.0f, 0.0f, use_alpha_ ? 1.0f : 0.0f);
     glClear(GL_COLOR_BUFFER_BIT);
+    glDisable(GL_SCISSOR_TEST);
+
 }
 
 utility::JsonStore OpenGLViewportRenderer::default_prefs() {
@@ -307,7 +313,6 @@ void OpenGLViewportRenderer::render(
     grab_framebuffer_to_disk();
 #endif
 
-    glDisable(GL_SCISSOR_TEST);
 
     // The use of this is questionable - I'm not sure how it plays with the QML
     // rendering engine. The idea is that we are guaranteeing the image has
@@ -358,6 +363,16 @@ void OpenGLViewportRenderer::__draw_image(
         upload_image_and_colour_data(image_to_be_drawn);
     }
 
+    // we must avoid painting outside the geometry of the viewport window, or it will be
+    // visible underneath QML elements with opactity etc. or other viewports in the
+    // same window
+    glEnable(GL_SCISSOR_TEST);
+    glScissor(
+        scissor_coords_[0],
+        scissor_coords_[1],
+        scissor_coords_[2],
+        scissor_coords_[3]);
+
     /* Call the render functions of overlay plugins - for the BeforeImage pass, we only call
     this if we have an alpha buffer that allows us to 'under' the image with the overlay
     drawings. */
@@ -374,8 +389,8 @@ void OpenGLViewportRenderer::__draw_image(
             }
         }
     }
-
     if (image_to_be_drawn) {
+        // scissor test on main draw
         draw_image(image_to_be_drawn, images->layout_data(), index, window_to_viewport_matrix, viewport_to_image_space, viewport_du_dx);
     }
 
@@ -396,6 +411,8 @@ void OpenGLViewportRenderer::__draw_image(
             }
         }
     }
+    glDisable(GL_SCISSOR_TEST);
+
 }
 
 void OpenGLViewportRenderer::draw_image(
@@ -424,7 +441,6 @@ void OpenGLViewportRenderer::draw_image(
 
     if (use_alpha_) {
 
-        std::cerr << "YES HAS ALPHA\n";
         // this set-up allows the image to be drawn 'under' overlays that are 
         // drawn first onto the black canvas - (e.g. annotations that can
         // be drawn better this way)

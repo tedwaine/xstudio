@@ -24,7 +24,7 @@ namespace ui {
               // TODO: some rigorous testing for best number of textures and upload threads.
               // Also provide user preferences to manually tweak these settings if needed.
               auto result = new GLDoubleBufferedTexture();
-              for (int i = 0; i < 8; ++i) {
+              for (int i = 0; i < 48; ++i) {
                 result->textures_.emplace_back(new TexType());
               }
               return result;
@@ -51,7 +51,14 @@ namespace ui {
                   return t->media_key() == image->media_key();
                 });
               }
+              TexSet::iterator find_pending(const media_reader::ImageBufPtr &image) {
+                return std::find_if(begin(), end(), [=](const auto & t) {
+                  return t->pending_media_key() == image->media_key();
+                });
+              }
             };
+
+            void queue_for_upload(TexSet &available_textures, const media_reader::ImageBufPtr &image);
 
             TexSet textures_;
 

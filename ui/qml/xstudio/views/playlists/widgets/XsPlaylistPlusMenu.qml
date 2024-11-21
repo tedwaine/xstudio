@@ -75,9 +75,13 @@ XsPopupMenu {
         menuPath: path
         menuItemPosition: 3
         menuModelName: plusMenu.menu_model_name
-        enabled: false
         onActivated: {
-
+            dialogHelpers.textInputDialog(
+                plusMenu.addContactSheet,
+                "Add Contact Sheet",
+                "Enter a name for the new contact sheet.",
+                "New Contact Sheet",
+                ["Cancel", "Add"])
         }
         panelContext: plusMenu.panelContext
     }
@@ -148,6 +152,12 @@ XsPopupMenu {
     function addSubset(new_name, button) {
         if (button == "Add") {
             theSessionData.createSubItem(new_name, "Subset")
+        }
+    }
+
+    function addContactSheet(new_name, button) {
+        if (button == "Add") {
+            theSessionData.createSubItem(new_name, "ContactSheet")
         }
     }
 

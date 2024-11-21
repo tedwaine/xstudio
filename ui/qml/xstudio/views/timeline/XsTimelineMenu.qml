@@ -26,6 +26,14 @@ XsPopupMenu {
 
     Component.onCompleted: {
         helpers.setMenuPathPosition("Time Mode", "timeline_menu_", 1.9)
+        // need to reorder snippet menus..
+        let rc = embeddedPython.sequenceMenuModel.rowCount();
+        for(let i=0; i < embeddedPython.sequenceMenuModel.rowCount(); i++) {
+            let fi = embeddedPython.sequenceMenuModel.index(i, 0)
+            let si = embeddedPython.sequenceMenuModel.mapToSource(fi)
+            let mp = si.model.get(si, "menuPathRole")
+            helpers.setMenuPathPosition(mp,"timeline_menu_", 81 + ((1.0/rc)*i) )
+        }
     }
 
    XsMenuModelItem {
@@ -93,6 +101,27 @@ XsPopupMenu {
         menuModelName: timelineMenu.menu_model_name
         panelContext: timelineMenu.panelContext
       }
+
+    XsMenuModelItem {
+        text: "Snippet"
+        menuItemType: "divider"
+        menuItemPosition: 80
+        menuPath: ""
+        menuModelName: timelineMenu.menu_model_name
+    }
+
+    Repeater {
+        model: DelegateModel {
+            model: embeddedPython.sequenceMenuModel
+            delegate: Item {XsMenuModelItem {
+                text: nameRole
+                menuPath: menuPathRole
+                menuItemPosition: (index*0.01)+80
+                menuModelName: timelineMenu.menu_model_name
+                onActivated: embeddedPython.pyEvalFile(scriptPathRole)
+            }}
+        }
+    }
 
     XsMenuModelItem {
         menuItemType: "divider"

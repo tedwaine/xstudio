@@ -12,7 +12,6 @@ OpenGLOffscreenRenderer::OpenGLOffscreenRenderer(GLint color_format)
 OpenGLOffscreenRenderer::~OpenGLOffscreenRenderer() { cleanup(); }
 
 void OpenGLOffscreenRenderer::resize(const Imath::V2f &dims) {
-
     if (dims == fbo_dims_) {
         return;
     }

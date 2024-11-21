@@ -238,6 +238,8 @@ namespace ui {
 
             void set_playhead(caf::actor playhead, const bool wait_for_refresh = false);
 
+            void set_compare_mode(const std::string & compare_mode);
+
             caf::actor fps_monitor() { return fps_monitor_; }
 
             void framebuffer_swapped(const utility::time_point swap_time);
@@ -279,7 +281,7 @@ namespace ui {
              */
             media_reader::ImageBufDisplaySetPtr get_frames_for_display(
                 const bool force_playhead_sync                  = false,
-                const utility::time_point &when_being_displayed = utility::time_point()) const;
+                const utility::time_point &when_being_displayed = utility::time_point());
 
             void instance_renderer_plugins();
 
@@ -360,6 +362,7 @@ namespace ui {
 
             timebase::flicks screen_refresh_period_ = timebase::k_flicks_zero_seconds;
             std::string toolbar_name_;
+            std::string compare_mode_;
 
             caf::actor display_frames_queue_actor_;
             caf::actor parent_actor_;
@@ -383,19 +386,19 @@ namespace ui {
             bool done_init_  = {false};
             bool playing_    = {false};
             bool is_visible_ = {false};
-            size_t last_images_hash_ = {false};
+            size_t last_images_hash_ = {0};
             bool needs_redraw_ = {true};
             std::set<int> held_keys_;
             std::vector<Imath::Box2f> image_bounds_in_viewport_pixels_;
             std::vector<Imath::V2i> image_resolutions_;
-            int64_t image_bounds_hash_ = {0};
+            size_t image_bounds_hash_ = {0};
             std::map<utility::Uuid, caf::actor> overlay_plugin_instances_;
             std::map<utility::Uuid, caf::actor> hud_plugin_instances_;
             std::map<utility::Uuid, plugin::ViewportOverlayRendererPtr> viewport_overlay_renderers_;
+            std::map<utility::Uuid, plugin::GPUPreDrawHookPtr> overlay_pre_render_hooks_;
 
             module::BooleanAttribute *zoom_mode_toggle_;
             module::BooleanAttribute *pan_mode_toggle_;
-            module::StringAttribute *compare_mode_;
             module::StringChoiceAttribute *fit_mode_;
             module::StringChoiceAttribute *mirror_mode_;
             module::StringAttribute *frame_error_message_;

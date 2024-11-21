@@ -190,7 +190,7 @@ Item{
             // parent playlist afterwards (as long as the parent isn't also
             // to be deleted)
             let type = theSessionData.get(index, "typeRole")
-            if (type == "Subset" || type == "Timeline") {
+            if (type == "Subset" || type == "Timeline" || type == "ContactSheet") {
                 var playlist_idx = index.parent.parent
                 if (!selected.includes(playlist_idx)) {
                     new_selected_item = helpers.makePersistent(playlist_idx)

@@ -20,7 +20,7 @@ namespace playhead {
         SubPlayhead(
             caf::actor_config &cfg,
             const std::string &name,
-            caf::actor source,
+            utility::UuidActor source,
             caf::actor parent,
             const bool source_is_timeline,
             const timebase::flicks loop_in_point_,
@@ -160,7 +160,7 @@ namespace playhead {
             std::chrono::milliseconds(500)};
         caf::behavior behavior_;
         caf::actor pre_reader_;
-        caf::actor source_;
+        utility::UuidActor source_;
         caf::actor parent_;
         caf::actor current_media_actor_;
         caf::actor global_prefs_actor_;

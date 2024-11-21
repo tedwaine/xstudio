@@ -3,13 +3,33 @@
 
 #include <caf/all.hpp>
 
-#include "xstudio/contact_sheet/contact_sheet.hpp"
-#include "xstudio/utility/json_store.hpp"
-#include "xstudio/utility/uuid.hpp"
+#include "xstudio/subset/subset_actor.hpp"
 
 namespace xstudio {
 namespace contact_sheet {
-    class ContactSheetActor : public caf::event_based_actor {
+
+    class ContactSheetActor : public subset::SubsetActor {
+
+       public:
+
+       ContactSheetActor(
+            caf::actor_config &cfg, caf::actor playlist, const utility::JsonStore &jsn);
+        ContactSheetActor(caf::actor_config &cfg, caf::actor playlist, const std::string &name);
+
+        caf::behavior make_behavior() override {
+            return override_behaviour_.or_else(subset::SubsetActor::make_behavior());
+        }
+
+       private:
+
+        void init();
+        inline static const std::string NAME = "ContactSheetActor";
+
+        caf::message_handler override_behaviour_;
+        utility::JsonStore playhead_serialisation_;
+    };
+
+    /*class ContactSheetActor : public caf::event_based_actor {
       public:
         ContactSheetActor(
             caf::actor_config &cfg, caf::actor playlist, const utility::JsonStore &jsn);
@@ -43,6 +63,6 @@ namespace contact_sheet {
 
         utility::UuidActorMap actors_;
         utility::UuidActor playhead_;
-    };
+    };*/
 } // namespace contact_sheet
 } // namespace xstudio

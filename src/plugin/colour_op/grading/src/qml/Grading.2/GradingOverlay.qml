@@ -24,9 +24,11 @@ Item {
     }
 
     property var viewportName: view.name
-    property var imageBox: view.imageBoundariesInViewport
-    property var imageResolution: view.imageResolutions[0]
-    property real imageAspectRatio: 1.0
+    property var ib: view.imageBoundariesInViewport[viewportPlayhead.keySubplayheadIndex]
+    property var imageBox: ib ? ib : Qt.rect(0,0,0,0)
+    property var ir: view.imageResolutions[viewportPlayhead.keySubplayheadIndex]
+    property var imageResolution: ir ? ir : Qt.size(0, 0)
+    property real imageAspectRatio: imageBox.width/imageBox.height
     property real viewportScale: 1.0
     property var viewportOffset: Qt.point(0, 0)
 
@@ -62,10 +64,6 @@ Item {
         );
     }
 
-    onImageResolutionChanged: {
-        imageAspectRatio = imageResolution.width / imageResolution.height;
-    }
-
     onPolygon_initChanged: {
         if (polygon_init) {
             startPolygon();
@@ -99,6 +97,18 @@ Item {
                 activeShape = -1;
             }
         }
+    }
+
+    // indicates the 'current' (hero) image in multi image layours
+    Rectangle {
+        visible: viewportPlayhead.numSubPlayheads > 1
+        x: imageBox.x        
+        y: imageBox.y
+        width: imageBox.width
+        height: imageBox.height
+        color: "transparent"
+        border.color: palette.highlight
+        border.width: 2
     }
 
     // If we use a MouseArea in the overlay, it stops the Viewport having 
@@ -416,6 +426,15 @@ Item {
     }
 
     function genPolygonPoint(x, y) {
+
+        // first poly point must be inside the active image. The reason is that
+        // in grid mode it would be possible for user to create a polygon
+        // way outside the active image by mistake, as they try and draw a poly
+        // on the wrong image altogether
+        var tx = (x - viewportOffset.x)/viewportScale;
+        var ty = (y - viewportOffset.y)/viewportScale;
+        if (!polygon_points.length && (tx < -1.0 || tx > 1.0 || ty < -1.0/imageAspectRatio || ty > 1.0/imageAspectRatio)) return;
+
         var pc = polygon_point_component.createObject(root, {
             point_x: x,
             point_y: y,

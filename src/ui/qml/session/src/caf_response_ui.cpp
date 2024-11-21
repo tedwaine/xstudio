@@ -305,7 +305,7 @@ class CafRequest : public ControllableJob<QMap<int, QString>> {
         scoped_actor &sys,
         caf::actor_system &system_,
         QMap<int, QString> &result) {
-        if (type == "Session" or type == "Playlist" or type == "Subset" or type == "Timeline" or
+        if (type == "Session" or type == "Playlist" or type == "ContactSheet" or type == "Subset" or type == "Timeline" or
             type == "Media" or type == "PlayheadSelection" or type == "Playhead") {
 
             auto actor = caf::actor();
