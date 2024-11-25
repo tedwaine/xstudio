@@ -134,13 +134,13 @@ void OpenGLViewportRenderer::upload_image_and_colour_data(
         // textures()[0]->upload_image(image);
     }
 
-    if (colour_pipe_data && colour_pipe_data->cache_id_ != latest_colour_pipe_data_cacheid_) {
+    if (colour_pipe_data && colour_pipe_data->cache_id() != latest_colour_pipe_data_cacheid_) {
         colour_pipe_textures().clear();
         for (const auto &op : colour_pipe_data->operations()) {
             colour_pipe_textures().upload_luts(op->luts_);
             colour_pipe_textures().register_texture(op->textures_);
         }
-        latest_colour_pipe_data_cacheid_ = colour_pipe_data->cache_id_;
+        latest_colour_pipe_data_cacheid_ = colour_pipe_data->cache_id();
     }
 
     if (image && colour_pipe_data &&
@@ -473,7 +473,7 @@ bool OpenGLViewportRenderer::activate_shader(
     std::string shader_id = to_string(image_buffer_unpack_shader->shader_id());
 
     for (const auto &op : colour_operations) {
-        shader_id += op->cache_id_;
+        shader_id += op->cache_id();
     }
 
     // do we already have this shader compiled?

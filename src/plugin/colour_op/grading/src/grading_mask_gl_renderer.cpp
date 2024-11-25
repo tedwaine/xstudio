@@ -134,7 +134,7 @@ void GradingMaskRenderer::render_grading_data_masks(
     // here the relevant shared ptr to the colour op data is reset
     image.colour_pipe_data_->overwrite_operation_data(colour_op_data);
 
-    image.colour_pipe_data_->cache_id_ += cache_id_modifier;
+    image.colour_pipe_data_->set_cache_id(image.colour_pipe_data_->cache_id() + cache_id_modifier);
 }
 
 void GradingMaskRenderer::render_layer(

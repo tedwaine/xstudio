@@ -31,13 +31,19 @@ namespace colour_pipeline {
         ColourOperationData(const std::string name) : name_(name) {}
         utility::Uuid uuid_;
         std::string name_;
-        std::string cache_id_;
         std::vector<ColourLUTPtr> luts_;
         std::vector<ColourTexture> textures_;
         ui::viewport::GPUShaderPtr shader_;
         float order_index_;
         [[nodiscard]] size_t size() const;
         std::any user_data_;
+
+        void set_cache_id(const std::string &id) { cache_id_ = id; }
+        [[nodiscard]] const std::string & cache_id() const { return cache_id_; }
+
+        private:
+        std::string cache_id_;
+
     };
 
     typedef std::shared_ptr<ColourOperationData> ColourOperationDataPtr;
@@ -46,8 +52,6 @@ namespace colour_pipeline {
 
         ColourPipelineData()                            = default;
         ColourPipelineData(const ColourPipelineData &o) = default;
-
-        std::string cache_id_;
 
         void add_operation(const ColourOperationDataPtr &op) {
             auto p = std::lower_bound(
@@ -87,7 +91,13 @@ namespace colour_pipeline {
             return ordered_colour_operations_;
         }
 
+        void set_cache_id(const std::string &id) { cache_id_ = id; }
+        [[nodiscard]] const std::string & cache_id() const { return cache_id_; }
+
       private:
+
+        std::string cache_id_;
+
         /*Apply grades and other colour manipulations after stage_zero_operation_*/
         std::vector<ColourOperationDataPtr> ordered_colour_operations_;
     };

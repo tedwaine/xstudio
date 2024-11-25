@@ -161,17 +161,17 @@ caf::message_handler ColourPipeline::message_handler_extensions() {
 
                                     add_cache_keys(
                                         transform_id,
-                                        linearise_data->cache_id_,
-                                        to_display_data->cache_id_);
+                                        linearise_data->cache_id(),
+                                        to_display_data->cache_id());
                                     anon_send<message_priority::high>(
                                         cache_,
                                         media_cache::store_atom_v,
-                                        to_display_data->cache_id_,
+                                        to_display_data->cache_id(),
                                         to_display_data);
                                     anon_send<message_priority::high>(
                                         cache_,
                                         media_cache::store_atom_v,
-                                        linearise_data->cache_id_,
+                                        linearise_data->cache_id(),
                                         linearise_data);
 
                                     finalise_colour_pipeline_data(
@@ -428,7 +428,7 @@ void ColourPipeline::attribute_changed(const utility::Uuid &attr_uuid, const int
 bool ColourPipeline::add_in_flight_request(
     const std::string &transform_id, caf::typed_response_promise<ColourPipelineDataPtr> rp) {
     in_flight_requests_[transform_id].push_back(rp);
-    return in_flight_requests_[transform_id].size() > 1;
+    return in_flight_requests_[transform_id].size() > 1; 
 }
 
 bool ColourPipeline::make_colour_pipe_data_from_cached_data(
@@ -480,8 +480,7 @@ void ColourPipeline::finalise_colour_pipeline_data(
     to_display_data->order_index_ = std::numeric_limits<float>::max();
     result->add_operation(linearise_data);
     result->add_operation(to_display_data);
-    result->cache_id_ = linearise_data->cache_id_;
-    result->cache_id_ += to_display_data->cache_id_;
+    result->set_cache_id(linearise_data->cache_id() + to_display_data->cache_id());
 
     add_colour_op_plugin_data(media_ptr, result, transform_id);
 }
@@ -508,7 +507,7 @@ void ColourPipeline::add_colour_op_plugin_data(
                 [=](ColourOperationDataPtr colour_op_data) mutable {
                     if (colour_op_data) {
                         result->add_operation(colour_op_data);
-                        result->cache_id_ += colour_op_data->cache_id_;
+                        result->set_cache_id(result->cache_id() + colour_op_data->cache_id());
                     }
                     (*rcount)--;
                     if (!(*rcount)) {

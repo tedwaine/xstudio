@@ -54,13 +54,9 @@ XsClipItem                1.0 ../views/timeline/widgets/XsClipItem.qml
 XsClipDragBoth            1.0 ../views/timeline/widgets/XsClipDragBoth.qml
 XsClipDragLeft            1.0 ../views/timeline/widgets/XsClipDragLeft.qml
 XsClipDragRight           1.0 ../views/timeline/widgets/XsClipDragRight.qml
-XsDragBoth                1.0 ../views/timeline/widgets/XsDragBoth.qml
-XsDragLeft                1.0 ../views/timeline/widgets/XsDragLeft.qml
-XsDragRight               1.0 ../views/timeline/widgets/XsDragRight.qml
 XsElideLabel              1.0 ../views/timeline/widgets/XsElideLabel.qml
 XsGapItem                 1.0 ../views/timeline/widgets/XsGapItem.qml
 XsMarkers                 1.0 ../views/timeline/widgets/XsMarkers.qml
-XsMoveClip                1.0 ../views/timeline/widgets/XsMoveClip.qml
 XsTickWidget              1.0 ../views/timeline/widgets/XsTickWidget.qml
 XsTimelineCursor          1.0 ../views/timeline/widgets/XsTimelineCursor.qml
 XsTrackHeader             1.0 ../views/timeline/widgets/XsTrackHeader.qml

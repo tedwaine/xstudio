@@ -143,10 +143,10 @@ void PlayheadBase::add_attributes() {
         "Off");
     compare_mode_->set_tool_tip("Access compare mode controls");
     compare_mode_->set_role_data(module::Attribute::Type, "QmlCode");
-    compare_mode_->set_role_data(
+    /*compare_mode_->set_role_data(
         module::Attribute::QmlCode,
         R"(import xStudio 1.0
-            XsViewerCompareModeButton {})");
+            XsViewerCompareModeButton {})");*/
     compare_mode_->set_role_data(module::Attribute::ToolbarPosition, 9.0f);
 
 }

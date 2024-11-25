@@ -135,7 +135,7 @@ namespace media_reader {
             }
 
             if (colour_pipe_data_ && o.colour_pipe_data_) {
-                if (colour_pipe_data_->cache_id_ != o.colour_pipe_data_->cache_id_) {
+                if (colour_pipe_data_->cache_id() != o.colour_pipe_data_->cache_id()) {
                     return false;
                 }
             } else if (colour_pipe_data_ || o.colour_pipe_data_) {

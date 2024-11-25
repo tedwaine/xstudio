@@ -417,6 +417,9 @@ Viewport::Viewport(
     if (sync_to_main_viewport_->value()) {
         auto_connect_to_global_selected_playhead();
     }
+
+    set_compare_mode("Off");
+
 }
 
 Viewport::~Viewport() {
@@ -1955,6 +1958,7 @@ void Viewport::prepare_render_data(const utility::time_point &when_going_on_scre
 
 void Viewport::set_compare_mode(const std::string &compare_mode) {
 
+    return;
     if (compare_mode_ == compare_mode) return;
 
     try {

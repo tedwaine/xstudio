@@ -212,6 +212,14 @@ Rectangle {
 
     }
 
+    function getMediaIndex(clipIndex) {
+        let tindex = theSessionData.getTimelineIndex(clipIndex)
+        let muuid = theSessionData.get(clipIndex, "clipMediaUuidRole")
+        let mlist = theSessionData.index(0, 0, tindex)
+        let result = theSessionData.search(muuid, "actorUuidRole", mlist)
+        return result
+    }
+
     function updateFocus() {
         if(focusSelection) {
             focusItems(timelineSelection.selectedIndexes)
@@ -650,78 +658,78 @@ Rectangle {
         return theSessionData.splitTimelineClip(frame, index)
     }
 
-    function handleDrop(before, drop) {
-        if(drop.hasUrls) {
-            for(var i=0; i < drop.urls.length; i++) {
-                if(drop.urls[i].toLowerCase().endsWith('.xst') || drop.urls[i].toLowerCase().endsWith('.xsz')) {
-                    // Future.promise(studio.loadSessionRequestFuture(drop.urls[i])).then(function(result){})
-                    // app_window.sessionFunction.newRecentPath(drop.urls[i])
-                    return;
-                }
-            }
-        }
+    // function handleDrop(before, drop) {
+    //     if(drop.hasUrls) {
+    //         for(var i=0; i < drop.urls.length; i++) {
+    //             if(drop.urls[i].toLowerCase().endsWith('.xst') || drop.urls[i].toLowerCase().endsWith('.xsz')) {
+    //                 // Future.promise(studio.loadSessionRequestFuture(drop.urls[i])).then(function(result){})
+    //                 // app_window.sessionFunction.newRecentPath(drop.urls[i])
+    //                 return;
+    //             }
+    //         }
+    //     }
 
-        // prepare drop data
-        let data = {}
-        for(let i=0; i< drop.keys.length; i++){
-            data[drop.keys[i]] = drop.getDataAsString(drop.keys[i])
-        }
+    //     // prepare drop data
+    //     let data = {}
+    //     for(let i=0; i< drop.keys.length; i++){
+    //         data[drop.keys[i]] = drop.getDataAsString(drop.keys[i])
+    //     }
 
-        if(before.valid) {
-            if("xstudio/media-ids" in data) {
-                let internal_copy = false
+    //     if(before.valid) {
+    //         if("xstudio/media-ids" in data) {
+    //             let internal_copy = false
 
-                // does media exist in our parent.
-                if(before) {
-                    let mi = theSessionData.searchRecursive(
-                        helpers.QVariantFromUuidString(data["xstudio/media-ids"].split("\n")[0]), "idRole"
-                    )
+    //             // does media exist in our parent.
+    //             if(before) {
+    //                 let mi = theSessionData.searchRecursive(
+    //                     helpers.QVariantFromUuidString(data["xstudio/media-ids"].split("\n")[0]), "idRole"
+    //                 )
 
-                    if(theSessionData.getPlaylistIndex(before) == theSessionData.getPlaylistIndex(mi)) {
-                        internal_copy = true
-                    }
-                }
+    //                 if(theSessionData.getPlaylistIndex(before) == theSessionData.getPlaylistIndex(mi)) {
+    //                     internal_copy = true
+    //                 }
+    //             }
 
-                if(internal_copy) {
-                    Future.promise(
-                        theSessionData.handleDropFuture(Qt.CopyAction, data, before)
-                    ).then(function(quuids){})
-                } else {
-                    media_move_copy_dialog.data = data
-                    media_move_copy_dialog.index = before
-                    media_move_copy_dialog.open()
-                }
+    //             if(internal_copy) {
+    //                 Future.promise(
+    //                     theSessionData.handleDropFuture(Qt.CopyAction, data, before)
+    //                 ).then(function(quuids){})
+    //             } else {
+    //                 media_move_copy_dialog.data = data
+    //                 media_move_copy_dialog.index = before
+    //                 media_move_copy_dialog.open()
+    //             }
 
-            } else if("xstudio/timeline-ids" in data) {
-                let internal_copy = false
+    //         } else if("xstudio/timeline-ids" in data) {
+    //             let internal_copy = false
 
-                // does media exist in our parent.
-                if(before) {
-                    let mi = theSessionData.searchRecursive(
-                        helpers.QVariantFromUuidString(data["xstudio/timeline-ids"].split("\n")[0]), "idRole"
-                    )
+    //             // does media exist in our parent.
+    //             if(before) {
+    //                 let mi = theSessionData.searchRecursive(
+    //                     helpers.QVariantFromUuidString(data["xstudio/timeline-ids"].split("\n")[0]), "idRole"
+    //                 )
 
-                    if(theSessionData.getPlaylistIndex(before) == theSessionData.getPlaylistIndex(mi)) {
-                        internal_copy = true
-                    }
-                }
+    //                 if(theSessionData.getPlaylistIndex(before) == theSessionData.getPlaylistIndex(mi)) {
+    //                     internal_copy = true
+    //                 }
+    //             }
 
-                if(internal_copy) {
-                    // force move action..
-                    Future.promise(
-                        theSessionData.handleDropFuture(Qt.MoveAction, data, before)
-                    ).then(function(quuids){})
-                } else {
-                    console.log("external copy")
-                    // items from external timeline
-                }
-            } else {
-                Future.promise(
-                    theSessionData.handleDropFuture(drop.proposedAction, data, before)
-                ).then(function(quuids){})
-            }
-        }
-    }
+    //             if(internal_copy) {
+    //                 // force move action..
+    //                 Future.promise(
+    //                     theSessionData.handleDropFuture(Qt.MoveAction, data, before)
+    //                 ).then(function(quuids){})
+    //             } else {
+    //                 console.log("external copy")
+    //                 // items from external timeline
+    //             }
+    //         } else {
+    //             Future.promise(
+    //                 theSessionData.handleDropFuture(drop.proposedAction, data, before)
+    //             ).then(function(quuids){})
+    //         }
+    //     }
+    // }
 
     XsTimer {
         id: updateRegionTimer
@@ -747,19 +755,29 @@ Rectangle {
         let vmax =  list_view.itemAtIndex(0).list_view_video.height + list_view.itemAtIndex(0).list_view_video.cY - list_view.itemAtIndex(0).list_view_video.footerHeight
         let vbottom = Math.min(vtop + height - 1, vmax)
 
+        let vclips = theSessionData.getTimelineVideoClipIndexesFromRect(
+            timeline_items.rootIndex,
+            vleft,
+            vtop,
+            vright,
+            vbottom,
+            scaleX,
+            (scaleY*itemHeight)+1,
+            true
+        )
+
         timelineSelection.select(
-            helpers.createItemSelection(
-                theSessionData.getTimelineVideoClipIndexesFromRect(
-                    timeline_items.rootIndex,
-                    vleft,
-                    vtop,
-                    vright,
-                    vbottom,
-                    scaleX,
-                    (scaleY*itemHeight)+1,
-                    true
-               )
-            ),
+            helpers.createItemSelection(vclips),
+            mode & Qt.ShiftModifier ? ItemSelectionModel.Deselect : mode & Qt.ControlModifier ? ItemSelectionModel.Select : ItemSelectionModel.ClearAndSelect)
+
+        let vmedia = []
+        for(let i=0;i<vclips.length;i++) {
+            let ind = getMediaIndex(vclips[i])
+            if(ind.valid && !vmedia.includes(ind))
+                vmedia.push(ind)
+        }
+        mediaSelectionModel.select(
+            helpers.createItemSelection(vmedia),
             mode & Qt.ShiftModifier ? ItemSelectionModel.Deselect : mode & Qt.ControlModifier ? ItemSelectionModel.Select : ItemSelectionModel.ClearAndSelect)
 
         // audio clips.
@@ -773,21 +791,30 @@ Rectangle {
         let amin = list_view.itemAtIndex(0).list_view_audio.cY + list_view.itemAtIndex(0).list_view_video.count * (scaleY*itemHeight)+1
         atop = Math.max(atop, amin)
 
+        let aclips = theSessionData.getTimelineAudioClipIndexesFromRect(
+            timeline_items.rootIndex,
+            aleft,
+            atop,
+            aright,
+            abottom,
+            scaleX,
+            (scaleY*itemHeight)+1,
+            true
+        )
+
         timelineSelection.select(
-            helpers.createItemSelection(
-                theSessionData.getTimelineAudioClipIndexesFromRect(
-                    timeline_items.rootIndex,
-                    aleft,
-                    atop,
-                    aright,
-                    abottom,
-                    scaleX,
-                    (scaleY*itemHeight)+1,
-                    true
-               )
-            ),
+            helpers.createItemSelection(aclips),
             mode & Qt.ShiftModifier ? ItemSelectionModel.Deselect : ItemSelectionModel.Select)
 
+        let amedia = []
+        for(let i=0;i<aclips.length;i++) {
+            let ind = getMediaIndex(aclips[i])
+            if(ind.valid && !amedia.includes(ind))
+                amedia.push(ind)
+        }
+        mediaSelectionModel.select(
+            helpers.createItemSelection(amedia),
+            mode & Qt.ShiftModifier ? ItemSelectionModel.Deselect : ItemSelectionModel.Select)
     }
 
     function resolveItem(x, y) {
@@ -862,66 +889,6 @@ Rectangle {
     function preceedingIndex(item_index) {
         return item_index.model.index(item_index.row - 1, 0, item_index.parent)
     }
-
-
-    XsDragLeft {
-        id: dragLeft
-        visible: false
-        x: 0
-        y: 0
-        width: 10
-        height: itemHeight * scaleY
-        thickness: 3
-        z:10
-    }
-
-    XsDragRight {
-        id: dragRight
-        visible: false
-        x: 0
-        y: 0
-        width: 10
-        height: itemHeight * scaleY
-        thickness: 3
-        z:10
-    }
-
-    XsDragBoth {
-        id: dragBothLeft
-        visible: false
-        x: 0
-        y: 0
-        width: 20
-        height: itemHeight * scaleY
-        thickness: 3
-        z:10
-    }
-
-    XsMoveClip {
-        id: moveClip
-        visible: false
-        x: 0
-        y: 0
-        width: 20
-        height: itemHeight * scaleY
-        thickness: 3
-        z:10
-    }
-
-    XsDragBoth {
-        id: dragBothRight
-        visible: false
-        x: 0
-        y: 0
-        width: 20
-        height: itemHeight * scaleY
-        thickness: 3
-        z:10
-    }
-
-    /*XsMediaMoveCopyDialog {
-        id: media_move_copy_dialog
-    }*/
 
     XsHotkeyArea {
         id: hotkey_area
@@ -1654,7 +1621,20 @@ Rectangle {
                     theSessionData.updateTimelineItemDrag(timelineSelection.selectedIndexes, mode, x, 0)
             }
 
-            function draggingStopped(index, item, mode) {
+
+            function _Timer() {
+                 return Qt.createQmlObject("import QtQuick 2.0; Timer {}", appWindow);
+            }
+
+            function delayCallback(delayTime, cb) {
+                 let timer = new _Timer();
+                 timer.interval = delayTime;
+                 timer.repeat = false;
+                 timer.triggered.connect(cb);
+                 timer.start();
+            }
+
+            function draggingStoppedReal(index, item, mode) {
                 if(mode == "left")
                     theSessionData.endTimelineItemDrag(timelineSelection.selectedIndexes, mode, overwriteMode)
                 else if(mode == "right")
@@ -1668,6 +1648,19 @@ Rectangle {
                 else if(mode == "roll")
                     theSessionData.endTimelineItemDrag(timelineSelection.selectedIndexes, mode)
                 snapLine = -1
+            }
+
+            // this function cannot remove the calling item before the handler returns.
+            // so the gut's of this function need to be called after.
+
+            // Object 0x4ff6500 destroyed while one of its QML signal handlers is in progress.
+            // Most likely the object was deleted synchronously (use QObject::deleteLater() instead), or the application is running a nested event loop.
+            // This behavior is NOT supported!
+
+            function draggingStopped(index, item, mode) {
+                delayCallback(10, function() {
+                   draggingStoppedReal(index, item, mode)
+                })
             }
 
             function isValidSelection(ctype, ntype) {
@@ -1704,14 +1697,25 @@ Rectangle {
                                         let s = Math.min(index.row, m.row)
                                         let e = Math.max(index.row, m.row)
                                         let items = []
+                                        let mitems = []
 
                                         // ignore gaps.. ?
                                         for(let i=s; i<=e; i++) {
                                             let nindex = timelineSelection.model.index(i, 0, index.parent)
-                                            if(["Clip","Audio Track", "Video Track"].includes(timelineSelection.model.get(nindex, "typeRole")))
+                                            let itype = timelineSelection.model.get(nindex, "typeRole")
+
+                                            if(["Clip","Audio Track", "Video Track"].includes(itype)) {
                                                 items.push(nindex)
+
+                                                if(itype == "Clip") {
+                                                    let mindex = getMediaIndex(nindex)
+                                                    if(mindex.valid && !mitems.includes(mindex))
+                                                        mitems.push(mindex)
+                                                }
+                                            }
                                         }
                                         timelineSelection.select(helpers.createItemSelection(items), ItemSelectionModel.ClearAndSelect)
+                                        mediaSelectionModel.select(helpers.createItemSelection(mitems), ItemSelectionModel.ClearAndSelect)
                                     }
                                 } else {
                                     selectItem()
@@ -1726,8 +1730,13 @@ Rectangle {
                             }
                             if(isValid && button != Qt.RightButton) {
                                 let new_state = hovered.isSelected  ? ItemSelectionModel.Deselect : ItemSelectionModel.Select
-                                if(["Clip","Audio Track", "Video Track"].includes(hovered.itemTypeRole))
+                                if(["Clip","Audio Track", "Video Track"].includes(hovered.itemTypeRole)) {
                                     timelineSelection.select(hovered.modelIndex(), new_state)
+
+                                    if(hovered.itemTypeRole == "Clip" && hovered.mediaIndex.valid) {
+                                        mediaSelectionModel.select(hovered.mediaIndex, new_state)
+                                    }
+                                }
                             }
                         } else if(modifiers == Qt.NoModifier) {
                             selectItem()
@@ -1812,153 +1821,262 @@ Rectangle {
         }
     }
 
+    XsClipDragBoth {
+        id: dragInsert
+        visible: false
+        x: 0
+        y: 0
+        width: 20
+        height: itemHeight * scaleY
+        thickness: 2
+        z:10
+    }
+
+    XsClipDragLeft {
+        id: dragPrepend
+        visible: false
+        x: 0
+        y: 0
+        width: 10
+        height: itemHeight * scaleY
+        thickness: 2
+        z:10
+    }
+
+    XsClipDragRight {
+        id: dragAppend
+        visible: false
+        x: 0
+        y: 0
+        width: 20
+        height: itemHeight * scaleY
+        thickness: 2
+        z:10
+    }
+
+    /*XsMediaMoveCopyDialog {
+        id: media_move_copy_dialog
+    }*/
+
     XsDragDropHandler {
 
         id: drag_drop_handler
         property bool dragTarget: false
+        property var modelIndex: null
+        property bool newVideoTrack: true
 
         onDragEntered: {
-            if (source == "MediaList") {
+            // console.log(source, data)
+            if (source == "MediaList" && typeof data == "object" && data.length) {
                 dragTarget = true
+                processPosition(mousePosition.x, mousePosition.y)
             }
         }
 
         onDragExited: {
-            dragTarget = false
+            if(dragTarget) {
+                console.log("existed")
+                dragTarget = false
+                modelIndex = null
+                dragInsert.visible = false
+                dragPrepend.visible = false
+                dragAppend.visible = false
+            }
+        }
+
+        onDragged: {
+            if(dragTarget)
+                processPosition(mousePosition.x, mousePosition.y)
         }
 
 		onDropped: {
+			if (dragTarget) {
+                processPosition(mousePosition.x, mousePosition.y)
 
-            if (!dragTarget) return
-            dragTarget = false
-			if (source == "MediaList" && typeof data == "object" && data.length) {
+                if(modelIndex) {
+                    // determine what we need to do..
+                    let type = modelIndex.model.get(modelIndex, "typeRole")
+                    let new_indexes = theSessionData.moveRows(
+                        data,
+                        -1, // insertion row: make invalid so always inserts on the end
+                        timeline_items.rootIndex.parent,
+                        true
+                    )
+                    // var trackIdx = addTrack("Video Track")[0]
+                    let clipRow = 0;
+                    let clipParent = null
 
-				// root playlist:
-                var trackIdx = addTrack("Video Track")[0]
-                let new_indexes = theSessionData.moveRows(
-                    data,
-                    -1, // insertion row: make invalid so always inserts on the end
-                    timeline_items.rootIndex.parent,
-                    true
-                )
+                    if(type == "Video Track" || type == "Audio Track") {
+                        // append
+                        clipParent = modelIndex
+                        clipRow = modelIndex.model.rowCount(modelIndex)
+                    } else if(type == "Stack") {
+                        // new track, but which ? audio or video..
+                        if(newVideoTrack) {
+                            clipParent = addTrack("Video Track")[0]
+                            clipRow = 0
+                        } else {
+                            clipParent = addTrack("Audio Track")[0]
+                            clipRow = 0
+                        }
+                    } else {
+                        clipParent = modelIndex.parent
+                        clipRow = modelIndex.row
+                    }
 
-				for (var c = 0; c < new_indexes.length; ++c) {
-                    // must add to container..
-					theSessionData.insertTimelineClip(c, trackIdx, new_indexes[c], "")
-				}
+    				for (var c = 0; c < new_indexes.length; ++c) {
+                        // must add to container..
+    					theSessionData.insertTimelineClip(c + clipRow, clipParent, new_indexes[c], "")
+    				}
+                    modelIndex = null
+                }
+
+                dragInsert.visible = false
+                dragPrepend.visible = false
+                dragAppend.visible = false
+                dragTarget = false
 			}
-
-        }
-	}
-
-    DropArea {
-        id: drop_area
-        keys: [
-            "text/uri-list",
-            "xstudio/media-ids",
-            "xstudio/timeline-ids",
-            "application/x-dneg-ivy-entities-v1"
-        ]
-        anchors.fill: parent
-
-        property var modelIndex: null
-
-        onEntered: {
-            processPosition(drag.x, drag.y)
         }
 
-        onExited: {
-            modelIndex = null
-            dragBothLeft.visible = false
-            dragBothRight.visible = false
-            dragLeft.visible = false
-            dragRight.visible = false
-            moveClip.visible = false
-        }
-
-        function processPosition(x,y) {
-            // console.log("processPosition", resolveItem(x, y))
+        function processPosition(x, y) {
             let [item, item_type, local_x, local_y] = resolveItem(x, y)
             let handle = 16
-            let show_dragBothLeft = false
-            let show_dragBothRight = false
-            let show_dragLeft = false
-            let show_dragRight = false
-            let show_moveClip = false
+            let show_dragPrepend = false
+            let show_dragAppend = false
+            let show_dragInsert = false
 
             // update ovelay to indicate drop location.
             if(item) {
-                if(["Clip","Gap"].includes(item_type)) {
+                if(["Clip", "Gap"].includes(item_type)) {
                     if(local_x >= 0 && local_x < handle) {
-                        let ppos = mapFromItem(item, 0, 0)
-                        let item_row = item.modelIndex().row
-                        if(item_row) {
-                            dragBothLeft.x = ppos.x -dragBothLeft.width / 2
-                            dragBothLeft.y = ppos.y
-                            show_dragBothLeft = true
-                        } else {
-                            dragLeft.x = ppos.x
-                            dragLeft.y = ppos.y
-                            show_dragLeft = true
-                        }
                         modelIndex = item.modelIndex()
+                        let ppos = mapFromItem(item, 0, 0)
+                        let item_row = modelIndex.row
+
+                        if(item_row) {
+                            dragInsert.x = ppos.x -dragInsert.width / 2
+                            dragInsert.y = ppos.y
+                            show_dragInsert = true
+                        } else {
+                            dragPrepend.x = ppos.x
+                            dragPrepend.y = ppos.y
+                            show_dragPrepend = true
+                        }
                     }
                     else if(local_x >= item.width - handle && local_x < item.width) {
                         let ppos = mapFromItem(item, item.width, 0)
                         let item_row = item.modelIndex().row
+
                         if(item_row == item.modelIndex().model.rowCount(item.modelIndex().parent)-1) {
-                            dragRight.x = ppos.x - dragRight.width
-                            dragRight.y = ppos.y
-                            show_dragRight = true
+                            dragAppend.x = ppos.x - dragAppend.width
+                            dragAppend.y = ppos.y
+                            show_dragAppend = true
                             modelIndex = item.modelIndex().parent
                         } else {
-                            dragBothRight.x = ppos.x -dragBothRight.width / 2
-                            dragBothRight.y = ppos.y
-                            show_dragBothRight = true
+                            dragInsert.x = ppos.x - (dragInsert.width / 2)
+                            dragInsert.y = ppos.y
+                            show_dragInsert = true
                             modelIndex = item.modelIndex().model.index(item_row+1,0,item.modelIndex().parent)
                         }
                     }
-                } else if(["Audio Track","Video Track"].includes(item_type)) {
-                    let ppos = mapFromItem(item, trackHeaderWidth, 0)
-                    dragRight.x = ppos.x - dragRight.width
-                    dragRight.y = ppos.y
-                    show_dragRight = true
+                } else if(["Audio Track", "Video Track"].includes(item_type)) {
+                    // prepend / append...
+                    // always append unless empty.
                     modelIndex = item.modelIndex()
+
+                    if(modelIndex.model.rowCount(modelIndex)) {
+                        // calculate track width
+                        let frames = modelIndex.model.get(modelIndex, "trimmedDurationRole")
+                        let ppos = mapFromItem(item, frames*scaleX, 0)
+                        dragAppend.x = ppos.x - dragAppend.width + trackHeaderWidth
+                        dragAppend.y = ppos.y
+                        show_dragAppend = true
+                    } else {
+                        let ppos = mapFromItem(item, 0, 0)
+
+                        dragPrepend.x = trackHeaderWidth
+                        dragPrepend.y = ppos.y
+                        show_dragPrepend = true
+                    }
+                } else if(item_type == "Stack") {
+                    // new track..
+                    //  find first vid / last audio
+                    //  which are we nearest to ?
+                    let prepend_y = 0
+                    if(y < mapFromItem(item.list_view_middle, 0, 0).y) {
+                        // video
+                        prepend_y = mapFromItem(item.list_view_video.footerItem, 0, item.list_view_video.footerItem.height).y - dragPrepend.height
+                        newVideoTrack = true
+                    } else {
+                        // audio
+                        prepend_y = mapFromItem(item.list_view_audio.footerItem, 0, 0).y
+                        newVideoTrack = false
+                    }
+                    modelIndex = item.modelIndex()
+                    dragPrepend.x = trackHeaderWidth
+                    dragPrepend.y = prepend_y
+                    show_dragPrepend = true
+                } else {
+                    // console.log("ERM")
                 }
             }
 
-            if(show_dragLeft != dragLeft.visible)
-                dragLeft.visible = show_dragLeft
+            if(show_dragPrepend != dragPrepend.visible)
+                dragPrepend.visible = show_dragPrepend
 
-            if(show_dragRight != dragRight.visible)
-                dragRight.visible = show_dragRight
+            if(show_dragAppend != dragAppend.visible)
+                dragAppend.visible = show_dragAppend
 
-            if(show_dragBothLeft != dragBothLeft.visible)
-                dragBothLeft.visible = show_dragBothLeft
-
-            if(show_dragBothRight != dragBothRight.visible)
-                dragBothRight.visible = show_dragBothRight
-
-            if(show_moveClip != moveClip.visible)
-                moveClip.visible = show_moveClip
+            if(show_dragInsert != dragInsert.visible)
+                dragInsert.visible = show_dragInsert
         }
+	}
 
-        onPositionChanged: {
-            processPosition(drag.x, drag.y)
-        }
+    // DropArea {
+    //     id: drop_area
+    //     keys: [
+    //         "text/uri-list",
+    //         "xstudio/media-ids",
+    //         "xstudio/timeline-ids",
+    //         "application/x-dneg-ivy-entities-v1"
+    //     ]
+    //     anchors.fill: parent
 
-        onDropped: {
-            processPosition(drop.x, drop.y)
-            if(modelIndex != null) {
-                handleDrop(modelIndex, drop)
-                modelIndex = null
-            }
-            dragBothLeft.visible = false
-            dragBothRight.visible = false
-            dragLeft.visible = false
-            moveClip.visible = false
-            dragRight.visible = false
-        }
-    }
+    //     property var modelIndex: null
+
+    //     onEntered: {
+    //         console.log("ENTERED")
+    //         processPosition(drag.x, drag.y)
+    //     }
+
+    //     onExited: {
+    //         console.log("EXITED")
+    //         modelIndex = null
+    //         dragBothLeft.visible = false
+    //         dragBothRight.visible = false
+    //         dragLeft.visible = false
+    //         dragRight.visible = false
+    //         moveClip.visible = false
+    //     }
+
+
+    //     onPositionChanged: {
+    //         processPosition(drag.x, drag.y)
+    //     }
+
+    //     onDropped: {
+    //         console.log("DROPPED")
+    //         processPosition(drop.x, drop.y)
+    //         if(modelIndex != null) {
+    //             handleDrop(modelIndex, drop)
+    //             modelIndex = null
+    //         }
+    //         dragBothLeft.visible = false
+    //         dragBothRight.visible = false
+    //         dragLeft.visible = false
+    //         moveClip.visible = false
+    //         dragRight.visible = false
+    //     }
+    // }
 
 }

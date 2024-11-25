@@ -172,6 +172,9 @@ class SESSION_QML_EXPORT SessionModel : public caf::mixin::actor_object<JSONTree
         const QString &trackSuffix = "Duplicate",
         const bool append          = true);
 
+    Q_INVOKABLE QModelIndexList
+    duplicateTimelineClipsTo(const QModelIndexList &indexes, const QModelIndex &trackIndex);
+
     Q_INVOKABLE bool replaceTimelineTrack(const QModelIndex &src, const QModelIndex &dst);
 
     Q_INVOKABLE QRect timelineRect(const QModelIndexList &indexes) const;

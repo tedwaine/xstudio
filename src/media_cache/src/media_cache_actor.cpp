@@ -94,6 +94,9 @@ GlobalImageCacheActor::GlobalImageCacheActor(caf::actor_config &cfg)
 
     delayed_anon_send(this, std::chrono::minutes(1), clear_atom_v, true);
 
+    // For cache benchmarking
+    // cache_.noisy = true;
+
     behavior_.assign(
         [=](xstudio::broadcast::broadcast_down_atom, const caf::actor_addr &) {},
         [=](clear_atom, const bool idle_check) {

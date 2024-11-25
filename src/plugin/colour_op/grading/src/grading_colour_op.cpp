@@ -336,9 +336,9 @@ std::shared_ptr<ColourOperationData> GradingColourOperator::setup_shader_data(
 
     gradingop_shader_         = std::make_shared<ui::opengl::OpenGLShader>(PLUGIN_UUID, fs_str);
     colour_op_data->shader_   = gradingop_shader_;
-    colour_op_data->cache_id_ = std::hash<std::string_view>{}(fragment_shader);
+    colour_op_data->set_cache_id(fmt::format("{}", std::hash<std::string_view>{}(fragment_shader)));
     for (const auto &lut : fs_luts) {
-        colour_op_data->cache_id_ += lut->cache_id();
+        colour_op_data->set_cache_id(colour_op_data->cache_id() + fmt::format("{}",lut->cache_id()));
     }
     return colour_op_data;
 }

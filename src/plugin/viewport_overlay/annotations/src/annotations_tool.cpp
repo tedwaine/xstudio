@@ -204,7 +204,7 @@ caf::message_handler AnnotationsTool::message_handler_extensions() {
             // note Annotation::fade_all_strokes() returns false when all strokes have vanished
             if (is_laser_mode() &&
                 interaction_canvas_.fade_all_strokes(pen_opacity_->value() / 100.f)) {
-                delayed_anon_send(this, std::chrono::milliseconds(25), utility::event_atom_v);
+                delayed_anon_send(this, std::chrono::milliseconds(100), utility::event_atom_v);
             } else {
                 fade_looping_ = false;
             }
@@ -563,7 +563,7 @@ void AnnotationsTool::images_going_on_screen(
         bool edited_anno_is_onscreen = false;
         // looks like we are editing an annotation. Is the annotation still on
         // screen (i.e. has the user scrubbed away from it)
-        if (images) {
+        if (images && images->layout_data()) {
             const auto & im_idx = images->layout_data()->image_draw_order_hint_;
             for (auto &idx: im_idx) {
                 // loop over onscreen images. Check if the current bookmark is

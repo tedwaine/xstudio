@@ -268,7 +268,7 @@ QModelIndexList SessionModel::copyRows(
                             // reset state..
                             anon_send(actor_uuid.actor(), timeline::item_lock_atom_v, false);
                             anon_send(actor_uuid.actor(), plugin_manager::enable_atom_v, true);
-                            anon_send(actor_uuid.actor(), timeline::item_flag_atom_v, "");
+                            // anon_send(actor_uuid.actor(), timeline::item_flag_atom_v, "");
 
                             auto insertion_json =
                                 R"({"type": null, "id": null,  "placeholder": true, "actor": null})"_json;
@@ -348,6 +348,14 @@ QModelIndexList SessionModel::copyRows(
 
     } catch (const std::exception &err) {
         spdlog::warn("{} {}", __PRETTY_FUNCTION__, err.what());
+    }
+
+    // wait for them to be valid..
+    for (const auto &i : result) {
+        while (i.data(SessionModel::Roles::placeHolderRole).toBool() == true) {
+            QCoreApplication::processEvents(
+                QEventLoop::WaitForMoreEvents | QEventLoop::ExcludeUserInputEvents, 50);
+        }
     }
 
     return result;

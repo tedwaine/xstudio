@@ -48,8 +48,6 @@ Item {
         topColor: isSelected ? Qt.darker(palette.highlight, 2) : XsStyleSheet.panelBgGradTopColor
         bottomColor: isSelected ? Qt.darker(palette.highlight, 2) :  XsStyleSheet.panelBgGradBottomColor
 
-		// opacity: isEnabled ? 1.0 : 0.33
-
 		RowLayout {
 			spacing: 10
 			anchors.fill: parent
@@ -59,7 +57,6 @@ Item {
 			anchors.bottomMargin: 5
 
 			Rectangle {
-				// Layout.preferredHeight: control.height - 4
 				Layout.fillHeight: true
 				Layout.preferredWidth: height / 2
 				color: itemFlag != "" ? helpers.saturate(itemFlag, 0.4) : control_background.color
@@ -115,16 +112,6 @@ Item {
 		    	Layout.fillHeight: true
 		    	Layout.alignment: Qt.AlignRight
 
-				// XsPrimaryButton{
-			 //    	Layout.fillHeight: true
-				// 	Layout.preferredWidth: height
-				// 	isActiveViaIndicator: false
-    // 	            isActive: isConformSource
-    // 	            text: "C"
-    // 	            enabled: false
-				// 	onClicked: control.conformSourceClicked()
-				// }
-
 				Rectangle {
 			    	Layout.fillHeight: true
 					Layout.preferredWidth: height
@@ -165,42 +152,12 @@ Item {
 		}
 	}
 
-		// Label {
-		// 	anchors.top: parent.top
-		// 	anchors.left: parent.left
-		// 	anchors.leftMargin: 10
-		// 	anchors.topMargin: 5
-		// 	text: trimmedStartRole
-		// 	visible: extraDetail
-		// 	z:4
-		// }
-		// Label {
-		// 	anchors.top: parent.top
-		// 	anchors.left: parent.left
-		// 	anchors.leftMargin: 40
-		// 	anchors.topMargin: 5
-		// 	text: trimmedDurationRole
-		// 	visible: extraDetail
-		// 	z:4
-		// }
-		// Label {
-		// 	anchors.top: parent.top
-		// 	anchors.left: parent.left
-		// 	anchors.leftMargin: 70
-		// 	anchors.topMargin: 5
-		// 	text: trimmedDurationRole ? trimmedStartRole + trimmedDurationRole - 1 : 0
-		// 	visible: extraDetail
-		// 	z:4
-		// }
-
-
 	Rectangle {
 		width: 4
 		height: parent.height
 
 		anchors.right: parent.right
 		anchors.top: parent.top
-		// color: timelineBackground
 
         color: isSizerDragging ? palette.highlight : isSizerHovered  ? XsStyleSheet.secondaryTextColor : timelineBackground
 
@@ -224,42 +181,5 @@ Item {
 			}
 		}
 	}
-
-	XsDragDropHandler {
-
-        id: drag_drop_handler
-        onDragEntered: {
-            if (source == "MediaList") {
-                dragTarget = true
-            }
-        }
-
-        onDragExited: {
-            dragTarget = false
-        }
-
-		onDropped: {
-
-            if (!dragTarget) return
-            dragTarget = false
-			if (source == "MediaList" && typeof data == "object" && data.length) {
-				// drops from MediaList is a QModelIndexList - the seletcted media from
-				// the MediaList that is being dragged over
-
-				// root playlist:
-				theSessionData.dump(data[0].parent.parent)
-				theSessionData.dump(modelIndex())
-
-				var rc = theSessionData.rowCount(modelIndex());
-				for (var c = 0; c < data.length; ++c) {
-					var mediaName = theSessionData.get(data[c], "pathRole")
-					theSessionData.insertTimelineClip(rc+c, modelIndex(), data[c], mediaName)
-				}
-
-			}
-
-        }
-	}
-
 }
 

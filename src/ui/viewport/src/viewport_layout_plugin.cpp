@@ -19,12 +19,6 @@ ViewportLayoutPlugin::ViewportLayoutPlugin(
     const utility::JsonStore &init_settings)
     : plugin::StandardPlugin(cfg, name, init_settings), is_python_plugin_(is_python_plugin) {
 
-    settings_toggle_ = add_boolean_attribute(name, name, true);
-    settings_toggle_->expose_in_ui_attrs_group("layout_plugins");
-
-    // this tells the pop-up menu for Compare/Layouts that this plugin doesn't
-    // have any settings, so the 'Settings' button is disabled
-    settings_toggle_->set_role_data(module::Attribute::DisabledValue, true);
 
     handler_ = {
         [=](utility::get_event_group_atom) -> caf::actor {
@@ -95,12 +89,19 @@ ViewportLayoutPlugin::ViewportLayoutPlugin(
 
     make_behavior();
 
+    settings_toggle_ = add_boolean_attribute(name, name, true);
+    settings_toggle_->expose_in_ui_attrs_group("layout_plugins");
+
+    // this tells the pop-up menu for Compare/Layouts that this plugin doesn't
+    // have any settings, so the 'Settings' button is disabled
+    settings_toggle_->set_role_data(module::Attribute::DisabledValue, true);
+
     connect_to_ui();
                 
-    layouts_manager_ =
+    /*layouts_manager_ =
                     system().registry().template get<caf::actor>(viewport_layouts_manager);
     gobal_playhead_events_ = system().registry().template get<caf::actor>(global_playhead_events_actor);
-    anon_send(layouts_manager_, ui::viewport::viewport_layout_atom_v, caf::actor_cast<caf::actor>(this), Module::name());
+    //anon_send(layouts_manager_, ui::viewport::viewport_layout_atom_v, caf::actor_cast<caf::actor>(this), Module::name());*/
 
 }
 
