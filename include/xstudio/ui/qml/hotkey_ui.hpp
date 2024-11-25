@@ -112,7 +112,6 @@ namespace ui {
             QString current_category_;
         };
 
-
         class VIEWPORT_QML_EXPORT HotkeyUI : public QMLActor {
 
             Q_OBJECT

@@ -334,9 +334,23 @@ PluginManagerActor::PluginManagerActor(caf::actor_config &cfg) : caf::event_base
                 // managing viewport layouts. To avoid making the plugin_manager
                 // component link-dependent on the ui::viewport component we
                 // spawn via the viewport_layouts_manager
-                auto layouts_manager =
-                   system().registry().template get<caf::actor>(viewport_layouts_manager);            
-                rp.delegate(layouts_manager, spawn_plugin_base_atom_v, name, json);
+                std::vector<PluginDetail> details = manager_.plugin_detail();
+                for (auto &detail: details) {
+                    if (detail.name_ == "DefaultViewportLayout") {
+                        try {
+                            auto j       = json;
+                            j["name"] = name;
+                            j["is_python"] = true;
+                            rp.deliver(manager_.spawn(*scoped_actor(system()), detail.uuid_, json));
+                        } catch (std::exception &e) {
+                            rp.deliver(make_error(xstudio_error::error, e.what()));
+                        }
+                    }
+                }
+                if (rp.pending()) {
+                    rp.deliver(make_error(xstudio_error::error, "Failed to spawn base ViewportLayoutPlugin"));
+                }
+                return rp;
             }
             rp.deliver(spawn<plugin::StandardPlugin>(name, json)); // base_plugins_[name];
             return rp;

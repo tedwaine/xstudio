@@ -297,8 +297,9 @@ namespace utility {
 
 
         std::string path = (root ? (*root) + append_path : fallback_root + append_path);
-
-        return path;
+        const auto p = fs::path(path).string();
+        spdlog::critical("xstudio_root: {} {}", path, p);
+        return p;
     }
 
     inline std::string remote_session_path() {

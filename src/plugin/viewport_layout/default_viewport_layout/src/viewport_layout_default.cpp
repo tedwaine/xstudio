@@ -5,6 +5,7 @@
 
 #include "viewport_layout_default.hpp"
 #include "xstudio/media_reader/image_buffer.hpp"
+#include "xstudio/ui/opengl/opengl_viewport_renderer.hpp"
 
 using namespace xstudio::utility;
 using namespace xstudio::ui::viewport;
@@ -26,6 +27,10 @@ DefaultViewportLayout::DefaultViewportLayout(
     add_layout_mode("String", playhead::AssemblyMode::AM_STRING);
     add_layout_mode("A/B", playhead::AssemblyMode::AM_TEN);
 
+}
+
+ViewportRenderer * DefaultViewportLayout::make_renderer(const std::string &window_id) {
+    return new opengl::OpenGLViewportRenderer(window_id);
 }
 
 extern "C" {

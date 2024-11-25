@@ -34,6 +34,9 @@ set_target_properties(${PROJECT_NAME} PROPERTIES LINK_DEPENDS_NO_SHARED true)
 
 add_subdirectory(qml)
 
+IF(UNIX)
 add_custom_command(TARGET ${PROJECT_NAME} POST_BUILD
                  COMMAND ${CMAKE_COMMAND} -E
                      copy ${CMAKE_BINARY_DIR}/bin/plugin/libsession_snapshots.so ${CMAKE_BINARY_DIR}/bin/plugin/qml/SessionSnapshots.1/)
+ELSEIF(WIN32)
+ENDIF()

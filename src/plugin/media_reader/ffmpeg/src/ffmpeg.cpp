@@ -5,7 +5,10 @@
 #include <map>
 #include <mutex>
 #include <regex>
+
+#ifndef _WIN32
 #include <sys/time.h>
+#endif
 
 #include "xstudio/global_store/global_store.hpp"
 #include "xstudio/media/media.hpp"
@@ -308,6 +311,8 @@ void FFMpegMediaReader::update_preferences(const utility::JsonStore &prefs) {
         soundcard_sample_rate_ =
             preference_value<int>(prefs, "/core/audio/windows_audio_prefs/sample_rate");
 #endif
+
+        spdlog::critical("soundcard_sample_rate_ {}", soundcard_sample_rate_);
 
         default_rate_ = utility::FrameRate(
             preference_value<std::string>(prefs, "/core/session/media_rate"));

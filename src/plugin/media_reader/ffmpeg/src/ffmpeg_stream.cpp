@@ -520,7 +520,7 @@ AudioBufPtr FFMpegStream::get_ffmpeg_frame_as_xstudio_audio(const int soundcard_
     case audio::SampleFormat::INT16:
         target_sample_format_ = AV_SAMPLE_FMT_S16;
         break;
-    case audio::SampleFormat::INT32:
+    case audio::SampleFormat::SFINT32:
         target_sample_format_ = AV_SAMPLE_FMT_S32;
         break;
     case audio::SampleFormat::FLOAT32:
@@ -709,6 +709,8 @@ size_t FFMpegStream::resample_audio(
             : av_get_default_channel_layout(frame->channels);
 
     const int wanted_nb_samples = frame->nb_samples * target_sample_rate_ / frame->sample_rate;
+
+    std::cerr << "FOO " << frame->sample_rate << " " << target_sample_rate_ << "\n";
 
     if (!audio_resampler_ctx_ || frame->format != src_audio_fmt_ ||
         frame->sample_rate != src_audio_sample_rate_ ||

@@ -24,7 +24,6 @@ target_link_libraries(${PROJECT_NAME}
 		xstudio::plugin_manager
 		xstudio::utility
 		xstudio::playhead
-		xstudio::ui::opengl::viewport
 		OpenEXR::OpenEXR
 		Imath::Imath
 		caf::core

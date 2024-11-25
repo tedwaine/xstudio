@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 #include "xstudio/ui/opengl/opengl_shape_renderer.hpp"
+#include "xstudio/ui/canvas/shapes.hpp"
 
 using namespace xstudio::ui::canvas;
 using namespace xstudio::ui::opengl;
@@ -443,8 +444,8 @@ void OpenGLShapeRenderer::upload_ssbo(
 
 void OpenGLShapeRenderer::render_shapes(
     const std::vector<Quad> &quads,
-    const std::vector<Polygon> &polygons,
-    const std::vector<Ellipse> &ellipses,
+    const std::vector<canvas::Polygon> &polygons,
+    const std::vector<canvas::Ellipse> &ellipses,
     const Imath::M44f &transform_window_to_viewport_space,
     const Imath::M44f &transform_viewport_to_image_space,
     float viewport_du_dx,

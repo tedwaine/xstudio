@@ -3,7 +3,7 @@
 
 namespace xstudio::audio {
 
-enum class SampleFormat { UNSET, UINT8 = 1, INT16, INT32, FLOAT32, INT64, DOUBLE64 };
+enum class SampleFormat { UNSET, UINT8 = 1, INT16, SFINT32, FLOAT32, INT64, DOUBLE64 };
 
 /**
  *  @brief AudioOutputDevice class, low level interface with audio output

@@ -62,7 +62,6 @@ if(INSTALL_XSTUDIO)
 
 endif ()
 
-add_src_and_test(broadcast)
 add_src_and_test(global_store)
 add_src_and_test(json_store)
 add_src_and_test(timeline)

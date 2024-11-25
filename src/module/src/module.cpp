@@ -12,6 +12,7 @@
 #include "xstudio/playhead/playhead_global_events_actor.hpp"
 
 #include <iostream>
+#include <stdlib.h>
 
 using namespace xstudio::utility;
 using namespace xstudio::module;
@@ -877,7 +878,7 @@ caf::message_handler Module::message_handler() {
                              event["context"] = context;
                              // random num ensures the data changes every time
                              // so notification mechanism is triggered
-                             event["id"] = drand48();
+                             event["id"] = (double)rand() / RAND_MAX;                             
                              attr->set_role_data(Attribute::UserData, event);
                          }
                      }

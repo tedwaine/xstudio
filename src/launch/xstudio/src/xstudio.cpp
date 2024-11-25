@@ -5,13 +5,15 @@
 #include <csignal>
 #include <cstdio>
 #include <cstdlib>
-#include <execinfo.h>
 #include <functional>
 #include <iostream>
 #include <regex>
 #include <thread>
-#include <unistd.h>
 
+#ifndef _WIN32
+#include <execinfo.h>
+#include <unistd.h>
+#endif
 
 #ifndef CPPHTTPLIB_OPENSSL_SUPPORT
 #define CPPHTTPLIB_OPENSSL_SUPPORT
@@ -969,7 +971,8 @@ int main(int argc, char **argv) {
     // but buffers might be cleaned up (destroyed) after the media_reader component
     // is cleaned up on exit. So we make a copy here to ensure the ImageBufferRecyclerCache
     // instance outlives any Buffer objects.
-    auto buffer_cache_handle = media_reader::Buffer::s_buf_cache;
+    
+    // auto buffer_cache_handle = media_reader::Buffer::s_buf_cache;
 
     // As far as I can tell caf only allows config to be modified
     // through cli args. We prefer the 'sharing' policy rather than

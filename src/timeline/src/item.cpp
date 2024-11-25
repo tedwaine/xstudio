@@ -1589,6 +1589,7 @@ void Item::reset_media_uuid() {
     }
 }
 
+namespace xstudio::timeline {
 /* Doing sync requests to the clip actors to build our FrameTimeMap can 
 get a bit ugly. To help with this we have this helper that processes the 
 responses from the clip actors and self destroys once all the expected responses
@@ -1644,6 +1645,7 @@ class BuildFrameIDsHelper {
     std::shared_ptr<const media::AVFrameID> blank_frame;
 
 };
+}
 
  caf::typed_response_promise<media::FrameTimeMapPtr> Item::get_all_frame_IDs(
             const media::MediaType media_type,

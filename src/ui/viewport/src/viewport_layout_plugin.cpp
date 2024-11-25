@@ -3,7 +3,6 @@
 
 #include <chrono>
 
-#include "xstudio/ui/opengl/opengl_viewport_renderer.hpp"
 #include "xstudio/ui/viewport/viewport_layout_plugin.hpp"
 #include "xstudio/utility/string_helpers.hpp"
 #include "xstudio/utility/helpers.hpp"
@@ -14,18 +13,24 @@ using namespace xstudio::ui::viewport;
 
 ViewportLayoutPlugin::ViewportLayoutPlugin(
     caf::actor_config &cfg,
+    const utility::JsonStore &init_settings) : 
+    plugin::StandardPlugin(cfg, init_settings.value("name", "ViewportLayoutPlugin"), init_settings), is_python_plugin_(init_settings.value("is_python_plugin", false)) 
+{
+    init();
+}
+
+ViewportLayoutPlugin::ViewportLayoutPlugin(
+    caf::actor_config &cfg,
     std::string name,
     const bool is_python_plugin,
     const utility::JsonStore &init_settings)
-    : plugin::StandardPlugin(cfg, name, init_settings), is_python_plugin_(is_python_plugin) {
+    : plugin::StandardPlugin(cfg, name, init_settings), is_python_plugin_(is_python_plugin)
+{
+    init();
+}
 
-    settings_toggle_ = add_boolean_attribute(name, name, true);
-    settings_toggle_->expose_in_ui_attrs_group("layout_plugins");
-
-    // this tells the pop-up menu for Compare/Layouts that this plugin doesn't
-    // have any settings, so the 'Settings' button is disabled
-    settings_toggle_->set_role_data(module::Attribute::DisabledValue, true);
-
+void ViewportLayoutPlugin::init() {
+    
     handler_ = {
         [=](utility::get_event_group_atom) -> caf::actor {
             if (!event_group_) {
@@ -95,6 +100,13 @@ ViewportLayoutPlugin::ViewportLayoutPlugin(
 
     make_behavior();
 
+    settings_toggle_ = add_boolean_attribute(module::Module::name(), module::Module::name(), true);
+    settings_toggle_->expose_in_ui_attrs_group("layout_plugins");
+
+    // this tells the pop-up menu for Compare/Layouts that this plugin doesn't
+    // have any settings, so the 'Settings' button is disabled
+    settings_toggle_->set_role_data(module::Attribute::DisabledValue, true);
+
     connect_to_ui();
                 
     layouts_manager_ =
@@ -108,10 +120,6 @@ void ViewportLayoutPlugin::on_exit() {
     layouts_manager_ = caf::actor();
     gobal_playhead_events_ = caf::actor();
     plugin::StandardPlugin::on_exit();
-}
-
-ViewportRenderer * ViewportLayoutPlugin::make_renderer(const std::string &window_id) {
-    return new opengl::OpenGLViewportRenderer(window_id);
 }
 
 void ViewportLayoutPlugin::do_layout(
@@ -334,43 +342,52 @@ ViewportLayoutManager::ViewportLayoutManager(caf::actor_config &cfg) : caf::even
         [=](broadcast::leave_broadcast_atom, caf::actor joiner) {
             delegate(event_group_, broadcast::leave_broadcast_atom_v, joiner);
         },
-        [=](ui::viewport::viewport_layout_atom, caf::actor layout_actor, const std::string &name) {
+        [=](ui::viewport::viewport_layout_atom,
+            caf::actor layout_actor,
+            const std::string &name) {
             // this message is sent by instances of ViewportLayoutPlugin
             // on construction
             viewport_layout_plugins_[name] = layout_actor;
             link_to(layout_actor);
         },
-        [=](ui::viewport::viewport_layout_atom, caf::actor layout_actor, const std::string &layout_name, const xstudio::playhead::AssemblyMode mode) -> result <bool> {
+        [=](ui::viewport::viewport_layout_atom,
+            caf::actor layout_actor,
+            const std::string &layout_name,
+            const xstudio::playhead::AssemblyMode mode) -> result<bool> {
             // Here a layout actor is registering a layout with us
             if (viewport_layouts_.contains(layout_name)) {
-                return make_error(xstudio_error::error, fmt::format("A viewport layout name \"{}\" is already registered.", layout_name));
+                return make_error(
+                    xstudio_error::error,
+                    fmt::format(
+                        "A viewport layout name \"{}\" is already registered.", layout_name));
             }
             viewport_layouts_[layout_name] = std::make_pair(layout_actor, mode);
             return true;
         },
-        [=](viewport_layout_atom, const std::string &layout_name, const bool /*shared_instance*/, const std::string /*viewport_name*/) -> result <caf::actor> {
-
+        [=](viewport_layout_atom,
+            const std::string &layout_name,
+            const bool /*shared_instance*/,
+            const std::string /*viewport_name*/) -> result<caf::actor> {
             if (not viewport_layouts_.contains(layout_name)) {
-                return make_error(xstudio_error::error, fmt::format("Requested viewport layout named \"{}\" which is not registered.", layout_name));
+                return make_error(
+                    xstudio_error::error,
+                    fmt::format(
+                        "Requested viewport layout named \"{}\" which is not registered.",
+                        layout_name));
             }
             return viewport_layouts_[layout_name].first;
-            
         },
-        [=](playhead::compare_mode_atom, const std::string &layout_name) -> result <xstudio::playhead::AssemblyMode> {
-
+        [=](playhead::compare_mode_atom,
+            const std::string &layout_name) -> result<xstudio::playhead::AssemblyMode> {
             if (not viewport_layouts_.contains(layout_name)) {
-                return make_error(xstudio_error::error, fmt::format("Requested viewport layout named \"{}\" which is not registered.", layout_name));
+                return make_error(
+                    xstudio_error::error,
+                    fmt::format(
+                        "Requested viewport layout named \"{}\" which is not registered.",
+                        layout_name));
             }
             return viewport_layouts_[layout_name].second;
-        },
-        [=](plugin_manager::spawn_plugin_base_atom,
-            const std::string name,
-            const utility::JsonStore &json) -> caf::actor {
-                // this message handler allows us to spawn the ViewportLayoutPlugin
-                // base class in order to 'back' a Python ViewportLayoutPlugin
-                return spawn<ViewportLayoutPlugin>(name, true, json);
-            }
-        };
+        }};
 
     spawn_plugins();
 
@@ -405,6 +422,8 @@ void ViewportLayoutManager::spawn_plugins() {
 
             // loop over plugin details
             for (const auto &pd : renderer_plugin_details) {
+
+                spdlog::critical("{} {}", __PRETTY_FUNCTION__, pd.name_);
 
                 // instance the plugin. Each plugin automatically registeres 
                 // itself with this class on construction (see above)

@@ -48,9 +48,9 @@ void OpenGLCanvasRenderer::render_canvas(
             viewport_du_dpixel);
     }
 
-    const auto &quads    = all_canvas_items<Quad>(canvas);
-    const auto &polygons = all_canvas_items<Polygon>(canvas);
-    const auto &ellipses = all_canvas_items<Ellipse>(canvas);
+    const auto &quads    = all_canvas_items<canvas::Quad>(canvas);
+    const auto &polygons = all_canvas_items<canvas::Polygon>(canvas);
+    const auto &ellipses = all_canvas_items<canvas::Ellipse>(canvas);
     if (!quads.empty() || !polygons.empty() || !ellipses.empty()) {
         shape_renderer_->render_shapes(
             quads,

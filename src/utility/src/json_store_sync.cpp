@@ -118,13 +118,13 @@ void JsonStoreSync::remove_base(
 
     // if local broadcast
     if (local or origin_) {
-        auto event              = SyncEvent;
-        event["redo"]           = RemoveEvent;
+        auto event              = xstudio::utility::SyncEvent;
+        event["redo"]           = xstudio::utility::RemoveEvent;
         event["redo"]["id"]     = id;
         event["redo"]["parent"] = parent;
         event["redo"]["key"]    = key;
 
-        event["undo"]           = InsertEvent;
+        event["undo"]           = xstudio::utility::InsertEvent;
         event["undo"]["id"]     = id;
         event["undo"]["parent"] = parent;
         event["undo"]["key"]    = key;
@@ -152,21 +152,21 @@ void JsonStoreSync::insert_base(
 
     // if local broadcast
     if (local or origin_) {
-        auto event              = SyncEvent;
-        event["redo"]           = InsertEvent;
+        auto event              = xstudio::utility::SyncEvent;
+        event["redo"]           = xstudio::utility::InsertEvent;
         event["redo"]["id"]     = id_;
         event["redo"]["parent"] = parent;
         event["redo"]["key"]    = key;
         event["redo"]["data"]   = data;
 
         if (p.count(key)) {
-            event["undo"]           = InsertEvent;
+            event["undo"]           = xstudio::utility::InsertEvent;
             event["undo"]["id"]     = id;
             event["undo"]["parent"] = parent;
             event["undo"]["key"]    = key;
             event["undo"]["data"]   = p.at(key);
         } else {
-            event["undo"]           = RemoveEvent;
+            event["undo"]           = xstudio::utility::RemoveEvent;
             event["undo"]["id"]     = id;
             event["undo"]["parent"] = parent;
             event["undo"]["key"]    = key;
@@ -202,15 +202,15 @@ void JsonStoreSync::insert_rows_base(
 
         // if local broadcast
         if (local or origin_) {
-            auto event              = SyncEvent;
-            event["redo"]           = InsertRowsEvent;
+            auto event              = xstudio::utility::SyncEvent;
+            event["redo"]           = xstudio::utility::InsertRowsEvent;
             event["redo"]["id"]     = id;
             event["redo"]["parent"] = parent;
             event["redo"]["row"]    = row;
             event["redo"]["count"]  = count;
             event["redo"]["data"]   = data;
 
-            event["undo"]           = RemoveRowsEvent;
+            event["undo"]           = xstudio::utility::RemoveRowsEvent;
             event["undo"]["id"]     = id;
             event["undo"]["parent"] = parent;
             event["undo"]["row"]    = row;
@@ -242,14 +242,14 @@ void JsonStoreSync::remove_rows_base(
     if (p.at(children_).is_array()) {
 
         if (local or origin_) {
-            auto event              = SyncEvent;
-            event["redo"]           = RemoveRowsEvent;
+            auto event              = xstudio::utility::SyncEvent;
+            event["redo"]           = xstudio::utility::RemoveRowsEvent;
             event["redo"]["id"]     = id;
             event["redo"]["parent"] = parent;
             event["redo"]["row"]    = row;
             event["redo"]["count"]  = count;
 
-            event["undo"]           = InsertRowsEvent;
+            event["undo"]           = xstudio::utility::InsertRowsEvent;
             event["undo"]["id"]     = id;
             event["undo"]["parent"] = parent;
             event["undo"]["row"]    = row;
@@ -299,14 +299,14 @@ void JsonStoreSync::set_base(
     if (p.at(children_).is_array()) {
 
         if (local or origin_) {
-            auto event              = SyncEvent;
-            event["redo"]           = SetEvent;
+            auto event              = xstudio::utility::SyncEvent;
+            event["redo"]           = xstudio::utility::SetEvent;
             event["redo"]["id"]     = id;
             event["redo"]["parent"] = parent;
             event["redo"]["row"]    = row;
             event["redo"]["data"]   = data;
 
-            event["undo"]           = SetEvent;
+            event["undo"]           = xstudio::utility::SetEvent;
             event["undo"]["id"]     = id;
             event["undo"]["parent"] = parent;
             event["undo"]["row"]    = row;
@@ -376,7 +376,7 @@ void JsonStoreSync::move_rows_base(
             if (local or origin_) {
                 auto event = SyncEvent;
 
-                event["redo"]               = MoveEvent;
+                event["redo"]               = xstudio::utility::MoveEvent;
                 event["redo"]["id"]         = id;
                 event["redo"]["src_parent"] = src_parent;
                 event["redo"]["src_row"]    = src_row;
@@ -384,7 +384,7 @@ void JsonStoreSync::move_rows_base(
                 event["redo"]["dst_parent"] = dst_parent;
                 event["redo"]["dst_row"]    = dst_row;
 
-                event["undo"]               = MoveEvent;
+                event["undo"]               = xstudio::utility::MoveEvent;
                 event["undo"]["id"]         = id;
                 event["undo"]["src_parent"] = dst_parent;
                 event["undo"]["src_row"]    = dst_row;
@@ -411,11 +411,11 @@ void JsonStoreSync::reset_data_base(
     if (local or origin_) {
         auto event = SyncEvent;
 
-        event["redo"]         = ResetEvent;
+        event["redo"]         = xstudio::utility::ResetEvent;
         event["redo"]["id"]   = id;
         event["redo"]["data"] = data;
 
-        event["undo"]         = ResetEvent;
+        event["undo"]         = xstudio::utility::ResetEvent;
         event["undo"]["id"]   = id;
         event["undo"]["data"] = tmp;
 

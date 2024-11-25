@@ -28,6 +28,8 @@ namespace viewport {
 
       protected:
 
+        ViewportRenderer * make_renderer(const std::string &window_id) override;
+
         void do_layout(
             const std::string &layout_mode,
             const media_reader::ImageBufDisplaySetPtr &image_set,

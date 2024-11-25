@@ -3,7 +3,7 @@ SET(LINK_DEPS
 	xstudio::global_store
 	xstudio::utility
 	xstudio::module
-	xstudio::timeline
+	xstudio::media
 	caf::core
 )
 

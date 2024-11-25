@@ -33,7 +33,7 @@ namespace media_reader {
             case audio::SampleFormat::INT16:
                 samp_size = 2;
                 break;
-            case audio::SampleFormat::INT32:
+            case audio::SampleFormat::SFINT32:
                 samp_size = 4;
                 break;
             case audio::SampleFormat::FLOAT32:

@@ -2,6 +2,10 @@
 #include <functional>
 
 #include <cstdio>
+#ifdef _WIN32
+// required to define INT32 type used by jpeglib
+#include <basetsd.h>
+#endif
 #include <jpeglib.h>
 #include <fstream>
 

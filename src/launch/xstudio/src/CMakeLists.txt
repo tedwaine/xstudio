@@ -58,6 +58,8 @@ target_link_libraries(${PROJECT_NAME}
 		xstudio::ui::qml::viewport
 		xstudio::ui::qt::viewport_widget
 		xstudio::ui::viewport
+		xstudio::media
+		xstudio::media_reader
 		xstudio::utility
 		fmt::fmt
 	PUBLIC

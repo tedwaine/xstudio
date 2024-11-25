@@ -1913,6 +1913,7 @@ utility::JsonStore ViewportRenderer::core_shader_params(
 void Viewport::render() const {
 
     if (render_data_ && render_data_->renderer) {
+
         render_data_->renderer->render(
             render_data_->images,
             render_data_->window_to_viewport_matrix,

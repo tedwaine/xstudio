@@ -9,9 +9,7 @@
 #include <tuple>
 #include <filesystem>
 
-#ifdef BUILD_OTIO
 #include <opentimelineio/timeline.h>
-#endif
 
 #include "xstudio/atoms.hpp"
 #include "xstudio/broadcast/broadcast_actor.hpp"
@@ -31,10 +29,7 @@ using namespace pybind11::literals;
 namespace fs = std::filesystem;
 namespace py = pybind11;
 
-#ifdef BUILD_OTIO
 namespace otio = opentimelineio::OPENTIMELINEIO_VERSION;
-#endif
-
 
 #ifdef __GNUC__ // Check if GCC compiler is being used
 #pragma GCC visibility push(hidden)
@@ -236,8 +231,6 @@ void EmbeddedPythonActor::act() {
             return result;
         },
 
-#ifdef BUILD_OTIO
-
         // import otio file return as otio xml string.
         // if already native format should be quick..
         [=](session::import_atom, const caf::uri &path) -> result<std::string> {
@@ -303,9 +296,6 @@ void EmbeddedPythonActor::act() {
 
             return make_error(xstudio_error::error, error);
         },
-
-#endif
-        // BUILD_OTIO
 
         [=](python_create_session_atom, const bool interactive) -> result<utility::Uuid> {
             if (not base_.enabled())

@@ -38,6 +38,10 @@ namespace viewport {
             bool is_python_plugin,
             const utility::JsonStore &init_settings);
 
+        ViewportLayoutPlugin(
+            caf::actor_config &cfg,
+            const utility::JsonStore &init_settings);
+
       protected:
 
         /**
@@ -69,7 +73,7 @@ namespace viewport {
          *  @details See the default renderer implementations for a reference
          *  for creating a custom viewport renderer
          */
-        virtual ViewportRenderer * make_renderer(const std::string &window_id);
+        virtual ViewportRenderer * make_renderer(const std::string &window_id) = 0;
 
         /**
          *  @brief Call this method to add a layout mode that your plugin
@@ -106,6 +110,8 @@ namespace viewport {
         void on_exit() override;
 
         private:
+
+        void init();
 
           using LayoutDataRP = caf::typed_response_promise<media_reader::ImageSetLayoutDataPtr>;
 

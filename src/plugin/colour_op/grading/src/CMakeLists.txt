@@ -30,6 +30,7 @@ target_link_libraries(${PROJECT_NAME}
 		xstudio::ui::opengl::viewport
 		Imath::Imath
 		OpenColorIO::OpenColorIO
+		Qt6::Core
 )
 
 set_target_properties(${PROJECT_NAME} PROPERTIES LINK_DEPENDS_NO_SHARED true)

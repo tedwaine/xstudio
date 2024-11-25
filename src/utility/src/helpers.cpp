@@ -535,22 +535,27 @@ xstudio::utility::scan_posix_path(const std::string &path, const int depth) {
             try {
                 std::vector<std::string> files;
                 for (const auto &entry : fs::directory_iterator(path)) {
-                    if (not entry.path().filename().empty() and
-                        std::string(entry.path().filename())[0] == '.')
+
+#ifdef _WIN32
+                    const std::string _path     = entry.path().string();
+                    const std::string _filename = entry.path().filename().string();
+                    if (not _filename.empty() and _filename[0] == '.')
                         continue;
                     if (fs::is_directory(entry) && (depth > 0 || depth < 0)) {
-#ifdef _WIN32
-                        auto more = scan_posix_path(entry.path().string(), depth - 1);
-#else
-                        auto more = scan_posix_path(entry.path(), depth - 1);
-#endif
+                        auto more = scan_posix_path(_path, depth - 1);
                         items.insert(items.end(), more.begin(), more.end());
                     } else if (fs::is_regular_file(entry))
-#ifdef _WIN32
-                        files.push_back(
-                            std::regex_replace(entry.path().string(), std::regex("[\]"), "/"));
+                        files.push_back(std::regex_replace(_path, std::regex("[\]"), "/"));
 #else
-                        files.push_back(entry.path());
+                    const std::string _path     = entry.path();
+                    const std::string _filename = entry.path().filename();
+                    if (not _filename.empty() and _filename[0] == '.')
+                        continue;
+                    if (fs::is_directory(entry) && (depth > 0 || depth < 0)) {
+                        auto more = scan_posix_path(_path, depth - 1);
+                        items.insert(items.end(), more.begin(), more.end());
+                    } else if (fs::is_regular_file(entry))
+                        files.push_back(_path);
 #endif
                 }
                 auto file_items = uri_from_file_list(files);

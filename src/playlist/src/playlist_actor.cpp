@@ -421,7 +421,7 @@ caf::message_handler PlaylistActor::message_handler() {
 
             const auto uuid = Uuid::generate();
             std::string ext =
-                ltrim_char(to_upper(fs::path(uri_to_posix_path(uri)).extension()), '.');
+                ltrim_char(to_upper(fs::path(uri_to_posix_path(uri)).extension().string()), '.');
             const auto source_uuid = Uuid::generate();
 
             auto source =
