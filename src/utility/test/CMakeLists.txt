@@ -3,7 +3,7 @@ include(CTest)
 SET(LINK_DEPS
 	xstudio::bookmark
 	caf::core
-	xstudio::broadcast
+	xstudio::utility
 )
 
 create_tests("${LINK_DEPS}")

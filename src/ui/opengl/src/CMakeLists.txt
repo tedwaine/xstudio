@@ -5,8 +5,10 @@ SET(LINK_DEPS
 	GLEW::GLEW
     xstudio::ui::base
     xstudio::ui::canvas
+    xstudio::ui::viewport
     xstudio::utility
     xstudio::media_reader
+    xstudio::colour_pipeline
 	OpenEXR::OpenEXR
 	Imath::Imath
 )

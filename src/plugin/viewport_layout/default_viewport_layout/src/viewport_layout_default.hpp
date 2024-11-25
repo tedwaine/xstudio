@@ -37,6 +37,8 @@ namespace viewport {
 
         inline static const utility::Uuid PLUGIN_UUID = {"f7d63ed9-80ed-4ce9-8b39-1d5e5079ce4b"};
 
+        ViewportRenderer * make_renderer(const std::string &window_id) override;
+
     };
 } // namespace viewport
 } // namespace ui

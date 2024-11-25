@@ -114,11 +114,11 @@ void JSONTreeModel::setModelDataBase(const nlohmann::json &data, const bool loca
     if (local and event_send_callback_) {
         auto event = SyncEvent;
 
-        event["redo"]         = ResetEvent;
+        event["redo"]         = xstudio::utility::ResetEvent;
         event["redo"]["id"]   = model_id_;
         event["redo"]["data"] = data;
 
-        event["undo"]         = ResetEvent;
+        event["undo"]         = xstudio::utility::ResetEvent;
         event["undo"]["id"]   = model_id_;
         event["undo"]["data"] = tree_to_json(data_);
 
@@ -709,15 +709,15 @@ bool JSONTreeModel::baseSetDataAll(
 
         if (j != v) {
             if (local and event_send_callback_) {
-                auto event          = SyncEvent;
-                event["redo"]       = SetEvent;
+                auto event          = xstudio::utility::SyncEvent;
+                event["redo"]       = xstudio::utility::SetEvent;
                 event["redo"]["id"] = model_id_;
                 event["redo"]["parent"] =
                     StdFromQString(index.parent().data(JSONPathRole).toString());
                 event["redo"]["row"]  = index.row();
                 event["redo"]["data"] = v;
 
-                event["undo"]       = SetEvent;
+                event["undo"]       = xstudio::utility::SetEvent;
                 event["undo"]["id"] = model_id_;
                 event["undo"]["parent"] =
                     StdFromQString(index.parent().data(JSONPathRole).toString());
@@ -757,8 +757,8 @@ bool JSONTreeModel::baseSetData(
 
         if (j.count(key) and j.at(key) != v) {
             if (local and event_send_callback_) {
-                auto event          = SyncEvent;
-                event["redo"]       = SetEvent;
+                auto event          = xstudio::utility::SyncEvent;
+                event["redo"]       = xstudio::utility::SetEvent;
                 event["redo"]["id"] = model_id_;
                 event["redo"]["parent"] =
                     StdFromQString(index.parent().data(JSONPathRole).toString());
@@ -766,7 +766,7 @@ bool JSONTreeModel::baseSetData(
                 event["redo"]["data"]      = R"({})"_json;
                 event["redo"]["data"][key] = v;
 
-                event["undo"]       = SetEvent;
+                event["undo"]       = xstudio::utility::SetEvent;
                 event["undo"]["id"] = model_id_;
                 event["undo"]["parent"] =
                     StdFromQString(index.parent().data(JSONPathRole).toString());
@@ -824,14 +824,14 @@ bool JSONTreeModel::baseRemoveRows(
 
             // send event upstream
             if (local and event_send_callback_) {
-                auto event              = SyncEvent;
-                event["redo"]           = RemoveRowsEvent;
+                auto event              = xstudio::utility::SyncEvent;
+                event["redo"]           = xstudio::utility::RemoveRowsEvent;
                 event["redo"]["id"]     = model_id_;
                 event["redo"]["parent"] = StdFromQString(parent.data(JSONPathRole).toString());
                 event["redo"]["row"]    = row;
                 event["redo"]["count"]  = count;
 
-                event["undo"]           = InsertRowsEvent;
+                event["undo"]           = xstudio::utility::InsertRowsEvent;
                 event["undo"]["id"]     = model_id_;
                 event["undo"]["parent"] = event["redo"]["parent"];
                 event["undo"]["row"]    = row;
@@ -1059,7 +1059,7 @@ bool JSONTreeModel::baseMoveRows(
 
                 // we handle moves differently...
                 // so we need to massage the data..
-                event["redo"]               = MoveEvent;
+                event["redo"]               = xstudio::utility::MoveEvent;
                 event["redo"]["id"]         = model_id_;
                 event["redo"]["src_parent"] = src_path;
                 event["redo"]["src_row"]    = sourceRow;
@@ -1079,7 +1079,7 @@ bool JSONTreeModel::baseMoveRows(
                     event["redo"]["dst_row"] = destinationChild;
                 }
 
-                event["undo"]               = MoveEvent;
+                event["undo"]               = xstudio::utility::MoveEvent;
                 event["undo"]["id"]         = model_id_;
                 event["undo"]["src_parent"] = dst_path;
                 event["undo"]["src_row"]    = event["redo"]["dst_row"];
@@ -1173,14 +1173,14 @@ bool JSONTreeModel::baseInsertRows(
 
                 auto event = SyncEvent;
 
-                event["redo"]           = InsertRowsEvent;
+                event["redo"]           = xstudio::utility::InsertRowsEvent;
                 event["redo"]["id"]     = model_id_;
                 event["redo"]["parent"] = parent_path;
                 event["redo"]["row"]    = row;
                 event["redo"]["count"]  = count;
                 event["redo"]["data"]   = tweak_data;
 
-                event["undo"]           = RemoveRowsEvent;
+                event["undo"]           = xstudio::utility::RemoveRowsEvent;
                 event["undo"]["id"]     = model_id_;
                 event["undo"]["parent"] = parent_path;
                 event["undo"]["row"]    = row;

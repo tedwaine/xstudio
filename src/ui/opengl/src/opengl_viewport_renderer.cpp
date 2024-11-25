@@ -106,7 +106,7 @@ OpenGLViewportRenderer::~OpenGLViewportRenderer() {
     // s_resources_store_ so it gets destroyed and texture resources etc are
     // released
     auto p = s_resources_store_.find(window_id_);
-    if (p != s_resources_store_.end() && p->second.unique()) {
+    if (p != s_resources_store_.end() && p->second.use_count() == 1) {
         s_resources_store_.erase(p);
     }
 }

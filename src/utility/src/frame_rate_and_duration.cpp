@@ -1,5 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
+#ifndef _WIN32
 #include <experimental/numeric>
+#endif
 #include <functional>
 #include <iostream>
 

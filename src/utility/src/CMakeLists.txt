@@ -31,7 +31,6 @@ SET(STATIC_LINK_DEPS
 	fmt::fmt
 	uuid
 	ZLIB::ZLIB
-	xstudio::broadcast_static
 )
 
 if(UNIX AND NOT APPLE)

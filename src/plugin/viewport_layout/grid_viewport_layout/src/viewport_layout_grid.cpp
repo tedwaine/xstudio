@@ -5,6 +5,7 @@
 
 #include "viewport_layout_grid.hpp"
 #include "xstudio/media_reader/image_buffer.hpp"
+#include "xstudio/ui/opengl/opengl_viewport_renderer.hpp"
 
 using namespace xstudio::utility;
 using namespace xstudio::ui::viewport;
@@ -122,6 +123,10 @@ void GridViewportLayout::do_layout(
         layout_data.image_draw_order_hint_[i] = i;
     }
 
+}
+
+ViewportRenderer * GridViewportLayout::make_renderer(const std::string &window_id) {
+    return new opengl::OpenGLViewportRenderer(window_id);
 }
 
 extern "C" {

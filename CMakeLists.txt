@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 3.12 FATAL_ERROR)
+cmake_minimum_required(VERSION 3.26 FATAL_ERROR)
 
 option(USE_VCPKG "Use Vcpkg for package management" OFF)
 if(WIN32)
@@ -164,8 +164,10 @@ if(WIN32)
   add_definitions(-DJSON_HAS_THREE_WAY_COMPARISON=OFF)
 
   # build quickpromise
+  add_subdirectory("extern/otio")
+
   add_subdirectory("extern/quickpromise")
-  add_subdirectory("extern/quickfuture")
+  add_subdirectory("extern/quickfuture") 
 
   set(CMAKE_WINDOWS_EXPORT_ALL_SYMBOLS ON)
 
@@ -226,10 +228,6 @@ endif()
 add_subdirectory(src)
 
 if(INSTALL_XSTUDIO)
-
-  # these extern qml plugins are runtime dependencies of xstudio
-  add_subdirectory("extern/quickfuture")
-  add_subdirectory("extern/quickpromise")
 
   install(DIRECTORY include/xstudio
           DESTINATION include)

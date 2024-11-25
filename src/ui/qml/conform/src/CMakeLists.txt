@@ -2,6 +2,8 @@ SET(LINK_DEPS
 		${CAF_LIBRARY_core}
 		Qt6::Core
 		xstudio::ui::qml::helper
+		xstudio::ui::qml::session
+		xstudio::conform
 		xstudio::utility
 )
 

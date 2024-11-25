@@ -31,7 +31,6 @@ if(UNIX)
 		PRIVATE
 			Imath::Imath
 			xstudio::utility
-			xstudio::broadcast
 			xstudio::global_store
 			xstudio::media
 			Python::Python
@@ -47,11 +46,11 @@ else()
 		PRIVATE
 			Imath::Imath
 			xstudio::utility
-			xstudio::broadcast
 			xstudio::global_store
-			pybind11::embed
-			#OTIO::opentime
-			#OTIO::opentimelineio
+			xstudio::media
+			Python::Python
+			OTIO::opentime
+			OTIO::opentimelineio
 	)
 endif()
 

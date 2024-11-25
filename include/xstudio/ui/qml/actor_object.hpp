@@ -26,6 +26,9 @@
 #include <caf/scheduled_actor.hpp>
 #include "caf/detail/shared_spinlock.hpp"
 
+// include CMake auto-generated export hpp
+#include "xstudio/ui/qml/helper_qml_export.h"
+
 #include <caf/scoped_execution_unit.hpp>
 
 #include "xstudio/atoms.hpp"

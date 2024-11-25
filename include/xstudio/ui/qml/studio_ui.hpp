@@ -10,6 +10,9 @@ CAF_PUSH_WARNINGS
 #include <QtConcurrent>
 CAF_POP_WARNINGS
 
+// include CMake auto-generated export hpp
+#include "xstudio/ui/qml/studio_qml_export.h"
+
 #include "xstudio/ui/qml/helper_ui.hpp"
 #include "xstudio/ui/qt/offscreen_viewport.hpp"
 #include "xstudio/utility/uuid.hpp"
@@ -19,7 +22,7 @@ namespace ui {
     namespace qml {
 
         //  top level utility actor, for stuff that lives out side the session.
-        class StudioUI : public QMLActor {
+        class STUDIO_QML_EXPORT StudioUI : public QMLActor {
 
             Q_OBJECT
 

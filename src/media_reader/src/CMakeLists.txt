@@ -2,7 +2,7 @@ SET(LINK_DEPS
 	xstudio::media
 	xstudio::media_cache
 	xstudio::global_store
-	xstudio::broadcast
+	xstudio::utility
 	caf::core
 )
 

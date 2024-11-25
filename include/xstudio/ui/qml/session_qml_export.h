@@ -9,20 +9,20 @@
 #  ifndef SESSION_QML_EXPORT
 #    ifdef session_qml_EXPORTS
         /* We are building this library */
-#      define SESSION_QML_EXPORT __attribute__((visibility("default")))
+#      define SESSION_QML_EXPORT __declspec(dllexport)
 #    else
         /* We are using this library */
-#      define SESSION_QML_EXPORT __attribute__((visibility("default")))
+#      define SESSION_QML_EXPORT __declspec(dllimport)
 #    endif
 #  endif
 
 #  ifndef SESSION_QML_NO_EXPORT
-#    define SESSION_QML_NO_EXPORT __attribute__((visibility("hidden")))
+#    define SESSION_QML_NO_EXPORT 
 #  endif
 #endif
 
 #ifndef SESSION_QML_DEPRECATED
-#  define SESSION_QML_DEPRECATED __attribute__ ((__deprecated__))
+#  define SESSION_QML_DEPRECATED __declspec(deprecated)
 #endif
 
 #ifndef SESSION_QML_DEPRECATED_EXPORT

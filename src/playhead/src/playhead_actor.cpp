@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 #include <chrono>
 #include <limits>
+#include <stdlib.h>
 
 #include <caf/policy/select_all.hpp>
 #include <caf/unit.hpp>
@@ -10,11 +11,11 @@
 #include "xstudio/bookmark/bookmark.hpp"
 #include "xstudio/broadcast/broadcast_actor.hpp"
 #include "xstudio/global_store/global_store.hpp"
+#include "xstudio/media/media_actor.hpp"
 #include "xstudio/media_reader/media_reader_actor.hpp"
 #include "xstudio/playhead/sub_playhead.hpp"
 #include "xstudio/playhead/playhead_actor.hpp"
 #include "xstudio/playhead/string_out_actor.hpp"
-#include "xstudio/timeline/clip_actor.hpp"
 #include "xstudio/plugin_manager/plugin_manager.hpp"
 #include "xstudio/utility/helpers.hpp"
 #include "xstudio/utility/logging.hpp"
@@ -242,7 +243,7 @@ void PlayheadActor::init() {
     // ensure we have a source and a child playhead, due to many messages
     // delagated to the child playhead
     empty_clip_ =
-        utility::UuidActor(utility::Uuid::generate(), spawn<timeline::ClipActor>(utility::UuidActor(), "Empty Clip"));
+        utility::UuidActor(utility::Uuid::generate(), spawn<media::MediaActor>());
     //link_to(empty_clip_.actor());
     make_child_playhead(empty_clip_);
     switch_key_playhead(0);
@@ -2572,13 +2573,13 @@ void PlayheadActor::hotkey_pressed(
         // make some random number as in 'ID' for the key press. If the key
         // is STILL being pressed 500ms later (we know this if step_keypress_event_id_
         // matches the value in the delayed message), we start playback
-        step_keypress_event_id_ = drand48();
+        step_keypress_event_id_ = (double)rand() / RAND_MAX;
         delayed_anon_send(
             this, std::chrono::milliseconds(500), play_atom_v, step_keypress_event_id_);
     } else if (hotkey_uuid == step_backward_) {
         set_playing(false);
         anon_send(caf::actor_cast<caf::actor>(this), step_atom_v, -1);
-        step_keypress_event_id_ = -drand48();
+        step_keypress_event_id_ = -(double)rand() / RAND_MAX;
         delayed_anon_send(
             this, std::chrono::milliseconds(500), play_atom_v, step_keypress_event_id_);
     } else if (hotkey_uuid == jump_to_first_frame_) {

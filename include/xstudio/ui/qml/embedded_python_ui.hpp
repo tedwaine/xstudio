@@ -21,7 +21,7 @@ namespace xstudio {
 namespace ui {
     namespace qml {
 
-        class HELPER_QML_EXPORT SnippetFilterModel : public QSortFilterProxyModel {
+        class EMBEDDED_PYTHON_QML_EXPORT SnippetFilterModel : public QSortFilterProxyModel {
 
             Q_OBJECT
             // Q_PROPERTY(int length READ length NOTIFY lengthChanged)

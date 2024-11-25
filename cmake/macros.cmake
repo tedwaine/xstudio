@@ -24,7 +24,7 @@ macro(default_compile_options name)
 		# PRIVATE -fvisibility=hidden
 		PRIVATE $<$<AND:$<CONFIG:RelWithDebInfo>,$<PLATFORM_ID:Linux>>:-fno-omit-frame-pointer>
 		PRIVATE $<$<AND:$<CONFIG:RelWithDebInfo>,$<PLATFORM_ID:Windows>>:/Oy>
-		PRIVATE -Wno-deprecated
+		PRIVATE $<$<PLATFORM_ID:Linux>:-Wno-deprecated>
 		# PRIVATE $<$<CONFIG:Debug>:-Wno-unused-variable>
 		# PRIVATE $<$<CONFIG:Debug>:-Wno-unused-but-set-variable>
 		# PRIVATE $<$<CONFIG:Debug>:-Wno-unused-parameter>
@@ -51,7 +51,6 @@ macro(default_compile_options name)
 		PRIVATE -DSPDLOG_FMT_EXTERNAL
 		$<$<CXX_COMPILER_ID:GNU>:_GNU_SOURCE> # Define _GNU_SOURCE for Linux
 		$<$<PLATFORM_ID:Linux>:__linux__> # Define __linux__ for Linux
-		$<$<PLATFORM_ID:Linux>:BUILD_OTIO> # Define BUILD_OTIO for Linux - OTIO not in windows yet
 		$<$<PLATFORM_ID:Windows>:_WIN32> # Define _WIN32 for Windows
 		PRIVATE XSTUDIO_GLOBAL_VERSION=\"${XSTUDIO_GLOBAL_VERSION}\"
 		PRIVATE XSTUDIO_GLOBAL_NAME=\"${XSTUDIO_GLOBAL_NAME}\"
@@ -60,6 +59,7 @@ macro(default_compile_options name)
 		PRIVATE TEST_RESOURCE=\"${TEST_RESOURCE}\"
 		PRIVATE ROOT_DIR=\"${ROOT_DIR}\"
 		PRIVATE $<$<CONFIG:Debug>:XSTUDIO_DEBUG=1>
+		$<$<PLATFORM_ID:Windows>:WIN32_LEAN_AND_MEAN>	
 	)
 endmacro()
 
@@ -115,6 +115,7 @@ macro(default_options_local name)
 	        ${CMAKE_CURRENT_SOURCE_DIR}/src
 	    SYSTEM PUBLIC
 	    	$<BUILD_INTERFACE:${ROOT_DIR}/extern/include>
+	    	$<BUILD_INTERFACE:${ROOT_DIR}/extern/otio/OpenTimelineIO/src>
 	)
 	set_target_properties(${name}
 	    PROPERTIES
@@ -129,8 +130,11 @@ macro(default_options name)
 	target_include_directories(${name} INTERFACE
   		$<BUILD_INTERFACE:${ROOT_DIR}/include>
   		$<BUILD_INTERFACE:${ROOT_DIR}/extern/include>
+    	$<BUILD_INTERFACE:${ROOT_DIR}/extern/otio/OpenTimelineIO/src>
   		$<INSTALL_INTERFACE:include>
-		$<INSTALL_INTERFACE:extern/include>)
+		$<INSTALL_INTERFACE:extern/include>
+    	$<INSTALL_INTERFACE:extern/otio/OpenTimelineIO/src>
+		)
 endmacro()
 
 macro(default_options_static name)

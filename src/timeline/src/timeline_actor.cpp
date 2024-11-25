@@ -1,7 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
 #include <caf/policy/select_all.hpp>
 
-#ifdef BUILD_OTIO
 #include <opentimelineio/version.h>
 #include <opentimelineio/timeline.h>
 #include <opentimelineio/gap.h>
@@ -11,7 +10,6 @@
 #include <opentimelineio/externalReference.h>
 #include <opentimelineio/imageSequenceReference.h>
 #include <opentimelineio/deserialization.h>
-#endif
 
 #include <cpp-colors/colors.h>
 
@@ -254,8 +252,6 @@ void TimelineActor::item_pre_event_callback(const utility::JsonStore &event, Ite
         spdlog::warn("{} {}", __PRETTY_FUNCTION__, err.what());
     }
 }
-
-#ifdef BUILD_OTIO
 
 namespace otio = opentimelineio::OPENTIMELINEIO_VERSION;
 
@@ -1070,8 +1066,6 @@ void timeline_importer(
 
     rp.deliver(true);
 }
-
-#endif // BUILD_OTIO
 
 TimelineActor::TimelineActor(
     caf::actor_config &cfg, const utility::JsonStore &jsn, const caf::actor &playlist)
@@ -2736,7 +2730,6 @@ caf::message_handler TimelineActor::message_handler() {
             const std::string &data) -> result<bool> {
             auto rp = make_response_promise<bool>();
         // purge timeline.. ?
-#ifdef BUILD_OTIO
             spawn(
                 timeline_importer,
                 rp,
@@ -2744,11 +2737,6 @@ caf::message_handler TimelineActor::message_handler() {
                 UuidActor(base_.uuid(), actor_cast<caf::actor>(this)),
                 path,
                 data);
-#else
-            rp.deliver(
-                make_error(xstudio_error::error, "OTIO IS NOT SUPPORTED IN THIS BUILD."));
-
-#endif
             return rp;
         }};
 }

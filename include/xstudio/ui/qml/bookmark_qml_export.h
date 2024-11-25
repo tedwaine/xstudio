@@ -9,20 +9,20 @@
 #  ifndef BOOKMARK_QML_EXPORT
 #    ifdef bookmark_qml_EXPORTS
         /* We are building this library */
-#      define BOOKMARK_QML_EXPORT __attribute__((visibility("default")))
+#      define BOOKMARK_QML_EXPORT __declspec(dllexport)
 #    else
         /* We are using this library */
-#      define BOOKMARK_QML_EXPORT __attribute__((visibility("default")))
+#      define BOOKMARK_QML_EXPORT __declspec(dllimport)
 #    endif
 #  endif
 
 #  ifndef BOOKMARK_QML_NO_EXPORT
-#    define BOOKMARK_QML_NO_EXPORT __attribute__((visibility("hidden")))
+#    define BOOKMARK_QML_NO_EXPORT 
 #  endif
 #endif
 
 #ifndef BOOKMARK_QML_DEPRECATED
-#  define BOOKMARK_QML_DEPRECATED __attribute__ ((__deprecated__))
+#  define BOOKMARK_QML_DEPRECATED __declspec(deprecated)
 #endif
 
 #ifndef BOOKMARK_QML_DEPRECATED_EXPORT

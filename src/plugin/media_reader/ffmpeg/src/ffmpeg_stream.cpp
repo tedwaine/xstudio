@@ -520,7 +520,7 @@ AudioBufPtr FFMpegStream::get_ffmpeg_frame_as_xstudio_audio(const int soundcard_
     case audio::SampleFormat::INT16:
         target_sample_format_ = AV_SAMPLE_FMT_S16;
         break;
-    case audio::SampleFormat::INT32:
+    case audio::SampleFormat::SFINT32:
         target_sample_format_ = AV_SAMPLE_FMT_S32;
         break;
     case audio::SampleFormat::FLOAT32:

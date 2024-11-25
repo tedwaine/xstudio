@@ -9,20 +9,20 @@
 #  ifndef EMBEDDED_PYTHON_QML_EXPORT
 #    ifdef embedded_python_qml_EXPORTS
         /* We are building this library */
-#      define EMBEDDED_PYTHON_QML_EXPORT __attribute__((visibility("default")))
+#      define EMBEDDED_PYTHON_QML_EXPORT __declspec(dllexport)
 #    else
         /* We are using this library */
-#      define EMBEDDED_PYTHON_QML_EXPORT __attribute__((visibility("default")))
+#      define EMBEDDED_PYTHON_QML_EXPORT __declspec(dllimport)
 #    endif
 #  endif
 
 #  ifndef EMBEDDED_PYTHON_QML_NO_EXPORT
-#    define EMBEDDED_PYTHON_QML_NO_EXPORT __attribute__((visibility("hidden")))
+#    define EMBEDDED_PYTHON_QML_NO_EXPORT 
 #  endif
 #endif
 
 #ifndef EMBEDDED_PYTHON_QML_DEPRECATED
-#  define EMBEDDED_PYTHON_QML_DEPRECATED __attribute__ ((__deprecated__))
+#  define EMBEDDED_PYTHON_QML_DEPRECATED __declspec(deprecated)
 #endif
 
 #ifndef EMBEDDED_PYTHON_QML_DEPRECATED_EXPORT

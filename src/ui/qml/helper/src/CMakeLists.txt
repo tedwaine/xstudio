@@ -1,9 +1,11 @@
 SET(LINK_DEPS
 	${CAF_LIBRARY_core}
 	Qt6::Core
+	Qt6::Quick
 	Qt6::Qml
 	Qt6::Gui
 	xstudio::global_store
+	xstudio::media
 	xstudio::utility
 )
 

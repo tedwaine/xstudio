@@ -13,13 +13,16 @@ CAF_PUSH_WARNINGS
 #include <QVector2D>
 CAF_POP_WARNINGS
 
+// include CMake auto-generated export hpp
+#include "xstudio/ui/qml/viewport_qml_export.h"
+
 namespace xstudio {
 namespace ui {
     namespace qml {
 
         class QMLViewport;
 
-        class QMLViewportRenderer : public QMLActor {
+        VIEWPORT_QML_EXPORT class QMLViewportRenderer : public QMLActor {
             Q_OBJECT
 
           public:
