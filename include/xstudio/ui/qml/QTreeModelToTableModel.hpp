@@ -11,6 +11,9 @@
 #include <QSet>
 #include <QPointer>
 
+// include CMake auto-generated export hpp
+#include "xstudio/ui/qml/helper_qml_export.h"
+
 //
 //  W A R N I N G
 //  -------------
@@ -33,7 +36,7 @@
 
 class QAbstractItemModel;
 
-class QTreeModelToTableModel : public QAbstractItemModel {
+class HELPER_QML_EXPORT QTreeModelToTableModel : public QAbstractItemModel {
     Q_OBJECT
     Q_PROPERTY(QAbstractItemModel *model READ model WRITE setModel NOTIFY modelChanged FINAL)
     Q_PROPERTY(QModelIndex rootIndex READ rootIndex WRITE setRootIndex RESET resetRootIndex

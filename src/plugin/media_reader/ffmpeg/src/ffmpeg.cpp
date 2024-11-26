@@ -5,7 +5,10 @@
 #include <map>
 #include <mutex>
 #include <regex>
+
+#ifndef _WIN32
 #include <sys/time.h>
+#endif
 
 #include "xstudio/global_store/global_store.hpp"
 #include "xstudio/media/media.hpp"

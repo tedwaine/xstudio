@@ -153,6 +153,7 @@ macro(default_options_static name)
 	        ${CMAKE_CURRENT_SOURCE_DIR}/src
 	    SYSTEM PUBLIC
 	    	$<BUILD_INTERFACE:${ROOT_DIR}/extern/include>
+	    	$<BUILD_INTERFACE:${ROOT_DIR}/extern/otio/OpenTimelineIO/src>
 	)
 	set_target_properties(${name}
 	    PROPERTIES
@@ -175,6 +176,7 @@ macro(default_plugin_options name)
 	        ${CMAKE_CURRENT_SOURCE_DIR}/src
 	    SYSTEM PUBLIC
 	    	$<BUILD_INTERFACE:${ROOT_DIR}/extern/include>
+	    	$<BUILD_INTERFACE:${ROOT_DIR}/extern/otio/OpenTimelineIO/src>
 	)
 	set_target_properties(${name}
 	    PROPERTIES
@@ -217,6 +219,7 @@ if (BUILD_TESTING)
 		        ${CMAKE_CURRENT_SOURCE_DIR}/src
 		    SYSTEM PUBLIC
 		    	$<BUILD_INTERFACE:${ROOT_DIR}/extern/include>
+		    	$<BUILD_INTERFACE:${ROOT_DIR}/extern/otio/OpenTimelineIO/src>
 		)
 	endmacro()
 endif (BUILD_TESTING)
@@ -236,6 +239,7 @@ macro(default_options_qt name)
 	        ${CMAKE_CURRENT_SOURCE_DIR}/src
 	    SYSTEM PUBLIC
 	    	$<BUILD_INTERFACE:${ROOT_DIR}/extern/include>
+	    	$<BUILD_INTERFACE:${ROOT_DIR}/extern/otio/OpenTimelineIO/src>
 	        ${Qt6Core_INCLUDE_DIRS}
 	        ${Qt6OpenGL_INCLUDE_DIRS}
 	        ${Qt6Quick_INCLUDE_DIRS}

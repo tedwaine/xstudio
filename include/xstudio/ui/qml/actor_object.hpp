@@ -154,7 +154,7 @@ class actor_object : public Base {
 namespace xstudio::ui::qml {
 using namespace caf;
 
-class QMLActor : public caf::mixin::actor_object<QObject> {
+class HELPER_QML_EXPORT QMLActor : public caf::mixin::actor_object<QObject> {
     Q_OBJECT
 
   public:

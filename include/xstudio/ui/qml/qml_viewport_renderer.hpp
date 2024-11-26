@@ -22,7 +22,7 @@ namespace ui {
 
         class QMLViewport;
 
-        VIEWPORT_QML_EXPORT class QMLViewportRenderer : public QMLActor {
+        class VIEWPORT_QML_EXPORT QMLViewportRenderer : public QMLActor {
             Q_OBJECT
 
           public:

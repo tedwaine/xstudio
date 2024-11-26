@@ -4,6 +4,9 @@
 #include <caf/all.hpp>
 #include <caf/io/all.hpp>
 
+// include CMake auto-generated export hpp
+#include "xstudio/ui/qml/conform_qml_export.h"
+
 CAF_PUSH_WARNINGS
 #include <QFuture>
 #include <QList>
@@ -19,7 +22,7 @@ namespace xstudio {
 namespace ui {
     namespace qml {
 
-        class ConformEngineUI : public caf::mixin::actor_object<JSONTreeModel> {
+        class CONFORM_QML_EXPORT ConformEngineUI : public caf::mixin::actor_object<JSONTreeModel> {
             Q_OBJECT
 
           public:
