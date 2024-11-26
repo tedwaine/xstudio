@@ -32,19 +32,43 @@ Rectangle{
     // make sure index is updated
     XsModelProperty {
         index: quickModel.rootIndex
+
         onIndexChanged: {
-            if(!index.valid)
-                populateModels()
+            if(!index.valid) {
+                // clear list views
+                quickCombo.model = []
+            }
+            populateModels()
         }
     }
 
+    Timer {
+        id: populateTimer
+        interval: 100
+        running: false
+        repeat: false
+        onTriggered: {
+            if(ShotBrowserEngine.ready && ShotBrowserEngine.presetsModel.rowCount()) {
+                let sourceInd = ShotBrowserEngine.presetsModel.searchRecursive(
+                    "137aa66a-87e2-4c53-b304-44bd7ff9f755", "idRole", ShotBrowserEngine.presetsModel.index(-1, -1), 0, 1
+                )
+                let ind = filterModel.mapFromSource(sourceInd)
+
+                if(ind.valid) {
+                    quickModel.rootIndex = ind
+                    quickCombo.model = quickModel
+                } else {
+                    quickCombo.model = []
+                    populateTimer.start()
+                }
+            } else {
+                populateTimer.start()
+            }
+        }
+    }
 
     function populateModels() {
-        if(ShotBrowserEngine.ready && ShotBrowserEngine.presetsModel.rowCount()) {
-            let tmp = quickModel.notifyModel.mapFromSource(ShotBrowserEngine.presetsModel.searchRecursive("137aa66a-87e2-4c53-b304-44bd7ff9f755", "idRole"))
-            if(quickModel.rootIndex != tmp)
-                quickModel.rootIndex = tmp
-        }
+        populateTimer.start()
     }
 
     function executeQuery(queryIndex, action) {

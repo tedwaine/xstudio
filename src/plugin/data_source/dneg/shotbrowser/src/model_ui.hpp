@@ -27,6 +27,7 @@ namespace ui::qml {
             "descriptionRole",
             "divisionRole",
             "nameRole",
+            "projectStatusRole",
             "sgTypeRole",
             "typeRole"};
 
@@ -35,6 +36,7 @@ namespace ui::qml {
             descriptionRole,
             divisionRole,
             nameRole,
+            projectStatusRole,
             sgTypeRole,
             typeRole,
             LASTROLE
@@ -149,6 +151,9 @@ namespace ui::qml {
         Q_PROPERTY(QVariantList divisionFilter READ divisionFilter WRITE setDivisionFilter
                        NOTIFY divisionFilterChanged)
 
+        Q_PROPERTY(QVariantList projectStatusFilter READ projectStatusFilter WRITE
+                       setProjectStatusFilter NOTIFY projectStatusFilterChanged)
+
         Q_PROPERTY(QItemSelection selectionFilter READ selectionFilter WRITE setSelectionFilter
                        NOTIFY selectionFilterChanged)
 
@@ -186,6 +191,9 @@ namespace ui::qml {
 
         [[nodiscard]] QItemSelection selectionFilter() const { return selection_filter_; }
         [[nodiscard]] QVariantList divisionFilter() const { return filter_division_; }
+        [[nodiscard]] QVariantList projectStatusFilter() const {
+            return filter_project_status_;
+        }
 
         void setSelectionFilter(const QItemSelection &selection) {
             if (selection_filter_ != selection) {
@@ -206,10 +214,19 @@ namespace ui::qml {
             }
         }
 
+        void setProjectStatusFilter(const QVariantList &filter) {
+            if (filter_project_status_ != filter) {
+                filter_project_status_ = filter;
+                emit projectStatusFilterChanged();
+                invalidateFilter();
+            }
+        }
+
       signals:
         void lengthChanged();
         void selectionFilterChanged();
         void divisionFilterChanged();
+        void projectStatusFilterChanged();
 
       protected:
         [[nodiscard]] bool
@@ -220,6 +237,7 @@ namespace ui::qml {
       private:
         QItemSelection selection_filter_;
         QVariantList filter_division_;
+        QVariantList filter_project_status_;
     };
 
 

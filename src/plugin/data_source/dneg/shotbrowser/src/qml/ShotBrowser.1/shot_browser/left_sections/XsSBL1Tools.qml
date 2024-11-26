@@ -92,6 +92,7 @@ RowLayout{
         id: combo
         model: ShotBrowserFilterModel {
             divisionFilter: prefs.filterProjects
+            projectStatusFilter: prefs.filterProjectStatus
         }
 
         Connections {
@@ -161,6 +162,55 @@ RowLayout{
         visible: false
 
         closePolicy: filterBtn.hovered ? Popup.CloseOnEscape :  Popup.CloseOnEscape | Popup.CloseOnPressOutside
+        XsMenuModelItem {
+            menuItemType: "divider"
+            text: "Status"
+            menuItemPosition: 1
+            menuPath: ""
+            menuModelName: projectFilterPopup.menu_model_name
+        }
+
+        Repeater {
+            model: [
+                {"name": "Awarded", "id": "awrd"},
+                {"name": "Bidding", "id": "bld"},
+                {"name": "Complete", "id": "cmpt"},
+                {"name": "Error", "id": "err"},
+                {"name": "In Progress", "id": "ip"},
+                {"name": "N/A", "id": "na"},
+                {"name": "On Hold", "id": "hld"},
+                {"name": "Projected", "id": "prjd"},
+                {"name": "Waiting To Start", "id": "wtg"}
+            ]
+            Item {
+                XsMenuModelItem {
+                    text: modelData.name
+                    menuItemType: "toggle"
+                    menuPath: ""
+                    menuItemPosition: index + 1
+                    menuModelName: projectFilterPopup.menu_model_name
+                    isChecked: combo.model && combo.model.projectStatusFilter.includes(modelData.id)
+                    onActivated: {
+                        if(isChecked) {
+                            prefs.filterProjectStatus = Array.from(combo.model.projectStatusFilter).filter(r => r !== modelData.id)
+                        } else {
+                            let tmp = combo.model.projectStatusFilter
+                            tmp.push(modelData.id)
+                            prefs.filterProjectStatus = tmp
+                        }
+                    }
+                }
+            }
+        }
+
+
+        XsMenuModelItem {
+            menuItemType: "divider"
+            text: "Division"
+            menuItemPosition: 99
+            menuPath: ""
+            menuModelName: projectFilterPopup.menu_model_name
+        }
 
         Repeater {
             model: ["Feature Animation", "Visual Effects", "ReDefine", "TV", "dneg360"]
@@ -169,7 +219,7 @@ RowLayout{
                     text: modelData
                     menuItemType: "toggle"
                     menuPath: ""
-                    menuItemPosition: index
+                    menuItemPosition: index + 100
                     menuModelName: projectFilterPopup.menu_model_name
                     isChecked: combo.model && combo.model.divisionFilter.includes(modelData)
                     onActivated: {

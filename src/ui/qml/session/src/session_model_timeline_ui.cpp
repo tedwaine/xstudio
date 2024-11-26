@@ -527,10 +527,37 @@ bool SessionModel::replaceTimelineTrack(const QModelIndex &src, const QModelInde
                 auto items = QModelIndexList();
                 for (auto i = 0; i < rowCount(src); i++)
                     items.push_back(index(i, 0, src));
-                copyRows(items, 0, dst);
+                auto new_clips = copyRows(items, 0, dst);
+                for (const auto &i : new_clips)
+                    setData(i, "", flagColourRole);
                 result = true;
             }
         }
+    }
+    return result;
+}
+
+QModelIndexList SessionModel::duplicateTimelineClipsTo(
+    const QModelIndexList &indexes, const QModelIndex &trackIndex) {
+
+    auto result = QModelIndexList();
+
+    if (trackIndex.data(typeRole).toString() != QString("Video Track") and
+        trackIndex.data(typeRole).toString() != QString("Audio Track"))
+        return result;
+
+    auto target_row = rowCount(trackIndex);
+
+    for (const auto &i : indexes) {
+        if (not i.isValid())
+            continue;
+
+        // clone clip and insert into new track..
+        auto new_clip = copyRows(QModelIndexList({i}), target_row, trackIndex)[0];
+
+        // wait for it ? Not sure we need to..
+        target_row++;
+        result.push_back(new_clip);
     }
     return result;
 }
@@ -658,12 +685,6 @@ QModelIndexList SessionModel::duplicateTimelineClips(
 
             // clone clip and insert into new track..
             auto new_clip = copyRows(QModelIndexList({j}), target_row, new_track_index)[0];
-
-            // wait for it to be valid
-            while (new_clip.data(placeHolderRole).toBool() == true) {
-                QCoreApplication::processEvents(
-                    QEventLoop::WaitForMoreEvents | QEventLoop::ExcludeUserInputEvents, 50);
-            }
 
             // wait for it ? Not sure we need to..
             target_row++;
@@ -2522,6 +2543,35 @@ void SessionModel::updateTimelineItemDrag(
             if (not isRipple)
                 data["move_x"] = frameChange;
 
+            // iterate checking each row, then returning last valid row
+            if (trackChange > 0) {
+                auto last_valid = 0;
+                auto ttype      = i.parent().data(typeRole);
+                for (auto row = 0; row <= trackChange; row++) {
+                    auto target_row = index(i.parent().row() + row, 0, i.parent().parent());
+                    if (target_row.isValid() and target_row.data(typeRole) != ttype)
+                        break;
+                    last_valid = row;
+                }
+                trackChange = last_valid;
+            } else if (trackChange < 0) {
+                auto last_valid = 0;
+                auto ttype      = i.parent().data(typeRole);
+                for (auto row = 0; row <= std::abs(trackChange); row++) {
+                    auto target_row = index(i.parent().row() - row, 0, i.parent().parent());
+                    if (target_row.isValid() and target_row.data(typeRole) != ttype)
+                        break;
+                    last_valid = row;
+                }
+                trackChange = -last_valid;
+            }
+
+            if (isOverwrite) {
+                data["move_y"] = trackChange;
+            } else {
+                data["move_y"] = 0;
+            }
+
             if (isOverwrite) {
             } else if (data["is_adjusting_preceeding"] and preceeding_type == QString("Gap")) {
                 draggingAdjust(preceeding, frameChange);
@@ -2806,16 +2856,17 @@ void SessionModel::endTimelineItemDrag(
                                         : QString("Track");
 
             if (isOverwrite) {
-                auto offset   = data["move_x"].get<int>();
-                auto duration = i.data(trimmedDurationRole).toInt();
-                auto start    = startFrameInParent(i);
+                auto frame_offset = data["move_x"].get<int>();
+                auto track_offset = data["move_y"].get<int>();
+                auto duration     = i.data(trimmedDurationRole).toInt();
+                auto start        = startFrameInParent(i);
 
                 // order of indexes is important,
                 // check for correct order ..
                 if (i == pitems.front()) {
                     auto sorted = QModelIndexList(items.begin(), items.end());
 
-                    if (offset > 0) {
+                    if (frame_offset > 0) {
                         std::sort(
                             sorted.begin(), sorted.end(), [](QModelIndex &a, QModelIndex &b) {
                                 return a.row() > b.row();
@@ -2854,12 +2905,71 @@ void SessionModel::endTimelineItemDrag(
                 flushChange();
 
                 // this involves a ton of track modifications..
-                if (offset)
+                if (track_offset) {
+                    auto target_track_index =
+                        index(i.parent().row() + track_offset, 0, i.parent().parent());
+
+                    if (track_offset < 0) {
+                        for (auto tr = 0; tr >= track_offset; tr--) {
+                            target_track_index =
+                                index(i.parent().row() + tr, 0, i.parent().parent());
+
+                            if (not target_track_index.isValid()) {
+                                // create new track
+                                auto type_role = i.parent().data(typeRole).toString();
+
+                                target_track_index = insertRowsSync(
+                                    type_role == "Video Track" ? 0
+                                                               : rowCount(i.parent().parent()),
+                                    1,
+                                    type_role,
+                                    type_role,
+                                    i.parent().parent())[0];
+                            }
+                        }
+                    } else if (track_offset > 0) {
+                        for (auto tr = 0; tr <= track_offset; tr++) {
+                            target_track_index =
+                                index(i.parent().row() + tr, 0, i.parent().parent());
+
+                            if (not target_track_index.isValid()) {
+                                // create new track
+                                auto type_role = i.parent().data(typeRole).toString();
+
+                                target_track_index = insertRowsSync(
+                                    type_role == "Video Track" ? 0
+                                                               : rowCount(i.parent().parent()),
+                                    1,
+                                    type_role,
+                                    type_role,
+                                    i.parent().parent())[0];
+                            }
+                        }
+                    }
+
+                    auto new_clips =
+                        duplicateTimelineClipsTo(QModelIndexList({i}), target_track_index);
+                    moveRangeTimelineItems(
+                        getTimelineTrackIndex(new_clips[0].parent()),
+                        startFrameInParent(new_clips[0]),
+                        duration,
+                        start + frame_offset,
+                        false);
+
+                    removeTimelineItems(QModelIndexList({i}));
+                    // wait for index to become invalidated..
+                    while (i.isValid()) {
+                        QCoreApplication::processEvents(
+                            QEventLoop::WaitForMoreEvents | QEventLoop::ExcludeUserInputEvents,
+                            50);
+                    }
+
+                } else if (frame_offset)
                     moveRangeTimelineItems(
                         getTimelineTrackIndex(i.parent()),
                         start,
                         duration,
-                        start + offset,
+                        start + frame_offset,
                         false);
             } else {
                 auto delete_preceeding    = false;

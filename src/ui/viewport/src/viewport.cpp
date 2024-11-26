@@ -417,6 +417,9 @@ Viewport::Viewport(
     if (sync_to_main_viewport_->value()) {
         auto_connect_to_global_selected_playhead();
     }
+
+    set_compare_mode("Off");
+
 }
 
 Viewport::~Viewport() {

@@ -129,7 +129,8 @@ RowLayout {
 
 	onIsFloatingChanged: {
 		if(isFloating) {
-	    	let new_parent = control.parent.parent.parent.parent
+	    	// let new_parent = control.parent.parent.parent.parent
+	    	let new_parent = control.parent.parent.parent.parent.parent.parent
 			let orig = clip.mapFromItem(new_parent, clip.x, clip.y)
 			clip.parent = new_parent
 			clip.mappedX = -orig.x
@@ -145,7 +146,7 @@ RowLayout {
 		id: clip
 
 		x: mappedX + (moveX * scaleX)
-		y: mappedY + (moveY * scaleY)
+		y: mappedY + (moveY * (config.itemHeight+1) * scaleY)
 
 		property real mappedX: 0
 		property real mappedY: 0
@@ -203,7 +204,7 @@ RowLayout {
 			// 	mappedY = -orig.y
 			// }
 	    }
-		onDragging: control.dragging(modelIndex(), control, mode, x / scaleX, y / scaleY)
+		onDragging: control.dragging(modelIndex(), control, mode, x / scaleX, y / scaleY / config.itemHeight)
 		onDoubleTapped: control.doubleTapped(control, mode)
 		onTapped: control.tapped(button, x, y, modifiers, control)
 		onDraggingStopped: {

@@ -131,26 +131,33 @@ caf::message_handler GlobalStoreActor::message_handler() {
                 JsonStore prefs = get_preference_values(
                     base_.preferences_, std::set<std::string>{context}, true, path);
 
-                // check dir exists..
-                std::ofstream o(path + ".tmp", std::ofstream::out | std::ofstream::trunc);
                 try {
-                    o.exceptions(std::ios_base::failbit | std::ifstream::badbit);
+                    // check dir exists..
+                    std::ofstream o(path + ".tmp", std::ofstream::out | std::ofstream::trunc);
+                    try {
+                        o.exceptions(std::ios_base::failbit | std::ifstream::badbit);
 
-                    o << std::setw(4) << prefs.cref() << std::endl;
-                    o.close();
-
-                    fs::rename(path + ".tmp", path);
-
-                    spdlog::debug("Saved {} {}", context, path);
-                } catch (const std::exception &err) {
-                    if (o.is_open()) {
+                        o << std::setw(4) << prefs.cref() << std::endl;
                         o.close();
-                        fs::remove(path + ".tmp");
+
+                        fs::rename(path + ".tmp", path);
+
+                        spdlog::debug("Saved {} {}", context, path);
+                    } catch (const std::exception &err) {
+                        if (o.is_open()) {
+                            o.close();
+                            fs::remove(path + ".tmp");
+                        }
+                        return caf::result<bool>(make_error(
+                            xstudio_error::error,
+                            fmt::format("Failed to save {} {}", context, err.what())));
                     }
+                } catch (const std::exception &err) {
                     return caf::result<bool>(make_error(
                         xstudio_error::error,
                         fmt::format("Failed to save {} {}", context, err.what())));
                 }
+
             } else {
                 return caf::result<bool>(make_error(
                     xstudio_error::error, fmt::format("Invalid context {}", context)));

@@ -113,7 +113,7 @@ ColourOperationDataPtr OCIOEngine::linearise_op_data(
     auto desc          = std::make_shared<ShaderDescriptor>();
     desc->shader_desc  = to_lin_shader;
     result->user_data_ = desc;
-    result->cache_id_  = to_string(PLUGIN_UUID) + to_lin_proc->getCacheID();
+    result->set_cache_id(to_string(PLUGIN_UUID) + to_lin_proc->getCacheID());
 
     return result;
 }
@@ -151,10 +151,10 @@ ColourOperationDataPtr OCIOEngine::linear_to_display_op_data(
     desc->primary     = primary;
     data->user_data_  = desc;
 
-    data->cache_id_ = to_string(PLUGIN_UUID) + display_proc->getCacheID();
+    data->set_cache_id(to_string(PLUGIN_UUID) + display_proc->getCacheID());
     std::stringstream ss;
     ss << primary;
-    data->cache_id_ += ss.str();
+    data->set_cache_id(data->cache_id() + ss.str());
 
     return data;
 }

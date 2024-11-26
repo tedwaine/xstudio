@@ -659,6 +659,8 @@ utility::JsonStore QueryEngine::preprocess_terms(
     const utility::JsonStore &terms,
     const std::string &entity,
     utility::JsonStore &query,
+    const utility::JsonStore &lookup,
+    const utility::JsonStore &metadata,
     const bool and_mode,
     const bool initial) {
     auto result = utility::JsonStore(R"([])"_json);
@@ -702,6 +704,8 @@ utility::JsonStore QueryEngine::preprocess_terms(
                         i.at("children"),
                         entity,
                         query,
+                        lookup,
+                        metadata,
                         i.value("value", "And") == "And",
                         false);
                     result.push_back(op);
@@ -709,10 +713,23 @@ utility::JsonStore QueryEngine::preprocess_terms(
                     // ignored
                 } else if (term == "Result Limit") {
                     query["max_result"] = std::stoi(i.at("value").get<std::string>());
+                } else if (term == "Project") {
+                    // need to also handle livelinked project...
+                    if (not i.contains("livelink") or not i.value("livelink", false))
+                        query["project_id"] =
+                            resolve_query_value("Project", i.at("value"), lookup).get<int>();
+                    else {
+                        auto linkvalue = get_livelink_value("Project", metadata, lookup);
+                        if (not linkvalue.is_null() and i.at("value") != linkvalue)
+                            query["project_id"] =
+                                resolve_query_value("Project", linkvalue, lookup).get<int>();
+                    }
                 } else if (term == "Preferred Visual") {
-                    query["context"]["visual_source"] = i.at("value").get<std::string>();
+                    query["context"]["visual_source"].push_back(
+                        i.at("value").get<std::string>());
                 } else if (term == "Preferred Audio") {
-                    query["context"]["audio_source"] = i.at("value").get<std::string>();
+                    query["context"]["audio_source"].push_back(
+                        i.at("value").get<std::string>());
                 } else if (term == "Flag Media") {
                     auto flag_text                = i.at("value").get<std::string>();
                     query["context"]["flag_text"] = flag_text;
@@ -821,7 +838,7 @@ utility::JsonStore QueryEngine::preprocess_terms(
         if (initial) {
             // set defaults if not specified
             if (query["context"]["visual_source"].empty())
-                query["context"]["visual_source"] = "SG Movie";
+                query["context"]["visual_source"] = json::array({"SG Movie"});
             if (query["context"]["audio_source"].empty())
                 query["context"]["audio_source"] = query["context"]["visual_source"];
 
@@ -855,9 +872,10 @@ utility::JsonStore QueryEngine::build_query(
     auto query                    = utility::JsonStore(GetQueryResult);
     static const auto default_env = get_default_env();
 
-    query["group_id"] = group_id;
-    query["context"]  = context;
-    query["env"]      = default_env;
+    query["group_id"]   = group_id;
+    query["context"]    = context;
+    query["env"]        = default_env;
+    query["project_id"] = project_id;
     if (env.is_object())
         query["env"].update(env);
 
@@ -877,13 +895,14 @@ utility::JsonStore QueryEngine::build_query(
 
     auto preprocessed = JsonStore(R"([])"_json);
     preprocessed.push_back(OperatorTermTemplate);
-    preprocessed[0]["value"]    = "And";
-    preprocessed[0]["children"] = preprocess_terms(merged_preset, entity, query, true, true);
+    preprocessed[0]["value"] = "And";
+    preprocessed[0]["children"] =
+        preprocess_terms(merged_preset, entity, query, lookup, metadata, true, true);
 
     // spdlog::warn("preprocess_terms\n{}", preprocessed.dump(2));
 
     try {
-        query["query"] = terms_to_query(preprocessed, project_id, entity, lookup);
+        query["query"] = terms_to_query(preprocessed, query["project_id"], entity, lookup);
     } catch (const std::exception &err) {
         spdlog::warn("{} {}", __PRETTY_FUNCTION__, err.what());
         throw;
@@ -1760,13 +1779,13 @@ utility::JsonStore QueryEngine::get_livelink_value(
                 result =
                     metadata.at("metadata").value("audio_source", nlohmann::json("movie_dneg"));
             else
-                result = nlohmann::json("movie_dneg");
+                result = json::array({"movie_dneg"});
         } else if (term == "Preferred Visual") {
             if (metadata.count("metadata"))
                 result =
                     metadata.at("metadata").value("image_source", nlohmann::json("movie_dneg"));
             else
-                result = nlohmann::json("movie_dneg");
+                result = json::array({"movie_dneg"});
         } else if (term == "Entity") {
             if (metadata.contains(json::json_pointer("/metadata/shotgun/version"))) {
                 auto type = metadata.at(json::json_pointer(
@@ -1822,6 +1841,8 @@ utility::JsonStore QueryEngine::get_livelink_value(
             } else if (term == "Pipeline Step") {
                 result = metadata.at(json::json_pointer(
                     "/metadata/shotgun/version/attributes/sg_pipeline_step"));
+            } else if (term == "Project") {
+                result = nlohmann::json(get_project_id(metadata, lookup));
             } else if (term == "Twig Type") {
                 result = metadata.at(
                     json::json_pointer("/metadata/shotgun/version/attributes/sg_twig_type"));

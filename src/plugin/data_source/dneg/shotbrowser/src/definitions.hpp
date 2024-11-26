@@ -58,6 +58,7 @@ const auto GetPrepareNotes = R"({
 const auto GetQueryResult = R"({
     "operation": "Query",
     "context": null,
+    "project_id": 0,
     "env": null,
     "page": 1,
     "execution_ms": 0,
@@ -192,7 +193,14 @@ const auto VersionFields = std::vector<std::string>(
      "image"});
 
 const auto ProjectFields = std::vector<std::string>(
-    {"id", "created_at", "name", "sg_description", "sg_division", "sg_type"});
+    {"id",
+     "created_at",
+     "name",
+     "sg_description",
+     "sg_division",
+     "sg_type",
+     "sg_project_status",
+     "sg_status"});
 
 const auto NoteFields = std::vector<std::string>(
     {"id",

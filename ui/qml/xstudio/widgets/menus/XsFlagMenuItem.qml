@@ -41,6 +41,8 @@ Item {
                 "menu",
                 helpers.contextPanel(widget)
                 )
+
+            closeAll()    
         }
     }
 

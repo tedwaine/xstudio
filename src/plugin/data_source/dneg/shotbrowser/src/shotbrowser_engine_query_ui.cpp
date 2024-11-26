@@ -78,8 +78,8 @@ QFuture<QString> ShotBrowserEngine::executeQuery(
         auto project_id =
             query_engine_.get_project_id(live_link_metadata_, query_engine_.cache());
 
-        if (not project_id)
-            throw std::runtime_error("Project metadata not found.");
+        // if (not project_id)
+        //     throw std::runtime_error("Project metadata not found.");
 
         return executeProjectQuery(preset_paths, project_id, env, custom_terms);
     } catch (const std::exception &err) {
@@ -113,8 +113,8 @@ QFuture<QString> ShotBrowserEngine::executeProjectQuery(
             request["context"]      = R"({
                 "type": null,
                 "epoc": null,
-                "audio_source": "",
-                "visual_source": "",
+                "audio_source": [],
+                "visual_source": [],
                 "flag_text": "",
                 "flag_colour": "",
                 "truncated": false

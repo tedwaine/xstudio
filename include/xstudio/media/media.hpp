@@ -152,15 +152,15 @@ namespace media {
             const std::string &stream_id);
 
         bool operator!=(const MediaKey &o) const {
-            return static_cast<const std::string&>(*this) != static_cast<const std::string &>(o);
+            return (hash_ == o.hash_) ? static_cast<const std::string&>(*this) != static_cast<const std::string &>(o) : true;
         }
 
         bool operator==(const MediaKey &o) const {
-            return static_cast<const std::string&>(*this) == static_cast<const std::string &>(o);
+            return (hash_ == o.hash_) ? static_cast<const std::string&>(*this) == static_cast<const std::string &>(o) : false;
         }
 
         bool operator<(const MediaKey &o) const {
-            return static_cast<const std::string&>(*this) < static_cast<const std::string &>(o);
+            return (hash_ != o.hash_) ? hash_ < o.hash_ : static_cast<const std::string&>(*this) < static_cast<const std::string &>(o);
         }
 
         [[nodiscard]] size_t hash() const { return hash_; }

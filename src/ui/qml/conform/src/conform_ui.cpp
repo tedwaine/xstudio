@@ -420,15 +420,6 @@ QFuture<QList<QUuid>> ConformEngineUI::conformToSequenceFuture(
                 mediaIndexes,
                 sessionModel->rowCount(sessionModel->index(0, 0, playlistIndex)),
                 playlistIndex);
-
-
-            for (const auto &i : mediaIndexes) {
-                // wait for them to be valid..
-                while (i.data(SessionModel::Roles::placeHolderRole).toBool() == true) {
-                    QCoreApplication::processEvents(
-                        QEventLoop::WaitForMoreEvents | QEventLoop::ExcludeUserInputEvents, 50);
-                }
-            }
         }
 
         auto playlist_actor = actorFromString(

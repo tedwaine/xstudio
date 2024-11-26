@@ -246,6 +246,14 @@ QVariant ShotBrowserListModel::data(const QModelIndex &index, int role) const {
                     j.at("attributes").at("sg_division").get<std::string>());
             break;
 
+        case Roles::projectStatusRole:
+            if (j.contains("attributes") and
+                j.at("attributes").contains("sg_project_status") and
+                j.at("attributes").at("sg_project_status").is_string())
+                result = QString::fromStdString(
+                    j.at("attributes").at("sg_project_status").get<std::string>());
+            break;
+
         case Roles::createdRole:
             if (j.contains("attributes") and j.at("attributes").contains("created_at") and
                 j.at("attributes").at("created_at").is_string())
@@ -424,6 +432,17 @@ bool ShotBrowserFilterModel::filterAcceptsRow(
 
         if (not value.isNull()) {
             for (const auto &i : filter_division_)
+                if (i == value)
+                    return false;
+        }
+    }
+
+    if (not filter_project_status_.empty() and sourceModel()) {
+        QModelIndex index = sourceModel()->index(source_row, 0, source_parent);
+        auto value        = index.data(ShotBrowserListModel::Roles::projectStatusRole);
+
+        if (not value.isNull()) {
+            for (const auto &i : filter_project_status_)
                 if (i == value)
                     return false;
         }

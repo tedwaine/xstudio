@@ -361,13 +361,19 @@ QVariant ShotBrowserResultModel::data(const QModelIndex &index, int role) const 
             auto path     = j.at("attributes").value("sg_path_to_frames", std::string());
             auto last_dot = path.find_last_of(".");
             path          = path.substr(0, last_dot);
-            path += ".otio";
 
+            QVariantList otios;
             try {
-                auto uri = posix_path_to_uri(path);
-                result   = QVariant::fromValue(QUrlFromUri(uri));
+                auto uri = posix_path_to_uri(path + "_optimised.otio");
+                otios.append(QVariant::fromValue(QUrlFromUri(uri)));
             } catch (...) {
             }
+            try {
+                auto uri = posix_path_to_uri(path + ".otio");
+                otios.append(QVariant::fromValue(QUrlFromUri(uri)));
+            } catch (...) {
+            }
+            result = QVariant::fromValue(otios);
         } break;
 
         case Roles::sequenceRole: {

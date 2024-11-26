@@ -589,21 +589,28 @@ function addSequencesToPlaylist(indexes, playlist_index=null, playlist_name ="Sh
 		// console.log("playlist_index", playlist_index)
 
 		for(let i =0; i <indexes.length; i++) {
-			let path = m.get(indexes[i], "otioRole");
-			if(helpers.urlExists(path)) {
-				if(!playlist_index || !playlist_index.valid)
-					playlist_index = theSessionData.createPlaylist(playlist_name)
+			let paths = m.get(indexes[i], "otioRole");
+			let found = false;
+			for(let p=0; p<paths.length;  p++) {
+				let path = paths[p]
+				if(helpers.urlExists(path)) {
+					if(!playlist_index || !playlist_index.valid)
+						playlist_index = theSessionData.createPlaylist(playlist_name)
 
-		        Future.promise(theSessionData.handleDropFuture(Qt.CopyAction, {"text/uri-list": path}, playlist_index)).then(
-		            function(quuids){
-		            	callback(playlist_index, [quuids[0]])
-		            },
-			        function() {
-			        }
-		        )
-		    } else {
-		    	console.log("Path doesn't exist ", path)
-		    	dialogHelpers.errorDialogFunc("Add Sequence", "Path doesn't exist " + path)
+			        Future.promise(theSessionData.handleDropFuture(Qt.CopyAction, {"text/uri-list": path}, playlist_index)).then(
+			            function(quuids){
+			            	callback(playlist_index, [quuids[0]])
+			            },
+				        function() {
+				        }
+			        )
+			        found = true
+			        break;
+				}
+			}
+			if(!found) {
+		    	console.log("Path doesn't exist ", paths)
+		    	dialogHelpers.errorDialogFunc("Add Sequence", "Path doesn't exist " + paths)
 		    }
 		}
 	}
@@ -729,14 +736,14 @@ function updateMetadata(enabled, mediaUuid) {
 	                let audio_actor_idx = mindex.model.searchRecursive(mindex.model.get(mindex, "audioActorUuidRole"), "actorUuidRole", mindex)
 
 	                if(image_actor_idx.valid) {
-	                	jsn["metadata"]["image_source"] = image_actor_idx.model.get(image_actor_idx,"nameRole")
+	                	jsn["metadata"]["image_source"] = [image_actor_idx.model.get(image_actor_idx,"nameRole")]
 	                } else {
-		                jsn["metadata"]["image_source"] = "movie_dneg"
+		                jsn["metadata"]["image_source"] = ["movie_dneg"]
 	                }
 	                if(audio_actor_idx.valid) {
-	                	jsn["metadata"]["audio_source"] = audio_actor_idx.model.get(audio_actor_idx,"nameRole")
+	                	jsn["metadata"]["audio_source"] = [audio_actor_idx.model.get(audio_actor_idx,"nameRole")]
 	                } else {
-		                jsn["metadata"]["audio_source"] = "movie_dneg"
+		                jsn["metadata"]["audio_source"] = ["movie_dneg"]
 	                }
 	            }catch(err){}
                 ShotBrowserEngine.liveLinkMetadata = JSON.stringify(jsn)

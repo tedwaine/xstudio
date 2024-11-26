@@ -285,8 +285,8 @@ template <typename T> class ShotbrowserConformActor : public caf::event_based_ac
                         req["context"]    = R"({
                             "type": null,
                             "epoc": null,
-                            "audio_source": "",
-                            "visual_source": "",
+                            "audio_source": [],
+                            "visual_source": [],
                             "flag_text": "",
                             "flag_colour": "",
                             "truncated": false
@@ -958,8 +958,8 @@ template <typename T> class ShotbrowserConformActor : public caf::event_based_ac
                     req["context"]    = R"({
                         "type": null,
                         "epoc": null,
-                        "audio_source": "",
-                        "visual_source": "",
+                        "audio_source": [],
+                        "visual_source": [],
                         "flag_text": "",
                         "flag_colour": "",
                         "truncated": false
@@ -977,7 +977,12 @@ template <typename T> class ShotbrowserConformActor : public caf::event_based_ac
                                         "sg_path_to_frames", std::string());
                                     auto last_dot = otiopath.find_last_of(".");
                                     otiopath      = otiopath.substr(0, last_dot);
-                                    otiopath += ".otio";
+
+                                    // need to test for optimised otio..
+                                    if (not fs::exists(otiopath + "_optimised.otio"))
+                                        otiopath += ".otio";
+                                    else
+                                        otiopath += "_optimised.otio";
 
                                     auto name = result.at(spath).value("name", std::string());
 

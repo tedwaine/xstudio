@@ -87,13 +87,10 @@
 	    <file>views/timeline/widgets/XsClipDragBoth.qml</file>
 	    <file>views/timeline/widgets/XsClipDragLeft.qml</file>
 	    <file>views/timeline/widgets/XsClipDragRight.qml</file>
-	    <file>views/timeline/widgets/XsDragBoth.qml</file>
-	    <file>views/timeline/widgets/XsDragLeft.qml</file>
-	    <file>views/timeline/widgets/XsDragRight.qml</file>
+	    <file>views/timeline/widgets/XsClipDragReplace.qml</file>
 	    <file>views/timeline/widgets/XsElideLabel.qml</file>
 	    <file>views/timeline/widgets/XsGapItem.qml</file>
 	    <file>views/timeline/widgets/XsMarkers.qml</file>
-	    <file>views/timeline/widgets/XsMoveClip.qml</file>
 	    <file>views/timeline/widgets/XsTickWidget.qml</file>
 	    <file>views/timeline/widgets/XsTimelineCursor.qml</file>
 	    <file>views/timeline/widgets/XsTrackHeader.qml</file>

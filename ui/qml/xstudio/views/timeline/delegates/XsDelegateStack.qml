@@ -60,6 +60,7 @@ Rectangle {
     property var itemTypeRole: typeRole
     property alias list_view_video: list_view_video
     property alias list_view_audio: list_view_audio
+    property alias list_view_middle: sizer
 
     property alias scrollbar: hbar
 
@@ -499,7 +500,6 @@ Rectangle {
 			    ListView {
 			        id: list_view_video
 			        anchors.fill: parent
-
 
     				spacing: 1
 

@@ -1259,9 +1259,9 @@ void ConformWorkerActor::conform_step_get_media_source(
                 for (const auto &i : media_sources) {
                     if (conform_request.metadata_.count(i.first.uuid())) {
                         conform_request.metadata_[i.first.uuid()]["metadata"]["image_source"] =
-                            i.second.first;
+                            json::array({i.second.first});
                         conform_request.metadata_[i.first.uuid()]["metadata"]["audio_source"] =
-                            i.second.second;
+                            json::array({i.second.second});
                     }
                 }
 

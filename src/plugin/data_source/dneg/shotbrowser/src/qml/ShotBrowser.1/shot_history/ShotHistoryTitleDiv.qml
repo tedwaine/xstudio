@@ -44,15 +44,33 @@ RowLayout {id: titleDiv
     XsModelProperty {
         index: groupModel.rootIndex
         onIndexChanged: {
+            if(!index.valid)
+                scopeList.model = []
             populateModels()
         }
     }
 
+    Timer {
+        id: populateTimer
+        interval: 100
+        running: false
+        repeat: false
+        onTriggered: {
+            let ind = filterModel.mapFromSource(ShotBrowserEngine.presetsModel.searchRecursive(
+                "c5ce1db6-dac0-4481-a42b-202e637ac819", "idRole", ShotBrowserEngine.presetsModel.index(-1, -1), 0, 1
+            ))
+            if(ind.valid) {
+                groupModel.rootIndex = ind
+                scopeList.model = groupModel
+            } else {
+                scopeList.model = []
+                populateTimer.start()
+            }
+        }
+    }
+
     function populateModels() {
-        groupModel.rootIndex = helpers.makePersistent(filterModel.mapFromSource(ShotBrowserEngine.presetsModel.searchRecursive(
-            "c5ce1db6-dac0-4481-a42b-202e637ac819", "idRole", ShotBrowserEngine.presetsModel.index(-1, -1), 0, 1
-        )))
-        scopeList.model = groupModel
+        populateTimer.start()
     }
 
     Component.onCompleted: {

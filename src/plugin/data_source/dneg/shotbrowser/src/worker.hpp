@@ -19,8 +19,8 @@ class BuildPlaylistMediaJob {
         const std::string media_name,
         utility::JsonStore sg_data,
         utility::FrameRate media_rate,
-        std::string preferred_visual_source,
-        std::string preferred_audio_source,
+        std::vector<std::string> preferred_visual_sources,
+        std::vector<std::string> preferred_audio_sources,
         std::shared_ptr<utility::UuidList> ordererd_uuids,
         utility::Uuid before,
         std::string flag_colour,
@@ -33,8 +33,8 @@ class BuildPlaylistMediaJob {
           media_name_(media_name),
           sg_data_(sg_data),
           media_rate_(media_rate),
-          preferred_visual_source_(std::move(preferred_visual_source)),
-          preferred_audio_source_(std::move(preferred_audio_source)),
+          preferred_visual_sources_(std::move(preferred_visual_sources)),
+          preferred_audio_sources_(std::move(preferred_audio_sources)),
           ordererd_uuids_(std::move(ordererd_uuids)),
           before_(std::move(before)),
           flag_colour_(std::move(flag_colour)),
@@ -85,8 +85,8 @@ class BuildPlaylistMediaJob {
     std::string media_name_;
     utility::JsonStore sg_data_;
     utility::FrameRate media_rate_;
-    std::string preferred_visual_source_;
-    std::string preferred_audio_source_;
+    std::vector<std::string> preferred_visual_sources_;
+    std::vector<std::string> preferred_audio_sources_;
     std::shared_ptr<utility::UuidList> ordererd_uuids_;
     utility::Uuid before_;
     std::string flag_colour_;

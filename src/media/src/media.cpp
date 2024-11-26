@@ -8,7 +8,7 @@ using namespace xstudio::media;
 using namespace xstudio::utility;
 
 MediaKey::MediaKey(const std::string &o) : std::string(o) {
-    hash_ = std::hash<MediaKey>{}(*this);
+    hash_ = std::hash<std::string>{}(o);
 }
 
 MediaKey::MediaKey(
@@ -22,7 +22,7 @@ MediaKey::MediaKey(
             (frame == std::numeric_limits<int>::min() ? 0 : frame),
             stream_id)) 
 {
-    hash_ = std::hash<MediaKey>{}(*this);
+    hash_ = std::hash<std::string>{}(static_cast<const std::string&>(*this));
 }
 
 Media::Media(const JsonStore &jsn)

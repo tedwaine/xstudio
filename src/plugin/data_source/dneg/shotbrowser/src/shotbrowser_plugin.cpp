@@ -1364,14 +1364,18 @@ void ShotBrowser::add_media_to_playlist(
             flag_text   = data.at("context").value("flag_text", "");
         }
 
-        std::string visual_source;
+        std::vector<std::string> visual_sources;
         if (data.contains(json::json_pointer("/context/visual_source"))) {
-            visual_source = data.at("context").value("visual_source", "");
+            auto tmp = data.at("context").value("visual_source", R"([])"_json);
+            for (const auto &i : tmp)
+                visual_sources.push_back(i);
         }
 
-        std::string audio_source;
+        std::vector<std::string> audio_sources;
         if (data.contains(json::json_pointer("/context/audio_source"))) {
-            audio_source = data.at("context").value("audio_source", "");
+            auto tmp = data.at("context").value("audio_source", R"([])"_json);
+            for (const auto &i : tmp)
+                audio_sources.push_back(i);
         }
 
         // we need to ensure that media are added to playlist IN ORDER - this
@@ -1394,8 +1398,8 @@ void ShotBrowser::add_media_to_playlist(
                 i.at("attributes").at("code").get<std::string>(), // name for the media
                 JsonStore(i),
                 media_rate,
-                visual_source,
-                audio_source,
+                visual_sources,
+                audio_sources,
                 ordered_uuids,
                 before,
                 flag_colour,
@@ -1751,12 +1755,16 @@ void ShotBrowser::do_add_media_sources_from_ivy(
                                     &names) {
                                 auto name = std::string();
 
-                                for (const auto &i : names) {
-                                    if (i.second ==
-                                        ivy_media_task_data->preferred_visual_source_) {
-                                        name = i.second;
-                                        break;
+                                for (const auto &pref :
+                                     ivy_media_task_data->preferred_visual_sources_) {
+                                    for (const auto &i : names) {
+                                        if (i.second == pref) {
+                                            name = pref;
+                                            break;
+                                        }
                                     }
+                                    if (not name.empty())
+                                        break;
                                 }
 
                                 if (name.empty()) {
@@ -1799,12 +1807,16 @@ void ShotBrowser::do_add_media_sources_from_ivy(
                                     &names) {
                                 auto name = std::string();
 
-                                for (const auto &i : names) {
-                                    if (i.second ==
-                                        ivy_media_task_data->preferred_audio_source_) {
-                                        name = i.second;
-                                        break;
+                                for (const auto &pref :
+                                     ivy_media_task_data->preferred_audio_sources_) {
+                                    for (const auto &i : names) {
+                                        if (i.second == pref) {
+                                            name = pref;
+                                            break;
+                                        }
                                     }
+                                    if (not name.empty())
+                                        break;
                                 }
 
                                 if (name.empty()) {

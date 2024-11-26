@@ -1033,6 +1033,35 @@ bool SessionModel::setData(const QModelIndex &index, const QVariant &qvalue, int
                 break;
 
 
+            case Roles::clipMediaUuidRole:
+                if (type == "Clip") {
+                    // find media actor..
+                    auto timeline = getTimelineIndex(index);
+                    // find media in timeline..
+                    auto media_index = searchRecursive(qvalue, actorUuidRole, timeline);
+
+                    if (media_index.isValid()) {
+                        nlohmann::json &mj = indexToData(media_index);
+                        auto ua            = UuidActor(
+                            value,
+                            mj.count("actor") and not mj.at("actor").is_null()
+                                           ? actorFromString(system(), mj.at("actor"))
+                                           : (mj.count("actor_owner") and
+                                           not mj.at("actor_owner").is_null()
+                                                  ? actorFromString(system(), mj.at("actor_owner"))
+                                                  : caf::actor()));
+
+                        if (ua.actor()) {
+                            j["prop"]["media_uuid"] = value;
+
+                            if (actor)
+                                anon_send(actor, timeline::link_media_atom_v, ua);
+                            result = true;
+                        }
+                    }
+                }
+                break;
+
             case Roles::userDataRole:
                 j["user_data"] = value;
                 result         = true;

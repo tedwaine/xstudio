@@ -226,6 +226,7 @@ Item{
         property bool showStatus: true
         property var hideStatus: ["omt", "na", "del", "omtnto", "omtnwd"]
         property var filterProjects: []
+        property var filterProjectStatus: []
         property var filterUnit: (new Map())
 
         onShowOnlyFavouritesChanged: {
@@ -248,7 +249,9 @@ Item{
                 "showStatus",
                 "quickLoad",
                 "filterUnit",
-                "filterProjects"]
+                "filterProjects",
+                "filterProjectStatus"
+                ]
         }
 
     }

@@ -37,7 +37,40 @@ RowLayout {
     XsModelProperty {
         index: scopeGroupModel.rootIndex
         onIndexChanged: {
+            if(!index.valid) {
+                // clear list views
+                typeList.model = []
+                scopeList.model = []
+            }
             populateModels()
+        }
+    }
+
+
+    Timer {
+        id: populateTimer
+        interval: 100
+        running: false
+        repeat: false
+        onTriggered: {
+            let sourceInd = ShotBrowserEngine.presetsModel.searchRecursive(
+                "aac8207e-129d-4988-9e05-b59f75ae2f75", "idRole", ShotBrowserEngine.presetsModel.index(-1, -1), 0, 1
+            )
+            let sind = scopeFilterModel.mapFromSource(sourceInd)
+            let tind = typeFilterModel.mapFromSource(sourceInd)
+
+            if(sind.valid && tind.valid) {
+                scopeGroupModel.rootIndex = sind
+                typeGroupModel.rootIndex = tind
+
+                scopeList.model = scopeGroupModel
+                typeList.model = typeGroupModel
+
+            } else {
+                scopeList.model = []
+                typeList.model = []
+                populateTimer.start()
+            }
         }
     }
 
@@ -79,15 +112,7 @@ RowLayout {
     }
 
     function populateModels() {
-        typeGroupModel.rootIndex = helpers.makePersistent(typeFilterModel.mapFromSource(ShotBrowserEngine.presetsModel.searchRecursive(
-            "aac8207e-129d-4988-9e05-b59f75ae2f75", "idRole", ShotBrowserEngine.presetsModel.index(-1, -1), 0, 1
-        )))
-        typeList.model = typeGroupModel
-
-        scopeGroupModel.rootIndex = helpers.makePersistent(scopeFilterModel.mapFromSource(ShotBrowserEngine.presetsModel.searchRecursive(
-            "aac8207e-129d-4988-9e05-b59f75ae2f75", "idRole", ShotBrowserEngine.presetsModel.index(-1, -1), 0, 1
-        )))
-        scopeList.model = scopeGroupModel
+        populateTimer.start()
     }
 
     Component.onCompleted: {
