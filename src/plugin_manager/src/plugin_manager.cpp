@@ -50,11 +50,12 @@ size_t PluginManager::load_plugins() {
         try {
             // read dir content..
             for (const auto &entry : fs::directory_iterator(path)) {
-                if (not fs::is_regular_file(entry.status()) or
-                    not(entry.path().extension() == ".so"))
+                if (not fs::is_regular_file(entry.status()))
                     continue;
 
 #ifdef __linux__
+
+                if (entry.path().extension() != ".so") continue;
                 // only want .so
                 // clear any errors..
                 dlerror();
@@ -74,8 +75,14 @@ size_t PluginManager::load_plugins() {
                     continue;
                 }
 #elif defined(_WIN32)
+
+                if (entry.path().extension() != ".dll") continue;
+
                 // open .dll
                 std::string dllPath = entry.path().string();
+
+                spdlog::critical("Loading Plugin {}", dllPath);
+
                 HMODULE hndl        = LoadLibraryA(dllPath.c_str());
                 if (hndl == nullptr) {
                     DWORD errorCode = GetLastError();

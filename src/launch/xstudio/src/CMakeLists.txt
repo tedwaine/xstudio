@@ -12,7 +12,7 @@ endif()
 
 find_package(OpenGL REQUIRED)
 find_package(GLEW REQUIRED)
-find_package(Qt6 COMPONENTS Core Quick Gui Widgets OpenGL REQUIRED)
+find_package(Qt6 COMPONENTS Core Quick Gui Widgets OpenGL OpenGLWidgets REQUIRED)
 find_package(OpenSSL)
 find_package(ZLIB)
 find_package(fmt REQUIRED)
@@ -73,6 +73,7 @@ target_link_libraries(${PROJECT_NAME}
 		Qt6::Gui
 		Qt6::Quick
 		Qt6::Widgets
+		Qt6::OpenGLWidgets
 		OpenSSL::SSL
 		ZLIB::ZLIB
 )

@@ -710,6 +710,8 @@ size_t FFMpegStream::resample_audio(
 
     const int wanted_nb_samples = frame->nb_samples * target_sample_rate_ / frame->sample_rate;
 
+    std::cerr << "FOO " << frame->sample_rate << " " << target_sample_rate_ << "\n";
+
     if (!audio_resampler_ctx_ || frame->format != src_audio_fmt_ ||
         frame->sample_rate != src_audio_sample_rate_ ||
         dec_channel_layout != src_audio_channel_layout_) {

@@ -109,10 +109,10 @@ void ViewportLayoutPlugin::init() {
 
     connect_to_ui();
                 
-    /*layouts_manager_ =
+    layouts_manager_ =
                     system().registry().template get<caf::actor>(viewport_layouts_manager);
     gobal_playhead_events_ = system().registry().template get<caf::actor>(global_playhead_events_actor);
-    //anon_send(layouts_manager_, ui::viewport::viewport_layout_atom_v, caf::actor_cast<caf::actor>(this), Module::name());*/
+    anon_send(layouts_manager_, ui::viewport::viewport_layout_atom_v, caf::actor_cast<caf::actor>(this), Module::name());
 
 }
 
@@ -422,6 +422,8 @@ void ViewportLayoutManager::spawn_plugins() {
 
             // loop over plugin details
             for (const auto &pd : renderer_plugin_details) {
+
+                spdlog::critical("{} {}", __PRETTY_FUNCTION__, pd.name_);
 
                 // instance the plugin. Each plugin automatically registeres 
                 // itself with this class on construction (see above)

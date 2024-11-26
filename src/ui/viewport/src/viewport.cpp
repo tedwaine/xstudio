@@ -1908,6 +1908,7 @@ utility::JsonStore ViewportRenderer::core_shader_params(
 void Viewport::render() const {
 
     if (render_data_ && render_data_->renderer) {
+
         render_data_->renderer->render(
             render_data_->images,
             render_data_->window_to_viewport_matrix,
@@ -1958,7 +1959,6 @@ void Viewport::prepare_render_data(const utility::time_point &when_going_on_scre
 
 void Viewport::set_compare_mode(const std::string &compare_mode) {
 
-    return;
     if (compare_mode_ == compare_mode) return;
 
     try {
