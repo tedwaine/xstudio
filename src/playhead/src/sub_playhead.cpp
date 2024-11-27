@@ -933,6 +933,7 @@ void SubPlayhead::set_position(
     std::shared_ptr<const media::AVFrameID> frame = get_frame(time, frame_period, timeline_pts);
     int logical_frame                             =  logical_frame_from_pts(timeline_pts);
 
+
     if (logical_frame_ != logical_frame || force_updates || scrubbing) {
 
         const bool logical_changed = logical_frame_ != logical_frame;
@@ -1134,7 +1135,7 @@ void SubPlayhead::broadcast_image_frame(
 
 void SubPlayhead::broadcast_audio_frame(
     const utility::time_point /*when_to_show_frame*/,
-    std::shared_ptr<const media::AVFrameID> /*frame_media_pointer*/,
+    std::shared_ptr<const media::AVFrameID> frame_media_pointer,
     const bool scrubbing) {
 
     // This function is called every time we play a new frame of audio ..
@@ -1304,7 +1305,7 @@ void SubPlayhead::update_playback_precache_requests(caf::typed_response_promise<
     make_prefetch_requests_for_colour_pipeline(requests);
 
     request(
-        pre_reader_, infinite, media_reader::playback_precache_atom_v, requests, uuid_)
+        pre_reader_, infinite, media_reader::playback_precache_atom_v, requests, uuid_, media_type_)
         .then(
             [=](const bool requests_processed) mutable { 
                 rp.deliver(requests_processed); 
@@ -1679,6 +1680,7 @@ void SubPlayhead::update_retiming() {
     // full_timeline_frames_, or conversely we trim frames off the start or
     // end.
     
+
     auto retimed_frames = full_timeline_frames_;
 
     if (!retimed_frames.size()) {

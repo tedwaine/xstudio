@@ -29,16 +29,9 @@ void AnnotationsRenderer::render_opengl(
         frame.plugin_blind_data(AnnotationsTool::PLUGIN_UUID);
     const auto *data = dynamic_cast<const AnnotationRenderDataSet *>(render_data.get());
 
-    if (!data) {
-        // annotation tool hasn't attached any render data to this image.
-        // This means annotations aren't visible.
-        return;
-    }
-
     // if the uuid for the interaction canvas is null we always draw it because
     // it is 'lazer' pen strokes
     bool draw_interaction_canvas = data && data->current_edited_bookmark_uuid_.is_null();
-
 
     // the xstudio playhead takes care of attaching bookmark data to the
     // ImageBufPtr that we receive here. The bookmark data may have annotations
@@ -50,7 +43,7 @@ void AnnotationsRenderer::render_opengl(
         // being edited. The reason is that the strokes and captions of this
         // annotation are already cloned into 'interaction_canvas_' which we
         // draw below.
-        if (anno->detail_.uuid_ == data->current_edited_bookmark_uuid_ &&
+        if (data && anno->detail_.uuid_ == data->current_edited_bookmark_uuid_ &&
             data->interaction_frame_key_ == to_string(frame.frame_id().key())) {
             draw_interaction_canvas = true;
             continue;
@@ -61,7 +54,7 @@ void AnnotationsRenderer::render_opengl(
         if (my_annotation) {
             canvas_renderer_->render_canvas(
                 my_annotation->canvas(),
-                data->handle_,
+                HandleState(),
                 transform_window_to_viewport_space,
                 transform_viewport_to_image_space,
                 viewport_du_dpixel,
@@ -79,7 +72,7 @@ void AnnotationsRenderer::render_opengl(
     // drawing on. Current drawings are stored in data->interaction_canvas_ ...
     // we only want to plot these if the frame we are rendering over here matches
     // the key of the frame the user is being drawn on.
-    if (draw_interaction_canvas) {
+    if (data && draw_interaction_canvas) {
         canvas_renderer_->render_canvas(
             data->interaction_canvas_,
             data->handle_,

@@ -163,11 +163,7 @@ if(WIN32)
   # https://github.com/nlohmann/json/issues/3868#issuecomment-1563726354
   add_definitions(-DJSON_HAS_THREE_WAY_COMPARISON=OFF)
 
-  # build quickpromise
   add_subdirectory("extern/otio")
-
-  add_subdirectory("extern/quickpromise")
-  add_subdirectory("extern/quickfuture") 
 
   set(CMAKE_WINDOWS_EXPORT_ALL_SYMBOLS ON)
 
@@ -228,6 +224,10 @@ endif()
 add_subdirectory(src)
 
 if(INSTALL_XSTUDIO)
+
+  # build quickpromise
+  add_subdirectory("extern/quickpromise")
+  add_subdirectory("extern/quickfuture") 
 
   install(DIRECTORY include/xstudio
           DESTINATION include)

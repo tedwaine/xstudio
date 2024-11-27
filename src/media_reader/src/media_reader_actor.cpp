@@ -455,56 +455,73 @@ GlobalMediaReaderActor::GlobalMediaReaderActor(
 
         [=](playback_precache_atom,
             const media::AVFrameIDsAndTimePoints media_ptrs,
-            const Uuid &playhead_uuid) -> result<bool> {
+            const Uuid &playhead_uuid,
+            const media::MediaType mt) -> result<bool> {
+
             // we've received fresh lookahead read requests from the playhead
             // during playback. We want to ask the cache actors if they already
             // have those frames, and if not we need to queue read requests to
             // start reading/decoding those frames
-
-
             auto rp = make_response_promise<bool>();
-            request(
-                image_cache_,
-                std::chrono::seconds(1),
-                media_cache::preserve_atom_v,
-                media_ptrs,
-                playhead_uuid)
-                .await(
-                    [=](const media::AVFrameIDsAndTimePoints
-                            media_ptrs_not_in_image_cache) mutable {
-                        request(
-                            audio_cache_,
-                            std::chrono::seconds(1),
-                            media_cache::preserve_atom_v,
-                            media_ptrs,
-                            playhead_uuid)
-                            .await(
-                                [=](const media::AVFrameIDsAndTimePoints
-                                        &media_ptrs_not_in_audio_cache) mutable {
-                                    if (media_ptrs_not_in_image_cache.size() ||
-                                        media_ptrs_not_in_audio_cache.size()) {
+            if (mt == MT_IMAGE) {
+                request(
+                    image_cache_,
+                    std::chrono::seconds(1),
+                    media_cache::preserve_atom_v,
+                    media_ptrs,
+                    playhead_uuid)
+                    .await(
+                        [=](const media::AVFrameIDsAndTimePoints
+                                media_ptrs_not_in_image_cache) mutable {
+                            if (media_ptrs_not_in_image_cache.size()) {
 
-                                        // clear all pending requests
-                                        playback_precache_request_queue_.clear_pending_requests(
-                                            playhead_uuid);
-                                        background_precache_request_queue_
-                                            .clear_pending_requests(playhead_uuid);
+                                // clear all pending requests
+                                playback_precache_request_queue_.clear_pending_requests(
+                                    playhead_uuid);
+                                background_precache_request_queue_
+                                    .clear_pending_requests(playhead_uuid);
 
-                                        playback_precache_request_queue_.add_frame_requests(
-                                            media_ptrs_not_in_image_cache, playhead_uuid);
-                                        playback_precache_request_queue_.add_frame_requests(
-                                            media_ptrs_not_in_audio_cache, playhead_uuid);
+                                playback_precache_request_queue_.add_frame_requests(
+                                    media_ptrs_not_in_image_cache, playhead_uuid);
 
-                                        if (media_ptrs.size())
-                                            background_cached_ref_timepoint_[playhead_uuid] =
-                                                media_ptrs.front().first;
-                                        continue_precacheing();
-                                    }
-                                    rp.deliver(true);
-                                },
-                                [=](const caf::error &err) mutable { rp.deliver(err); });
-                    },
-                    [=](const caf::error &err) mutable { rp.deliver(err); });
+                                if (media_ptrs.size())
+                                    background_cached_ref_timepoint_[playhead_uuid] =
+                                        media_ptrs.front().first;
+                                continue_precacheing();
+                            }
+                            rp.deliver(true);
+                        },
+                        [=](const caf::error &err) mutable { rp.deliver(err); });
+            } else {
+                request(
+                    audio_cache_,
+                    std::chrono::seconds(1),
+                    media_cache::preserve_atom_v,
+                    media_ptrs,
+                    playhead_uuid)
+                    .await(
+                        [=](const media::AVFrameIDsAndTimePoints
+                                &media_ptrs_not_in_audio_cache) mutable {
+                            if (media_ptrs_not_in_audio_cache.size()) {
+
+                                // clear all pending requests
+                                playback_precache_request_queue_.clear_pending_requests(
+                                    playhead_uuid);
+                                background_precache_request_queue_
+                                    .clear_pending_requests(playhead_uuid);
+
+                                playback_precache_request_queue_.add_frame_requests(
+                                    media_ptrs_not_in_audio_cache, playhead_uuid);
+
+                                if (media_ptrs.size())
+                                    background_cached_ref_timepoint_[playhead_uuid] =
+                                        media_ptrs.front().first;
+                                continue_precacheing();
+                            }
+                            rp.deliver(true);
+                        },
+                        [=](const caf::error &err) mutable { rp.deliver(err); });
+            }
             return rp;
         },
 

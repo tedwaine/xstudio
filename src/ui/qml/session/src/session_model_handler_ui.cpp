@@ -857,6 +857,7 @@ void SessionModel::init(caf::actor_system &_system) {
                 const std::vector<caf::actor> &actors) {
                 // update media selection model.
                 // PlayheadSelectionActor
+
                 try {
                     auto src          = caf::actor_cast<caf::actor>(self()->current_sender());
                     auto src_str      = actorToString(system(), src);

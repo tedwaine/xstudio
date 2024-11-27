@@ -51,9 +51,7 @@ void PlayheadBase::add_attributes() {
     auto_align_mode_ =
         add_string_choice_attribute("Auto Align", "Algn.", auto_align_mode_names);
 
-    auto_align_mode_->set_value("Alignment Off");
-    auto_align_mode_->set_role_data(
-        module::Attribute::PreferencePath, "/core/playhead/align_mode");
+    auto_align_mode_->set_value("Off");
 
     max_compare_sources_ =
         add_integer_attribute("Max Compare Sources", "Max Compare Sources", 16, 4, 32);

@@ -312,8 +312,6 @@ void FFMpegMediaReader::update_preferences(const utility::JsonStore &prefs) {
             preference_value<int>(prefs, "/core/audio/windows_audio_prefs/sample_rate");
 #endif
 
-        spdlog::critical("soundcard_sample_rate_ {}", soundcard_sample_rate_);
-
         default_rate_ = utility::FrameRate(
             preference_value<std::string>(prefs, "/core/session/media_rate"));
 

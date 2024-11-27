@@ -1579,8 +1579,6 @@ void SessionModel::setViewportCurrentMediaContainerIndex(const QModelIndex &inde
 
     try {
 
-        qDebug() << "setViewportCurrentMediaContainerIndex " << index;
-
         if (index != current_playhead_owner_index_) {
 
             auto cuuid  = UuidFromQUuid(index.data(actorUuidRole).toUuid());

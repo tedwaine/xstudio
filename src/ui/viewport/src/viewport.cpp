@@ -414,12 +414,14 @@ Viewport::Viewport(
     // show up in our toolbar
     connect_to_viewport(name(), toolbar_name, true, parent_actor_);
 
+
     if (sync_to_main_viewport_->value()) {
         auto_connect_to_global_selected_playhead();
     }
 
-    set_compare_mode("Off");
-
+    if (playhead_uuid_.is_null()) {
+        set_compare_mode("Off");
+    }
 }
 
 Viewport::~Viewport() {
@@ -613,6 +615,13 @@ bool Viewport::process_pointer_event(PointerEvent &pointer_event) {
         interact_start_state_                 = state_;
         interact_start_projection_matrix_     = projection_matrix_;
         interact_start_inv_projection_matrix_ = inv_projection_matrix_;
+
+        if (pointer_event.buttons() == ui::Signature::Button::Left && compare_mode_ == "Grid") {
+
+            grid_mode_media_select(pointer_event);
+
+        }
+
     }
 
     if (pointer_event_handlers_.find(pointer_event.signature()) !=
@@ -1963,6 +1972,8 @@ void Viewport::set_compare_mode(const std::string &compare_mode) {
 
     if (compare_mode_ == compare_mode) return;
 
+    compare_mode_ = compare_mode;
+
     try {
 
         caf::scoped_actor sys(self()->home_system());
@@ -2004,4 +2015,44 @@ void Viewport::set_compare_mode(const std::string &compare_mode) {
         spdlog::warn("{} {}", __PRETTY_FUNCTION__, e.what());
     }
 
+}
+
+
+void Viewport::grid_mode_media_select(const PointerEvent &pointer_event) {
+
+    if (!(pointer_event.modifiers() == Signature::Modifier::ControlModifier || 
+            pointer_event.modifiers() == Signature::Modifier::NoModifier)) return;
+
+    // special case. In grid mode, detect which image was clicked on 
+    // to adjust the selection, where possible.
+    // We should already have up-to-date info on the positions of the images
+    // in the viewport..
+    int idx = 0;
+
+    // loop through image bounds - these are the images visible in the layout
+    for (const auto &im_bounds: image_bounds_in_viewport_pixels_) {
+
+        if (im_bounds.min.x <= pointer_event.x() && im_bounds.max.x >= pointer_event.x() &&
+            im_bounds.min.y <= pointer_event.y() && im_bounds.max.y >= pointer_event.y()) {
+            // send the playhead the index
+            if (on_screen_frames_ && on_screen_frames_->layout_data()) {
+                // resolve the image idx in the layout to the image index in the
+                // onscreen image set ...
+                const auto & im_order = on_screen_frames_->layout_data()->image_draw_order_hint_;
+                if (idx < im_order.size()) {
+                    const media_reader::ImageBufPtr & im = on_screen_frames_->onscreen_image(im_order[idx]);
+                    if (im && playhead_addr_) {
+                        anon_send(
+                            caf::actor_cast<caf::actor>(playhead_addr_),
+                            playlist::select_media_atom_v,
+                            im.frame_id().media_uuid(),
+                            pointer_event.modifiers() == Signature::Modifier::ControlModifier
+                            );
+                    }
+                }
+
+            }
+        }
+        idx++;
+    }
 }

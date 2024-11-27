@@ -151,4 +151,29 @@ Viewport {
         snapshotDialog.visible = true
     }
 
+    // This highlights the 'hero' image momentarily for  certain compare modes
+    Rectangle {
+        visible: opacity > 0
+        x: imageBox.x        
+        y: imageBox.y
+        width: imageBox.width
+        height: imageBox.height
+        color: "transparent"
+        border.color: palette.highlight
+        border.width: 2
+        property var ib: view.imageBoundariesInViewport[viewportPlayhead.keySubplayheadIndex]
+        property var imageBox: ib ? ib : Qt.rect(0,0,0,0)
+        property var idx: viewportPlayhead.keySubplayheadIndex
+        onIdxChanged: {
+            changeAnimation.stop()
+            changeAnimation.start()
+        }
+        NumberAnimation on opacity {
+            id: changeAnimation
+            from: 1
+            to: 0
+            duration: 2000
+        }
+    }
+
 }

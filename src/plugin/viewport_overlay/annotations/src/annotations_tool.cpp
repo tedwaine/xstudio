@@ -522,16 +522,20 @@ utility::BlindDataObjectPtr AnnotationsTool::onscreen_render_data(
         }
     }
 
-    // As noted elsewhere, interaction_canvas_ (class = Canvas) is read/write
-    // thread safe so we take a reference to it ready for render time.
-    auto immediate_render_data = new AnnotationRenderDataSet(
-        interaction_canvas_, // note a reference is taken here
-        current_bookmark_uuid_,
-        handle_state_,
-        image_being_annotated_ ? to_string(image_being_annotated_->media_key()) : "");
+    if (image_being_annotated_ == image) {
+        // As noted elsewhere, interaction_canvas_ (class = Canvas) is read/write
+        // thread safe so we take a reference to it ready for render time.
+        auto immediate_render_data = new AnnotationRenderDataSet(
+            interaction_canvas_, // note a reference is taken here
+            current_bookmark_uuid_,
+            handle_state_,
+            image_being_annotated_ ? to_string(image_being_annotated_->media_key()) : "");
 
-    return utility::BlindDataObjectPtr(
-        static_cast<utility::BlindDataObject *>(immediate_render_data));
+        return utility::BlindDataObjectPtr(
+            static_cast<utility::BlindDataObject *>(immediate_render_data));
+    }
+    return utility::BlindDataObjectPtr();
+        
 }
 
 void AnnotationsTool::images_going_on_screen(

@@ -240,6 +240,8 @@ namespace ui {
 
             void set_compare_mode(const std::string & compare_mode);
 
+            void grid_mode_media_select(const PointerEvent &pointer_event);
+
             caf::actor fps_monitor() { return fps_monitor_; }
 
             void framebuffer_swapped(const utility::time_point swap_time);

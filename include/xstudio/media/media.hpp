@@ -270,8 +270,8 @@ namespace media {
         }
 
         [[nodiscard]] const caf::uri & uri() const { return uri_.empty() ? fixed_media_data_->fixed_uri_ : uri_; }
-        [[nodiscard]] const int frame() const { return frame_; }
-        [[nodiscard]] const int first_frame() const { return fixed_media_data_->first_frame_; }
+        [[nodiscard]] int frame() const { return frame_; }
+        [[nodiscard]] int first_frame() const { return fixed_media_data_->first_frame_; }
         [[nodiscard]] const utility::FrameRate & rate() const { return fixed_media_data_->rate_; }
         [[nodiscard]] const std::string & stream_id() const { return fixed_media_data_->stream_id_; }
         [[nodiscard]] const MediaKey & key() const { return key_; }
@@ -281,7 +281,7 @@ namespace media {
         [[nodiscard]] const utility::Uuid & source_uuid() const { return fixed_media_data_->source_uuid_; }
         [[nodiscard]] const utility::Uuid & media_uuid() const { return fixed_media_data_->media_uuid_; }
         [[nodiscard]] const utility::Uuid & clip_uuid() const { return fixed_media_data_->clip_uuid_; }
-        [[nodiscard]] const MediaType media_type() const { return fixed_media_data_->media_type_; }
+        [[nodiscard]] MediaType media_type() const { return fixed_media_data_->media_type_; }
         [[nodiscard]] const utility::Timecode & timecode() const { return timecode_; }
         [[nodiscard]] const std::string & error() const { return error_; }
 

@@ -4,6 +4,7 @@
 #include <chrono>
 
 #include "xstudio/ui/viewport/viewport_layout_plugin.hpp"
+#include "xstudio/ui/viewport/viewport_renderer_base.hpp"
 #include "xstudio/utility/string_helpers.hpp"
 #include "xstudio/utility/helpers.hpp"
 
@@ -422,8 +423,6 @@ void ViewportLayoutManager::spawn_plugins() {
 
             // loop over plugin details
             for (const auto &pd : renderer_plugin_details) {
-
-                spdlog::critical("{} {}", __PRETTY_FUNCTION__, pd.name_);
 
                 // instance the plugin. Each plugin automatically registeres 
                 // itself with this class on construction (see above)

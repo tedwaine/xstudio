@@ -81,8 +81,6 @@ size_t PluginManager::load_plugins() {
                 // open .dll
                 std::string dllPath = entry.path().string();
 
-                spdlog::critical("Loading Plugin {}", dllPath);
-
                 HMODULE hndl        = LoadLibraryA(dllPath.c_str());
                 if (hndl == nullptr) {
                     DWORD errorCode = GetLastError();

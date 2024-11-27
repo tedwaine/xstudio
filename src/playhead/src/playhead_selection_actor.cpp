@@ -150,6 +150,7 @@ caf::message_handler PlayheadSelectionActor::message_handler() {
 
         [=](playlist::select_media_atom, const UuidList &media_uuids, bool retry) -> bool {
             if (media_uuids.empty()) {
+                std::cerr << "a\n";
                 select_one();
             } else {
                 select_media(media_uuids, false);
@@ -159,6 +160,7 @@ caf::message_handler PlayheadSelectionActor::message_handler() {
 
         [=](playlist::select_media_atom, const UuidList &media_uuids) -> bool {
             if (media_uuids.empty()) {
+                std::cerr << "b\n";
                 select_one();
             } else {
                 select_media(media_uuids);
@@ -214,6 +216,7 @@ caf::message_handler PlayheadSelectionActor::message_handler() {
         [=](utility::event_atom, playlist::remove_media_atom, const UuidVector &) {},
         [=](utility::event_atom, playlist::add_media_atom, const utility::UuidActorVector &) {
             if (base_.items().empty()) {
+                std::cerr << "c\n";
                 select_one();
             }
         }};
@@ -241,6 +244,7 @@ void PlayheadSelectionActor::init() {
 }
 
 void PlayheadSelectionActor::select_media(const UuidList &media_uuids, const bool retry) {
+
     if (base_.items_vec() == std::vector<Uuid>(media_uuids.begin(), media_uuids.end())) {
         return;
     }
@@ -270,7 +274,7 @@ void PlayheadSelectionActor::select_media(const UuidList &media_uuids, const boo
 
                     auto media_uas = uuidactor_vect_to_map(media_actors);
                     for (const auto &i : media_uuids) {
-                        if (not media_uas.count(i)) {
+                        if (not media_uas.count(i) || !media_uas[i]) {
                             if (retry) {
                                 delayed_anon_send(
                                     caf::actor_cast<caf::actor>(this),
@@ -294,7 +298,7 @@ void PlayheadSelectionActor::select_media(const UuidList &media_uuids, const boo
                     std::vector<caf::actor> selected_media_actors;
 
                     for (auto p : media_uuids) {
-                        if (media_uas.count(p)) {
+                        if (media_uas.count(p) && media_uas[p]) {
                             insert_actor(media_uas[p], p, Uuid());
                             selected_media_actors.push_back(media_uas[p]);
                         }
@@ -314,6 +318,7 @@ void PlayheadSelectionActor::select_media(const UuidList &media_uuids, const boo
 
 void PlayheadSelectionActor::select_one() {
 
+    std::cerr << "select one\n";
     // fetch all the media in the playlist
     request(playlist_, infinite, playlist::get_media_atom_v)
         .then(

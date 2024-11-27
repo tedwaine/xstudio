@@ -619,6 +619,23 @@ void PlayheadActor::init() {
             delegate(playlist_selection_, playlist::select_media_atom_v, selection);
         },
 
+        [=](playlist::select_media_atom, const Uuid &media_id, const bool add_select) {
+            if (parent_playlist_) {
+                auto playlist = caf::actor_cast<caf::actor>(parent_playlist_);
+                request(playlist, infinite, playlist::selection_actor_atom_v).then(
+                    [=](caf::actor selection_actor) {
+                        if (selection_actor) {
+                            UuidList l;
+                            l.push_back(media_id);
+                            anon_send(selection_actor, playlist::select_media_atom_v, l);
+                        }
+                    },
+                    [=](caf::error &err) {
+                        spdlog::warn("{} {}", __PRETTY_FUNCTION__, to_string(err));
+                    });
+            }
+        },
+
         [=](playhead::position_atom,
             const utility::time_point next_video_refresh,
             const timebase::flicks video_refresh_period) -> result<timebase::flicks> {
@@ -964,6 +981,9 @@ void PlayheadActor::init() {
             // at one time. Each sub-playhead is sent this message about once a second.
             sub_playhead_precache_idx_ = (sub_playhead_precache_idx_+1)%sub_playheads_.size();
             anon_send(sub_playheads_[sub_playhead_precache_idx_].actor(), precache_atom_v);
+            if (audio_playhead_ && sub_playheads_[sub_playhead_precache_idx_] == hero_sub_playhead_) {
+                anon_send(audio_playhead_, precache_atom_v);
+            }
             if (playing()) {
                 delayed_anon_send(
                     this,
@@ -1634,16 +1654,6 @@ void PlayheadActor::rebuild_from_dynamic_sources() {
 
     send(broadcast_, key_child_playhead_atom_v, to_uuid_vector(sub_playheads_));
 
-    if (!(assembly_mode() == AM_ONE || assembly_mode() == AM_STRING)) {
-
-        // for A/B mode, grid mode etc we need the child playheads to match
-        // their durations so that they map to a common (shared) timeline
-        align_clip_frame_numbers();
-        anon_send(this, duration_flicks_atom_v);
-
-    } else {
-        anon_send(this, duration_flicks_atom_v);
-    }
 }
 
 void PlayheadActor::switch_key_playhead(int idx) {
@@ -1719,6 +1729,14 @@ void PlayheadActor::switch_key_playhead(int idx) {
                 }
             } else {
                 update_child_playhead_positions(true);
+            }
+
+            if (!(assembly_mode() == AM_ONE || assembly_mode() == AM_STRING)) {
+
+                // for A/B mode, grid mode etc we need the child playheads to match
+                // their durations so that they map to a common (shared) timeline
+                align_clip_frame_numbers();
+
             }
 
             const auto switchpoint = utility::clock::now();

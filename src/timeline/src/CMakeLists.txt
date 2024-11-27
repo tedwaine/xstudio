@@ -1,5 +1,7 @@
 find_package(Imath REQUIRED)
 find_package(fmt REQUIRED)
+find_package(OpenTime REQUIRED)
+find_package(OpenTimelineIO REQUIRED)
 
 SET(LINK_DEPS
 	xstudio::utility
