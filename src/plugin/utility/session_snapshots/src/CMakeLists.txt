@@ -23,6 +23,8 @@ target_link_libraries(${PROJECT_NAME}
 	PUBLIC
 		xstudio::utility
 		xstudio::plugin_manager
+		xstudio::ui::qml::helper
+		xstudio::plugin_manager
 		Qt5::Core
 		Qt5::Quick
 		Qt5::Gui

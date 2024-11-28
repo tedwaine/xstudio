@@ -1223,7 +1223,7 @@ QFuture<bool> SessionModel::importFuture(const QUrl &path, const QVariant &json)
 
         if (json.isNull()) {
             try {
-                js = utility::open_session(StdFromQString(path.path()));
+                js = utility::open_session(UriFromQUrl(path));
             } catch (const std::exception &err) {
                 spdlog::warn("{} {}", __PRETTY_FUNCTION__, err.what());
                 return false;

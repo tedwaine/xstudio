@@ -1077,7 +1077,7 @@ int main(int argc, char **argv) {
                 }
 
                 if (not l.actions["allow_qt_warnings"]) {
-                    qInstallMessageHandler(xstudioQtMessageHandler);
+                    //qInstallMessageHandler(xstudioQtMessageHandler);
                 }
 
                 QApplication app(argc, argv);

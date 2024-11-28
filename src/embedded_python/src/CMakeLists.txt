@@ -17,47 +17,32 @@ add_library(${PROJECT_NAME} SHARED ${SOURCES})
 add_library(xstudio::embedded_python ALIAS ${PROJECT_NAME})
 default_options(${PROJECT_NAME})
 
-if(UNIX)
-
+if(NOT ${OTIO_SUBMODULE})
 	find_package(OpenTime REQUIRED)
 	find_package(OpenTimelineIO REQUIRED)
+endif()
 
+if(UNIX)
 	target_compile_options(${PROJECT_NAME}
 		PRIVATE -fvisibility=hidden
 	)
-	target_link_libraries(${PROJECT_NAME}
-		PUBLIC
-			caf::core
-		PRIVATE
-			Imath::Imath
-			xstudio::utility
-			xstudio::global_store
-			xstudio::media
-			Python::Python
-			OTIO::opentime
-			OTIO::opentimelineio
-	)
-	
-else()
-	# no OTIO support on Windows yet
-	target_link_libraries(${PROJECT_NAME}
-		PUBLIC
-			caf::core
-		PRIVATE
-			Imath::Imath
-			xstudio::utility
-			xstudio::global_store
-			xstudio::media
-			Python::Python
-			OTIO::opentime
-			OTIO::opentimelineio
-	)
 endif()
 
+target_link_libraries(${PROJECT_NAME}
+	PUBLIC
+		caf::core
+	PRIVATE
+		Imath::Imath
+		xstudio::utility
+		xstudio::global_store
+		xstudio::media
+		Python::Python
+		OTIO::opentime
+		OTIO::opentimelineio
+)
+	
+
 set_python_to_proper_build_type()
-
-
-
 
 set_target_properties(${PROJECT_NAME} PROPERTIES LINK_DEPENDS_NO_SHARED true)
 

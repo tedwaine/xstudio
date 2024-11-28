@@ -1,7 +1,9 @@
 find_package(Imath REQUIRED)
 find_package(fmt REQUIRED)
-find_package(OpenTime REQUIRED)
-find_package(OpenTimelineIO REQUIRED)
+if(NOT ${OTIO_SUBMODULE})
+	find_package(OpenTime REQUIRED)
+	find_package(OpenTimelineIO REQUIRED)
+endif()
 
 SET(LINK_DEPS
 	xstudio::utility

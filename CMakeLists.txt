@@ -25,9 +25,11 @@ option(ENABLE_CLANG_FORMAT "Enable clang format, ninja clangformat." OFF)
 option(FORCE_COLORED_OUTPUT "Always produce ANSI-colored output (GNU/Clang only)." TRUE)
 option(OPTIMIZE_FOR_NATIVE "Build with -march=native" OFF)
 option(BUILD_RESKIN "Build xstudio reskin binary" ON)
+option(OTIO_SUBMODULE "Automatically build OpenTimelineIO as a submodule" OFF)
 
 if(WIN32)
     set(CMAKE_CXX_FLAGS_DEBUG "/Zi /Ob0 /Od /Oy-") 
+    set(OTIO_SUBMODULE ON)
     add_compile_options($<$<CXX_COMPILER_ID:MSVC>:/MP>)
     # enable UUID System Generator 
     add_definitions(-DUUID_SYSTEM_GENERATOR=ON)
@@ -226,8 +228,8 @@ add_subdirectory(src)
 if(INSTALL_XSTUDIO)
 
   # build quickpromise
-  add_subdirectory("extern/quickpromise")
-  add_subdirectory("extern/quickfuture") 
+  add_subdirectory(extern/quickpromise)
+  add_subdirectory(extern/quickfuture) 
 
   install(DIRECTORY include/xstudio
           DESTINATION include)

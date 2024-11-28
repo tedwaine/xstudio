@@ -27,6 +27,8 @@ set_target_properties(quickfuture
 if(WIN32)
     install(FILES ${QML_FILES} DESTINATION ${CMAKE_INSTALL_PREFIX}/plugin/qml/QuickFuture)
     install(TARGETS quickfuture LIBRARY DESTINATION ${CMAKE_INSTALL_PREFIX}/plugin/qml/QuickFuture)
+    _install(TARGETS quickfuture RUNTIME DESTINATION ${CMAKE_INSTALL_PREFIX}/plugin/qml/QuickFuture)
+
 else()
     install(FILES ${QML_FILES} DESTINATION ${CMAKE_INSTALL_PREFIX}/share/xstudio/plugin/qml/QuickFuture)
     install(TARGETS quickfuture LIBRARY DESTINATION ${CMAKE_INSTALL_PREFIX}/share/xstudio/plugin/qml/QuickFuture)

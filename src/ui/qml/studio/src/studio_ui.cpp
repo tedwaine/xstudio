@@ -227,7 +227,7 @@ QFuture<bool> StudioUI::loadSessionFuture(const QUrl &path, const QVariant &json
             JsonStore js;
 
             if (json.isNull()) {
-                js = utility::open_session(StdFromQString(path.path()));
+                js = utility::open_session(UriFromQUrl(path));
             } else {
                 js = qvariant_to_json(json);
             }

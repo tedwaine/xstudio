@@ -14,8 +14,6 @@ XsWindow {
     id: floatingWindow
     title: view_name
 
-    flags: Qt.WindowStaysOnTopHint
-
     property var name: view_name // 'view_name' provided by model
     property var content_qml: view_qml_source // 'view_qml_source' provided by model
     property var content_item

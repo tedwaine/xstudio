@@ -7,10 +7,10 @@ import xStudio 1.0
 ApplicationWindow {
     id: window
 
-    flags: Qt.WindowStaysOnTopHint | Qt.Dialog
+    flags: Qt.platform.os === "windows" ? Qt.Window : Qt.WindowStaysOnTopHint | Qt.Dialog
+
     color: XsStyleSheet.panelBgColor
-
-
+ 
     // override default palette
     palette.base: XsStyleSheet.panelBgColor
     palette.highlight: XsStyleSheet.accentColor

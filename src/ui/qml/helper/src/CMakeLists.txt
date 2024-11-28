@@ -3,7 +3,8 @@ SET(LINK_DEPS
 	Qt5::Core
 	Qt5::Qml
 	Qt5::Gui
-	Qt5::DBus
+	Qt5::Quick
+	#Qt5::DBus
 	xstudio::global_store
 	xstudio::media
 	xstudio::utility

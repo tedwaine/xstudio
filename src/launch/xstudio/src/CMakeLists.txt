@@ -17,14 +17,11 @@ find_package(OpenSSL)
 find_package(ZLIB)
 find_package(fmt REQUIRED)
 
-if(WIN32)
-# TED - OTIO disabled for WINDOWS?
-#find_package(OpenTime REQUIRED)
-#find_package(OpenTimelineIO REQUIRED)
-else()
-find_package(OpenTime REQUIRED)
-find_package(OpenTimelineIO REQUIRED)
+if(NOT ${OTIO_SUBMODULE})
+	find_package(OpenTime REQUIRED)
+	find_package(OpenTimelineIO REQUIRED)
 endif()
+
 set(CMAKE_AUTOUIC ON)
 set(CMAKE_AUTOMOC ON)
 set(CMAKE_AUTORCC ON)
