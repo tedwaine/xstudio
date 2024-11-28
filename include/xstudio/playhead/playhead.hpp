@@ -105,6 +105,7 @@ namespace playhead {
         }
         void set_duration(const timebase::flicks duration);
         void set_assembly_mode(const AssemblyMode mode);
+        void set_auto_align_mode(const AutoAlignMode mode);
 
         bool set_use_loop_range(const bool use_loop_range);
         bool set_loop_start(const timebase::flicks loop_start);
@@ -197,6 +198,7 @@ namespace playhead {
         module::IntegerAttribute *max_compare_sources_;
         module::BooleanAttribute *restore_play_state_after_scrub_;
         module::BooleanAttribute *click_to_toggle_play_;
+        module::BooleanAttribute *timeline_mode_;
         module::IntegerAttribute *viewport_scrub_sensitivity_;
         module::IntegerAttribute *source_offset_frames_;
 

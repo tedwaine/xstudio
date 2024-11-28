@@ -133,7 +133,6 @@ macro(default_options name)
     	$<BUILD_INTERFACE:${ROOT_DIR}/extern/otio/OpenTimelineIO/src>
   		$<INSTALL_INTERFACE:include>
 		$<INSTALL_INTERFACE:extern/include>
-    	$<INSTALL_INTERFACE:extern/otio/OpenTimelineIO/src>
 		)
 endmacro()
 

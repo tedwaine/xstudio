@@ -848,7 +848,8 @@ struct Launcher {
             if (playhead_selection_actor) {
                 // Reset the current selection so that the added media is what is
                 // selected.
-                UuidList selection;
+                UuidVector selection;
+                selection.reserve(added_media.size());
                 for (auto &new_media : added_media) {
                     selection.push_back(new_media.uuid());
                 }

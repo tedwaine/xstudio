@@ -266,7 +266,6 @@ namespace ui {
             }
 
             template <typename T> T get_current() const {
-                std::shared_lock l(mutex_);
                 return std::get<T>(current_item_.value());
             }
 

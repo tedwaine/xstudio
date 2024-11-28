@@ -231,6 +231,13 @@ namespace shotbrowser {
             const int page                      = 1,
             const utility::JsonStore &prev_data = utility::JsonStore(R"([])"_json));
 
+        void get_data_shot_for_sequence(
+            caf::typed_response_promise<utility::JsonStore> rp,
+            const std::string &type,
+            const int project_id,
+            const int page                      = 1,
+            const utility::JsonStore &prev_data = utility::JsonStore(R"([])"_json));
+
         void get_data_sequence(
             caf::typed_response_promise<utility::JsonStore> rp,
             const std::string &type,

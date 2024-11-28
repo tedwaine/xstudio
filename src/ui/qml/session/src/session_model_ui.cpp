@@ -1228,18 +1228,44 @@ void SessionModel::moveSelectionByIndex(const QModelIndex &index, const int offs
     }
 }
 
-void SessionModel::updateSelection(const QModelIndex &index, const QModelIndexList &selection) {
+void SessionModel::updateSelection(
+    const QModelIndex &index,
+    const QModelIndexList &selection,
+    const QItemSelectionModel::SelectionFlags &qmode) {
     try {
         if (index.isValid()) {
             nlohmann::json &j = indexToData(index);
             if (j.at("type") == "PlayheadSelection" && j.at("actor").is_string()) {
                 auto actor = actorFromString(system(), j.at("actor"));
                 if (actor) {
-                    UuidList uv;
+                    utility::UuidVector uv;
+                    uv.reserve(selection.size());
                     for (const auto &i : selection) {
                         uv.emplace_back(UuidFromQUuid(i.data(actorUuidRole).toUuid()));
                     }
-                    anon_send(actor, playlist::select_media_atom_v, uv);
+                    playhead::SelectionMode mode = playhead::SelectionMode::SM_NO_UPDATE;
+                    switch (qmode) {
+                    case QItemSelectionModel::Clear:
+                        mode = playhead::SelectionMode::SM_CLEAR;
+                        break;
+                    case QItemSelectionModel::Select:
+                        mode = playhead::SelectionMode::SM_SELECT;
+                        break;
+                    case QItemSelectionModel::Deselect:
+                        mode = playhead::SelectionMode::SM_DESELECT;
+                        break;
+                    case QItemSelectionModel::Toggle:
+                        mode = playhead::SelectionMode::SM_TOGGLE;
+                        break;
+                    case QItemSelectionModel::ClearAndSelect:
+                        mode = playhead::SelectionMode::SM_CLEAR_AND_SELECT;
+                        break;
+                    case QItemSelectionModel::NoUpdate:
+                    default:
+                        break;
+                    }
+
+                    anon_send(actor, playlist::select_media_atom_v, uv, mode);
                 }
             }
         }

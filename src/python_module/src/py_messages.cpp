@@ -67,6 +67,8 @@ void py_config::add_messages() {
         "PluginDetailVec", "std::vector<xstudio::plugin_manager::PluginDetail>", nullptr);
     add_message_type<playhead::AssemblyMode>(
         "AssemblyMode", "xstudio::playhead::AssemblyMode", nullptr);
+    add_message_type<playhead::AutoAlignMode>(
+        "AutoAlignMode", "xstudio::playhead::AutoAlignMode", nullptr);
     add_message_type<global::StatusType>("StatusType", "xstudio::global::StatusType", nullptr);
     add_message_type<playhead::LoopMode>("LoopMode", "xstudio::playhead::LoopMode", nullptr);
     add_message_type<playhead::OverflowMode>(

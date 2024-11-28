@@ -426,7 +426,7 @@ function selectTimelineCallback(playlist_index, uuids, wait=4) {
 				sessionSelectionModel.setCurrentIndex(
 					helpers.makePersistent(tindex),
 					ItemSelectionModel.ClearAndSelect)
-				viewedMediaSetIndex = helpers.makePersistent(tindex)
+				// viewedMediaSetIndex = helpers.makePersistent(tindex)
 			});
 
 		} else if(wait) {

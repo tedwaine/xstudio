@@ -399,8 +399,10 @@ class SESSION_QML_EXPORT SessionModel : public caf::mixin::actor_object<JSONTree
     [[nodiscard]] QVariant playlists() const;
 
     Q_INVOKABLE void moveSelectionByIndex(const QModelIndex &index, const int offset);
-    Q_INVOKABLE void
-    updateSelection(const QModelIndex &index, const QModelIndexList &selection);
+    Q_INVOKABLE void updateSelection(
+        const QModelIndex &index,
+        const QModelIndexList &selection,
+        const QItemSelectionModel::SelectionFlags &mode = QItemSelectionModel::ClearAndSelect);
     Q_INVOKABLE void
     updateMediaListFilterString(const QModelIndex &index, const QString &filter_string);
     Q_INVOKABLE void gatherMediaFor(const QModelIndex &index, const QModelIndexList &selection);

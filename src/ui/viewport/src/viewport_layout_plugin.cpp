@@ -15,17 +15,7 @@ using namespace xstudio::ui::viewport;
 ViewportLayoutPlugin::ViewportLayoutPlugin(
     caf::actor_config &cfg,
     const utility::JsonStore &init_settings) : 
-    plugin::StandardPlugin(cfg, init_settings.value("name", "ViewportLayoutPlugin"), init_settings), is_python_plugin_(init_settings.value("is_python_plugin", false)) 
-{
-    init();
-}
-
-ViewportLayoutPlugin::ViewportLayoutPlugin(
-    caf::actor_config &cfg,
-    std::string name,
-    const bool is_python_plugin,
-    const utility::JsonStore &init_settings)
-    : plugin::StandardPlugin(cfg, name, init_settings), is_python_plugin_(is_python_plugin)
+    plugin::StandardPlugin(cfg, init_settings.value("name", "ViewportLayoutPlugin"), init_settings), is_python_plugin_(init_settings.value("is_python", false)) 
 {
     init();
 }
@@ -93,9 +83,9 @@ void ViewportLayoutPlugin::init() {
             }
             return rp;
         },
-        [=](viewport_layout_atom, const std::string &layout_name, const xstudio::playhead::AssemblyMode mode) {
+        [=](viewport_layout_atom, const std::string &layout_name, const xstudio::playhead::AssemblyMode mode, const xstudio::playhead::AutoAlignMode auto_align) {
             // used by Python ViewportLayoutPlugin api
-            add_layout_mode(layout_name, mode);
+            add_layout_mode(layout_name, mode, auto_align);
         },
         };
 
@@ -171,7 +161,6 @@ void ViewportLayoutPlugin::__do_layout(
             fmt::format("{}",
             image_set->images_layout_hash())
             );
-
         pending_responses_[image_set->images_layout_hash()].push_back(rp);
         return;
     }
@@ -289,7 +278,9 @@ void ViewportLayoutPlugin::add_viewport_layout_qml_overlay(
 
 
 void ViewportLayoutPlugin::add_layout_mode(
-          const std::string &name, const xstudio::playhead::AssemblyMode mode
+          const std::string &name, 
+          const playhead::AssemblyMode mode,
+          const playhead::AutoAlignMode default_auto_align
           ) 
 {
 
@@ -299,7 +290,8 @@ void ViewportLayoutPlugin::add_layout_mode(
         viewport_layout_atom_v,
         caf::actor_cast<caf::actor>(this),
         name,
-        mode).then(
+        mode,
+        default_auto_align).then(
             [=](bool accepted) {
                 if (accepted) {
                     auto layout_toggle = add_string_attribute(name, name, "");
@@ -354,7 +346,8 @@ ViewportLayoutManager::ViewportLayoutManager(caf::actor_config &cfg) : caf::even
         [=](ui::viewport::viewport_layout_atom,
             caf::actor layout_actor,
             const std::string &layout_name,
-            const xstudio::playhead::AssemblyMode mode) -> result<bool> {
+            const playhead::AssemblyMode mode,
+            const playhead::AutoAlignMode default_align_mode) -> result<bool> {
             // Here a layout actor is registering a layout with us
             if (viewport_layouts_.contains(layout_name)) {
                 return make_error(
@@ -362,7 +355,7 @@ ViewportLayoutManager::ViewportLayoutManager(caf::actor_config &cfg) : caf::even
                     fmt::format(
                         "A viewport layout name \"{}\" is already registered.", layout_name));
             }
-            viewport_layouts_[layout_name] = std::make_pair(layout_actor, mode);
+            viewport_layouts_[layout_name] = std::make_pair(layout_actor,std::make_pair(default_align_mode, mode));
             return true;
         },
         [=](viewport_layout_atom,
@@ -379,7 +372,7 @@ ViewportLayoutManager::ViewportLayoutManager(caf::actor_config &cfg) : caf::even
             return viewport_layouts_[layout_name].first;
         },
         [=](playhead::compare_mode_atom,
-            const std::string &layout_name) -> result<xstudio::playhead::AssemblyMode> {
+            const std::string &layout_name) -> result<std::pair<xstudio::playhead::AutoAlignMode, xstudio::playhead::AssemblyMode>> {
             if (not viewport_layouts_.contains(layout_name)) {
                 return make_error(
                     xstudio_error::error,
@@ -426,12 +419,15 @@ void ViewportLayoutManager::spawn_plugins() {
 
                 // instance the plugin. Each plugin automatically registeres 
                 // itself with this class on construction (see above)
+                utility::JsonStore j;
+                j["name"] = pd.name_;
+                j["is_python_plugin"] = false;
                 request(
                     pm,
                     infinite,
                     plugin_manager::spawn_plugin_atom_v,
                     pd.uuid_,
-                    utility::JsonStore()
+                    j
                     ).then(
                         [=](caf::actor) {
                         },

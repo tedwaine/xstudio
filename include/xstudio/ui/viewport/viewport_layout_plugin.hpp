@@ -34,12 +34,6 @@ namespace viewport {
 
         ViewportLayoutPlugin(
             caf::actor_config &cfg,
-            std::string name,
-            bool is_python_plugin,
-            const utility::JsonStore &init_settings);
-
-        ViewportLayoutPlugin(
-            caf::actor_config &cfg,
             const utility::JsonStore &init_settings);
 
       protected:
@@ -85,7 +79,9 @@ namespace viewport {
          *
          */
         void add_layout_mode(
-          const std::string &name, const xstudio::playhead::AssemblyMode mode
+          const std::string &name,
+          const playhead::AssemblyMode mode,
+          const playhead::AutoAlignMode default_auto_align = playhead::AutoAlignMode::AAM_ALIGN_OFF
           );
 
         /**
@@ -181,7 +177,7 @@ namespace viewport {
         caf::behavior behavior_;
 
         std::map<std::string, caf::actor> viewport_layout_plugins_;
-        std::map<std::string, std::pair<caf::actor, playhead::AssemblyMode >> viewport_layouts_;        
+        std::map<std::string, std::pair<caf::actor, std::pair<playhead::AutoAlignMode, playhead::AssemblyMode> >> viewport_layouts_;        
         caf::actor event_group_;
 
     };

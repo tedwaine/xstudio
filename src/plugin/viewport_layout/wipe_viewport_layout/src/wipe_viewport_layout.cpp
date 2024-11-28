@@ -143,7 +143,7 @@ void OpenGLViewportWipeRenderer::draw_image(
 WipeViewportLayout::WipeViewportLayout(
     caf::actor_config &cfg,
     const utility::JsonStore &init_settings)
-    : ViewportLayoutPlugin(cfg, "Wipe Viewport Layout", false, init_settings) {
+    : ViewportLayoutPlugin(cfg, init_settings) {
 
     wipe_position_ = add_vec4f_attribute("Wipe Position", "Wipe Position", Imath::V4f(0.5f,0.5f,0.0f,1.0f));
     wipe_position_->set_redraw_viewport_on_change(true);
@@ -151,7 +151,7 @@ WipeViewportLayout::WipeViewportLayout(
     add_layout_settings_attribute(wipe_position_, "Wipe");
     wipe_position_->expose_in_ui_attrs_group("wipe_layout_attrs");
 
-    add_layout_mode("Wipe", playhead::AssemblyMode::AM_TEN);
+    add_layout_mode("Wipe", playhead::AssemblyMode::AM_TEN, playhead::AutoAlignMode::AAM_ALIGN_FRAMES);
 
     add_viewport_layout_qml_overlay(
         "Wipe",

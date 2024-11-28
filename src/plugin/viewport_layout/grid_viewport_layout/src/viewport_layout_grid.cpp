@@ -14,7 +14,7 @@ using namespace xstudio;
 GridViewportLayout::GridViewportLayout(
     caf::actor_config &cfg,
     const utility::JsonStore &init_settings)
-    : ViewportLayoutPlugin(cfg, "Grid Viewport Layout", false, init_settings) {
+    : ViewportLayoutPlugin(cfg, init_settings) {
 
     spacing_ = add_float_attribute("Spacing", "Spacing", 0.0f, 0.0f, 50.0f, 0.5f);
     spacing_->set_redraw_viewport_on_change(true);

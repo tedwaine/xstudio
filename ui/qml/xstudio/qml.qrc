@@ -59,6 +59,7 @@
 	    <file>views/media/list_view/widgets/XsMediaMetadataWindow.qml</file>
 	    <file>views/media/widgets/XsMediaListMouseArea.qml</file>
 	    <file>views/media/widgets/XsMediaListPlusMenu.qml</file>
+	    <file>views/media/widgets/XsMediaListRemoveMenu.qml</file>
 		<file>views/media/widgets/XsMediaListContextMenu.qml</file>
 		<file>views/media/widgets/XsMediaListSwitchSourceMenu.qml</file>
 	    <file>views/media/widgets/XsMediaHotKeys.qml</file>

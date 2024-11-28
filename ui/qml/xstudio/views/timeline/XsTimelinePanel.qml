@@ -37,6 +37,7 @@ XsGradientRectangle{
     property var currentClipRange: []
     property var currentClipHandles: []
     property var currentClipIndex: null
+    property var timelinePlayheadSelectionIndex: null
 
     //#TODO: test
     property bool showIcons: false
@@ -125,6 +126,7 @@ XsGradientRectangle{
                 theTimeline.timelineModel.rootIndex.parent
                 )
 
+
             if (playhead_idx.valid) {
                 let playhead_uuid = theSessionData.get(playhead_idx, "actorUuidRole")
                 if (playhead_uuid == undefined) {
@@ -137,6 +139,12 @@ XsGradientRectangle{
                 } else {
                     timelinePlayhead.uuid = playhead_uuid
                 }
+            }
+
+            let sind = theSessionData.searchRecursive("PlayheadSelection", "typeRole", theTimeline.timelineModel.rootIndex.parent)
+
+            if (sind.valid) {
+                timelinePlayheadSelectionIndex = helpers.makePersistent(sind)
             }
         }
     }

@@ -164,7 +164,7 @@ RowLayout{
         closePolicy: filterBtn.hovered ? Popup.CloseOnEscape :  Popup.CloseOnEscape | Popup.CloseOnPressOutside
         XsMenuModelItem {
             menuItemType: "divider"
-            text: "Status"
+            text: "Hide Status"
             menuItemPosition: 1
             menuPath: ""
             menuModelName: projectFilterPopup.menu_model_name
@@ -206,7 +206,7 @@ RowLayout{
 
         XsMenuModelItem {
             menuItemType: "divider"
-            text: "Division"
+            text: "Hide Division"
             menuItemPosition: 99
             menuPath: ""
             menuModelName: projectFilterPopup.menu_model_name

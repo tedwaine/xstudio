@@ -150,7 +150,7 @@ Item{
             }
 
             XsMenuModelItem {
-                text: "Unit"
+                text: "Hide Unit"
                 menuItemType: "divider"
                 menuPath: ""
                 menuItemPosition: 1
@@ -211,7 +211,7 @@ Item{
             }
 
             XsMenuModelItem {
-                text: "Status"
+                text: "Hide Status"
                 menuItemType: "divider"
                 menuPath: ""
                 menuItemPosition: 100

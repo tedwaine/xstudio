@@ -513,7 +513,6 @@ void IvyMediaWorker::add_sources_to_media(
     rp.deliver(result);
 }
 
-
 void IvyMediaWorker::add_media_source(
     caf::typed_response_promise<utility::UuidActor> rp,
     const JsonStore &jsn,
@@ -526,11 +525,20 @@ void IvyMediaWorker::add_media_source(
     auto name = jsn.at("name").get<std::string>();
 
     if (jsn.at("version").at("kind").at("name") == "Audio") {
+        auto label = std::string();
+        auto type  = std::string();
         for (const auto &nt : jsn.at("version").at("name_tags")) {
-            if (nt.at("name") == "type") {
-                name = nt.at("value");
-                break;
+            if (nt.at("name") == "label") {
+                label = nt.at("value");
+                name  = label;
+            } else if (nt.at("name") == "type") {
+                type = nt.at("value");
+                name = type;
             }
+        }
+
+        if (not label.empty() and not type.empty()) {
+            name = label + "-" + type;
         }
     }
 

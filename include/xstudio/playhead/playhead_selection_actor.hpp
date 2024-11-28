@@ -35,7 +35,10 @@ namespace playhead {
             return message_handler().or_else(base_.container_message_handler(this));
         }
 
-        void select_media(const utility::UuidList &media_uuids, const bool retry = true);
+        void select_media(
+            const utility::UuidVector &media_uuids = utility::UuidVector(),
+            const bool retry                       = true,
+            const SelectionMode mode               = SM_CLEAR_AND_SELECT);
 
         void insert_actor(
             caf::actor actor, const utility::Uuid media_uuid, const utility::Uuid &before_uuid);

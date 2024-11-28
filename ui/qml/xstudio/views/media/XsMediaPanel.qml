@@ -133,6 +133,7 @@ Item{
     property var deselectAll: media_list_functions.deselectAll
     property var mediaIndexAfterRemoved: media_list_functions.mediaIndexAfterRemoved
     property var deleteSelected: media_list_functions.deleteSelected
+    property var deleteOffline: media_list_functions.deleteOffline
     property var selectUp: media_list_functions.selectUp
     property var selectDown: media_list_functions.selectDown
     property var cycleSelection: media_list_functions.cycleSelection
@@ -145,11 +146,24 @@ Item{
     }
 
     Loader {
+        id: menu_loader_remove
+    }
+
+    Loader {
         id: menu_loader_context
     }
+
     Component {
         id: plusMenuComponent
         XsMediaListPlusMenu {
+            property bool hoveredButton: false
+            closePolicy: hoveredButton ? Popup.CloseOnEscape :  Popup.CloseOnEscape | Popup.CloseOnPressOutside
+        }
+    }
+
+    Component {
+        id: removeMenuComponent
+        XsMediaListRemoveMenu {
             property bool hoveredButton: false
             closePolicy: hoveredButton ? Popup.CloseOnEscape :  Popup.CloseOnEscape | Popup.CloseOnPressOutside
         }
@@ -177,6 +191,25 @@ Item{
         }
         menu_loader_plus.item.hoveredButton = Qt.binding(function() { return parent.hovered })
         menu_loader_plus.item.showMenu(
+            parent,
+            mx,
+            my);
+    }
+
+    function toggleRemoveMenu(mx, my, parent) {
+        if (menu_loader_remove.item == undefined || !menu_loader_remove.item.visible) {
+            showRemoveMenu(mx, my, parent)
+        } else {
+            menu_loader_remove.item.close()
+        }
+    }
+
+    function showRemoveMenu(mx, my, parent) {
+        if (menu_loader_remove.item == undefined) {
+            menu_loader_remove.sourceComponent = removeMenuComponent
+        }
+        menu_loader_remove.item.hoveredButton = Qt.binding(function() { return parent.hovered })
+        menu_loader_remove.item.showMenu(
             parent,
             mx,
             my);

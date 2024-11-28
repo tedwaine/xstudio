@@ -871,6 +871,8 @@ void ShotBrowser::get_data(
                 get_data_user(rp, type, project_id);
             else if (type == "shot")
                 get_data_shot(rp, type, project_id);
+            else if (type == "sequence_shot")
+                get_data_shot_for_sequence(rp, type, project_id);
             else if (type == "pipe_step")
                 get_pipe_step(rp);
             else if (type == "sequence")
@@ -1248,6 +1250,57 @@ void ShotBrowser::get_data_user(
             [=](error &err) mutable { rp.deliver(err); });
 }
 
+void ShotBrowser::get_data_shot_for_sequence(
+    caf::typed_response_promise<utility::JsonStore> rp,
+    const std::string &type,
+    const int project_id,
+    const int page,
+    const JsonStore &prev_data) {
+
+    auto filter = R"(
+    {
+        "logical_operator": "and",
+        "conditions": [
+            ["project", "is", {"type":"Project", "id":0}]
+        ]
+    })"_json;
+
+    filter["conditions"][0][2]["id"] = project_id;
+
+    request(
+        shotgun_,
+        infinite,
+        shotgun_entity_search_atom_v,
+        "Shots",
+        JsonStore(filter),
+        SequenceShotFields,
+        std::vector<std::string>({"id"}),
+        page,
+        4999)
+        .then(
+            [=](const JsonStore &data) mutable {
+                try {
+                    if (not data.count("data"))
+                        rp.deliver(make_error(xstudio_error::error, data.dump(2)));
+                    else {
+                        auto total = prev_data;
+                        total.insert(
+                            total.end(), data.at("data").begin(), data.at("data").end());
+
+                        if (data.at("data").size() == 4999) {
+                            get_data_shot_for_sequence(rp, type, project_id, page + 1, total);
+                        } else {
+                            rp.deliver(total);
+                        }
+                    }
+                } catch (const std::exception &err) {
+                    spdlog::warn("{} {}", __PRETTY_FUNCTION__, err.what());
+                    rp.deliver(make_error(xstudio_error::error, err.what()));
+                }
+            },
+            [=](error &err) mutable { rp.deliver(err); });
+}
+
 void ShotBrowser::get_data_shot(
     caf::typed_response_promise<utility::JsonStore> rp,
     const std::string &type,
@@ -1396,7 +1449,8 @@ void ShotBrowser::get_data_unit(
     {
         "logical_operator": "and",
         "conditions": [
-            ["project", "is", {"type":"Project", "id":0}]
+            ["project", "is", {"type":"Project", "id":0}],
+            ["sg_shots", "is_not", null]
         ]
     })"_json;
 
@@ -1562,31 +1616,21 @@ void ShotBrowser::get_data_sequence(
 
                             // ["sg_status_list", "in", ["na","del"]]
 
+                            auto getShotData = GetData;
+                            getShotData["project_id"] = project_id;
+                            getShotData["type"] = "sequence_shot";
+
                             request(
-                                shotgun_,
+                                caf::actor_cast<caf::actor>(this),
                                 infinite,
-                                shotgun_entity_search_atom_v,
-                                "Shots",
-                                JsonStore(statusfilter),
-                                SequenceShotFields,
-                                std::vector<std::string>({"id"}),
-                                1,
-                                4999)
+                                get_data_atom_v,
+                                JsonStore(getShotData))
                                 .then(
                                     [=](const JsonStore &statusdata) mutable {
                                         try {
-                                            if (not statusdata.count("data"))
-                                                rp.deliver(make_error(
-                                                    xstudio_error::error, statusdata.dump(2)));
-
-                                            if (statusdata.at("data").size() == 4999)
-                                                spdlog::warn(
-                                                    "{} Shot list truncated.",
-                                                    __PRETTY_FUNCTION__);
-
                                             // build set of deleted shot id's
                                             std::map<int64_t, nlohmann::json> shot_data;
-                                            for (const auto &i : statusdata.at("data"))
+                                            for (const auto &i : statusdata)
                                                 shot_data[i.at("id").get<int64_t>()] = i;
 
                                             if (not shot_data.empty()) {

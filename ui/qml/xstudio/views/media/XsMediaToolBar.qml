@@ -47,10 +47,9 @@ Item {
             Layout.preferredWidth: btnWidth
             Layout.preferredHeight: btnHeight
             imgSrc: "qrc:/icons/delete.svg"
-            onClicked: {
-                deleteSelected()
-            }
+            onClicked: toggleRemoveMenu(width/2, height/2, deleteBtn)
         }
+
         XsSearchButton{
             id: searchBtn
             Layout.preferredWidth: isExpanded? btnWidth*6 : btnWidth

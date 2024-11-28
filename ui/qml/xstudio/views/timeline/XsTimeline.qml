@@ -778,9 +778,14 @@ Rectangle {
             if(ind.valid && !vmedia.includes(ind))
                 vmedia.push(ind)
         }
-        mediaSelectionModel.select(
-            helpers.createItemSelection(vmedia),
-            mode & Qt.ShiftModifier ? ItemSelectionModel.Deselect : mode & Qt.ControlModifier ? ItemSelectionModel.Select : ItemSelectionModel.ClearAndSelect)
+
+        if(timelinePlayheadSelectionIndex.valid)
+            theSessionData.updateSelection(timelinePlayheadSelectionIndex, vmedia, mode & Qt.ShiftModifier ? ItemSelectionModel.Deselect : mode & Qt.ControlModifier ? ItemSelectionModel.Select : ItemSelectionModel.ClearAndSelect)
+
+
+        // mediaSelectionModel.select(
+        //     helpers.createItemSelection(vmedia),
+        //     mode & Qt.ShiftModifier ? ItemSelectionModel.Deselect : mode & Qt.ControlModifier ? ItemSelectionModel.Select : ItemSelectionModel.ClearAndSelect)
 
         // audio clips.
         let pa = mapToItem(list_view.itemAtIndex(0).list_view_audio, x, y)
@@ -814,9 +819,14 @@ Rectangle {
             if(ind.valid && !amedia.includes(ind))
                 amedia.push(ind)
         }
-        mediaSelectionModel.select(
-            helpers.createItemSelection(amedia),
-            mode & Qt.ShiftModifier ? ItemSelectionModel.Deselect : ItemSelectionModel.Select)
+
+        if(timelinePlayheadSelectionIndex.valid)
+            theSessionData.updateSelection(timelinePlayheadSelectionIndex, amedia,
+                mode & Qt.ShiftModifier ? ItemSelectionModel.Deselect : ItemSelectionModel.Select)
+
+        // mediaSelectionModel.select(
+        //     helpers.createItemSelection(amedia),
+        //     mode & Qt.ShiftModifier ? ItemSelectionModel.Deselect : ItemSelectionModel.Select)
     }
 
     function resolveItem(x, y) {
@@ -1717,7 +1727,11 @@ Rectangle {
                                             }
                                         }
                                         timelineSelection.select(helpers.createItemSelection(items), ItemSelectionModel.ClearAndSelect)
-                                        mediaSelectionModel.select(helpers.createItemSelection(mitems), ItemSelectionModel.ClearAndSelect)
+
+                                        if(timelinePlayheadSelectionIndex.valid)
+                                            theSessionData.updateSelection(timelinePlayheadSelectionIndex, mitems, ItemSelectionModel.ClearAndSelect)
+
+                                        // mediaSelectionModel.select(helpers.createItemSelection(mitems), ItemSelectionModel.ClearAndSelect)
                                     }
                                 } else {
                                     selectItem()
@@ -1735,8 +1749,13 @@ Rectangle {
                                 if(["Clip","Audio Track", "Video Track"].includes(hovered.itemTypeRole)) {
                                     timelineSelection.select(hovered.modelIndex(), new_state)
 
-                                    if(hovered.itemTypeRole == "Clip" && hovered.mediaIndex.valid) {
-                                        mediaSelectionModel.select(hovered.mediaIndex, new_state)
+                                    if(hovered.itemTypeRole == "Clip" && hovered.mediaIndex.valid && timelinePlayheadSelectionIndex.valid) {
+                                        theSessionData.updateSelection(
+                                            timelinePlayheadSelectionIndex,
+                                            [hovered.mediaIndex],
+                                            new_state
+                                        )
+                                        // mediaSelectionModel.select(hovered.mediaIndex, new_state)
                                     }
                                 }
                             }
@@ -1751,9 +1770,10 @@ Rectangle {
                 if(hovered.itemTypeRole == "Clip" && hovered.hasMedia) {
                     // find media in media list and select ?
                     let mind = hovered.mediaIndex
-                    if(mind.valid) {
-                        mediaSelectionModel.select(mind, ItemSelectionModel.ClearAndSelect)
+                    if(mind.valid && timelinePlayheadSelectionIndex.valid) {
+                        theSessionData.updateSelection(timelinePlayheadSelectionIndex, [mind])
                     }
+                    // mediaSelectionModel.select(mind, ItemSelectionModel.ClearAndSelect)
                 }
 
                 if(dragging) {

@@ -338,10 +338,10 @@ PluginManagerActor::PluginManagerActor(caf::actor_config &cfg) : caf::event_base
                 for (auto &detail: details) {
                     if (detail.name_ == "DefaultViewportLayout") {
                         try {
-                            auto j       = json;
+                            auto j = json;
                             j["name"] = name;
                             j["is_python"] = true;
-                            rp.deliver(manager_.spawn(*scoped_actor(system()), detail.uuid_, json));
+                            rp.deliver(manager_.spawn(*scoped_actor(system()), detail.uuid_, j));
                         } catch (std::exception &e) {
                             rp.deliver(make_error(xstudio_error::error, e.what()));
                         }

@@ -96,7 +96,7 @@ TEST(PlayheadActorTest, Test) {
 
     using namespace std::chrono_literals;
 
-    UuidList uuids = {media1_uuid, media2_uuid, media3_uuid};
+    utility::UuidVector uuids = {media1_uuid, media2_uuid, media3_uuid};
 
     std::this_thread::sleep_for(100ms);
 

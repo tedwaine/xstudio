@@ -1,6 +1,6 @@
 from xstudio.plugin.plugin_base import PluginBase
 from xstudio.core import viewport_layout_atom
-from xstudio.core import AssemblyMode
+from xstudio.core import AssemblyMode, AutoAlignMode
 from xstudio.core import JsonStore
 import json
 
@@ -33,7 +33,7 @@ class ViewportLayoutPlugin(PluginBase):
             self,
             self.layout_callback)
 
-    def add_layout_mode(self, name, playhead_assembly_mode):
+    def add_layout_mode(self, name, playhead_assembly_mode, auto_align_mode=AutoAlignMode.AAM_ALIGN_OFF):
         """Add a viewport layout mode 
 
         Args:
@@ -49,7 +49,8 @@ class ViewportLayoutPlugin(PluginBase):
                 self.remote,
                 viewport_layout_atom(),
                 name,
-                playhead_assembly_mode)            
+                playhead_assembly_mode,
+                auto_align_mode)            
 
     def add_layout_settings_attribute(
         self,

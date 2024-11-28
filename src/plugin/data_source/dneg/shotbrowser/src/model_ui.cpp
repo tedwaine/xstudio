@@ -333,6 +333,7 @@ QVariant ShotBrowserSequenceModel::data(const QModelIndex &index, int role) cons
             if (j.contains(sg_status_list))
                 result = QString::fromStdString(j.at(sg_status_list).get<std::string>());
             break;
+
         case Roles::unitRole:
             if (j.contains(sg_unit))
                 result = QString::fromStdString(j.at(sg_unit).get<std::string>());

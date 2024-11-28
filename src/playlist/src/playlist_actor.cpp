@@ -1476,7 +1476,9 @@ caf::message_handler PlaylistActor::message_handler() {
                             // by sending an empty list this will force the
                             // selection actor to select the first item in this playlist
                             anon_send(
-                                selection_actor_, playlist::select_media_atom_v, UuidList());
+                                selection_actor_,
+                                playlist::select_media_atom_v,
+                                utility::UuidVector());
                         }
                     },
                     [=](error &err) mutable {

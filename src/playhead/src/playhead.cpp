@@ -133,6 +133,9 @@ void PlayheadBase::add_attributes() {
     source_offset_frames_ =
         add_integer_attribute("Source Offset Frames", "Source Offset Frames", 0);
 
+    timeline_mode_ =
+        add_boolean_attribute("Timeline Mode", "Timeline Mode", false);
+
     // Compare mode needs custom QML code for instatiation into the toolbar as
     // the choices are determined through viewport layout plugins
     compare_mode_ = add_string_attribute(
@@ -658,6 +661,15 @@ AutoAlignMode PlayheadBase::auto_align_mode() const {
 
 void PlayheadBase::set_assembly_mode(const AssemblyMode mode) {
     assembly_mode_ = mode;
+}
+
+void PlayheadBase::set_auto_align_mode(const AutoAlignMode mode) {
+    for (auto &a: auto_align_mode_names) {
+        if (std::get<0>(a) == mode) {
+            auto_align_mode_->set_value(std::get<1>(a));
+            break;
+        }
+    }
 }
 
 void PlayheadBase::disconnect_from_ui() {

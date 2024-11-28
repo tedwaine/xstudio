@@ -17,7 +17,7 @@ import xstudio.qml.models 1.0
 XsWindow{
     id: presetEditPopup
 
-    property var presetIndex: null
+    property var presetIndex: helpers.qModelIndex()
     property string entityType: "Versions"
     property string entityName: ""
     property string entityCategory: "Group"
@@ -36,7 +36,7 @@ XsWindow{
     onClosing: coln.focus = true
 
     onPresetIndexChanged: {
-        if(presetIndex && presetIndex.valid) {
+        if(presetIndex.valid) {
             presetTermModel.rootIndex = presetIndex
             presetList.model.newTermParent = presetIndex
         }
@@ -116,7 +116,7 @@ XsWindow{
 
             model: DelegateModel {
                 id: presetDelegateModel
-                property var notifyModel: presetTermModel
+                property var notifyModel: presetTermModel.rootIndex.valid ? presetTermModel : []
                 model: notifyModel
 
                 property var newTermParent: null

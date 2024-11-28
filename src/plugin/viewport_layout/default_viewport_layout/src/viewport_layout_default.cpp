@@ -14,7 +14,7 @@ using namespace xstudio;
 DefaultViewportLayout::DefaultViewportLayout(
     caf::actor_config &cfg,
     const utility::JsonStore &init_settings)
-    : ViewportLayoutPlugin(cfg, "Default Viewport Layout", false, init_settings) {
+    : ViewportLayoutPlugin(cfg, init_settings) {
 
     // Note: the base class takes care of making the actual layout data. The 
     // default layout is to just display the 'hero' image in the ImageDisplaySet
@@ -23,9 +23,16 @@ DefaultViewportLayout::DefaultViewportLayout(
     // String mode will trigger the playhead's logic for AM_STRING AssemblyMode
     // where it takes N input sources and 'strings' them togoether so that they
     // play in sequence.
-    add_layout_mode("Off", playhead::AssemblyMode::AM_ONE);
-    add_layout_mode("String", playhead::AssemblyMode::AM_STRING);
-    add_layout_mode("A/B", playhead::AssemblyMode::AM_TEN);
+
+    // this is awkward - to avoid circular build dependency between openglviewport and viewport
+    // I have to use this DefaultViewportLayout for backing python plugins that
+    // are a ViewportLayoutPlugin. We don't want to add these layout modes if
+    // this is an instance that is backing a python plugin.
+    if (!init_settings.value("is_python", false)) {
+        add_layout_mode("Off", playhead::AssemblyMode::AM_ONE);
+        add_layout_mode("String", playhead::AssemblyMode::AM_STRING);
+        add_layout_mode("A/B", playhead::AssemblyMode::AM_TEN, playhead::AutoAlignMode::AAM_ALIGN_FRAMES);
+    }
 
 }
 

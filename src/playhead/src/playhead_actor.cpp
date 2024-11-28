@@ -615,17 +615,22 @@ void PlayheadActor::init() {
             media::add_media_source_atom,
             const utility::UuidActorVector &) { current_media_changed(media_actor_, true); },
 
-        [=](playlist::select_media_atom, const UuidList &selection) {
+        [=](playlist::select_media_atom, const UuidVector &selection) {
             delegate(playlist_selection_, playlist::select_media_atom_v, selection);
         },
 
         [=](playlist::select_media_atom, const Uuid &media_id, const bool add_select) {
-            if (parent_playlist_) {
+
+            // this message comes from the Viewport. It sends it when the user clicks on
+            // the viewport to select an image in a Grid layout. If we are not doing
+            // a contact sheet we don't want to modify the selection this way as it 
+            // will immediately change what's in the Grid, for example
+            if (parent_playlist_ && contact_sheet_mode_) {
                 auto playlist = caf::actor_cast<caf::actor>(parent_playlist_);
                 request(playlist, infinite, playlist::selection_actor_atom_v).then(
                     [=](caf::actor selection_actor) {
                         if (selection_actor) {
-                            UuidList l;
+                            UuidVector l;
                             l.push_back(media_id);
                             anon_send(selection_actor, playlist::select_media_atom_v, l);
                         }
@@ -1491,6 +1496,8 @@ void PlayheadActor::make_audio_child_playhead(const int source_index) {
 }
 
 void PlayheadActor::new_source_list() {
+
+    timeline_mode_->set_value(timeline_mode());
 
     const auto &sl = timeline_mode() ? timeline_track_actors_ : dynamic_source_actors_;
 
@@ -2470,12 +2477,14 @@ void PlayheadActor::attribute_changed(const utility::Uuid &attr_uuid, const int 
 
         // get the assembly mode for the new compare mode
         request(layouts_manager, infinite, playhead::compare_mode_atom_v, compare_mode_->value()).then(
-            [=](playhead::AssemblyMode mode) {
-                if (mode != assembly_mode()) {
-                    set_assembly_mode(mode); 
+            [=](std::pair< xstudio::playhead::AutoAlignMode, xstudio::playhead::AssemblyMode> mode) {
+                if (mode.second != assembly_mode()) {
+                    set_assembly_mode(mode.second); 
                     source_actors_.clear();
                     new_source_list();
+                    // get the default align mode
                 }
+                set_auto_align_mode(mode.first);
             },
             [=](caf::error &err) {
                 spdlog::warn("{} {}", __PRETTY_FUNCTION__, to_string(err));

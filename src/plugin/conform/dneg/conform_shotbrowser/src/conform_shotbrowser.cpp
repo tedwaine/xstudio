@@ -600,50 +600,6 @@ template <typename T> class ShotbrowserConformActor : public caf::event_based_ac
                     auto pm =
                         R"({"metadata": {"external": {"DNeg": {"shot": null, "show":null, "comp": {"start": null, "end":null, "override": true}, "cut": {"start": null, "end":null, "override":true}}}}})"_json;
 
-                    // from premiere markers
-                    if (not found_project.empty()) {
-
-                        // need a list of clips at this point in time backed down.
-                        // do we need to check markers..
-                        // marker should have same start time as clip..
-                        // markers exist on stack..
-                        const auto fcpp = json::json_pointer("/fcp_xml/comment");
-
-                        for (const auto &m : timeline_item.children().front().markers()) {
-                            if (m.start() == tframe) {
-                                if (m.prop().contains(fcpp) and
-                                    m.prop().at(fcpp).is_string() and not m.name().empty()) {
-                                    const static auto cutcompre =
-                                        std::regex("\\s*(\\d+)\\s*,\\s*(\\d+)\\s*-\\s*(\\d+)"
-                                                   "\\s*,\\s*(\\d+)\\s*");
-                                    auto comment = m.prop().at(fcpp).get<std::string>();
-                                    std::cmatch match;
-                                    if (std::regex_match(comment.c_str(), match, cutcompre)) {
-                                        auto start_frame = std::stoi(match[2]);
-                                        i.set_active_range(FrameRange(
-                                            FrameRate(start_frame * trate.to_flicks()),
-                                            i.trimmed_duration(),
-                                            i.rate()));
-                                        i.set_available_range(*i.active_range());
-
-                                        comp_start = std::stoi(match[1]);
-                                        cut_start  = std::stoi(match[2]);
-                                        cut_end    = std::stoi(match[3]);
-                                        comp_end   = std::stoi(match[4]);
-                                        shot       = m.name();
-                                        project    = found_project;
-                                        is_valid   = true;
-                                    } else {
-                                        // spdlog::warn("no match {}", comment);
-                                    }
-                                }
-
-                                if (is_valid)
-                                    break;
-                            }
-                        }
-                    }
-
                     // from check clip metadata (FEAT ANIM)
                     if (not is_valid and not found_project.empty()) {
                         auto cm = i.prop();
@@ -704,6 +660,50 @@ template <typename T> class ShotbrowserConformActor : public caf::event_based_ac
 
                             if (is_valid)
                                 break;
+                        }
+                    }
+
+                    // from premiere markers
+                    if (not is_valid) {
+
+                        // need a list of clips at this point in time backed down.
+                        // do we need to check markers..
+                        // marker should have same start time as clip..
+                        // markers exist on stack..
+                        const auto fcpp = json::json_pointer("/fcp_xml/comment");
+
+                        for (const auto &m : timeline_item.children().front().markers()) {
+                            if (m.start() == tframe) {
+                                if (m.prop().contains(fcpp) and
+                                    m.prop().at(fcpp).is_string() and not m.name().empty()) {
+                                    const static auto cutcompre =
+                                        std::regex("\\s*(\\d+)\\s*,\\s*(\\d+)\\s*-\\s*(\\d+)"
+                                                   "\\s*,\\s*(\\d+)\\s*");
+                                    auto comment = m.prop().at(fcpp).get<std::string>();
+                                    std::cmatch match;
+                                    if (std::regex_match(comment.c_str(), match, cutcompre)) {
+                                        auto start_frame = std::stoi(match[2]);
+                                        i.set_active_range(FrameRange(
+                                            FrameRate(start_frame * trate.to_flicks()),
+                                            i.trimmed_duration(),
+                                            i.rate()));
+                                        i.set_available_range(*i.active_range());
+
+                                        comp_start = std::stoi(match[1]);
+                                        cut_start  = std::stoi(match[2]);
+                                        cut_end    = std::stoi(match[3]);
+                                        comp_end   = std::stoi(match[4]);
+                                        shot       = m.name();
+                                        project    = found_project;
+                                        is_valid   = true;
+                                    } else {
+                                        // spdlog::warn("no match {}", comment);
+                                    }
+                                }
+
+                                if (is_valid)
+                                    break;
+                            }
                         }
                     }
 

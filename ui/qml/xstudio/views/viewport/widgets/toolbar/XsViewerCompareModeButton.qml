@@ -51,6 +51,7 @@ XsViewerAnyMenuButton  {
                 onActivated: {
                     compare_mode = title
                 }
+                enabled: title == "String" ? !viewportPlayhead.timelineMode : true
             }
 
         }
@@ -89,7 +90,7 @@ XsViewerAnyMenuButton  {
         text: "Settings ..."
         menuItemType: "button"
         menuPath: ""
-        menuItemPosition: 10.0
+        menuItemPosition: 11.0
         menuModelName: "compare_modes" + source_button
         onActivated: {
             show_settings(false)

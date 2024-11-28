@@ -31,16 +31,22 @@ Item {
         )
     }
 
-    function selectAllOffline() {
+    function getOffline() {
         var selection = []
+
         for (var i = 0; i < mediaListModelData.rowCount(); ++i) {
             let si = mediaListModelData.rowToSourceIndex(i)
-            if(theSessionData.get(si, "mediaStatusRole") != "Online")
+            let state = theSessionData.get(si, "mediaStatusRole")
+            if(state != undefined && state != "Online")
                 selection.push(mediaListModelData.rowToSourceIndex(i))
         }
 
+        return selection
+    }
+
+    function selectAllOffline() {
         mediaSelectionModel.select(
-            helpers.createItemSelection(selection),
+            helpers.createItemSelection(getOffline()),
             ItemSelectionModel.ClearAndSelect
         )
     }
@@ -98,25 +104,41 @@ Item {
         return parent.model.index(select_row, 0, parent)
     }
 
-    function deleteSelected() {
-
-        dialogHelpers.multiChoiceDialog(
-            deleteSelectedCallback,
-            "Delete Media",
-            "Remove the selected media?",
-            ["Cancel", "Delete"],
-            undefined)
+    function deleteSelected(force=false) {
+        if(force)
+            deleteSelectedCallback("Delete")
+        else
+            dialogHelpers.multiChoiceDialog(
+                deleteSelectedCallback,
+                "Delete Media",
+                "Remove the selected media?",
+                ["Cancel", "Delete"],
+                undefined)
 
     }
 
-    function deleteSelectedCallback(response) {
+    function deleteOffline(force=false) {
+        if(force)
+            deleteIndexes(getOffline())
+        else
+            dialogHelpers.multiChoiceDialog(
+                deleteOfflineCallback,
+                "Delete Offline Media",
+                "Remove the offline media?",
+                ["Cancel", "Delete"],
+                undefined)
 
-        if (response != "Delete") return;
+    }
 
+    function deleteOfflineCallback(response) {
+        if (response == "Delete")
+            deleteIndexes(getOffline())
+    }
+
+    function deleteIndexes(indexes) {
         let items = []
-        var l = mediaSelectionModel.selectedIndexes;
-        for(let i=0;i<l.length;++i)
-            items[i] = l[i]
+        for(let i=0;i<indexes.length;++i)
+            items[i] = indexes[i]
         items = items.sort((a,b) => b.row - a.row )
 
         var onscreen_idx = mediaIndexAfterRemoved(items)
@@ -126,6 +148,11 @@ Item {
         items.forEach(function (item, index) {
             item.model.removeRows(item.row, 1, false, item.parent)
         })
+    }
+
+    function deleteSelectedCallback(response) {
+        if (response == "Delete")
+            deleteIndexes(mediaSelectionModel.selectedIndexes)
     }
 
     function selectUp() {
