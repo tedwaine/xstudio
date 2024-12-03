@@ -42,10 +42,10 @@
 #### OpenTimelineIO
     git clone https://github.com/AcademySoftwareFoundation/OpenTimelineIO.git
     cd OpenTimelineIO
-    git checkout cxx17
+    git checkout tags/v0.17.0
     mkdir build
     cd build
-    cmake -DOTIO_PYTHON_INSTALL=ON -DOTIO_DEPENDENCIES_INSTALL=OFF -DOTIO_FIND_IMATH=ON ..
+    cmake -DOTIO_SHARED_LIBS=OFF -DOTIO_PYTHON_INSTALL=ON -DOTIO_DEPENDENCIES_INSTALL=OFF -DOTIO_INSTALL_PYTHON_MODULES=ON -DOTIO_INSTALL_COMMANDLINE_TOOLS=OFF -DOTIO_FIND_IMATH=ON ..
     make -j $JOBS
     sudo make install
     cd ../..
