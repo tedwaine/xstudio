@@ -58,7 +58,9 @@ namespace utility {
 
 
     class FrameRate : public timebase::flicks {
+        
       public:
+
         inline static const std::map<std::string, timebase::flicks> rate_string_to_flicks = {
             {"23.976", timebase::flicks(29429400)},
             {"24.0", timebase::flicks(29400000)},
@@ -99,6 +101,9 @@ namespace utility {
             return std::chrono::duration_cast<std::chrono::microseconds>(*this);
         }
 
+        operator timebase::flicks() const { return this->to_flicks(); }
+        operator const timebase::flicks & () const { return *this; }        
+
         // [[nodiscard]] std::chrono::nanoseconds::rep count() const { return count(); }
         [[nodiscard]] double to_seconds() const { return timebase::to_seconds(*this); }
         [[nodiscard]] double to_fps() const {
@@ -107,12 +112,12 @@ namespace utility {
                 fps = 1.0 / timebase::to_seconds(*this);
             return fps;
         }
-        [[nodiscard]] timebase::flicks to_flicks() const { return *this; }
+        [[nodiscard]] timebase::flicks to_flicks() const { return timebase::flicks(this->count()); }
 
         FrameRate &operator=(const FrameRate &) = default;
         FrameRate &operator=(FrameRate &&)      = default;
 
-        operator bool() const { return count() != 0; }
+        //operator bool() const { return count() != 0; }
 
         template <class Inspector> friend bool inspect(Inspector &f, FrameRate &x) {
             return f.object(x).fields(f.field("flick", static_cast<timebase::flicks &>(x)));

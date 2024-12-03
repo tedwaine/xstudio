@@ -168,6 +168,10 @@ void AudioOutputControl::prepare_samples_for_soundcard(
 
                 if (current_buf_) {
 
+                    std::cerr << to_string(current_buf_->media_key()) << " "
+                              << current_buf_->duration_seconds()
+                              << "\n";
+
                     current_buf_pos_ = 0;
 
                     // is audio playback stable ? i.e. is the next sample buffer
@@ -228,55 +232,16 @@ void AudioOutputControl::prepare_samples_for_soundcard(
     }
 }
 
-bool AudioOutputControl::queue_samples_for_playing(
-    const std::vector<media_reader::AudioBufPtr> &audio_frames,
-    const bool playing,
-    const bool forwards,
-    const float velocity) {
+void AudioOutputControl::queue_samples_for_playing(
+    const std::vector<media_reader::AudioBufPtr> &audio_frames) {
 
-    playback_velocity_ = audio_repitch_ ? std::max(0.1f, velocity) : 1.0f;
-    playing_           = playing;
-    bool result        = false;
-
-    /*
-    // Earlier attempt at resampling in queue; needs a more reliable sample rate info and needs
-    sample rate from output device. if (audio_frames.size()) { auto audio_sample_rate =
-    audio_frames.front()->sample_rate(); if (audio_sample_rate == 0) { audio_sample_rate =
-    audio_frames.back()->sample_rate();
-        }
-
-        if (audio_sample_rate == 0) {
-            // If we can't get the sample rate from anything, use the last best guess.
-            // This seems to happen
-            audio_sample_rate = last_sample_rate_;
-        } else {
-            last_sample_rate_ = audio_sample_rate;
-        }
-
-        // If our audio card does not match the source rate, we need to respeed/repitch the
-    samples. if (audio_sample_rate and audio_sample_rate != 96000L) { double sample_respeed =
-    (double)audio_sample_rate / 96000.0; playback_velocity_ *= sample_respeed; audio_repitch_ =
-    true;
-        }
+    timebase::flicks t0;
+    if (audio_frames.size()) {
+        t0 = audio_frames[0].timeline_timestamp();
     }
-    */
 
-    for (const auto &a : audio_frames) {
-
-        auto audio_frame = a;
-        // if we're not playing and the last audio buffer played is the same as
-        // the one we're receiving now we don't queue it for playing. This is because
-        // a viewport refresh (for e.g. exposure scrubbing) results in the same
-        // image frame being broadcast by the playhead
-        if (!audio_frame ||
-            (previous_buf_ && previous_buf_->media_key() == audio_frame->media_key()) ||
-            (current_buf_ && current_buf_->media_key() == audio_frame->media_key()) ||
-            !audio_frame->num_samples()) {
-
-            // spdlog::info("Audio frame skipped due to either being null, matching "
-            //              "previous/current buffer or having no samples.");
-            continue;
-        }
+    std::cerr << "queue_samples_for_playing ";
+    for (const auto & frame: audio_frames) {
 
         // xstudio stores a frame of audio samples for every video frame for any
         // given source (if the source has no video it is assigned a 'virtual' video
@@ -286,53 +251,56 @@ bool AudioOutputControl::queue_samples_for_playing(
         // do not have the same duration as video frames, so there is always some
         // offset between when the video frame is shown and when the audio samples
         // associated with that frame should sound.
-        const auto when_to_sound_audio =
-            audio_frame.when_to_display_ + audio_frame->time_delta_to_video_frame();
+        const auto adjusted_timeline_timestamp =
+            std::chrono::duration_cast<timebase::flicks>(frame.timeline_timestamp() + (frame ? frame->time_delta_to_video_frame() : std::chrono::microseconds(0)));
 
-        // have we already got these audio samples in our queue? If so erase and
-        // add back in to update the key
-        if (false) {
-            for (auto p = sample_data_.begin(); p != sample_data_.end(); ++p) {
-                if (p->second->media_key() == audio_frame->media_key()) {
-                    sample_data_.erase(p);
-                    break;
-                }
-            }
-        }
+        std::cerr << timebase::to_seconds(adjusted_timeline_timestamp) << " " << timebase::to_seconds(t0) << "    ";
 
-        if (audio_repitch_ && playback_velocity_ != 1.0f) {
-            audio_frame = super_simple_respeed_audio_buffer<int16_t>(
-                audio_frame, fabs(playback_velocity_));
-        }
+        if (frame)
+            t0 += timebase::to_flicks(frame->duration_seconds());
 
-        if (!forwards) {
+        if (!playing_forward_) {
 
             media_reader::AudioBufPtr reversed(
-                new media_reader::AudioBuffer(audio_frame->params()));
+                new media_reader::AudioBuffer(frame->params()));
 
             reversed->allocate(
-                audio_frame->sample_rate(),
-                audio_frame->num_channels(),
-                audio_frame->num_samples(),
-                audio_frame->sample_format());
+                frame->sample_rate(),
+                frame->num_channels(),
+                frame->num_samples(),
+                frame->sample_format());
 
             reverse_audio_buffer(
-                (const int16_t *)audio_frame->buffer(),
+                (const int16_t *)frame->buffer(),
                 (int16_t *)reversed->buffer(),
-                audio_frame->num_samples(),
-                audio_frame->num_channels());
+                frame->num_samples(),
+                frame->num_channels());
 
-            sample_data_[when_to_sound_audio] = reversed;
+            sample_data_[adjusted_timeline_timestamp] = reversed;
             reversed->set_reversed(true);
-
-            reversed->set_display_timestamp_seconds(audio_frame->display_timestamp_seconds());
+            reversed->set_display_timestamp_seconds(frame->display_timestamp_seconds());
 
         } else {
-            sample_data_[when_to_sound_audio] = audio_frame;
+            sample_data_[adjusted_timeline_timestamp] = frame;
         }
-        result = true;
+
     }
-    return result;
+    std::cerr << "\n\n";
+
+}
+
+void AudioOutputControl::playhead_position_changed(
+    const timebase::flicks playhead_position,
+    const bool forward,
+    const float velocity,
+    const bool playing,
+    utility::time_point when_position_changed) 
+{
+    playhead_position_ = playhead_position;
+    playback_velocity_ = audio_repitch_ ? std::max(0.1f, velocity) : 1.0f;
+    playing_           = playing;
+    playing_forward_   = forward;
+    playhead_position_update_tp_ = when_position_changed;
 }
 
 void AudioOutputControl::clear_queued_samples() {
@@ -343,7 +311,22 @@ void AudioOutputControl::clear_queued_samples() {
 media_reader::AudioBufPtr AudioOutputControl::pick_audio_buffer(
     const utility::clock::time_point &tp, bool drop_old_buffers) {
 
-    auto r = sample_data_.lower_bound(tp);
+    // based on 'tp' - we estimate the playhead position when the 
+    // audio buffer should actually be sounding
+    auto future_playhead_position = playhead_position_;
+    if (playing_) {
+ 
+        // predict where we will be at the timepoint 'next_video_refresh' ...
+        const timebase::flicks delta = std::chrono::duration_cast<timebase::flicks>(
+            tp - playhead_position_update_tp_);
+        const double v = (playing_forward_ ? 1.0f : -1.0f) * playback_velocity_;
+
+        future_playhead_position =
+            timebase::to_flicks(v * timebase::to_seconds(delta)) + playhead_position_;
+
+    }
+
+    auto r = sample_data_.lower_bound(future_playhead_position);
 
     if (r == sample_data_.end()) {
         auto r = media_reader::AudioBufPtr();
@@ -361,8 +344,8 @@ media_reader::AudioBufPtr AudioOutputControl::pick_audio_buffer(
     if (r != sample_data_.begin()) {
         auto r2 = r;
         r2--;
-        const auto d2 = tp - r2->first;
-        const auto d1 = r->first - tp;
+        const auto d2 = future_playhead_position - r2->first;
+        const auto d1 = r->first - future_playhead_position;
 
         if (d1 > d2) {
             r = r2;
@@ -371,19 +354,23 @@ media_reader::AudioBufPtr AudioOutputControl::pick_audio_buffer(
 
     media_reader::AudioBufPtr v = r->second;
 
-    // if the audio buffer is not supposed to be played close to 'tp' we want to carry on and
-    // play silence until soundcard and audio buffers are in sync
+    // what if our 'best' buffer, i.e. the one nearest to 'future_playhead_position'
+    // is still not close. Some innaccuracy is happening, e.g. buffers that we need
+    // haven't been delivered. We must play silence instead,
     const auto delta =
-        double(std::chrono::duration_cast<std::chrono::microseconds>(r->first - tp).count()) /
+        double(std::chrono::duration_cast<std::chrono::microseconds>(r->first - future_playhead_position).count()) /
         1000000.0;
 
-    if (fabs(delta) > v->duration_seconds() / 2) {
+    // so if we are more than half the duration of the buffer out, return empty ptr
+    if (!v || fabs(delta) > v->duration_seconds() / 2) {
         return media_reader::AudioBufPtr();
     }
 
-    if (drop_old_buffers) {
+    if (drop_old_buffers && playing_forward_) {
         r++;
         sample_data_.erase(sample_data_.begin(), r);
+    } else {
+        sample_data_.erase(r, sample_data_.end());
     }
     return v;
 }
@@ -445,6 +432,7 @@ AudioOutputControl::check_if_buffer_is_contiguous_with_previous_and_next(
                                   previous_buf_->display_timestamp_seconds()) /
                                      playback_velocity_ -
                                  previous_buf_->duration_seconds();
+
             if (fabs(delta) > 0.001) {
                 result |= DoFadeHead;
             }
@@ -452,6 +440,10 @@ AudioOutputControl::check_if_buffer_is_contiguous_with_previous_and_next(
         } else {
             result |= DoFadeHead;
         }
+    }
+
+    if (result != NoFade) {
+        std::cerr << "Distort\n";
     }
 
     return (AudioOutputControl::Fade)result;

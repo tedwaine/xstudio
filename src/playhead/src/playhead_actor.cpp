@@ -737,10 +737,7 @@ void PlayheadActor::init() {
                     audio_output_actor_,
                     sound_audio_atom_v,
                     audio_buffers,
-                    child_playhead_uuid,
-                    playing(),
-                    forward(),
-                    velocity());
+                    child_playhead_uuid);
             }
         },
 
@@ -1801,6 +1798,17 @@ void PlayheadActor::switch_key_playhead(int idx) {
 }
 
 void PlayheadActor::update_child_playhead_positions(const bool force_broadcast) {
+
+    if (audio_output_actor_) {
+        anon_send(
+            audio_output_actor_,
+            position_atom_v,
+            position(),
+            forward(),
+            velocity(),
+            playing(),
+            last_playhead_set_timepoint());
+    }
 
     if (audio_playhead_) {
         anon_send(

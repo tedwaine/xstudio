@@ -77,8 +77,21 @@ class AudioOutputDeviceActor : public caf::event_based_actor {
                 }
             },
             [=](push_samples_atom) {
+
                 if (!output_device_)
                     return;
+
+                /*if (!num_samps_soundcard_wants) {
+                    // soundcard buffer is probably full. Wait 1ms, and continue
+                    // continue the loop
+                    if (playing_) {
+                        std::this_thread::sleep_for(std::chrono::milliseconds(1));
+                        anon_send(
+                            actor_cast<caf::actor>(this), push_samples_atom_v);
+                    }
+                    return;
+                }*/
+
                 // The 'waiting_for_samples_' flag allows us to ensure that we
                 // don't have multiple requests for samples to play in flight -
                 // since each response to a request then sends another
@@ -88,8 +101,8 @@ class AudioOutputDeviceActor : public caf::event_based_actor {
                 if (waiting_for_samples_)
                     return;
                 waiting_for_samples_ = true;
-
                 const long num_samps_soundcard_wants = (long)output_device_->desired_samples();
+
                 auto tt                              = utility::clock::now();
                 request(
                     audio_samples_actor_,
@@ -163,6 +176,7 @@ class AudioOutputActor : public caf::event_based_actor, AudioOutputControl {
     utility::Uuid uuid_ = {utility::Uuid::generate()};
     utility::Uuid sub_playhead_uuid_;
     std::shared_ptr<AudioOutputDevice> output_device_;
+    caf::actor playhead_;
 };
 
 /* Singleton class that receives audio sample buffers from the current

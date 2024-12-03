@@ -54,11 +54,17 @@ class AudioOutputControl {
     /**
      *   @brief Queue audio buffer for streaming to the soundcard
      */
-    bool queue_samples_for_playing(
-        const std::vector<media_reader::AudioBufPtr> &audio_buffers,
+    void queue_samples_for_playing(
+        const std::vector<media_reader::AudioBufPtr> &audio_buffers);
+
+    /**
+     *   @brief Fine grained update of playhead position
+     */
+    void playhead_position_changed(const timebase::flicks playhead_position,
+        const bool forward,
+        const float velocity,
         const bool playing,
-        const bool forwards,
-        const float velocity);
+        utility::time_point when_position_changed);
 
     /**
      *   @brief Clear all queued audio buffers to immediately stop audio playback
@@ -95,13 +101,17 @@ class AudioOutputControl {
         const media_reader::AudioBufPtr &next_buf,
         const media_reader::AudioBufPtr &previous_buf_);
 
-    std::map<utility::time_point, media_reader::AudioBufPtr> sample_data_;
+    std::map<timebase::flicks, media_reader::AudioBufPtr> sample_data_;
     media_reader::AudioBufPtr current_buf_;
     media_reader::AudioBufPtr previous_buf_;
     long current_buf_pos_;
     float playback_velocity_ = {1.0f};
 
     int fade_in_out_ = {NoFade};
+
+    timebase::flicks playhead_position_;
+    bool playing_forward_   = {true};
+    utility::time_point playhead_position_update_tp_;
 
     bool audio_repitch_    = {false};
     bool audio_scrubbing_  = {false};

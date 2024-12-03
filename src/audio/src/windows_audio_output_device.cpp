@@ -258,14 +258,16 @@ long WindowsAudioOutputDevice::latency_microseconds() {
     if (FAILED(hr)) {
         throw std::runtime_error("Failed to get current padding from WASAPI");
     }
-    std::cerr << pad
+    /*std::cerr << pad
               << " " << (long(pad) * long(1000000)) /
                      long(sample_rate_)
-              << " ";
+              << " ";*/
     return (long(pad)*long(1000000))/long(sample_rate_);
 }
 
 bool WindowsAudioOutputDevice::push_samples(const void *sample_data, const long num_samples) {
+
+    auto t0 = utility::clock::now();
 
     int channel_count = num_channels_;
 
@@ -303,7 +305,6 @@ bool WindowsAudioOutputDevice::push_samples(const void *sample_data, const long 
     // Calculate the number of frames we can safely write into the buffer without overflow.
     long available_frames = buffer_framecount - pad;
     long frames_to_write  = num_samples / channel_count;
-    std::cerr << "F " << buffer_framecount << " " << pad << " " << frames_to_write << "\n";
     if (available_frames < frames_to_write) {
         frames_to_write = available_frames;
     }
@@ -334,13 +335,10 @@ bool WindowsAudioOutputDevice::push_samples(const void *sample_data, const long 
             spdlog::error("Failed to release buffer to WASAPI with HRESULT: 0x{:08x}", hr);
             return false;
         }
-        std::cerr << " A " <<(long)(frames_to_write * 850000 / sample_rate_) << " " << num_samples
-                  << "   ";
-        std::this_thread::sleep_for(
-            std::chrono::microseconds((long)(frames_to_write * 550000 / sample_rate_)));
     } else {
         // Avoid tight loop thrashing when we are out of samples.
-        std::this_thread::sleep_for(std::chrono::milliseconds(1));
+        std::this_thread::sleep_for(std::chrono::milliseconds(pad * 500 / sample_rate_));
     }
+
     return true;
 }

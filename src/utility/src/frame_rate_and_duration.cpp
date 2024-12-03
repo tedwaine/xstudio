@@ -27,9 +27,9 @@ double FrameRateDuration::seconds(const FrameRate &override) const {
 int FrameRateDuration::frames(const FrameRate &override) const {
     long int frames = 0;
     if (override.count()) {
-        frames = (long)std::round(duration_ / override);
+        frames = (long)std::round(duration_.count() / override.count());
     } else if (rate_.count()) {
-        frames = (long)std::round(duration_ / rate_);
+        frames = (long)std::round(duration_.count() / rate_.count());
     }
     return static_cast<int>(frames);
 }

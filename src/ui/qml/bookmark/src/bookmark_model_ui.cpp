@@ -684,9 +684,9 @@ QVariant BookmarkModel::data(const QModelIndex &index, int role) const {
                 break;
 
             case durationFrameRole:
-                if (detail.media_reference_) {
+                if (detail.media_reference_ && detail.duration_) {
                     result = QVariant::fromValue(
-                        *(detail.duration_) / detail.media_reference_->rate());
+                        detail.duration_->count() / detail.media_reference_->rate().count());
                 }
                 break;
 

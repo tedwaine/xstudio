@@ -212,7 +212,7 @@ namespace bookmark {
 
         double get_second(const int frame) const {
             if (media_reference_) {
-                return timebase::to_seconds((*(media_reference_)).rate() * frame);
+                return timebase::to_seconds((*(media_reference_)).rate().to_flicks() * frame);
             }
             return 0.0;
         }

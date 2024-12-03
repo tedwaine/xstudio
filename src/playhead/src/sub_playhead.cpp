@@ -1145,6 +1145,8 @@ void SubPlayhead::broadcast_audio_frame(
     // buffered up.
     media::AVFrameIDsAndTimePoints future_frames;
 
+    std::vector<timebase::flicks> tps;
+
     if (scrubbing) {
 
         // pick the next 1 or two frames in the timeline to send audio
@@ -1155,8 +1157,10 @@ void SubPlayhead::broadcast_audio_frame(
         }
 
         auto tt = utility::clock::now();
-        if (frame->second)
+        if (frame->second) {
             future_frames.emplace_back(tt, frame->second);
+            tps.emplace_back(frame->first);
+        }
         auto next_frame = frame;
         next_frame++;
         if (next_frame != retimed_frames_.end() && next_frame->second) {
@@ -1168,11 +1172,12 @@ void SubPlayhead::broadcast_audio_frame(
                 auto delta = std::chrono::duration_cast<std::chrono::microseconds>(
                     next_frame->first - frame->first);
                 future_frames.emplace_back(tt + delta, next_frame->second);
+                tps.emplace_back(next_frame->first);
             }
         }
 
     } else {
-        get_lookahead_frame_pointers(future_frames, 20);
+        tps = get_lookahead_frame_pointers(future_frames, 20);
     }
 
     // now fetch audio samples for playback
@@ -1187,8 +1192,10 @@ void SubPlayhead::broadcast_audio_frame(
             [=](std::vector<AudioBufPtr> &audio_buffers) mutable {
                 auto ab = audio_buffers.begin();
                 auto fp = future_frames.begin();
+                auto tt = tps.begin();
                 while (ab != audio_buffers.end() && fp != future_frames.end()) {
                     ab->when_to_display_ = (*fp).first;
+                    ab->set_timline_timestamp(*(tt++));
                     ab++;
                     fp++;
                 }

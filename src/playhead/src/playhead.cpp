@@ -700,9 +700,9 @@ bool PlayheadBase::pointer_event(const ui::PointerEvent &e) {
         int nb_frames     = abs(round(delta_x * viewport_scrub_sensitivity_->value() / 20));
 
         if (delta_x < 0.0 and drag_start_playhead_position_.count() and drag_start_x_) {
-            new_position -= nb_frames * playhead_rate_;
+            new_position -= nb_frames * playhead_rate_.to_flicks();
         } else if (delta_x > 0.0 and drag_start_x_ != e.width() - 1) {
-            new_position += nb_frames * playhead_rate_;
+            new_position += nb_frames * playhead_rate_.to_flicks();
         }
 
         // clamp to duration.

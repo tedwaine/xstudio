@@ -74,19 +74,27 @@ void AudioOutputActor::init() {
         [=](utility::event_atom,
             playhead::sound_audio_atom,
             const std::vector<media_reader::AudioBufPtr> &audio_buffers,
-            const utility::Uuid &sub_playhead,
-            const bool playing,
-            const bool forwards,
-            const float velocity) {
+            const utility::Uuid &sub_playhead) {
             if (sub_playhead != sub_playhead_uuid_) {
                 // sound is coming from a different source to
                 // previous time
                 clear_queued_samples();
                 sub_playhead_uuid_ = sub_playhead;
             }
-            if (queue_samples_for_playing(audio_buffers, playing, forwards, velocity)) {
-                send(audio_output_device_, utility::event_atom_v, playhead::play_atom_v);
-            }
+            queue_samples_for_playing(audio_buffers);
+            send(audio_output_device_, utility::event_atom_v, playhead::play_atom_v);            
+        },
+        [=](utility::event_atom,
+            playhead::position_atom,
+            const timebase::flicks playhead_position,
+            const bool forward,
+            const float velocity,
+            const bool playing,
+            utility::time_point when_position_changed) {
+            // these event messages are very fine-grained, so we know very accurately the playhead
+            // position during playback
+            playhead_position_changed(
+                playhead_position, forward, velocity, playing, when_position_changed);
         });
 
     // kicks the global samples actor to update us with current volume etc.
@@ -138,21 +146,32 @@ GlobalAudioOutputActor::GlobalAudioOutputActor(caf::actor_config &cfg)
         [=](playhead::play_atom, const bool is_playing) {
             send(event_group_, utility::event_atom_v, playhead::play_atom_v, is_playing);
         },
-        [=](playhead::sound_audio_atom,
-            const std::vector<media_reader::AudioBufPtr> &audio_buffers,
-            const Uuid &sub_playhead,
+        [=](playhead::position_atom,
+            const timebase::flicks playhead_position,
+            const bool forward,
+            const float velocity,
             const bool playing,
-            const bool forwards,
-            const float velocity) {
+            utility::time_point when_position_changed) {
             send(
                 event_group_,
                 utility::event_atom_v,
-                playhead::sound_audio_atom_v,
-                audio_buffers,
-                sub_playhead,
+                playhead::position_atom_v,
+                playhead_position,
+                forward,
+                velocity,
                 playing,
-                forwards,
-                velocity);
+                when_position_changed
+                );
+        },
+        [=](playhead::sound_audio_atom,
+            const std::vector<media_reader::AudioBufPtr> &audio_buffers,
+            const Uuid &sub_playhead_id) {
+            send(
+                event_group_,
+                utility::event_atom_v,
+                playhead::sound_audio_atom_v,                
+                audio_buffers,
+                sub_playhead_id);
         },
         [=](module::change_attribute_event_atom, caf::actor requester) {
             send(
