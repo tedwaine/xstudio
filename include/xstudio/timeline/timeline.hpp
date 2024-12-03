@@ -28,9 +28,10 @@ namespace timeline {
     class Timeline : public utility::Container {
       public:
         Timeline(
-            const std::string &name   = "Timeline",
-            const utility::Uuid &uuid = utility::Uuid::generate(),
-            const caf::actor &actor   = caf::actor());
+            const std::string &name        = "Timeline",
+            const utility::FrameRate &rate = utility::FrameRate(),
+            const utility::Uuid &uuid      = utility::Uuid::generate(),
+            const caf::actor &actor        = caf::actor());
         Timeline(const utility::JsonStore &jsn);
 
         ~Timeline() override = default;

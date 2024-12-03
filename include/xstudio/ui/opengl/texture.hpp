@@ -24,39 +24,50 @@ namespace ui {
 
             void release();
 
-            virtual void map_buffer_for_upload(media_reader::ImageBufPtr &frame) = 0;
-            virtual void start_pixel_upload()                                    = 0;
-            virtual void bind(int tex_index, Imath::V2i &dims)                   = 0;
-
-            [[nodiscard]] media_reader::ImageBufPtr current_frame() const {
-                return current_source_frame_;
+            virtual void bind(int tex_index, Imath::V2i &dims) {
+                wait_on_upload_pixels();
+                __bind(tex_index, dims);
             }
+
             [[nodiscard]] const media::MediaKey &media_key() const { return media_key_; }
             [[nodiscard]] const utility::time_point &when_last_used() const {
                 return when_last_used_;
             }
 
+            void upload_image_buffer(media_reader::ImageBufPtr &frame);
+
           protected:
+            virtual uint8_t *map_buffer_for_upload()             = 0;
+            virtual void __bind(int tex_index, Imath::V2i &dims) = 0;
+            virtual size_t tex_size_bytes() const                = 0;
+
+            void wait_on_upload_pixels() {
+                std::unique_lock lk(mutex_);
+                if (uploading_pixels_)
+                    cv_.wait(lk, [=]() { return !uploading_pixels_; });
+            }
+
+            void do_pixel_upload(uint8_t *target, uint8_t *src, size_t n, media::MediaKey k);
+
+            utility::time_point when_last_used_;
+
             media::MediaKey media_key_;
+            media_reader::ImageBufPtr source_frame_;
 
-            media_reader::ImageBufPtr new_source_frame_;
-            media_reader::ImageBufPtr current_source_frame_;
-
-            uint8_t *buffer_io_ptr_ = {nullptr};
             std::thread upload_thread_;
             std::mutex mutex_;
-            utility::time_point when_last_used_;
+            std::condition_variable cv_;
+            bool uploading_pixels_ = {false};
         };
 
         class GLSsboTex : public GLBlindTex {
 
           public:
-            GLSsboTex();
+            GLSsboTex() = default;
             virtual ~GLSsboTex();
 
-            void map_buffer_for_upload(media_reader::ImageBufPtr &frame) override;
-            void start_pixel_upload() override;
-            void bind(int /*tex_index*/, Imath::V2i & /*dims*/) override { wait_on_upload(); }
+            uint8_t *map_buffer_for_upload() override;
+            void __bind(int /*tex_index*/, Imath::V2i & /*dims*/) override;
 
           private:
             void compute_size(const size_t required_size_bytes);
@@ -66,7 +77,7 @@ namespace ui {
             GLuint ssbo_id_         = {0};
             GLuint bytes_per_pixel_ = 4;
 
-            [[nodiscard]] size_t tex_size_bytes() const { return tex_data_size_; }
+            [[nodiscard]] size_t tex_size_bytes() const override { return tex_data_size_; }
 
             size_t tex_data_size_ = {0};
         };
@@ -77,15 +88,14 @@ namespace ui {
             GLBlindRGBA8bitTex() = default;
             virtual ~GLBlindRGBA8bitTex();
 
-            void map_buffer_for_upload(media_reader::ImageBufPtr &frame) override;
-            void start_pixel_upload() override;
-            void bind(int tex_index, Imath::V2i &dims) override;
+            uint8_t *map_buffer_for_upload() override;
+            void __bind(int tex_index, Imath::V2i &dims) override;
 
           private:
             void resize(const size_t required_size_bytes);
             void pixel_upload();
 
-            [[nodiscard]] size_t tex_size_bytes() const {
+            [[nodiscard]] size_t tex_size_bytes() const override {
                 return tex_width_ * tex_height_ * bytes_per_pixel_;
             }
 
@@ -110,12 +120,6 @@ namespace ui {
             void upload_next(std::vector<media_reader::ImageBufPtr>);
 
             void set_use_ssbo(const bool using_ssbo);
-
-            /*[[nodiscard]] int width() const ;
-            [[nodiscard]] int height() const;*/
-            [[nodiscard]] media_reader::ImageBufPtr current_frame() const {
-                return current_ ? current_->current_frame() : media_reader::ImageBufPtr();
-            }
 
           private:
             typedef std::shared_ptr<GLBlindTex> GLBlindTexturePtr;

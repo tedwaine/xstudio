@@ -39,8 +39,13 @@ namespace playhead {
       protected:
         caf::behavior behavior_;
         caf::actor event_group_;
-        caf::actor on_screen_playhead_;
-        std::map<std::string, caf::actor_addr> viewports_;
+        caf::actor fine_grain_events_group_;
+        caf::actor global_active_playhead_;
+        struct ViewportAndPlayhead {
+            caf::actor viewport;
+            caf::actor playhead;
+        };
+        std::map<std::string, ViewportAndPlayhead> viewports_;
     };
 } // namespace playhead
 } // namespace xstudio

@@ -36,7 +36,6 @@ namespace ui {
             Viewport(
                 const utility::JsonStore &state_data,
                 caf::actor parent_actor,
-                const int viewport_index,
                 ViewportRendererPtr the_renderer,
                 const std::string &name = std::string());
             virtual ~Viewport();
@@ -48,24 +47,14 @@ namespace ui {
             void set_scale(const float scale);
             void set_size(const float w, const float h, const float devicePixelRatio);
             void set_pan(const float x_pan, const float y_pan);
-            void set_fit_mode(const FitMode md);
+            void set_fit_mode(const FitMode md, const bool sync = true);
             void set_mirror_mode(const MirrorMode md);
-            void set_pixel_zoom(const float zoom);
             void set_screen_infos(
                 const std::string &name,
                 const std::string &model,
                 const std::string &manufacturer,
                 const std::string &serialNumber,
                 const double refresh_rate);
-
-            /**
-             *  @brief Link to another viewport so the zoom, scale and colour
-             *  management settings are shared between the two viewports
-             *
-             *  @details This allows the pop-out viewer to track the primary
-             *  viewer in the main interface, for example
-             */
-            void link_to_viewport(caf::actor other_viewport);
 
             /**
              *  @brief Switch the fit mode and zoom to it's previous state (usually before
@@ -93,6 +82,26 @@ namespace ui {
             void render() {
                 std::vector<media_reader::ImageBufPtr> next_images;
                 get_frames_for_display(next_images);
+                if (!next_images.empty())
+                    update_onscreen_frame_info(next_images[0]);
+                the_renderer_->render(
+                    next_images, to_scene_matrix(), projection_matrix(), fit_mode_matrix());
+            }
+
+            /**
+             *  @brief Render the viewport, for a specific display time measured as a system
+             *  clock timepoint.
+             *
+             *  @details Renders the image data into some initialised graphics resource (e.g.
+             *  an active OpenGL context), allowing an adjustment to the playhead position to
+             *  account for a display pipeline delay. For example, if this viewport is an
+             *  offscreen viewport that delivers an image to be displayed on an SDI device
+             *  like a projector, and the buffering in the SDI card results in a 250ms delay
+             *  then 'when_going_on_screen' should be clock::now() + milliseconds(250)
+             */
+            void render(const utility::time_point &when_going_on_screen) {
+                std::vector<media_reader::ImageBufPtr> next_images;
+                get_frames_for_display(next_images, false, when_going_on_screen);
                 if (!next_images.empty())
                     update_onscreen_frame_info(next_images[0]);
                 the_renderer_->render(
@@ -175,12 +184,7 @@ namespace ui {
             [[nodiscard]] const Imath::M44f &fit_mode_matrix() const {
                 return fit_mode_matrix_;
             }
-            [[nodiscard]] const std::string &frame_rate_expression() const {
-                return frame_rate_expr_;
-            }
-            [[nodiscard]] bool frame_out_of_range() const { return frame_out_of_range_; }
-            [[nodiscard]] bool no_alpha_channel() const { return no_alpha_channel_; }
-            [[nodiscard]] int on_screen_frame() const { return on_screen_frame_; }
+
             [[nodiscard]] bool playing() const { return playing_; }
             [[nodiscard]] const std::string &pixel_info_string() const {
                 return pixel_info_string_;
@@ -188,9 +192,11 @@ namespace ui {
             [[nodiscard]] caf::actor playhead() {
                 return caf::actor_cast<caf::actor>(playhead_addr_);
             }
-            [[nodiscard]] const std::string &toolbar_name() const { return toolbar_name_; }
+            [[nodiscard]] utility::Uuid playhead_uuid() { return playhead_uuid_; }
 
             [[nodiscard]] caf::actor colour_pipeline() { return colour_pipeline_; }
+
+            [[nodiscard]] const std::string &toolbar_name() const { return toolbar_name_; }
 
             utility::JsonStore serialise() const override;
 
@@ -200,6 +206,12 @@ namespace ui {
              * bilinear filtering on in the display shader.
              */
             bool use_bilinear_filtering() const;
+
+            /**
+             *  @brief We only call this method if we want the viewport to always automatically
+             *  connect to the playhead of the currently selected playlist/timeline/subset etc.
+             */
+            void auto_connect_to_global_selected_playhead();
 
 
             void deserialise(const nlohmann::json &json) override;
@@ -227,7 +239,9 @@ namespace ui {
              *  @brief Get the bounding box, in the viewport area, of the current image
              *
              */
-            Imath::Box2f image_bounds_in_viewport_pixels() const;
+            Imath::Box2f image_bounds_in_viewport_pixels() const {
+                return image_bounds_in_viewport_pixels_;
+            }
 
             /**
              *  @brief Get the resolution of the current image
@@ -243,39 +257,9 @@ namespace ui {
 
             caf::message_handler message_handler() override;
 
-            enum ChangeCallbackId {
-                Redraw,
-                ZoomChanged,
-                ScaleChanged,
-                FitModeChanged,
-                MirrorModeChanged,
-                FrameRateChanged,
-                OutOfRangeChanged,
-                NoAlphaChannelChanged,
-                OnScreenFrameChanged,
-                ExposureChanged,
-                TranslationChanged,
-                PlayheadChanged
-            };
+            enum ChangeCallbackId { Redraw, TranslationChanged, PlayheadChanged };
 
             typedef std::function<void(ChangeCallbackId)> ChangeCallback;
-
-            /**
-             *  @brief Set whether a viewport will automatically show the
-             *  'active' session playlist/subset/timeline
-             *
-             *  @details When a viewport is set to auto-connect to the playhead,
-             *  this means that when the 'active' playlist/subset/timeline at
-             *  the session level changes (e.g. if the user double cliks on a
-             *  playlist in the playlist panel interface) then the viewport
-             *  will automatically connect to the playhead for that playlist/
-             *  subset/timeline such that it shows the select media therein.
-             *
-             *  Then auto-connect is not set, the viewport remains connected
-             *  to the playhead that was set by calling the 'set_playhead
-             *  function.
-             */
-            void auto_connect_to_playhead(bool auto_connect);
 
             void set_change_callback(ChangeCallback f) { event_callback_ = f; }
 
@@ -285,17 +269,23 @@ namespace ui {
 
             void framebuffer_swapped(const utility::time_point swap_time);
 
-            media_reader::ImageBufPtr get_image_from_playhead(caf::actor playhead);
+            void reset() override;
 
-            media_reader::ImageBufPtr get_onscreen_image();
+            media_reader::ImageBufPtr get_onscreen_image(const bool force_playhead_sync);
 
             void set_aux_shader_uniforms(
                 const utility::JsonStore &j, const bool clear_and_overwrite = false);
+
+            void set_visibility(bool is_visible);
 
           protected:
             void register_hotkeys() override;
 
             void attribute_changed(const utility::Uuid &attr_uuid, const int role) override;
+
+            void menu_item_activated(
+                const utility::JsonStore &menu_item_data,
+                const std::string &user_data) override;
 
             /**
              *  @brief Update viewport properties like frame number, error message or
@@ -318,7 +308,10 @@ namespace ui {
              * Returns an empty pointer if the image does not need to be refreshed since the
              * last draw.
              */
-            void get_frames_for_display(std::vector<media_reader::ImageBufPtr> &next_images);
+            void get_frames_for_display(
+                std::vector<media_reader::ImageBufPtr> &next_images,
+                const bool force_playhead_sync                  = false,
+                const utility::time_point &when_being_displayed = utility::time_point());
 
             void instance_overlay_plugins();
 
@@ -349,7 +342,8 @@ namespace ui {
             Imath::M44f interact_start_inv_projection_matrix_;
             Imath::M44f viewport_to_canvas_;
             Imath::M44f fit_mode_matrix_;
-            float devicePixelRatio_ = {1.0};
+            float devicePixelRatio_     = {1.0};
+            bool broadcast_fit_details_ = {true};
 
             Imath::V4f normalised_pointer_position() const;
 
@@ -357,18 +351,23 @@ namespace ui {
 
             void get_colour_pipeline();
 
-            void
-            quickview_media(std::vector<caf::actor> &media_items, std::string compare_mode);
+            void setup_menus();
+
+            void quickview_media(
+                std::vector<caf::actor> &media_items,
+                std::string compare_mode,
+                const int in_pt  = -1,
+                const int out_pt = -1);
+
+            Imath::Box2f calc_image_bounds_in_viewport_pixels() const;
 
             utility::JsonStore settings_;
+
+            std::string window_id_;
 
             typedef std::function<bool(const PointerEvent &pointer_event)> PointerInteractFunc;
             std::map<Signature, PointerInteractFunc> pointer_event_handlers_;
 
-            bool frame_out_of_range_ = {false};
-            bool no_alpha_channel_   = {false};
-            int on_screen_frame_;
-            std::string frame_rate_expr_   = {"--/--"};
             std::string pixel_info_string_ = {"--"};
             media_reader::ImageBufPtr on_screen_frame_buffer_;
             media_reader::ImageBufPtr about_to_go_on_screen_frame_buffer_;
@@ -381,25 +380,26 @@ namespace ui {
             caf::actor fps_monitor_;
             caf::actor keypress_monitor_;
             caf::actor viewport_events_actor_;
-            std::vector<caf::actor> other_viewports_;
             caf::actor colour_pipeline_;
             caf::actor keyboard_events_actor_;
             caf::actor quickview_playhead_;
+            caf::actor global_playhead_events_group_;
 
             caf::actor_addr playhead_addr_;
+            utility::Uuid playhead_uuid_;
+
+            utility::JsonStore aux_shader_uniforms_;
 
             void dummy_evt_callback(ChangeCallbackId) {}
             ChangeCallback event_callback_;
 
           protected:
-            utility::Uuid current_playhead_, new_playhead_;
-            bool done_init_       = {false};
-            int viewport_index_   = {0};
-            bool playing_         = {false};
-            bool playhead_pinned_ = {false};
+            utility::Uuid current_key_sub_playhead_id_, new_playhead_;
+            bool done_init_  = {false};
+            bool playing_    = {false};
+            bool is_visible_ = {false};
             std::set<int> held_keys_;
-
-            utility::JsonStore aux_shader_uniforms_;
+            Imath::Box2f image_bounds_in_viewport_pixels_;
 
             std::map<utility::Uuid, caf::actor> overlay_plugin_instances_;
             std::map<utility::Uuid, caf::actor> hud_plugin_instances_;
@@ -414,6 +414,9 @@ namespace ui {
             module::StringChoiceAttribute *mouse_wheel_behaviour_;
             module::BooleanAttribute *hud_toggle_;
             module::StringChoiceAttribute *hud_elements_;
+            module::StringAttribute *frame_rate_expr_;
+            module::StringAttribute *custom_cursor_name_;
+            module::IntegerAttribute *sync_to_main_viewport_;
 
             utility::Uuid zoom_hotkey_;
             utility::Uuid pan_hotkey_;
@@ -421,10 +424,14 @@ namespace ui {
             utility::Uuid fit_mode_hotkey_;
             utility::Uuid mirror_mode_hotkey_;
 
+            utility::Uuid reset_menu_item_;
+
             utility::time_point t1_;
 
             void hotkey_pressed(
-                const utility::Uuid &hotkey_uuid, const std::string &context) override;
+                const utility::Uuid &hotkey_uuid,
+                const std::string &context,
+                const std::string &window) override;
             void hotkey_released(
                 const utility::Uuid &hotkey_uuid, const std::string &context) override;
             void update_attrs_from_preferences(const utility::JsonStore &) override;

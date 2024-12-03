@@ -42,7 +42,7 @@ namespace ui {
 
         class OpenGLViewportRenderer : public viewport::ViewportRenderer {
           public:
-            OpenGLViewportRenderer(const int viewer_index, const bool gl_context_shared);
+            OpenGLViewportRenderer(const bool gl_context_shared);
 
             ~OpenGLViewportRenderer() override = default;
 
@@ -86,7 +86,6 @@ namespace ui {
 
             media_reader::ImageBufPtr onscreen_frame_;
 
-            int viewport_index_;
             bool has_alpha_ = {false};
         };
     } // namespace opengl

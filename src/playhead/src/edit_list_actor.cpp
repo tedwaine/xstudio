@@ -4,6 +4,7 @@
 #include "xstudio/atoms.hpp"
 #include "xstudio/broadcast/broadcast_actor.hpp"
 #include "xstudio/playhead/edit_list_actor.hpp"
+#include "xstudio/thumbnail/thumbnail.hpp"
 #include "xstudio/utility/helpers.hpp"
 #include "xstudio/utility/logging.hpp"
 #include "xstudio/utility/uuid.hpp"
@@ -70,6 +71,13 @@ EditListActor::EditListActor(
             // send(event_group_, utility::event_atom_v, utility::change_atom_v);
         },
 
+        [=](json_store::update_atom,
+            const JsonStore &,
+            const std::string &,
+            const JsonStore &) {},
+
+        [=](json_store::update_atom, const JsonStore &) mutable {},
+
         [=](utility::event_atom,
             media::add_media_source_atom,
             const utility::UuidActorVector &uav) {
@@ -79,6 +87,9 @@ EditListActor::EditListActor(
         [=](utility::event_atom, utility::last_changed_atom, const time_point &) {
             send(event_group_, utility::event_atom_v, utility::change_atom_v);
         },
+        [=](utility::event_atom,
+            media_reader::get_thumbnail_atom,
+            const thumbnail::ThumbnailBufferPtr &buf) {},
         [=](utility::event_atom,
             playlist::reflag_container_atom,
             const utility::Uuid &,
@@ -93,6 +104,10 @@ EditListActor::EditListActor(
                 bookmark_uuid);
         },
         [=](utility::event_atom,
+            bookmark::bookmark_change_atom,
+            const utility::Uuid &,
+            const utility::UuidList &) {},
+        [=](utility::event_atom,
             media::current_media_source_atom,
             UuidActor &,
             const media::MediaType) {
@@ -100,6 +115,13 @@ EditListActor::EditListActor(
         },
 
         [=](utility::event_atom, media::media_status_atom, const media::MediaStatus ms) {},
+
+        [=](utility::event_atom,
+            media::media_display_info_atom,
+            const utility::JsonStore &,
+            caf::actor_addr &) {},
+
+        [=](utility::event_atom, media::media_display_info_atom, const utility::JsonStore &) {},
 
         [=](const error &err) { spdlog::warn("{} {}", __PRETTY_FUNCTION__, to_string(err)); },
 
@@ -252,21 +274,6 @@ EditListActor::EditListActor(
                 }
             }
             return rp;
-        },
-
-        [=](playhead::skip_through_sources_atom,
-            const int skip_by,
-            const int ref_frame) -> result<utility::Uuid> {
-            try {
-
-                EditListSection section =
-                    edit_list_.skip_sections(ref_frame - frames_offset_, skip_by);
-
-                return section.media_uuid_;
-
-            } catch (std::exception &e) {
-                return make_error(xstudio_error::error, e.what());
-            }
         },
 
         [=](rate_atom, const int logical_frame) -> result<FrameRate> {

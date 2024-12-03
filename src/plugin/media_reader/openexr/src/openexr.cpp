@@ -49,44 +49,31 @@ static Uuid s_plugin_uuid("9fd34c7e-8b35-44c7-8976-387bae1e35e0");
 overscan amount, compute the cropped data window that limits
 the overscan in the data window.
 
-Returns true if a crop is required to meet max overscan requirement
+Returns true if a crop is required to meet max overscan requirement*/
 bool crop_data_window(
-        Imath::Box2i &data_window,
-        const Imath::Box2i &display_window,
-        const float overscan_percent
-)
-{
+    Imath::Box2i &data_window,
+    const Imath::Box2i &display_window,
+    const float overscan_percent) {
 
-        const int width = display_window.size().x+1;
-        const int height = display_window.size().y+1;
+    const int width  = display_window.size().x + 1;
+    const int height = display_window.size().y + 1;
 
-        const Imath::Box2i in_data_window = data_window;
+    const Imath::Box2i in_data_window = data_window;
 
-        data_window.min.x = std::max(
-                data_window.min.x,
-                (int)round(-float(width)*overscan_percent/100.0f)
-                );
+    data_window.min.x =
+        std::max(data_window.min.x, (int)round(-float(width) * overscan_percent / 100.0f));
 
-        data_window.max.x = std::min(
-                data_window.max.x,
-                (int)round(float(width)*(overscan_percent/100.0f + 1.0f))
-                );
+    data_window.max.x = std::min(
+        data_window.max.x, (int)round(float(width) * (overscan_percent / 100.0f + 1.0f)));
 
-        data_window.min.y = std::max(
-                data_window.min.y,
-                (int)round(-float(height)*overscan_percent/100.0f)
-                );
+    data_window.min.y =
+        std::max(data_window.min.y, (int)round(-float(height) * overscan_percent / 100.0f));
 
-        data_window.max.y = std::min(
-                data_window.max.y,
-                (int)round(float(height)*(overscan_percent/100.0f + 1.0f))
-                );
+    data_window.max.y = std::min(
+        data_window.max.y, (int)round(float(height) * (overscan_percent / 100.0f + 1.0f)));
 
-        return in_data_window != data_window;
-
+    return in_data_window != data_window;
 }
-*/
-
 
 static Uuid openexr_shader_uuid{"1c9259fc-46a5-11ea-87fe-989096adb429"};
 static std::string shader{R"(
@@ -271,11 +258,8 @@ ImageBufPtr OpenEXRMediaReader::image(const media::AVFrameID &mptr) {
         Imath::Box2i display_window = in.header().displayWindow();
 
         // decide the area of the image we want to load
-        const bool cropped_data_window = false; /*crop_data_window(
-                 data_window,
-                 display_window,
-                 max_exr_overscan_percent_
-                 );*/
+        const bool cropped_data_window =
+            crop_data_window(data_window, display_window, max_exr_overscan_percent_);
 
         // compute the size of the buffer we need
         const size_t n_pixels = (data_window.size().x + 1) * (data_window.size().y + 1);
@@ -483,7 +467,17 @@ void OpenEXRMediaReader::stream_ids_from_exr_part(
     if (channel_names_by_layer.find("RGBA") != channel_names_by_layer.end()) {
         // make sure RGBA layer is first Stream
         stream_ids.emplace_back("RGBA");
+    } else {
+        // optherwise look for a layer matching *.rgb to pick as the first one
+        for (auto p = channel_names_by_layer.begin(); p != channel_names_by_layer.end(); ++p) {
+            if (utility::to_lower(p->first).find(".rgb") != std::string::npos) {
+                stream_ids.emplace_back(p->first);
+                channel_names_by_layer.erase(p);
+                break;
+            }
+        }
     }
+
     if (channel_names_by_layer.find("XYZ") != channel_names_by_layer.end()) {
         // make sure XYZ layer is first or second Stream
         stream_ids.emplace_back("XYZ");
@@ -633,29 +627,39 @@ xstudio::media::MediaDetail OpenEXRMediaReader::detail(const caf::uri &uri) cons
         // apply its global frame rate
         frd.set_rate(fr == 0.0 ? utility::FrameRate() : utility::FrameRate(1.0 / fr));
 
-        std::vector<std::string> stream_ids;
-        std::vector<Imath::V2i> resolutions;
-        std::vector<float> pixel_aspects;
-        std::vector<int> part_number;
+        struct PartDetail {
+            std::vector<std::string> stream_ids;
+            Imath::V2i resolution;
+            float pixel_aspect;
+            int part_number;
+        };
+
+        std::vector<PartDetail> parts_detail;
+
         for (int prt = 0; prt < parts; ++prt) {
             // skip incomplete parts - maybe better error/handling messaging required?
             if (!input.partComplete(prt))
                 continue;
+
             const Imf::Header &part_header = input.header(prt);
-            stream_ids_from_exr_part(part_header, stream_ids);
-            resolutions.emplace_back(
+
+            PartDetail pd;
+            stream_ids_from_exr_part(part_header, pd.stream_ids);
+            pd.resolution = {
                 part_header.displayWindow().max.x - part_header.displayWindow().min.x,
-                part_header.displayWindow().max.y - part_header.displayWindow().min.y);
-            pixel_aspects.emplace_back(part_header.pixelAspectRatio());
-            part_number.emplace_back(prt);
+                part_header.displayWindow().max.y - part_header.displayWindow().min.y};
+            pd.pixel_aspect = part_header.pixelAspectRatio();
+            pd.part_number  = prt;
+            parts_detail.push_back(pd);
         }
 
-        int ct = 0;
-        for (const auto &stream_id : stream_ids) {
-            streams.emplace_back(media::StreamDetail(frd, stream_id));
-            streams.back().resolution_   = resolutions[ct];
-            streams.back().pixel_aspect_ = pixel_aspects[ct];
-            streams.back().index_        = part_number[ct++];
+        for (const auto &part : parts_detail) {
+            for (const auto &stream_id : part.stream_ids) {
+                streams.emplace_back(media::StreamDetail(frd, stream_id));
+                streams.back().resolution_   = part.resolution;
+                streams.back().pixel_aspect_ = part.pixel_aspect;
+                streams.back().index_        = part.part_number;
+            }
         }
 
     } catch (const std::exception &e) {

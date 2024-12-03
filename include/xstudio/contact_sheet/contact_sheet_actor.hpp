@@ -27,13 +27,20 @@ namespace contact_sheet {
             const utility::Uuid &uuid,
             const utility::Uuid &before_uuid = utility::Uuid());
         bool remove_media(caf::actor actor, const utility::Uuid &uuid);
-        caf::behavior make_behavior() override { return behavior_; }
-        void sort_alphabetically();
+        caf::message_handler message_handler();
+
+        caf::behavior make_behavior() override {
+            return message_handler().or_else(base_.container_message_handler(this));
+        }
+        void sort_by_media_display_info(const int sort_column_index, const bool ascending);
 
       private:
-        caf::behavior behavior_;
         caf::actor_addr playlist_;
         ContactSheet base_;
+
+        caf::actor change_event_group_;
+        caf::actor selection_actor_;
+
         utility::UuidActorMap actors_;
         utility::UuidActor playhead_;
     };

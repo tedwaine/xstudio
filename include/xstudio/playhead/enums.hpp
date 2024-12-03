@@ -22,5 +22,15 @@ namespace playhead {
         OM_HOLD = 0x2L,
         OM_LOOP = 0x3L
     } OverflowMode;
+
+    typedef enum {
+        SM_NO_UPDATE        = 0x0L, // NO OP
+        SM_CLEAR            = 0x1L,
+        SM_SELECT           = 0x2L,
+        SM_CLEAR_AND_SELECT = 0x3L,
+        SM_DESELECT         = 0x4L,
+        SM_TOGGLE           = 0x8L
+    } SelectionMode;
+
 } // namespace playhead
 } // namespace xstudio

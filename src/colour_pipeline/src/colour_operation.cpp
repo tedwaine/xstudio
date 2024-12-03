@@ -32,6 +32,12 @@ caf::message_handler ColourOpPlugin::message_handler_extensions() {
             auto media_source = utility::UuidActor(
                 media_ptr.source_uuid_, caf::actor_cast<caf::actor>(media_ptr.actor_addr_));
 
+            if (!media_source.actor()) {
+                // no media source (missing media etc.) - return empty object
+                rp.deliver(ColourOperationDataPtr());
+                return rp;
+            }
+
             // now get to the MediaActor that owns the MediaSourceActor
             request(media_source.actor(), infinite, utility::parent_atom_v)
                 .then(
@@ -87,6 +93,14 @@ caf::message_handler ColourOpPlugin::message_handler_extensions() {
             const utility::JsonStore &source_colour_params) {
             on_screen_source_ = utility::UuidActor(media_uuid, media_actor);
             onscreen_media_source_changed(on_screen_source_, source_colour_params);
+        },
+        [=](playhead::media_source_atom,
+            caf::actor media_actor,
+            const utility::Uuid &media_uuid,
+            const utility::JsonStore &source_colour_params) -> bool {
+            on_screen_source_ = utility::UuidActor(media_uuid, media_actor);
+            onscreen_media_source_changed(on_screen_source_, source_colour_params);
+            return true;
         }
         /*,
         [=](media::media_source_atom, utility::UuidActor media_source, const utility::JsonStore

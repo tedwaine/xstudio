@@ -27,7 +27,10 @@ namespace ui {
             void update_attrs_from_preferences(const utility::JsonStore &) override;
 
             void register_hotkeys() override;
-            void hotkey_pressed(const utility::Uuid &uuid, const std::string &context) override;
+            void hotkey_pressed(
+                const utility::Uuid &uuid,
+                const std::string &context,
+                const std::string &window) override;
             void
             hotkey_released(const utility::Uuid &uuid, const std::string &context) override;
             bool pointer_event(const ui::PointerEvent &e) override;
@@ -39,8 +42,7 @@ namespace ui {
                 const media_reader::ImageBufPtr &,
                 const std::string &viewport_name) const override;
 
-            plugin::ViewportOverlayRendererPtr
-            make_overlay_renderer(const int viewer_index) override;
+            plugin::ViewportOverlayRendererPtr make_overlay_renderer() override;
 
             bookmark::AnnotationBasePtr
             build_annotation(const utility::JsonStore &anno_data) override;
@@ -49,6 +51,12 @@ namespace ui {
                 const std::vector<media_reader::ImageBufPtr> &images,
                 const std::string viewport_name,
                 const bool playhead_playing) override;
+
+            void viewport_dockable_widget_activated(std::string &widget_name) override;
+
+            void viewport_dockable_widget_deactivated(std::string &widget_name) override;
+
+            void turn_off_overlay_interaction() override;
 
           private:
             bool is_laser_mode() const;
@@ -80,16 +88,18 @@ namespace ui {
             void update_bookmark_annotation_data();
 
           private:
-            enum Tool { Draw, Shapes, Text, Erase, None };
-            enum ShapeTool { Square, Circle, Arrow, Line };
+            enum Tool { Draw, Laser, Square, Circle, Arrow, Line, Text, Erase, None };
             enum DisplayMode { OnlyWhenPaused, Always, WithDrawTool };
-            enum ScribbleTool { Sketch, Laser, Onion };
 
             const std::map<int, std::string> tool_names_ = {
-                {Draw, "Draw"}, {Shapes, "Shapes"}, {Text, "Text"}, {Erase, "Erase"}};
-
-            const std::map<int, std::string> draw_mode_names_ = {
-                {Sketch, "Sketch"}, {Laser, "Laser"}, {Onion, "Onion"}};
+                {Draw, "Draw"},
+                {Laser, "Laser"},
+                {Square, "Square"},
+                {Circle, "Circle"},
+                {Arrow, "Arrow"},
+                {Line, "Line"},
+                {Text, "Text"},
+                {Erase, "Erase"}};
 
             module::StringChoiceAttribute *active_tool_{nullptr};
 
@@ -103,14 +113,13 @@ namespace ui {
             module::IntegerAttribute *text_bgr_opacity_{nullptr};
 
             module::BooleanAttribute *text_cursor_blink_attr_{nullptr};
-            module::BooleanAttribute *tool_is_active_{nullptr};
             module::StringAttribute *action_attribute_{nullptr};
-            module::IntegerAttribute *shape_tool_{nullptr};
-            module::StringChoiceAttribute *draw_mode_{nullptr};
             module::IntegerAttribute *moving_scaling_text_attr_{nullptr};
             module::StringChoiceAttribute *font_choice_{nullptr};
 
             module::StringChoiceAttribute *display_mode_attribute_{nullptr};
+
+            module::Attribute *dockable_widget_attr_{nullptr};
 
             DisplayMode display_mode_{OnlyWhenPaused};
             bool playhead_is_playing_{false};
@@ -118,6 +127,7 @@ namespace ui {
             utility::Uuid toggle_active_hotkey_;
             utility::Uuid undo_hotkey_;
             utility::Uuid redo_hotkey_;
+            utility::Uuid clear_hotkey_;
 
             // Annotations
             utility::Uuid current_bookmark_uuid_;
@@ -140,6 +150,8 @@ namespace ui {
             Imath::V2f caption_drag_caption_start_pos_;
             Imath::V2f caption_drag_width_height_;
             Imath::V2f shape_anchor_;
+
+            std::string last_tool_ = {"Draw"};
 
             bool fade_looping_{false};
             std::map<std::string, std::vector<media_reader::ImageBufPtr>>

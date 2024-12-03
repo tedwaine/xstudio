@@ -3,7 +3,7 @@
 
 #include "xstudio/plugin_manager/plugin_base.hpp"
 #include "xstudio/ui/opengl/shader_program_base.hpp"
-#include "xstudio/ui/viewport/hud_plugin.hpp"
+#include "xstudio/plugin_manager/hud_plugin.hpp"
 #include "xstudio/ui/opengl/opengl_text_rendering.hpp"
 
 namespace xstudio {
@@ -30,7 +30,7 @@ namespace ui {
 
         };*/
 
-        class PixelProbeHUD : public HUDPluginBase {
+        class PixelProbeHUD : public plugin::HUDPluginBase {
           public:
             PixelProbeHUD(caf::actor_config &cfg, const utility::JsonStore &init_settings);
 

@@ -47,9 +47,9 @@ void FrameRequestQueue::add_frame_requests(
 
     for (const auto &p : frames_info) {
         const std::shared_ptr<const media::AVFrameID> &frame_info = (p.second);
-        const utility::time_point &required_by                    = p.first;
+        const utility::time_point &when_we_want_it                = p.first;
         queue_.emplace_back(
-            new FrameRequest(frame_info, required_by, requesting_playhead_uuid));
+            new FrameRequest(frame_info, when_we_want_it, requesting_playhead_uuid));
     }
 
     std::sort(

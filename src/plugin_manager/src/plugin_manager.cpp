@@ -2,7 +2,6 @@
 #ifdef __linux__
 #include <dlfcn.h>
 #endif
-
 #include <filesystem>
 
 #include <fstream>
@@ -47,15 +46,12 @@ PluginManager::PluginManager(std::list<std::string> plugin_paths)
 size_t PluginManager::load_plugins() {
     // scan for .so or .dll for each path.
     size_t loaded = 0;
-    spdlog::debug("Loading Plugins");
-
     for (const auto &path : plugin_paths_) {
         try {
             // read dir content..
             for (const auto &entry : fs::directory_iterator(path)) {
                 if (not fs::is_regular_file(entry.status()) or
-                    not(entry.path().extension() == ".so" ||
-                        entry.path().extension() == ".dll"))
+                    not(entry.path().extension() == ".so"))
                     continue;
 
 #ifdef __linux__
@@ -69,7 +65,6 @@ size_t PluginManager::load_plugins() {
                     spdlog::warn("{} {}", __PRETTY_FUNCTION__, dlerror());
                     continue;
                 }
-
 
                 plugin_factory_collection_ptr pfcp;
                 *(void **)(&pfcp) = dlsym(hndl, "plugin_factory_collection_ptr");

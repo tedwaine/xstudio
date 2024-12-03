@@ -108,7 +108,8 @@ namespace media {
 
     inline std::string to_string(const StreamDetail &v) {
         return v.name_ + " " + to_readable_string(v.media_type_) + " " + v.key_format_ + " " +
-               to_string(v.duration_);
+               to_string(v.duration_) + " " + std::to_string(v.resolution_.x) + "x" +
+               std::to_string(v.resolution_.y) + " " + std::to_string(v.pixel_aspect_);
     }
 
     class MediaDetail {
@@ -151,7 +152,7 @@ namespace media {
             const int frame,
             const std::string &stream_id)
             : std::string(fmt::format(
-                  key_format,
+                  fmt::runtime(key_format),
                   to_string(uri),
                   (frame == std::numeric_limits<int>::min() ? 0 : frame),
                   stream_id)) {}
@@ -193,7 +194,7 @@ namespace media {
         const int frame,
         const std::string &stream_id) {
         return MediaKey(fmt::format(
-            key_format,
+            fmt::runtime(key_format),
             to_string(uri),
             (frame == std::numeric_limits<int>::min() ? 0 : frame),
             stream_id));
@@ -214,6 +215,7 @@ namespace media {
             const utility::JsonStore &params  = utility::JsonStore(),
             const utility::Uuid &source_uuid  = utility::Uuid(),
             const utility::Uuid &media_uuid   = utility::Uuid(),
+            const utility::Uuid &clip_uuid    = utility::Uuid(),
             const MediaType media_type        = MT_IMAGE,
             const int playhead_logical_frame  = 0,
             const utility::Timecode time_code = utility::Timecode())
@@ -228,6 +230,7 @@ namespace media {
               params_(params),
               source_uuid_(source_uuid),
               media_uuid_(media_uuid),
+              clip_uuid_(clip_uuid),
               media_type_(media_type),
               playhead_logical_frame_(playhead_logical_frame),
               timecode_(time_code) {}
@@ -262,6 +265,7 @@ namespace media {
                 f.field("prms", x.params_),
                 f.field("suuid", x.source_uuid_),
                 f.field("skpky", x.media_uuid_),
+                f.field("clpid", x.clip_uuid_),
                 f.field("mt", x.media_type_),
                 f.field("plc", x.playhead_logical_frame_),
                 f.field("tc", x.timecode_),
@@ -279,6 +283,7 @@ namespace media {
         utility::JsonStore params_;
         utility::Uuid source_uuid_;
         utility::Uuid media_uuid_;
+        utility::Uuid clip_uuid_;
         MediaType media_type_;
         int playhead_logical_frame_;
         utility::Timecode timecode_;
@@ -318,7 +323,6 @@ namespace media {
         void set_flag(const std::string &flag) { flag_ = flag; }
         [[nodiscard]] std::string flag_text() const { return flag_text_; }
         void set_flag_text(const std::string &flag_text) { flag_text_ = flag_text; }
-
 
       private:
         // will need extending.., tagging ?
@@ -446,6 +450,7 @@ namespace media {
             "Blank",
             actor_addr(),
             js,
+            utility::Uuid(),
             utility::Uuid(),
             utility::Uuid(),
             media_type));

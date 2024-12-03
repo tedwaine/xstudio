@@ -1,9 +1,5 @@
 // SPDX-License-Identifier: Apache-2.0
-#ifdef _WIN32
-#include <numeric>
-#else
 #include <experimental/numeric>
-#endif
 #include <functional>
 #include <iostream>
 
@@ -83,6 +79,21 @@ void xstudio::utility::to_json(nlohmann::json &j, const FrameRateDuration &rt) {
 FrameRateDuration FrameRateDuration::operator-(const FrameRateDuration &other) {
     return FrameRateDuration(frames() - frame(other), rate_);
 }
+
+FrameRateDuration FrameRateDuration::operator+(const FrameRateDuration &other) {
+    return FrameRateDuration(frames() + frame(other), rate_);
+}
+
+FrameRateDuration &FrameRateDuration::operator+=(const FrameRateDuration &other) {
+    set_frames(frames() + other.frames());
+    return *this;
+}
+
+FrameRateDuration &FrameRateDuration::operator-=(const FrameRateDuration &other) {
+    set_frames(frames() - other.frames());
+    return *this;
+}
+
 
 FrameRateDuration
 FrameRateDuration::subtract_frames(const FrameRateDuration &other, const bool remapped) const {

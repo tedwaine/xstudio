@@ -326,8 +326,7 @@ void main(void)
             rgb_frag_value.a = 1.0;
         }
 
-        FragColor = rgb_frag_value;
-
+        FragColor = vec4(rgb_frag_value.rgb, 1.0);
     }
 }
 )";
@@ -550,7 +549,7 @@ void main(void)
             rgb_frag_value.a = 1.0;
         }
 
-        FragColor = rgb_frag_value;
+        FragColor = vec4(rgb_frag_value.rgb, 1.0);
     }
 }
 )";
@@ -802,6 +801,12 @@ void GLShaderProgram::compile() {
         // Use the infoLog as you see fit.
         std::stringstream e;
         e << "Shader link error:\n\n" << infoLog.data();
+
+        std::for_each(
+            fragment_shaders_.begin(),
+            fragment_shaders_.end(),
+            [=](const std::string &shader_code) { std::cerr << shader_code << "\n\n"; });
+
         throw std::runtime_error(e.str().c_str());
     }
 

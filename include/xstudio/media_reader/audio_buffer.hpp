@@ -125,6 +125,12 @@ namespace media_reader {
         bool operator<(const utility::time_point &t) const { return when_to_display_ < t; }
 
         utility::time_point when_to_display_;
+
+        [[nodiscard]] const timebase::flicks &timeline_timestamp() const { return tts_; }
+        void set_timline_timestamp(const timebase::flicks tts) { tts_ = tts; }
+
+      private:
+        timebase::flicks tts_ = timebase::flicks{0};
     };
 
 } // namespace media_reader

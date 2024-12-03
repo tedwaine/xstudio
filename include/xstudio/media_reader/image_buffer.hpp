@@ -72,8 +72,6 @@ namespace media_reader {
             return PixelInfo(pixel_location);
         }
 
-        AudioBufPtr audio_;
-
       private:
         utility::Uuid shader_id_;
         utility::JsonStore shader_params_;

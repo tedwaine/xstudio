@@ -28,7 +28,7 @@ namespace playhead {
             const utility::TimeSourceMode time_source_mode_,
             const utility::FrameRate override_frame_rate_,
             const media::MediaType media_type);
-        ~SubPlayhead() override = default;
+        ~SubPlayhead();
 
         const char *name() const override { return NAME.c_str(); }
 
@@ -38,14 +38,21 @@ namespace playhead {
         void set_position(
             const timebase::flicks time,
             const bool forwards,
-            const bool playing            = false,
-            const float velocity          = 1.0f,
-            const bool force_updates      = false,
-            const bool timeline_scrubbing = false);
+            const bool playing,
+            const float velocity,
+            const bool force_updates,
+            const bool active_in_ui,
+            const bool scrubbing);
+
+        void on_exit() override;
 
         void init();
 
-        caf::behavior make_behavior() override { return behavior_; }
+        caf::message_handler message_handler();
+
+        caf::behavior make_behavior() override {
+            return message_handler().or_else(base_.container_message_handler(this));
+        }
 
         void broadcast_image_frame(
             const utility::time_point when_to_show_frame,
@@ -76,7 +83,8 @@ namespace playhead {
             const media::AVFrameID mptr,
             const utility::time_point tp);
 
-        void get_full_timeline_frame_list(caf::typed_response_promise<caf::actor> rp);
+        void get_full_timeline_frame_list(
+            caf::typed_response_promise<caf::actor> rp, const bool retry = false);
 
         std::shared_ptr<const media::AVFrameID> get_frame(
             const timebase::flicks &time,
@@ -89,6 +97,9 @@ namespace playhead {
             int step_frames,
             const bool loop);
 
+        timebase::flicks get_next_or_previous_clip_start_position(
+            const timebase::flicks start_position, const bool next_clip);
+
         void set_in_and_out_frames();
 
         typedef std::vector<std::tuple<utility::Uuid, std::string, int, int>> BookmarkRanges;
@@ -98,9 +109,10 @@ namespace playhead {
             const int logical_playhead_frame,
             BookmarkRanges &bookmark_ranges);
 
-        void full_bookmarks_update();
+        void full_bookmarks_update(caf::typed_response_promise<bool> done);
 
-        void fetch_bookmark_annotations(BookmarkRanges bookmark_ranges);
+        void fetch_bookmark_annotations(
+            BookmarkRanges bookmark_ranges, caf::typed_response_promise<bool> done);
 
         void add_annotations_data_to_frame(media_reader::ImageBufPtr &frame);
 
@@ -120,13 +132,12 @@ namespace playhead {
         int pre_cache_read_ahead_frames_                           = {32};
         std::chrono::milliseconds static_cache_delay_milliseconds_ = {
             std::chrono::milliseconds(500)};
-        caf::behavior behavior_;
         utility::Container base_;
         caf::actor pre_reader_;
         caf::actor source_;
         caf::actor parent_;
-        caf::actor event_group_;
         caf::actor current_media_actor_;
+        caf::actor global_prefs_actor_;
 
         utility::Uuid current_media_source_uuid_;
         utility::time_point last_image_timepoint_;
@@ -135,7 +146,7 @@ namespace playhead {
         timebase::flicks loop_out_point_;
         utility::TimeSourceMode time_source_mode_;
         utility::FrameRate override_frame_rate_;
-        const media::MediaType media_type_;
+        media::MediaType media_type_;
         std::shared_ptr<const media::AVFrameID> previous_frame_;
         utility::UuidSet all_media_uuids_;
 
@@ -143,11 +154,14 @@ namespace playhead {
         media::FrameTimeMap::iterator in_frame_, out_frame_, first_frame_, last_frame_;
         xstudio::bookmark::BookmarkAndAnnotations bookmarks_;
         BookmarkRanges bookmark_ranges_;
+        std::vector<int> media_ranges_;
 
         typedef std::pair<media_reader::ImageBufPtr, colour_pipeline::ColourPipelineDataPtr>
             ImageAndLut;
-        bool content_changed_{false};
         bool up_to_date_{false};
+        bool full_precache_activated_{false};
+        utility::time_point last_change_timepoint_;
+        std::vector<caf::typed_response_promise<caf::actor>> inflight_update_requests_;
     };
 } // namespace playhead
 } // namespace xstudio

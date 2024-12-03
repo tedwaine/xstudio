@@ -53,7 +53,7 @@ std::string make_fps_display_string(
             sprintf(rbuf.data(), "--.-/%.1f", target_fps);
 
         } else {
-            sprintf(rbuf.data(), "--.-/%.2f", target_fps);
+            sprintf(rbuf.data(), "--.--/%.2f", target_fps);
         }
     }
     return std::string(rbuf.data());

@@ -71,6 +71,9 @@ namespace utility {
         [[nodiscard]] const std::vector<FrameGroup> &frame_groups() const {
             return frame_groups_;
         }
+
+        std::vector<FrameGroup> &frame_groups() { return frame_groups_; }
+
         void set_frame_groups(const std::vector<FrameGroup> &frame_groups) {
             frame_groups_ = frame_groups;
         }

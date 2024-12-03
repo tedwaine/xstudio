@@ -14,7 +14,6 @@ if(INSTALL_XSTUDIO)
 	add_src_and_test(contact_sheet)
 	add_src_and_test(data_source)
 	add_src_and_test(embedded_python)
-	add_src_and_test(event)
 	add_src_and_test(global)
 	add_src_and_test(http_client)
 	add_src_and_test(launch/xstudio)
@@ -38,13 +37,14 @@ if(INSTALL_XSTUDIO)
 	add_src_and_test(plugin/utility)
 	add_src_and_test(plugin/viewport_overlay)
 	add_src_and_test(plugin_manager)
+	add_src_and_test(plugin/viewport)
+	add_subdirectory(plugin/python_plugins)
 	add_src_and_test(scanner)
 	add_src_and_test(session)
 	add_src_and_test(shotgun_client)
 	add_src_and_test(studio)
 	add_src_and_test(subset)
 	add_src_and_test(sync)
-	add_src_and_test(tag)
 	add_src_and_test(thumbnail)
 	add_src_and_test(ui)
 
@@ -55,6 +55,11 @@ if(INSTALL_XSTUDIO)
 	if(BUILD_GRADING_DEMO)
 		add_src_and_test(demos/colour_op_plugins/source_grading_demo)
 	endif(BUILD_GRADING_DEMO)
+
+	add_custom_target(
+		preferences-copy ALL DEPENDS
+	  ${PREFERENCE_FILES}
+	)
 
 endif ()
 

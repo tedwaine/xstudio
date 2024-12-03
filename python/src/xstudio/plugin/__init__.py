@@ -5,3 +5,4 @@ Import pyside2 shim.
 """
 
 from xstudio.plugin.plugin_base import PluginBase
+from xstudio.plugin.hud_plugin import HUDPlugin

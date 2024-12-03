@@ -24,6 +24,79 @@ using namespace xstudio::audio;
 using namespace xstudio::utility;
 using namespace xstudio;
 
+void AudioOutputActor::init() {
+
+    // spdlog::debug("Created AudioOutputControlActor {}", OutputClassType::name());
+    utility::print_on_exit(this, "AudioOutputControlActor");
+
+    audio_output_device_ =
+        spawn<AudioOutputDeviceActor>(caf::actor_cast<caf::actor>(this), output_device_);
+    link_to(audio_output_device_);
+
+    auto global_audio_actor =
+        system().registry().template get<caf::actor>(audio_output_registry);
+    utility::join_event_group(this, global_audio_actor);
+
+    behavior_.assign(
+
+        [=](xstudio::broadcast::broadcast_down_atom, const caf::actor_addr &) {},
+
+        [=](utility::event_atom, playhead::play_atom, const bool is_playing) {
+            send(
+                audio_output_device_, utility::event_atom_v, playhead::play_atom_v, is_playing);
+            if (!is_playing)
+                clear_queued_samples();
+        },
+
+        [=](get_samples_for_soundcard_atom,
+            const long num_samps_to_push,
+            const long microseconds_delay,
+            const int num_channels,
+            const int sample_rate) -> result<std::vector<int16_t>> {
+            std::vector<int16_t> samples;
+            try {
+
+                prepare_samples_for_soundcard(
+                    samples, num_samps_to_push, microseconds_delay, num_channels, sample_rate);
+
+            } catch (std::exception &e) {
+
+                return caf::make_error(xstudio_error::error, e.what());
+            }
+            return samples;
+        },
+        [=](set_override_volume_atom, const float volume) { set_override_volume(volume); },
+        [=](utility::event_atom,
+            module::change_attribute_event_atom,
+            const float volume,
+            const bool muted,
+            const bool repitch,
+            const bool scrubbing) { set_attrs(volume, muted, repitch, scrubbing); },
+        [=](utility::event_atom,
+            playhead::sound_audio_atom,
+            const std::vector<media_reader::AudioBufPtr> &audio_buffers,
+            const utility::Uuid &sub_playhead,
+            const bool playing,
+            const bool forwards,
+            const float velocity) {
+            if (sub_playhead != sub_playhead_uuid_) {
+                // sound is coming from a different source to
+                // previous time
+                clear_queued_samples();
+                sub_playhead_uuid_ = sub_playhead;
+            }
+            if (queue_samples_for_playing(audio_buffers, playing, forwards, velocity)) {
+                send(audio_output_device_, utility::event_atom_v, playhead::play_atom_v);
+            }
+        });
+
+    // kicks the global samples actor to update us with current volume etc.
+    send(
+        global_audio_actor,
+        module::change_attribute_event_atom_v,
+        caf::actor_cast<caf::actor>(this));
+}
+
 GlobalAudioOutputActor::GlobalAudioOutputActor(caf::actor_config &cfg)
     : caf::event_based_actor(cfg), module::Module("GlobalAudioOutputActor") {
 
@@ -39,10 +112,10 @@ GlobalAudioOutputActor::GlobalAudioOutputActor(caf::actor_config &cfg)
     volume_->set_role_data(module::Attribute::PreferencePath, "/core/audio/volume");
 
     // by setting static UUIDs on these module we only create them once in the UI
-    volume_->set_role_data(module::Attribute::Groups, nlohmann::json{"audio_output"});
+    volume_->set_role_data(module::Attribute::UIDataModels, nlohmann::json{"audio_output"});
 
     muted_ = add_boolean_attribute("muted", "muted", false);
-    muted_->set_role_data(module::Attribute::Groups, nlohmann::json{"audio_output"});
+    muted_->set_role_data(module::Attribute::UIDataModels, nlohmann::json{"audio_output"});
     muted_->set_role_data(module::Attribute::PreferencePath, "/core/audio/muted");
 
     spdlog::debug("Created GlobalAudioOutputActor");
@@ -54,6 +127,8 @@ GlobalAudioOutputActor::GlobalAudioOutputActor(caf::actor_config &cfg)
     link_to(event_group_);
 
     set_parent_actor_addr(actor_cast<caf::actor_addr>(this));
+
+    mute_hotkey_ = register_hotkey("/", "Mute Audio", "Mute/Un-mute audio.", true, "Playback");
 
     behavior_.assign(
 
@@ -79,6 +154,16 @@ GlobalAudioOutputActor::GlobalAudioOutputActor(caf::actor_config &cfg)
                 playing,
                 forwards,
                 velocity);
+        },
+        [=](module::change_attribute_event_atom, caf::actor requester) {
+            send(
+                requester,
+                utility::event_atom_v,
+                module::change_attribute_event_atom_v,
+                volume_->value(),
+                muted_->value(),
+                audio_repitch_->value(),
+                audio_scrubbing_->value());
         }
 
     );
@@ -101,4 +186,12 @@ void GlobalAudioOutputActor::attribute_changed(const utility::Uuid &attr_uuid, c
         audio_scrubbing_->value());
 
     Module::attribute_changed(attr_uuid, role);
+}
+
+void GlobalAudioOutputActor::hotkey_pressed(
+    const utility::Uuid &hotkey_uuid, const std::string &context, const std::string &window) {
+
+    if (hotkey_uuid == mute_hotkey_) {
+        muted_->set_value(!muted_->value());
+    }
 }

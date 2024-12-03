@@ -21,12 +21,16 @@ namespace subset {
         inline static const std::string NAME = "SubsetActor";
         void init();
 
-        caf::behavior make_behavior() override { return behavior_; }
+        caf::message_handler message_handler();
+
+        caf::behavior make_behavior() override {
+            return message_handler().or_else(base_.container_message_handler(this));
+        }
 
         void deliver_media_pointer(
             const int logical_frame, caf::typed_response_promise<media::AVFrameID> rp);
 
-        void sort_alphabetically();
+        void sort_by_media_display_info(const int sort_column_index, const bool ascending);
 
         void add_media(
             const utility::UuidActor &ua,
@@ -41,7 +45,8 @@ namespace subset {
       private:
         caf::behavior behavior_;
         caf::actor_addr playlist_;
-        caf::actor event_group_, change_event_group_;
+        caf::actor change_event_group_;
+        caf::actor selection_actor_;
         Subset base_;
         utility::UuidActorMap actors_;
         utility::UuidActor playhead_;

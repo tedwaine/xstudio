@@ -91,10 +91,7 @@ class ImageBoundaryRenderer : public plugin::ViewportOverlayRenderer {
 
 ImageBoundaryHUD::ImageBoundaryHUD(
     caf::actor_config &cfg, const utility::JsonStore &init_settings)
-    : HUDPluginBase(cfg, "Image Boundary", init_settings) {
-
-    enabled_->set_preference_path("/plugin/image_boundary/enabled");
-    enabled_->set_role_data(module::Attribute::ToolbarPosition, 2.0f);
+    : plugin::HUDPluginBase(cfg, "Image Boundary", init_settings) {
 
     colour_ =
         add_colour_attribute("Line Colour", "Colour", utility::ColourTriplet(1.0f, 0.0f, 0.0f));
@@ -106,7 +103,7 @@ ImageBoundaryHUD::ImageBoundaryHUD(
     add_hud_settings_attribute(width_);
 }
 
-plugin::ViewportOverlayRendererPtr ImageBoundaryHUD::make_overlay_renderer(const int) {
+plugin::ViewportOverlayRendererPtr ImageBoundaryHUD::make_overlay_renderer() {
     return plugin::ViewportOverlayRendererPtr(new ImageBoundaryRenderer());
 }
 
@@ -146,7 +143,8 @@ plugin_manager::PluginFactoryCollection *plugin_factory_collection_ptr() {
             {std::make_shared<plugin_manager::PluginFactoryTemplate<ImageBoundaryHUD>>(
                 utility::Uuid("95268f7c-88d1-48da-8543-c5275ef5b2c5"),
                 "ImageBoundaryHUD",
-                plugin_manager::PluginFlags::PF_HEAD_UP_DISPLAY,
+                plugin_manager::PluginFlags::PF_HEAD_UP_DISPLAY |
+                    plugin_manager::PluginFlags::PF_VIEWPORT_OVERLAY,
                 true,
                 "Clement Jovet",
                 "Viewport HUD Plugin")}));

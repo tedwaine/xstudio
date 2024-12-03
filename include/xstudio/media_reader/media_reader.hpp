@@ -152,9 +152,6 @@ namespace media_reader {
                         if (mb) {
                             mb->set_media_key(mptr.key_);
                             mb->set_pixel_picker_func(media_reader_.pixel_picker_func());
-                            if (mb->audio_) {
-                                mb->audio_->set_media_key(mptr.key_);
-                            }
                             mb->params()["path"]   = path;
                             mb->params()["frame"]  = mptr.frame_;
                             mb->params()["reader"] = media_reader_.name();

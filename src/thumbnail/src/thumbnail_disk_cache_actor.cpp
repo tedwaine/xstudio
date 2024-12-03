@@ -113,7 +113,7 @@ ThumbGenMiddleman::ThumbGenMiddleman(caf::actor_config &cfg) : caf::event_based_
                     media_reader::get_thumbnail_atom_v,
                     mptr,
                     thumb_size)
-                    .await(
+                    .then(
                         [=](const ThumbnailBufferPtr &buf) mutable { rp.deliver(buf); },
                         [=](const caf::error &err) mutable { rp.deliver(err); });
             }
@@ -177,9 +177,10 @@ TDCHelperActor::encode_save_thumb(const std::string &path, const ThumbnailBuffer
     return buf.size();
 }
 
-std::vector<std::byte> TDCHelperActor::encode_thumb(const ThumbnailBufferPtr &buffer) {
+std::vector<std::byte>
+TDCHelperActor::encode_thumb(const ThumbnailBufferPtr &buffer, const int quality) {
     auto result = std::vector<std::byte>();
-    int quality = 75;
+
     // Creating a custom deleter for the compressInfo pointer
     // to ensure ::jpeg_destroy_compress() gets called even if
     // we throw out of this function.
@@ -326,6 +327,16 @@ TDCHelperActor::TDCHelperActor(caf::actor_config &cfg) : caf::event_based_actor(
         },
 
         [=](media_reader::get_thumbnail_atom,
+            const ThumbnailBufferPtr &buffer,
+            const int quality) -> result<std::vector<std::byte>> {
+            try {
+                return encode_thumb(buffer, quality);
+            } catch (const std::exception &err) {
+                return make_error(xstudio_error::error, err.what());
+            }
+        },
+
+        [=](media_reader::get_thumbnail_atom,
             const ThumbnailBufferPtr &buffer) -> result<std::vector<std::byte>> {
             try {
                 return encode_thumb(buffer);
@@ -358,6 +369,7 @@ TDCHelperActor::TDCHelperActor(caf::actor_config &cfg) : caf::event_based_actor(
                                 thumb_path.parent_path().string());
                     }
                 }
+
 #ifdef _WIN32
                 return encode_save_thumb(thumbnail_path(path, thumb).string(), buffer);
 #else
@@ -415,14 +427,21 @@ ThumbnailDiskCacheActor::ThumbnailDiskCacheActor(caf::actor_config &cfg)
         caf::actor_pool::round_robin());
     link_to(pool_);
 
-    thumb_gen_middleman_ = spawn<ThumbGenMiddleman>();
-    link_to(thumb_gen_middleman_);
+    thumb_gen_middleman_ = system().registry().template get<caf::actor>(media_reader_registry);
+
 
     behavior_.assign(
         [=](xstudio::broadcast::broadcast_down_atom, const caf::actor_addr &) {},
         [=](utility::clear_atom) -> bool {
             evict_thumbnails(cache_.evict(0, 0));
             return true;
+        },
+
+        // convert to jpg
+        [=](media_reader::get_thumbnail_atom,
+            const ThumbnailBufferPtr &buffer,
+            const int quality) {
+            delegate(pool_, media_reader::get_thumbnail_atom_v, buffer, quality);
         },
 
         // convert to jpg

@@ -1,0 +1,1 @@
+add_python_plugin(viewport_flag_indicator)

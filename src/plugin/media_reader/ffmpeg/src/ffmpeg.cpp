@@ -5,9 +5,7 @@
 #include <map>
 #include <mutex>
 #include <regex>
-#ifdef __linux__
 #include <sys/time.h>
-#endif
 
 #include "xstudio/global_store/global_store.hpp"
 #include "xstudio/media/media.hpp"
@@ -162,7 +160,7 @@ vec4 fetch_rgba_pixel_from_rgba32(ivec2 image_coord)
 	int address = image_coord.x*4 + image_coord.y*y_linesize;
 	uvec4 rgba = get_image_data_4bytes(address);
 	if (rgb == 3) { // AV_PIX_FMT_ARGB
-		rgba.xyzw = rgba.wxyz;
+		rgba.xyzw = rgba.yzwx;
 	} else if (rgb == 4) { // AV_PIX_FMT_RGBA
         //nope
 	} else if (rgb == 5) { // AV_PIX_FMT_ABGR
@@ -238,6 +236,40 @@ static ui::viewport::GPUShaderPtr
 static ui::viewport::GPUShaderPtr
     ffmpeg_shader_rgb(new ui::opengl::OpenGLShader(ffmpeg_shader_uuid_rgb, the_shader_rgb));
 
+// See 'uri_convert' - I'm doing this because 'uri_to_posix_path' which is used
+// in most places we need to go from uri to filsystem can't deal with uris like
+// https://aswf.s3-accelerate.amazonaws.com/ALab_h264_MOVs/mk020_0220.mov. For
+// FFMPEG reader, we might want to access media via https and other protocols
+// so I have avoided using uri_to_posix_path
+std::string uri_decode(const std::string &eString) {
+    std::string ret;
+    char ch;
+    unsigned int i, j;
+    for (i = 0; i < eString.length(); i++) {
+        if (int(eString[i]) == 37) {
+            sscanf(eString.substr(i + 1, 2).c_str(), "%x", &j);
+            ch = static_cast<char>(j);
+            ret += ch;
+            i = i + 2;
+        } else {
+            ret += eString[i];
+        }
+    }
+    return (ret);
+}
+
+std::string uri_convert(const caf::uri &uri) {
+
+    // This may be a kettle of fish.
+
+    // uri like https://aswf.s3-accelerate.amazonaws.com/ALab_h264_MOVs/mk020_0220.mov
+    // can be passed through.
+    // uri like file://localhost/user_data/my_vid.mov needs the 'localhost' removed.
+    auto path = to_string(uri);
+    utility::replace_string_in_place(path, "file://localhost", "file:");
+    return uri_decode(path);
+}
+
 } // namespace
 
 
@@ -263,7 +295,9 @@ FFMpegMediaReader::FFMpegMediaReader(const utility::JsonStore &prefs)
 utility::Uuid FFMpegMediaReader::plugin_uuid() const { return s_plugin_uuid; }
 
 void FFMpegMediaReader::update_preferences(const utility::JsonStore &prefs) {
+
     try {
+
         readers_per_source_ =
             preference_value<int>(prefs, "/plugin/media_reader/FFMPEG/readers_per_source");
 #ifdef __linux__
@@ -275,20 +309,27 @@ void FFMpegMediaReader::update_preferences(const utility::JsonStore &prefs) {
             preference_value<int>(prefs, "/core/audio/windows_audio_prefs/sample_rate");
 #endif
 
+        default_rate_ = utility::FrameRate(
+            preference_value<std::string>(prefs, "/core/session/media_rate"));
+
     } catch (const std::exception &e) {
         spdlog::warn("{} {}", __PRETTY_FUNCTION__, e.what());
     }
 }
 
+static std::mutex m;
+static int ct = 0;
+
 ImageBufPtr FFMpegMediaReader::image(const media::AVFrameID &mptr) {
-    std::string path = uri_to_posix_path(mptr.uri_);
+    std::string path = uri_convert(mptr.uri_);
 
     if (last_decoded_image_ && last_decoded_image_->media_key() == mptr.key_) {
         return last_decoded_image_;
     }
 
     if (!decoder || decoder->path() != path) {
-        decoder.reset(new FFMpegDecoder(path, soundcard_sample_rate_, mptr.stream_id_));
+        decoder.reset(
+            new FFMpegDecoder(path, soundcard_sample_rate_, default_rate_, mptr.stream_id_));
     }
 
     ImageBufPtr rt;
@@ -312,13 +353,13 @@ AudioBufPtr FFMpegMediaReader::audio(const media::AVFrameID &mptr) {
 
         // Set the path for the media file. Currently, it's hard-coded to a specific file.
         // This may be updated later to use the URI from the AVFrameID object.
-        std::string path = uri_to_posix_path(mptr.uri_);
+        std::string path = uri_convert(mptr.uri_);
 
         // If the audio_decoder object doesn't exist or the path it's using differs
         // from the one we're interested in, then create a new audio_decoder.
         if (!audio_decoder || audio_decoder->path() != path) {
-            audio_decoder.reset(
-                new FFMpegDecoder(path, soundcard_sample_rate_, mptr.stream_id_));
+            audio_decoder.reset(new FFMpegDecoder(
+                path, soundcard_sample_rate_, default_rate_, mptr.stream_id_));
         }
 
         AudioBufPtr rt;
@@ -347,7 +388,7 @@ AudioBufPtr FFMpegMediaReader::audio(const media::AVFrameID &mptr) {
 
 xstudio::media::MediaDetail FFMpegMediaReader::detail(const caf::uri &uri) const {
 
-    FFMpegDecoder t_decoder(uri_to_posix_path(uri), soundcard_sample_rate_);
+    FFMpegDecoder t_decoder(uri_convert(uri), soundcard_sample_rate_, default_rate_);
     // N.B. MediaDetail needs frame duration, so invert frame rate
     std::vector<media::StreamDetail> streams;
 
@@ -361,8 +402,8 @@ xstudio::media::MediaDetail FFMpegMediaReader::detail(const caf::uri &uri) const
             // FFMPEG assigns a default frame rate of 25fps to JPEGs, for example -
             // If this has happened, we want to ignore this and let xstudio apply
             // xSTUDIO's default frame rate preference instead.
-            if (t_decoder.duration_frames() == 1 &&
-                frameRate.to_flicks() == timebase::flicks(28224000)) {
+            if ((t_decoder.duration_frames() == 1 &&
+                 frameRate.to_flicks() == timebase::flicks(28224000))) {
                 // setting a null frame rate will make xstudio use its own preference
                 frameRate = utility::FrameRate();
             }
@@ -402,12 +443,12 @@ std::shared_ptr<thumbnail::ThumbnailBuffer>
 FFMpegMediaReader::thumbnail(const media::AVFrameID &mptr, const size_t thumb_size) {
     try {
 
-        std::string path = uri_to_posix_path(mptr.uri_);
+        std::string path = uri_convert(mptr.uri_);
 
         // DebugTimer d(path, mptr.frame_);
         if (!thumbnail_decoder || thumbnail_decoder->path() != path) {
-            thumbnail_decoder.reset(
-                new FFMpegDecoder(path, soundcard_sample_rate_, mptr.stream_id_));
+            thumbnail_decoder.reset(new FFMpegDecoder(
+                path, soundcard_sample_rate_, default_rate_, mptr.stream_id_));
         }
 
         std::shared_ptr<thumbnail::ThumbnailBuffer> rt =
@@ -514,7 +555,7 @@ PixelInfo FFMpegMediaReader::ffmpeg_buffer_pixel_picker(
             auto bytes4 = get_image_data_4bytes(address);
             Imath::V4f r;
             if (rgb == 3) { // AV_PIX_FMT_ARGB
-                r = Imath::V4f(bytes4[3], bytes4[0], bytes4[1], bytes4[2]);
+                r = Imath::V4f(bytes4[1], bytes4[2], bytes4[3], bytes4[0]);
             } else if (rgb == 4) { // AV_PIX_FMT_RGBA
                 // nope
             } else if (rgb == 5) { // AV_PIX_FMT_ABGR

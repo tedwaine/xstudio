@@ -44,7 +44,7 @@ class AudioOutputControl {
     /**
      *  @brief The audio volume (range is 0-1)
      */
-    [[nodiscard]] float volume() const { return volume_; }
+    [[nodiscard]] float volume() const { return volume_ * override_volume_ / 100.0f; }
 
     /**
      *  @brief The audio volume muted
@@ -54,7 +54,7 @@ class AudioOutputControl {
     /**
      *   @brief Queue audio buffer for streaming to the soundcard
      */
-    void queue_samples_for_playing(
+    bool queue_samples_for_playing(
         const std::vector<media_reader::AudioBufPtr> &audio_buffers,
         const bool playing,
         const bool forwards,
@@ -82,6 +82,10 @@ class AudioOutputControl {
         audio_scrubbing_ = audio_scrubbing;
     }
 
+    void set_override_volume(const float override_volume) {
+        override_volume_ = override_volume;
+    }
+
   private:
     media_reader::AudioBufPtr
     pick_audio_buffer(const utility::clock::time_point &tp, const bool drop_old_buffers);
@@ -99,9 +103,12 @@ class AudioOutputControl {
 
     int fade_in_out_ = {NoFade};
 
-    bool audio_repitch_   = {false};
-    bool audio_scrubbing_ = {false};
-    float volume_         = {100.0f};
-    bool muted_           = {false};
+    bool audio_repitch_    = {false};
+    bool audio_scrubbing_  = {false};
+    float volume_          = {100.0f};
+    bool muted_            = {false};
+    bool playing_          = {false};
+    float override_volume_ = {100.0f};
+    float last_volume_     = {100.0f};
 };
 } // namespace xstudio::audio

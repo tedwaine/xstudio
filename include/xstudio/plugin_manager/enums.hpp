@@ -21,4 +21,16 @@ namespace plugin_manager {
     typedef unsigned int PluginType;
 
 } // namespace plugin_manager
+
+namespace plugin {
+    typedef enum {
+        BottomLeft,
+        BottomCenter,
+        BottomRight,
+        TopLeft,
+        TopCenter,
+        TopRight,
+        FullScreen
+    } HUDElementPosition;
+} // namespace plugin
 } // namespace xstudio

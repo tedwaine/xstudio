@@ -4,12 +4,9 @@
 #include "xstudio/ui/opengl/shader_program_base.hpp"
 #include "xstudio/ui/opengl/texture.hpp"
 #include "xstudio/ui/opengl/opengl_viewport_renderer.hpp"
+#include "xstudio/ui/opengl/gl_debug_utils.hpp"
 #include "xstudio/utility/logging.hpp"
 #include "xstudio/utility/uuid.hpp"
-
-#ifdef DEBUG_GRAB_FRAMEBUFFER
-#include "xstudio/ui/opengl/gl_debug_utils.h"
-#endif
 
 using namespace xstudio;
 using namespace xstudio::ui::opengl;
@@ -81,11 +78,8 @@ void ColourPipeLutCollection::bind_luts(GLShaderProgramPtr shader, int &tex_idx)
     }
 }
 
-OpenGLViewportRenderer::OpenGLViewportRenderer(
-    const int viewer_index, const bool gl_context_shared)
-    : viewport::ViewportRenderer(),
-      gl_context_shared_(gl_context_shared),
-      viewport_index_(viewer_index) {}
+OpenGLViewportRenderer::OpenGLViewportRenderer(const bool /*gl_context_shared*/)
+    : viewport::ViewportRenderer(), gl_context_shared_(false) {}
 
 void OpenGLViewportRenderer::upload_image_and_colour_data(
     std::vector<media_reader::ImageBufPtr> &next_images) {
@@ -101,6 +95,7 @@ void OpenGLViewportRenderer::upload_image_and_colour_data(
     if (onscreen_frame_) {
         if (onscreen_frame_->error_state() == BufferErrorState::HAS_ERROR) {
             // the frame contains errors, no need to continue from that point
+            active_shader_program_ = no_image_shader_program_;
             return;
         }
 
@@ -148,6 +143,9 @@ void OpenGLViewportRenderer::bind_textures() {
 
     active_shader_program_->set_shader_parameters(txshder_param);
     colour_pipe_textures_.bind_luts(active_shader_program_, tex_idx);
+
+    // return active texture to default
+    glActiveTexture(GL_TEXTURE0);
 }
 
 void OpenGLViewportRenderer::release_textures() {
@@ -392,7 +390,8 @@ void OpenGLViewportRenderer::render(
 
     /* N.B. this glfinish is required to keep the popout viewport in sync with the main viewport
     because the two may viewports share textures, shaders and other resources (they can be the
-    same GL context)* - without this segfault in graphics driver is possible */
+    same GL context)* - without this segfault in graphics driver is possible.
+    ... More: sharing GL contexts across windows does not work (on Linux)! */
     if (gl_context_shared_)
         glFinish();
 
@@ -493,6 +492,15 @@ void OpenGLViewportRenderer::pre_init() {
 
     glewInit();
 
+// #define OPENGL_DEBUG_CB
+#ifdef OPENGL_DEBUG_CB
+    glEnable(GL_DEBUG_OUTPUT);
+    glEnable(GL_DEBUG_OUTPUT_SYNCHRONOUS);
+    glDebugMessageCallback(debug_message_callback, nullptr);
+    // For simplicity we filter messages inside the callback
+    // Alternative would be using glDebugMessageControl
+#endif
+
     // we need to know if we have alpha in our draw buffer, which might require
     // different strategies for drawing overlays
     int alpha_bits;
@@ -501,9 +509,9 @@ void OpenGLViewportRenderer::pre_init() {
 
     // N.B. - if sharing of GL contexts is set-up for multiple GL viewport
     // then we only create one set of textures and use them in both viewports
-    // thus meaning we only upload image data once.
-    static std::vector<GLTexturePtr> shared_textures;
-
+    // thus meaning we only upload image data once. However, this experiment
+    // has not been successful so far so removing it for now.
+    /*static std::vector<GLTexturePtr> shared_textures;
     if (shared_textures.size()) {
         textures_ = shared_textures;
     } else {
@@ -511,7 +519,9 @@ void OpenGLViewportRenderer::pre_init() {
         if (gl_context_shared_) {
             shared_textures = textures_;
         }
-    }
+    }*/
+
+    textures_.emplace_back(new GLDoubleBufferedTexture());
 
     glGenBuffers(1, &vbo_);
     glGenVertexArrays(1, &vao_);

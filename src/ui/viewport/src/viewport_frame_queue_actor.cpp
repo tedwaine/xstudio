@@ -11,12 +11,8 @@ using namespace xstudio::utility;
 using namespace xstudio;
 
 ViewportFrameQueueActor::ViewportFrameQueueActor(
-    caf::actor_config &cfg,
-    std::map<utility::Uuid, caf::actor> overlay_actors,
-    const int viewport_index)
-    : caf::event_based_actor(cfg),
-      overlay_actors_(std::move(overlay_actors)),
-      viewport_index_(viewport_index) {
+    caf::actor_config &cfg, std::map<utility::Uuid, caf::actor> overlay_actors)
+    : caf::event_based_actor(cfg), overlay_actors_(std::move(overlay_actors)) {
 
     print_on_exit(this, "ViewportFrameQueueActor");
 
@@ -69,7 +65,7 @@ ViewportFrameQueueActor::ViewportFrameQueueActor(
             request(playhead, infinite, playhead::key_child_playhead_atom_v)
                 .then(
                     [=](const utility::Uuid &curr_playhead_uuid) mutable {
-                        current_playhead_ = curr_playhead_uuid;
+                        current_key_sub_playhead_id_ = curr_playhead_uuid;
                         // fetch a frame so we have somethign to show immediately
                         if (prefetch_inital_image) {
                             request(playhead, infinite, playhead::buffer_atom_v)
@@ -92,17 +88,72 @@ ViewportFrameQueueActor::ViewportFrameQueueActor(
                 demonitor(playhead_);
             playhead_ = playhead;
             monitor(playhead_);
+
+            // this message will make the playhead re-broadcaset the media_source_atom
+            // event to it's 'broacast' group (of which we are a member). This info
+            // from the playhead is received in a message handler below and we
+            // send on the info about the media source to our colour pipeline
+            // which needs to do some set-up.
+            send(playhead_, playhead::media_source_atom_v, true, true);
+
             return rp;
         },
 
         [=](playhead::child_playheads_deleted_atom,
             const std::vector<utility::Uuid> &child_playhead_uuids) {
-            child_playheads_deleted(child_playhead_uuids);
+            for (const auto &uuid : child_playhead_uuids) {
+                deleted_playheads_.insert(uuid);
+            }
         },
 
         [=](playhead::key_child_playhead_atom,
-            const utility::Uuid &playhead_uuid,
-            const utility::time_point &tp) { current_playhead_ = playhead_uuid; },
+            const utility::Uuid sub_playhead_uuid,
+            caf::actor sub_playhead,
+            const utility::time_point tp) {
+            // playhead is telling us its key sub-playhead has changed. Request
+            // an image buffer from the sub-playhead.
+
+            // The logic here is to try and ensure the viewport updates with an
+            // imag when the user is quickly scrolling through the media list.
+            // Every time the media selection in the UI changes, the playhead
+            // creates a new subplayhead for each bit of media selected and
+            // destroys the old sub-playheads for media that was previously
+            // selected but is no longer selected.
+
+            // It might be that the sub-playheads are created at a faster rate
+            // than the media reader can load/decode a frame for the given
+            // media for display.
+
+            // So, we do our best here. We just need to make sure we are showing
+            // the most recent frame that has come from the subplayhead(s).
+
+            // check if we've got this switch message out-of-order, i.e. we have
+            // already processed a message that was sent *AFTER* the one we are
+            // processing now.
+            if (tp < last_playhead_switch_tp_)
+                return;
+            last_playhead_switch_tp_ = tp;
+
+            request(sub_playhead, infinite, playhead::buffer_atom_v)
+                .then(
+                    [=](media_reader::ImageBufPtr &intial_frame) {
+                        // ensure we only store this intial_frame for the viewport
+                        // and set the playhead ID if it's come via a message that came
+                        // *after* the last time we set the current_key_sub_playhead_id_
+                        if (tp >= last_playhead_set_tp_) {
+                            queue_image_buffer_for_drawing(intial_frame, sub_playhead_uuid);
+                            current_key_sub_playhead_id_ = sub_playhead_uuid;
+                            clear_images_from_old_playheads();
+                            last_playhead_set_tp_ = tp;
+                        }
+                    },
+                    [=](caf::error &err) {
+                        // playhead failed to return an image for the given sub playhead id.
+                        // Ignore the error, as it's quite likely due to the sub playhead
+                        // exiting as the parent playhead rebuilt itself as user rapidly
+                        // switched the media they were viewing
+                    });
+        },
 
         [=](playhead::colour_pipeline_lookahead_atom,
             const media::AVFrameIDsAndTimePoints &frame_ids_for_colour_mgmnt_lookeahead) {
@@ -117,7 +168,7 @@ ViewportFrameQueueActor::ViewportFrameQueueActor(
             // colour pipe to do its thing at draw time. We assume that the colour_pipeline_ has
             // an effective local cacheing system so when we do actually need that data
             // immediately at draw time it will be available immediately.
-            if (colour_pipeline_ && viewport_index_ >= 0) {
+            if (colour_pipeline_) {
                 anon_send(
                     colour_pipeline_,
                     colour_pipeline::get_colour_pipe_data_atom_v,
@@ -135,15 +186,16 @@ ViewportFrameQueueActor::ViewportFrameQueueActor(
 
         [=](ui::fps_monitor::framebuffer_swapped_atom,
             const utility::time_point &message_send_tp,
-            const timebase::flicks video_refresh_rate_hint,
-            const int viewport_index) {
+            const timebase::flicks video_refresh_rate_hint) {
             // this incoming message originates from the video layer and 'message_send_tp'
             // should be, as accurately as possible, the actual time that the framebuffer was
             // swapped to the screen.
 
-            video_refresh_data_.refresh_history_.push_back(message_send_tp);
-            if (video_refresh_data_.refresh_history_.size() > 128) {
-                video_refresh_data_.refresh_history_.pop_front();
+            if (playing_) {
+                video_refresh_data_.refresh_history_.push_back(message_send_tp);
+                if (video_refresh_data_.refresh_history_.size() > 128) {
+                    video_refresh_data_.refresh_history_.pop_front();
+                }
             }
             video_refresh_data_.refresh_rate_hint_  = video_refresh_rate_hint;
             video_refresh_data_.last_video_refresh_ = message_send_tp;
@@ -173,12 +225,13 @@ ViewportFrameQueueActor::ViewportFrameQueueActor(
             drop_old_frames(utility::clock::now() - std::chrono::milliseconds(100));
         },
 
-        [=](viewport_get_next_frames_for_display_atom)
+        [=](viewport_get_next_frames_for_display_atom,
+            const utility::time_point &when_going_on_screen)
             -> result<std::vector<media_reader::ImageBufPtr>> {
             auto rp = make_response_promise<std::vector<media_reader::ImageBufPtr>>();
 
             std::vector<media_reader::ImageBufPtr> r;
-            get_frames_for_display(current_playhead_, r);
+            get_frames_for_display(current_key_sub_playhead_id_, r, when_going_on_screen);
             if (r.size() != 1 || playing_) {
                 rp.deliver(r);
             } else if (r[0]) {
@@ -189,6 +242,48 @@ ViewportFrameQueueActor::ViewportFrameQueueActor(
                 rp.deliver(r);
             }
 
+            return rp;
+        },
+
+        [=](viewport_get_next_frames_for_display_atom)
+            -> result<std::vector<media_reader::ImageBufPtr>> {
+            auto rp = make_response_promise<std::vector<media_reader::ImageBufPtr>>();
+
+            std::vector<media_reader::ImageBufPtr> r;
+            get_frames_for_display(current_key_sub_playhead_id_, r);
+            if (r.size() != 1 || playing_) {
+                rp.deliver(r);
+            } else if (r[0]) {
+
+                update_image_blind_data_and_deliver(r[0], rp);
+
+            } else {
+                rp.deliver(r);
+            }
+
+            return rp;
+        },
+
+        [=](viewport_get_next_frames_for_display_atom,
+            const bool force_sync) -> result<std::vector<media_reader::ImageBufPtr>> {
+            auto rp = make_response_promise<std::vector<media_reader::ImageBufPtr>>();
+            if (!force_sync || !playhead_) {
+                // here the result is based on the frames that the playhead is
+                // broadcasting asynchronously to us
+                rp.delegate(
+                    caf::actor_cast<caf::actor>(this),
+                    viewport_get_next_frames_for_display_atom_v);
+            } else {
+                // in 'force_sync' mode we request and wait for the playhead
+                // to read the current frame
+                request(playhead_, infinite, playhead::buffer_atom_v)
+                    .then(
+                        [=](const media_reader::ImageBufPtr &buf) mutable {
+                            std::vector<media_reader::ImageBufPtr> r({buf});
+                            update_image_blind_data_and_deliver(r[0], rp);
+                        },
+                        [=](caf::error &err) mutable { rp.deliver(err); });
+            }
             return rp;
         },
 
@@ -274,7 +369,9 @@ void ViewportFrameQueueActor::queue_image_buffer_for_drawing(
 
 
 void ViewportFrameQueueActor::get_frames_for_display(
-    const utility::Uuid &playhead_id, std::vector<media_reader::ImageBufPtr> &next_images) {
+    const utility::Uuid &playhead_id,
+    std::vector<media_reader::ImageBufPtr> &next_images,
+    const utility::time_point &when_going_on_screen) {
 
 
     if (frames_to_draw_per_playhead_.find(playhead_id) == frames_to_draw_per_playhead_.end()) {
@@ -290,7 +387,9 @@ void ViewportFrameQueueActor::get_frames_for_display(
         return;
     }
 
-    const auto playhead_position = predicted_playhead_position_at_next_video_refresh();
+    const auto playhead_position = when_going_on_screen == utility::time_point()
+                                       ? predicted_playhead_position_at_next_video_refresh()
+                                       : predicted_playhead_position(when_going_on_screen);
 
     auto r = std::lower_bound(
         frames_queued_for_display.begin(), frames_queued_for_display.end(), playhead_position);
@@ -318,11 +417,18 @@ void ViewportFrameQueueActor::get_frames_for_display(
 
             next_images.push_back(*r_next);
             r_next++;
+            if (r_next == frames_queued_for_display.end()) {
+                r_next = frames_queued_for_display.begin();
+            }
         }
     } else {
         while (r_next != frames_queued_for_display.begin() && next_images.size() < 4) {
             r_next--;
             next_images.push_back(*r_next);
+            if (r_next == frames_queued_for_display.begin()) {
+                r_next = frames_queued_for_display.end();
+                r_next--;
+            }
         }
     }
 
@@ -350,16 +456,22 @@ void ViewportFrameQueueActor::get_frames_for_display(
     }
 }
 
-void ViewportFrameQueueActor::child_playheads_deleted(
-    const std::vector<utility::Uuid> &child_playhead_uuids) {
+void ViewportFrameQueueActor::clear_images_from_old_playheads() {
 
-    for (const auto &uuid : child_playhead_uuids) {
+    for (const auto &uuid : deleted_playheads_) {
+
+        // even if current_key_sub_playhead_id_ has been deleted, we don't
+        // want to clear its images as we need to hang onto them for display
+        // until we get a new current_key_sub_playhead_id_ (with images)
+        if (uuid == current_key_sub_playhead_id_)
+            continue;
 
         auto it = frames_to_draw_per_playhead_.find(uuid);
         if (it != frames_to_draw_per_playhead_.end()) {
             frames_to_draw_per_playhead_.erase(it);
         }
     }
+    deleted_playheads_.clear();
 }
 
 void ViewportFrameQueueActor::add_blind_data_to_image_in_queue(
@@ -453,15 +565,12 @@ void ViewportFrameQueueActor::update_image_blind_data_and_deliver(
     }
 }
 
-timebase::flicks ViewportFrameQueueActor::predicted_playhead_position_at_next_video_refresh() {
-
+timebase::flicks
+ViewportFrameQueueActor::predicted_playhead_position(const utility::time_point &when) {
     if (!playhead_)
         return timebase::flicks(0);
 
     const timebase::flicks video_refresh_period = compute_video_refresh();
-
-    const utility::time_point next_video_refresh_tp = next_video_refresh(video_refresh_period);
-
 
     caf::scoped_actor sys(system());
     try {
@@ -474,7 +583,7 @@ timebase::flicks ViewportFrameQueueActor::predicted_playhead_position_at_next_vi
             playhead_,
             std::chrono::milliseconds(100),
             playhead::position_atom_v,
-            next_video_refresh_tp,
+            when,
             video_refresh_period);
 
         if (!playing_)
@@ -502,7 +611,6 @@ timebase::flicks ViewportFrameQueueActor::predicted_playhead_position_at_next_vi
             timebase::to_seconds(video_refresh_period);
 
         if (phase < 0.1 || phase > 0.9) {
-
             playhead_vid_sync_phase_adjust_ = timebase::flicks(
                 video_refresh_period.count() / 2 -
                 estimate_playhead_position_at_next_redraw.count() +
@@ -514,25 +622,25 @@ timebase::flicks ViewportFrameQueueActor::predicted_playhead_position_at_next_vi
             rounded_phase_adjusted_tp = timebase::flicks(
                 video_refresh_period.count() *
                 (phase_adjusted_tp.count() / video_refresh_period.count()));
-
-            {
-                timebase::flicks phase_adjusted_tp =
-                    estimate_playhead_position_at_next_redraw + playhead_vid_sync_phase_adjust_;
-                timebase::flicks rounded_phase_adjusted_tp = timebase::flicks(
-                    video_refresh_period.count() *
-                    (phase_adjusted_tp.count() / video_refresh_period.count()));
-                const double phase =
-                    timebase::to_seconds(phase_adjusted_tp - rounded_phase_adjusted_tp) /
-                    timebase::to_seconds(video_refresh_period);
-            }
         }
         return rounded_phase_adjusted_tp;
 
 
     } catch (std::exception &e) {
-        spdlog::warn("{} {}", __PRETTY_FUNCTION__, e.what());
+        spdlog::debug("{} {}", __PRETTY_FUNCTION__, e.what());
     }
     return timebase::flicks(0);
+}
+
+
+timebase::flicks ViewportFrameQueueActor::predicted_playhead_position_at_next_video_refresh() {
+
+    if (!playhead_)
+        return timebase::flicks(0);
+
+    const timebase::flicks video_refresh_period     = compute_video_refresh();
+    const utility::time_point next_video_refresh_tp = next_video_refresh(video_refresh_period);
+    return predicted_playhead_position(next_video_refresh_tp);
 }
 
 xstudio::utility::time_point ViewportFrameQueueActor::next_video_refresh(
@@ -654,6 +762,10 @@ timebase::flicks ViewportFrameQueueActor::compute_video_refresh() const {
 
 double ViewportFrameQueueActor::average_video_refresh_period() const {
 
+    if (video_refresh_data_.refresh_history_.size() < 64) {
+        return 1.0 / 60.0;
+    }
+
     // Here, take the delta time between subsequent video refresh messages
     // and take the average. Ignore the lowest 8 and highest 8 deltas ..
     std::vector<timebase::flicks> deltas;
@@ -669,7 +781,7 @@ double ViewportFrameQueueActor::average_video_refresh_period() const {
     std::sort(deltas.begin(), deltas.end());
 
     auto r = deltas.begin() + 8;
-    int ct = deltas.size() - 16;
+    int ct = int(deltas.size()) - 16;
     timebase::flicks t(0);
     while (ct--) {
         t += *(r++);

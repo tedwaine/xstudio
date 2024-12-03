@@ -191,12 +191,21 @@ GlobalMediaReaderActor::GlobalMediaReaderActor(
     image_cache_ = system().registry().template get<caf::actor>(image_cache_registry);
     audio_cache_ = system().registry().template get<caf::actor>(audio_cache_registry);
 
-    auto media_detail_and_thumbnail_reader_pool = caf::actor_pool::make(
+    auto media_detail_reader_pool = caf::actor_pool::make(
         system().dummy_execution_unit(),
         4, // hardcoding to 4 media detail fetchers
         [&] { return system().spawn<MediaDetailAndThumbnailReaderActor>(); },
         caf::actor_pool::round_robin());
-    link_to(media_detail_and_thumbnail_reader_pool);
+    link_to(media_detail_reader_pool);
+
+    auto thumbnail_reader_pool = caf::actor_pool::make(
+        system().dummy_execution_unit(),
+        1, // hardcoding to 1 thumbnail reader. The reader doesn't actually do
+        // the work, it just delegates to the global media reader but via a
+        // queue of requests
+        [&] { return system().spawn<MediaDetailAndThumbnailReaderActor>(); },
+        caf::actor_pool::round_robin());
+    link_to(thumbnail_reader_pool);
 
     behavior_.assign(
         [=](xstudio::broadcast::broadcast_down_atom, const caf::actor_addr &) {},
@@ -409,11 +418,11 @@ GlobalMediaReaderActor::GlobalMediaReaderActor(
         [=](get_media_detail_atom _get_media_detail_atom,
             const caf::uri &_uri,
             const caf::actor_addr &key) {
-            delegate(media_detail_and_thumbnail_reader_pool, _get_media_detail_atom, _uri, key);
+            delegate(media_detail_reader_pool, _get_media_detail_atom, _uri, key);
         },
 
         [=](get_thumbnail_atom atom, const media::AVFrameID &mptr, const size_t size) {
-            delegate(media_detail_and_thumbnail_reader_pool, atom, mptr, size);
+            delegate(thumbnail_reader_pool, atom, mptr, size);
         },
 
         [=](json_store::update_atom,
@@ -594,6 +603,16 @@ caf::actor GlobalMediaReaderActor::get_reader(
 
 std::string
 GlobalMediaReaderActor::reader_key(const caf::uri &_uri, const caf::actor_addr &_key) const {
+
+    // if _uri is for a 'blank' frame, we don't want to use the media source
+    // actor address as a key to cache the reader. The reason is that we might
+    // get blank frames for a media source that is still building itself and
+    // later we get non-blank frames from it. In other words, if uri is for
+    // a blank frame, the uri for the given _key may change later.
+    static const auto blank_uri = *caf::make_uri("xstudio://blank/?colour=gray");
+    if (_uri == blank_uri)
+        return to_string(_uri);
+
     if (_key) {
         return to_string(_key);
     }
