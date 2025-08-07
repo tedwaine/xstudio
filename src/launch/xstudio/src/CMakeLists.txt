@@ -2,7 +2,7 @@ project(xstudio VERSION ${XSTUDIO_GLOBAL_VERSION} LANGUAGES CXX)
 
 find_package(OpenGL REQUIRED)
 find_package(GLEW REQUIRED)
-find_package(Qt6 COMPONENTS Core Quick Gui Widgets OpenGL OpenGLWidgets Svg REQUIRED)
+find_package(Qt6 COMPONENTS Core Quick Gui Widgets OpenGL OpenGLWidgets Svg Multimedia REQUIRED)
 find_package(OpenSSL)
 find_package(ZLIB)
 find_package(fmt REQUIRED)
@@ -74,6 +74,7 @@ target_link_libraries(${PROJECT_NAME}
 		Qt6::OpenGLWidgets
 		Qt6::Widgets
 		Qt6::Svg
+		Qt6::Multimedia
 		OpenSSL::SSL
 		ZLIB::ZLIB
 )

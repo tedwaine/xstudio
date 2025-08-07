@@ -63,7 +63,15 @@ add_plugin_qml(${PROJECT_NAME} qml)
 
 # add_custom_target(COPY_SO)
 
-if (NOT WIN32)
+if (WIN32)
+
+elseif(APPLE)
+
+add_custom_command(TARGET ${PROJECT_NAME} POST_BUILD
+        COMMAND ${CMAKE_COMMAND} -E copy
+        ${CMAKE_CURRENT_SOURCE_DIR}/default_shotbrowser_presets.json "${CMAKE_BINARY_DIR}/xSTUDIO.app/Contents/Resources/")
+
+else()
 add_custom_command(TARGET ${PROJECT_NAME} POST_BUILD
                  COMMAND ${CMAKE_COMMAND} -E
                      copy ${CMAKE_BINARY_DIR}/bin/plugin/libshotbrowser.so ${CMAKE_BINARY_DIR}/bin/plugin/qml/ShotBrowser.1/)

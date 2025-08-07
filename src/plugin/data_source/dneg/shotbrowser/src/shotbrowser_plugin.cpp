@@ -1103,6 +1103,11 @@ void ShotBrowser::update_preferences(const JsonStore &js) {
                 }
             }
 
+            if (preset_files.empty()) {
+                // fallback presets for demo build
+                preset_files["default_shotbrowser_presets"] = utility::xstudio_resources_dir("default_shotbrowser_presets.json");
+            }
+
             for(const auto &i: preset_files) {
                 try {
                     auto usp = JsonStore();

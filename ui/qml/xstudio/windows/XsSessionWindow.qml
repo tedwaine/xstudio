@@ -4,6 +4,7 @@ import QtQuick.Controls.Basic
 import QtQuick.Layouts
 import QtQml.Models
 import QtQml
+import QtMultimedia
 
 import xStudio 1.0
 import xstudio.qml.models 1.0
@@ -39,6 +40,10 @@ ApplicationWindow {
     palette.brightText: "#bb7700"
 
     FontLoader {id: fontInter; source: "qrc:/fonts/Inter/Inter-Regular.ttf"}
+
+    MediaPlayer {
+        id: foo
+    }
 
     XsPanelsLayoutModel {
 
