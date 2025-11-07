@@ -48,7 +48,6 @@ namespace timeline {
             return item_.valid_child(child);
         }
 
-        utility::JsonStore refresh_item() { return item_.refresh(); }
         [[nodiscard]] utility::FrameRate rate() const { return item_.rate(); }
 
 

@@ -44,38 +44,38 @@ struct RangeMaker {
 } // namespace
 
 ClipActor::ClipActor(caf::actor_config &cfg, const JsonStore &jsn)
-    : caf::event_based_actor(cfg), base_(static_cast<JsonStore>(jsn.at("base"))) {
-    base_.item().set_actor_addr(this);
+    : ItemActor(cfg, static_cast<Item &>(*this)), Clip(static_cast<JsonStore>(jsn.at("base"))) {
+    Clip::set_actor_addr(this);
 
     init();
 }
 
 ClipActor::ClipActor(caf::actor_config &cfg, const JsonStore &jsn, Item &pitem)
-    : caf::event_based_actor(cfg), base_(static_cast<JsonStore>(jsn.at("base"))) {
-    base_.item().set_actor_addr(this);
+    : ItemActor(cfg, static_cast<Item &>(*this)), Clip(static_cast<JsonStore>(jsn.at("base"))) {
+    Clip::set_actor_addr(this);
 
-    pitem = base_.item().clone();
+    pitem = Clip::clone();
     init();
 }
 
 ClipActor::ClipActor(caf::actor_config &cfg, const Item &item)
-    : caf::event_based_actor(cfg), base_(item, this) {
+    : ItemActor(cfg, static_cast<Item &>(*this)), Clip(item, this) {
     init();
 }
 
 ClipActor::ClipActor(caf::actor_config &cfg, const Item &item, Item &nitem)
     : ClipActor(cfg, item) {
-    nitem = base_.item().clone();
+    nitem = Clip::clone();
 }
 
 ClipActor::ClipActor(
     caf::actor_config &cfg, const UuidActor &media, const std::string &name, const Uuid &uuid)
-    : caf::event_based_actor(cfg),
+    : ItemActor(cfg, static_cast<Item &>(*this)),
       // playlist_(caf::actor_cast<actor_addr>(playlist)),
-      base_(name, uuid, this, media.uuid()) {
+      Clip(name, uuid, this, media.uuid()) {
 
     // already done in base clase ?
-    // base_.item().set_name(name);
+    // Clip::set_name(name);
 
     if (media.actor()) {
 
@@ -102,18 +102,18 @@ ClipActor::ClipActor(
                         [=](const caf::error &err) mutable {
                             spdlog::warn("{} {}", __PRETTY_FUNCTION__, to_string(err));
                         });
-                // base_.item().set_name(
+                // Clip::set_name(
                 //     fs::path(uri_to_posix_path(ref.uri())).filename().string());
             }
 
             if (ref.frame_count()) {
-                // base_.item().set_available_range(FrameRange(ref.duration()));
+                // Clip::set_available_range(FrameRange(ref.duration()));
                 auto tc_start = static_cast<int>(ref.timecode().total_frames());
 
                 auto mfr = FrameRange(
                     FrameRateDuration(tc_start, ref.duration().rate()), ref.duration());
-                base_.item().set_range(mfr, mfr);
-                base_.override_media_rate(ref.duration().rate());
+                Clip::set_range(mfr, mfr);
+                Clip::override_media_rate(ref.duration().rate());
 
                 auto m_actor =
                     system().registry().template get<caf::actor>(media_hook_registry);
@@ -146,9 +146,9 @@ void ClipActor::link_media(
     } else
         media_ = caf::actor_addr();
 
-    auto jsn = base_.set_media_uuid(media.uuid());
+    auto jsn = Clip::set_media_uuid(media.uuid());
     if (not jsn.is_null())
-        mail(event_atom_v, item_atom_v, jsn, false).send(base_.event_group());
+        mail(event_atom_v, item_atom_v, jsn, false).send(event_group());
 
     // clear ptr cache
     image_ptr_cache_.clear();
@@ -194,11 +194,11 @@ caf::message_handler ClipActor::message_handler() {
         [=](link_media_atom, const UuidActorMap &media, const bool force) -> result<bool> {
             auto rp = make_response_promise<bool>();
 
-            if (media.count(base_.media_uuid())) {
+            if (media.count(Clip::media_uuid())) {
                 if (force) {
-                    link_media(rp, UuidActor(base_.media_uuid(), media.at(base_.media_uuid())));
+                    link_media(rp, UuidActor(Clip::media_uuid(), media.at(Clip::media_uuid())));
                 } else {
-                    auto media_actor = media.at(base_.media_uuid());
+                    auto media_actor = media.at(Clip::media_uuid());
                     auto addr        = caf::actor_cast<caf::actor_addr>(media_actor);
 
                     if (media_ != addr) {
@@ -223,13 +223,13 @@ caf::message_handler ClipActor::message_handler() {
             const UuidActorMap &media) -> result<bool> {
             auto rp = make_response_promise<bool>();
 
-            if (swap.count(base_.media_uuid())) {
-                // spdlog::warn("{} {} {}", base_.item().name(), to_string(base_.media_uuid()),
-                // to_string(media.at(swap.at(base_.media_uuid()))));
+            if (swap.count(Clip::media_uuid())) {
+                // spdlog::warn("{} {} {}", Clip::name(), to_string(Clip::media_uuid()),
+                // to_string(media.at(swap.at(Clip::media_uuid()))));
                 link_media(
                     rp,
                     UuidActor(
-                        swap.at(base_.media_uuid()), media.at(swap.at(base_.media_uuid()))),
+                        swap.at(Clip::media_uuid()), media.at(swap.at(Clip::media_uuid()))),
                     false);
             } else
                 rp.deliver(false);
@@ -241,38 +241,38 @@ caf::message_handler ClipActor::message_handler() {
         [=](broadcast::broadcast_down_atom, const caf::actor_addr &) {},
 
         [=](plugin_manager::enable_atom, const bool value) -> JsonStore {
-            auto jsn = base_.item().set_enabled(value);
+            auto jsn = Clip::set_enabled(value);
             if (not jsn.is_null())
-                mail(event_atom_v, item_atom_v, jsn, false).send(base_.event_group());
+                mail(event_atom_v, item_atom_v, jsn, false).send(event_group());
             return jsn;
         },
 
         [=](utility::event_atom, utility::name_atom, const std::string & /*name*/) {},
 
         [=](item_name_atom, const std::string &value) -> JsonStore {
-            auto jsn = base_.item().set_name(value);
+            auto jsn = Clip::set_name(value);
             if (not jsn.is_null())
-                mail(event_atom_v, item_atom_v, jsn, false).send(base_.event_group());
+                mail(event_atom_v, item_atom_v, jsn, false).send(event_group());
             return jsn;
         },
 
-        [=](item_type_atom) -> ItemType { return base_.item().item_type(); },
+        [=](item_type_atom) -> ItemType { return Clip::item_type(); },
 
         [=](item_lock_atom, const bool value) -> JsonStore {
-            auto jsn = base_.item().set_locked(value);
+            auto jsn = Clip::set_locked(value);
             if (not jsn.is_null())
-                mail(event_atom_v, item_atom_v, jsn, false).send(base_.event_group());
+                mail(event_atom_v, item_atom_v, jsn, false).send(event_group());
             return jsn;
         },
 
         [=](item_flag_atom, const std::string &value) -> JsonStore {
-            auto jsn = base_.item().set_flag(value);
+            auto jsn = Clip::set_flag(value);
             if (not jsn.is_null())
-                mail(event_atom_v, item_atom_v, jsn, false).send(base_.event_group());
+                mail(event_atom_v, item_atom_v, jsn, false).send(event_group());
             return jsn;
         },
 
-        [=](rate_atom) -> FrameRate { return base_.item().rate(); },
+        [=](rate_atom) -> FrameRate { return Clip::rate(); },
 
         [=](rate_atom atom, const media::MediaType media_type) {
             return mail(atom).delegate(caf::actor_cast<caf::actor>(this));
@@ -281,84 +281,84 @@ caf::message_handler ClipActor::message_handler() {
         [=](rate_atom,
             const utility::FrameRate &new_rate,
             const bool force_media_rate_to_match) -> bool {
-            base_.item().override_frame_rate(new_rate, force_media_rate_to_match);
+            Clip::override_frame_rate(new_rate, force_media_rate_to_match);
             if (force_media_rate_to_match)
-                base_.override_media_rate(new_rate);
+                Clip::override_media_rate(new_rate);
             return true;
         },
 
         [=](item_prop_atom, const JsonStore &value) -> JsonStore {
-            auto jsn = base_.item().set_prop(value);
+            auto jsn = Clip::set_prop(value);
             if (not jsn.is_null())
-                mail(event_atom_v, item_atom_v, jsn, false).send(base_.event_group());
+                mail(event_atom_v, item_atom_v, jsn, false).send(event_group());
             return jsn;
         },
 
         [=](item_prop_atom, const JsonStore &value, const bool merge) -> JsonStore {
-            auto p = base_.item().prop();
+            auto p = Clip::prop();
             p.update(value);
-            auto jsn = base_.item().set_prop(p);
+            auto jsn = Clip::set_prop(p);
             if (not jsn.is_null())
-                mail(event_atom_v, item_atom_v, jsn, false).send(base_.event_group());
+                mail(event_atom_v, item_atom_v, jsn, false).send(event_group());
             return jsn;
         },
 
         [=](item_prop_atom, const JsonStore &value, const std::string &path) -> JsonStore {
-            auto prop = base_.item().prop();
+            auto prop = Clip::prop();
             try {
                 auto ptr = nlohmann::json::json_pointer(path);
                 prop.at(ptr).update(value, true);
             } catch (const std::exception &err) {
                 spdlog::warn("{} {}", __PRETTY_FUNCTION__, err.what());
             }
-            auto jsn = base_.item().set_prop(prop);
+            auto jsn = Clip::set_prop(prop);
             if (not jsn.is_null())
-                mail(event_atom_v, item_atom_v, jsn, false).send(base_.event_group());
+                mail(event_atom_v, item_atom_v, jsn, false).send(event_group());
             return jsn;
         },
 
-        [=](item_prop_atom) -> JsonStore { return base_.item().prop(); },
+        [=](item_prop_atom) -> JsonStore { return Clip::prop(); },
 
         [=](active_range_atom, const FrameRange &fr) -> JsonStore {
-            auto jsn = base_.item().set_active_range(fr);
+            auto jsn = Clip::set_active_range(fr);
             if (not jsn.is_null())
-                mail(event_atom_v, item_atom_v, jsn, false).send(base_.event_group());
+                mail(event_atom_v, item_atom_v, jsn, false).send(event_group());
             return jsn;
         },
 
         [=](available_range_atom, const FrameRange &fr) -> JsonStore {
-            auto jsn = base_.item().set_available_range(fr);
+            auto jsn = Clip::set_available_range(fr);
             if (not jsn.is_null())
-                mail(event_atom_v, item_atom_v, jsn, false).send(base_.event_group());
+                mail(event_atom_v, item_atom_v, jsn, false).send(event_group());
             return jsn;
         },
 
         [=](active_range_atom) -> std::optional<FrameRange> {
-            return base_.item().active_range();
+            return Clip::active_range();
         },
 
         [=](available_range_atom) -> std::optional<FrameRange> {
-            return base_.item().available_range();
+            return Clip::available_range();
         },
 
-        [=](trimmed_range_atom) -> FrameRange { return base_.item().trimmed_range(); },
+        [=](trimmed_range_atom) -> FrameRange { return Clip::trimmed_range(); },
 
         [=](trimmed_range_atom,
             const FrameRange &avail,
             const FrameRange &active) -> JsonStore {
-            auto jsn = base_.item().set_range(avail, active);
+            auto jsn = Clip::set_range(avail, active);
             if (not jsn.is_null())
-                mail(event_atom_v, item_atom_v, jsn, false).send(base_.event_group());
+                mail(event_atom_v, item_atom_v, jsn, false).send(event_group());
             return jsn;
         },
 
         [=](history::undo_atom, const JsonStore &hist) -> result<bool> {
-            base_.item().undo(hist);
+            Clip::undo(hist);
             return true;
         },
 
         [=](history::redo_atom, const JsonStore &hist) -> result<bool> {
-            base_.item().redo(hist);
+            Clip::redo(hist);
             return true;
         },
 
@@ -366,7 +366,7 @@ caf::message_handler ClipActor::message_handler() {
             // where is this coming from??
         },
 
-        [=](item_atom) -> Item { return base_.item().clone(); },
+        [=](item_atom) -> Item { return Clip::clone(); },
 
         [=](item_atom, const bool with_state) -> result<std::pair<JsonStore, Item>> {
             auto rp = make_response_promise<std::pair<JsonStore, Item>>();
@@ -374,7 +374,7 @@ caf::message_handler ClipActor::message_handler() {
                 .request(caf::actor_cast<caf::actor>(this), infinite)
                 .then(
                     [=](const JsonStore &jsn) mutable {
-                        rp.deliver(std::make_pair(jsn, base_.item().clone()));
+                        rp.deliver(std::make_pair(jsn, Clip::clone()));
                     },
                     [=](const caf::error &err) mutable { rp.deliver(err); });
             return rp;
@@ -426,7 +426,7 @@ caf::message_handler ClipActor::message_handler() {
                             auto tc_start =
                                 static_cast<int>(ref.second.timecode().total_frames());
 
-                            if (base_.item().available_range()) {
+                            if (Clip::available_range()) {
 
                                 // We have already set available range, and now we have a new
                                 // one. This can happen if the media source frame RATE has
@@ -434,10 +434,10 @@ caf::message_handler ClipActor::message_handler() {
                                 // change (it should) always match the parent timeline.
 
                                 FrameRange current_available_range =
-                                    *(base_.item().available_range());
-                                FrameRate clip_rate = base_.item().rate();
+                                    *(Clip::available_range());
+                                FrameRate clip_rate = Clip::rate();
 
-                                auto jsn = base_.item().set_available_range(FrameRange(
+                                auto jsn = Clip::set_available_range(FrameRange(
                                     FrameRate(
                                         tc_start * clip_rate.to_flicks()), // new start frame
                                     ref.second.duration().duration(), // new media ref duration
@@ -447,22 +447,22 @@ caf::message_handler ClipActor::message_handler() {
 
                                 if (not jsn.is_null())
                                     mail(event_atom_v, item_atom_v, jsn, false)
-                                        .send(base_.event_group());
+                                        .send(event_group());
 
-                                base_.override_media_rate(ref.second.duration().rate());
+                                Clip::override_media_rate(ref.second.duration().rate());
 
                             } else {
 
 
-                                auto jsn = base_.item().set_available_range(FrameRange(
+                                auto jsn = Clip::set_available_range(FrameRange(
                                     FrameRateDuration(tc_start, ref.second.duration().rate()),
                                     ref.second.duration()));
 
-                                base_.override_media_rate(ref.second.duration().rate());
+                                Clip::override_media_rate(ref.second.duration().rate());
 
                                 if (not jsn.is_null())
                                     mail(event_atom_v, item_atom_v, jsn, false)
-                                        .send(base_.event_group());
+                                        .send(event_group());
                             }
 
 
@@ -531,7 +531,7 @@ caf::message_handler ClipActor::message_handler() {
             image_ptr_cache_.clear();
             audio_ptr_cache_.clear();
 
-            mail(event_atom_v, change_atom_v).send(base_.event_group());
+            mail(event_atom_v, change_atom_v).send(event_group());
         },
 
         [=](event_atom, change_atom) {
@@ -545,7 +545,7 @@ caf::message_handler ClipActor::message_handler() {
                 .send(caf::actor_cast<caf::actor>(this));
             image_ptr_cache_.clear();
             audio_ptr_cache_.clear();
-            mail(event_atom_v, change_atom_v).send(base_.event_group());
+            mail(event_atom_v, change_atom_v).send(event_group());
         },
 
         [=](json_store::update_atom,
@@ -559,8 +559,8 @@ caf::message_handler ClipActor::message_handler() {
 
         [=](playlist::get_media_atom, const bool) -> UuidUuidActor {
             return UuidUuidActor(
-                base_.uuid(),
-                UuidActor(base_.media_uuid(), caf::actor_cast<caf::actor>(media_)));
+                Clip::uuid(),
+                UuidActor(Clip::media_uuid(), caf::actor_cast<caf::actor>(media_)));
         },
 
         // how do we deal with lazy loading of metadata..
@@ -579,7 +579,7 @@ caf::message_handler ClipActor::message_handler() {
         },
 
         [=](playlist::get_media_atom) -> UuidActor {
-            return UuidActor(base_.media_uuid(), caf::actor_cast<caf::actor>(media_));
+            return UuidActor(Clip::media_uuid(), caf::actor_cast<caf::actor>(media_));
         },
 
         [=](xstudio::media::current_media_source_atom atom,
@@ -615,7 +615,7 @@ caf::message_handler ClipActor::message_handler() {
                 // one element per frame timepoint. We initialise it with blank frames and
                 // the logic below will fill in actual frames where possible
                 media::AVFrameID blank = *(media::make_blank_frame(
-                    media_type, base_.media_uuid(), Uuid(), base_.uuid()));
+                    media_type, Clip::media_uuid(), Uuid(), Clip::uuid()));
                 blank.set_frame_status(media::FS_NOT_ON_DISK);
 
                 auto blank_ptr = std::make_shared<const media::AVFrameID>(blank);
@@ -626,9 +626,9 @@ caf::message_handler ClipActor::message_handler() {
                 // the response
                 auto rp = make_response_promise<media::AVFrameIDs>();
 
-                auto trimmed_start = base_.item().trimmed_start();
+                auto trimmed_start = Clip::trimmed_start();
                 auto available_start =
-                    (base_.item().available_start() ? *base_.item().available_start()
+                    (Clip::available_start() ? *Clip::available_start()
                                                     : trimmed_start);
 
                 // get a ref to the appropriate AvFrameID cache
@@ -641,8 +641,8 @@ caf::message_handler ClipActor::message_handler() {
                 // so that media of different rates can be played in a timeline
                 // of fixed rate.
                 const auto reference_frame_rate =
-                    base_.media_rate() != timebase::k_flicks_zero_seconds ? base_.media_rate()
-                                                                          : base_.item().rate();
+                    Clip::media_rate() != timebase::k_flicks_zero_seconds ? Clip::media_rate()
+                                                                          : Clip::rate();
 
                 RangeMaker range_maker;
 
@@ -675,7 +675,7 @@ caf::message_handler ClipActor::message_handler() {
                         media_type,
                         frame_ranges,
                         FrameRate(),
-                        base_.uuid())
+                        Clip::uuid())
                         .request(caf::actor_cast<caf::actor>(media_), infinite)
                         .then(
                             [=](const media::AVFrameIDs &mps) mutable {
@@ -735,12 +735,12 @@ caf::message_handler ClipActor::message_handler() {
 
         [=](duplicate_atom) -> result<UuidActor> {
             JsonStore jsn;
-            auto dup    = base_.duplicate();
+            auto dup    = Clip::duplicate();
             jsn["base"] = dup.serialise();
 
             auto actor = spawn<ClipActor>(jsn);
             UuidActorMap media_map;
-            media_map[base_.media_uuid()] = caf::actor_cast<caf::actor>(media_);
+            media_map[Clip::media_uuid()] = caf::actor_cast<caf::actor>(media_);
 
             auto rp = make_response_promise<UuidActor>();
 
@@ -758,7 +758,7 @@ caf::message_handler ClipActor::message_handler() {
 
         [=](serialise_atom) -> JsonStore {
             JsonStore jsn;
-            jsn["base"] = base_.serialise();
+            jsn["base"] = Clip::serialise();
             return jsn;
         },
 
@@ -768,11 +768,11 @@ caf::message_handler ClipActor::message_handler() {
             const FrameRate &override_rate) -> caf::result<media::FrameTimeMapPtr> {
             // This is required by SubPlayhead actor to make the track
             // playable.
-            return base_.item().get_all_frame_IDs(media_type, tsm, override_rate);
+            return Clip::get_all_frame_IDs(media_type, tsm, override_rate);
         }};
 }
 
 void ClipActor::init() {
-    print_on_create(this, base_.name());
-    print_on_exit(this, base_.name());
+    print_on_create(this, Clip::name());
+    print_on_exit(this, Clip::name());
 }

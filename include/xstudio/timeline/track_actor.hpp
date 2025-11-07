@@ -4,13 +4,15 @@
 #include <caf/all.hpp>
 
 #include "xstudio/timeline/clip.hpp"
+#include "xstudio/timeline/item_actor.hpp"
 #include "xstudio/timeline/stack.hpp"
 #include "xstudio/timeline/track.hpp"
 #include "xstudio/utility/notification_handler.hpp"
+#include "xstudio/utility/base_actor.hpp"
 
 namespace xstudio {
 namespace timeline {
-    class TrackActor : public caf::event_based_actor {
+    class TrackActor : public ItemActor, public Track {
       public:
         TrackActor(caf::actor_config &cfg, const utility::JsonStore &jsn);
         TrackActor(caf::actor_config &cfg, const utility::JsonStore &jsn, Item &item);
@@ -34,13 +36,7 @@ namespace timeline {
         inline static const std::string NAME = "TrackActor";
         void init();
 
-        caf::message_handler message_handler();
-
-        caf::behavior make_behavior() override {
-            return message_handler()
-                .or_else(base_.container_message_handler(this))
-                .or_else(notification_.message_handler(this, base_.event_group()));
-        }
+        caf::message_handler message_handler() override;
 
         // void deliver_media_pointer(
         //     const int logical_frame, caf::typed_response_promise<media::AVFrameID> rp);
@@ -122,8 +118,8 @@ namespace timeline {
         // void merge_gaps(caf::typed_response_promise<utility::JsonStore> rp);
 
       private:
-        Track base_;
-        std::map<utility::Uuid, caf::actor> actors_;
+
+      std::map<utility::Uuid, caf::actor> actors_;
         // might need to prune.. ?
         std::set<utility::Uuid> events_processed_;
         utility::NotificationHandler notification_;

@@ -48,4 +48,4 @@ else()
 	list(APPEND STATIC_LINK_DEPS stdc++fs)
 endif()
 
-create_component_static(utility ${XSTUDIO_GLOBAL_VERSION} "${LINK_DEPS}" "${STATIC_LINK_DEPS}")
+create_component_static(utility ${XSTUDIO_GLOBAL_VERSION} "${LINK_DEPS}" "${STATIC_LINK_DEPS}") 

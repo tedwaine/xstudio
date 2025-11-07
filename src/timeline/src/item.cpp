@@ -9,7 +9,13 @@ using namespace xstudio;
 using namespace xstudio::timeline;
 using namespace xstudio::utility;
 
-Item::Item(const JsonStore &jsn) : Items() {
+Item::Item(const JsonStore &__jsn) : Items() {
+
+    // Older versions of xSTUDIO put the Item serialisation in a child object with
+    // key 'item'. Now the item serialisation is put at the same level as the 
+    // 'Clip', 'Gap', 'Track' etc. that derives from Item
+    const nlohmann::json &jsn = __jsn.contains("item") ? __jsn.at("item") : __jsn;
+
     uuid_addr_.first = jsn.at("uuid");
     item_type_       = jsn.at("type");
     enabled_         = jsn.at("enabled");
@@ -75,7 +81,7 @@ caf::actor_addr Item::string_to_actor_addr(const std::string &str) const {
     return addr;
 }
 
-JsonStore Item::serialise(const int depth) const {
+JsonStore Item::serialise() const {
     JsonStore jsn;
 
     jsn["uuid"]       = uuid_addr_.first;
@@ -88,6 +94,9 @@ JsonStore Item::serialise(const int depth) const {
     jsn["prop"]       = prop_;
     jsn["markers"]    = serialise_markers(markers_);
 
+    auto p = timeline_type_names.find(item_type());
+    jsn["item_type"] = p != timeline_type_names.end() ? p->second : "Unknown";
+
     if (has_available_range_)
         jsn["available_range"] = available_range_;
     else
@@ -99,9 +108,8 @@ JsonStore Item::serialise(const int depth) const {
         jsn["active_range"] = nullptr;
 
     jsn["children"] = nlohmann::json::array();
-    if (depth)
-        for (const auto &i : *this)
-            jsn["children"].emplace_back(i.serialise(depth - 1));
+    for (const auto &i : *this)
+        jsn["children"].emplace_back(i.serialise());
 
     return jsn;
 }

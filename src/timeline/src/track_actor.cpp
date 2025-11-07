@@ -14,9 +14,11 @@ using namespace xstudio::utility;
 using namespace xstudio::timeline;
 
 caf::actor TrackActor::deserialise(const JsonStore &value, const bool replace_item) {
-    auto key   = Uuid(value.at("base").at("item").at("uuid"));
+
+    auto key   = Uuid(value.at("base").contains("item") ? value.at("base").at("item").at("uuid") : value.at("base").at("uuid"));
     auto actor = caf::actor();
-    auto type  = value.at("base").at("container").at("type").get<std::string>();
+
+    const std::string type = value.at("base").contains("container") ? value.at("base").at("container").at("type") : value.at("base").at("item_type");
 
     auto item = Item();
 
@@ -31,8 +33,8 @@ caf::actor TrackActor::deserialise(const JsonStore &value, const bool replace_it
     if (actor) {
         add_item(UuidActor(key, actor));
         if (replace_item) {
-            auto itemit = find_uuid(base_.item().children(), key);
-            if (itemit != base_.item().end()) {
+            auto itemit = find_uuid(Track::children(), key);
+            if (itemit != Track::end()) {
                 (*itemit) = item;
             } else {
                 spdlog::warn(
@@ -48,7 +50,7 @@ caf::actor TrackActor::deserialise(const JsonStore &value, const bool replace_it
 }
 
 void TrackActor::deserialise() {
-    for (auto &i : base_.item().children()) {
+    for (auto &i : Track::children()) {
         switch (i.item_type()) {
         case IT_CLIP: {
             auto actor = spawn<ClipActor>(i, i);
@@ -75,16 +77,16 @@ void TrackActor::item_event_callback(const JsonStore &event, Item &item) {
     case IA_INSERT: {
         // spdlog::warn("TrackActor IT_INSERT {}", event.dump(2));
         auto cuuid = Uuid(event.at("item").at("uuid"));
-        // spdlog::warn("{} {} {} {}", find_uuid(base_.item().children(), cuuid) !=
-        // base_.item().cend(), actors_.count(cuuid), not event["blind"].is_null(),
+        // spdlog::warn("{} {} {} {}", find_uuid(Track::children(), cuuid) !=
+        // Track::cend(), actors_.count(cuuid), not event["blind"].is_null(),
         // event.dump(2)); needs to be child..
 
         // is it a direct child..
-        auto child_item_it = find_uuid(base_.item().children(), cuuid);
-        // spdlog::warn("{} {} {}", child_item_it != base_.item().cend(), not
+        auto child_item_it = find_uuid(Track::children(), cuuid);
+        // spdlog::warn("{} {} {}", child_item_it != Track::cend(), not
         // actors_.count(cuuid), not event.at("blind").is_null());
 
-        if (child_item_it != base_.item().end() and not actors_.count(cuuid) and
+        if (child_item_it != Track::end() and not actors_.count(cuuid) and
             not event.at("blind").is_null()) {
             // our child
             // spdlog::warn("RECREATE MATCH");
@@ -116,12 +118,12 @@ void TrackActor::item_event_callback(const JsonStore &event, Item &item) {
             // item actor_addr will be wrong.. in ancestors
             // send special update..
             mail(event_atom_v, item_atom_v, child_item_it->make_actor_addr_update(), true)
-                .send(base_.event_group());
+                .send(event_group());
         }
     } break;
 
     case IA_REMOVE: {
-        // spdlog::warn("TrackActor IT_REMOVE {} {}", base_.item().name(), event.dump(2));
+        // spdlog::warn("TrackActor IT_REMOVE {} {}", Track::name(), event.dump(2));
 
         auto cuuid = Uuid(event.at("item_uuid"));
         // child destroyed
@@ -154,8 +156,8 @@ void TrackActor::item_event_callback(const JsonStore &event, Item &item) {
 }
 
 TrackActor::TrackActor(caf::actor_config &cfg, const JsonStore &jsn)
-    : caf::event_based_actor(cfg), base_(static_cast<JsonStore>(jsn.at("base"))) {
-    base_.item().set_actor_addr(this);
+    : ItemActor(cfg, static_cast<Item &>(*this)), Track(static_cast<JsonStore>(jsn.at("base"))) {
+    Track::set_actor_addr(this);
 
     for (const auto &[key, value] : jsn.at("actors").items()) {
         try {
@@ -165,7 +167,7 @@ TrackActor::TrackActor(caf::actor_config &cfg, const JsonStore &jsn)
         }
     }
 
-    base_.item().bind_item_post_event_func(
+    Track::bind_item_post_event_func(
         [this](const JsonStore &event, Item &item) { item_event_callback(event, item); });
 
     init();
@@ -173,8 +175,8 @@ TrackActor::TrackActor(caf::actor_config &cfg, const JsonStore &jsn)
 
 
 TrackActor::TrackActor(caf::actor_config &cfg, const JsonStore &jsn, Item &pitem)
-    : caf::event_based_actor(cfg), base_(static_cast<JsonStore>(jsn.at("base"))) {
-    base_.item().set_actor_addr(this);
+    : ItemActor(cfg, static_cast<Item &>(*this)), Track(static_cast<JsonStore>(jsn.at("base"))) {
+    Track::set_actor_addr(this);
 
     for (const auto &[key, value] : jsn.at("actors").items()) {
         try {
@@ -184,9 +186,9 @@ TrackActor::TrackActor(caf::actor_config &cfg, const JsonStore &jsn, Item &pitem
         }
     }
 
-    base_.item().bind_item_post_event_func(
+    Track::bind_item_post_event_func(
         [this](const JsonStore &event, Item &item) { item_event_callback(event, item); });
-    pitem = base_.item().clone();
+    pitem = Track::clone();
 
     init();
 }
@@ -197,23 +199,23 @@ TrackActor::TrackActor(
     const FrameRate &rate,
     const media::MediaType media_type,
     const Uuid &uuid)
-    : caf::event_based_actor(cfg), base_(name, rate, media_type, uuid, this) {
-    base_.item().set_name(name);
-    base_.item().bind_item_post_event_func(
+    : ItemActor(cfg, static_cast<Item &>(*this)), Track(name, rate, media_type, uuid, this) {
+    Track::set_name(name);
+    Track::bind_item_post_event_func(
         [this](const JsonStore &event, Item &item) { item_event_callback(event, item); });
 
     init();
 }
 
 TrackActor::TrackActor(caf::actor_config &cfg, const Item &item)
-    : caf::event_based_actor(cfg), base_(item, this) {
+    : ItemActor(cfg, static_cast<Item &>(*this)), Track(item, this) {
     deserialise();
     init();
 }
 
 TrackActor::TrackActor(caf::actor_config &cfg, const Item &item, Item &nitem)
     : TrackActor(cfg, item) {
-    nitem = base_.item().clone();
+    nitem = Track::clone();
 }
 
 
@@ -248,7 +250,7 @@ caf::message_handler TrackActor::message_handler() {
                                 "{} {} {}",
                                 __PRETTY_FUNCTION__,
                                 to_string(err),
-                                base_.item().name());
+                                Track::name());
                             rp.deliver(false);
                         });
             }
@@ -257,32 +259,32 @@ caf::message_handler TrackActor::message_handler() {
         },
 
         [=](plugin_manager::enable_atom, const bool value) -> JsonStore {
-            auto jsn = base_.item().set_enabled(value);
+            auto jsn = Track::set_enabled(value);
             if (not jsn.is_null())
-                mail(event_atom_v, item_atom_v, jsn, false).send(base_.event_group());
+                mail(event_atom_v, item_atom_v, jsn, false).send(event_group());
             return jsn;
         },
 
-        [=](item_atom) -> Item { return base_.item().clone(); },
+        [=](item_atom) -> Item { return Track::clone(); },
 
         [=](item_flag_atom, const std::string &value) -> JsonStore {
-            auto jsn = base_.item().set_flag(value);
+            auto jsn = Track::set_flag(value);
             if (not jsn.is_null())
-                mail(event_atom_v, item_atom_v, jsn, false).send(base_.event_group());
+                mail(event_atom_v, item_atom_v, jsn, false).send(event_group());
             return jsn;
         },
 
         [=](item_lock_atom, const bool value) -> JsonStore {
-            auto jsn = base_.item().set_locked(value);
+            auto jsn = Track::set_locked(value);
             if (not jsn.is_null())
-                mail(event_atom_v, item_atom_v, jsn, false).send(base_.event_group());
+                mail(event_atom_v, item_atom_v, jsn, false).send(event_group());
             return jsn;
         },
 
         [=](item_name_atom, const std::string &value) -> JsonStore {
-            auto jsn = base_.item().set_name(value);
+            auto jsn = Track::set_name(value);
             if (not jsn.is_null())
-                mail(event_atom_v, item_atom_v, jsn, false).send(base_.event_group());
+                mail(event_atom_v, item_atom_v, jsn, false).send(event_group());
             return jsn;
         },
 
@@ -292,54 +294,54 @@ caf::message_handler TrackActor::message_handler() {
                 .request(caf::actor_cast<caf::actor>(this), infinite)
                 .then(
                     [=](const JsonStore &jsn) mutable {
-                        rp.deliver(std::make_pair(jsn, base_.item().clone()));
+                        rp.deliver(std::make_pair(jsn, Track::clone()));
                     },
                     [=](const caf::error &err) mutable { rp.deliver(err); });
             return rp;
         },
 
         [=](item_atom, int index) -> result<Item> {
-            if (static_cast<size_t>(index) >= base_.item().size()) {
+            if (static_cast<size_t>(index) >= Track::size()) {
                 return make_error(xstudio_error::error, "Invalid index");
             }
-            auto it = base_.item().begin();
+            auto it = Track::begin();
             std::advance(it, index);
             return (*it).clone();
         },
 
         [=](item_prop_atom, const JsonStore &value, const std::string &path) -> JsonStore {
-            auto prop = base_.item().prop();
+            auto prop = Track::prop();
             try {
                 auto ptr = nlohmann::json::json_pointer(path);
                 prop.at(ptr).update(value);
             } catch (const std::exception &err) {
                 spdlog::warn("{} {}", __PRETTY_FUNCTION__, err.what());
             }
-            auto jsn = base_.item().set_prop(prop);
+            auto jsn = Track::set_prop(prop);
             if (not jsn.is_null())
-                mail(event_atom_v, item_atom_v, jsn, false).send(base_.event_group());
+                mail(event_atom_v, item_atom_v, jsn, false).send(event_group());
             return jsn;
         },
 
         [=](item_prop_atom, const JsonStore &value, const bool merge) -> JsonStore {
-            auto p = base_.item().prop();
+            auto p = Track::prop();
             p.update(value);
-            auto jsn = base_.item().set_prop(p);
+            auto jsn = Track::set_prop(p);
             if (not jsn.is_null())
-                mail(event_atom_v, item_atom_v, jsn, false).send(base_.event_group());
+                mail(event_atom_v, item_atom_v, jsn, false).send(event_group());
             return jsn;
         },
 
         [=](item_prop_atom, const JsonStore &value) -> JsonStore {
-            auto jsn = base_.item().set_prop(value);
+            auto jsn = Track::set_prop(value);
             if (not jsn.is_null())
-                mail(event_atom_v, item_atom_v, jsn, false).send(base_.event_group());
+                mail(event_atom_v, item_atom_v, jsn, false).send(event_group());
             return jsn;
         },
 
-        [=](item_prop_atom) -> JsonStore { return base_.item().prop(); },
+        [=](item_prop_atom) -> JsonStore { return Track::prop(); },
 
-        [=](rate_atom) -> FrameRate { return base_.item().rate(); },
+        [=](rate_atom) -> FrameRate { return Track::rate(); },
 
         [=](rate_atom atom, const media::MediaType media_type) {
             return mail(atom).delegate(caf::actor_cast<caf::actor>(this));
@@ -350,28 +352,28 @@ caf::message_handler TrackActor::message_handler() {
             const bool force_media_rate_to_match) -> bool { return true; },
 
         [=](active_range_atom, const FrameRange &fr) -> JsonStore {
-            auto jsn = base_.item().set_active_range(fr);
+            auto jsn = Track::set_active_range(fr);
             if (not jsn.is_null())
-                mail(event_atom_v, item_atom_v, jsn, false).send(base_.event_group());
+                mail(event_atom_v, item_atom_v, jsn, false).send(event_group());
             return jsn;
         },
 
         [=](available_range_atom, const FrameRange &fr) -> JsonStore {
-            auto jsn = base_.item().set_available_range(fr);
+            auto jsn = Track::set_available_range(fr);
             if (not jsn.is_null())
-                mail(event_atom_v, item_atom_v, jsn, false).send(base_.event_group());
+                mail(event_atom_v, item_atom_v, jsn, false).send(event_group());
             return jsn;
         },
 
         [=](active_range_atom) -> std::optional<FrameRange> {
-            return base_.item().active_range();
+            return Track::active_range();
         },
 
         [=](available_range_atom) -> std::optional<FrameRange> {
-            return base_.item().available_range();
+            return Track::available_range();
         },
 
-        [=](trimmed_range_atom) -> FrameRange { return base_.item().trimmed_range(); },
+        [=](trimmed_range_atom) -> FrameRange { return Track::trimmed_range(); },
 
         // check events processes
         [=](item_atom, event_atom, const std::set<Uuid> &events) -> bool {
@@ -387,22 +389,22 @@ caf::message_handler TrackActor::message_handler() {
 
         // handle child change events.
         [=](event_atom, item_atom, const JsonStore &update, const bool hidden) {
-            auto event_ids = base_.item().update(update);
+            auto event_ids = Track::update(update);
             if (not event_ids.empty()) {
                 events_processed_.insert(event_ids.begin(), event_ids.end());
-                auto more = base_.item().refresh();
+                auto more = Track::refresh();
                 if (not more.is_null()) {
                     more.insert(more.begin(), update.begin(), update.end());
-                    mail(event_atom_v, item_atom_v, more, hidden).send(base_.event_group());
+                    mail(event_atom_v, item_atom_v, more, hidden).send(event_group());
                     return;
                 }
             }
 
-            mail(event_atom_v, item_atom_v, update, hidden).send(base_.event_group());
+            mail(event_atom_v, item_atom_v, update, hidden).send(event_group());
         },
 
         [=](history::undo_atom, const JsonStore &hist) -> result<bool> {
-            base_.item().undo(hist);
+            Track::undo(hist);
             if (actors_.empty())
                 return true;
 
@@ -419,7 +421,7 @@ caf::message_handler TrackActor::message_handler() {
         },
 
         [=](history::redo_atom, const JsonStore &hist) -> result<bool> {
-            base_.item().redo(hist);
+            Track::redo(hist);
             if (actors_.empty())
                 return true;
             // push to children..
@@ -453,7 +455,7 @@ caf::message_handler TrackActor::message_handler() {
         [=](insert_item_atom, const int index, const int frame, const UuidActorVector &uav)
             -> result<JsonStore> {
             auto rp     = make_response_promise<JsonStore>();
-            auto tframe = base_.item().frame_at_index(index, frame);
+            auto tframe = Track::frame_at_index(index, frame);
             insert_items_at_frame(rp, tframe, uav);
             return rp;
         },
@@ -463,14 +465,14 @@ caf::message_handler TrackActor::message_handler() {
             const UuidActorVector &uav) -> result<JsonStore> {
             auto rp = make_response_promise<JsonStore>();
 
-            auto index = base_.item().size();
+            auto index = Track::size();
             // find index. for uuid
             if (not before_uuid.is_null()) {
-                auto it = find_uuid(base_.item().children(), before_uuid);
-                if (it == base_.item().end())
+                auto it = find_uuid(Track::children(), before_uuid);
+                if (it == Track::end())
                     rp.deliver(make_error(xstudio_error::error, "Invalid uuid"));
                 else
-                    index = std::distance(base_.item().begin(), it);
+                    index = std::distance(Track::begin(), it);
             }
 
             if (rp.pending())
@@ -479,7 +481,7 @@ caf::message_handler TrackActor::message_handler() {
             return rp;
         },
 
-        [=](item_type_atom) -> ItemType { return base_.item().item_type(); },
+        [=](item_type_atom) -> ItemType { return Track::item_type(); },
 
         [=](remove_item_at_frame_atom,
             const int frame,
@@ -525,13 +527,13 @@ caf::message_handler TrackActor::message_handler() {
             const bool add_gap) -> result<std::pair<JsonStore, std::vector<Item>>> {
             auto rp = make_response_promise<std::pair<JsonStore, std::vector<Item>>>();
 
-            auto it = find_uuid(base_.item().children(), uuid);
+            auto it = find_uuid(Track::children(), uuid);
 
-            if (it == base_.item().end())
+            if (it == Track::end())
                 rp.deliver(make_error(xstudio_error::error, "Invalid uuid"));
 
             if (rp.pending())
-                remove_items(rp, std::distance(base_.item().begin(), it), 1, add_gap, true);
+                remove_items(rp, std::distance(Track::begin(), it), 1, add_gap, true);
 
             return rp;
         },
@@ -575,20 +577,20 @@ caf::message_handler TrackActor::message_handler() {
         [=](erase_item_atom, const Uuid &uuid, const bool add_gap) -> result<JsonStore> {
             auto rp = make_response_promise<JsonStore>();
 
-            auto it = find_uuid(base_.item().children(), uuid);
+            auto it = find_uuid(Track::children(), uuid);
 
-            if (it == base_.item().end())
+            if (it == Track::end())
                 rp.deliver(make_error(xstudio_error::error, "Invalid uuid"));
 
             if (rp.pending())
-                erase_items(rp, std::distance(base_.item().begin(), it), 1, add_gap, true);
+                erase_items(rp, std::distance(Track::begin(), it), 1, add_gap, true);
 
             return rp;
         },
 
         [=](split_item_at_frame_atom, const int frame) -> result<JsonStore> {
             auto rp          = make_response_promise<JsonStore>();
-            auto split_point = base_.item().item_at_frame(frame);
+            auto split_point = Track::item_at_frame(frame);
             if (not split_point)
                 rp.deliver(make_error(xstudio_error::error, "Invalid split frame"));
             else
@@ -598,9 +600,9 @@ caf::message_handler TrackActor::message_handler() {
         },
 
         [=](split_item_atom, const int index, const int frame) -> result<JsonStore> {
-            auto it = base_.item().children().begin();
+            auto it = Track::children().begin();
             std::advance(it, index);
-            if (it == base_.item().children().end())
+            if (it == Track::children().end())
                 return make_error(xstudio_error::error, "Invalid index");
             auto rp = make_response_promise<JsonStore>();
             split_item(rp, it, frame);
@@ -608,8 +610,8 @@ caf::message_handler TrackActor::message_handler() {
         },
 
         [=](split_item_atom, const Uuid &uuid, const int frame) -> result<JsonStore> {
-            auto it = find_uuid(base_.item().children(), uuid);
-            if (it == base_.item().end())
+            auto it = find_uuid(Track::children(), uuid);
+            if (it == Track::end())
                 return make_error(xstudio_error::error, "Invalid uuid");
             auto rp = make_response_promise<JsonStore>();
             split_item(rp, it, frame);
@@ -649,24 +651,24 @@ caf::message_handler TrackActor::message_handler() {
             // check src is valid.
             auto rp = make_response_promise<JsonStore>();
 
-            auto sitb = find_uuid(base_.item().children(), src_uuid);
-            if (sitb == base_.item().end())
+            auto sitb = find_uuid(Track::children(), src_uuid);
+            if (sitb == Track::end())
                 rp.deliver(make_error(xstudio_error::error, "Invalid src uuid"));
 
 
             if (rp.pending()) {
-                auto dit = base_.item().children().end();
+                auto dit = Track::children().end();
                 if (not before_uuid.is_null()) {
-                    dit = find_uuid(base_.item().children(), before_uuid);
-                    if (dit == base_.item().end())
+                    dit = find_uuid(Track::children(), before_uuid);
+                    if (dit == Track::end())
                         rp.deliver(make_error(xstudio_error::error, "Invalid dst uuid"));
                 }
                 if (rp.pending())
                     move_items(
                         rp,
-                        std::distance(base_.item().begin(), sitb),
+                        std::distance(Track::begin(), sitb),
                         count,
-                        std::distance(base_.item().begin(), dit),
+                        std::distance(Track::begin(), dit),
                         false);
             }
 
@@ -675,7 +677,7 @@ caf::message_handler TrackActor::message_handler() {
 
         [=](event_atom, change_atom) {
             // update_edit_list_ = true;
-            mail(event_atom_v, change_atom_v).send(base_.event_group());
+            mail(event_atom_v, change_atom_v).send(event_group());
         },
 
         [=](event_atom, name_atom, const std::string & /*name*/) {},
@@ -683,8 +685,8 @@ caf::message_handler TrackActor::message_handler() {
         [=](duplicate_atom) -> result<UuidActor> {
             auto rp = make_response_promise<UuidActor>();
             JsonStore jsn;
-            auto dup = base_.duplicate();
-            dup.item().clear();
+            auto dup = Track::duplicate();
+            dup.clear();
 
             jsn["base"]   = dup.serialise();
             jsn["actors"] = {};
@@ -696,7 +698,7 @@ caf::message_handler TrackActor::message_handler() {
                 // duplicate all children and relink against items.
                 scoped_actor sys{system()};
 
-                for (const auto &i : base_.children()) {
+                for (const auto &i : Track::children()) {
                     auto ua =
                         request_receive<UuidActor>(*sys, actors_[i.uuid()], duplicate_atom_v);
                     request_receive<JsonStore>(
@@ -725,7 +727,7 @@ caf::message_handler TrackActor::message_handler() {
                                 "{} {} {}",
                                 __PRETTY_FUNCTION__,
                                 to_string(err),
-                                base_.item().name());
+                                Track::name());
 
                             rp.deliver(err);
                         });
@@ -743,12 +745,13 @@ caf::message_handler TrackActor::message_handler() {
                     .then(
                         [=](std::vector<JsonStore> json) mutable {
                             JsonStore jsn;
-                            jsn["base"]   = base_.serialise();
+                            jsn["base"]   = Track::serialise();
                             jsn["actors"] = {};
-                            for (const auto &j : json)
+                            for (const auto &j : json) {
                                 jsn["actors"]
-                                   [static_cast<std::string>(j["base"]["container"]["uuid"])] =
+                                   [static_cast<std::string>(j["base"]["uuid"])] =
                                        j;
+                            }
                             rp.deliver(jsn);
                         },
                         [=](error &err) mutable { rp.deliver(std::move(err)); });
@@ -756,7 +759,7 @@ caf::message_handler TrackActor::message_handler() {
                 return rp;
             }
             JsonStore jsn;
-            jsn["base"]   = base_.serialise();
+            jsn["base"]   = Track::serialise();
             jsn["actors"] = {};
 
             return result<JsonStore>(jsn);
@@ -768,7 +771,7 @@ caf::message_handler TrackActor::message_handler() {
             const FrameRate &override_rate) -> caf::result<media::FrameTimeMapPtr> {
             // This is required by SubPlayhead actor to make the track
             // playable.
-            return base_.item().get_all_frame_IDs(media_type, tsm, override_rate);
+            return Track::get_all_frame_IDs(media_type, tsm, override_rate);
         }
 
     };
@@ -776,8 +779,8 @@ caf::message_handler TrackActor::message_handler() {
 
 
 void TrackActor::init() {
-    print_on_create(this, base_.name());
-    print_on_exit(this, base_.name());
+    print_on_create(this, Track::name());
+    print_on_exit(this, Track::name());
 }
 
 void TrackActor::add_item(const UuidActor &ua) {
@@ -805,16 +808,16 @@ void TrackActor::add_item(const UuidActor &ua) {
                         actors_.erase(it);
 
                         // remove from base.
-                        auto it = find_actor_addr(base_.item().children(), addr);
+                        auto it = find_actor_addr(Track::children(), addr);
 
-                        if (it != base_.item().end()) {
-                            auto jsn  = base_.item().erase(it);
-                            auto more = base_.item().refresh();
+                        if (it != Track::end()) {
+                            auto jsn  = Track::erase(it);
+                            auto more = Track::refresh();
                             if (not more.is_null())
                                 jsn.insert(jsn.begin(), more.begin(), more.end());
 
                             mail(event_atom_v, item_atom_v, jsn, false)
-                                .send(base_.event_group());
+                                .send(event_group());
                         }
 
                         break;
@@ -876,7 +879,7 @@ void TrackActor::split_item(
                                                     rp,
                                                     static_cast<int>(
                                                         std::distance(
-                                                            base_.item().cbegin(), itemit) +
+                                                            Track::cbegin(), itemit) +
                                                         1),
                                                     UuidActorVector({ua}));
                                             },
@@ -907,9 +910,11 @@ void TrackActor::insert_items(
             vector_to_caf_actor_vector(uav), infinite, item_atom_v)
             .then(
                 [=](std::vector<Item> items) mutable {
+
+                    std::cerr << "items " << items.size() << "\n";
                     // items are valid for insertion ?
                     for (const auto &i : items) {
-                        if (not base_.item().valid_child(i))
+                        if (not Track::valid_child(i))
                             return rp.deliver(
                                 make_error(xstudio_error::error, "Invalid child type"));
                     }
@@ -921,7 +926,7 @@ void TrackActor::insert_items(
                         add_item(ua);
 
                     // find insertion point..
-                    auto it = std::next(base_.item().begin(), index);
+                    auto it = std::next(Track::begin(), index);
 
                     // insert items..
                     // our list will be out of order..
@@ -936,7 +941,7 @@ void TrackActor::insert_items(
                                 auto blind = request_receive<JsonStore>(
                                     *sys, ua.actor(), serialise_atom_v);
 
-                                auto tmp = base_.item().insert(it, i, blind);
+                                auto tmp = Track::insert(it, i, blind);
                                 changes.insert(changes.begin(), tmp.begin(), tmp.end());
                                 found = true;
                                 break;
@@ -944,17 +949,17 @@ void TrackActor::insert_items(
                         }
 
                         if (not found) {
-                            spdlog::error("item not found for insertion");
+                            spdlog::error("item not found for asd insertion");
                         }
                     }
 
                     // add changes to stack
-                    auto more = base_.item().refresh();
+                    auto more = Track::refresh();
 
                     if (not more.is_null())
                         changes.insert(changes.begin(), more.begin(), more.end());
 
-                    mail(event_atom_v, item_atom_v, changes, false).send(base_.event_group());
+                    mail(event_atom_v, item_atom_v, changes, false).send(event_group());
 
                     rp.deliver(changes);
                 },
@@ -963,7 +968,7 @@ void TrackActor::insert_items(
 
     // before adding clips, we must force their frame rate to match ours.
     fan_out_request<policy::select_all>(
-        vector_to_caf_actor_vector(uav), infinite, rate_atom_v, base_.rate(), false)
+        vector_to_caf_actor_vector(uav), infinite, rate_atom_v, Track::rate(), false)
         .then(
             [=](std::vector<bool> r) mutable { do_insertion(); },
             [=](const caf::error &err) mutable { rp.deliver(err); });
@@ -971,27 +976,27 @@ void TrackActor::insert_items(
 
 void TrackActor::insert_items_at_frame(
     caf::typed_response_promise<JsonStore> rp, const int frame, const UuidActorVector &uav) {
-    auto item_frame = base_.item().item_at_frame(frame);
+    auto item_frame = Track::item_at_frame(frame);
 
     if (not item_frame) {
         // off the end of the track..
         // insert gap to fill space..
         UuidActorVector uav_plus_gap;
-        auto track_end = base_.item().trimmed_frame_start().frames() +
-                         base_.item().trimmed_frame_duration().frames() - 1;
+        auto track_end = Track::trimmed_frame_start().frames() +
+                         Track::trimmed_frame_duration().frames() - 1;
         auto filler   = frame - track_end;
         auto gap_uuid = Uuid::generate();
         auto gap_actor =
-            spawn<GapActor>("Gap", FrameRateDuration(filler, base_.item().rate()), gap_uuid);
+            spawn<GapActor>("Gap", FrameRateDuration(filler, Track::rate()), gap_uuid);
         uav_plus_gap.push_back(UuidActor(gap_uuid, gap_actor));
         for (const auto &i : uav)
             uav_plus_gap.push_back(i);
 
-        insert_items(rp, base_.item().size(), uav_plus_gap);
+        insert_items(rp, Track::size(), uav_plus_gap);
     } else {
         auto cit    = item_frame->first;
         auto cframe = item_frame->second;
-        auto index  = std::distance(base_.item().cbegin(), cit);
+        auto index  = std::distance(Track::cbegin(), cit);
 
         if (cframe == cit->trimmed_frame_start().frames()) {
             // simple insertion..
@@ -1017,9 +1022,9 @@ void TrackActor::remove_items_at_frame(
     const bool add_gap,
     const bool collapse_gaps) {
 
-    auto in_point = base_.item().item_at_frame(frame);
+    auto in_point = Track::item_at_frame(frame);
 
-    // spdlog::warn("{}",base_.item().size());
+    // spdlog::warn("{}",Track::size());
 
     if (not in_point)
         rp.deliver(make_error(xstudio_error::error, "Invalid frame"));
@@ -1027,11 +1032,11 @@ void TrackActor::remove_items_at_frame(
         if (in_point->second != in_point->first->trimmed_frame_start().frames()) {
             // split at in point, and recall function.
             // spdlog::warn("start split {} {}",
-            // static_cast<int>(std::distance(base_.item().cbegin(), in_point->first)),
+            // static_cast<int>(std::distance(Track::cbegin(), in_point->first)),
             // static_cast<int>(in_point->second));
             mail(
                 split_item_atom_v,
-                static_cast<int>(std::distance(base_.item().cbegin(), in_point->first)),
+                static_cast<int>(std::distance(Track::cbegin(), in_point->first)),
                 static_cast<int>(in_point->second))
                 .request(caf::actor_cast<caf::actor>(this), infinite)
                 .then(
@@ -1043,16 +1048,16 @@ void TrackActor::remove_items_at_frame(
         } else {
             // do we need to account for erasing off the end ?
             // split end point...
-            auto out_point = base_.item().item_at_frame(frame + duration);
+            auto out_point = Track::item_at_frame(frame + duration);
             if (out_point and
                 out_point->second != out_point->first->trimmed_frame_start().frames()) {
                 // split at in point, and recall function.
                 // spdlog::warn("start end {} {}",
-                // static_cast<int>(std::distance(base_.item().cbegin(), out_point->first)),
+                // static_cast<int>(std::distance(Track::cbegin(), out_point->first)),
                 // static_cast<int>(out_point->second));
                 mail(
                     split_item_atom_v,
-                    static_cast<int>(std::distance(base_.item().cbegin(), out_point->first)),
+                    static_cast<int>(std::distance(Track::cbegin(), out_point->first)),
                     static_cast<int>(out_point->second))
                     .request(caf::actor_cast<caf::actor>(this), infinite)
                     .then(
@@ -1063,11 +1068,11 @@ void TrackActor::remove_items_at_frame(
             } else {
                 // in and out split now remove items
                 auto first_index = 0;
-                auto last_index  = base_.item().size();
+                auto last_index  = Track::size();
                 if (in_point)
-                    first_index = std::distance(base_.item().cbegin(), in_point->first);
+                    first_index = std::distance(Track::cbegin(), in_point->first);
                 if (out_point)
-                    last_index = std::distance(base_.item().cbegin(), out_point->first);
+                    last_index = std::distance(Track::cbegin(), out_point->first);
 
                 // spdlog::warn("remove {} {} {}", first_index, last_index, last_index -
                 // first_index);
@@ -1082,15 +1087,15 @@ std::pair<JsonStore, std::vector<Item>> TrackActor::remove_items(
     std::vector<Item> items;
     JsonStore changes(R"([])"_json);
 
-    if (index < 0 or index + count - 1 >= static_cast<int>(base_.item().size()))
+    if (index < 0 or index + count - 1 >= static_cast<int>(Track::size()))
         throw std::runtime_error("Invalid index / count");
     else {
         scoped_actor sys{system()};
         auto gap_size = FrameRateDuration();
 
         for (int i = index + count - 1; i >= index; i--) {
-            auto it = std::next(base_.item().begin(), i);
-            if (it != base_.item().end()) {
+            auto it = std::next(Track::begin(), i);
+            if (it != Track::end()) {
                 auto item = *it;
 
                 if (auto mit = monitor_.find(caf::actor_cast<caf::actor_addr>(item.actor()));
@@ -1103,7 +1108,7 @@ std::pair<JsonStore, std::vector<Item>> TrackActor::remove_items(
 
                 // need to serialise actor..
                 auto blind = request_receive<JsonStore>(*sys, item.actor(), serialise_atom_v);
-                auto tmp   = base_.item().erase(it, blind);
+                auto tmp   = Track::erase(it, blind);
                 changes.insert(changes.end(), tmp.begin(), tmp.end());
                 items.push_back(item.clone());
 
@@ -1118,18 +1123,18 @@ std::pair<JsonStore, std::vector<Item>> TrackActor::remove_items(
         }
 
         // add gap and index isn't last entry.
-        if (gap_size.frames() and index != static_cast<int>(base_.item().size())) {
+        if (gap_size.frames() and index != static_cast<int>(Track::size())) {
             JsonStore gap_changes(R"([])"_json);
             auto uuid = Uuid::generate();
             auto gap  = spawn<GapActor>("GAP", gap_size, uuid);
             // take ownership
             add_item(UuidActor(uuid, gap));
             // where we're going to insert gap..
-            auto it    = std::next(base_.item().begin(), index);
+            auto it    = std::next(Track::begin(), index);
             auto item  = request_receive<Item>(*sys, gap, item_atom_v);
             auto blind = request_receive<JsonStore>(*sys, gap, serialise_atom_v);
 
-            auto tmp = base_.item().insert(it, item, blind);
+            auto tmp = Track::insert(it, item, blind);
 
             changes.insert(changes.end(), tmp.begin(), tmp.end());
         }
@@ -1139,7 +1144,7 @@ std::pair<JsonStore, std::vector<Item>> TrackActor::remove_items(
             if (not more.is_null())
                 changes.insert(changes.end(), more.begin(), more.end());
         } else {
-            auto more = base_.item().refresh();
+            auto more = Track::refresh();
             if (not more.is_null())
                 changes.insert(changes.end(), more.begin(), more.end());
         }
@@ -1158,7 +1163,7 @@ void TrackActor::remove_items(
 
     try {
         auto result = remove_items(index, count, add_gap, collapse_gaps);
-        mail(event_atom_v, item_atom_v, result.first, false).send(base_.event_group());
+        mail(event_atom_v, item_atom_v, result.first, false).send(event_group());
         rp.deliver(result);
     } catch (const std::exception &err) {
         rp.deliver(make_error(xstudio_error::error, err.what()));
@@ -1195,7 +1200,7 @@ void TrackActor::erase_items(
 
         // spdlog::warn("{}", result.first.dump(2));
 
-        mail(event_atom_v, item_atom_v, result.first, false).send(base_.event_group());
+        mail(event_atom_v, item_atom_v, result.first, false).send(event_group());
         for (const auto &i : result.second)
             send_exit(i.actor(), caf::exit_reason::user_shutdown);
         rp.deliver(result.first);
@@ -1219,9 +1224,9 @@ void TrackActor::move_items(
     if (dst_index == src_index or not count)
         rp.deliver(make_error(xstudio_error::error, "Invalid Move"));
     else {
-        auto sit = std::next(base_.item().begin(), src_index);
+        auto sit = std::next(Track::begin(), src_index);
         auto eit = std::next(sit, count);
-        auto dit = std::next(base_.item().begin(), dst_index);
+        auto dit = std::next(Track::begin(), dst_index);
 
         // collect size of possible gap.
         auto gap_size = FrameRateDuration();
@@ -1236,14 +1241,14 @@ void TrackActor::move_items(
         }
 
         // move done.
-        auto changes = base_.item().splice(dit, base_.item().children(), sit, eit);
+        auto changes = Track::splice(dit, Track::children(), sit, eit);
 
         // deal with gaps..
         auto index = src_index;
         if (dst_index < src_index)
             index += count;
 
-        if (index < static_cast<int>(base_.item().size())) {
+        if (index < static_cast<int>(Track::size())) {
             scoped_actor sys{system()};
 
             if (add_gap and gap_size.frames()) {
@@ -1255,11 +1260,11 @@ void TrackActor::move_items(
                 // take ownership
                 add_item(UuidActor(uuid, gap));
                 // where we're going to insert gap..
-                auto it    = std::next(base_.item().begin(), index);
+                auto it    = std::next(Track::begin(), index);
                 auto item  = request_receive<Item>(*sys, gap, item_atom_v);
                 auto blind = request_receive<JsonStore>(*sys, gap, serialise_atom_v);
 
-                auto tmp = base_.item().insert(it, item, blind);
+                auto tmp = Track::insert(it, item, blind);
                 changes.insert(changes.end(), tmp.begin(), tmp.end());
             }
         }
@@ -1283,11 +1288,11 @@ void TrackActor::move_items(
             changes.insert(changes.end(), more.begin(), more.end());
 
         // end gap code...
-        more = base_.item().refresh();
+        more = Track::refresh();
         if (not more.is_null())
             changes.insert(changes.begin(), more.begin(), more.end());
 
-        mail(event_atom_v, item_atom_v, changes, false).send(base_.event_group());
+        mail(event_atom_v, item_atom_v, changes, false).send(event_group());
 
         rp.deliver(changes);
     }
@@ -1355,17 +1360,17 @@ void TrackActor::move_items_at_frame(
 
         // if were overwriting the end of the track we need to pad it.
         // use track trimmed duration to work out how big a gap we need,
-        auto track_duration = base_.item().trimmed_frame_duration().frames();
+        auto track_duration = Track::trimmed_frame_duration().frames();
         auto gap_duration   = (frame + duration) - track_duration;
         if (gap_duration > 0) {
             // insert gap on track end.
             auto gap_uuid  = Uuid::generate();
             auto gap_actor = spawn<GapActor>(
-                "Gap", FrameRateDuration(gap_duration, base_.item().rate()), gap_uuid);
+                "Gap", FrameRateDuration(gap_duration, Track::rate()), gap_uuid);
 
             // spdlog::warn("INSERT DEST GAP {}", gap_duration);
 
-            // insert_items(base_.item().size(), uav_plus_gap, rp);
+            // insert_items(Track::size(), uav_plus_gap, rp);
             mail(insert_item_atom_v, Uuid(), UuidActorVector({UuidActor(gap_uuid, gap_actor)}))
                 .request(caf::actor_cast<caf::actor>(this), infinite)
                 .then(
@@ -1386,7 +1391,7 @@ void TrackActor::move_items_at_frame(
         // spdlog::warn("gap_duration {}", gap_duration);
     }
 
-    auto start = base_.item().item_at_frame(frame);
+    auto start = Track::item_at_frame(frame);
 
     if (not start)
         rp.deliver(make_error(xstudio_error::error, "Invalid start frame"));
@@ -1402,11 +1407,11 @@ void TrackActor::move_items_at_frame(
             // split start item
             // spdlog::warn(
             //     "split source index {} at frame {} (start)",
-            //     static_cast<int>(std::distance(base_.item().cbegin(), start->first)),
+            //     static_cast<int>(std::distance(Track::cbegin(), start->first)),
             //     start->second);
             mail(
                 split_item_atom_v,
-                static_cast<int>(std::distance(base_.item().cbegin(), start->first)),
+                static_cast<int>(std::distance(Track::cbegin(), start->first)),
                 start->second)
                 .request(caf::actor_cast<caf::actor>(this), infinite)
                 .then(
@@ -1418,7 +1423,7 @@ void TrackActor::move_items_at_frame(
 
         } else {
             // split at end frame ?
-            auto end = base_.item().item_at_frame(frame + duration);
+            auto end = Track::item_at_frame(frame + duration);
             // if (end)
             //     spdlog::warn(
             //         "check source end {} {} {}",
@@ -1432,12 +1437,12 @@ void TrackActor::move_items_at_frame(
                 // split end item
                 // spdlog::warn(
                 //     "split source index {} at frame {} (end)",
-                //     static_cast<int>(std::distance(base_.item().cbegin(), end->first)),
+                //     static_cast<int>(std::distance(Track::cbegin(), end->first)),
                 //     end->second);
 
                 mail(
                     split_item_atom_v,
-                    static_cast<int>(std::distance(base_.item().cbegin(), end->first)),
+                    static_cast<int>(std::distance(Track::cbegin(), end->first)),
                     end->second)
                     .request(caf::actor_cast<caf::actor>(this), infinite)
                     .then(
@@ -1456,7 +1461,7 @@ void TrackActor::move_items_at_frame(
                 // move to frame should insert gap, but we might need to split..
                 // either split or inject end..
                 // dest might be off end of track which is still valid..
-                auto dest = base_.item().item_at_frame(dest_frame);
+                auto dest = Track::item_at_frame(dest_frame);
 
                 // if (dest)
                 //     spdlog::warn(
@@ -1468,13 +1473,13 @@ void TrackActor::move_items_at_frame(
                 if (dest and dest->first->trimmed_frame_start().frames() != dest->second) {
                     // spdlog::warn(
                     //     "split dest index {} at frame {} (start)",
-                    //     static_cast<int>(std::distance(base_.item().cbegin(), dest->first)),
+                    //     static_cast<int>(std::distance(Track::cbegin(), dest->first)),
                     //     dest->second);
 
                     // split dest start
                     mail(
                         split_item_atom_v,
-                        static_cast<int>(std::distance(base_.item().cbegin(), dest->first)),
+                        static_cast<int>(std::distance(Track::cbegin(), dest->first)),
                         dest->second)
                         .request(caf::actor_cast<caf::actor>(this), infinite)
                         .then(
@@ -1490,18 +1495,18 @@ void TrackActor::move_items_at_frame(
                             },
                             [=](error &err) mutable { rp.deliver(std::move(err)); });
                 } else if (
-                    not dest and base_.item().trimmed_frame_duration().frames() != dest_frame) {
+                    not dest and Track::trimmed_frame_duration().frames() != dest_frame) {
                     // check for off end as we'll need gap..
-                    auto track_end = base_.item().trimmed_frame_start().frames() +
-                                     base_.item().trimmed_frame_duration().frames() - 1;
+                    auto track_end = Track::trimmed_frame_start().frames() +
+                                     Track::trimmed_frame_duration().frames() - 1;
                     auto filler    = dest_frame - track_end - 1;
                     auto gap_uuid  = Uuid::generate();
                     auto gap_actor = spawn<GapActor>(
-                        "Gap", FrameRateDuration(filler, base_.item().rate()), gap_uuid);
+                        "Gap", FrameRateDuration(filler, Track::rate()), gap_uuid);
 
                     // spdlog::warn("INSERT GAP {}", filler);
 
-                    // insert_items(base_.item().size(), uav_plus_gap, rp);
+                    // insert_items(Track::size(), uav_plus_gap, rp);
                     mail(
                         insert_item_atom_v,
                         Uuid(),
@@ -1523,15 +1528,15 @@ void TrackActor::move_items_at_frame(
                     // finally ready..
                     if (insert or
                         (not dest and
-                         base_.item().trimmed_frame_duration().frames() == dest_frame)) {
+                         Track::trimmed_frame_duration().frames() == dest_frame)) {
 
-                        auto index     = std::distance(base_.item().cbegin(), start->first);
-                        auto end_index = end ? std::distance(base_.item().cbegin(), end->first)
-                                             : base_.item().size();
+                        auto index     = std::distance(Track::cbegin(), start->first);
+                        auto end_index = end ? std::distance(Track::cbegin(), end->first)
+                                             : Track::size();
                         auto count =
-                            end_index - std::distance(base_.item().cbegin(), start->first);
-                        auto dst = dest ? std::distance(base_.item().cbegin(), dest->first)
-                                        : base_.item().size();
+                            end_index - std::distance(Track::cbegin(), start->first);
+                        auto dst = dest ? std::distance(Track::cbegin(), dest->first)
+                                        : Track::size();
 
                         // spdlog::warn("move_items index {} count {} dst {}", index, count,
                         // dst);
@@ -1540,7 +1545,7 @@ void TrackActor::move_items_at_frame(
                     } else {
                         // we need to remove material at destnation
                         // we may need to split at dst+duration
-                        auto dst_end = base_.item().item_at_frame(dest_frame + duration);
+                        auto dst_end = Track::item_at_frame(dest_frame + duration);
 
                         // if(dst_end)
                         //     spdlog::warn(
@@ -1556,13 +1561,13 @@ void TrackActor::move_items_at_frame(
                             // spdlog::warn(
                             //     "split dest index {} at frame {} (end)",
                             //     static_cast<int>(
-                            //         std::distance(base_.item().cbegin(), dst_end->first)),
+                            //         std::distance(Track::cbegin(), dst_end->first)),
                             //     dst_end->second);
 
                             mail(
                                 split_item_atom_v,
                                 static_cast<int>(
-                                    std::distance(base_.item().cbegin(), dst_end->first)),
+                                    std::distance(Track::cbegin(), dst_end->first)),
                                 dst_end->second)
                                 .request(caf::actor_cast<caf::actor>(this), infinite)
                                 .then(
@@ -1617,11 +1622,11 @@ JsonStore TrackActor::merge_gaps() {
     scoped_actor sys{system()};
 
     // purge trailing gaps also handles track of gap
-    while (not base_.item().empty() and base_.item().back().item_type() == IT_GAP) {
+    while (not Track::empty() and Track::back().item_type() == IT_GAP) {
         // prune gaps off end of track.
-        // spdlog::warn("ERASE TRAILING GAP {}", base_.item().size() - 1);
+        // spdlog::warn("ERASE TRAILING GAP {}", Track::size() - 1);
 
-        auto it   = std::next(base_.item().begin(), base_.item().size() - 1);
+        auto it   = std::next(Track::begin(), Track::size() - 1);
         auto item = *it;
 
         if (auto mit = monitor_.find(caf::actor_cast<caf::actor_addr>(item.actor()));
@@ -1634,7 +1639,7 @@ JsonStore TrackActor::merge_gaps() {
 
         // need to serialise actor..
         auto blind = request_receive<JsonStore>(*sys, item.actor(), serialise_atom_v);
-        auto tmp   = base_.item().erase(it, blind);
+        auto tmp   = Track::erase(it, blind);
         send_exit(item.actor(), caf::exit_reason::user_shutdown);
         changes.insert(changes.end(), tmp.begin(), tmp.end());
     }
@@ -1642,7 +1647,7 @@ JsonStore TrackActor::merge_gaps() {
     auto gap_count    = 0;
     auto gap_duration = FrameRateDuration();
     // look for multiple sequential gaps.
-    int index = static_cast<int>(base_.item().size()) - 1;
+    int index = static_cast<int>(Track::size()) - 1;
 
     auto merge_gaps_ = [&](auto it) mutable {
         if (gap_count) {
@@ -1660,14 +1665,14 @@ JsonStore TrackActor::merge_gaps() {
                 auto item  = request_receive<Item>(*sys, gap, item_atom_v);
                 auto blind = request_receive<JsonStore>(*sys, gap, serialise_atom_v);
 
-                auto tmp = base_.item().insert(it, item, blind);
+                auto tmp = Track::insert(it, item, blind);
                 changes.insert(changes.end(), tmp.begin(), tmp.end());
 
                 while (gap_count) {
                     // get distance from start.
                     auto gip = std::next(it, gap_count - 1);
 
-                    // spdlog::warn("remove index {}", std::distance(base_.item().begin(),
+                    // spdlog::warn("remove index {}", std::distance(Track::begin(),
                     // gip));
 
                     auto item = *gip;
@@ -1684,7 +1689,7 @@ JsonStore TrackActor::merge_gaps() {
                     // need to serialise actor..
                     auto blind =
                         request_receive<JsonStore>(*sys, item.actor(), serialise_atom_v);
-                    auto tmp = base_.item().erase(gip, blind);
+                    auto tmp = Track::erase(gip, blind);
                     send_exit(item.actor(), caf::exit_reason::user_shutdown);
                     changes.insert(changes.end(), tmp.begin(), tmp.end());
 
@@ -1696,7 +1701,7 @@ JsonStore TrackActor::merge_gaps() {
     };
 
     for (; index >= 0; index--) {
-        auto it = std::next(base_.item().begin(), index);
+        auto it = std::next(Track::begin(), index);
 
         if (it->item_type() == IT_GAP) {
             if (not gap_count)
@@ -1710,9 +1715,9 @@ JsonStore TrackActor::merge_gaps() {
         }
     }
 
-    merge_gaps_(base_.item().begin());
+    merge_gaps_(Track::begin());
 
-    auto more = base_.item().refresh();
+    auto more = Track::refresh();
     if (not more.is_null())
         changes.insert(changes.end(), more.begin(), more.end());
 
@@ -1724,7 +1729,7 @@ void TrackActor::merge_gaps(caf::typed_response_promise<JsonStore> rp) {
     auto changes = merge_gaps();
 
     if (changes.size())
-        mail(event_atom_v, item_atom_v, changes, false).send(base_.event_group());
+        mail(event_atom_v, item_atom_v, changes, false).send(event_group());
 
     rp.deliver(changes);
 }

@@ -49,8 +49,10 @@ caf::actor TimelineActor::deserialise(const JsonStore &value, const bool replace
 
     auto actor = caf::actor();
 
-    if (value.at("base").at("container").at("type") == "Stack") {
-        auto key  = Uuid(value.at("base").at("item").at("uuid"));
+    const std::string type = value.at("base").contains("container") ? value.at("base").at("container").at("type") : value.at("base").at("item_type");
+
+    if (type == "Stack") {
+         auto key   = Uuid(value.at("base").contains("item") ? value.at("base").at("item").at("uuid") : value.at("base").at("uuid"));
         auto item = Item();
         actor     = spawn<StackActor>(static_cast<JsonStore>(value), item);
         add_item(UuidActor(key, actor));
@@ -67,7 +69,7 @@ caf::actor TimelineActor::deserialise(const JsonStore &value, const bool replace
                     value.dump(2));
             }
         }
-    } else if (value.at("base").at("container").at("type") == "PlayheadSelection") {
+    } else if (type == "PlayheadSelection") {
 
         try {
 
@@ -2610,9 +2612,10 @@ caf::message_handler TimelineActor::message_handler() {
                                     jsn["base"]   = base_.serialise();
                                     jsn["store"]  = meta;
                                     jsn["actors"] = {};
-                                    for (const auto &j : json)
-                                        jsn["actors"][static_cast<std::string>(
-                                            j["base"]["container"]["uuid"])] = j;
+                                    for (const auto &j : json) {
+                                        const utility::Uuid id = jsn.at("base").contains("container") ? jsn.at("base").at("container").at("uuid") : jsn.at("base").at("uuid");
+                                        jsn["actors"][to_string(id)] = j;
+                                    }
                                     if (playhead_) {
                                         mail(serialise_atom_v)
                                             .request(playhead_.actor(), infinite)
@@ -3082,8 +3085,10 @@ void TimelineActor::insert_items(
             vector_to_caf_actor_vector(uav), infinite, item_atom_v)
             .then(
                 [=](std::vector<Item> items) mutable {
+                    std::cerr << "items " << items.size() << "\n";
                     // items are valid for insertion ?
                     for (const auto &i : items) {
+                        std::cerr << "TO ADD " << i.serialise().dump(2) << "\n";
                         if (not base_.item().valid_child(i))
                             return rp.deliver(
                                 make_error(xstudio_error::error, "Invalid child type"));
@@ -3112,7 +3117,7 @@ void TimelineActor::insert_items(
                         }
 
                         if (not found) {
-                            spdlog::error("item not found for insertion");
+                            spdlog::error("aa for insertion fart");
                         }
                     }
 
@@ -3265,7 +3270,7 @@ void TimelineActor::bake(caf::typed_response_promise<UuidActor> rp, const UuidSe
                  std::get<0>(*i).uuid()) // change to different clip
         ) {
             if (not i) {
-                track.children().emplace_back(Gap("Gap", FrameRateDuration(1, rate)).item());
+                track.children().emplace_back(static_cast<Item>(Gap("Gap", FrameRateDuration(1, rate))));
             } else {
                 // replace item with copy of i
                 track.children().emplace_back(std::get<0>(*i));
@@ -3293,11 +3298,11 @@ void TimelineActor::bake(caf::typed_response_promise<UuidActor> rp, const UuidSe
         track.children().pop_back();
 
     // reset uuids
-    for (auto &i : track.item().children()) {
+    for (auto &i : track.children()) {
         i.set_uuid(Uuid::generate());
     }
 
-    track.item().refresh();
+    track.refresh();
 
     // for(const auto &i: track.item().children()) {
     //     spdlog::warn("{} {} {}", i.name(), i.trimmed_frame_start().frames(),
@@ -3305,8 +3310,8 @@ void TimelineActor::bake(caf::typed_response_promise<UuidActor> rp, const UuidSe
     // }
 
     // create actors
-    auto track_uuid  = track.item().uuid();
-    auto track_actor = spawn<TrackActor>(track.item());
+    auto track_uuid  = track.uuid();
+    auto track_actor = spawn<TrackActor>(track);
 
     rp.deliver(UuidActor(track_uuid, track_actor));
 }

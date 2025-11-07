@@ -4,10 +4,11 @@
 #include <caf/all.hpp>
 
 #include "xstudio/timeline/stack.hpp"
+#include "xstudio/timeline/item_actor.hpp"
 
 namespace xstudio {
 namespace timeline {
-    class StackActor : public caf::event_based_actor {
+    class StackActor : public ItemActor, public Stack {
       public:
         StackActor(caf::actor_config &cfg, const utility::JsonStore &jsn);
         StackActor(caf::actor_config &cfg, const utility::JsonStore &jsn, Item &item);
@@ -27,11 +28,7 @@ namespace timeline {
         inline static const std::string NAME = "StackActor";
         void init();
         void on_exit() override;
-        caf::message_handler message_handler();
-
-        caf::behavior make_behavior() override {
-            return message_handler().or_else(base_.container_message_handler(this));
-        }
+        caf::message_handler message_handler() override;
 
         void add_item(const utility::UuidActor &ua);
         caf::actor

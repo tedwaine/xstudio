@@ -1442,7 +1442,7 @@ QModelIndex SessionModel::insertTimelineGap(
                 //   "type": "Gap"
                 // },
 
-
+                std::cerr << insertion_json.dump(2) << "\n";
                 // hopefully add to parent..
                 try {
                     request_receive<JsonStore>(
@@ -1497,6 +1497,8 @@ QModelIndex SessionModel::insertTimelineClip(
 
                 auto new_item = self()->spawn<timeline::ClipActor>(
                     UuidActor(media_uuid, media_actor), name, new_uuid);
+
+                                    std::cerr << "2 " << insertion_json.dump(2) << "\n";
 
                 // hopefully add to parent..
                 try {
@@ -1697,6 +1699,7 @@ QFuture<QList<QUuid>> SessionModel::handleTimelineIdDropFuture(
         auto dropIndex = index;
 
         // UuidActorVector new_media;
+                                    std::cerr << "jdrop " << jdrop.dump(2) << "\n";
 
         try {
             // spdlog::warn(

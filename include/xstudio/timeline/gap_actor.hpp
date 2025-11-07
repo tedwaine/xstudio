@@ -4,10 +4,11 @@
 #include <caf/all.hpp>
 
 #include "xstudio/timeline/gap.hpp"
+#include "xstudio/timeline/item_actor.hpp"
 
 namespace xstudio {
 namespace timeline {
-    class GapActor : public caf::event_based_actor {
+    class GapActor : public ItemActor, public Gap {
       public:
         GapActor(caf::actor_config &cfg, const utility::JsonStore &jsn);
         GapActor(caf::actor_config &cfg, const utility::JsonStore &jsn, Item &item);
@@ -20,22 +21,14 @@ namespace timeline {
         GapActor(caf::actor_config &cfg, const Item &item);
         GapActor(caf::actor_config &cfg, const Item &item, Item &nitem);
 
-        ~GapActor() override = default;
-
         const char *name() const override { return NAME.c_str(); }
 
       private:
         inline static const std::string NAME = "GapActor";
         void init();
 
-        caf::message_handler message_handler();
+        caf::message_handler message_handler() override;
 
-        caf::behavior make_behavior() override {
-            return message_handler().or_else(base_.container_message_handler(this));
-        }
-
-      private:
-        Gap base_;
     };
 } // namespace timeline
 } // namespace xstudio

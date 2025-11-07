@@ -6,6 +6,7 @@
 #include <string>
 #include <caf/all.hpp>
 
+#include "xstudio/utility/container.hpp"
 #include "xstudio/utility/frame_range.hpp"
 #include "xstudio/utility/json_store.hpp"
 #include "xstudio/utility/uuid.hpp"
@@ -44,6 +45,15 @@ namespace timeline {
     using ResolvedItem = std::pair<Item, utility::FrameRate>;
 
     typedef std::function<void(const utility::JsonStore &event, Item &item)> ItemEventFunc;
+
+    inline static const std::map<ItemType, std::string> timeline_type_names = {
+            {IT_NONE, "None"},
+            {IT_GAP, "Gap"},
+            {IT_CLIP, "Clip"},
+            {IT_AUDIO_TRACK, "Audio Track"},
+            {IT_VIDEO_TRACK, "Video Track"},
+            {IT_STACK, "Stack"},
+            {IT_TIMELINE, "Timeline"}};
 
     class Item : private Items {
       public:
@@ -224,8 +234,8 @@ namespace timeline {
         [[nodiscard]] std::vector<std::reference_wrapper<Item>>
         find_all_items(const ItemType item_type, const ItemType track_type = IT_NONE);
 
-        [[nodiscard]] utility::JsonStore
-        serialise(const int depth = std::numeric_limits<int>::max()) const;
+        virtual utility::JsonStore
+        serialise() const;
 
         bool replace_child(const Item &child);
         std::set<utility::Uuid> update(const utility::JsonStore &event);
@@ -602,7 +612,6 @@ namespace timeline {
         }
         return str;
     }
-
 
 } // namespace timeline
 } // namespace xstudio

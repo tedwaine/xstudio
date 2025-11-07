@@ -28,4 +28,4 @@ SET(STATIC_LINK_DEPS
 	OTIO::opentimelineio
 )
 
-create_component_static(timeline ${XSTUDIO_GLOBAL_VERSION} "${LINK_DEPS}" "${STATIC_LINK_DEPS}")
+create_component_static(timeline ${XSTUDIO_GLOBAL_VERSION} "${LINK_DEPS}" "${STATIC_LINK_DEPS}") 

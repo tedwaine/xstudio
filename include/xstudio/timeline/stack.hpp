@@ -12,7 +12,7 @@
 
 namespace xstudio {
 namespace timeline {
-    class Stack : public utility::Container {
+    class Stack : public Item {
       public:
         Stack(
             const std::string &name        = "Stack",
@@ -22,25 +22,9 @@ namespace timeline {
 
         Stack(const utility::JsonStore &jsn);
         Stack(const Item &item, const caf::actor &actor);
-        ~Stack() override = default;
 
-        [[nodiscard]] utility::JsonStore serialise() const override;
         [[nodiscard]] Stack duplicate() const;
 
-        [[nodiscard]] const Item &item() const { return item_; }
-        [[nodiscard]] Item &item() { return item_; }
-
-        [[nodiscard]] const Items &children() const { return item_.children(); }
-        [[nodiscard]] Items &children() { return item_.children(); }
-
-        [[nodiscard]] bool valid_child(const Item &child) const {
-            return item_.valid_child(child);
-        }
-
-        utility::JsonStore refresh_item() { return item_.refresh(); }
-
-      private:
-        Item item_;
     };
 } // namespace timeline
 } // namespace xstudio

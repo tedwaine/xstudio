@@ -4,10 +4,11 @@
 #include <caf/all.hpp>
 
 #include "xstudio/timeline/clip.hpp"
+#include "xstudio/timeline/item_actor.hpp"
 
 namespace xstudio {
 namespace timeline {
-    class ClipActor : public caf::event_based_actor {
+    class ClipActor : public ItemActor, public Clip {
       public:
         ClipActor(caf::actor_config &cfg, const utility::JsonStore &jsn);
         ClipActor(caf::actor_config &cfg, const utility::JsonStore &jsn, Item &item);
@@ -27,11 +28,7 @@ namespace timeline {
         inline static const std::string NAME = "ClipActor";
         void init();
 
-        caf::message_handler message_handler();
-
-        caf::behavior make_behavior() override {
-            return message_handler().or_else(base_.container_message_handler(this));
-        }
+        caf::message_handler message_handler() override;
 
         void link_media(
             caf::typed_response_promise<bool> rp,
@@ -39,8 +36,8 @@ namespace timeline {
             const bool refresh = true);
 
       private:
-        Clip base_;
-        caf::actor_addr media_;
+
+      caf::actor_addr media_;
         caf::disposable monitor_;
 
         std::map<int, std::shared_ptr<const media::AVFrameID>> audio_ptr_cache_;

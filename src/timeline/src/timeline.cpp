@@ -27,7 +27,7 @@ JsonStore Timeline::serialise() const {
     JsonStore jsn;
 
     jsn["container"] = Container::serialise();
-    jsn["item"]      = item_.serialise(1);
+    jsn["item"]      = item_.serialise();
     jsn["media"]     = media_list_.serialise();
 
     return jsn;
@@ -41,7 +41,7 @@ Timeline Timeline::duplicate() const {
     dup_item.set_uuid(dup_container.uuid());
 
     jsn["container"] = dup_container.serialise();
-    jsn["item"]      = dup_item.serialise(1);
+    jsn["item"]      = dup_item.serialise();
     jsn["media"]     = media_list_.serialise();
 
     return Timeline(jsn);

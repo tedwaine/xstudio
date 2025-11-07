@@ -14,13 +14,16 @@ using namespace xstudio::utility;
 using namespace xstudio::timeline;
 
 caf::actor StackActor::deserialise(const JsonStore &value, const bool replace_item) {
-    auto key   = Uuid(value.at("base").at("item").at("uuid"));
+
+    auto key   = Uuid(value.at("base").contains("item") ? value.at("base").at("item").at("uuid") : value.at("base").at("uuid"));
     auto actor = caf::actor();
-    auto type  = value.at("base").at("container").at("type").get<std::string>();
+
+    const std::string type = value.at("base").contains("container") ? value.at("base").at("container").at("type") : value.at("base").at("item_type");
+    std::cerr << "sta type " << value.dump(2) << "\n";
 
     auto item = Item();
 
-    if (type == "Track") {
+    if (type == "Video Track" || type == "Audio Track") {
         actor = spawn<TrackActor>(static_cast<JsonStore>(value), item);
     } else if (type == "Clip") {
         actor = spawn<ClipActor>(static_cast<JsonStore>(value), item);
@@ -33,8 +36,8 @@ caf::actor StackActor::deserialise(const JsonStore &value, const bool replace_it
     if (actor) {
         add_item(UuidActor(key, actor));
         if (replace_item) {
-            auto itemit = find_uuid(base_.item().children(), key);
-            if (itemit != base_.item().end()) {
+            auto itemit = find_uuid(Stack::children(), key);
+            if (itemit != Stack::end()) {
                 (*itemit) = item;
             } else {
                 spdlog::warn(
@@ -50,7 +53,7 @@ caf::actor StackActor::deserialise(const JsonStore &value, const bool replace_it
 }
 
 void StackActor::deserialise() {
-    for (auto &i : base_.item().children()) {
+    for (auto &i : Stack::children()) {
         switch (i.item_type()) {
         case IT_CLIP: {
             auto actor = spawn<ClipActor>(i, i);
@@ -77,9 +80,10 @@ void StackActor::deserialise() {
 
 
 StackActor::StackActor(caf::actor_config &cfg, const JsonStore &jsn)
-    : caf::event_based_actor(cfg), base_(static_cast<JsonStore>(jsn.at("base"))) {
+    : ItemActor(cfg, static_cast<Item &>(*this)), Stack(static_cast<JsonStore>(jsn.at("base"))) {
 
-    base_.item().set_actor_addr(this);
+    Stack::set_actor_addr(this);
+    std::cerr << "FOO2 " << jsn.dump(2);
 
     for (const auto &[key, value] : jsn.at("actors").items()) {
         try {
@@ -88,16 +92,18 @@ StackActor::StackActor(caf::actor_config &cfg, const JsonStore &jsn)
             spdlog::error("{}", e.what());
         }
     }
-    base_.item().bind_item_post_event_func(
+    Stack::bind_item_post_event_func(
         [this](const JsonStore &event, Item &item) { item_event_callback(event, item); });
 
     init();
 }
 
 StackActor::StackActor(caf::actor_config &cfg, const JsonStore &jsn, Item &pitem)
-    : caf::event_based_actor(cfg), base_(static_cast<JsonStore>(jsn.at("base"))) {
+    : ItemActor(cfg, static_cast<Item &>(*this)), Stack(static_cast<JsonStore>(jsn.at("base"))) {
 
-    base_.item().set_actor_addr(this);
+    Stack::set_actor_addr(this);
+
+    std::cerr << "FOO " << jsn.dump(2);
 
     for (const auto &[key, value] : jsn.at("actors").items()) {
         try {
@@ -106,32 +112,32 @@ StackActor::StackActor(caf::actor_config &cfg, const JsonStore &jsn, Item &pitem
             spdlog::error("{}", e.what());
         }
     }
-    base_.item().bind_item_post_event_func(
+    Stack::bind_item_post_event_func(
         [this](const JsonStore &event, Item &item) { item_event_callback(event, item); });
-    pitem = base_.item().clone();
+    pitem = Stack::clone();
 
     init();
 }
 
 StackActor::StackActor(
     caf::actor_config &cfg, const std::string &name, const FrameRate &rate, const Uuid &uuid)
-    : caf::event_based_actor(cfg), base_(name, rate, uuid, this) {
+    : ItemActor(cfg, static_cast<Item &>(*this)), Stack(name, rate, uuid, this) {
 
-    base_.item().set_name(name);
-    base_.item().bind_item_post_event_func(
+    Stack::set_name(name);
+    Stack::bind_item_post_event_func(
         [this](const JsonStore &event, Item &item) { item_event_callback(event, item); });
     init();
 }
 
 StackActor::StackActor(caf::actor_config &cfg, const Item &item)
-    : caf::event_based_actor(cfg), base_(item, this) {
+    : ItemActor(cfg, static_cast<Item &>(*this)), Stack(item, this) {
     deserialise();
     init();
 }
 
 StackActor::StackActor(caf::actor_config &cfg, const Item &item, Item &nitem)
     : StackActor(cfg, item) {
-    nitem = base_.item().clone();
+    nitem = Stack::clone();
 }
 
 void StackActor::on_exit() {
@@ -145,11 +151,11 @@ void StackActor::item_event_callback(const JsonStore &event, Item &item) {
     switch (static_cast<ItemAction>(event.at("action"))) {
     case IA_INSERT: {
         auto cuuid = Uuid(event.at("item").at("uuid"));
-        // spdlog::warn("{} {} {} {}", find_uuid(base_.item().children(), cuuid) !=
-        // base_.item().cend(), actors_.count(cuuid), not event["blind"].is_null(),
+        // spdlog::warn("{} {} {} {}", find_uuid(Stack::children(), cuuid) !=
+        // Stack::cend(), actors_.count(cuuid), not event["blind"].is_null(),
         // event.dump(2)); needs to be child..
-        auto child_item_it = find_uuid(base_.item().children(), cuuid);
-        if (child_item_it != base_.item().end() and not actors_.count(cuuid) and
+        auto child_item_it = find_uuid(Stack::children(), cuuid);
+        if (child_item_it != Stack::end() and not actors_.count(cuuid) and
             not event.at("blind").is_null()) {
             // our child
             // spdlog::warn("RECREATE MATCH");
@@ -164,7 +170,7 @@ void StackActor::item_event_callback(const JsonStore &event, Item &item) {
             // item actor_addr will be wrong.. in ancestors
             // send special update..
             mail(event_atom_v, item_atom_v, child_item_it->make_actor_addr_update(), true)
-                .send(base_.event_group());
+                .send(event_group());
         }
     } break;
 
@@ -222,7 +228,7 @@ caf::message_handler StackActor::message_handler() {
                                 "{} {} {}",
                                 __PRETTY_FUNCTION__,
                                 to_string(err),
-                                base_.item().name());
+                                Stack::name());
                             rp.deliver(false);
                         });
             }
@@ -230,39 +236,39 @@ caf::message_handler StackActor::message_handler() {
         },
 
         [=](item_marker_atom, insert_item_atom, const Marker &value) -> JsonStore {
-            auto markers = base_.item().markers();
+            auto markers = Stack::markers();
             markers.push_back(value);
-            auto jsn = base_.item().set_markers(markers);
+            auto jsn = Stack::set_markers(markers);
 
             if (not jsn.is_null())
-                mail(event_atom_v, item_atom_v, jsn, false).send(base_.event_group());
+                mail(event_atom_v, item_atom_v, jsn, false).send(event_group());
 
             return jsn;
         },
 
         [=](item_marker_atom, insert_item_atom, const std::vector<Marker> &value) -> JsonStore {
-            auto markers = base_.item().markers();
+            auto markers = Stack::markers();
             markers.insert(markers.end(), value.begin(), value.end());
-            auto jsn = base_.item().set_markers(markers);
+            auto jsn = Stack::set_markers(markers);
 
             if (not jsn.is_null())
-                mail(event_atom_v, item_atom_v, jsn, false).send(base_.event_group());
+                mail(event_atom_v, item_atom_v, jsn, false).send(event_group());
 
             return jsn;
         },
 
         [=](item_marker_atom, const std::vector<Marker> &markers) -> JsonStore {
-            auto jsn = base_.item().set_markers(markers);
+            auto jsn = Stack::set_markers(markers);
 
             if (not jsn.is_null())
-                mail(event_atom_v, item_atom_v, jsn, false).send(base_.event_group());
+                mail(event_atom_v, item_atom_v, jsn, false).send(event_group());
 
             return jsn;
         },
 
-        [=](item_type_atom) -> ItemType { return base_.item().item_type(); },
+        [=](item_type_atom) -> ItemType { return Stack::item_type(); },
 
-        [=](rate_atom) -> FrameRate { return base_.item().rate(); },
+        [=](rate_atom) -> FrameRate { return Stack::rate(); },
 
         [=](rate_atom atom, const media::MediaType media_type) {
             return mail(atom).delegate(caf::actor_cast<caf::actor>(this));
@@ -274,11 +280,11 @@ caf::message_handler StackActor::message_handler() {
 
         [=](item_marker_atom) -> std::vector<Marker> {
             std::vector<Marker> result(
-                base_.item().markers().begin(), base_.item().markers().end());
+                Stack::markers().begin(), Stack::markers().end());
             return result;
         },
 
-        [=](item_atom) -> Item { return base_.item().clone(); },
+        [=](item_atom) -> Item { return Stack::clone(); },
 
         [=](item_atom, const bool with_state) -> result<std::pair<JsonStore, Item>> {
             auto rp = make_response_promise<std::pair<JsonStore, Item>>();
@@ -286,108 +292,108 @@ caf::message_handler StackActor::message_handler() {
                 .request(caf::actor_cast<caf::actor>(this), infinite)
                 .then(
                     [=](const JsonStore &jsn) mutable {
-                        rp.deliver(std::make_pair(jsn, base_.item().clone()));
+                        rp.deliver(std::make_pair(jsn, Stack::clone()));
                     },
                     [=](const caf::error &err) mutable { rp.deliver(err); });
             return rp;
         },
 
         [=](item_flag_atom, const std::string &value) -> JsonStore {
-            auto jsn = base_.item().set_flag(value);
+            auto jsn = Stack::set_flag(value);
             if (not jsn.is_null())
-                mail(event_atom_v, item_atom_v, jsn, false).send(base_.event_group());
+                mail(event_atom_v, item_atom_v, jsn, false).send(event_group());
             return jsn;
         },
 
         [=](item_lock_atom, const bool value) -> JsonStore {
-            auto jsn = base_.item().set_locked(value);
+            auto jsn = Stack::set_locked(value);
             if (not jsn.is_null())
-                mail(event_atom_v, item_atom_v, jsn, false).send(base_.event_group());
+                mail(event_atom_v, item_atom_v, jsn, false).send(event_group());
             return jsn;
         },
 
         [=](item_name_atom, const std::string &value) -> JsonStore {
-            auto jsn = base_.item().set_name(value);
+            auto jsn = Stack::set_name(value);
             if (not jsn.is_null())
-                mail(event_atom_v, item_atom_v, jsn, false).send(base_.event_group());
+                mail(event_atom_v, item_atom_v, jsn, false).send(event_group());
             return jsn;
         },
 
         [=](item_atom, int index) -> result<Item> {
-            if (static_cast<size_t>(index) >= base_.item().size()) {
+            if (static_cast<size_t>(index) >= Stack::size()) {
                 return make_error(xstudio_error::error, "Invalid index");
             }
-            auto it = base_.item().cbegin();
+            auto it = Stack::cbegin();
             std::advance(it, index);
             return (*it).clone();
         },
 
         [=](item_prop_atom, const JsonStore &value, const bool merge) -> JsonStore {
-            auto p = base_.item().prop();
+            auto p = Stack::prop();
             p.update(value);
-            auto jsn = base_.item().set_prop(p);
+            auto jsn = Stack::set_prop(p);
             if (not jsn.is_null())
-                mail(event_atom_v, item_atom_v, jsn, false).send(base_.event_group());
+                mail(event_atom_v, item_atom_v, jsn, false).send(event_group());
             return jsn;
         },
 
         [=](item_prop_atom, const JsonStore &value) -> JsonStore {
-            auto jsn = base_.item().set_prop(value);
+            auto jsn = Stack::set_prop(value);
             if (not jsn.is_null())
-                mail(event_atom_v, item_atom_v, jsn, false).send(base_.event_group());
+                mail(event_atom_v, item_atom_v, jsn, false).send(event_group());
             return jsn;
         },
 
         [=](item_prop_atom, const JsonStore &value, const std::string &path) -> JsonStore {
-            auto prop = base_.item().prop();
+            auto prop = Stack::prop();
             try {
                 auto ptr = nlohmann::json::json_pointer(path);
                 prop.at(ptr).update(value);
             } catch (const std::exception &err) {
                 spdlog::warn("{} {}", __PRETTY_FUNCTION__, err.what());
             }
-            auto jsn = base_.item().set_prop(prop);
+            auto jsn = Stack::set_prop(prop);
             if (not jsn.is_null())
-                mail(event_atom_v, item_atom_v, jsn, false).send(base_.event_group());
+                mail(event_atom_v, item_atom_v, jsn, false).send(event_group());
             return jsn;
         },
 
-        [=](item_prop_atom) -> JsonStore { return base_.item().prop(); },
+        [=](item_prop_atom) -> JsonStore { return Stack::prop(); },
 
         [=](plugin_manager::enable_atom, const bool value) -> JsonStore {
-            auto jsn = base_.item().set_enabled(value);
+            auto jsn = Stack::set_enabled(value);
             if (not jsn.is_null())
-                mail(event_atom_v, item_atom_v, jsn, false).send(base_.event_group());
+                mail(event_atom_v, item_atom_v, jsn, false).send(event_group());
             return jsn;
         },
 
         [=](active_range_atom, const FrameRange &fr) -> JsonStore {
-            auto jsn = base_.item().set_active_range(fr);
+            auto jsn = Stack::set_active_range(fr);
             if (not jsn.is_null())
-                mail(event_atom_v, item_atom_v, jsn, false).send(base_.event_group());
+                mail(event_atom_v, item_atom_v, jsn, false).send(event_group());
             return jsn;
         },
 
         [=](available_range_atom, const FrameRange &fr) -> JsonStore {
-            auto jsn = base_.item().set_available_range(fr);
+            auto jsn = Stack::set_available_range(fr);
             if (not jsn.is_null())
-                mail(event_atom_v, item_atom_v, jsn, false).send(base_.event_group());
+                mail(event_atom_v, item_atom_v, jsn, false).send(event_group());
             return jsn;
         },
 
         [=](active_range_atom) -> std::optional<FrameRange> {
-            return base_.item().active_range();
+            return Stack::active_range();
         },
 
         [=](available_range_atom) -> std::optional<FrameRange> {
-            return base_.item().available_range();
+            return Stack::available_range();
         },
 
-        [=](trimmed_range_atom) -> FrameRange { return base_.item().trimmed_range(); },
+        [=](trimmed_range_atom) -> FrameRange { return Stack::trimmed_range(); },
 
         // should these be reflected upward ?
         [=](history::undo_atom, const JsonStore &hist) -> result<bool> {
-            base_.item().undo(hist);
+            Stack::undo(hist);
             if (actors_.empty())
                 return true;
             // push to children..
@@ -403,7 +409,7 @@ caf::message_handler StackActor::message_handler() {
         },
 
         [=](history::redo_atom, const JsonStore &hist) -> result<bool> {
-            base_.item().redo(hist);
+            Stack::redo(hist);
             if (actors_.empty())
                 return true;
             // push to children..
@@ -432,24 +438,25 @@ caf::message_handler StackActor::message_handler() {
 
         // handle child change events.
         [=](event_atom, item_atom, const JsonStore &update, const bool hidden) {
-            auto event_ids = base_.item().update(update);
+            auto event_ids = Stack::update(update);
             if (not event_ids.empty()) {
                 events_processed_.insert(event_ids.begin(), event_ids.end());
-                auto more = base_.item().refresh();
+                auto more = Stack::refresh();
                 if (not more.is_null()) {
                     more.insert(more.begin(), update.begin(), update.end());
-                    mail(event_atom_v, item_atom_v, more, hidden).send(base_.event_group());
+                    mail(event_atom_v, item_atom_v, more, hidden).send(event_group());
                     return;
                 }
             }
 
-            mail(event_atom_v, item_atom_v, update, hidden).send(base_.event_group());
+            mail(event_atom_v, item_atom_v, update, hidden).send(event_group());
         },
 
         [=](insert_item_atom,
             const int index,
             const UuidActorVector &uav) -> result<JsonStore> {
             auto rp = make_response_promise<JsonStore>();
+            std::cerr << "A " << index << " " << uav.size() << "\n";
             insert_items(rp, index, uav);
             return rp;
         },
@@ -459,15 +466,16 @@ caf::message_handler StackActor::message_handler() {
             const UuidActorVector &uav) -> result<JsonStore> {
             auto rp = make_response_promise<JsonStore>();
 
-            auto index = base_.item().size();
+            auto index = Stack::size();
             // find index. for uuid
             if (not before_uuid.is_null()) {
-                auto it = find_uuid(base_.item().children(), before_uuid);
-                if (it == base_.item().end())
+                auto it = find_uuid(Stack::children(), before_uuid);
+                if (it == Stack::end())
                     rp.deliver(make_error(xstudio_error::error, "Invalid uuid"));
                 else
-                    index = std::distance(base_.item().begin(), it);
+                    index = std::distance(Stack::begin(), it);
             }
+            std::cerr << "A " << to_string(before_uuid) << " " << uav.size() << "\n";
 
             if (rp.pending())
                 insert_items(rp, index, uav);
@@ -486,24 +494,24 @@ caf::message_handler StackActor::message_handler() {
             -> result<JsonStore> {
             // check src is valid.
             auto rp   = make_response_promise<JsonStore>();
-            auto sitb = find_uuid(base_.item().children(), src_uuid);
-            if (sitb == base_.item().end())
+            auto sitb = find_uuid(Stack::children(), src_uuid);
+            if (sitb == Stack::end())
                 rp.deliver(make_error(xstudio_error::error, "Invalid src uuid"));
 
 
             if (rp.pending()) {
-                auto dit = base_.item().children().end();
+                auto dit = Stack::children().end();
                 if (not before_uuid.is_null()) {
-                    dit = find_uuid(base_.item().children(), before_uuid);
-                    if (dit == base_.item().end())
+                    dit = find_uuid(Stack::children(), before_uuid);
+                    if (dit == Stack::end())
                         rp.deliver(make_error(xstudio_error::error, "Invalid dst uuid"));
                 }
                 if (rp.pending())
                     move_items(
                         rp,
-                        std::distance(base_.item().begin(), sitb),
+                        std::distance(Stack::begin(), sitb),
                         count,
-                        std::distance(base_.item().begin(), dit));
+                        std::distance(Stack::begin(), dit));
             }
 
             return rp;
@@ -511,7 +519,7 @@ caf::message_handler StackActor::message_handler() {
 
         [=](clear_atom) -> result<bool> {
             auto rp = make_response_promise<bool>();
-            mail(remove_item_atom_v, 0, (int)base_.item().size(), true)
+            mail(remove_item_atom_v, 0, (int)Stack::size(), true)
                 .request(caf::actor_cast<caf::actor>(this), infinite)
                 .then(
                     [=](const std::pair<JsonStore, std::vector<Item>> &) mutable {
@@ -541,13 +549,13 @@ caf::message_handler StackActor::message_handler() {
             const bool) -> result<std::pair<JsonStore, std::vector<Item>>> {
             auto rp = make_response_promise<std::pair<JsonStore, std::vector<Item>>>();
 
-            auto it = find_uuid(base_.item().children(), uuid);
+            auto it = find_uuid(Stack::children(), uuid);
 
-            if (it == base_.item().end())
+            if (it == Stack::end())
                 rp.deliver(make_error(xstudio_error::error, "Invalid uuid"));
 
             if (rp.pending())
-                remove_items(rp, std::distance(base_.item().begin(), it));
+                remove_items(rp, std::distance(Stack::begin(), it));
 
             return rp;
         },
@@ -568,13 +576,13 @@ caf::message_handler StackActor::message_handler() {
         [=](erase_item_atom, const Uuid &uuid, const bool) -> result<JsonStore> {
             auto rp = make_response_promise<JsonStore>();
 
-            auto it = find_uuid(base_.item().children(), uuid);
+            auto it = find_uuid(Stack::children(), uuid);
 
-            if (it == base_.item().end())
+            if (it == Stack::end())
                 rp.deliver(make_error(xstudio_error::error, "Invalid uuid"));
 
             if (rp.pending())
-                erase_items(rp, std::distance(base_.item().begin(), it));
+                erase_items(rp, std::distance(Stack::begin(), it));
 
             return rp;
         },
@@ -596,7 +604,7 @@ caf::message_handler StackActor::message_handler() {
                                 "{} {} {}",
                                 __PRETTY_FUNCTION__,
                                 to_string(err),
-                                base_.item().name());
+                                Stack::name());
                             rp.deliver(err);
                         });
             }
@@ -607,8 +615,8 @@ caf::message_handler StackActor::message_handler() {
         [=](duplicate_atom) -> result<UuidActor> {
             auto rp = make_response_promise<UuidActor>();
             JsonStore jsn;
-            auto dup = base_.duplicate();
-            dup.item().clear();
+            auto dup = Stack::duplicate();
+            dup.clear();
 
             jsn["base"]   = dup.serialise();
             jsn["actors"] = {};
@@ -620,7 +628,7 @@ caf::message_handler StackActor::message_handler() {
                 // duplicate all children and relink against items.
                 scoped_actor sys{system()};
 
-                for (const auto &i : base_.children()) {
+                for (const auto &i : Stack::children()) {
                     auto ua =
                         request_receive<UuidActor>(*sys, actors_[i.uuid()], duplicate_atom_v);
                     request_receive<JsonStore>(
@@ -633,7 +641,7 @@ caf::message_handler StackActor::message_handler() {
         },
 
         [=](event_atom, change_atom) {
-            mail(event_atom_v, change_atom_v).send(base_.event_group());
+            mail(event_atom_v, change_atom_v).send(event_group());
         },
 
         [=](serialise_atom) -> result<JsonStore> {
@@ -645,12 +653,12 @@ caf::message_handler StackActor::message_handler() {
                     .then(
                         [=](std::vector<JsonStore> json) mutable {
                             JsonStore jsn;
-                            jsn["base"]   = base_.serialise();
+                            jsn["base"]   = Stack::serialise();
                             jsn["actors"] = {};
-                            for (const auto &j : json)
-                                jsn["actors"]
-                                   [static_cast<std::string>(j["base"]["container"]["uuid"])] =
-                                       j;
+                            for (const auto &j : json) {
+                                const utility::Uuid id = j.at("base").contains("container") ? j.at("base").at("container").at("uuid") : j.at("base").at("uuid");
+                                jsn["actors"][to_string(id)] = j;
+                            }
                             rp.deliver(jsn);
                         },
                         [=](error &err) mutable { rp.deliver(std::move(err)); });
@@ -658,7 +666,7 @@ caf::message_handler StackActor::message_handler() {
                 return rp;
             }
             JsonStore jsn;
-            jsn["base"]   = base_.serialise();
+            jsn["base"]   = Stack::serialise();
             jsn["actors"] = {};
 
             return result<JsonStore>(jsn);
@@ -666,8 +674,8 @@ caf::message_handler StackActor::message_handler() {
 }
 
 void StackActor::init() {
-    print_on_create(this, base_.name());
-    print_on_exit(this, base_.name());
+    print_on_create(this, Stack::name());
+    print_on_exit(this, Stack::name());
 }
 
 void StackActor::add_item(const UuidActor &ua) {
@@ -695,16 +703,16 @@ void StackActor::add_item(const UuidActor &ua) {
                         actors_.erase(it);
 
                         // remove from base.
-                        auto it = find_actor_addr(base_.item().children(), addr);
+                        auto it = find_actor_addr(Stack::children(), addr);
 
-                        if (it != base_.item().end()) {
-                            auto jsn  = base_.item().erase(it);
-                            auto more = base_.item().refresh();
+                        if (it != Stack::end()) {
+                            auto jsn  = Stack::erase(it);
+                            auto more = Stack::refresh();
                             if (not more.is_null())
                                 jsn.insert(jsn.begin(), more.begin(), more.end());
 
                             mail(event_atom_v, item_atom_v, jsn, false)
-                                .send(base_.event_group());
+                                .send(event_group());
                         }
 
                         break;
@@ -726,9 +734,14 @@ void StackActor::insert_items(
             vector_to_caf_actor_vector(uav), infinite, item_atom_v)
             .then(
                 [=](std::vector<Item> items) mutable {
+
+                                std::cerr << "items " << items.size() << "\n";
+
                     // items are valid for insertion ?
                     for (const auto &i : items) {
-                        if (not base_.item().valid_child(i))
+
+                        std::cerr << "TO ADD " << i.serialise().dump(2) << "\n";
+                        if (not Stack::valid_child(i))
                             return rp.deliver(
                                 make_error(xstudio_error::error, "Invalid child type"));
                     }
@@ -738,7 +751,7 @@ void StackActor::insert_items(
                         add_item(ua);
 
                     // find insertion point..
-                    auto it = std::next(base_.item().begin(), index);
+                    auto it = std::next(Stack::begin(), index);
 
                     // insert items..
                     // our list will be out of order..
@@ -748,8 +761,8 @@ void StackActor::insert_items(
                         auto found = false;
                         for (const auto &i : items) {
                             if (uit->uuid() == i.uuid()) {
-                                auto tmp = base_.item().insert(it, i);
-                                it       = std::next(base_.item().begin(), index);
+                                auto tmp = Stack::insert(it, i);
+                                it       = std::next(Stack::begin(), index);
                                 changes.insert(changes.end(), tmp.begin(), tmp.end());
                                 found = true;
                                 break;
@@ -757,16 +770,16 @@ void StackActor::insert_items(
                         }
 
                         if (not found) {
-                            spdlog::error("item not found for insertion");
+                            spdlog::error("item not found for insertion ff");
                         }
                     }
 
                     // add changes to stack
-                    auto more = base_.item().refresh();
+                    auto more = Stack::refresh();
                     if (not more.is_null())
                         changes.insert(changes.end(), more.begin(), more.end());
 
-                    mail(event_atom_v, item_atom_v, changes, false).send(base_.event_group());
+                    mail(event_atom_v, item_atom_v, changes, false).send(event_group());
                     rp.deliver(changes);
                 },
                 [=](const caf::error &err) mutable { rp.deliver(err); });
@@ -774,7 +787,7 @@ void StackActor::insert_items(
 
     // before adding clips, we must force their frame rate to match ours.
     fan_out_request<policy::select_all>(
-        vector_to_caf_actor_vector(uav), infinite, rate_atom_v, base_.item().rate(), false)
+        vector_to_caf_actor_vector(uav), infinite, rate_atom_v, Stack::rate(), false)
         .then(
             [=](std::vector<bool> r) mutable { do_insertion(); },
             [=](const caf::error &err) mutable { rp.deliver(err); });
@@ -811,14 +824,14 @@ StackActor::remove_items(const int index, const int count) {
     std::vector<Item> items;
     JsonStore changes(R"([])"_json);
 
-    if (index < 0 or index + count - 1 >= static_cast<int>(base_.item().size()))
+    if (index < 0 or index + count - 1 >= static_cast<int>(Stack::size()))
         throw std::runtime_error("Invalid index / count");
     else {
         scoped_actor sys{system()};
 
         for (int i = index + count - 1; i >= index; i--) {
-            auto it = std::next(base_.item().begin(), i);
-            if (it != base_.item().end()) {
+            auto it = std::next(Stack::begin(), i);
+            if (it != Stack::end()) {
                 auto item = *it;
 
                 if (auto mit = monitor_.find(caf::actor_cast<caf::actor_addr>(item.actor()));
@@ -831,17 +844,17 @@ StackActor::remove_items(const int index, const int count) {
 
                 auto blind = request_receive<JsonStore>(*sys, item.actor(), serialise_atom_v);
 
-                auto tmp = base_.item().erase(it, blind);
+                auto tmp = Stack::erase(it, blind);
                 changes.insert(changes.end(), tmp.begin(), tmp.end());
                 items.push_back(item.clone());
             }
         }
 
-        auto more = base_.item().refresh();
+        auto more = Stack::refresh();
         if (not more.is_null())
             changes.insert(changes.begin(), more.begin(), more.end());
 
-        mail(event_atom_v, item_atom_v, changes, false).send(base_.event_group());
+        mail(event_atom_v, item_atom_v, changes, false).send(event_group());
     }
 
     return std::make_pair(changes, items);
@@ -859,16 +872,16 @@ void StackActor::move_items(
     if (dst_index == src_index or not count)
         rp.deliver(make_error(xstudio_error::error, "Invalid Move"));
     else {
-        auto sit = std::next(base_.item().begin(), src_index);
+        auto sit = std::next(Stack::begin(), src_index);
         auto eit = std::next(sit, count);
-        auto dit = std::next(base_.item().begin(), dst_index);
+        auto dit = std::next(Stack::begin(), dst_index);
 
-        auto changes = base_.item().splice(dit, base_.item().children(), sit, eit);
-        auto more    = base_.item().refresh();
+        auto changes = Stack::splice(dit, Stack::children(), sit, eit);
+        auto more    = Stack::refresh();
         if (not more.is_null())
             changes.insert(changes.begin(), more.begin(), more.end());
 
-        mail(event_atom_v, item_atom_v, changes, false).send(base_.event_group());
+        mail(event_atom_v, item_atom_v, changes, false).send(event_group());
         rp.deliver(changes);
     }
 }

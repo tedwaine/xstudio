@@ -30,7 +30,7 @@ TEST(TrackTest, Test) {
         Gap("Gap", utility::FrameRateDuration(10, timebase::k_flicks_24fps)).item());
 
     EXPECT_EQ(sum_trimmed_duration(t.children()), timebase::k_flicks_24fps * 20);
-    t.refresh_item();
+    t.refresh();
     EXPECT_EQ(t.item().trimmed_range().duration(), timebase::k_flicks_24fps * 20);
 
     auto iaf = t.item().item_at_frame(0);
@@ -88,7 +88,7 @@ TEST(TrackShapeTest, Test) {
     t.children().push_back(gap1.item());
     t.children().push_back(gap2.item());
 
-    t.refresh_item();
+    t.refresh();
 
     auto box = t.item().box();
     EXPECT_EQ(box.first.first, 0);
@@ -104,10 +104,10 @@ TEST(TrackShapeTest, Test) {
 
     s.children().push_back(sgap1.item());
     s.children().push_back(sgap2.item());
-    s.refresh_item();
+    s.refresh();
 
     t.children().push_back(s.item());
-    t.refresh_item();
+    t.refresh();
 
     box = t.item().box();
     EXPECT_EQ(box.first.first, 0);

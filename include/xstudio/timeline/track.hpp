@@ -14,7 +14,7 @@
 namespace xstudio {
 namespace timeline {
 
-    class Track : public utility::Container {
+    class Track : public Item {
       public:
         explicit Track(
             const std::string &name,
@@ -25,8 +25,6 @@ namespace timeline {
         Track(const utility::JsonStore &jsn);
         Track(const Item &item, const caf::actor &actor);
 
-        ~Track() override = default;
-
         [[nodiscard]] utility::JsonStore serialise() const override;
 
         [[nodiscard]] Track duplicate() const;
@@ -34,23 +32,8 @@ namespace timeline {
         void set_media_type(const media::MediaType media_type);
         [[nodiscard]] media::MediaType media_type() const { return media_type_; }
 
-        [[nodiscard]] const Item &item() const { return item_; }
-        [[nodiscard]] Item &item() { return item_; }
-
-        [[nodiscard]] const Items &children() const { return item_.children(); }
-        [[nodiscard]] Items &children() { return item_.children(); }
-
-        [[nodiscard]] bool valid_child(const Item &child) const {
-            return item_.valid_child(child);
-        }
-
-        utility::JsonStore refresh_item() { return item_.refresh(); }
-
-        utility::FrameRate rate() const { return item_.rate(); }
-
       private:
         media::MediaType media_type_;
-        Item item_;
     };
 } // namespace timeline
 } // namespace xstudio

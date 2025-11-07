@@ -89,7 +89,7 @@ TEST(TimelineTestFull, Test) {
 
     t003.children().push_back(c005.item());
     t003.children().push_back(c006.item());
-    t003.refresh_item();
+    t003.refresh();
 
     EXPECT_EQ(t003.item().active_duration(), timebase::k_flicks_24fps * 10);
     EXPECT_EQ(t003.item().available_duration(), timebase::k_flicks_24fps * 12);
@@ -97,7 +97,7 @@ TEST(TimelineTestFull, Test) {
 
     t002.children().push_back(g002.item());
     t002.children().push_back(c003.item());
-    t002.refresh_item();
+    t002.refresh();
 
     EXPECT_EQ(t002.item().trimmed_duration(), timebase::k_flicks_24fps * 16);
     EXPECT_EQ(*(t002.item().available_duration()), timebase::k_flicks_24fps * 16);
@@ -107,7 +107,7 @@ TEST(TimelineTestFull, Test) {
         FrameRateDuration(6, timebase::k_flicks_24fps)));
     s002.children().push_back(t002.item());
     s002.children().push_back(t003.item());
-    s002.refresh_item();
+    s002.refresh();
 
     EXPECT_EQ(s002.item().active_duration(), timebase::k_flicks_24fps * 6);
     EXPECT_EQ(s002.item().available_duration(), timebase::k_flicks_24fps * 16);
@@ -116,13 +116,13 @@ TEST(TimelineTestFull, Test) {
     t001.children().push_back(s002.item());
     t001.children().push_back(g001.item());
     t001.children().push_back(c004.item());
-    t001.refresh_item();
+    t001.refresh();
 
     EXPECT_EQ(t001.item().trimmed_duration(), timebase::k_flicks_24fps * 19);
     EXPECT_EQ(t001.item().available_duration(), timebase::k_flicks_24fps * 19);
 
     s001.children().push_back(t001.item());
-    s001.refresh_item();
+    s001.refresh();
 
     EXPECT_EQ(s001.item().trimmed_duration(), timebase::k_flicks_24fps * 19);
     EXPECT_EQ(s001.item().available_duration(), timebase::k_flicks_24fps * 19);
@@ -132,7 +132,7 @@ TEST(TimelineTestFull, Test) {
     EXPECT_TRUE(s.item().empty());
 
     s.item().emplace_back(s001.item());
-    s.refresh_item();
+    s.refresh();
 
     EXPECT_EQ(s.item().trimmed_duration(), timebase::k_flicks_24fps * 19);
     EXPECT_EQ(s.item().available_duration(), timebase::k_flicks_24fps * 19);
