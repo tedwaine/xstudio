@@ -19,11 +19,10 @@ caf::actor StackActor::deserialise(const JsonStore &value, const bool replace_it
     auto actor = caf::actor();
 
     const std::string type = value.at("base").contains("container") ? value.at("base").at("container").at("type") : value.at("base").at("item_type");
-    std::cerr << "sta type " << value.dump(2) << "\n";
 
     auto item = Item();
 
-    if (type == "Video Track" || type == "Audio Track") {
+    if (type == "Track" || type == "Video Track" || type == "Audio Track") {
         actor = spawn<TrackActor>(static_cast<JsonStore>(value), item);
     } else if (type == "Clip") {
         actor = spawn<ClipActor>(static_cast<JsonStore>(value), item);
@@ -83,7 +82,6 @@ StackActor::StackActor(caf::actor_config &cfg, const JsonStore &jsn)
     : ItemActor(cfg, static_cast<Item &>(*this)), Stack(static_cast<JsonStore>(jsn.at("base"))) {
 
     Stack::set_actor_addr(this);
-    std::cerr << "FOO2 " << jsn.dump(2);
 
     for (const auto &[key, value] : jsn.at("actors").items()) {
         try {
@@ -103,13 +101,11 @@ StackActor::StackActor(caf::actor_config &cfg, const JsonStore &jsn, Item &pitem
 
     Stack::set_actor_addr(this);
 
-    std::cerr << "FOO " << jsn.dump(2);
-
     for (const auto &[key, value] : jsn.at("actors").items()) {
         try {
             deserialise(value, true);
         } catch (const std::exception &e) {
-            spdlog::error("{}", e.what());
+            spdlog::error("{} {}", __PRETTY_FUNCTION__, e.what());
         }
     }
     Stack::bind_item_post_event_func(
@@ -456,7 +452,6 @@ caf::message_handler StackActor::message_handler() {
             const int index,
             const UuidActorVector &uav) -> result<JsonStore> {
             auto rp = make_response_promise<JsonStore>();
-            std::cerr << "A " << index << " " << uav.size() << "\n";
             insert_items(rp, index, uav);
             return rp;
         },
@@ -475,8 +470,6 @@ caf::message_handler StackActor::message_handler() {
                 else
                     index = std::distance(Stack::begin(), it);
             }
-            std::cerr << "A " << to_string(before_uuid) << " " << uav.size() << "\n";
-
             if (rp.pending())
                 insert_items(rp, index, uav);
 
@@ -735,12 +728,9 @@ void StackActor::insert_items(
             .then(
                 [=](std::vector<Item> items) mutable {
 
-                                std::cerr << "items " << items.size() << "\n";
-
                     // items are valid for insertion ?
                     for (const auto &i : items) {
 
-                        std::cerr << "TO ADD " << i.serialise().dump(2) << "\n";
                         if (not Stack::valid_child(i))
                             return rp.deliver(
                                 make_error(xstudio_error::error, "Invalid child type"));

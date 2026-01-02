@@ -216,6 +216,7 @@ TrackActor::TrackActor(caf::actor_config &cfg, const Item &item)
 TrackActor::TrackActor(caf::actor_config &cfg, const Item &item, Item &nitem)
     : TrackActor(cfg, item) {
     nitem = Track::clone();
+    init();
 }
 
 
@@ -779,8 +780,11 @@ caf::message_handler TrackActor::message_handler() {
 
 
 void TrackActor::init() {
+
+    extend_base_behaviour(notification_.message_handler(this, event_group()));
     print_on_create(this, Track::name());
     print_on_exit(this, Track::name());
+    
 }
 
 void TrackActor::add_item(const UuidActor &ua) {

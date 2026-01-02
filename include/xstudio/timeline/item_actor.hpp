@@ -4,6 +4,7 @@
 #include <caf/all.hpp>
 #include "xstudio/timeline/item.hpp"
 #include "xstudio/utility/uuid.hpp"
+#include "xstudio/utility/base_actor.hpp"
 #include <string>
 
 namespace xstudio {
@@ -19,27 +20,15 @@ namespace timeline {
         - Lookup, watch and automatically track preference values
     */
 
-    class ItemActor : public caf::event_based_actor {
+    class ItemActor : public utility::XStudioActor {
 
       public:
 
         ItemActor(caf::actor_config &cfg, Item &i);
         ~ItemActor() override = default;
 
-        virtual caf::message_handler message_handler() = 0;
-
-      protected:
-
-        caf::actor & event_group() { return event_group_; }
-
       private:
 
-        caf::behavior make_behavior() override;
-
-      private:
-
-        caf::behavior base_behavior_;
-        caf::actor event_group_;
         Item &item_;
 
     };

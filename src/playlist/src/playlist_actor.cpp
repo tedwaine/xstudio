@@ -258,6 +258,11 @@ PlaylistActor::PlaylistActor(
     spdlog::stopwatch sw;
 
     for (const auto &[key, value] : jsn.at("actors").items()) {
+
+        if (!value.at("base").contains("container")) {
+            continue;
+        }
+
         if (value.at("base").at("container").at("type") == "Media") {
             try {
                 auto actor =
@@ -273,7 +278,10 @@ PlaylistActor::PlaylistActor(
     spdlog::debug("media loaded in {:.3} seconds.", sw);
     // deserialise containers
     for (const auto &[key, value] : jsn.at("actors").items()) {
-        if (value.at("base").at("container").at("type") == "Subset") {
+
+        const std::string ctype = value.at("base").contains("container") ? value.at("base").at("container").at("type") : value.at("base").at("item_type");
+
+        if (ctype == "Subset") {
             try {
                 auto actor = system().spawn<subset::SubsetActor>(
                     this, static_cast<utility::JsonStore>(value));
@@ -283,7 +291,7 @@ PlaylistActor::PlaylistActor(
             } catch (const std::exception &e) {
                 spdlog::error("{}", e.what());
             }
-        } else if (value.at("base").at("container").at("type") == "ContactSheet") {
+        } else if (ctype == "ContactSheet") {
             try {
                 auto actor = system().spawn<contact_sheet::ContactSheetActor>(
                     this, static_cast<utility::JsonStore>(value));
@@ -293,7 +301,7 @@ PlaylistActor::PlaylistActor(
             } catch (const std::exception &e) {
                 spdlog::error("{}", e.what());
             }
-        } else if (value.at("base").at("container").at("type") == "Timeline") {
+        } else if (ctype == "Timeline") {
             try {
                 auto actor = system().spawn<timeline::TimelineActor>(
                     static_cast<utility::JsonStore>(value), caf::actor_cast<caf::actor>(this));
@@ -306,7 +314,7 @@ PlaylistActor::PlaylistActor(
             } catch (const std::exception &e) {
                 spdlog::error("{}", e.what());
             }
-        } else if (value.at("base").at("container").at("type") == "PlayheadSelection") {
+        } else if (ctype == "PlayheadSelection") {
 
             try {
 
@@ -2009,9 +2017,10 @@ caf::message_handler PlaylistActor::message_handler() {
                                         jsn["store"]  = meta;
                                         jsn["base"]   = base_.serialise();
                                         jsn["actors"] = {};
-                                        for (const auto &j : json) {
-                                            jsn["actors"][static_cast<std::string>(
-                                                j["base"]["container"]["uuid"])] = j;
+                                        for (const auto &j : json) {                                            
+                                            std::cerr << j.at("base").dump(2);
+                                            const utility::Uuid id = j.at("base").contains("container") ? j.at("base").at("container").at("uuid") : j.at("base").at("uuid");
+                                            jsn["actors"][to_string(id)] = j;
                                         }
                                         if (playhead_) {
                                             mail(utility::serialise_atom_v)

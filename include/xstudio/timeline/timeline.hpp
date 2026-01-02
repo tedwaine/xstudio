@@ -24,7 +24,7 @@ namespace timeline {
          "Timeline"});
 
 
-    class Timeline : public utility::Container {
+    class Timeline : public Item {
       public:
         Timeline(
             const std::string &name        = "Timeline",
@@ -33,28 +33,11 @@ namespace timeline {
             const caf::actor &actor        = caf::actor());
         Timeline(const utility::JsonStore &jsn);
 
-        ~Timeline() override = default;
-
         [[nodiscard]] utility::JsonStore serialise() const override;
         [[nodiscard]] Timeline duplicate() const;
 
-        [[nodiscard]] const Item &item() const { return item_; }
-        [[nodiscard]] Item &item() { return item_; }
-
-        [[nodiscard]] const Items &children() const { return item_.children(); }
-        [[nodiscard]] Items &children() { return item_.children(); }
-
-        [[nodiscard]] bool valid_child(const Item &child) const {
-            return item_.valid_child(child);
-        }
-
-        [[nodiscard]] utility::FrameRate rate() const { return item_.rate(); }
-
-
         // media list operations.
         // so we can behave like a subset.
-
-
         [[nodiscard]] bool empty() const { return media_list_.empty(); }
         void clear() { media_list_.clear(); }
 
@@ -111,8 +94,8 @@ namespace timeline {
         // }
 
       private:
-        Item item_;
-        utility::UuidListContainer media_list_;
+
+      utility::UuidListContainer media_list_;
         utility::UuidSet focus_list_;
 
         // utility::UuidListContainer tracks_;

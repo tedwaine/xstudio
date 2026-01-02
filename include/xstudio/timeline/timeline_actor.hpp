@@ -3,13 +3,15 @@
 
 #include <caf/all.hpp>
 
+#include "xstudio/timeline/item_actor.hpp"
 #include "xstudio/timeline/timeline.hpp"
 #include "xstudio/utility/notification_handler.hpp"
 #include "xstudio/json_store/json_store_handler.hpp"
 
 namespace xstudio {
-namespace timeline {
-    class TimelineActor : public caf::event_based_actor {
+namespace timeline {     
+
+    class TimelineActor : public ItemActor, public Timeline {
       public:
         TimelineActor(
             caf::actor_config &cfg,
@@ -22,7 +24,6 @@ namespace timeline {
             const utility::Uuid &uuid      = utility::Uuid::generate(),
             const caf::actor &playlist     = caf::actor(),
             const bool with_tracks         = false);
-        ~TimelineActor() override = default;
 
         const char *name() const override { return NAME.c_str(); }
 
@@ -32,14 +33,7 @@ namespace timeline {
         inline static const std::string NAME = "TimelineActor";
         void init();
 
-        caf::message_handler message_handler();
-
-        caf::behavior make_behavior() override {
-            return message_handler()
-                .or_else(base_.container_message_handler(this))
-                .or_else(notification_.message_handler(this, base_.event_group()))
-                .or_else(jsn_handler_.message_handler());
-        }
+        caf::message_handler message_handler() override;
 
         void add_item(const utility::UuidActor &ua);
 
@@ -105,7 +99,6 @@ namespace timeline {
 
         void duplicate_playhead(caf::actor duplicated_timeline);
 
-        Timeline base_;
         caf::actor change_event_group_;
 
         utility::Uuid history_uuid_;
