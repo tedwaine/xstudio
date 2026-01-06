@@ -8,7 +8,7 @@
 
 namespace xstudio {
 namespace timeline {
-    class GapActor : public ItemActor, public Gap {
+    class GapActor : public ItemActor2<Gap> {
       public:
         GapActor(caf::actor_config &cfg, const utility::JsonStore &jsn);
         GapActor(caf::actor_config &cfg, const utility::JsonStore &jsn, Item &item);

@@ -686,8 +686,6 @@ QModelIndexList SessionModel::insertRows(
                                 UuidActor(), name.empty() ? "New Clip" : name, new_uuid);
                         }
 
-                        std::cerr << "insertion_json " << insertion_json.dump(2) << "\n";
-
                         // hopefully add to parent..
                         try {
                             request_receive<JsonStore>(

@@ -7,10 +7,10 @@ using namespace xstudio::timeline;
 using namespace xstudio::utility;
 
 Stack::Stack(
-    const std::string &name, const FrameRate &rate, const Uuid &uuid_, const caf::actor &actor)
+    const std::string &name, const FrameRate &rate, const Uuid &uuid_)
     : Item(
           ItemType::IT_STACK,
-          UuidActorAddr(uuid_, caf::actor_cast<caf::actor_addr>(actor)),
+          uuid_,
           {},
           FrameRange(FrameRateDuration(0, rate))) {
     set_name(name);
@@ -19,13 +19,13 @@ Stack::Stack(
 Stack::Stack(const JsonStore &jsn)
     : Item(jsn) {}
 
-Stack::Stack(const Item &item, const caf::actor &actor)
+Stack::Stack(const Item &item)
     : Item(item.clone()) {
-    set_actor_addr(caf::actor_cast<caf::actor_addr>(actor));
 }
 
 Stack Stack::duplicate() const {
     Stack stk(serialise());
     stk.set_uuid(utility::Uuid::generate());
+    stk.reset_uuid(true);
     return stk;
 }

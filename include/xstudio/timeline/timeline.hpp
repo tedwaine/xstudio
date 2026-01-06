@@ -29,8 +29,7 @@ namespace timeline {
         Timeline(
             const std::string &name        = "Timeline",
             const utility::FrameRate &rate = utility::FrameRate(),
-            const utility::Uuid &uuid      = utility::Uuid::generate(),
-            const caf::actor &actor        = caf::actor());
+            const utility::Uuid &uuid      = utility::Uuid::generate());
         Timeline(const utility::JsonStore &jsn);
 
         [[nodiscard]] utility::JsonStore serialise() const override;
@@ -38,8 +37,8 @@ namespace timeline {
 
         // media list operations.
         // so we can behave like a subset.
-        [[nodiscard]] bool empty() const { return media_list_.empty(); }
-        void clear() { media_list_.clear(); }
+        [[nodiscard]] bool media_list_empty() const { return media_list_.empty(); }
+        void clear_media_list() { media_list_.clear(); }
 
         [[nodiscard]] utility::UuidList media() const { return media_list_.uuids(); }
         [[nodiscard]] utility::UuidVector media_vector() const {

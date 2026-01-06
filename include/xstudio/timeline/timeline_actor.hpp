@@ -11,12 +11,14 @@
 namespace xstudio {
 namespace timeline {     
 
-    class TimelineActor : public ItemActor, public Timeline {
+    class TimelineActor : public ItemActor2<Timeline> {
       public:
+
         TimelineActor(
             caf::actor_config &cfg,
             const utility::JsonStore &jsn,
             const caf::actor &playlist = caf::actor());
+
         TimelineActor(
             caf::actor_config &cfg,
             const std::string &name        = "Timeline",
@@ -34,8 +36,6 @@ namespace timeline {
         void init();
 
         caf::message_handler message_handler() override;
-
-        void add_item(const utility::UuidActor &ua);
 
         void add_media(
             caf::actor actor,
@@ -77,10 +77,7 @@ namespace timeline {
         void
         bake(caf::typed_response_promise<utility::UuidActor> rp, const utility::UuidSet &uuids);
 
-        void on_exit() override;
-
-        caf::actor
-        deserialise(const utility::JsonStore &value, const bool replace_item = false);
+        void make_selection_actor(const utility::JsonStore &jsn);
 
         void item_pre_event_callback(const utility::JsonStore &event, Item &item);
         void item_post_event_callback(const utility::JsonStore &event, Item &item);
@@ -106,7 +103,6 @@ namespace timeline {
 
         caf::actor selection_actor_;
 
-        utility::UuidActorMap item_actors_;
         utility::UuidActorMap media_actors_;
 
         utility::JsonStore playhead_serialisation_;
@@ -122,8 +118,6 @@ namespace timeline {
         utility::UuidActorVector selection_;
 
         utility::NotificationHandler notification_;
-
-        std::map<caf::actor_addr, caf::disposable> monitor_;
 
         json_store::JsonStoreHandler jsn_handler_;
     };

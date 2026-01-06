@@ -74,8 +74,8 @@ namespace timeline {
         }
 
         Item(
-            const ItemType item_type,
-            const utility::Uuid uuid,
+            const ItemType item_type = ItemType::IT_NONE,
+            const utility::Uuid uuid = utility::Uuid::generate(),
             const std::optional<utility::FrameRange> active_range    = {},
             const std::optional<utility::FrameRange> available_range = {})
             : Items(),
@@ -91,22 +91,6 @@ namespace timeline {
             }
         }
 
-        Item(
-            const ItemType item_type = ItemType::IT_NONE,
-            const utility::UuidActorAddr uuact =
-                utility::UuidActorAddr(utility::Uuid::generate(), caf::actor_addr()),
-            const std::optional<utility::FrameRange> active_range    = {},
-            const std::optional<utility::FrameRange> available_range = {})
-            : Items(), item_type_(item_type), uuid_addr_(std::move(uuact)) {
-            if (active_range) {
-                has_active_range_ = true;
-                active_range_     = std::move(*active_range);
-            }
-            if (available_range) {
-                has_available_range_ = true;
-                available_range_     = std::move(*available_range);
-            }
-        }
         Item(const utility::JsonStore &jsn);
 
 

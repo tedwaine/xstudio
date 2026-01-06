@@ -9,11 +9,10 @@ using namespace xstudio::utility;
 Gap::Gap(
     const std::string &name,
     const FrameRateDuration &duration,
-    const Uuid &_uuid,
-    const caf::actor &actor)
+    const Uuid &_uuid)
     : Item(
           ItemType::IT_GAP,
-          UuidActorAddr(_uuid, caf::actor_cast<caf::actor_addr>(actor)),
+          _uuid,
           FrameRange(FrameRateDuration(0, duration.rate()), duration),
           FrameRange(FrameRateDuration(0, duration.rate()), duration)) {
     set_name(name);
@@ -22,9 +21,8 @@ Gap::Gap(
 Gap::Gap(const JsonStore &jsn)
     : Item(jsn) {}
 
-Gap::Gap(const Item &item, const caf::actor &actor)
+Gap::Gap(const Item &item)
     : Item(item.clone()) {
-    Item::set_actor_addr(caf::actor_cast<caf::actor_addr>(actor));
 }
 
 Gap Gap::duplicate() const {

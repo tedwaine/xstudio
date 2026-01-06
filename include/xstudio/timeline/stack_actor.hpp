@@ -8,7 +8,7 @@
 
 namespace xstudio {
 namespace timeline {
-    class StackActor : public ItemActor, public Stack {
+    class StackActor : public ItemActor2<Stack> {
       public:
         StackActor(caf::actor_config &cfg, const utility::JsonStore &jsn);
         StackActor(caf::actor_config &cfg, const utility::JsonStore &jsn, Item &item);
@@ -27,10 +27,8 @@ namespace timeline {
       private:
         inline static const std::string NAME = "StackActor";
         void init();
-        void on_exit() override;
         caf::message_handler message_handler() override;
 
-        void add_item(const utility::UuidActor &ua);
         caf::actor
         deserialise(const utility::JsonStore &value, const bool replace_item = false);
         void deserialise();
@@ -62,12 +60,10 @@ namespace timeline {
             const int dst_index);
 
       private:
-        Stack base_;
-        std::map<utility::Uuid, caf::actor> actors_;
+
         // might need to prune.. ?
         std::set<utility::Uuid> events_processed_;
 
-        std::map<caf::actor_addr, caf::disposable> monitor_;
     };
 } // namespace timeline
 } // namespace xstudio

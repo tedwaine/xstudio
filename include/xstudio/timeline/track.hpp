@@ -20,10 +20,9 @@ namespace timeline {
             const std::string &name,
             const utility::FrameRate &rate,
             const media::MediaType media_type = media::MediaType::MT_IMAGE,
-            const utility::Uuid &uuid         = utility::Uuid::generate(),
-            const caf::actor &actor           = caf::actor());
+            const utility::Uuid &uuid         = utility::Uuid::generate());
         Track(const utility::JsonStore &jsn);
-        Track(const Item &item, const caf::actor &actor);
+        Track(const Item &item);
 
         [[nodiscard]] utility::JsonStore serialise() const override;
 

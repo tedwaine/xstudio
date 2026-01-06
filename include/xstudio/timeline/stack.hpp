@@ -17,11 +17,10 @@ namespace timeline {
         Stack(
             const std::string &name        = "Stack",
             const utility::FrameRate &rate = utility::FrameRate(),
-            const utility::Uuid &uuid      = utility::Uuid::generate(),
-            const caf::actor &actor        = caf::actor());
+            const utility::Uuid &uuid      = utility::Uuid::generate());
 
         Stack(const utility::JsonStore &jsn);
-        Stack(const Item &item, const caf::actor &actor);
+        Stack(const Item &item);
 
         [[nodiscard]] Stack duplicate() const;
 

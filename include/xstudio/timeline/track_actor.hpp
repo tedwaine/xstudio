@@ -12,7 +12,7 @@
 
 namespace xstudio {
 namespace timeline {
-    class TrackActor : public ItemActor, public Track {
+    class TrackActor : public ItemActor2<Track> {
       public:
         TrackActor(caf::actor_config &cfg, const utility::JsonStore &jsn);
         TrackActor(caf::actor_config &cfg, const utility::JsonStore &jsn, Item &item);
@@ -28,7 +28,6 @@ namespace timeline {
         ~TrackActor() override = default;
 
         const char *name() const override { return NAME.c_str(); }
-        void on_exit() override;
 
         static caf::message_handler default_event_handler();
 
@@ -40,7 +39,6 @@ namespace timeline {
 
         // void deliver_media_pointer(
         //     const int logical_frame, caf::typed_response_promise<media::AVFrameID> rp);
-        void add_item(const utility::UuidActor &ua);
         caf::actor
         deserialise(const utility::JsonStore &value, const bool replace_item = false);
         void deserialise();
@@ -119,12 +117,10 @@ namespace timeline {
 
       private:
 
-      std::map<utility::Uuid, caf::actor> actors_;
         // might need to prune.. ?
         std::set<utility::Uuid> events_processed_;
         utility::NotificationHandler notification_;
 
-        std::map<caf::actor_addr, caf::disposable> monitor_;
     };
 } // namespace timeline
 } // namespace xstudio

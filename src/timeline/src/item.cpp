@@ -24,9 +24,6 @@ Item::Item(const JsonStore &__jsn) : Items() {
     flag_            = jsn.value("flag", "");
     prop_            = jsn.value("prop", JsonStore(R"({})"_json));
 
-    if (jsn.count("actor_addr"))
-        uuid_addr_.second = string_to_actor_addr(jsn.at("actor_addr"));
-
     if (jsn.at("active_range").is_null())
         active_range_ = {};
     else {
@@ -85,7 +82,6 @@ JsonStore Item::serialise() const {
     JsonStore jsn;
 
     jsn["uuid"]       = uuid_addr_.first;
-    jsn["actor_addr"] = actor_addr_to_string(uuid_addr_.second);
     jsn["type"]       = item_type_;
     jsn["enabled"]    = enabled_;
     jsn["locked"]     = locked_;
@@ -564,7 +560,7 @@ void Item::resolve_and_request_clip_frames(
                     // to our helper so it can handle the request to the clip actor
                     // and fill in the frame map
                     anon_mail(
-                        media::get_media_pointer_atom_v, actor(), clip_timepoints, subrange_ref)
+                        media::get_media_pointer_atom_v, uuid(), clip_timepoints, subrange_ref)
                         .send(helper);
                     clip_timepoints.clear();
                 }
@@ -572,10 +568,12 @@ void Item::resolve_and_request_clip_frames(
                 frame_timeline_pos += timeline_frame_rate;
             }
 
+            std::cerr << "RESOLVE " << name() << " " << clip_timepoints.size() << " " << to_string(actor()) << "\n";
+
             if (!clip_timepoints.empty()) {
                 // Dispatch request for clip frames to our helper
                 anon_mail(
-                    media::get_media_pointer_atom_v, actor(), clip_timepoints, subrange_ref)
+                    media::get_media_pointer_atom_v, uuid(), clip_timepoints, subrange_ref)
                     .send(helper);
             }
         }
@@ -1746,37 +1744,59 @@ class BuildFrameIDsHelper : public caf::event_based_actor {
         caf::typed_response_promise<media::FrameTimeMapPtr> rp,
         media::FrameTimeMap *r,
         FrameRate base_rate,
-        const media::MediaType media_type)
+        const media::MediaType media_type,
+        caf::actor requester)
         : caf::event_based_actor(cfg),
           rp_(rp),
           result_(r),
           base_rate_(base_rate),
           media_type_(media_type) {
 
-        t0 = utility::clock::now();
 
         behavior_.assign([=](media::get_media_pointer_atom,
-                             caf::actor clip_actor,
+                             const utility::Uuid &item_id,
                              const std::vector<timebase::flicks> &clip_timepoints,
                              const timebase::flicks clip_timeline_position) {
-            if (clip_timepoints.empty() ||
-                result_->lower_bound(clip_timeline_position) == result_->end())
-                return;
-
-            mail(media::get_media_pointer_atom_v, media_type_, clip_timepoints, base_rate_)
-                .request(clip_actor, infinite)
-                .then(
-                    [=](const media::AVFrameIDs &mps) mutable {
-                        auto p = result_->lower_bound(clip_timeline_position);
-                        for (const auto &mp : mps) {
-                            p->second = mp;
-                            p++;
-                            if (p == result_->end())
-                                break;
+            
+            if (item_actors_.empty()) {
+                mail(all_children_atom_v).request(requester, infinite).then(
+                    [=](const utility::UuidActorVector &chilren) mutable {
+                        for (auto &c: chilren) {
+                            item_actors_[c.uuid()] = c.actor();
                         }
+                        do_get_pointers(item_id, clip_timepoints, clip_timeline_position);
                     },
-                    [=](error &err) mutable {});
-        });
+                    [=](caf::error & err) {
+                        spdlog::warn("{} {}", __PRETTY_FUNCTION__, to_string(err));
+                    });            
+            } else {
+                do_get_pointers(item_id, clip_timepoints, clip_timeline_position);
+            }});
+        }
+
+    void do_get_pointers(const utility::Uuid &item_id,
+                             const std::vector<timebase::flicks> &clip_timepoints,
+                             const timebase::flicks clip_timeline_position) {
+        if (clip_timepoints.empty() ||
+            result_->lower_bound(clip_timeline_position) == result_->end())
+            return;
+
+        std::cerr << " FOO " << item_actors_.size();
+        if (item_actors_.find(item_id) == item_actors_.end()) return;
+
+        mail(media::get_media_pointer_atom_v, media_type_, clip_timepoints, base_rate_)
+            .request(item_actors_[item_id], infinite)
+            .then(
+                [=](const media::AVFrameIDs &mps) mutable {
+                    auto p = result_->lower_bound(clip_timeline_position);
+                    for (const auto &mp : mps) {
+                        p->second = mp;
+                        p++;
+                        if (p == result_->end())
+                            break;
+                    }
+                },
+                [=](error &err) mutable {});
     }
 
     ~BuildFrameIDsHelper() {
@@ -1797,6 +1817,7 @@ class BuildFrameIDsHelper : public caf::event_based_actor {
     FrameRate base_rate_;
     const media::MediaType media_type_;
     utility::clock::time_point t0;
+    std::map<utility::Uuid, caf::actor> item_actors_;
 
     caf::behavior make_behavior() override { return behavior_; }
 };
@@ -1807,6 +1828,8 @@ caf::typed_response_promise<media::FrameTimeMapPtr> Item::get_all_frame_IDs(
     const TimeSourceMode tsm,
     const FrameRate & /*override_rate*/,
     const UuidSet &focus_list) {
+
+    std::cerr << "GET ALL " << name() << "\n";
 
     // This crucial function bakes a timeline into a 'FrameTimeMap' which is
     // a map of individual frame IDs against a zero based time point which is
@@ -1847,7 +1870,7 @@ caf::typed_response_promise<media::FrameTimeMapPtr> Item::get_all_frame_IDs(
 
     // now spawn a worker actor that will receive FrameIDs from individual clips
     // in the timeline and add them into 'result'
-    auto helper = local_actor->spawn<BuildFrameIDsHelper>(rp, result, rate(), media_type);
+    auto helper = local_actor->spawn<BuildFrameIDsHelper>(rp, result, rate(), media_type, actor());
 
     // recursively call down into the timeline tree (Timeline->Stack->Track->Clip)
     // When we hit clips we evaluate the frames that the clip contributes to the

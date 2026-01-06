@@ -13,12 +13,11 @@ Track::Track(
     const std::string &name,
     const FrameRate &rate,
     const MediaType media_type,
-    const Uuid &_uuid,
-    const caf::actor &actor)
+    const Uuid &_uuid)
     : Item(
           media_type == MediaType::MT_IMAGE ? ItemType::IT_VIDEO_TRACK
                                             : ItemType::IT_AUDIO_TRACK,
-          UuidActorAddr(_uuid, caf::actor_cast<caf::actor_addr>(actor)),
+          _uuid,
           {},
           FrameRange(FrameRateDuration(0, rate))), media_type_(media_type) {
     Item::set_name(name);
@@ -29,9 +28,8 @@ Track::Track(const JsonStore &jsn)
     media_type_ = jsn.at("media_type");
 }
 
-Track::Track(const Item &item, const caf::actor &actor)
+Track::Track(const Item &item)
     : Item(item.clone()) {
-    Item::set_actor_addr(caf::actor_cast<caf::actor_addr>(actor));
     media_type_ =
         (Item::item_type() == ItemType::IT_VIDEO_TRACK ? MediaType::MT_IMAGE
                                                        : MediaType::MT_AUDIO);
@@ -41,6 +39,7 @@ Track Track::duplicate() const {
 
     Track tk(serialise());
     tk.set_uuid(utility::Uuid::generate());
+    tk.reset_uuid(true);
     return tk;
 }
 

@@ -941,7 +941,7 @@ void SessionModel::receivedData(
             }
         }
     } catch (const std::exception &err) {
-        spdlog::warn("{} {}", __PRETTY_FUNCTION__, err.what());
+        spdlog::warn("{} {}, role: {}\n\ndata: {}", __PRETTY_FUNCTION__, err.what(), role, result.dump(2));
     }
     // spdlog::warn("{}", data_.dump(2));
     CHECK_SLOW_WATCHER()

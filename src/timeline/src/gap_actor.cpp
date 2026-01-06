@@ -11,16 +11,12 @@ using namespace xstudio::utility;
 using namespace xstudio::timeline;
 
 GapActor::GapActor(caf::actor_config &cfg, const JsonStore &jsn)
-    : ItemActor(cfg, static_cast<Item &>(*this)), Gap(static_cast<JsonStore>(jsn.at("base"))) {
-    Gap::set_actor_addr(this);
-
+    : ItemActor2<Gap>(cfg, static_cast<JsonStore>(jsn.at("base"))) {
     init();
 }
 
 GapActor::GapActor(caf::actor_config &cfg, const JsonStore &jsn, Item &pitem)
-    : ItemActor(cfg, static_cast<Item &>(*this)), Gap(static_cast<JsonStore>(jsn.at("base"))) {
-    Gap::set_actor_addr(this);
-
+    : ItemActor2<Gap>(cfg, static_cast<JsonStore>(jsn.at("base"))) {
     pitem = Gap::clone();
     init();
 }
@@ -30,14 +26,14 @@ GapActor::GapActor(
     const std::string &name,
     const FrameRateDuration &duration,
     const Uuid &uuid)
-    : ItemActor(cfg, static_cast<Item &>(*this)), Gap(name, duration, uuid, this) {
+    : ItemActor2<Gap>(cfg, name, duration, uuid) {
 
     Gap::set_name(name);
     init();
 }
 
 GapActor::GapActor(caf::actor_config &cfg, const Item &item)
-    : ItemActor(cfg, static_cast<Item &>(*this)), Gap(item, this) {
+    : ItemActor2<Gap>(cfg, item) {
     init();
 }
 

@@ -8,9 +8,8 @@ using namespace xstudio;
 Clip::Clip(
     const std::string name,
     const utility::Uuid &_uuid,
-    const caf::actor &actor,
     const utility::Uuid media_uuid)
-    : Item(ItemType::IT_CLIP, utility::UuidActorAddr(_uuid, caf::actor_cast<caf::actor_addr>(actor))),
+    : Item(ItemType::IT_CLIP, _uuid),
       media_uuid_(std::move(media_uuid)) {
     Item::set_name(name);
 

@@ -16,10 +16,9 @@ namespace timeline {
       public:
         Gap(const std::string &name                    = "Gap",
             const utility::FrameRateDuration &duration = utility::FrameRateDuration(),
-            const utility::Uuid &uuid                  = utility::Uuid::generate(),
-            const caf::actor &actor                    = caf::actor());
+            const utility::Uuid &uuid                  = utility::Uuid::generate());
         Gap(const utility::JsonStore &jsn);
-        Gap(const Item &item, const caf::actor &actor);
+        Gap(const Item &item);
 
         [[nodiscard]] Gap duplicate() const;
 

@@ -8,7 +8,7 @@
 
 namespace xstudio {
 namespace timeline {
-    class ClipActor : public ItemActor, public Clip {
+    class ClipActor : public ItemActor2<Clip> {
       public:
         ClipActor(caf::actor_config &cfg, const utility::JsonStore &jsn);
         ClipActor(caf::actor_config &cfg, const utility::JsonStore &jsn, Item &item);

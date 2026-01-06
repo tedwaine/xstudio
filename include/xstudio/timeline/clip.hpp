@@ -18,7 +18,6 @@ namespace timeline {
         Clip(
             const std::string name         = "Clip",
             const utility::Uuid &uuid      = utility::Uuid::generate(),
-            const caf::actor &actor        = caf::actor(),
             const utility::Uuid media_uuid = utility::Uuid());
         Clip(const utility::JsonStore &jsn);
         Clip(const Item &item, const caf::actor &actor);

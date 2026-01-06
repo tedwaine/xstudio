@@ -29,6 +29,8 @@ namespace utility {
 
       protected:
 
+        caf::actor as_actor() { return caf::actor_cast<caf::actor>(this); }
+
         caf::actor & event_group() { return event_group_; }
 
         // The method allows us to build the overall message handler

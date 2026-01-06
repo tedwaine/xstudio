@@ -31,7 +31,7 @@ caf::actor TrackActor::deserialise(const JsonStore &value, const bool replace_it
     }
 
     if (actor) {
-        add_item(UuidActor(key, actor));
+        add_child_item(UuidActor(key, actor));
         if (replace_item) {
             auto itemit = find_uuid(Track::children(), key);
             if (itemit != Track::end()) {
@@ -49,27 +49,6 @@ caf::actor TrackActor::deserialise(const JsonStore &value, const bool replace_it
     return actor;
 }
 
-void TrackActor::deserialise() {
-    for (auto &i : Track::children()) {
-        switch (i.item_type()) {
-        case IT_CLIP: {
-            auto actor = spawn<ClipActor>(i, i);
-            add_item(UuidActor(i.uuid(), actor));
-        } break;
-        case IT_GAP: {
-            auto actor = spawn<GapActor>(i, i);
-            add_item(UuidActor(i.uuid(), actor));
-        } break;
-        case IT_STACK: {
-            auto actor = spawn<StackActor>(i, i);
-            add_item(UuidActor(i.uuid(), actor));
-        } break;
-        default:
-            break;
-        }
-    }
-}
-
 // trigger actor creation
 void TrackActor::item_event_callback(const JsonStore &event, Item &item) {
 
@@ -78,15 +57,15 @@ void TrackActor::item_event_callback(const JsonStore &event, Item &item) {
         // spdlog::warn("TrackActor IT_INSERT {}", event.dump(2));
         auto cuuid = Uuid(event.at("item").at("uuid"));
         // spdlog::warn("{} {} {} {}", find_uuid(Track::children(), cuuid) !=
-        // Track::cend(), actors_.count(cuuid), not event["blind"].is_null(),
+        // Track::cend(), child_item_actors_.count(cuuid), not event["blind"].is_null(),
         // event.dump(2)); needs to be child..
 
         // is it a direct child..
         auto child_item_it = find_uuid(Track::children(), cuuid);
         // spdlog::warn("{} {} {}", child_item_it != Track::cend(), not
-        // actors_.count(cuuid), not event.at("blind").is_null());
+        // child_item_actors_.count(cuuid), not event.at("blind").is_null());
 
-        if (child_item_it != Track::end() and not actors_.count(cuuid) and
+        if (child_item_it != Track::end() and not child_item_actors_.count(cuuid) and
             not event.at("blind").is_null()) {
             // our child
             // spdlog::warn("RECREATE MATCH");
@@ -127,18 +106,18 @@ void TrackActor::item_event_callback(const JsonStore &event, Item &item) {
 
         auto cuuid = Uuid(event.at("item_uuid"));
         // child destroyed
-        if (actors_.count(cuuid)) {
+        if (child_item_actors_.count(cuuid)) {
             // spdlog::warn("destroy
-            // {}",to_string(caf::actor_cast<caf::actor_addr>(actors_[cuuid])));
+            // {}",to_string(caf::actor_cast<caf::actor_addr>(child_item_actors_[cuuid])));
 
-            if (auto mit = monitor_.find(caf::actor_cast<caf::actor_addr>(actors_[cuuid]));
+            if (auto mit = monitor_.find(caf::actor_cast<caf::actor_addr>(child_item_actors_[cuuid]));
                 mit != std::end(monitor_)) {
                 mit->second.dispose();
                 monitor_.erase(mit);
             }
 
-            send_exit(actors_[cuuid], caf::exit_reason::user_shutdown);
-            actors_.erase(cuuid);
+            send_exit(child_item_actors_[cuuid], caf::exit_reason::user_shutdown);
+            child_item_actors_.erase(cuuid);
         }
     } break;
 
@@ -156,16 +135,7 @@ void TrackActor::item_event_callback(const JsonStore &event, Item &item) {
 }
 
 TrackActor::TrackActor(caf::actor_config &cfg, const JsonStore &jsn)
-    : ItemActor(cfg, static_cast<Item &>(*this)), Track(static_cast<JsonStore>(jsn.at("base"))) {
-    Track::set_actor_addr(this);
-
-    for (const auto &[key, value] : jsn.at("actors").items()) {
-        try {
-            deserialise(value, true);
-        } catch (const std::exception &e) {
-            spdlog::error("{}", e.what());
-        }
-    }
+    : ItemActor2<Track>(cfg, static_cast<JsonStore>(jsn.at("base"))) {
 
     Track::bind_item_post_event_func(
         [this](const JsonStore &event, Item &item) { item_event_callback(event, item); });
@@ -175,16 +145,7 @@ TrackActor::TrackActor(caf::actor_config &cfg, const JsonStore &jsn)
 
 
 TrackActor::TrackActor(caf::actor_config &cfg, const JsonStore &jsn, Item &pitem)
-    : ItemActor(cfg, static_cast<Item &>(*this)), Track(static_cast<JsonStore>(jsn.at("base"))) {
-    Track::set_actor_addr(this);
-
-    for (const auto &[key, value] : jsn.at("actors").items()) {
-        try {
-            deserialise(value, true);
-        } catch (const std::exception &e) {
-            spdlog::error("{}", e.what());
-        }
-    }
+    : ItemActor2<Track>(cfg, static_cast<JsonStore>(jsn.at("base"))) {
 
     Track::bind_item_post_event_func(
         [this](const JsonStore &event, Item &item) { item_event_callback(event, item); });
@@ -199,7 +160,7 @@ TrackActor::TrackActor(
     const FrameRate &rate,
     const media::MediaType media_type,
     const Uuid &uuid)
-    : ItemActor(cfg, static_cast<Item &>(*this)), Track(name, rate, media_type, uuid, this) {
+    : ItemActor2<Track>(cfg, name, rate, media_type, uuid) {
     Track::set_name(name);
     Track::bind_item_post_event_func(
         [this](const JsonStore &event, Item &item) { item_event_callback(event, item); });
@@ -208,8 +169,7 @@ TrackActor::TrackActor(
 }
 
 TrackActor::TrackActor(caf::actor_config &cfg, const Item &item)
-    : ItemActor(cfg, static_cast<Item &>(*this)), Track(item, this) {
-    deserialise();
+    : ItemActor2<Track>(cfg, item) {
     init();
 }
 
@@ -217,12 +177,6 @@ TrackActor::TrackActor(caf::actor_config &cfg, const Item &item, Item &nitem)
     : TrackActor(cfg, item) {
     nitem = Track::clone();
     init();
-}
-
-
-void TrackActor::on_exit() {
-    for (const auto &i : actors_)
-        send_exit(i.second, caf::exit_reason::user_shutdown);
 }
 
 caf::message_handler TrackActor::default_event_handler() {
@@ -238,12 +192,12 @@ caf::message_handler TrackActor::message_handler() {
         [=](link_media_atom, const UuidActorMap &media, const bool force) -> result<bool> {
             auto rp = make_response_promise<bool>();
 
-            if (actors_.empty()) {
+            if (child_item_actors_.empty()) {
                 rp.deliver(true);
             } else {
                 // pool direct children for state.
                 fan_out_request<policy::select_all>(
-                    map_value_to_vec(actors_), infinite, link_media_atom_v, media, force)
+                    map_value_to_vec(child_item_actors_), infinite, link_media_atom_v, media, force)
                     .await(
                         [=](std::vector<bool> items) mutable { rp.deliver(true); },
                         [=](error &err) mutable {
@@ -406,14 +360,14 @@ caf::message_handler TrackActor::message_handler() {
 
         [=](history::undo_atom, const JsonStore &hist) -> result<bool> {
             Track::undo(hist);
-            if (actors_.empty())
+            if (child_item_actors_.empty())
                 return true;
 
             // push to children..
             auto rp = make_response_promise<bool>();
 
             fan_out_request<policy::select_all>(
-                map_value_to_vec(actors_), infinite, history::undo_atom_v, hist)
+                map_value_to_vec(child_item_actors_), infinite, history::undo_atom_v, hist)
                 .then(
                     [=](std::vector<bool> updated) mutable { rp.deliver(true); },
                     [=](error &err) mutable { rp.deliver(std::move(err)); });
@@ -423,13 +377,13 @@ caf::message_handler TrackActor::message_handler() {
 
         [=](history::redo_atom, const JsonStore &hist) -> result<bool> {
             Track::redo(hist);
-            if (actors_.empty())
+            if (child_item_actors_.empty())
                 return true;
             // push to children..
             auto rp = make_response_promise<bool>();
 
             fan_out_request<policy::select_all>(
-                map_value_to_vec(actors_), infinite, history::redo_atom_v, hist)
+                map_value_to_vec(child_item_actors_), infinite, history::redo_atom_v, hist)
                 .then(
                     [=](std::vector<bool> updated) mutable { rp.deliver(true); },
                     [=](error &err) mutable { rp.deliver(std::move(err)); });
@@ -693,7 +647,7 @@ caf::message_handler TrackActor::message_handler() {
             jsn["actors"] = {};
             auto actor    = spawn<TrackActor>(jsn);
 
-            if (actors_.empty()) {
+            if (child_item_actors_.empty()) {
                 rp.deliver(UuidActor(dup.uuid(), actor));
             } else {
                 // duplicate all children and relink against items.
@@ -701,7 +655,7 @@ caf::message_handler TrackActor::message_handler() {
 
                 for (const auto &i : Track::children()) {
                     auto ua =
-                        request_receive<UuidActor>(*sys, actors_[i.uuid()], duplicate_atom_v);
+                        request_receive<UuidActor>(*sys, child_item_actors_[i.uuid()], duplicate_atom_v);
                     request_receive<JsonStore>(
                         *sys, actor, insert_item_atom_v, -1, UuidActorVector({ua}));
                 }
@@ -716,11 +670,11 @@ caf::message_handler TrackActor::message_handler() {
             const UuidActorMap &media) -> result<bool> {
             auto rp = make_response_promise<bool>();
 
-            if (actors_.empty()) {
+            if (child_item_actors_.empty()) {
                 rp.deliver(true);
             } else {
                 fan_out_request<policy::select_all>(
-                    map_value_to_vec(actors_), infinite, playhead::source_atom_v, swap, media)
+                    map_value_to_vec(child_item_actors_), infinite, playhead::source_atom_v, swap, media)
                     .await(
                         [=](std::vector<bool> items) mutable { rp.deliver(true); },
                         [=](error &err) mutable {
@@ -738,11 +692,11 @@ caf::message_handler TrackActor::message_handler() {
         },
 
         [=](serialise_atom) -> result<JsonStore> {
-            if (not actors_.empty()) {
+            if (not child_item_actors_.empty()) {
                 auto rp = make_response_promise<JsonStore>();
 
                 fan_out_request<policy::select_all>(
-                    map_value_to_vec(actors_), infinite, serialise_atom_v)
+                    map_value_to_vec(child_item_actors_), infinite, serialise_atom_v)
                     .then(
                         [=](std::vector<JsonStore> json) mutable {
                             JsonStore jsn;
@@ -787,51 +741,6 @@ void TrackActor::init() {
     
 }
 
-void TrackActor::add_item(const UuidActor &ua) {
-    // join_event_group(this, ua.second);
-    scoped_actor sys{system()};
-
-    try {
-        auto grp    = request_receive<caf::actor>(*sys, ua.actor(), get_event_group_atom_v);
-        auto joined = request_receive<bool>(*sys, grp, broadcast::join_broadcast_atom_v, this);
-    } catch (const std::exception &err) {
-        spdlog::warn("{} {}", __PRETTY_FUNCTION__, err.what());
-    }
-
-    auto act_addr = caf::actor_cast<caf::actor_addr>(ua.actor());
-
-    if (auto sit = monitor_.find(act_addr); sit == std::end(monitor_)) {
-        monitor_[act_addr] =
-            monitor(ua.actor(), [this, addr = ua.actor().address()](const error &) {
-                if (auto mit = monitor_.find(caf::actor_cast<caf::actor_addr>(addr));
-                    mit != std::end(monitor_))
-                    monitor_.erase(mit);
-
-                for (auto it = std::begin(actors_); it != std::end(actors_); ++it) {
-                    if (addr == it->second) {
-                        actors_.erase(it);
-
-                        // remove from base.
-                        auto it = find_actor_addr(Track::children(), addr);
-
-                        if (it != Track::end()) {
-                            auto jsn  = Track::erase(it);
-                            auto more = Track::refresh();
-                            if (not more.is_null())
-                                jsn.insert(jsn.begin(), more.begin(), more.end());
-
-                            mail(event_atom_v, item_atom_v, jsn, false)
-                                .send(event_group());
-                        }
-
-                        break;
-                    }
-                }
-            });
-    }
-
-    actors_[ua.uuid()] = ua.actor();
-}
 
 
 void TrackActor::split_item(
@@ -915,7 +824,6 @@ void TrackActor::insert_items(
             .then(
                 [=](std::vector<Item> items) mutable {
 
-                    std::cerr << "items " << items.size() << "\n";
                     // items are valid for insertion ?
                     for (const auto &i : items) {
                         if (not Track::valid_child(i))
@@ -927,7 +835,7 @@ void TrackActor::insert_items(
 
                     // take ownership
                     for (const auto &ua : uav)
-                        add_item(ua);
+                        add_child_item(ua);
 
                     // find insertion point..
                     auto it = std::next(Track::begin(), index);
@@ -1108,7 +1016,7 @@ std::pair<JsonStore, std::vector<Item>> TrackActor::remove_items(
                     monitor_.erase(mit);
                 }
 
-                actors_.erase(item.uuid());
+                child_item_actors_.erase(item.uuid());
 
                 // need to serialise actor..
                 auto blind = request_receive<JsonStore>(*sys, item.actor(), serialise_atom_v);
@@ -1132,7 +1040,7 @@ std::pair<JsonStore, std::vector<Item>> TrackActor::remove_items(
             auto uuid = Uuid::generate();
             auto gap  = spawn<GapActor>("GAP", gap_size, uuid);
             // take ownership
-            add_item(UuidActor(uuid, gap));
+            add_child_item(UuidActor(uuid, gap));
             // where we're going to insert gap..
             auto it    = std::next(Track::begin(), index);
             auto item  = request_receive<Item>(*sys, gap, item_atom_v);
@@ -1262,7 +1170,7 @@ void TrackActor::move_items(
                 auto uuid = Uuid::generate();
                 auto gap  = spawn<GapActor>("GAP", gap_size, uuid);
                 // take ownership
-                add_item(UuidActor(uuid, gap));
+                add_child_item(UuidActor(uuid, gap));
                 // where we're going to insert gap..
                 auto it    = std::next(Track::begin(), index);
                 auto item  = request_receive<Item>(*sys, gap, item_atom_v);
@@ -1639,7 +1547,7 @@ JsonStore TrackActor::merge_gaps() {
             monitor_.erase(mit);
         }
 
-        actors_.erase(item.uuid());
+        child_item_actors_.erase(item.uuid());
 
         // need to serialise actor..
         auto blind = request_receive<JsonStore>(*sys, item.actor(), serialise_atom_v);
@@ -1663,7 +1571,7 @@ JsonStore TrackActor::merge_gaps() {
                 auto gap  = spawn<GapActor>("GAP", gap_duration, uuid);
 
                 // take ownership
-                add_item(UuidActor(uuid, gap));
+                add_child_item(UuidActor(uuid, gap));
 
                 // where we're going to insert gap..
                 auto item  = request_receive<Item>(*sys, gap, item_atom_v);
@@ -1688,7 +1596,7 @@ JsonStore TrackActor::merge_gaps() {
                         monitor_.erase(mit);
                     }
 
-                    actors_.erase(item.uuid());
+                    child_item_actors_.erase(item.uuid());
 
                     // need to serialise actor..
                     auto blind =

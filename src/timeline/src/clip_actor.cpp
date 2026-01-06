@@ -44,22 +44,20 @@ struct RangeMaker {
 } // namespace
 
 ClipActor::ClipActor(caf::actor_config &cfg, const JsonStore &jsn)
-    : ItemActor(cfg, static_cast<Item &>(*this)), Clip(static_cast<JsonStore>(jsn.at("base"))) {
-    Clip::set_actor_addr(this);
+    : ItemActor2<Clip>(cfg, static_cast<JsonStore>(jsn.at("base"))) {
 
     init();
 }
 
 ClipActor::ClipActor(caf::actor_config &cfg, const JsonStore &jsn, Item &pitem)
-    : ItemActor(cfg, static_cast<Item &>(*this)), Clip(static_cast<JsonStore>(jsn.at("base"))) {
-    Clip::set_actor_addr(this);
+    : ItemActor2<Clip>(cfg, static_cast<JsonStore>(jsn.at("base"))) {
 
     pitem = Clip::clone();
     init();
 }
 
 ClipActor::ClipActor(caf::actor_config &cfg, const Item &item)
-    : ItemActor(cfg, static_cast<Item &>(*this)), Clip(item, this) {
+    : ItemActor2<Clip>(cfg, item, this) {
     init();
 }
 
@@ -70,9 +68,7 @@ ClipActor::ClipActor(caf::actor_config &cfg, const Item &item, Item &nitem)
 
 ClipActor::ClipActor(
     caf::actor_config &cfg, const UuidActor &media, const std::string &name, const Uuid &uuid)
-    : ItemActor(cfg, static_cast<Item &>(*this)),
-      // playlist_(caf::actor_cast<actor_addr>(playlist)),
-      Clip(name, uuid, this, media.uuid()) {
+    : ItemActor2<Clip>(cfg, name, uuid, media.uuid()) {
 
     // already done in base clase ?
     // Clip::set_name(name);
@@ -605,6 +601,7 @@ caf::message_handler ClipActor::message_handler() {
             const media::MediaType media_type,
             const std::vector<timebase::flicks> timepoints,
             const FrameRate override_rate) -> result<media::AVFrameIDs> {
+
             if (media_) {
 
 
@@ -744,6 +741,8 @@ caf::message_handler ClipActor::message_handler() {
 
             auto rp = make_response_promise<UuidActor>();
 
+            std::cerr << "DUP " << to_string(media_) << "\n";
+
             mail(link_media_atom_v, media_map, false)
                 .request(actor, infinite)
                 .then(
@@ -766,6 +765,7 @@ caf::message_handler ClipActor::message_handler() {
             const media::MediaType media_type,
             const TimeSourceMode tsm,
             const FrameRate &override_rate) -> caf::result<media::FrameTimeMapPtr> {
+
             // This is required by SubPlayhead actor to make the track
             // playable.
             return Clip::get_all_frame_IDs(media_type, tsm, override_rate);
@@ -775,4 +775,5 @@ caf::message_handler ClipActor::message_handler() {
 void ClipActor::init() {
     print_on_create(this, Clip::name());
     print_on_exit(this, Clip::name());
+
 }

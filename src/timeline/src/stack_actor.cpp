@@ -33,7 +33,7 @@ caf::actor StackActor::deserialise(const JsonStore &value, const bool replace_it
     }
 
     if (actor) {
-        add_item(UuidActor(key, actor));
+        add_child_item(UuidActor(key, actor));
         if (replace_item) {
             auto itemit = find_uuid(Stack::children(), key);
             if (itemit != Stack::end()) {
@@ -56,20 +56,20 @@ void StackActor::deserialise() {
         switch (i.item_type()) {
         case IT_CLIP: {
             auto actor = spawn<ClipActor>(i, i);
-            add_item(UuidActor(i.uuid(), actor));
+            add_child_item(UuidActor(i.uuid(), actor));
         } break;
         case IT_GAP: {
             auto actor = spawn<GapActor>(i, i);
-            add_item(UuidActor(i.uuid(), actor));
+            add_child_item(UuidActor(i.uuid(), actor));
         } break;
         case IT_STACK: {
             auto actor = spawn<StackActor>(i, i);
-            add_item(UuidActor(i.uuid(), actor));
+            add_child_item(UuidActor(i.uuid(), actor));
         } break;
         case IT_AUDIO_TRACK:
         case IT_VIDEO_TRACK: {
             auto actor = spawn<TrackActor>(i, i);
-            add_item(UuidActor(i.uuid(), actor));
+            add_child_item(UuidActor(i.uuid(), actor));
         } break;
         default:
             break;
@@ -79,17 +79,8 @@ void StackActor::deserialise() {
 
 
 StackActor::StackActor(caf::actor_config &cfg, const JsonStore &jsn)
-    : ItemActor(cfg, static_cast<Item &>(*this)), Stack(static_cast<JsonStore>(jsn.at("base"))) {
+    : ItemActor2<Stack>(cfg, static_cast<JsonStore>(jsn.at("base"))) {
 
-    Stack::set_actor_addr(this);
-
-    for (const auto &[key, value] : jsn.at("actors").items()) {
-        try {
-            deserialise(value, true);
-        } catch (const std::exception &e) {
-            spdlog::error("{}", e.what());
-        }
-    }
     Stack::bind_item_post_event_func(
         [this](const JsonStore &event, Item &item) { item_event_callback(event, item); });
 
@@ -97,17 +88,8 @@ StackActor::StackActor(caf::actor_config &cfg, const JsonStore &jsn)
 }
 
 StackActor::StackActor(caf::actor_config &cfg, const JsonStore &jsn, Item &pitem)
-    : ItemActor(cfg, static_cast<Item &>(*this)), Stack(static_cast<JsonStore>(jsn.at("base"))) {
+    : ItemActor2<Stack>(cfg, static_cast<JsonStore>(jsn.at("base"))) {
 
-    Stack::set_actor_addr(this);
-
-    for (const auto &[key, value] : jsn.at("actors").items()) {
-        try {
-            deserialise(value, true);
-        } catch (const std::exception &e) {
-            spdlog::error("{} {}", __PRETTY_FUNCTION__, e.what());
-        }
-    }
     Stack::bind_item_post_event_func(
         [this](const JsonStore &event, Item &item) { item_event_callback(event, item); });
     pitem = Stack::clone();
@@ -117,7 +99,7 @@ StackActor::StackActor(caf::actor_config &cfg, const JsonStore &jsn, Item &pitem
 
 StackActor::StackActor(
     caf::actor_config &cfg, const std::string &name, const FrameRate &rate, const Uuid &uuid)
-    : ItemActor(cfg, static_cast<Item &>(*this)), Stack(name, rate, uuid, this) {
+    : ItemActor2<Stack>(cfg, name, rate, uuid) {
 
     Stack::set_name(name);
     Stack::bind_item_post_event_func(
@@ -126,19 +108,13 @@ StackActor::StackActor(
 }
 
 StackActor::StackActor(caf::actor_config &cfg, const Item &item)
-    : ItemActor(cfg, static_cast<Item &>(*this)), Stack(item, this) {
-    deserialise();
+    : ItemActor2<Stack>(cfg, item) {
     init();
 }
 
 StackActor::StackActor(caf::actor_config &cfg, const Item &item, Item &nitem)
     : StackActor(cfg, item) {
     nitem = Stack::clone();
-}
-
-void StackActor::on_exit() {
-    for (const auto &i : actors_)
-        send_exit(i.second, caf::exit_reason::user_shutdown);
 }
 
 // trigger actor creation
@@ -148,10 +124,10 @@ void StackActor::item_event_callback(const JsonStore &event, Item &item) {
     case IA_INSERT: {
         auto cuuid = Uuid(event.at("item").at("uuid"));
         // spdlog::warn("{} {} {} {}", find_uuid(Stack::children(), cuuid) !=
-        // Stack::cend(), actors_.count(cuuid), not event["blind"].is_null(),
+        // Stack::cend(), child_item_actors_.count(cuuid), not event["blind"].is_null(),
         // event.dump(2)); needs to be child..
         auto child_item_it = find_uuid(Stack::children(), cuuid);
-        if (child_item_it != Stack::end() and not actors_.count(cuuid) and
+        if (child_item_it != Stack::end() and not child_item_actors_.count(cuuid) and
             not event.at("blind").is_null()) {
             // our child
             // spdlog::warn("RECREATE MATCH");
@@ -173,17 +149,17 @@ void StackActor::item_event_callback(const JsonStore &event, Item &item) {
     case IA_REMOVE: {
         auto cuuid = Uuid(event.at("item_uuid"));
         // child destroyed
-        if (actors_.count(cuuid)) {
+        if (child_item_actors_.count(cuuid)) {
             // spdlog::warn("destroy
-            // {}",to_string(caf::actor_cast<caf::actor_addr>(actors_[cuuid])));
-            if (auto mit = monitor_.find(caf::actor_cast<caf::actor_addr>(actors_[cuuid]));
+            // {}",to_string(caf::actor_cast<caf::actor_addr>(child_item_actors_[cuuid])));
+            if (auto mit = monitor_.find(caf::actor_cast<caf::actor_addr>(child_item_actors_[cuuid]));
                 mit != std::end(monitor_)) {
                 mit->second.dispose();
                 monitor_.erase(mit);
             }
 
-            send_exit(actors_[cuuid], caf::exit_reason::user_shutdown);
-            actors_.erase(cuuid);
+            send_exit(child_item_actors_[cuuid], caf::exit_reason::user_shutdown);
+            child_item_actors_.erase(cuuid);
         }
     } break;
 
@@ -211,12 +187,12 @@ caf::message_handler StackActor::message_handler() {
         [=](link_media_atom, const UuidActorMap &media, const bool force) -> result<bool> {
             auto rp = make_response_promise<bool>();
 
-            if (actors_.empty()) {
+            if (child_item_actors_.empty()) {
                 rp.deliver(true);
             } else {
                 // pool direct children for state.
                 fan_out_request<policy::select_all>(
-                    map_value_to_vec(actors_), infinite, link_media_atom_v, media, force)
+                    map_value_to_vec(child_item_actors_), infinite, link_media_atom_v, media, force)
                     .await(
                         [=](std::vector<bool> items) mutable { rp.deliver(true); },
                         [=](error &err) mutable {
@@ -390,13 +366,13 @@ caf::message_handler StackActor::message_handler() {
         // should these be reflected upward ?
         [=](history::undo_atom, const JsonStore &hist) -> result<bool> {
             Stack::undo(hist);
-            if (actors_.empty())
+            if (child_item_actors_.empty())
                 return true;
             // push to children..
             auto rp = make_response_promise<bool>();
 
             fan_out_request<policy::select_all>(
-                map_value_to_vec(actors_), infinite, history::undo_atom_v, hist)
+                map_value_to_vec(child_item_actors_), infinite, history::undo_atom_v, hist)
                 .then(
                     [=](std::vector<bool> updated) mutable { rp.deliver(true); },
                     [=](error &err) mutable { rp.deliver(std::move(err)); });
@@ -406,13 +382,13 @@ caf::message_handler StackActor::message_handler() {
 
         [=](history::redo_atom, const JsonStore &hist) -> result<bool> {
             Stack::redo(hist);
-            if (actors_.empty())
+            if (child_item_actors_.empty())
                 return true;
             // push to children..
             auto rp = make_response_promise<bool>();
 
             fan_out_request<policy::select_all>(
-                map_value_to_vec(actors_), infinite, history::redo_atom_v, hist)
+                map_value_to_vec(child_item_actors_), infinite, history::redo_atom_v, hist)
                 .then(
                     [=](std::vector<bool> updated) mutable { rp.deliver(true); },
                     [=](error &err) mutable { rp.deliver(std::move(err)); });
@@ -585,11 +561,11 @@ caf::message_handler StackActor::message_handler() {
             const UuidActorMap &media) -> result<bool> {
             auto rp = make_response_promise<bool>();
 
-            if (actors_.empty()) {
+            if (child_item_actors_.empty()) {
                 rp.deliver(true);
             } else {
                 fan_out_request<policy::select_all>(
-                    map_value_to_vec(actors_), infinite, playhead::source_atom_v, swap, media)
+                    map_value_to_vec(child_item_actors_), infinite, playhead::source_atom_v, swap, media)
                     .await(
                         [=](std::vector<bool> items) mutable { rp.deliver(true); },
                         [=](error &err) mutable {
@@ -606,31 +582,15 @@ caf::message_handler StackActor::message_handler() {
         },
 
         [=](duplicate_atom) -> result<UuidActor> {
+
             auto rp = make_response_promise<UuidActor>();
             JsonStore jsn;
             auto dup = Stack::duplicate();
-            dup.clear();
-
             jsn["base"]   = dup.serialise();
-            jsn["actors"] = {};
             auto actor    = spawn<StackActor>(jsn);
-
-            if (actors_.empty()) {
-                rp.deliver(UuidActor(dup.uuid(), actor));
-            } else {
-                // duplicate all children and relink against items.
-                scoped_actor sys{system()};
-
-                for (const auto &i : Stack::children()) {
-                    auto ua =
-                        request_receive<UuidActor>(*sys, actors_[i.uuid()], duplicate_atom_v);
-                    request_receive<JsonStore>(
-                        *sys, actor, insert_item_atom_v, -1, UuidActorVector({ua}));
-                }
-                rp.deliver(UuidActor(dup.uuid(), actor));
-            }
-
+            rp.deliver(UuidActor(dup.uuid(), actor));
             return rp;
+
         },
 
         [=](event_atom, change_atom) {
@@ -638,11 +598,11 @@ caf::message_handler StackActor::message_handler() {
         },
 
         [=](serialise_atom) -> result<JsonStore> {
-            if (not actors_.empty()) {
+            if (not child_item_actors_.empty()) {
                 auto rp = make_response_promise<JsonStore>();
 
                 fan_out_request<policy::select_all>(
-                    map_value_to_vec(actors_), infinite, serialise_atom_v)
+                    map_value_to_vec(child_item_actors_), infinite, serialise_atom_v)
                     .then(
                         [=](std::vector<JsonStore> json) mutable {
                             JsonStore jsn;
@@ -671,52 +631,6 @@ void StackActor::init() {
     print_on_exit(this, Stack::name());
 }
 
-void StackActor::add_item(const UuidActor &ua) {
-    // joining must be in sync
-    scoped_actor sys{system()};
-
-    try {
-        auto grp    = request_receive<caf::actor>(*sys, ua.actor(), get_event_group_atom_v);
-        auto joined = request_receive<bool>(*sys, grp, broadcast::join_broadcast_atom_v, this);
-    } catch (const std::exception &err) {
-        spdlog::warn("{} {}", __PRETTY_FUNCTION__, err.what());
-    }
-
-    auto act_addr = caf::actor_cast<caf::actor_addr>(ua.actor());
-
-    if (auto sit = monitor_.find(act_addr); sit == std::end(monitor_)) {
-        monitor_[act_addr] =
-            monitor(ua.actor(), [this, addr = ua.actor().address()](const error &) {
-                if (auto mit = monitor_.find(caf::actor_cast<caf::actor_addr>(addr));
-                    mit != std::end(monitor_))
-                    monitor_.erase(mit);
-
-                for (auto it = std::begin(actors_); it != std::end(actors_); ++it) {
-                    if (addr == it->second) {
-                        actors_.erase(it);
-
-                        // remove from base.
-                        auto it = find_actor_addr(Stack::children(), addr);
-
-                        if (it != Stack::end()) {
-                            auto jsn  = Stack::erase(it);
-                            auto more = Stack::refresh();
-                            if (not more.is_null())
-                                jsn.insert(jsn.begin(), more.begin(), more.end());
-
-                            mail(event_atom_v, item_atom_v, jsn, false)
-                                .send(event_group());
-                        }
-
-                        break;
-                    }
-                }
-            });
-    }
-
-    actors_[ua.uuid()] = ua.actor();
-}
-
 void StackActor::insert_items(
     caf::typed_response_promise<JsonStore> rp, const int index, const UuidActorVector &uav) {
 
@@ -728,6 +642,7 @@ void StackActor::insert_items(
             .then(
                 [=](std::vector<Item> items) mutable {
 
+
                     // items are valid for insertion ?
                     for (const auto &i : items) {
 
@@ -738,7 +653,7 @@ void StackActor::insert_items(
 
                     // take ownership
                     for (const auto &ua : uav)
-                        add_item(ua);
+                        add_child_item(ua);
 
                     // find insertion point..
                     auto it = std::next(Stack::begin(), index);
@@ -830,7 +745,7 @@ StackActor::remove_items(const int index, const int count) {
                     monitor_.erase(mit);
                 }
 
-                actors_.erase(item.uuid());
+                child_item_actors_.erase(item.uuid());
 
                 auto blind = request_receive<JsonStore>(*sys, item.actor(), serialise_atom_v);
 
