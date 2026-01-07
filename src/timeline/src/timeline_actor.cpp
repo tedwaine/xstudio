@@ -1187,6 +1187,7 @@ TimelineActor::TimelineActor(
 caf::message_handler TimelineActor::default_event_handler() {
     return caf::message_handler(
                {
+                   [=](event_atom, item_atom, const utility::UuidActor &) {},
                    [=](event_atom, item_atom, const Item &) {},
                    [=](event_atom, item_atom, const JsonStore &, const bool) {},
                })
@@ -1327,8 +1328,6 @@ caf::message_handler TimelineActor::message_handler() {
         },
 
         [=](trimmed_range_atom) -> FrameRange { return trimmed_range(); },
-
-        [=](item_atom) -> Item { return clone(); },
 
         [=](plugin_manager::enable_atom, const bool value) -> JsonStore {
             auto jsn = set_enabled(value);

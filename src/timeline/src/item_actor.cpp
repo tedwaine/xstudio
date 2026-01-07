@@ -58,6 +58,18 @@ ItemActor0::ItemActor0(caf::actor_config &cfg) : utility::XStudioActor(cfg) {
 
             }
             return auto_responder.response_promise();
+        },
+        [=](item_atom) -> Item {
+            return base(); 
+        },
+        [=](event_atom, item_atom, utility::UuidActor &item_actor) {
+            mail(event_atom_v, item_atom_v, item_actor).send(event_group());
+            auto it = base().find_item2(item_actor.uuid());
+            if (it) {
+                auto json = (*it)->set_actor_addr(item_actor.actor());
+                auto c = (*it)->make_actor_addr_update();
+                send_event(event_atom_v, item_atom_v, c, true);
+            }
         });
 }
 
@@ -91,25 +103,30 @@ void ItemActor0::add_child_item(const UuidActor &ua) {
                         child_item_actors_.erase(it);
 
                         // remove from base.
-                        auto it = find_actor_addr(base().children(), addr);
+                        auto p = base().begin();
+                        while (p != base().end()) {
+                            if (p->uuid() == it->first) {
+                                auto jsn  = base().erase(p);
+                                auto more = base().refresh();
+                                if (not more.is_null())
+                                    jsn.insert(jsn.begin(), more.begin(), more.end());
 
-                        if (it != base().end()) {
-                            auto jsn  = base().erase(it);
-                            auto more = base().refresh();
-                            if (not more.is_null())
-                                jsn.insert(jsn.begin(), more.begin(), more.end());
-
-                            mail(event_atom_v, item_atom_v, jsn, false)
-                                .send(event_group());
+                                mail(event_atom_v, item_atom_v, jsn, false)
+                                    .send(event_group());
+                                break;
+                            }
+                            p++;
                         }
-
                         break;
+
                     }
                 }
             });
     }
 
     child_item_actors_[ua.uuid()] = ua.actor();
+    mail(event_atom_v, item_atom_v, ua).delay(std::chrono::seconds(1)).send(as_actor());
+
 }
 
 void ItemActor0::make_child_item_actors() {

@@ -1158,6 +1158,8 @@ void PlayheadActor::init() {
             // timeline change event ... ignore as its taken care of by sub playhead
         },
 
+        [=](utility::event_atom, timeline::item_atom, const utility::UuidActor &) {},
+
         [=](utility::event_atom,
             media_source_atom,
             utility::UuidActor media,

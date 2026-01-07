@@ -155,8 +155,6 @@ caf::message_handler GapActor::message_handler() {
 
         [=](link_media_atom, const UuidActorMap &, const bool) -> bool { return true; },
 
-        [=](item_atom) -> Item { return Gap::clone(); },
-
         [=](item_atom, const bool with_state) -> result<std::pair<JsonStore, Item>> {
             auto rp = make_response_promise<std::pair<JsonStore, Item>>();
             mail(serialise_atom_v)

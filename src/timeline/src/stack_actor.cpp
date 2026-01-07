@@ -256,8 +256,6 @@ caf::message_handler StackActor::message_handler() {
             return result;
         },
 
-        [=](item_atom) -> Item { return Stack::clone(); },
-
         [=](item_atom, const bool with_state) -> result<std::pair<JsonStore, Item>> {
             auto rp = make_response_promise<std::pair<JsonStore, Item>>();
             mail(serialise_atom_v)

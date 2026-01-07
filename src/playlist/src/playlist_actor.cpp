@@ -414,6 +414,8 @@ caf::message_handler PlaylistActor::message_handler() {
             const utility::JsonStore &update,
             const bool hidden) {},
 
+        [=](utility::event_atom, timeline::item_atom, const utility::UuidActor &) {},
+
         [=](add_media_atom,
             const std::string &name,
             const caf::uri &uri,

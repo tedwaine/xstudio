@@ -338,6 +338,28 @@ namespace timeline {
             const utility::FrameRate &override_rate,
             const utility::UuidSet &focus_list = utility::UuidSet());
 
+        std::optional<Items::iterator> find_item2(const utility::Uuid &uuid) {
+            auto it = std::find_if(this->begin(), this->end(), [uuid](Item const &obj) {
+                return obj.uuid() == uuid;
+            });
+
+            // search children
+            if (it == this->end()) {
+                for (auto &i : (*this)) {
+                    auto ii = i.find_item2(uuid);
+                    if (ii) {
+                        it = *ii;
+                        break;
+                    }
+                }
+            }
+
+            if (it == end())
+                return {};
+
+            return it;
+        }
+
       private:
         bool process_event(const utility::JsonStore &event);
         void splice_direct(
@@ -527,30 +549,6 @@ namespace timeline {
         }
 
         return result;
-    }
-
-    inline auto find_actor(const Items &items, const caf::actor &actor) {
-        return std::find_if(items.cbegin(), items.cend(), [actor](Item const &obj) {
-            return obj.actor() == actor;
-        });
-    }
-
-    inline auto find_actor(Items &items, const caf::actor &actor) {
-        return std::find_if(items.begin(), items.end(), [actor](Item const &obj) {
-            return obj.actor() == actor;
-        });
-    }
-
-    inline auto find_actor_addr(const Items &items, const caf::actor_addr &actor_addr) {
-        return std::find_if(items.cbegin(), items.cend(), [actor_addr](Item const &obj) {
-            return obj.actor_addr() == actor_addr;
-        });
-    }
-
-    inline auto find_actor_addr(Items &items, const caf::actor_addr &actor_addr) {
-        return std::find_if(items.begin(), items.end(), [actor_addr](Item const &obj) {
-            return obj.actor_addr() == actor_addr;
-        });
     }
 
     inline auto sum_trimmed_duration(const Items &items) {

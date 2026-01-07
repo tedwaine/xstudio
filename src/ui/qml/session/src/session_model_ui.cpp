@@ -888,6 +888,7 @@ void SessionModel::receivedData(
 
                 case JSONTreeModel::Roles::JSONTextRole:
                     if (j.at("type") == "TimelineItem") {
+
                         // this is an init setup..
                         // watchout for duplicate event..
                         auto owner =
@@ -1083,7 +1084,7 @@ nlohmann::json SessionModel::playlistTreeToJson(
             }
         }
 
-        // spdlog::warn("playlistTreeToJson {}",result.dump(2));
+        //spdlog::warn("playlistTreeToJson {}",result.dump(2));
 
     } catch (const std::exception &err) {
         spdlog::warn("{} {}", __PRETTY_FUNCTION__, err.what());

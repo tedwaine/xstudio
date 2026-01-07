@@ -708,6 +708,8 @@ void SubPlayhead::init() {
             mail(utility::event_atom_v, media::add_media_source_atom_v, uav).send(parent_);
         },
 
+        [=](utility::event_atom, timeline::item_atom, const utility::UuidActor &) {},
+
         [=](utility::event_atom, timeline::item_atom, const utility::JsonStore &changes, bool) {
             // when a timeline autoconform is happening it triggers a flood of
             // these item_atom events as the timeline is rebuilt. We don't want

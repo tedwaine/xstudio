@@ -17,6 +17,8 @@ Item::Item(const JsonStore &__jsn) : Items() {
     const nlohmann::json &jsn = __jsn.contains("item") ? __jsn.at("item") : __jsn;
 
     uuid_addr_.first = jsn.at("uuid");
+    if (jsn.contains("actor"))
+        uuid_addr_.second = string_to_actor_addr(jsn.at("actor"));
     item_type_       = jsn.at("type");
     enabled_         = jsn.at("enabled");
     name_            = jsn.value("name", "");
@@ -89,6 +91,7 @@ JsonStore Item::serialise() const {
     jsn["flag"]       = flag_;
     jsn["prop"]       = prop_;
     jsn["markers"]    = serialise_markers(markers_);
+    jsn["actor"]      = actor_addr_to_string(uuid_addr_.second);
 
     auto p = timeline_type_names.find(item_type());
     jsn["item_type"] = p != timeline_type_names.end() ? p->second : "Unknown";
@@ -567,8 +570,6 @@ void Item::resolve_and_request_clip_frames(
                 clip_local_frame_time += timeline_frame_rate;
                 frame_timeline_pos += timeline_frame_rate;
             }
-
-            std::cerr << "RESOLVE " << name() << " " << clip_timepoints.size() << " " << to_string(actor()) << "\n";
 
             if (!clip_timepoints.empty()) {
                 // Dispatch request for clip frames to our helper
@@ -1781,7 +1782,6 @@ class BuildFrameIDsHelper : public caf::event_based_actor {
             result_->lower_bound(clip_timeline_position) == result_->end())
             return;
 
-        std::cerr << " FOO " << item_actors_.size();
         if (item_actors_.find(item_id) == item_actors_.end()) return;
 
         mail(media::get_media_pointer_atom_v, media_type_, clip_timepoints, base_rate_)
@@ -1828,8 +1828,6 @@ caf::typed_response_promise<media::FrameTimeMapPtr> Item::get_all_frame_IDs(
     const TimeSourceMode tsm,
     const FrameRate & /*override_rate*/,
     const UuidSet &focus_list) {
-
-    std::cerr << "GET ALL " << name() << "\n";
 
     // This crucial function bakes a timeline into a 'FrameTimeMap' which is
     // a map of individual frame IDs against a zero based time point which is

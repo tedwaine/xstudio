@@ -362,8 +362,6 @@ caf::message_handler ClipActor::message_handler() {
             // where is this coming from??
         },
 
-        [=](item_atom) -> Item { return Clip::clone(); },
-
         [=](item_atom, const bool with_state) -> result<std::pair<JsonStore, Item>> {
             auto rp = make_response_promise<std::pair<JsonStore, Item>>();
             mail(serialise_atom_v)
@@ -536,7 +534,6 @@ caf::message_handler ClipActor::message_handler() {
             // has changed that affects colour management, we need to re-gernerate
             // the frame pointers that carry the colour management data to the
             // playhead and up to the viewport.
-
             mail(media::acquire_media_detail_atom_v, utility::Uuid())
                 .send(caf::actor_cast<caf::actor>(this));
             image_ptr_cache_.clear();
@@ -740,8 +737,6 @@ caf::message_handler ClipActor::message_handler() {
             media_map[Clip::media_uuid()] = caf::actor_cast<caf::actor>(media_);
 
             auto rp = make_response_promise<UuidActor>();
-
-            std::cerr << "DUP " << to_string(media_) << "\n";
 
             mail(link_media_atom_v, media_map, false)
                 .request(actor, infinite)

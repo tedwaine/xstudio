@@ -220,8 +220,6 @@ caf::message_handler TrackActor::message_handler() {
             return jsn;
         },
 
-        [=](item_atom) -> Item { return Track::clone(); },
-
         [=](item_flag_atom, const std::string &value) -> JsonStore {
             auto jsn = Track::set_flag(value);
             if (not jsn.is_null())
