@@ -426,6 +426,22 @@ void register_FrameRateDuration_class(py::module &m, const std::string &name) {
         .def("__str__", str_impl);
 }
 
+void register_vector2_class(py::module &m, const std::string &name) {
+    auto str_impl = [](const Imath::V2f &x) {
+        std::stringstream s;
+        s << x;
+        return s.str();
+    };
+    py::class_<Imath::V2f>(m, name.c_str())
+        .def(py::init<>())
+        .def(
+            py::init<
+                float,
+                float>())
+        .def("__str__", str_impl);
+}
+
+
 void register_matrix44_class(py::module &m, const std::string &name) {
     auto str_impl = [](const Imath::M44f &x) {
         std::stringstream s;

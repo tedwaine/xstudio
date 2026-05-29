@@ -8,3 +8,4 @@ if (NOT WIN32)
     # this feature needs a little more work on Win platform
     add_python_plugin(filesystem_browser)
 endif()
+add_python_plugin(aswf_demo_extensions)
