@@ -39,25 +39,6 @@ class WaveFormData : public utility::BlindDataObject {
     const float horizontal_scale;
 };
 
-class AudioWaveformOverlayRenderer : public plugin::ViewportOverlayRenderer {
-
-  public:
-    void render_image_overlay(
-        const Imath::M44f &transform_window_to_viewport_space,
-        const Imath::M44f &transform_viewport_to_image_space,
-        const float viewport_du_dpixel,
-        const float device_pixel_ratio,
-        const xstudio::media_reader::ImageBufPtr &frame) override;
-
-    ~AudioWaveformOverlayRenderer();
-
-    void init_overlay_opengl();
-
-    std::unique_ptr<xstudio::ui::opengl::GLShaderProgram> shader_;
-    GLuint vbo_ = {0};
-    GLuint vao_ = {0};
-};
-
 class AudioWaveformOverlay : public plugin::HUDPluginBase {
 
   public:
@@ -74,9 +55,7 @@ class AudioWaveformOverlay : public plugin::HUDPluginBase {
         const bool images_are_in_grid_layout) const override;
 
     plugin::ViewportOverlayRendererPtr
-    make_overlay_renderer(const std::string &viewport_name) override {
-        return plugin::ViewportOverlayRendererPtr(new AudioWaveformOverlayRenderer());
-    }
+    make_overlay_renderer(const std::string &viewport_name) override;
 
     caf::message_handler message_handler_extensions() override {
         return message_handler_ext_.or_else(

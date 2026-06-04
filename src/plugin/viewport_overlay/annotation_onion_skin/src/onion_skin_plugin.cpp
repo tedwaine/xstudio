@@ -35,7 +35,7 @@ OnionSkinPlugin::OnionSkinPlugin(
     add_hud_settings_attribute(base_opacity_);
     base_opacity_->set_tool_tip("Opacity of the nearest neighboring annotation");
     base_opacity_->set_redraw_viewport_on_change(true);
-
+ 
     opacity_falloff_ =
         add_float_attribute("Opacity Falloff", "Falloff", 0.5f, 0.1f, 1.0f, 0.05f);
     add_hud_settings_attribute(opacity_falloff_);

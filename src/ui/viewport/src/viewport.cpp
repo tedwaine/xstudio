@@ -2220,6 +2220,24 @@ void Viewport::render(const media_reader::ImageBufPtr &image_buf, const bool wit
     render();
 }
 
+void Viewport::set_depth(const float depth) {
+    if (render_data_ && render_data_->renderer) {
+        render_data_->renderer->set_depth(depth);
+    }
+}
+
+void Viewport::store_client_state() {
+    if (render_data_ && render_data_->renderer) {
+        render_data_->renderer->store_client_state();
+    }
+}
+
+void Viewport::restore_client_state() {
+    if (render_data_ && render_data_->renderer) {
+        render_data_->renderer->restore_client_state();
+    }
+}
+
 void Viewport::prepare_render_data(
     const utility::time_point &when_going_on_screen, const bool sync_to_playhead) {
     // here we make data for rendering in separate thread
