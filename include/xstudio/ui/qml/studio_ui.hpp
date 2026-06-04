@@ -14,8 +14,15 @@ CAF_POP_WARNINGS
 #include "xstudio/ui/qml/studio_qml_export.h"
 
 #include "xstudio/ui/qml/helper_ui.hpp"
-#include "xstudio/ui/qt/offscreen_viewport.hpp"
 #include "xstudio/utility/uuid.hpp"
+
+#if defined(__xstudio_opengl__)
+#include "xstudio/ui/qt/opengl/offscreen_viewport.hpp"
+#elif defined(__xstudio_software_render__)
+#include "xstudio/ui/qt/software/offscreen_viewport.hpp"
+#else
+#error "No offscreen viewport implementation defined for this platform"
+#endif
 
 namespace xstudio::ui::qml {
 

@@ -1,9 +1,10 @@
 // SPDX-License-Identifier: Apache-2.0
 #pragma once
 
-#include "xstudio/ui/opengl/shader_program_base.hpp"
-#include "xstudio/ui/opengl/opengl_text_rendering.hpp"
 #include "xstudio/plugin_manager/hud_plugin.hpp"
+#include "xstudio/media/media.hpp"
+#include "xstudio/media_reader/media_reader.hpp"
+#include "xstudio/ui/font.hpp"
 
 namespace xstudio::ui::viewport {
 
@@ -78,30 +79,6 @@ class MediaMetadata : public utility::BlindDataObject {
 
 typedef std::shared_ptr<MediaMetadata> MediaMetadataPtr;
 
-/* We defined a separate class to take care of rendering graphics into
-the xstudio viewport. Be aware the instance(s) of this class runs in
-a separate thread to the main plugin class instance, don't share
-data directly. Rather, we use our MediaMetadata class to pass data from
-the plugin class to the renderer.
-*/
-class MediaMetadataRenderer : public plugin::ViewportOverlayRenderer {
-
-  public:
-    void render_image_overlay(
-        const Imath::M44f &transform_window_to_viewport_space,
-        const Imath::M44f &transform_viewport_to_image_space,
-        const float viewport_du_dpixel,
-        const float device_pixel_ratio,
-        const xstudio::media_reader::ImageBufPtr &frame) override;
-
-    void init_overlay_opengl();
-
-    std::unique_ptr<xstudio::ui::opengl::GLShaderProgram> shader_;
-    GLuint vbo_;
-    GLuint vao_;
-    std::unique_ptr<xstudio::ui::opengl::OpenGLTextRendererSDF> text_renderer_;
-    DisplaySettingsPtr display_settings_;
-};
 
 class MediaMetadataHUD : public plugin::HUDPluginBase {
   public:
@@ -123,9 +100,7 @@ class MediaMetadataHUD : public plugin::HUDPluginBase {
         const bool playhead_playing) override;
 
     plugin::ViewportOverlayRendererPtr
-    make_overlay_renderer(const std::string &viewport_name) override {
-        return plugin::ViewportOverlayRendererPtr(new MediaMetadataRenderer());
-    }
+    make_overlay_renderer(const std::string &viewport_name) override;
 
     void attribute_changed(const utility::Uuid &attribute_uuid, const int role) override;
 
