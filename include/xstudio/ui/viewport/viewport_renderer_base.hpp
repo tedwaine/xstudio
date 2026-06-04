@@ -43,6 +43,12 @@ class ViewportRenderer {
         const float device_pixel_ratio,
         const std::vector<plugin::ViewportOverlayRendererPtr> &overlay_renderers) = 0;
 
+    virtual void set_depth(const float depth) = 0;
+
+    virtual void store_client_state() {}
+
+    virtual void restore_client_state() {}
+
     void
     set_pre_renderer_hooks(const std::map<utility::Uuid, plugin::GPUPreDrawHookPtr> &hooks) {
         pre_render_gpu_hooks_ = hooks;

@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
 #include "xstudio/media_reader/media_reader.hpp"
-#include "xstudio/ui/qt/viewport_widget.hpp"
+#include "xstudio/ui/qt/opengl/viewport_widget.hpp"
 #include "xstudio/ui/qml/helper_ui.hpp"
 #include <caf/actor_registry.hpp>
 

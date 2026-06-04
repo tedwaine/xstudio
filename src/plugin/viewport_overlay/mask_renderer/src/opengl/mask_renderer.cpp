@@ -1,11 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
-#include <caf/actor_registry.hpp>
 
 #include "mask_renderer.hpp"
-#include "xstudio/plugin_manager/plugin_base.hpp"
 #include "xstudio/media_reader/image_buffer.hpp"
-#include "xstudio/global_store/global_store.hpp"
-#include "xstudio/utility/blind_data.hpp"
 #include "xstudio/ui/viewport/viewport_helpers.hpp"
 #include "xstudio/utility/helpers.hpp"
 #include "xstudio/utility/logging.hpp"

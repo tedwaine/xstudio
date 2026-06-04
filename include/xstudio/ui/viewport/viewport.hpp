@@ -117,6 +117,29 @@ class Viewport : public module::Module {
     void render(const media_reader::ImageBufPtr &image_buf, const bool with_overlays = true);
 
     /**
+     *  @brief Set the depth for the viewport
+     *
+     *  @details Calls set_depth on the active renderer (ViewportRenderer). Normally
+     *  used to cear the depth buffer with an appropriate value to allow depth ordering
+     *  in the QML scene.
+     *
+     */
+    void set_depth(const float depth);
+
+    /**
+     *  @brief Store the current client state before rendering. This is needed for 
+     *  OpenGL where QML has set the GL state before we get to do our render, QML
+     *  then needs the state restored before it can do its own rendering after we have done ours.
+     *
+     */
+    void store_client_state();
+
+    /**
+     *  @brief See above store_client_state
+     */
+    void restore_client_state();
+
+    /**
      *  @brief Any pre-render interaction with Viewport state data etc. must be done
      *  in this function. All necessary data for rendering the viewport must be
      * gatherered and finalised within this function. The data should be made thread
