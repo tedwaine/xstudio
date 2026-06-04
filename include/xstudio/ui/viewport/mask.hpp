@@ -2,7 +2,6 @@
 #pragma once
 
 #include "xstudio/utility/uuid.hpp"
-#include <caf/all.hpp>
 
 namespace xstudio::ui::viewport {
 

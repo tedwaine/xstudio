@@ -38,6 +38,7 @@ macro(default_compile_options name)
 		PRIVATE ROOT_DIR=\"${ROOT_DIR}\"
 		PRIVATE $<$<CONFIG:Debug>:XSTUDIO_DEBUG=1>
 		$<$<PLATFORM_ID:Windows>:WIN32_LEAN_AND_MEAN>
+		PUBLIC -D __xstudio_opengl__# Define __xstudio_opengl__
 	)
 endmacro()
 
@@ -391,11 +392,33 @@ macro(create_plugin_with_alias NAME ALIASNAME VERSION DEPS)
 
 	project(${NAME} VERSION ${VERSION} LANGUAGES CXX)
 
-	file(GLOB SOURCES  ${CMAKE_CURRENT_SOURCE_DIR}/*.cpp)
+	file(GLOB SOURCES ${CMAKE_CURRENT_SOURCE_DIR}/*.cpp)
+
+	# check for additional arg with extra .cpp source files that aren'targe
+	# in CMAKE_CURRENT_SOURCE_DIR (e.g. annotation plugin)
+	set(extra_args ${ARGN})
+	list(LENGTH extra_args extra_count)
+	if (${extra_count} GREATER 0)
+		list(GET extra_args 0 optional_arg)
+		message("EXTRA SOURCES for ${NAME} : ${extra_args}")
+		list(APPEND SOURCES ${extra_args})
+	endif()
+
+	if (XSTUDIO_OPEN_GL)
+		file(GLOB GPU_SOURCES ${CMAKE_CURRENT_SOURCE_DIR}/opengl/*.cpp)
+		message("GPU SOURCES for ${NAME} : ${GPU_SOURCES}")
+		list(APPEND SOURCES ${GPU_SOURCES})
+	endif()
 
 	add_library(${PROJECT_NAME} SHARED ${SOURCES})
 	add_library(${ALIASNAME} ALIAS ${PROJECT_NAME})
 	default_plugin_options(${PROJECT_NAME})
+
+	if (XSTUDIO_OPEN_GL)
+		target_include_directories(${PROJECT_NAME}
+			PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/opengl  # Include the graphics api directory
+		)
+	endif()
 
 	target_link_libraries(${PROJECT_NAME}
 		PUBLIC ${DEPS}
@@ -404,7 +427,6 @@ macro(create_plugin_with_alias NAME ALIASNAME VERSION DEPS)
 	set_target_properties(${PROJECT_NAME} PROPERTIES LINK_DEPENDS_NO_SHARED true)
 
 endmacro()
-
 
 macro(create_component NAME VERSION DEPS)
 	create_component_with_alias(${NAME} xstudio::${NAME} ${VERSION} "${DEPS}")
