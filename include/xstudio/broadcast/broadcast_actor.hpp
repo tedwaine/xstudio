@@ -1,6 +1,10 @@
 // SPDX-License-Identifier: Apache-2.0
 #pragma once
 
+#ifdef __apple__
+#undef nil
+#endif
+
 #include <caf/all.hpp>
 #include <set>
 
