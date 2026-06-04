@@ -1,24 +1,17 @@
 // SPDX-License-Identifier: Apache-2.0
 #pragma once
 
-#include "xstudio/ui/qt/viewport_widget.hpp"
 #include "xstudio/thumbnail/thumbnail.hpp"
+#include "xstudio/ui/qml/actor_object.hpp"
 #include "xstudio/ui/viewport/viewport_gpu_post_processor.hpp"
+#include "xstudio/ui/viewport/viewport.hpp"
 
 #include <QString>
 #include <QUrl>
 #include <QObject>
-// #include <QOpenGLFramebufferObject>
 #include <QImage>
 
-#undef __GLEW_H__
-#include <QOpenGLContext>
-
 #include <QOffscreenSurface>
-
-namespace opengl {
-class OpenGLViewportRenderer;
-}
 
 class QQuickWindow;
 class QQuickItem;
@@ -34,14 +27,15 @@ namespace qml {
 
 namespace qt {
 
-    class OffscreenViewport : public caf::mixin::actor_object<QObject> {
+    class OffscreenViewportBase : public caf::mixin::actor_object<QObject> {
 
         Q_OBJECT
         using super = caf::mixin::actor_object<QObject>;
 
       public:
-        OffscreenViewport(const std::string name, bool sync_to_other_viewports);
-        ~OffscreenViewport() override = default;
+
+        OffscreenViewportBase(const std::string name, bool sync_to_other_viewports);
+        ~OffscreenViewportBase() override = default;
 
         // Direct rendering to an output file
         void
@@ -51,15 +45,43 @@ namespace qt {
 
         std::string name() { return xstudio_viewport_->name(); }
 
-        void stop();
+        void stop() { __stop(); }
 
       public slots:
 
-        void cleanup();
+        void cleanup() { __cleanup(); }
         void sceneChanged();
-        void renderViewportUnderQML();
+        void renderViewportUnderQML() { __renderViewportUnderQML(); }
 
-      private:
+      protected:
+
+        /* To implement the offscreen viewport we must provide 
+        implementations for these virtual functions */
+
+        // Called on exit
+        virtual void __cleanup() = 0;
+
+        // Called when we need to render the viewport UNDER qml
+        virtual void __renderViewportUnderQML() = 0;
+
+        virtual void render(
+            const int w,
+            const int h,
+            const viewport::ImageFormat format,
+            const bool sync_fetch_playhead_image,
+            const utility::time_point &tp,
+            const media_reader::ImageBufPtr &image_to_use = media_reader::ImageBufPtr(),
+            const bool include_overlays                   = true,
+            const bool include_drawings                   = true) = 0;
+
+        virtual void capture_framebuffer(
+            const int w,
+            const int h,
+            const viewport::ImageFormat format,
+            media_reader::ImageBufPtr &destination_image) = 0;
+
+        virtual void __stop() = 0;
+
         caf::actor_system &system() { return self()->home_system(); }
 
         void receive_change_notification(viewport::Viewport::ChangeCallbackId id);
@@ -85,17 +107,9 @@ namespace qt {
         thumbnail::ThumbnailBufferPtr renderToThumbnail(
             const thumbnail::THUMBNAIL_FORMAT format, const int width, const int height);
 
-        void render(
-            const int w,
-            const int h,
-            const viewport::ImageFormat format,
-            const bool sync_fetch_playhead_image,
-            const utility::time_point &tp,
-            const media_reader::ImageBufPtr &image_to_use = media_reader::ImageBufPtr(),
-            const bool include_overlays                   = true,
-            const bool include_drawings                   = true);
+        void exportToEXR(const media_reader::ImageBufPtr &image, const caf::uri path);
 
-        void renderToImageBuffer(
+        virtual void renderToImageBuffer(
             const int w,
             const int h,
             media_reader::ImageBufPtr &dest_image,
@@ -105,10 +119,6 @@ namespace qt {
             const media_reader::ImageBufPtr &image_to_use = media_reader::ImageBufPtr(),
             const bool include_overlays                   = true,
             const bool include_drawings                   = true);
-
-        void initGL();
-
-        void exportToEXR(const media_reader::ImageBufPtr &image, const caf::uri path);
 
         media_reader::ImageBufPtr renderMediaFrameToImage(
             caf::actor media_actor,
@@ -141,32 +151,16 @@ namespace qt {
             const std::string &ext,
             const bool has_alpha = false);
 
-        bool setupTextureAndFrameBuffer(
-            const int width, const int height, const viewport::ImageFormat format);
-
         void make_conversion_lut();
-
-        bool loadQMLOverlays();
-
-        void sync_python_hud_data();
 
         thumbnail::ThumbnailBufferPtr
         rgb96thumbFromHalfFloatImage(const media_reader::ImageBufPtr &image);
 
         ui::viewport::Viewport *xstudio_viewport_ = nullptr;
-        QOpenGLContext *gl_context_               = {nullptr};
-        QOffscreenSurface *surface_               = {nullptr};
-        QThread *thread_                          = {nullptr};
         viewport::ViewportFramePostProcessorPtr post_draw_hook_;
 
         // TODO: will remove once everything done
         const char *formatSuffixes[4] = {"EXR", "JPG", "PNG", "TIFF"};
-
-        int tex_width_      = 0;
-        int tex_height_     = 0;
-        GLuint texId_       = 0;
-        GLuint fboId_       = 0;
-        GLuint depth_texId_ = 0;
 
         int vid_out_width_                    = 0;
         int vid_out_height_                   = 0;
@@ -179,13 +173,6 @@ namespace qt {
         caf::actor local_playhead_;
         QString session_actor_addr_;
 
-        QQuickWindow *quick_win_             = nullptr;
-        QQuickItem *root_qml_overlays_item_  = nullptr;
-        QQmlComponent *qml_component_        = nullptr;
-        QQuickRenderControl *render_control_ = nullptr;
-        QQmlEngine *qml_engine_              = nullptr;
-        ui::qml::Helpers *helper_            = nullptr;
-        bool overlays_loaded_                = false;
     };
 } // namespace qt
 } // namespace xstudio::ui

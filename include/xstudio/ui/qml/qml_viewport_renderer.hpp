@@ -1,7 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
 #pragma once
 
-#include "xstudio/ui/opengl/opengl_viewport_renderer.hpp"
 #include "xstudio/ui/qml/helper_ui.hpp"
 #include "xstudio/ui/mouse.hpp"
 #include "xstudio/ui/viewport/viewport.hpp"

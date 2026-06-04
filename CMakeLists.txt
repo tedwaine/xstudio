@@ -116,6 +116,9 @@ set(REPROC++ ON)
 
 set(OpenGL_GL_PREFERENCE GLVND)
 
+set(XSTUDIO_GRAPHICS_API OpenGL)
+set(XSTUDIO_OPEN_GL true)
+
 if (USE_SANITIZER STREQUAL "Address")
     if(MSVC)
         target_compile_options(<target> PUBLIC /fsanitize=address)
