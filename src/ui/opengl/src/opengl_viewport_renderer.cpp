@@ -1,4 +1,11 @@
 // SPDX-License-Identifier: Apache-2.0
+#ifdef __apple__
+#include <OpenGL/gl3.h>
+#else
+#include <GL/glew.h>
+#include <GL/gl.h>
+#endif
+
 #include "xstudio/media_reader/media_reader.hpp"
 #include "xstudio/ui/opengl/no_image_shader_program.hpp"
 #include "xstudio/ui/opengl/shader_program_base.hpp"
@@ -234,6 +241,43 @@ void OpenGLViewportRenderer::clear_viewport_area(
     glClear(GL_COLOR_BUFFER_BIT);
     glDisable(GL_SCISSOR_TEST);
 }
+
+void OpenGLViewportRenderer::store_client_state() {
+    //glPushClientAttrib(GL_CLIENT_ALL_ATTRIB_BITS);
+}
+
+
+void OpenGLViewportRenderer::restore_client_state() {
+   //glPopClientAttrib();
+}
+
+void OpenGLViewportRenderer::set_depth(const float depth) {
+
+    // if depth is not set lets not bother clearing the Z depth of the viewport
+    if (depth == 0.0f)
+        return;
+
+    glEnable(GL_SCISSOR_TEST);
+    glScissor(
+        viewport_coords_in_window()[0],
+        viewport_coords_in_window()[1],
+        viewport_coords_in_window()[2],
+        viewport_coords_in_window()[3]);
+
+    // note: in terms of OpenGL depth depth ordering seems to be reversed when
+    // it comes to QML scene graph. Remember we draw viewport first and then
+    // the UI is drawn afterwards (so that menus etc. can be drawn on-top of
+    // the viewport). Setting viewport Z as positive so that the rest of the
+    // UI draws UNDERNEATH it does not work here as expected unless I negate
+    // the Z value when setting clear depth. This may be a graphics convention
+    // (where further from camera means Z is a higher (more positive) number)
+    glClearDepth(-depth);
+
+    glClear(GL_DEPTH_BUFFER_BIT);
+    glDisable(GL_SCISSOR_TEST);
+    glClearDepth(0.0f);
+}
+
 
 void OpenGLViewportRenderer::render(
     const media_reader::ImageBufDisplaySetPtr &images,

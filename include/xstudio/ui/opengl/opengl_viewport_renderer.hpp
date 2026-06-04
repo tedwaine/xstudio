@@ -54,6 +54,12 @@ class OpenGLViewportRenderer : public viewport::ViewportRenderer {
         const float device_pixel_ratio,
         const std::vector<plugin::ViewportOverlayRendererPtr> &overlay_renderers) override;
 
+    void set_depth(const float depth) override;
+
+    void store_client_state() override;
+
+    void restore_client_state() override;
+
     virtual void draw_image(
         const media_reader::ImageBufPtr &image_to_be_drawn,
         const media_reader::ImageSetLayoutDataPtr &layout_data,

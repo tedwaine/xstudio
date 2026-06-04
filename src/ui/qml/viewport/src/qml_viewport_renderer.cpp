@@ -5,8 +5,6 @@
 #include "xstudio/ui/qml/qml_viewport.hpp"
 #include "xstudio/media_reader/media_reader.hpp"
 
-#include <QOpenGLContext>
-
 using namespace xstudio::ui;
 using namespace xstudio::ui::qml;
 using namespace xstudio::ui::viewport;
@@ -28,58 +26,15 @@ QMLViewportRenderer::QMLViewportRenderer(QObject *parent) : QMLActor(nullptr) {
 
 QMLViewportRenderer::~QMLViewportRenderer() { delete xstudio_viewport_; }
 
-static QQuickWindow *win = nullptr;
-
 void QMLViewportRenderer::init_renderer() {
+
     // note: as it stands this is not called when I expect (on first draw)
     // hence our own gl init happens on first call to paint.
 
     QSGRendererInterface *rif = m_window->rendererInterface();
-    Q_ASSERT(rif->graphicsApi() == QSGRendererInterface::OpenGL);
+    
+    // Q_ASSERT(rif->graphicsApi() == QSGRendererInterface::OpenGL);
 
-    auto qq = dynamic_cast<QQuickWindow *>(m_window);
-    if (qq) {
-        if (!win) {
-            win = qq;
-        } else if (win && qq) {
-            // std::cerr << "Are sharing " << QOpenGLContext::areSharing(win->openglContext(),
-            // qq->openglContext()) << "\n";
-        }
-    }
-}
-
-void QMLViewportRenderer::set_depth(const float depth) {
-
-    // if depth is not set lets not bother clearing the Z depth of the viewport
-    if (depth == 0.0f)
-        return;
-
-    const int bottom = viewport_coords_.size.height() - viewport_coords_.corners[2].y();
-
-    glViewport(0, 0, viewport_coords_.size.width(), viewport_coords_.size.height());
-    glEnable(GL_SCISSOR_TEST);
-    glScissor(
-        (int)round(viewport_coords_.corners[0].x() * viewport_coords_.devicePixelRatio),
-        (int)round(bottom * viewport_coords_.devicePixelRatio),
-        (int)round(
-            (viewport_coords_.corners[1].x() - viewport_coords_.corners[0].x()) *
-            viewport_coords_.devicePixelRatio),
-        (int)round(
-            (viewport_coords_.corners[2].y() - viewport_coords_.corners[0].y()) *
-            viewport_coords_.devicePixelRatio));
-
-    // note: in terms of OpenGL depth depth ordering seems to be reversed when
-    // it comes to QML scene graph. Remember we draw viewport first and then
-    // the UI is drawn afterwards (so that menus etc. can be drawn on-top of
-    // the viewport). Setting viewport Z as positive so that the rest of the
-    // UI draws UNDERNEATH it does not work here as expected unless I negate
-    // the Z value when setting clear depth. This may be a graphics convention
-    // (where further from camera means Z is a higher (more positive) number)
-    glClearDepth(-depth);
-
-    glClear(GL_DEPTH_BUFFER_BIT);
-    glDisable(GL_SCISSOR_TEST);
-    glClearDepth(0.0f);
 }
 
 void QMLViewportRenderer::paint() {
@@ -95,12 +50,11 @@ void QMLViewportRenderer::paint() {
             init_done = true;
             init_renderer();
         }
-        glPushClientAttrib(GL_CLIENT_ALL_ATTRIB_BITS);
 
+        xstudio_viewport_->store_client_state();
         xstudio_viewport_->render();
-        glPopClientAttrib();
-
-        set_depth(viewport_qml_item_->z());
+        xstudio_viewport_->set_depth(viewport_qml_item_->z());
+        xstudio_viewport_->restore_client_state();
 
         // m_window->resetOpenGLState();
         if (xstudio_viewport_->playing()) {
