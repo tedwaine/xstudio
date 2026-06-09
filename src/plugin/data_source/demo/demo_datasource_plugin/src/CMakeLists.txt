@@ -83,5 +83,3 @@ default_plugin_options(${PROJECT_NAME})
 
 add_python_plugin(demo_plugin_python)
 
-#install(TARGETS ${PROJECT_NAME} LIBRARY DESTINATION lib/xstudio/cpp-plugins)
-#install(FILES ${CMAKE_CURRENT_SOURCE_DIR}/plugin_sync_prefs.json DESTINATION lib/xstudio/cpp-plugins/preferences)
