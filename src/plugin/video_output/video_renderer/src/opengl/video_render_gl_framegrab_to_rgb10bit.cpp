@@ -11,6 +11,11 @@
 #include "video_render_plugin.hpp"
 #include <xstudio/media_reader/image_buffer_set.hpp>
 
+/*
+NOTE: These classes are currently UNUSED! Leaving here just in case they are
+needed in the future.
+*/
+
 using namespace xstudio::video_render_plugin_1_0;
 using namespace xstudio::global_store;
 
