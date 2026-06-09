@@ -5,7 +5,7 @@
 
 #include "viewport_layout_default.hpp"
 #include "xstudio/media_reader/image_buffer.hpp"
-#include "xstudio/ui/opengl/opengl_viewport_renderer.hpp"
+#include "default_viewport_layout_renderer.hpp"
 
 using namespace xstudio::utility;
 using namespace xstudio::ui::viewport;
@@ -40,7 +40,7 @@ DefaultViewportLayout::DefaultViewportLayout(
 
 ViewportRenderer *DefaultViewportLayout::make_renderer(
     const std::string &window_id, const utility::JsonStore &prefs) {
-    return new opengl::OpenGLViewportRenderer(window_id, prefs);
+    return new DefaultViewportRenderer(window_id, prefs);
 }
 
 extern "C" {
