@@ -5,7 +5,7 @@
 
 #include "viewport_layout_grid.hpp"
 #include "xstudio/media_reader/image_buffer.hpp"
-#include "xstudio/ui/opengl/opengl_viewport_renderer.hpp"
+#include "grid_viewport_layout_renderer.hpp"
 
 using namespace xstudio::utility;
 using namespace xstudio::ui::viewport;
@@ -130,7 +130,7 @@ void GridViewportLayout::do_layout(
 
 ViewportRenderer *GridViewportLayout::make_renderer(
     const std::string &window_id, const utility::JsonStore &prefs) {
-    return new opengl::OpenGLViewportRenderer(window_id, prefs);
+    return new ViewportGridRenderer(window_id, prefs);
 }
 
 extern "C" {

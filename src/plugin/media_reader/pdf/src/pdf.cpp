@@ -11,10 +11,10 @@
 #include <QPdfDocument>
 
 #include "pdf.hpp"
+#include "pdf_pixel_unpack_shader.hpp"
 #include "xstudio/media_reader/media_reader.hpp"
 #include "xstudio/media/media_error.hpp"
 #include "xstudio/utility/helpers.hpp"
-#include "xstudio/ui/opengl/shader_program_base.hpp"
 #include "xstudio/ui/qml/helper_ui.hpp"
 
 namespace fs = std::filesystem;
@@ -31,41 +31,12 @@ static Uuid myshader_uuid{"52141ad7-0eeb-4b80-8881-b62cfecbf9f1"};
 static Uuid myshader_transparent_uuid{"44c43077-1614-41f4-b32d-adaaef293cfe"};
 static Uuid s_plugin_uuid{"4a1db5da-610a-4f41-917d-fd7016948ead"};
 
-static std::string myshader{R"(
-#version 330 core
-uniform int width;
-
-// forward declaration
-uvec4 get_image_data_4bytes(int byte_address);
-
-vec4 fetch_rgba_pixel(ivec2 image_coord)
-{
-    int address = (image_coord.x + image_coord.y*width)*3;
-    uvec4 c = get_image_data_4bytes(address);
-    return vec4(float(c.x)/255.0f,float(c.y)/255.0f,float(c.z)/255.0f,1.0f);
-}
-)"};
-
-static std::string myshader_transparent{R"(
-#version 330 core
-uniform int width;
-
-// forward declaration
-uvec4 get_image_data_4bytes(int byte_address);
-
-vec4 fetch_rgba_pixel(ivec2 image_coord)
-{
-    int address = (image_coord.x + image_coord.y * width) * 4;
-    uvec4 c = get_image_data_4bytes(address);
-    return vec4(float(c.x)/255.0f,float(c.y)/255.0f,float(c.z)/255.0f,float(c.w)/255.0f);
-}
-)"};
 
 static ui::viewport::GPUShaderPtr
-    pdf_shader(new ui::opengl::OpenGLShader(myshader_uuid, myshader));
+    pdf_shader(new PDFPixelUnpackShader(myshader_uuid, false));
 
 static ui::viewport::GPUShaderPtr pdf_shader_transparent(
-    new ui::opengl::OpenGLShader(myshader_transparent_uuid, myshader_transparent));
+    new PDFPixelUnpackShader(myshader_transparent_uuid, true));
 
 } // namespace
 

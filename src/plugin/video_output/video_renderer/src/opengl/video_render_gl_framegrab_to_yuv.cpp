@@ -1,4 +1,11 @@
 // SPDX-License-Identifier: Apache-2.0
+
+/*
+NOTE: These classes are currently UNUSED! Leaving here just in case they are
+needed in the future.
+*/
+
+
 #include <memory>
 
 #ifdef __apple__

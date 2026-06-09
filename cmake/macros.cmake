@@ -428,6 +428,26 @@ macro(create_plugin_with_alias NAME ALIASNAME VERSION DEPS)
 
 endmacro()
 
+macro(create_plugin_width_qt_component PROJ_NAME ALIASNAME VERSION DEPS EXTRA_SOURCES QML_MODULE_NAME QML_SOURCES)
+
+	set(CMAKE_INCLUDE_CURRENT_DIR ON)
+	set(CMAKE_AUTOMOC ON)
+	set(CMAKE_AUTORCC ON)
+
+	create_plugin_with_alias(${PROJ_NAME} ${ALIASNAME} ${VERSION} "${DEPS}" "${EXTRA_SOURCES}")
+
+	qt_add_qml_module(${PROJECT_NAME}
+		URI ${QML_MODULE_NAME}
+		VERSION 1.0
+		NO_GENERATE_PLUGIN_SOURCE 
+		NO_PLUGIN_OPTIONAL 
+		RESOURCE_PREFIX /
+		PLUGIN_TARGET ${PROJECT_NAME}	
+		QML_FILES ${QML_SOURCES}
+	)
+
+endmacro()
+
 macro(create_component NAME VERSION DEPS)
 	create_component_with_alias(${NAME} xstudio::${NAME} ${VERSION} "${DEPS}")
 endmacro()

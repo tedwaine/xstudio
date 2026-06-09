@@ -8,58 +8,51 @@
 #include <string>
 #include <vector>
 
-#include "ppm.hpp"
+#include "ppm_pixel_unpack_shader.hpp"
 #include "xstudio/media_reader/media_reader.hpp"
 #include "xstudio/media/media_error.hpp"
 #include "xstudio/utility/helpers.hpp"
-#include "xstudio/ui/opengl/shader_program_base.hpp"
+#include "xstudio/media_reader/media_reader.hpp"
 
 namespace fs = std::filesystem;
-
 
 using namespace xstudio::media_reader;
 using namespace xstudio::utility;
 using namespace xstudio;
 
 namespace {
-static Uuid myshader_uuid{"1c9259fc-46a5-11ea-9de9-989096adb429"};
-static Uuid s_plugin_uuid{"c0465f96-901a-42bc-875b-ecf30f1eef14"};
-static std::string myshader{R"(
-#version 330 core
-uniform int width;
-uniform int bytes_per_channel;
-
-// forward declaration
-uvec4 get_image_data_4bytes(int byte_address);
-
-vec4 fetch_pixel_8bit(ivec2 image_coord)
-{
-    int address = (image_coord.x + image_coord.y*width)*3;
-    uvec4 c = get_image_data_4bytes(address);
-    return vec4(float(c.x)/255.0f,float(c.y)/255.0f,float(c.z)/255.0f,1.0f);
+    static utility::Uuid myshader_uuid{"1c9259fc-46a5-11ea-9de9-989096adb429"};
+    static ui::viewport::GPUShaderPtr ppm_shader(new PPMPixelUnpackShader(myshader_uuid));
 }
 
-vec4 fetch_pixel_16bit(ivec2 image_coord)
-{
-    int address = (image_coord.x + image_coord.y*width)*6;
-    uvec4 c = get_image_data_4bytes(address);
-    return vec4(float(c.x)/65535.0f,float(c.y)/65535.0f,float(c.z)/65535.0f,1.0f);
-}
-
-vec4 fetch_rgba_pixel(ivec2 image_coord)
-{
-    if (bytes_per_channel == 1) {
-        return fetch_pixel_8bit(image_coord);
-    } else {
-        return fetch_pixel_16bit(image_coord);
+namespace xstudio::media_reader {
+class PPMMediaReader : public MediaReader {
+  public:
+    PPMMediaReader(const utility::JsonStore &prefs = utility::JsonStore())
+        : MediaReader("PPM", prefs) {
+        try {
+            supported_ = global_store::preference_value<utility::JsonStore>(
+                prefs, "/plugin/media_reader/ppm/supported");
+        } catch (const std::exception &e) {
+            spdlog::warn("{} {}", __PRETTY_FUNCTION__, e.what());
+        }
     }
-}
-)"};
+    virtual ~PPMMediaReader() = default;
 
-static ui::viewport::GPUShaderPtr
-    ppm_shader(new ui::opengl::OpenGLShader(myshader_uuid, myshader));
+    ImageBufPtr image(const media::AVFrameID &mptr) override;
+    MRCertainty
+    supported(const caf::uri &uri, const std::array<uint8_t, 16> &signature) override;
+    [[nodiscard]] std::vector<std::string> supported_extensions() const override;
 
-} // namespace
+    // media::MediaDetail detail(const caf::uri &uri) const override;
+    [[nodiscard]] utility::Uuid plugin_uuid() const override { return PLUGIN_UUID; }
+
+    static inline const utility::Uuid PLUGIN_UUID = utility::Uuid("c0465f96-901a-42bc-875b-ecf30f1eef14");
+
+  private:
+    utility::JsonStore supported_;
+};
+} // namespace xstudio::media_reader
 
 ImageBufPtr PPMMediaReader::image(const media::AVFrameID &mptr) {
     ImageBufPtr buf;
@@ -158,14 +151,14 @@ MRCertainty PPMMediaReader::supported(const caf::uri &uri, const std::array<uint
     return result;
 }
 
-utility::Uuid PPMMediaReader::plugin_uuid() const { return s_plugin_uuid; }
+XSTUDIO_PLUGIN_DECLARE_BEGIN()
 
+XSTUDIO_REGISTER_MEDIA_READER_PLUGIN(
+    PPMMediaReader,
+    PPMMediaReader::PLUGIN_UUID,
+    PPMMediaReader,
+    xStudio,
+    PPM Media Reader,
+    1.0.0)
 
-extern "C" {
-plugin_manager::PluginFactoryCollection *plugin_factory_collection_ptr() {
-    return new plugin_manager::PluginFactoryCollection(
-        std::vector<std::shared_ptr<plugin_manager::PluginFactory>>({std::make_shared<
-            MediaReaderPlugin<MediaReaderActor<PPMMediaReader>>>(
-            s_plugin_uuid, "PPM", "xStudio", "PPM Media Reader", semver::version("1.0.0"))}));
-}
-}
+XSTUDIO_PLUGIN_DECLARE_END()
