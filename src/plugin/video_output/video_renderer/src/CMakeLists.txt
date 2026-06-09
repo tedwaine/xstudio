@@ -8,8 +8,6 @@ find_package(Qt6 COMPONENTS Core REQUIRED)
 set(SOURCES
 	video_render_plugin.cpp
 	video_render_worker.cpp
-	video_render_gl_framegrab_to_yuv.cpp
-	video_render_gl_framegrab_to_rgb10bit.cpp
 )
 
 qt6_add_resources(SOURCES qml/video_render_plugin.qrc)
