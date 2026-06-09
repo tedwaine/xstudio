@@ -1,10 +1,9 @@
 // SPDX-License-Identifier: Apache-2.0
 #pragma once
 
+#include "xstudio/media_reader/image_buffer.hpp"
 #include "xstudio/plugin_manager/plugin_base.hpp"
-#include "xstudio/ui/opengl/shader_program_base.hpp"
 #include "xstudio/plugin_manager/hud_plugin.hpp"
-#include "xstudio/ui/opengl/opengl_text_rendering.hpp"
 
 namespace xstudio::ui::viewport {
 

@@ -1,11 +1,4 @@
 // SPDX-License-Identifier: Apache-2.0
-#ifdef __APPLE__
-#include <OpenGL/gl.h>
-#else
-#undef WIN32_LEAN_AND_MEAN
-#include <GL/glew.h>
-#include <GL/gl.h>
-#endif
 
 #include <filesystem>
 
