@@ -6,6 +6,10 @@
 #include "xstudio/ui/opengl/shader_program_base.hpp"
 #include "xstudio/thumbnail/thumbnail.hpp"
 
+#if defined(__xstudio_opengl__)
+#include "xstudio/ui/opengl/shader_program_base.hpp"
+#endif
+
 #include "shaders.hpp"
 #include "ocio_shader.hpp"
 
@@ -51,8 +55,10 @@ ColourOperationDataPtr OCIOEngine::linearise_op_data(
 
     shader_builder.setupTextures(data);
 
+#if defined(__xstudio_opengl__)
     data->shader_ =
         std::make_shared<ui::opengl::OpenGLShader>(utility::Uuid::generate(), shader_text);
+#endif
 
     data->set_cache_id(to_string(PLUGIN_UUID) + shader_builder.getCacheString());
 
@@ -110,8 +116,10 @@ ColourOperationDataPtr OCIOEngine::linear_to_display_op_data(
 
     shader_builder.setupTextures(data);
 
+#if defined(__xstudio_opengl__)
     data->shader_ =
         std::make_shared<ui::opengl::OpenGLShader>(utility::Uuid::generate(), shader_text);
+#endif
 
     // Store ShaderBuilder for later use during uniform binding / update.
     auto desc            = std::make_shared<ShaderDescriptor>();

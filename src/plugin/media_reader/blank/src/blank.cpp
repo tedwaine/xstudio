@@ -23,6 +23,9 @@ using namespace xstudio;
 namespace {
 static Uuid myshader_uuid{"b6e17a3d-ed81-4659-98a3-dee3afa45c6f"};
 static Uuid s_plugin_uuid{"0a933ecc-d87f-4eee-ad21-987a0341d29e"};
+
+#if defined(__xstudio_opengl__)
+
 static std::string myshader{R"(
 #version 330 core
 uniform int blank_width;
@@ -44,6 +47,12 @@ static ui::viewport::GPUShaderPtr
     blank_shader(new ui::opengl::OpenGLShader(myshader_uuid, myshader));
 
 } // namespace
+#endif
+
+#if defined(__xstudio_metal__)
+static ui::viewport::GPUShaderPtr
+    blank_shader();
+#endif
 
 utility::Uuid BlankMediaReader::plugin_uuid() const { return s_plugin_uuid; }
 
