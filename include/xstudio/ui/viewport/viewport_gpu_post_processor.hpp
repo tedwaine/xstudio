@@ -35,7 +35,7 @@ class ViewportFramePostProcessor {
     // a video output plugin driving an SDI output card that needs
     // the buffers in specific pixel layouts and bit depths that
     // you would enact on the GPU rather than the CPU
-    virtual void viewport_capture_gl_framebuffer(
+    virtual void viewport_capture_framebuffer(
         uint32_t tex_id,
         uint32_t fbo_id,
         const int fb_width,
@@ -67,7 +67,7 @@ class ViewportFramePostProcessor {
     Helper function to provide re-useable video frames so that buffer
     allocation does not need to be repeated on every redraw.
 
-    The assumption is that calls to viewport_capture_gl_framebuffer that
+    The assumption is that calls to viewport_capture_framebuffer that
     happen on every refresh (for example for live video SDI output)
     need an image of a fixed size to download the viewport frame buffer
     into. Instead of allocating a new frame and it being destroyed

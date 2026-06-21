@@ -71,7 +71,7 @@ RGB10BitFrameGrabber::~RGB10BitFrameGrabber() {
     }
 }
 
-void RGB10BitFrameGrabber::viewport_capture_gl_framebuffer(
+void RGB10BitFrameGrabber::viewport_capture_framebuffer(
     uint32_t tex_id,
     uint32_t fbo_id,
     const int fb_width,
