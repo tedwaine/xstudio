@@ -74,6 +74,8 @@ namespace qt {
 
         void __stop() override;
         
+        QQuickGraphicsDevice graphics_device() override;
+
       private:
 
         bool setupTextureAndFrameBuffer(
@@ -95,13 +97,6 @@ namespace qt {
         GLuint fboId_       = 0;
         GLuint depth_texId_ = 0;
 
-        QQuickWindow *quick_win_             = nullptr;
-        QQuickItem *root_qml_overlays_item_  = nullptr;
-        QQmlComponent *qml_component_        = nullptr;
-        QQuickRenderControl *render_control_ = nullptr;
-        QQmlEngine *qml_engine_              = nullptr;
-        ui::qml::Helpers *helper_            = nullptr;
-        bool overlays_loaded_                = false;
 
     };
 } // namespace qt
