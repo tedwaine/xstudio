@@ -64,7 +64,7 @@ YUVFrameGrabber::~YUVFrameGrabber() {
     }
 }
 
-void YUVFrameGrabber::viewport_capture_gl_framebuffer(
+void YUVFrameGrabber::viewport_capture_framebuffer(
     uint32_t tex_id,
     uint32_t fbo_id,
     const int fb_width,

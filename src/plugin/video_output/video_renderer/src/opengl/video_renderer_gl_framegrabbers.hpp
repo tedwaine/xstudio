@@ -17,7 +17,7 @@ namespace xstudio::ui::viewport {
         YUVFrameGrabber() {}
         ~YUVFrameGrabber();
 
-        void viewport_capture_gl_framebuffer(
+        void viewport_capture_framebuffer(
             uint32_t tex_id,
             uint32_t fbo_id,
             const int fb_width,
@@ -48,7 +48,7 @@ namespace xstudio::ui::viewport {
         RGB10BitFrameGrabber() {}
         ~RGB10BitFrameGrabber();
 
-        void viewport_capture_gl_framebuffer(
+        void viewport_capture_framebuffer(
             uint32_t tex_id,
             uint32_t fbo_id,
             const int fb_width,
