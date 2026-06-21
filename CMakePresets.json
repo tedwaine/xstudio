@@ -11,7 +11,7 @@
         "X_VCPKG_APPLOCAL_DEPS_INSTALL": "ON",
         "BUILD_DOCS": "OFF",
         "USE_VCPKG": "ON",
-        "STUDIO_PLUGINS": "",
+        "STUDIO_PLUGINS": "demo",
         "BMD_DECKLINK_PLUGIN": "OFF",
         "VCPKG_OVERLAY_PORTS": "${sourceDir}/cmake/vcpkg_overlay_ports"
       }

@@ -78,25 +78,8 @@ namespace qt {
 
       private:
 
-        bool setupTextureAndFrameBuffer(
-            const int width, const int height, const viewport::ImageFormat format);
-
-        void sync_python_hud_data();
-
-        void initGL();
-
-        bool loadQMLOverlays();
-
-        QOpenGLContext *gl_context_               = {nullptr};
-        QOffscreenSurface *surface_               = {nullptr};
-        QThread *thread_                          = {nullptr};
-
         int tex_width_      = 0;
         int tex_height_     = 0;
-        GLuint texId_       = 0;
-        GLuint fboId_       = 0;
-        GLuint depth_texId_ = 0;
-
 
     };
 } // namespace qt

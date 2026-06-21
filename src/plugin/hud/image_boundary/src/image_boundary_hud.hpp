@@ -17,6 +17,17 @@ class ImageBoundaryHUD : public plugin::HUDPluginBase {
         const utility::Uuid &attribute_uuid, const int /*role*/
         ) override;
 
+    class HudData : public utility::BlindDataObject {
+      public:
+        HudData(const utility::JsonStore &j) : hud_params_(j) {}
+        ~HudData() override = default;
+
+        const utility::JsonStore hud_params_;
+    };
+
+    static inline const utility::Uuid PLUGIN_UUID =
+        utility::Uuid("95268f7c-88d1-48da-8543-c5275ef5b2c5");
+
   protected:
     utility::BlindDataObjectPtr onscreen_render_data(
         const media_reader::ImageBufPtr &,

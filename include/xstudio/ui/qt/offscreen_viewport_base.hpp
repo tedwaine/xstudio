@@ -10,6 +10,7 @@
 #include <QUrl>
 #include <QObject>
 #include <QImage>
+#include <QQuickGraphicsDevice>
 
 #include <QOffscreenSurface>
 
@@ -82,9 +83,15 @@ namespace qt {
 
         virtual void __stop() = 0;
 
+        virtual QQuickGraphicsDevice graphics_device() = 0;
+
         caf::actor_system &system() { return self()->home_system(); }
 
         void receive_change_notification(viewport::Viewport::ChangeCallbackId id);
+
+        void sync_python_hud_data();
+
+        bool loadQMLOverlays();
 
         thumbnail::ThumbnailBufferPtr renderOffscreen(
             const int w,
@@ -169,6 +176,17 @@ namespace qt {
         media_reader::ImageBufPtr last_rendered_frame_;
         media_reader::ImageBufPtr image_to_render_;
         std::vector<uint32_t> half_to_int_32_lut_;
+
+        QOffscreenSurface *surface_               = {nullptr};
+        QThread *thread_                          = {nullptr};
+
+        QQuickWindow *quick_win_             = nullptr;
+        QQuickItem *root_qml_overlays_item_  = nullptr;
+        QQmlComponent *qml_component_        = nullptr;
+        QQuickRenderControl *render_control_ = nullptr;
+        QQmlEngine *qml_engine_              = nullptr;
+        ui::qml::Helpers *helper_            = nullptr;
+        bool overlays_loaded_                = false;
 
         caf::actor local_playhead_;
         QString session_actor_addr_;
