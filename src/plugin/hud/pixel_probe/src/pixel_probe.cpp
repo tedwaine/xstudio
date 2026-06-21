@@ -9,13 +9,6 @@
 #include "xstudio/ui/viewport/viewport_helpers.hpp"
 #include "xstudio/utility/helpers.hpp"
 
-#ifdef __apple__
-#include <OpenGL/gl3.h>
-#else
-#include <GL/glew.h>
-#include <GL/gl.h>
-#endif
-
 using namespace xstudio;
 using namespace xstudio::ui::viewport;
 

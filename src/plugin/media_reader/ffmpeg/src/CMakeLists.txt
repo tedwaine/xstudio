@@ -1,22 +1,15 @@
 project(media_reader_ffmpeg VERSION ${XSTUDIO_GLOBAL_VERSION} LANGUAGES CXX)
 
-set(SOURCES
-	ffmpeg_stream.cpp
-	ffmpeg_decoder.cpp
-	ffmpeg.cpp
+create_plugin_with_alias(
+	media_reader_ffmpeg 
+	xstudio::media_reader::ffmpeg 
+	${XSTUDIO_GLOBAL_VERSION} 
+	"${LINK_DEPS}"
 )
-
-add_library(${PROJECT_NAME} SHARED ${SOURCES})
-add_library(xstudio::media_reader::ffmpeg ALIAS ${PROJECT_NAME})
-default_plugin_options(${PROJECT_NAME})
 
 target_compile_definitions(${PROJECT_NAME}
 	PUBLIC OPTIMISED_BUFFER=1
 )
-
-if(UNIX)
-	target_compile_options(${PROJECT_NAME} PRIVATE -Wfatal-errors)
-endif()
 
 if (${USE_VCPKG})
 
@@ -45,5 +38,3 @@ else()
 		)
 
 endif()
-
-set_target_properties(${PROJECT_NAME} PROPERTIES LINK_DEPENDS_NO_SHARED true)
