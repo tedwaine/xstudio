@@ -395,6 +395,53 @@ void OffscreenViewportBase::renderSnapshot(const int width, const int height, co
     }
 }
 
+void OffscreenViewportBase::sync_python_hud_data() {
+
+    // Python HUD plugins update their overlay data asynchronously. They get a
+    // callback when the on-screen media has changed, and they return a json
+    // dict with the data that they need to drive the QML overlay graphics.
+    //
+    // The execution for on screen media changed -> python callback -> update
+    // attribute containing json happens asynchronously with the viewport redraw.
+
+    // This means that the HUD display can be a screen refresh or two out of
+    // sync with the image that is being rendered to screen. In normal playback
+    // this is totally fine because you just can't see it. However, when
+    // rendering frames (e.g. for video output) it IS a problem.
+
+    // Here we do a full sync fetch of the overlay data from the python HUD
+    // plugins
+
+    if (!xstudio_viewport_->on_screen_frames())
+        return;
+
+    scoped_actor sys{as_actor()->home_system()};
+
+    auto python_interp =
+        as_actor()->home_system().registry().template get<caf::actor>(embedded_python_registry);
+
+    std::vector<caf::actor> onscreen_media;
+    for (int i = 0; i < xstudio_viewport_->on_screen_frames()->num_onscreen_images(); ++i) {
+
+        caf::actor onscreen_media_item = caf::actor_cast<caf::actor>(
+            xstudio_viewport_->on_screen_frames()->onscreen_image(i).frame_id().media_addr());
+        onscreen_media.push_back(onscreen_media_item);
+    }
+
+    try {
+
+        // auto t0             = utility::clock::now();
+        const auto hud_data = utility::request_receive<utility::JsonStore>(
+            *sys, python_interp, hud_settings_atom_v, onscreen_media);
+
+        root_qml_overlays_item_->setProperty(
+            "hud_plugins_display_data", QVariantFromJson(hud_data));
+
+    } catch (std::exception &e) {
+        spdlog::warn("{} {}", __PRETTY_FUNCTION__, e.what());
+    }
+}
+
 void OffscreenViewportBase::setPlayhead(const QString &playheadAddress) {
 
     try {
@@ -787,3 +834,55 @@ void OffscreenViewportBase::renderToImageBuffer(
     capture_framebuffer(w, h, format, destination_image);
 
 }
+
+bool OffscreenViewportBase::loadQMLOverlays() {
+
+    if (overlays_loaded_)
+        return bool(root_qml_overlays_item_);
+
+    overlays_loaded_ = true;
+
+    qml_component_ = new QQmlComponent(
+        qml_engine_, "qrc:/application/panels/viewport/XsOffscreenViewportOverlays.qml");
+    qml_component_->moveToThread(thread_);
+
+    if (qml_component_->isError()) {
+        const QList<QQmlError> errorList = qml_component_->errors();
+        for (const QQmlError &error : errorList)
+            qWarning() << error.url() << error.line() << error;
+        return false;
+        ;
+    }
+
+    QObject *rootObject = qml_component_->create();
+    if (qml_component_->isError()) {
+        const QList<QQmlError> errorList = qml_component_->errors();
+        for (const QQmlError &error : errorList)
+            qWarning() << error.url() << error.line() << error;
+        return false;
+        ;
+    }
+
+    root_qml_overlays_item_ = qobject_cast<QQuickItem *>(rootObject);
+    if (!root_qml_overlays_item_) {
+        qWarning("run: Not a QQuickItem");
+        delete rootObject;
+        return false;
+    }
+
+    // The root item is ready. Associate it with the window.
+    root_qml_overlays_item_->setParentItem(quick_win_->contentItem());
+
+    quick_win_->setColor(QColor(1, 1, 0, 1));
+
+    quick_win_->setGraphicsDevice(graphics_device());
+
+    render_control_->initialize();
+
+    root_qml_overlays_item_->setProperty(
+        "name", qml::QStringFromStd(xstudio_viewport_->name()));
+
+    // Update item and rendering related geometries.
+    return true;
+}
+

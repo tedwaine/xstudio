@@ -38,7 +38,9 @@ macro(default_compile_options name)
 		PRIVATE ROOT_DIR=\"${ROOT_DIR}\"
 		PRIVATE $<$<CONFIG:Debug>:XSTUDIO_DEBUG=1>
 		$<$<PLATFORM_ID:Windows>:WIN32_LEAN_AND_MEAN>
-		PUBLIC -D __xstudio_opengl__# Define __xstudio_opengl__
+		$<$<STREQUAL:${XSTUDIO_GRAPHICS_API},OpenGL>:__xstudio_opengl__>
+		$<$<STREQUAL:${XSTUDIO_GRAPHICS_API},Metal>:__xstudio_metal__>
+		$<$<STREQUAL:${XSTUDIO_GRAPHICS_API},Vulkan>:__xstudio_vulkan__>
 	)
 endmacro()
 
@@ -404,21 +406,24 @@ macro(create_plugin_with_alias NAME ALIASNAME VERSION DEPS)
 		list(APPEND SOURCES ${extra_args})
 	endif()
 
-	if (XSTUDIO_OPEN_GL)
-		file(GLOB GPU_SOURCES ${CMAKE_CURRENT_SOURCE_DIR}/opengl/*.cpp)
-		message("GPU SOURCES for ${NAME} : ${GPU_SOURCES}")
-		list(APPEND SOURCES ${GPU_SOURCES})
+	if (${XSTUDIO_GRAPHICS_API} STREQUAL "OpenGL")
+		set(graphics_src_dir opengl)
+	elseif (${XSTUDIO_GRAPHICS_API} STREQUAL "Metal")
+		set(graphics_src_dir metal)
+	elseif (${XSTUDIO_GRAPHICS_API} STREQUAL "Vulkan")
+		set(graphics_src_dir vulkan)
 	endif()
+
+	file(GLOB GPU_SOURCES ${CMAKE_CURRENT_SOURCE_DIR}/${graphics_src_dir}/*.cpp)
+	list(APPEND SOURCES ${GPU_SOURCES})
 
 	add_library(${PROJECT_NAME} SHARED ${SOURCES})
 	add_library(${ALIASNAME} ALIAS ${PROJECT_NAME})
 	default_plugin_options(${PROJECT_NAME})
 
-	if (XSTUDIO_OPEN_GL)
-		target_include_directories(${PROJECT_NAME}
-			PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/opengl  # Include the graphics api directory
-		)
-	endif()
+	target_include_directories(${PROJECT_NAME}
+		PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/${graphics_src_dir}  # Include the graphics api directory
+	)
 
 	target_link_libraries(${PROJECT_NAME}
 		PUBLIC ${DEPS}
