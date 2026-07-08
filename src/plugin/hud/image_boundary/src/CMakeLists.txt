@@ -1,7 +1,7 @@
 SET(LINK_DEPS
 	xstudio::module
 	xstudio::plugin_manager
-	xstudio::ui::opengl::viewport
+	xstudio::ui::graphics
 	xstudio::ui::viewport
 	Imath::Imath
 )

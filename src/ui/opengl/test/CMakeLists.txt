@@ -2,7 +2,7 @@ include(CTest)
 
 SET(LINK_DEPS
 	xstudio::ui::viewport
-	xstudio::ui::opengl::viewport
+	xstudio::ui::graphics
 	Imath::Imath
 )
 

@@ -715,7 +715,7 @@ ImageBufPtr OIIOMediaReader::image(const media::AVFrameID &mptr) {
         jsn["channel_a_start"] = channel_a_start;
 
         // Step 11: Allocate and configure the image buffer
-        buf.reset(new ImageBuffer(myshader_uuid, jsn));
+        buf.reset(new ImageBuffer(jsn));
         buf->allocate(pixel_count * bytes_per_pixel);
         buf->set_shader(oiio_shader);
         buf->set_image_dimensions(Imath::V2i(width, height));

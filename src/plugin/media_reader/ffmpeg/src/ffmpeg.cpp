@@ -53,7 +53,7 @@ ImageBufPtr make_blank_image() {
     JsonStore jsn;
     jsn["blank_width"] = width;
 
-    buf.reset(new ImageBuffer(blankshader_uuid, jsn));
+    buf.reset(new ImageBuffer(jsn));
     buf->allocate(size * bytes_per_pixel);
     buf->set_shader(blank_shader);
     buf->set_image_dimensions(Imath::V2i(width, height));
@@ -210,8 +210,10 @@ ImageBufPtr FFMpegMediaReader::image(const media::AVFrameID &mptr) {
         if (rt && !rt->shader_params().is_null()) {
             if (rt->shader_params().value("pix_fmt", 0) != 0) {
                 rt->set_shader(ffmpeg_shader_rgb);
+                std::cerr << "OINMK\n";
             } else {
                 rt->set_shader(ffmpeg_shader_yuv);
+                std::cerr << "NOINK " << ffmpeg_shader_yuv << "\n";
             }
             last_decoded_image_ = rt;
         }

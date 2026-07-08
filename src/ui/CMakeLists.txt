@@ -4,4 +4,7 @@ add_src_and_test(model_data)
 add_src_and_test(viewport)
 add_src_and_test(qt)
 add_src_and_test(qml)
-add_src_and_test(opengl)
+
+if (${XSTUDIO_GRAPHICS_API} STREQUAL "OpenGL")
+    add_src_and_test(opengl)
+endif()
