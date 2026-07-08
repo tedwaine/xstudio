@@ -53,7 +53,7 @@ target_link_libraries(${PROJECT_NAME}
 		xstudio::global_store
 		xstudio::json_store
 		xstudio::global
-		xstudio::ui::opengl::viewport
+		xstudio::ui::graphics
 		xstudio::ui::qml::helper
 		xstudio::ui::qt::viewport_widget
 		xstudio::ui::viewport

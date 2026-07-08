@@ -100,7 +100,7 @@ ImageBufPtr PPMMediaReader::image(const media::AVFrameID &mptr) {
         jsn["width"]             = width;
         jsn["height"]            = height;
 
-        buf.reset(new ImageBuffer(myshader_uuid, jsn));
+        buf.reset(new ImageBuffer(jsn));
         buf->allocate(size * bytes_per_pixel);
         buf->set_shader(ppm_shader);
         buf->set_image_dimensions(Imath::V2i(width, height));

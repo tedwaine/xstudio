@@ -50,7 +50,7 @@ target_link_libraries(${PROJECT_NAME}
 		xstudio::caf_utility
 		xstudio::global
 		xstudio::ui::model_data
-		xstudio::ui::opengl::viewport
+		xstudio::ui::graphics
 		xstudio::ui::qml::bookmark
 		xstudio::ui::qml::conform
 		xstudio::ui::qml::embedded_python

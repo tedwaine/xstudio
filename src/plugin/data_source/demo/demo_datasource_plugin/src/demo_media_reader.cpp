@@ -266,7 +266,7 @@ ImageBufPtr ProceduralImageGenReader::image(const media::AVFrameID &mptr) {
     jsn["width"]  = width;
     jsn["height"] = height;
 
-    ImageBufPtr buf(new ImageBuffer(shader_uuid, jsn));
+    ImageBufPtr buf(new ImageBuffer(jsn));
 
     const float scale = 1.0f + float(mptr.frame()) / 100.0f;
 
