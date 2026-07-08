@@ -95,7 +95,7 @@ ImageBufPtr BlankMediaReader::image(const media::AVFrameID &mpr) {
     JsonStore jsn;
     jsn["blank_width"] = width;
 
-    buf.reset(new ImageBuffer(myshader_uuid, jsn));
+    buf.reset(new ImageBuffer(jsn));
     buf->allocate(size * bytes_per_pixel);
     buf->set_shader(blank_shader);
     buf->set_image_dimensions(Imath::V2i(width, height));

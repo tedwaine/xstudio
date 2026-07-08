@@ -16,7 +16,7 @@
 #include "xstudio/ui/viewport/viewport_helpers.hpp"
 
 #include "annotations_ui_plugin.hpp"
-#include "annotation_opengl_renderer.hpp"
+#include "annotation_renderer.hpp"
 #include "annotation.hpp"
 #include "annotation_render_data.hpp"
 

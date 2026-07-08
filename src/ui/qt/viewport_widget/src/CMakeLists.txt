@@ -66,7 +66,7 @@ target_link_libraries(${PROJECT_NAME}
 		Qt6::Core
 		Qt6::Qml
 		Qt6::Quick
-		xstudio::ui::opengl::viewport
+		xstudio::ui::graphics
 		xstudio::ui::viewport
 		xstudio::thumbnail
 		xstudio::ui::qml::helper
