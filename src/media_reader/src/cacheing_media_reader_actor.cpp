@@ -56,7 +56,7 @@ ImageBufPtr make_blank_image() {
     JsonStore jsn;
     jsn["blank_width"] = width;
 
-    buf.reset(new ImageBuffer(blankshader_uuid, jsn));
+    buf.reset(new ImageBuffer(jsn));
     buf->allocate(size * bytes_per_pixel);
     buf->set_shader(blank_shader);
     buf->set_image_dimensions(Imath::V2i(width, height));

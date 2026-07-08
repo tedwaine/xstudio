@@ -25,7 +25,7 @@ target_link_libraries(${PROJECT_NAME}
 		xstudio::plugin_manager
 		xstudio::playlist
 		xstudio::ui::qml::helper
-		xstudio::ui::opengl::viewport
+		xstudio::ui::graphics
 )
 
 set_target_properties(${PROJECT_NAME} PROPERTIES LINK_DEPENDS_NO_SHARED true)

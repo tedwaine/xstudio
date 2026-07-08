@@ -8,7 +8,7 @@ qt6_add_resources(EXTRA_SOURCES qml/AnnotationsUI.2/anno_tools.qrc)
 SET(LINK_DEPS
 	xstudio::module
 	xstudio::plugin_manager
-	xstudio::ui::opengl::viewport
+	xstudio::ui::graphics
 	Imath::Imath
 	Qt6::Core
 )

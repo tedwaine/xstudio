@@ -722,7 +722,7 @@ ImageBufPtr OIIOMediaReader::image(const media::AVFrameID &mptr) {
             spec.get_int_attribute("oiio:BitsPerSample", bytes_per_channel * 8);
 
         // Step 11: Allocate and configure the image buffer
-        buf.reset(new ImageBuffer(myshader_uuid, jsn));
+        buf.reset(new ImageBuffer(jsn));
         buf->allocate(pixel_count * bytes_per_pixel);
         buf->set_shader(oiio_shader);
         buf->set_image_dimensions(Imath::V2i(width, height));

@@ -159,7 +159,7 @@ ImageBufPtr PDFMediaReader::image(const media::AVFrameID &mptr) {
         jsn["width"]  = width;
         jsn["height"] = height;
 
-        buf.reset(new ImageBuffer(myshader_uuid, jsn));
+        buf.reset(new ImageBuffer(jsn));
         buf->allocate(width * height * 3);
         buf->set_shader(pdf_shader);
         buf->set_image_dimensions(Imath::V2i(width, height));
@@ -179,7 +179,7 @@ ImageBufPtr PDFMediaReader::image(const media::AVFrameID &mptr) {
         jsn["width"]  = width;
         jsn["height"] = height;
 
-        buf.reset(new ImageBuffer(myshader_transparent_uuid, jsn));
+        buf.reset(new ImageBuffer(jsn));
         buf->allocate(width * height * 4);
         buf->set_shader(pdf_shader_transparent);
         buf->set_image_dimensions(Imath::V2i(width, height));

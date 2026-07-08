@@ -81,11 +81,7 @@ namespace qt {
         bool setupTextureAndFrameBuffer(
             const int width, const int height, const viewport::ImageFormat format);
 
-        void sync_python_hud_data();
-
         void initGL();
-
-        bool loadQMLOverlays();
 
         QOpenGLContext *gl_context_               = {nullptr};
         QOffscreenSurface *surface_               = {nullptr};

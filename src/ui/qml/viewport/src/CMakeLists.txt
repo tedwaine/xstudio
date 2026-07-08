@@ -6,7 +6,7 @@ SET(LINK_DEPS
 	Qt6::Quick
 	xstudio::module
 	xstudio::playhead
-	xstudio::ui::opengl::viewport
+	xstudio::ui::graphics
 	xstudio::ui::viewport
 	xstudio::ui::qml::helper
 	xstudio::utility
