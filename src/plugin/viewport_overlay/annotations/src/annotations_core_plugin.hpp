@@ -3,7 +3,7 @@
 
 #include "xstudio/plugin_manager/plugin_base.hpp"
 #include "annotation.hpp"
-#include "annotation_opengl_renderer.hpp"
+#include "annotation_renderer.hpp"
 #include "annotation_render_data.hpp"
 #include "annotation_undo_redo.hpp"
 

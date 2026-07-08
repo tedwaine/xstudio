@@ -20,6 +20,8 @@ CAF_POP_WARNINGS
 #include "xstudio/ui/qt/opengl/offscreen_viewport.hpp"
 #elif defined(__xstudio_software_render__)
 #include "xstudio/ui/qt/software/offscreen_viewport.hpp"
+#elif defined(__xstudio_metal__)
+#include "xstudio/ui/qt/metal/offscreen_viewport.hpp"
 #else
 #error "No offscreen viewport implementation defined for this platform"
 #endif

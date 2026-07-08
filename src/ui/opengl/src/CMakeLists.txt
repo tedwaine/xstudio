@@ -25,7 +25,7 @@ find_package(OpenGL REQUIRED)
 find_package(OpenEXR)
 find_package(Imath)
 
-create_component_with_alias(opengl_viewport xstudio::ui::opengl::viewport ${XSTUDIO_GLOBAL_VERSION} "${LINK_DEPS}")
+create_component_with_alias(opengl_viewport xstudio::ui::graphics ${XSTUDIO_GLOBAL_VERSION} "${LINK_DEPS}")
 
 if (USE_VCPKG)
 	find_package(freetype CONFIG REQUIRED)

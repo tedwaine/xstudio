@@ -17,7 +17,7 @@ target_link_libraries(${PROJECT_NAME}
 		xstudio::module
 		xstudio::plugin_manager
 		xstudio::colour_pipeline
-		xstudio::ui::opengl::viewport
+		xstudio::ui::graphics
 		Imath::Imath
 )
 

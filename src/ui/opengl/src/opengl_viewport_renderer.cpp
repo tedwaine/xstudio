@@ -560,7 +560,9 @@ bool OpenGLViewportRenderer::activate_shader(
     if (!image_buffer_unpack_shader) {
     }
 
+    std::cerr << "FOPKL " << image_buffer_unpack_shader << " " << image_buffer_unpack_shader->shader_code() << std::endl;
     std::string shader_id = to_string(image_buffer_unpack_shader->shader_id());
+std::cerr << "Fasfa " << shader_id << "\n";
 
     for (const auto &op : colour_operations) {
         shader_id += op->cache_id();

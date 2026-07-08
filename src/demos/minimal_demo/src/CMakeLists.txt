@@ -24,7 +24,7 @@ target_link_libraries(${PROJECT_NAME}
 		xstudio::colour_pipeline
 		xstudio::global
 		xstudio::ui::viewport
-		xstudio::ui::opengl::viewport
+		xstudio::ui::graphics
 		xstudio::ui::qt::viewport_widget
 		xstudio::utility
 	PUBLIC
