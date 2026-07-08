@@ -240,7 +240,7 @@ ImageBufPtr OpenEXRMediaReader::image(const media::AVFrameID &mptr) {
     jsn["bytes_per_pixel"] = int(bytes_per_pixel);
     // jsn["path"] = to_string(mptr.uri());
 
-    ImageBufPtr buf(new ImageBuffer(openexr_shader_uuid, jsn));
+    ImageBufPtr buf(new ImageBuffer(jsn));
 
     auto b = buf->allocate(buf_size);
 

@@ -13,10 +13,9 @@ namespace xstudio::media_reader {
 class ImageBuffer : public Buffer {
   public:
     ImageBuffer(
-        const utility::Uuid &uuid               = utility::Uuid(),
         const utility::JsonStore &shader_params = utility::JsonStore(),
         const utility::JsonStore &params        = utility::JsonStore())
-        : Buffer(params), shader_id_(uuid), shader_params_(shader_params) {}
+        : Buffer(params), shader_params_(shader_params) {}
 
     ImageBuffer(const std::string &error_message) : Buffer(error_message) {
         // provide fallback image size for error image of 16:9
@@ -78,7 +77,6 @@ class ImageBuffer : public Buffer {
     }
 
   private:
-    utility::Uuid shader_id_;
     utility::JsonStore shader_params_;
     utility::JsonStore metadata_;
     Imath::V2i image_size_in_pixels_;

@@ -10,15 +10,21 @@ set(XSTUDIO_GLOBAL_NAME xStudio)
 
 project(${XSTUDIO_GLOBAL_NAME} VERSION ${XSTUDIO_GLOBAL_VERSION} LANGUAGES CXX)
 
-# Work around Qt bug: FindWrapOpenGL.cmake links -framework AGL, which was
-# removed from the macOS SDK in 10.14. Fixed upstream in Qt 6.9+ but not
-# backported to 6.5/6.8 LTS (see https://codereview.qt-project.org/c/qt/qtbase/+/652022).
-# Pre-create the target so Qt's FindWrapOpenGL early-returns and never hits the
-# broken AGL block. Can be removed once the minimum supported Qt is >= 6.9.
-if(APPLE AND NOT TARGET WrapOpenGL::WrapOpenGL)
-    find_package(OpenGL REQUIRED)
-    add_library(WrapOpenGL::WrapOpenGL INTERFACE IMPORTED)
-    target_link_libraries(WrapOpenGL::WrapOpenGL INTERFACE OpenGL::GL)
+set(XSTUDIO_GRAPHICS_API OpenGL CACHE STRING "Graphics API to use (OpenGL, Metal, Software)")
+
+if (${XSTUDIO_GRAPHICS_API} STREQUAL "Metal")
+  set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fobjc-arc")
+elseif (${XSTUDIO_GRAPHICS_API} STREQUAL "OpenGL")
+  # Work around Qt bug: FindWrapOpenGL.cmake links -framework AGL, which was
+  # removed from the macOS SDK in 10.14. Fixed upstream in Qt 6.9+ but not
+  # backported to 6.5/6.8 LTS (see https://codereview.qt-project.org/c/qt/qtbase/+/652022).
+  # Pre-create the target so Qt's FindWrapOpenGL early-returns and never hits the
+  # broken AGL block. Can be removed once the minimum supported Qt is >= 6.9.
+  if(APPLE AND NOT TARGET WrapOpenGL::WrapOpenGL)
+      find_package(OpenGL REQUIRED)
+      add_library(WrapOpenGL::WrapOpenGL INTERFACE IMPORTED)
+      target_link_libraries(WrapOpenGL::WrapOpenGL INTERFACE OpenGL::GL)
+  endif()
 endif()
 
 option(BUILD_TESTING "Build tests" OFF)
@@ -115,8 +121,6 @@ set(REPROC_INSTALL OFF)
 set(REPROC++ ON)
 
 set(OpenGL_GL_PREFERENCE GLVND)
-
-set(XSTUDIO_GRAPHICS_API Metal)
 
 if (USE_SANITIZER STREQUAL "Address")
     if(MSVC)
