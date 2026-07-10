@@ -180,5 +180,6 @@ class FFMpegStream {
 
     utility::FrameRate frame_rate_;
     ImageBufPtr attached_pic_;
+
 };
 } // namespace xstudio::media_reader::ffmpeg

@@ -78,8 +78,6 @@ bool crop_data_window(
 
 static Uuid openexr_shader_uuid{"1c9259fc-46a5-11ea-87fe-989096adb429"};
 
-static ui::viewport::GPUShaderPtr
-    openexr_shader(new EXRPixelUnpackShader(openexr_shader_uuid));
 } // namespace
 
 XSTUDIO_PLUGIN_DECLARE_BEGIN()
@@ -104,6 +102,9 @@ OpenEXRMediaReader::OpenEXRMediaReader(const utility::JsonStore &prefs)
     readers_per_source_       = 1;
 
     update_preferences(prefs);
+
+   openexr_shader_.reset(new EXRPixelUnpackShader(openexr_shader_uuid));
+
 }
 
 utility::Uuid OpenEXRMediaReader::plugin_uuid() const { return s_plugin_uuid; }
@@ -255,7 +256,7 @@ ImageBufPtr OpenEXRMediaReader::image(const media::AVFrameID &mptr) {
     // above
     buf->set_has_alpha(exr_channels_to_load.size() > 3);
 
-    buf->set_shader(openexr_shader);
+    buf->set_shader(openexr_shader_);
     buf->set_image_dimensions(
         Imath::V2i(
             display_window.max.x - display_window.min.x + 1,
