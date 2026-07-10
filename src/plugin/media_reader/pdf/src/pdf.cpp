@@ -32,13 +32,6 @@ static Uuid myshader_uuid{"52141ad7-0eeb-4b80-8881-b62cfecbf9f1"};
 static Uuid myshader_transparent_uuid{"44c43077-1614-41f4-b32d-adaaef293cfe"};
 static Uuid s_plugin_uuid{"4a1db5da-610a-4f41-917d-fd7016948ead"};
 
-
-static ui::viewport::GPUShaderPtr
-    pdf_shader(new PDFPixelUnpackShader(myshader_uuid, false));
-
-static ui::viewport::GPUShaderPtr pdf_shader_transparent(
-    new PDFPixelUnpackShader(myshader_transparent_uuid, true));
-
 } // namespace
 
 // QPdfDocument::Error::None   0   No error occurred.
@@ -48,6 +41,16 @@ static ui::viewport::GPUShaderPtr pdf_shader_transparent(
 // was not found. QPdfDocument::Error::InvalidFileFormat  4   The file given to load() is not a
 // valid PDF file. QPdfDocument::Error::IncorrectPassword  5   The password given to
 // setPassword() is not correct for this file. QPdfDocument::Error::UnsupportedSecurityScheme
+
+
+PDFMediaReader::PDFMediaReader(const utility::JsonStore &prefs)
+    : MediaReader("PDF", prefs) {
+    update_preferences(prefs);
+
+    pdf_shader_.reset(new PDFPixelUnpackShader(myshader_uuid, false));
+    pdf_shader_transparent_.reset(new PDFPixelUnpackShader(myshader_transparent_uuid, true));
+
+}
 
 void PDFMediaReader::update_preferences(const utility::JsonStore &prefs) {
     try {
@@ -161,7 +164,7 @@ ImageBufPtr PDFMediaReader::image(const media::AVFrameID &mptr) {
 
         buf.reset(new ImageBuffer(jsn));
         buf->allocate(width * height * 3);
-        buf->set_shader(pdf_shader);
+        buf->set_shader(pdf_shader_);
         buf->set_image_dimensions(Imath::V2i(width, height));
 
         byte *buffer = buf->buffer();
@@ -181,7 +184,7 @@ ImageBufPtr PDFMediaReader::image(const media::AVFrameID &mptr) {
 
         buf.reset(new ImageBuffer(jsn));
         buf->allocate(width * height * 4);
-        buf->set_shader(pdf_shader_transparent);
+        buf->set_shader(pdf_shader_transparent_);
         buf->set_image_dimensions(Imath::V2i(width, height));
 
         byte *buffer = buf->buffer();
@@ -267,11 +270,14 @@ MRCertainty PDFMediaReader::supported(const caf::uri &uri, const std::array<uint
 
 utility::Uuid PDFMediaReader::plugin_uuid() const { return s_plugin_uuid; }
 
-extern "C" {
-plugin_manager::PluginFactoryCollection *plugin_factory_collection_ptr() {
-    return new plugin_manager::PluginFactoryCollection(
-        std::vector<std::shared_ptr<plugin_manager::PluginFactory>>({std::make_shared<
-            MediaReaderPlugin<MediaReaderActor<PDFMediaReader>>>(
-            s_plugin_uuid, "PDF", "xStudio", "PDF Media Reader", semver::version("1.0.0"))}));
-}
-}
+XSTUDIO_PLUGIN_DECLARE_BEGIN()
+
+XSTUDIO_REGISTER_MEDIA_READER_PLUGIN(
+    PDFMediaReader,
+    s_plugin_uuid,
+    PDFMediaReader,
+    xStudio,
+    PDF Media Reader,
+    1.0.0)
+
+XSTUDIO_PLUGIN_DECLARE_END()
