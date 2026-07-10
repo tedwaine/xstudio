@@ -11,8 +11,6 @@ using namespace xstudio::utility;
 using namespace xstudio::ui::viewport;
 using namespace xstudio;
 
-using namespace xstudio::ui::opengl;
-
 WipeViewportLayout::WipeViewportLayout(
     caf::actor_config &cfg, const utility::JsonStore &init_settings)
     : ViewportLayoutPlugin(cfg, init_settings) {
