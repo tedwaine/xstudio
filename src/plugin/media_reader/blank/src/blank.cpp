@@ -11,7 +11,10 @@
 #include "blank.hpp"
 #include "xstudio/media_reader/media_reader.hpp"
 #include "xstudio/utility/helpers.hpp"
+
+#if defined(__xstudio_opengl__)
 #include "xstudio/ui/opengl/shader_program_base.hpp"
+#endif
 
 namespace fs = std::filesystem;
 
@@ -46,13 +49,12 @@ vec4 fetch_rgba_pixel(ivec2 image_coord)
 static ui::viewport::GPUShaderPtr
     blank_shader(new ui::opengl::OpenGLShader(myshader_uuid, myshader));
 
-} // namespace
 #endif
 
 #if defined(__xstudio_metal__)
-static ui::viewport::GPUShaderPtr
-    blank_shader();
+static ui::viewport::GPUShaderPtr blank_shader;
 #endif
+} // namespace
 
 utility::Uuid BlankMediaReader::plugin_uuid() const { return s_plugin_uuid; }
 

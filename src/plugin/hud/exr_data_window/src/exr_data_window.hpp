@@ -2,7 +2,6 @@
 #pragma once
 
 #include "xstudio/plugin_manager/plugin_base.hpp"
-#include "xstudio/ui/opengl/shader_program_base.hpp"
 #include "xstudio/plugin_manager/hud_plugin.hpp"
 
 namespace xstudio::ui::viewport {
