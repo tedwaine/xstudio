@@ -61,5 +61,6 @@ class OpenEXRMediaReader : public MediaReader {
     int readers_per_source_;
 
     utility::JsonStore supported_;
+    ui::viewport::GPUShaderPtr openexr_shader_;
 };
 } // namespace xstudio::media_reader

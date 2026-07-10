@@ -41,5 +41,7 @@ class OIIOMediaReader : public MediaReader {
         const std::vector<Imath::V2i> &extra_pixel_locations);
 
     utility::JsonStore supported_;
+    ui::viewport::GPUShaderPtr oiio_shader_;
+
 };
 } // namespace xstudio::media_reader
