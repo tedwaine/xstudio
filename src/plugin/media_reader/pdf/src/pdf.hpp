@@ -11,10 +11,7 @@
 namespace xstudio::media_reader {
 class PDFMediaReader : public MediaReader {
   public:
-    PDFMediaReader(const utility::JsonStore &prefs = utility::JsonStore())
-        : MediaReader("PDF", prefs) {
-        update_preferences(prefs);
-    }
+    PDFMediaReader(const utility::JsonStore &prefs = utility::JsonStore());
     virtual ~PDFMediaReader() = default;
     void update_preferences(const utility::JsonStore &) override;
 
@@ -35,5 +32,7 @@ class PDFMediaReader : public MediaReader {
     utility::JsonStore supported_;
 
     mutable std::map<caf::uri, std::shared_ptr<QPdfDocument>> cache_;
+    ui::viewport::GPUShaderPtr pdf_shader_, pdf_shader_transparent_;
+
 };
 } // namespace xstudio::media_reader
