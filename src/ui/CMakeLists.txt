@@ -8,3 +8,7 @@ add_src_and_test(qml)
 if (${XSTUDIO_GRAPHICS_API} STREQUAL "OpenGL")
     add_src_and_test(opengl)
 endif()
+
+if (${XSTUDIO_GRAPHICS_API} STREQUAL "Metal")
+    add_src_and_test(metal)
+endif()
