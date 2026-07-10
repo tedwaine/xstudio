@@ -57,6 +57,8 @@ class FFMpegMediaReader : public MediaReader {
     int channels_                    = 2;
     utility::FrameRate default_rate_ = {utility::FrameRate(timebase::k_flicks_24fps)};
 
+    ui::viewport::GPUShaderPtr ffmpeg_shader_yuv, ffmpeg_shader_rgb;
+
     ImageBufPtr last_decoded_image_;
     utility::JsonStore supported_;
 };

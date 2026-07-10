@@ -31,5 +31,7 @@ class OIIOMediaReader : public MediaReader {
 
   private:
     utility::JsonStore supported_;
+    ui::viewport::GPUShaderPtr oiio_shader_;
+
 };
 } // namespace xstudio::media_reader
