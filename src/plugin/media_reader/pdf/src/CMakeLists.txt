@@ -1,29 +1,14 @@
+find_package(Qt6 COMPONENTS Pdf Gui Core Widgets Quick Concurrent REQUIRED)
+
 SET(LINK_DEPS
 	xstudio::media_reader
 )
 
-project(media_reader_pdf VERSION ${XSTUDIO_GLOBAL_VERSION} LANGUAGES CXX)
+create_plugin_with_alias(media_reader_pdf xstudio::media_reader::pdf ${XSTUDIO_GLOBAL_VERSION}  "${LINK_DEPS}")
 
-set(CMAKE_AUTOUIC ON)
-set(CMAKE_AUTOMOC ON)
-set(CMAKE_AUTORCC ON)
-
-find_package(Qt6 COMPONENTS Pdf Gui Core Widgets Quick Concurrent REQUIRED)
-
-set(SOURCES
-	pdf.cpp
-)
-
-set(CMAKE_INCLUDE_CURRENT_DIR ON)
-
-add_library(${PROJECT_NAME} SHARED ${SOURCES})
-add_library(xstudio::media_reader::pdf ALIAS ${PROJECT_NAME})
-default_plugin_options(${PROJECT_NAME})
-
-target_link_libraries(${PROJECT_NAME}
+target_link_libraries(media_reader_pdf
 	PUBLIC
 		xstudio::utility
-		xstudio::media_reader
 	PRIVATE
 		Qt6::Pdf
 		Qt6::Core
@@ -31,5 +16,3 @@ target_link_libraries(${PROJECT_NAME}
 		Qt6::Quick
 		Qt6::Concurrent
 )
-
-set_target_properties(${PROJECT_NAME} PROPERTIES LINK_DEPENDS_NO_SHARED true)

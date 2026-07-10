@@ -31,8 +31,6 @@ using namespace xstudio::utility;
 namespace {
 
 static Uuid blankshader_uuid{"d6c8722b-dc2a-42f9-981d-a2485c6ceea1"};
-static Uuid ffmpeg_shader_uuid_yuv{"9854e7c0-2e32-4600-aedd-463b2a6de95a"};
-static Uuid ffmpeg_shader_uuid_rgb{"20015805-0b83-426a-bf7e-f6549226bfef"};
 
 static ui::viewport::GPUShaderPtr
     blank_shader(new FFMPegPixelUnpackShader(blankshader_uuid, FFMPegPixelUnpackShader::BLANK));
@@ -79,12 +77,6 @@ ImageBufPtr make_blank_image() {
 
 
 static Uuid s_plugin_uuid("87557f93-55f8-4650-8905-4834f1f4b78d");
-
-static ui::viewport::GPUShaderPtr
-    ffmpeg_shader_yuv(new FFMPegPixelUnpackShader(ffmpeg_shader_uuid_yuv, FFMPegPixelUnpackShader::YUV));
-
-static ui::viewport::GPUShaderPtr
-    ffmpeg_shader_rgb(new FFMPegPixelUnpackShader(ffmpeg_shader_uuid_rgb, FFMPegPixelUnpackShader::RGB));
 
 // See 'uri_convert' - I'm doing this because 'uri_to_posix_path' which is used
 // in most places we need to go from uri to filsystem can't deal with uris like
@@ -146,6 +138,10 @@ FFMpegMediaReader::FFMpegMediaReader(const utility::JsonStore &prefs)
     : MediaReader("FFMPEG", prefs) {
     readers_per_source_ = 1;
     update_preferences(prefs);
+
+    ffmpeg_shader_yuv.reset(new FFMPegPixelUnpackShader(utility::Uuid("9854e7c0-2e32-4600-aedd-463b2a6de95a"), FFMPegPixelUnpackShader::YUV));
+    ffmpeg_shader_rgb.reset(new FFMPegPixelUnpackShader(utility::Uuid("20015805-0b83-426a-bf7e-f6549226bfef"), FFMPegPixelUnpackShader::RGB));
+
 }
 
 utility::Uuid FFMpegMediaReader::plugin_uuid() const { return s_plugin_uuid; }
@@ -214,6 +210,7 @@ ImageBufPtr FFMpegMediaReader::image(const media::AVFrameID &mptr) {
             } else {
                 rt->set_shader(ffmpeg_shader_yuv);
                 std::cerr << "NOINK " << ffmpeg_shader_yuv << "\n";
+                std::cerr << ((const FFMPegPixelUnpackShader *)ffmpeg_shader_yuv.get())->shader_code() << "\n";
             }
             last_decoded_image_ = rt;
         }

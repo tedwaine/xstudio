@@ -78,12 +78,12 @@ enum ImageType {
 enum class Channel { RED, GREEN, BLUE, ALPHA };
 
 
-static ui::viewport::GPUShaderPtr
-    oiio_shader(new OIIOPixelUnpackShader(myshader_uuid));
 } // namespace
 
 OIIOMediaReader::OIIOMediaReader(const utility::JsonStore &prefs) : MediaReader("OIIO", prefs) {
     update_preferences(prefs);
+    oiio_shader_.reset(new OIIOPixelUnpackShader(myshader_uuid));
+
 }
 
 void OIIOMediaReader::update_preferences(const utility::JsonStore &prefs) {
@@ -717,7 +717,7 @@ ImageBufPtr OIIOMediaReader::image(const media::AVFrameID &mptr) {
         // Step 11: Allocate and configure the image buffer
         buf.reset(new ImageBuffer(jsn));
         buf->allocate(pixel_count * bytes_per_pixel);
-        buf->set_shader(oiio_shader);
+        buf->set_shader(oiio_shader_);
         buf->set_image_dimensions(Imath::V2i(width, height));
 
         // Step 12: Read the image and fill the buffer in planar format
