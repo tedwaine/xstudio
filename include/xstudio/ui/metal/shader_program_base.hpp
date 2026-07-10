@@ -14,6 +14,9 @@ namespace xstudio::ui::metal {
 
 class MetalShader : public viewport::GPUShader {
   public:
+
+    MetalShader() : viewport::GPUShader(utility::Uuid(), viewport::GraphicsAPI::Metal) {}
+
     MetalShader(utility::Uuid id, std::string code)
         : viewport::GPUShader(id, viewport::GraphicsAPI::Metal),
           shader_code_(std::move(code)) {}

@@ -1,0 +1,27 @@
+// SPDX-License-Identifier: Apache-2.0
+#pragma once
+#include "xstudio/ui/metal/metal_viewport_renderer.hpp"
+
+namespace xstudio::ui::viewport {
+
+class ViewportCompositeRenderer : public metal::MetalViewportRenderer {
+
+  public:
+    ViewportCompositeRenderer(
+        const std::string &window_id, const utility::JsonStore &prefs) : metal::MetalViewportRenderer(window_id, prefs) {}
+
+    ~ViewportCompositeRenderer() override = default;
+
+    void pre_init() override {}
+
+    void draw_image(
+        const media_reader::ImageBufPtr &image,
+        const media_reader::ImageSetLayoutDataPtr &layout_data,
+        const int index,
+        const Imath::M44f &window_to_viewport_matrix,
+        const Imath::M44f &viewport_to_image_space,
+        const float viewport_du_dx) override {}
+
+};
+
+} // namespace xstudio::ui::viewport
