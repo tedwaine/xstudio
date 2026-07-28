@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
 
-#include "ffmpeg_pixel_unpack_shader.hpp"
+#include "demo_media_reader_pixel_unpack_shader.hpp"
 
 using namespace xstudio;
 using namespace xstudio::demo_plugin;

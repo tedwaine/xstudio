@@ -22,9 +22,7 @@ class OpenGLShader : public viewport::GPUShader {
   public:
     OpenGLShader(utility::Uuid id, std::string code)
         : viewport::GPUShader(id, viewport::GraphicsAPI::OpenGL),
-          shader_code_(code) {
-            std::cerr << "code " << code << "\n";
-          }
+          shader_code_(code) {}
 
     [[nodiscard]] const std::string &shader_code() const { return shader_code_; }
 

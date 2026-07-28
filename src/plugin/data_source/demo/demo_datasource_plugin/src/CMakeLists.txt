@@ -7,7 +7,7 @@
 # set(xStudio_DIR "/user_data/ted/install/lib/cmake/xStudio")
 # set(CAF_DIR "/builds/actor_framework/1.0.2/f3500984a1/lib64/cmake/CAF")
 
-project(demo_plugin VERSION 0.1.0 LANGUAGES CXX)
+project(demo_plugin VERSION ${XSTUDIO_GLOBAL_VERSION} LANGUAGES CXX)
 
 #find_package(xStudio REQUIRED)
 find_package(nlohmann_json REQUIRED)
@@ -36,6 +36,14 @@ set(SOURCES
 	demo_plugin_database_ui_model.cpp
 	DemoPlugin/resources/demo_resources.qrc
 	${SYNC_UI_MOC_SRC}) 
+
+if (${XSTUDIO_GRAPHICS_API} STREQUAL "OpenGL")
+	list(APPEND SOURCES opengl/demo_media_reader_pixel_unpack_shader.cpp)
+elseif (${XSTUDIO_GRAPHICS_API} STREQUAL "Metal")
+	#list(APPEND SOURCES metal/demo_media_reader_pixel_unpack_shader.cpp)
+elseif (${XSTUDIO_GRAPHICS_API} STREQUAL "Vulkan")
+	#list(APPEND SOURCES vulkan/demo_media_reader_pixel_unpack_shader.cpp)
+endif()
 
 add_library(${PROJECT_NAME} SHARED ${SOURCES})
 

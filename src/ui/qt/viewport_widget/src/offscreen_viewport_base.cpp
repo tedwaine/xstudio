@@ -141,6 +141,33 @@ OffscreenViewportBase::OffscreenViewportBase(const std::string name, bool sync_w
                 },
 
                 [=](render_viewport_to_image_atom,
+                    const int width,
+                    const int height,
+                    const media_reader::ImageBufPtr &image) -> result<thumbnail::ThumbnailBufferPtr> {
+
+                    try {
+                        media_reader::ImageBufPtr out_image(new media_reader::ImageBuffer());
+
+                        renderToImageBuffer(
+                            width,
+                            height,
+                            out_image,
+                            ImageFormat::RGBA_16F,
+                            true,
+                            utility::clock::now(),
+                            image,
+                            false,
+                            false);
+
+                        thumbnail::ThumbnailBufferPtr r = rgb96thumbFromHalfFloatImage(out_image);
+                        r->convert_to(thumbnail::TF_RGB24);
+                        return r;
+                    } catch (std::exception &e) {
+                        return caf::make_error(xstudio_error::error, e.what());
+                    }
+                },
+
+                [=](render_viewport_to_image_atom,
                     caf::actor media_actor,
                     const int media_frame,
                     const int width,

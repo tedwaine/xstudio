@@ -239,8 +239,4 @@ vec4 fetch_rgba_pixel(ivec2 image_coord)
 
 FFMPegPixelUnpackShader::FFMPegPixelUnpackShader(
     const utility::Uuid &shader_uuid, const ShaderType type)
-    : ui::opengl::OpenGLShader(shader_uuid, the_shader_yuv) {
-
-		std::cerr << "PINKLE PONK " << the_shader_yuv << "\n";
-
-	}
+    : ui::opengl::OpenGLShader(shader_uuid, the_shader_yuv) {}

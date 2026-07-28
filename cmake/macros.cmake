@@ -172,12 +172,22 @@ macro(default_plugin_options name)
 
 	find_package(spdlog CONFIG REQUIRED)
 	default_compile_options(${name})
+
+	if (${XSTUDIO_GRAPHICS_API} STREQUAL "OpenGL")
+		set(graphics_src_dir opengl)
+	elseif (${XSTUDIO_GRAPHICS_API} STREQUAL "Metal")
+		set(graphics_src_dir metal)
+	elseif (${XSTUDIO_GRAPHICS_API} STREQUAL "Vulkan")
+		set(graphics_src_dir vulkan)
+	endif()
+
 	target_include_directories(${name}
 	    PUBLIC
 	        $<BUILD_INTERFACE:${ROOT_DIR}/include>
 	        # $<INSTALL_INTERFACE:include>
 	    PRIVATE
-	        ${CMAKE_CURRENT_SOURCE_DIR}/src
+	        ${CMAKE_CURRENT_SOURCE_DIR}
+			${CMAKE_CURRENT_SOURCE_DIR}/${graphics_src_dir}
 	    SYSTEM PUBLIC
 	    	$<BUILD_INTERFACE:${ROOT_DIR}/extern/include>
 	)
@@ -407,6 +417,12 @@ macro(create_plugin_with_alias NAME ALIASNAME VERSION DEPS)
 	project(${NAME} VERSION ${VERSION} LANGUAGES CXX)
 
 	file(GLOB SOURCES ${CMAKE_CURRENT_SOURCE_DIR}/*.cpp)
+
+	file(GLOB_RECURSE QT_RESOURCE_FILES ${CMAKE_CURRENT_SOURCE_DIR}/*.qrc)
+
+	if (QT_RESOURCE_FILES)
+		qt6_add_resources(SOURCES ${QT_RESOURCE_FILES})
+	endif()
 
 	# check for additional arg with extra .cpp source files that aren'targe
 	# in CMAKE_CURRENT_SOURCE_DIR (e.g. annotation plugin)
