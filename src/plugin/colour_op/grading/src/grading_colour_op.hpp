@@ -6,7 +6,6 @@
 
 #include "xstudio/colour_pipeline/colour_operation.hpp"
 #include "grading_data.h"
-#include "grading_mask_gl_renderer.h"
 
 namespace OCIO = OCIO_NAMESPACE;
 
