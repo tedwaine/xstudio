@@ -5,7 +5,6 @@
 
 #include "grading.h"
 #include "grading_mask_render_data.h"
-#include "grading_mask_gl_renderer.h"
 #include "grading_colour_op.hpp"
 #include "grading_common.h"
 

@@ -2,6 +2,7 @@
 #pragma once
 
 #include "xstudio/plugin_manager/plugin_base.hpp"
+#include "xstudio/media_reader/image_buffer.hpp"
 #include "annotation.hpp"
 #include "annotation_renderer.hpp"
 #include "annotation_render_data.hpp"

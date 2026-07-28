@@ -3,6 +3,7 @@
 #include "xstudio/media_reader/media_reader.hpp"
 #include "xstudio/thumbnail/thumbnail.hpp"
 #include "xstudio/utility/helpers.hpp"
+#include "xstudio/ui/viewport/shader.hpp"
 
 namespace xstudio::demo_plugin {
 
@@ -35,5 +36,7 @@ class ProceduralImageGenReader : public media_reader::MediaReader {
     thumbnail(const media::AVFrameID &mpr, const size_t thumb_size) override;
 
     [[nodiscard]] utility::Uuid plugin_uuid() const override { return PLUGIN_UUID; }
+
+    ui::viewport::GPUShaderPtr pixel_unpack_shader_;
 };
 } // namespace xstudio::demo_plugin
