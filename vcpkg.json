@@ -30,6 +30,7 @@
         "avformat",
         "bzip2",
         "ffmpeg",
+        "ffprobe",
         "iconv",
         "lzma",
         "mp3lame",

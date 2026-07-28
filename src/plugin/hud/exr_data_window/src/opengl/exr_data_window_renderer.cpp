@@ -1,21 +1,54 @@
 #include "exr_data_window_renderer.hpp"
+#include "../exr_data_window.hpp"
 
-Imath::V2f EXRDataWindowRenderer::get_transformed_point(
-    const Imath::V2i &point, const Imath::V2i &image_dims, const float pixel_aspect) {
-    const float aspect = float(image_dims.y) / float(image_dims.x);
+using namespace xstudio;
+using namespace xstudio::ui::viewport;
 
-    float norm_x = float(point.x) / image_dims.x;
-    float norm_y = float(point.y) / image_dims.y;
+namespace {
+    const char *vertex_shader = R"(
+    #version 330 core
+    layout (location = 0) in vec4 aPos;
+    uniform mat4 to_coord_system;
+    uniform mat4 to_canvas;
+    uniform float image_aspect;
 
-    return Imath::V2f(norm_x * 2.0f - 1.0f, (norm_y * 2.0f - 1.0f) * aspect / pixel_aspect);
-};
+    void main()
+    {
+        vec4 rpos = aPos;
+        //rpos.y = rpos.y/image_aspect;
+        gl_Position = (rpos*to_coord_system*to_canvas);
+    }
+    )";
+
+const char *frag_shader = R"(
+    #version 330 core
+    out vec4 FragColor;
+    uniform vec3 line_colour;
+    void main(void)
+    {
+        FragColor = vec4(line_colour, 1.0f);
+    }
+
+    )";
+
+    Imath::V2f get_transformed_point(
+        const Imath::V2i &point, const Imath::V2i &image_dims, const float pixel_aspect) {
+        const float aspect = float(image_dims.y) / float(image_dims.x);
+
+        float norm_x = float(point.x) / image_dims.x;
+        float norm_y = float(point.y) / image_dims.y;
+
+        return Imath::V2f(norm_x * 2.0f - 1.0f, (norm_y * 2.0f - 1.0f) * aspect / pixel_aspect);
+    };
+
+}
 
 void EXRDataWindowRenderer::render_image_overlay(
     const Imath::M44f &transform_window_to_viewport_space,
     const Imath::M44f &transform_viewport_to_image_space,
     const float /*viewport_du_dpixel*/,
     const float /*device_pixel_ratio*/,
-    const xstudio::media_reader::ImageBufPtr &frame) override {
+    const xstudio::media_reader::ImageBufPtr &frame) {
 
     utility::BlindDataObjectPtr render_data =
         frame.plugin_blind_data(utility::Uuid("f8a09960-606d-11ed-9b6a-0242ac120002"));

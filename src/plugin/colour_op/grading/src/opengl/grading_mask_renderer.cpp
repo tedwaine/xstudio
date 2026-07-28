@@ -5,17 +5,177 @@
 #include "xstudio/media_reader/image_buffer.hpp"
 #include "xstudio/utility/helpers.hpp"
 
-#include "grading.h"
-#include "grading_mask_render_data.h"
-#include "grading_mask_gl_renderer.h"
-#include "grading_colour_op.hpp"
-#include "grading_common.h"
+#include "../grading.h"
+#include "../grading_mask_render_data.h"
+#include "../grading_colour_op.hpp"
+#include "../grading_common.h"
+#include "grading_mask_renderer.h"
 
 using namespace xstudio;
 using namespace xstudio::ui::canvas;
 using namespace xstudio::ui::opengl;
 using namespace xstudio::ui::viewport;
 
+
+namespace {
+
+
+const char *fragment_shader = R"(
+#version 410 core
+#define SCENE_LINEAR 0
+#define COMPOSITING_LOG 1
+
+struct Grade {
+    int color_space;
+    bool grade_active;
+
+    // Masking
+    bool mask_active;
+    bool mask_editing;
+
+    // CDL
+    vec3 slope;
+    vec3 offset;
+    vec3 power;
+    float sat;
+
+    float exposure;
+    float contrast;
+
+    // Can be extended with more grading operations
+};
+
+uniform bool      tool_active;
+uniform int       grade_count;
+uniform sampler2D masks[8];
+uniform Grade     grades[8];
+
+vec4 apply_grade(vec4 rgba, int layer_index)
+{
+
+    Grade grade = grades[layer_index];
+
+    vec4 outColor = rgba;
+
+    // Exposure
+
+    if (grade.exposure != 0.)
+    {
+        outColor.rgb *= pow(2.0, grade.exposure);
+    }
+
+    // Contrast
+
+    if (grade.contrast != 1.)
+    {
+        outColor.rgb = pow( abs(outColor.rgb / 0.18), vec3(grade.contrast)) * sign(outColor.rgb) * 0.18;
+    }
+
+    // CDL SOP
+
+    if (grade.slope != vec3(1., 1., 1.)
+     || grade.offset != vec3(0., 0., 0.)
+     || grade.power != vec3(1., 1., 1.))
+    {
+        outColor.rgb *= grade.slope;
+        outColor.rgb += grade.offset;
+        if (grade.power != vec3(1., 1., 1.))
+        {
+            // Strict CDL specs do not match Nuke, using OCIO mirrored style here.
+            // outColor.rgb = pow(clamp(outColor.rgb, 0.0, 1.0), grade.power);
+            outColor.rgb = pow(abs(outColor.rgb), grade.power) * sign(outColor.rgb);
+        }
+    }
+
+    // CDL Sat
+
+    if (grade.sat != 1.)
+    {
+        vec3 lumaWgts = vec3(0.212599993, 0.715200007, 0.0722000003);
+        float luma = dot(outColor.rgb, lumaWgts);
+        outColor.rgb = luma + grade.sat * (outColor.rgb - luma);
+    }
+
+    // Can be extended with more grading operations
+
+    return outColor;
+}
+
+vec4 apply_layer(vec4 rgba, vec2 image_pos, int layer_index)
+{
+
+    Grade grade = grades[layer_index];
+    vec4 mask_color = grade.mask_active ? texture(masks[layer_index], image_pos) : vec4(1.0);
+    float mask_alpha = clamp(mask_color.a, 0.0, 1.0);
+
+    if (grade.mask_active && !grade.mask_editing)
+    {
+        vec4 graded_col = apply_grade(rgba, layer_index);
+        return vec4(mix(rgba.rgb, graded_col.rgb, mask_alpha), rgba.a);
+    }
+    else if (grade.mask_active)
+    {
+        float mask_opacity = 0.5 * mask_alpha;
+        return vec4(mix(rgba.rgb, mask_color.rgb, mask_opacity), rgba.a);
+    }
+    else
+    {
+        return apply_grade(rgba, layer_index);
+    }
+}
+
+//INJECT_LIN_TO_LOG
+//INJECT_LOG_TO_LIN
+
+vec4 apply_color_conv(vec4 rgba, int source_space, int dest_space)
+{
+    if (source_space != dest_space)
+    {
+        if (source_space == SCENE_LINEAR)
+        {
+            rgba = OCIOLinToLog(rgba);
+        }
+        else
+        {
+            rgba = OCIOLogToLin(rgba);
+        }
+    }
+
+    return rgba;
+}
+
+vec4 colour_transform_op(vec4 rgba, vec2 image_pos)
+{
+    vec4 image_col = rgba;
+
+    if (tool_active)
+    {
+        // xStudio guarantee conversion to scene_linear
+        int current_space = SCENE_LINEAR;
+
+        for (int i = 0; i < grade_count; ++i)
+        {
+            if (grades[i].grade_active) {
+                if (grades[i].color_space != current_space)
+                {
+                    image_col = apply_color_conv(image_col, current_space, grades[i].color_space);
+                    current_space = grades[i].color_space;
+                }
+                image_col = apply_layer(image_col, image_pos, i);
+            }
+        }
+
+        if (current_space != SCENE_LINEAR)
+        {
+            image_col = apply_color_conv(image_col, current_space, SCENE_LINEAR);
+        }
+    }
+
+    return image_col;
+}
+)";
+
+} // anonymous namespace
 
 GradingMaskRenderer::GradingMaskRenderer(const std::string viewport_name)
     : viewport_name_(std::move(viewport_name)) {
@@ -198,4 +358,17 @@ void GradingMaskRenderer::render_layer(
         layer.last_canvas_uuid        = data.mask().uuid();
         layer.last_image_aspect_ratio = image_aspect_ratio;
     }
+}
+
+GPUShaderPtr GradingMaskRenderer::make_mask_shader(
+    OCIO::ConstGpuShaderDescRcPtr &lin_to_log_shader_desc,
+    OCIO::ConstGpuShaderDescRcPtr &log_to_lin_shader_desc,
+    size_t &hash) {
+
+    std::string fs_str                 = fragment_shader;
+    fs_str    = utility::replace_once(fs_str, "//INJECT_LIN_TO_LOG", lin_to_log_shader_desc->getShaderText());
+    fs_str    = utility::replace_once(fs_str, "//INJECT_LOG_TO_LIN", log_to_lin_shader_desc->getShaderText());
+    hash = std::hash<std::string_view>{}(fs_str);
+    return std::make_shared<ui::opengl::OpenGLShader>(colour_pipeline::GradingTool::PLUGIN_UUID, fs_str);
+
 }

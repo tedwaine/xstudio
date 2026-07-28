@@ -6,7 +6,6 @@
 #include <caf/actor_registry.hpp>
 
 #include "xstudio/atoms.hpp"
-#include "xstudio/ui/opengl/shader_program_base.hpp"
 #include "xstudio/utility/helpers.hpp"
 #include "xstudio/utility/string_helpers.hpp"
 #include "xstudio/media_reader/image_buffer_set.hpp"
@@ -14,7 +13,6 @@
 #include "grading.h"
 #include "grading_common.h"
 #include "grading_mask_render_data.h"
-#include "grading_mask_gl_renderer.h"
 #include "grading_colour_op.hpp"
 
 using namespace xstudio;

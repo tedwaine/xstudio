@@ -2,16 +2,14 @@
 #pragma once
 
 #include "xstudio/plugin_manager/plugin_base.hpp"
-#include "xstudio/ui/opengl/opengl_canvas_renderer.hpp"
 #include "annotation_render_data.hpp"
 #include "pixel_patch.hpp"
-#include "xstudio/ui/opengl/shader_program_base.hpp"
 
 namespace xstudio::ui::viewport {
 
 class CaptionHandleRenderer {
   public:
-    ~CaptionHandleRenderer();
+    ~CaptionHandleRenderer() = default;
 
     void render_caption_handle(
         const HandleHoverState &handle_state,
@@ -22,15 +20,9 @@ class CaptionHandleRenderer {
         const Imath::M44f &transform_window_to_viewport_space,
         const Imath::M44f &transform_viewport_to_image_space,
         const float viewport_du_dx,
-        const float device_pixel_ratio);
+        const float device_pixel_ratio) {}
 
   private:
-    void init_gl();
-    void cleanup_gl();
-
-    std::unique_ptr<xstudio::ui::opengl::GLShaderProgram> shader_;
-    GLuint handles_vertex_buffer_obj_{0};
-    GLuint handles_vertex_array_{0};
 };
 
 class AnnotationsRenderer : public plugin::ViewportOverlayRenderer {
@@ -41,29 +33,32 @@ class AnnotationsRenderer : public plugin::ViewportOverlayRenderer {
         std::atomic_bool &cursor_blink,
         std::atomic_bool &hide_all,
         std::atomic_int *hide_strokes,
-        std::atomic_bool *hide_all2);
+        std::atomic_bool *hide_all2) : viewport_name_(std::move(viewport_name)),
+      cursor_blink_(cursor_blink),
+      hide_all_(hide_all),
+      hide_strokes_(hide_strokes),
+      hide_per_viewport_(hide_all2) {}
 
     void render_image_overlay(
         const Imath::M44f &transform_window_to_viewport_space,
         const Imath::M44f &transform_viewport_to_image_space,
         const float viewport_du_dpixel,
         const float device_pixel_ratio,
-        const xstudio::media_reader::ImageBufPtr &frame) override;
+        const xstudio::media_reader::ImageBufPtr &frame) override {}
 
     void render_viewport_overlay(
         const Imath::M44f &transform_window_to_viewport_space,
         const Imath::M44f &transform_viewport_to_normalised_coords,
         const media_reader::ImageBufDisplaySetPtr &on_screen_frames,
         const float viewport_du_dpixel,
-        const float device_pixel_ratio) override;
+        const float device_pixel_ratio) override {}
 
     float stack_order() const override { return 2.0f; }
 
   private:
-    std::unique_ptr<xstudio::ui::opengl::OpenGLCanvasRenderer> canvas_renderer_;
+
     std::unique_ptr<CaptionHandleRenderer> texthandle_renderer_;
 
-    GLfloat depth_clear_ = 0.0f;
     const std::string viewport_name_;
     std::atomic_bool &cursor_blink_;
     std::atomic_bool &hide_all_;
@@ -82,27 +77,20 @@ class AnnotationsExtrasRenderer : public plugin::ViewportOverlayRenderer {
         const Imath::M44f &transform_viewport_to_image_space,
         const float viewport_du_dpixel,
         const float device_pixel_ratio,
-        const xstudio::media_reader::ImageBufPtr &frame) override;
+        const xstudio::media_reader::ImageBufPtr &frame) override {}
 
     void render_viewport_overlay(
         const Imath::M44f &transform_window_to_viewport_space,
         const Imath::M44f &transform_viewport_to_normalised_coords,
         const media_reader::ImageBufDisplaySetPtr &on_screen_frames,
         const float viewport_du_dpixel,
-        const float device_pixel_ratio) override;
+        const float device_pixel_ratio) override {}
 
     float stack_order() const override { return 3.0f; }
 
   private:
     // PixelPatch is (sort-of) thread safe - we need to lock it when using
     PixelPatch &pixel_patch_;
-
-    void init_overlay_opengl();
-
-    std::unique_ptr<xstudio::ui::opengl::GLShaderProgram> shader_;
-
-    GLuint vbo_ = {0};
-    GLuint vao_ = {0};
 
     const std::string viewport_name_;
 };
