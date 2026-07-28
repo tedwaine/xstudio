@@ -6,6 +6,14 @@
 
 namespace xstudio::ui::viewport {
 
+class HudData : public utility::BlindDataObject {
+  public:
+    HudData(const utility::JsonStore &j) : hud_params_(j) {}
+    ~HudData() override = default;
+
+    const utility::JsonStore hud_params_;
+};
+
 class EXRDataWindowHUD : public plugin::HUDPluginBase {
   public:
     EXRDataWindowHUD(caf::actor_config &cfg, const utility::JsonStore &init_settings);

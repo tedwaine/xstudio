@@ -2,11 +2,13 @@
 #pragma once
 
 #include <memory>
+#include <OpenColorIO/OpenColorIO.h> //NOLINT
 
 #include "xstudio/plugin_manager/plugin_base.hpp"
 #include "xstudio/ui/opengl/opengl_offscreen_renderer.hpp"
 #include "xstudio/ui/opengl/opengl_canvas_renderer.hpp"
 
+namespace OCIO = OCIO_NAMESPACE;
 
 namespace xstudio::ui::viewport {
 
@@ -36,6 +38,12 @@ namespace xstudio::ui::viewport {
             const Imath::M44f &transform_viewport_to_image_space,
             const float viewport_du_dpixel,
             xstudio::media_reader::ImageBufPtr &image) override;
+
+        static GPUShaderPtr make_mask_shader(
+            OCIO::ConstGpuShaderDescRcPtr &lin_to_log_shader_desc,
+            OCIO::ConstGpuShaderDescRcPtr &log_to_lin_shader_desc,
+            size_t &hash
+        );
 
       private:
 

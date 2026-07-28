@@ -6,9 +6,10 @@
 
 #include <OpenColorIO/OpenColorIO.h> //NOLINT
 
+#include "xstudio/media/media.hpp"
 #include "xstudio/colour_pipeline/colour_operation.hpp"
 #include "grading_data.h"
-#include "grading_mask_gl_renderer.h"
+#include "grading_mask_renderer.h"
 
 namespace OCIO = OCIO_NAMESPACE;
 
