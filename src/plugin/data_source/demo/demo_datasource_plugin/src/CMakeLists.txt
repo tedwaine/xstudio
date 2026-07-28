@@ -37,6 +37,14 @@ set(SOURCES
 	DemoPlugin/resources/demo_resources.qrc
 	${SYNC_UI_MOC_SRC}) 
 
+if (${XSTUDIO_GRAPHICS_API} STREQUAL "OpenGL")
+	list(APPEND SOURCES opengl/demo_media_reader_pixel_unpack_shader.cpp)
+elseif (${XSTUDIO_GRAPHICS_API} STREQUAL "Metal")
+	#list(APPEND SOURCES metal/demo_media_reader_pixel_unpack_shader.cpp)
+elseif (${XSTUDIO_GRAPHICS_API} STREQUAL "Vulkan")
+	#list(APPEND SOURCES vulkan/demo_media_reader_pixel_unpack_shader.cpp)
+endif()
+
 add_library(${PROJECT_NAME} SHARED ${SOURCES})
 
 target_link_libraries(${PROJECT_NAME}

@@ -64,12 +64,15 @@ CAF_PUSH_WARNINGS
 #include <QString>
 #include <QQuickView>
 #include <QQuickWindow>
+#include <QEvent>
+#include <QFileOpenEvent>
+
+#if defined(__xstudio_opengl__)
 #include <QOpenGLWidget>
 #include <QOpenGLContext>
 #include <QOffscreenSurface>
 #include <QOpenGLFunctions>
-#include <QEvent>
-#include <QFileOpenEvent>
+#endif
 CAF_POP_WARNINGS
 
 #include "xstudio/ui/qml/studio_ui.hpp" //NOLINT
@@ -304,7 +307,6 @@ int execute_xstudio_ui(
     constexpr int required_gl_major = 4;
     constexpr int required_gl_minor = 3;
 #endif
-
     QSurfaceFormat format;
     // Explicitly request desktop OpenGL (not OpenGL ES).
     // On Wayland/EGL this is required, otherwise EGL may default to ES.
@@ -321,6 +323,9 @@ int execute_xstudio_ui(
         format.setSwapInterval(1);
     }
     QSurfaceFormat::setDefaultFormat(format);
+#elif defined(__xstudio_metal__)
+    QQuickWindow::setGraphicsApi(QSGRendererInterface::Metal);
+#endif
 
 
     if (silence_qt_warnings) {
@@ -338,6 +343,7 @@ int execute_xstudio_ui(
     app.setApplicationName("xStudio");
     app.setWindowIcon(QIcon(":images/xstudio_logo_256_v1.svg"));
 
+#if defined(__xstudio_opengl__)
     // Check OpenGL capabilities before proceeding
     {
         QOpenGLContext ctx;
@@ -384,6 +390,7 @@ int execute_xstudio_ui(
 
         ctx.doneCurrent();
     }
+#endif
 
     QQmlApplicationEngine engine;
 

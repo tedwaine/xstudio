@@ -1,38 +1,19 @@
 project(grading VERSION ${XSTUDIO_GLOBAL_VERSION} LANGUAGES CXX)
 
+SET(LINK_DEPS
+	xstudio::module
+	xstudio::plugin_manager
+	xstudio::colour_pipeline
+	xstudio::ui::graphics
+	Imath::Imath
+	OpenColorIO::OpenColorIO
+	Qt6::Core
+)
+
 find_package(Imath)
 find_package(OpenColorIO CONFIG)
-find_package(Qt6 COMPONENTS Concurrent Core Quick Gui Qml Widgets OpenGL REQUIRED)
+find_package(Qt6 COMPONENTS Core REQUIRED)
 
-set(SOURCES
-	grading_data.cpp
-	grading_data_serialiser.cpp
-	grading_colour_op.cpp
-	grading_common.cpp
-	grading.cpp
-	grading_mask_gl_renderer.cpp
-	serialisers/1.0/serialiser_1_pt_0.cpp
-)
-
-qt6_add_resources(SOURCES qml/Grading.2/grading.qrc)
-
-set(CMAKE_INCLUDE_CURRENT_DIR ON)
-
-add_library(${PROJECT_NAME} SHARED ${SOURCES})
-add_library(xstudio::colour_pipeline::grading ALIAS ${PROJECT_NAME})
-default_plugin_options(${PROJECT_NAME})
-
-target_link_libraries(${PROJECT_NAME}
-	PUBLIC
-		xstudio::module
-		xstudio::plugin_manager
-		xstudio::colour_pipeline
-		xstudio::ui::graphics
-		Imath::Imath
-		OpenColorIO::OpenColorIO
-		Qt6::Core
-)
-
-set_target_properties(${PROJECT_NAME} PROPERTIES LINK_DEPENDS_NO_SHARED true)
+create_plugin_with_alias(${PROJECT_NAME} xstudio::colour_pipeline::grading ${XSTUDIO_GLOBAL_VERSION}  "${LINK_DEPS}")
 
 add_plugin_qml(${PROJECT_NAME} qml)
