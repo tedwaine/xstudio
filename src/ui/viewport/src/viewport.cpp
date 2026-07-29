@@ -2181,11 +2181,12 @@ utility::JsonStore ViewportRenderer::core_shader_params(
     return shader_params;
 }
 
-void Viewport::render() const {
+void Viewport::render(RendererInterfacePtr &renderer_interface) const {
 
     if (render_data_ && render_data_->renderer) {
 
         render_data_->renderer->render(
+            renderer_interface,
             render_data_->images,
             render_data_->window_to_viewport_matrix,
             render_data_->projection_matrix,
@@ -2195,14 +2196,14 @@ void Viewport::render() const {
     }
 }
 
-void Viewport::render(const utility::time_point &when_going_on_screen) {
+void Viewport::render(RendererInterfacePtr &renderer_interface, const utility::time_point &when_going_on_screen) {
     // rendering in the same thread, with estimate of when image goes
     // on screen - used by offscreen renderer
     prepare_render_data(when_going_on_screen);
-    render();
+    render(renderer_interface);
 }
 
-void Viewport::render(const media_reader::ImageBufPtr &image_buf, const bool with_overlays) {
+void Viewport::render(RendererInterfacePtr &renderer_interface, const media_reader::ImageBufPtr &image_buf, const bool with_overlays) {
 
     // rendering in the same thread, rendering a single image
     // - used by offscreen renderer
@@ -2220,7 +2221,7 @@ void Viewport::render(const media_reader::ImageBufPtr &image_buf, const bool wit
     rdata->device_pixel_ratio = state_.devicePixelRatio_;
     render_data_.reset(rdata);
 
-    render();
+    render(renderer_interface);
 }
 
 void Viewport::set_depth(const float depth) {

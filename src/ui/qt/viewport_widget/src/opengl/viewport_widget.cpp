@@ -86,7 +86,7 @@ void ViewportGLWidget::paintGL() {
         // redraw to fetch the image(s) from the playhead that will be drawn
         the_viewport_->prepare_render_data();
     }
-    the_viewport_->render();
+    the_viewport_->render(nullptr); // nullptr is the encoder for OpenGL, Metal etc. - we don't need it for OpenGL
 
     // during playback we request redraw in a tight loop. The reason is that to
     // achieve frame accurate sync with correct pulldown to the system video

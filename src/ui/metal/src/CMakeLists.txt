@@ -8,11 +8,9 @@ SET(LINK_DEPS
     xstudio::colour_pipeline
 	OpenEXR::OpenEXR
 	Imath::Imath
+	"-framework Metal"
+	"-framework AppKit"
 )
-
-if(UNIX)
-    list(APPEND LINK_DEPS pthread)
-endif()
 
 find_package(OpenEXR)
 find_package(Imath)

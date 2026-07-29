@@ -71,14 +71,25 @@ void OffscreenViewport::__stop() {
 
 void OffscreenViewport::__renderViewportUnderQML() {
 
+    auto *rif = quick_win_->rendererInterface();
+    viewport::RendererInterfacePtr renderer_interface;
+    auto *metal_renderer_interface = new metal::MetalRendererInterface();
+    metal_renderer_interface->command_encoder = rif->getResource(
+        quick_win_, QSGRendererInterface::CommandEncoderResource);
+    metal_renderer_interface->device = rif->getResource(
+        quick_win_, QSGRendererInterface::DeviceResource);
+    metal_renderer_interface->framesInFlight = quick_win_->graphicsStateInfo().framesInFlight;
+    metal_renderer_interface->currentFrameSlot = quick_win_->graphicsStateInfo().currentFrameSlot;
+    renderer_interface.reset(metal_renderer_interface);
+    
     quick_win_->beginExternalCommands();
 
     xstudio_viewport_->init();
 
     if (image_to_render_) {
-        xstudio_viewport_->render(image_to_render_);
+        xstudio_viewport_->render(renderer_interface, image_to_render_);
     } else {
-        xstudio_viewport_->render();
+        xstudio_viewport_->render(renderer_interface);
     }
 
     quick_win_->endExternalCommands();
@@ -91,6 +102,7 @@ QQuickGraphicsDevice OffscreenViewport::graphics_device() {
 }
 
 void OffscreenViewport::render(
+    viewport::RendererInterfacePtr &renderer_interface,
     const int w,
     const int h,
     const viewport::ImageFormat format,

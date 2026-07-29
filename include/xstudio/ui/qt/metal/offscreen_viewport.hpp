@@ -2,24 +2,16 @@
 #pragma once
 
 #include "xstudio/ui/qt/offscreen_viewport_base.hpp"
-#include "xstudio/ui/qt/opengl/viewport_widget.hpp"
+#include "viewport_widget.hpp"
 #include "xstudio/thumbnail/thumbnail.hpp"
 #include "xstudio/ui/viewport/viewport_gpu_post_processor.hpp"
 
 #include <QString>
 #include <QUrl>
 #include <QObject>
-// #include <QOpenGLFramebufferObject>
 #include <QImage>
 
-#undef __GLEW_H__
-#include <QOpenGLContext>
-
 #include <QOffscreenSurface>
-
-namespace opengl {
-class OpenGLViewportRenderer;
-}
 
 class QQuickWindow;
 class QQuickItem;
@@ -57,6 +49,7 @@ namespace qt {
         void __renderViewportUnderQML() override;
 
         void render(
+            viewport::RendererInterfacePtr &renderer_interface,
             const int w,
             const int h,
             const viewport::ImageFormat format,
