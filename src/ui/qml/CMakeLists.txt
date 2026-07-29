@@ -5,7 +5,7 @@ set(CMAKE_AUTOUIC ON)
 set(CMAKE_AUTOMOC ON)
 set(CMAKE_AUTORCC ON)
 
-find_package(Qt6 COMPONENTS Core Quick Gui OpenGL OpenGLWidgets Test Widgets Concurrent REQUIRED)
+find_package(Qt6 COMPONENTS Core Quick Gui Test Widgets Concurrent REQUIRED)
 
 if(WIN32)
 else()

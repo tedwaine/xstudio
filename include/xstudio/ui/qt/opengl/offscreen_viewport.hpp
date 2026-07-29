@@ -57,6 +57,7 @@ namespace qt {
         void __renderViewportUnderQML() override;
 
         void render(
+            viewport::RendererInterfacePtr &renderer_interface,
             const int w,
             const int h,
             const viewport::ImageFormat format,

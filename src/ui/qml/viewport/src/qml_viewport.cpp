@@ -12,7 +12,6 @@
 CAF_PUSH_WARNINGS
 #include <QDebug>
 #include <QMouseEvent>
-#include <QOpenGLContext>
 #include <QQuickWindow>
 #include <QWheelEvent>
 #include <QOffscreenSurface>
