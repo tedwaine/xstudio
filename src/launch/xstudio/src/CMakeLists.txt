@@ -1,11 +1,15 @@
 project(xstudio VERSION ${XSTUDIO_GLOBAL_VERSION} LANGUAGES CXX)
 
-find_package(OpenGL REQUIRED)
-find_package(GLEW REQUIRED)
-find_package(Qt6 COMPONENTS Core Quick Gui Widgets OpenGL OpenGLWidgets Svg REQUIRED)
+find_package(Qt6 COMPONENTS Core Quick Gui Widgets Svg REQUIRED)
 find_package(OpenSSL)
 find_package(ZLIB)
 find_package(fmt REQUIRED)
+
+if (${XSTUDIO_GRAPHICS_API} STREQUAL "OpenGL")
+	find_package(OpenGL REQUIRED)
+	find_package(GLEW REQUIRED)
+	find_package(Qt6 COMPONENTS OpenGL OpenGLWidgets REQUIRED)
+endif()
 
 if(NOT ${OTIO_SUBMODULE})
 	find_package(OpenTime REQUIRED)
@@ -78,12 +82,20 @@ target_link_libraries(${PROJECT_NAME}
 		Qt6::Core
 		Qt6::Gui
 		Qt6::Quick
-		Qt6::OpenGLWidgets
 		Qt6::Widgets
 		Qt6::Svg
 		OpenSSL::SSL
 		ZLIB::ZLIB
 )
+
+if (${XSTUDIO_GRAPHICS_API} STREQUAL "OpenGL")
+	target_link_libraries(${PROJECT_NAME}
+		PUBLIC
+		Qt6::OpenGLWidgets
+		OpenGL::GL
+		GLEW::GLEW
+	)
+endif()
 
 if(WIN32)
     target_link_libraries(${PROJECT_NAME} PRIVATE dbghelp)

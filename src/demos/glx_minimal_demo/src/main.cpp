@@ -116,7 +116,7 @@ class GLXWindowViewportActor : public caf::event_based_actor {
         while (ctx) {
             static auto then = utility::clock::now();
             glViewport(0, 0, width, height);
-            viewport_renderer->render();
+            viewport_renderer->render(nullptr);
             auto n = utility::clock::now();
             /*std::cerr << "Redraw interval / microseconds: "
                       << std::chrono::duration_cast<std::chrono::microseconds>(

@@ -298,7 +298,9 @@ OffscreenViewportBase::OffscreenViewportBase(const std::string name, bool sync_w
                                     // means we are unable to render fast enough to keep up with
                                     // render requests so we will skip the render
                                 } else {
+                                    viewport::RendererInterfacePtr renderer_interface;
                                     render(
+                                        renderer_interface,
                                         vid_out_width_,
                                         vid_out_height_,
                                         vid_out_format_,
@@ -858,8 +860,10 @@ void OffscreenViewportBase::renderToImageBuffer(
     const bool include_drawings) {
     // auto t0 = utility::clock::now();
 
+    viewport::RendererInterfacePtr renderer_interface;
     // the actual render call
     render(
+        renderer_interface,
         w,
         h,
         format,
