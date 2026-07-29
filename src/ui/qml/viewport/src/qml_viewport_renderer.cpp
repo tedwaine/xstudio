@@ -5,6 +5,13 @@
 #include "xstudio/ui/qml/qml_viewport.hpp"
 #include "xstudio/media_reader/media_reader.hpp"
 
+#if defined(__xstudio_metal__)
+#include "xstudio/ui/metal/metal_viewport_renderer.hpp"
+#endif
+#if defined(__xstudio_vulkan__)
+#include "xstudio/ui/vulkan/vulkan_renderer_interface.hpp"
+#endif
+
 using namespace xstudio::ui;
 using namespace xstudio::ui::qml;
 using namespace xstudio::ui::viewport;
@@ -41,6 +48,22 @@ void QMLViewportRenderer::paint() {
 
     if (viewport_qml_item_ && viewport_qml_item_->isVisible() && xstudio_viewport_) {
 
+        QSGRendererInterface *rif = m_window->rendererInterface();
+        viewport::RendererInterfacePtr renderer_interface;
+
+#if defined(__xstudio_metal__)
+        
+        auto *metal_renderer_interface = new metal::MetalRendererInterface();
+        metal_renderer_interface->command_encoder = rif->getResource(
+            m_window, QSGRendererInterface::CommandEncoderResource);
+        metal_renderer_interface->device = rif->getResource(
+            m_window, QSGRendererInterface::DeviceResource);
+        metal_renderer_interface->framesInFlight = m_window->graphicsStateInfo().framesInFlight;
+        metal_renderer_interface->currentFrameSlot = m_window->graphicsStateInfo().currentFrameSlot;
+        renderer_interface.reset(metal_renderer_interface);
+
+#endif
+
         m_window->beginExternalCommands();
 
         // TODO: again, this init call probably shouldn't happen in the main
@@ -52,7 +75,7 @@ void QMLViewportRenderer::paint() {
         }
 
         xstudio_viewport_->store_client_state();
-        xstudio_viewport_->render();
+        xstudio_viewport_->render(renderer_interface);
         xstudio_viewport_->set_depth(viewport_qml_item_->z());
         xstudio_viewport_->restore_client_state();
 

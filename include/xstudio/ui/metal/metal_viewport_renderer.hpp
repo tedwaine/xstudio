@@ -14,6 +14,15 @@
 
 namespace xstudio::ui::metal {
 
+struct MetalRendererInterface : public viewport::RendererInterface {
+    void *command_encoder  = nullptr;
+    void *device  = nullptr;
+    int framesInFlight = 0;
+    int currentFrameSlot = 0;
+};
+
+class TestRenderer;
+
 class MetalViewportRenderer : public viewport::ViewportRenderer {
   public:
     MetalViewportRenderer(const std::string &window_id, const utility::JsonStore &prefs);
@@ -21,6 +30,7 @@ class MetalViewportRenderer : public viewport::ViewportRenderer {
     ~MetalViewportRenderer() override;
 
     void render(
+        viewport::RendererInterfacePtr &renderer_interface,
         const media_reader::ImageBufDisplaySetPtr &images,
         const Imath::M44f &window_to_viewport_matrix,
         const Imath::M44f &viewport_to_image_matrix,
@@ -87,5 +97,6 @@ class MetalViewportRenderer : public viewport::ViewportRenderer {
     const std::string window_id_;
     std::array<int, 4> viewport_coords_in_window_;
     float clear_alpha_ = {1.0f};
+    TestRenderer * renderer_ = nullptr;
 };
-} // namespace xstudio::ui::opengl
+} // namespace xstudio::ui::metal
