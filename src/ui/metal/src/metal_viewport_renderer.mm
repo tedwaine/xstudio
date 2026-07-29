@@ -1,5 +1,8 @@
 // SPDX-License-Identifier: Apache-2.0
 
+#include <Metal/Metal.h>
+#include <AppKit/AppKit.h>
+
 #include "xstudio/ui/metal/metal_viewport_renderer.hpp"
 #include "xstudio/media_reader/media_reader.hpp"
 #include "xstudio/utility/logging.hpp"
@@ -11,6 +14,87 @@ using namespace xstudio::ui::metal;
 using namespace xstudio::media_reader;
 using namespace xstudio::colour_pipeline;
 using namespace xstudio::utility;
+
+namespace {
+const std::string vertexShader = R"(
+#include <metal_stdlib>
+#include <simd/simd.h>
+
+using namespace metal;
+
+struct main0_out
+{
+    float2 coords [[user(locn0)]];
+    float4 gl_Position [[position]];
+};
+
+struct main0_in
+{
+    float4 vertices [[attribute(0)]];
+};
+
+vertex main0_out main0(main0_in in [[stage_in]])
+{
+    main0_out out = {};
+    out.gl_Position = in.vertices;
+    out.coords = in.vertices.xy;
+    return out;
+}
+)";
+
+const std::string fragmentShader = R"(
+#include <metal_stdlib>
+#include <simd/simd.h>
+
+using namespace metal;
+
+struct buf
+{
+    float t;
+};
+
+struct main0_out
+{
+    float4 fragColor [[color(0)]];
+};
+
+struct main0_in
+{
+    float2 coords [[user(locn0)]];
+};
+
+fragment main0_out main0(main0_in in [[stage_in]], constant buf& ubuf [[buffer(0)]])
+{
+    main0_out out = {};
+    float i = 1.0 - (pow(abs(in.coords.x), 4.0) + pow(abs(in.coords.y), 4.0));
+    i = smoothstep(ubuf.t - 0.800000011920928955078125, ubuf.t + 0.800000011920928955078125, i);
+    i = floor(i * 20.0) / 20.0;
+    out.fragColor = float4((in.coords * 0.5) + float2(0.5), i, i);
+    return out;
+})";
+} // anon namespace
+
+namespace xstudio::ui::metal {
+class TestRenderer
+{
+    public:
+    TestRenderer() = default;
+    ~TestRenderer() = default;
+
+    id<MTLFunction> compileShaderFromSource(const std::string &src, const std::string &entryPoint);
+    void init(int framesInFlight, MetalRendererInterface *stateInfo);
+    void render(MetalRendererInterface *stateInfo, const Imath::V2i &window_size);
+
+    bool initialized_ = false;
+    id<MTLDevice> device_;
+    id<MTLBuffer> vbuf_;
+    id<MTLBuffer> ubuf_[3];
+    id<MTLFunction> vertex_shader_;
+    id<MTLFunction> fragment_shader_;
+    id<MTLRenderPipelineState> pipeline_;
+};
+} // namespace xstudio::ui::metal
+
 
 MetalViewportRenderer::MetalViewportRenderer(
     const std::string &window_id, const utility::JsonStore &prefs)
@@ -59,14 +143,25 @@ void MetalViewportRenderer::set_depth(const float depth) {
 
 }
 
-
 void MetalViewportRenderer::render(
+    viewport::RendererInterfacePtr &renderer_interface,
     const media_reader::ImageBufDisplaySetPtr &images,
     const Imath::M44f &window_to_viewport_matrix,
     const Imath::M44f &viewport_to_image_space,
     const Imath::V2i &window_size,
     const float device_pixel_ratio,
     const std::vector<plugin::ViewportOverlayRendererPtr> &overlay_renderers) {
+
+std::cerr << "Render " << window_id_ << " " << window_size.x << " " << window_size.y << " " << renderer_interface << "\n";
+    if (!renderer_interface) {
+        return;
+    }
+
+    MetalRendererInterface *stateInfo = static_cast<MetalRendererInterface *>(renderer_interface.get());
+    if (!renderer_) {
+        renderer_ = new TestRenderer();
+    }
+    renderer_->render(stateInfo, window_size);
 
 
 }
@@ -302,3 +397,110 @@ void MetalViewportRenderer::pre_init() {
     // resources_->init(); 
 }
 
+void TestRenderer::render(MetalRendererInterface *stateInfo, const Imath::V2i &window_size)
+{
+    if (!initialized_) {
+        init(stateInfo->framesInFlight, stateInfo);
+    }
+
+    id<MTLRenderCommandEncoder> encoder = (__bridge id<MTLRenderCommandEncoder>) stateInfo->command_encoder;
+    
+    std::cerr << "Render " << encoder << " " << stateInfo->currentFrameSlot << " " << window_size.x << " " << window_size.y << "\n";
+
+    MTLViewport vp;
+    vp.originX = 0;
+    vp.originY = 0;
+    vp.width = window_size.x;
+    vp.height = window_size.y;
+    vp.znear = 0;
+    vp.zfar = 1;
+    [encoder setViewport: vp];
+
+    [encoder setFragmentBuffer: ubuf_[stateInfo->currentFrameSlot] offset: 0 atIndex: 0];
+    [encoder setVertexBuffer: vbuf_ offset: 0 atIndex: 1];
+    [encoder setRenderPipelineState: pipeline_];
+    [encoder drawPrimitives: MTLPrimitiveTypeTriangleStrip vertexStart: 0 vertexCount: 4 instanceCount: 1 baseInstance: 0];
+
+}
+
+id<MTLFunction> TestRenderer::compileShaderFromSource(const std::string &src, const std::string &entryPoint)
+{
+
+    NSString *srcstr = [NSString stringWithCString: src.c_str() encoding:[NSString defaultCStringEncoding]];
+    MTLCompileOptions *opts = [[MTLCompileOptions alloc] init];
+    opts.languageVersion = MTLLanguageVersion1_2;
+    NSError *err = nullptr;
+    id<MTLLibrary> lib = [device_ newLibraryWithSource: srcstr options: opts error: &err];
+    // srcstr is autoreleased, opts is managed by ARC
+
+    if (err) {
+        NSAlert *anAlert = [NSAlert alertWithError:err];
+        [anAlert runModal];
+        return nullptr;
+    }
+
+    NSString *name = [NSString stringWithCString: entryPoint.c_str() encoding:[NSString defaultCStringEncoding]];
+    id<MTLFunction> fn = [lib newFunctionWithName: name];
+    // [name release]; // NSString created with stringWithCString is autoreleased
+
+    return fn;
+}
+
+static const float vertices[] = {
+    -1, -1,
+    1, -1,
+    -1, 1,
+    1, 1
+};
+
+const int UBUF_SIZE = 4;
+
+void TestRenderer::init(int framesInFlight, MetalRendererInterface *stateInfo)
+{
+
+    assert(framesInFlight <= 3);
+    initialized_ = true;
+    std::cerr << "A " << framesInFlight << "\n";
+    device_ = (__bridge id<MTLDevice>) stateInfo->device;
+    vbuf_ = [device_ newBufferWithLength: sizeof(vertices) options: MTLResourceStorageModeShared];
+    void *p = [vbuf_ contents];
+    memcpy(p, vertices, sizeof(vertices));
+
+    for (int i = 0; i < framesInFlight; ++i)
+        ubuf_[i] = [device_ newBufferWithLength: UBUF_SIZE options: MTLResourceStorageModeShared];
+
+    MTLVertexDescriptor *inputLayout = [MTLVertexDescriptor vertexDescriptor];
+    inputLayout.attributes[0].format = MTLVertexFormatFloat2;
+    inputLayout.attributes[0].offset = 0;
+    inputLayout.attributes[0].bufferIndex = 1; // ubuf is 0, vbuf is 1
+    inputLayout.layouts[1].stride = 2 * sizeof(float);
+
+    MTLRenderPipelineDescriptor *rpDesc = [[MTLRenderPipelineDescriptor alloc] init];
+    rpDesc.vertexDescriptor = inputLayout;
+
+    rpDesc.vertexFunction = compileShaderFromSource(vertexShader, "main0");
+    rpDesc.fragmentFunction = compileShaderFromSource(fragmentShader, "main0");
+
+    rpDesc.colorAttachments[0].pixelFormat = MTLPixelFormatBGRA8Unorm;
+    rpDesc.colorAttachments[0].blendingEnabled = true;
+    rpDesc.colorAttachments[0].sourceRGBBlendFactor = MTLBlendFactorSourceAlpha;
+    rpDesc.colorAttachments[0].sourceAlphaBlendFactor = MTLBlendFactorSourceAlpha;
+    rpDesc.colorAttachments[0].destinationRGBBlendFactor = MTLBlendFactorOne;
+    rpDesc.colorAttachments[0].destinationAlphaBlendFactor = MTLBlendFactorOne;
+
+    if (device_.depth24Stencil8PixelFormatSupported) {
+        rpDesc.depthAttachmentPixelFormat = MTLPixelFormatDepth24Unorm_Stencil8;
+        rpDesc.stencilAttachmentPixelFormat = MTLPixelFormatDepth24Unorm_Stencil8;
+    } else
+    {
+        rpDesc.depthAttachmentPixelFormat = MTLPixelFormatDepth32Float_Stencil8;
+        rpDesc.stencilAttachmentPixelFormat = MTLPixelFormatDepth32Float_Stencil8;
+    }
+
+    NSError *err = nullptr;
+    pipeline_ = [device_ newRenderPipelineStateWithDescriptor: rpDesc error: &err];
+    if (!pipeline_) {
+        NSAlert *anAlert = [NSAlert alertWithError:err];
+        [anAlert runModal];
+    }
+}

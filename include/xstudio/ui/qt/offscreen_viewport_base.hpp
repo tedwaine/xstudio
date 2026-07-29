@@ -66,6 +66,7 @@ namespace qt {
         virtual void __renderViewportUnderQML() = 0;
 
         virtual void render(
+            viewport::RendererInterfacePtr &renderer_interface,
             const int w,
             const int h,
             const viewport::ImageFormat format,

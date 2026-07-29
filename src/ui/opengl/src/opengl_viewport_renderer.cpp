@@ -280,6 +280,7 @@ void OpenGLViewportRenderer::set_depth(const float depth) {
 
 
 void OpenGLViewportRenderer::render(
+    void *encoder,
     const media_reader::ImageBufDisplaySetPtr &images,
     const Imath::M44f &window_to_viewport_matrix,
     const Imath::M44f &viewport_to_image_space,

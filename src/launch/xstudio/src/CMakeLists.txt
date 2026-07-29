@@ -1,14 +1,18 @@
 project(xstudio VERSION ${XSTUDIO_GLOBAL_VERSION} LANGUAGES CXX)
 
-find_package(OpenGL REQUIRED)
-find_package(GLEW REQUIRED)
-find_package(Qt6 COMPONENTS Core Quick Gui Widgets OpenGL OpenGLWidgets Svg REQUIRED)
+find_package(Qt6 COMPONENTS Core Quick Gui Widgets Svg REQUIRED)
 find_package(OpenSSL)
 find_package(ZLIB)
 find_package(fmt REQUIRED)
 
 if(BUILD_WEBENGINE)
 	find_package(Qt6 COMPONENTS WebEngineQuick REQUIRED)
+endif()
+
+if (${XSTUDIO_GRAPHICS_API} STREQUAL "OpenGL")
+	find_package(OpenGL REQUIRED)
+	find_package(GLEW REQUIRED)
+	find_package(Qt6 COMPONENTS OpenGL OpenGLWidgets REQUIRED)
 endif()
 
 if(NOT ${OTIO_SUBMODULE})
@@ -115,7 +119,6 @@ target_link_libraries(${PROJECT_NAME}
 		Qt6::Core
 		Qt6::Gui
 		Qt6::Quick
-		Qt6::OpenGLWidgets
 		Qt6::Widgets
 		Qt6::Svg
 		OpenSSL::SSL
@@ -125,6 +128,14 @@ target_link_libraries(${PROJECT_NAME}
 if(BUILD_WEBENGINE)
 	target_link_libraries(${PROJECT_NAME} PRIVATE Qt6::WebEngineQuick)
 	target_compile_definitions(${PROJECT_NAME} PRIVATE BUILD_WEBENGINE)
+endif()
+if (${XSTUDIO_GRAPHICS_API} STREQUAL "OpenGL")
+	target_link_libraries(${PROJECT_NAME}
+		PUBLIC
+		Qt6::OpenGLWidgets
+		OpenGL::GL
+		GLEW::GLEW
+	)
 endif()
 
 if(WIN32)

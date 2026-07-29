@@ -1,7 +1,6 @@
 SET(LINK_DEPS
 	CAF::core
 	Qt6::Core
-	Qt6::OpenGLWidgets
 	xstudio::ui::qml::bookmark
 	xstudio::ui::qml::conform
 	xstudio::ui::qml::embedded_python
@@ -15,6 +14,11 @@ SET(LINK_DEPS
 	xstudio::session
 	xstudio::timeline
 )
+
+if (${XSTUDIO_GRAPHICS_API} STREQUAL "OpenGL")
+	find_package(Qt6 COMPONENTS OpenGL OpenGLWidgets REQUIRED)
+	list(APPEND LINK_DEPS Qt6::OpenGLWidgets)
+endif()
 
 SET(EXTRAMOC
 	${ROOT_DIR}/include/xstudio/ui/qml/web_bridge_ui.hpp
