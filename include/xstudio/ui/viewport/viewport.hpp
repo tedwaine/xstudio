@@ -89,7 +89,7 @@ class Viewport : public module::Module {
      *  prepare_render_data should be called from GUI thread before calling this
      *  method.
      */
-    void render() const;
+    void render(RendererInterfacePtr &renderer_interface) const;
 
     /**
      *  @brief Render the viewport, for a specific display time measured as a system
@@ -104,7 +104,7 @@ class Viewport : public module::Module {
      *
      *  Calling prepare_render_data is not required before using this method.
      */
-    void render(const utility::time_point &when_going_on_screen);
+    void render(RendererInterfacePtr &renderer_interface, const utility::time_point &when_going_on_screen);
 
     /**
      *  @brief Render the viewport with a given image
@@ -114,7 +114,7 @@ class Viewport : public module::Module {
      *
      *  Calling prepare_render_data is not required before using this method.
      */
-    void render(const media_reader::ImageBufPtr &image_buf, const bool with_overlays = true);
+    void render(RendererInterfacePtr &renderer_interface, const media_reader::ImageBufPtr &image_buf, const bool with_overlays = true);
 
     /**
      *  @brief Set the depth for the viewport

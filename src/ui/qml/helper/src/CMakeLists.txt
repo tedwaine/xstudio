@@ -1,30 +1,22 @@
-if(WIN32)
-	SET(LINK_DEPS
-		CAF::core
-		Qt6::Core
-		Qt6::Qml
-		Qt6::Gui
-		Qt6::OpenGL
-		Qt6::Quick
-		Qt6::Widgets
-		xstudio::global_store
-		xstudio::media
-		xstudio::utility
-	)
-else()
-	SET(LINK_DEPS
-		CAF::core
-		Qt6::Core
-		Qt6::Qml
-		Qt6::Gui
-		Qt6::OpenGL
-		Qt6::Quick
-		Qt6::DBus
-		Qt6::Widgets
-		xstudio::global_store
-		xstudio::media
-		xstudio::utility
-	)
+SET(LINK_DEPS
+	CAF::core
+	Qt6::Core
+	Qt6::Qml
+	Qt6::Gui
+	Qt6::Quick
+	Qt6::Widgets
+	xstudio::global_store
+	xstudio::media
+	xstudio::utility
+)
+
+if (${XSTUDIO_GRAPHICS_API} STREQUAL "OpenGL")
+	find_package(Qt6 COMPONENTS OpenGL REQUIRED)
+	list(APPEND LINK_DEPS Qt6::OpenGL)
+endif()
+
+if (NOT WIN32)
+	list(APPEND LINK_DEPS Qt6::DBus)
 endif()
 
 SET(EXTRAMOC
