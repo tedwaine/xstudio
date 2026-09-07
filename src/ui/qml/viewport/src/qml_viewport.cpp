@@ -23,6 +23,9 @@ using namespace xstudio::ui::viewport;
 using namespace xstudio::ui;
 using namespace xstudio::ui::qt;
 
+#if defined(__xstudio_metal__)
+void setup_hdr_metal(QWindow *win);
+#endif
 
 namespace {
 
@@ -177,6 +180,12 @@ void QMLViewport::handleWindowChanged(QQuickWindow *win) {
 
     spdlog::debug("QMLViewport::handleWindowChanged");
     if (win) {
+
+#if defined(__xstudio_metal__)
+        setup_hdr_metal(win);
+#endif
+
+
         // Send screen info for the first time
         QScreen *screen = win->screen();
         this->handleScreenChanged(screen);
