@@ -1,13 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
 #pragma once
 
-// clang-format off
-#include <Imath/ImathVec.h>
-#include <Imath/ImathMatrix.h>
-// clang-format on
-
-#include "xstudio/utility/json_store.hpp"
-#include "xstudio/media_reader/image_buffer.hpp"
 #include "xstudio/ui/viewport/shader.hpp"
 
 namespace xstudio::ui::metal {

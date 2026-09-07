@@ -61,10 +61,6 @@ class GLShaderProgram {
   private:
     [[nodiscard]] bool is_colour_op_shader_source(const std::string &shader_code) const;
 
-    void inject_colour_ops(
-        const std::vector<std::string> &colour_operations_shaders,
-        std::string main_display_shader);
-
     int get_param_location(const std::string &param_name);
     std::map<std::string, int> locations_;
     std::vector<std::string> vertex_shaders_;

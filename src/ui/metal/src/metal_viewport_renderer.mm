@@ -4,6 +4,7 @@
 #include <AppKit/AppKit.h>
 
 #include "xstudio/ui/metal/metal_viewport_renderer.hpp"
+#include "xstudio/ui/metal/metal_shader_program.hpp"
 #include "xstudio/media_reader/media_reader.hpp"
 #include "xstudio/utility/logging.hpp"
 #include "xstudio/utility/uuid.hpp"
@@ -69,7 +70,7 @@ fragment main0_out main0(main0_in in [[stage_in]], constant buf& ubuf [[buffer(0
     float i = 1.0 - (pow(abs(in.coords.x), 4.0) + pow(abs(in.coords.y), 4.0));
     i = smoothstep(ubuf.t - 0.800000011920928955078125, ubuf.t + 0.800000011920928955078125, i);
     i = floor(i * 20.0) / 20.0;
-    out.fragColor = float4((in.coords * 0.5) + float2(0.5), i, i);
+    out.fragColor = float4((in.coords * 0.5) + float2(0.5), i, i)*2.0;
     return out;
 })";
 } // anon namespace
@@ -81,7 +82,6 @@ class TestRenderer
     TestRenderer() = default;
     ~TestRenderer() = default;
 
-    id<MTLFunction> compileShaderFromSource(const std::string &src, const std::string &entryPoint);
     void init(int framesInFlight, MetalRendererInterface *stateInfo);
     void render(MetalRendererInterface *stateInfo, const Imath::V2i &window_size);
 
@@ -89,8 +89,9 @@ class TestRenderer
     id<MTLDevice> device_;
     id<MTLBuffer> vbuf_;
     id<MTLBuffer> ubuf_[3];
-    id<MTLFunction> vertex_shader_;
-    id<MTLFunction> fragment_shader_;
+
+    MetalShaderProgramPtr shader_program_;
+
     id<MTLRenderPipelineState> pipeline_;
 };
 } // namespace xstudio::ui::metal
@@ -423,28 +424,6 @@ void TestRenderer::render(MetalRendererInterface *stateInfo, const Imath::V2i &w
 
 }
 
-id<MTLFunction> TestRenderer::compileShaderFromSource(const std::string &src, const std::string &entryPoint)
-{
-
-    NSString *srcstr = [NSString stringWithCString: src.c_str() encoding:[NSString defaultCStringEncoding]];
-    MTLCompileOptions *opts = [[MTLCompileOptions alloc] init];
-    opts.languageVersion = MTLLanguageVersion1_2;
-    NSError *err = nullptr;
-    id<MTLLibrary> lib = [device_ newLibraryWithSource: srcstr options: opts error: &err];
-    // srcstr is autoreleased, opts is managed by ARC
-
-    if (err) {
-        NSAlert *anAlert = [NSAlert alertWithError:err];
-        [anAlert runModal];
-        return nullptr;
-    }
-
-    NSString *name = [NSString stringWithCString: entryPoint.c_str() encoding:[NSString defaultCStringEncoding]];
-    id<MTLFunction> fn = [lib newFunctionWithName: name];
-    // [name release]; // NSString created with stringWithCString is autoreleased
-
-    return fn;
-}
 
 static const float vertices[] = {
     -1, -1,
@@ -478,8 +457,10 @@ void TestRenderer::init(int framesInFlight, MetalRendererInterface *stateInfo)
     MTLRenderPipelineDescriptor *rpDesc = [[MTLRenderPipelineDescriptor alloc] init];
     rpDesc.vertexDescriptor = inputLayout;
 
-    rpDesc.vertexFunction = compileShaderFromSource(vertexShader, "main0");
-    rpDesc.fragmentFunction = compileShaderFromSource(fragmentShader, "main0");
+    shader_program_.reset(new MetalShaderProgram(device_, vertexShader, fragmentShader, true));
+
+    rpDesc.vertexFunction = shader_program_->vertexFunction();
+    rpDesc.fragmentFunction = shader_program_->fragmentFunction();
 
     rpDesc.colorAttachments[0].pixelFormat = MTLPixelFormatBGRA8Unorm;
     rpDesc.colorAttachments[0].blendingEnabled = true;
