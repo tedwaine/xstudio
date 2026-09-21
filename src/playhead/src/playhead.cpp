@@ -93,6 +93,7 @@ void PlayheadBase::add_attributes() {
     duration_frames_      = add_integer_attribute("Duration Frames", "Duration Frames", 0);
     duration_seconds_     = add_float_attribute("Duration Seconds", "Duration Seconds", 0.0);
     cached_frames_        = add_json_attribute("Cached Frames");
+    compared_timeline_ids_ = add_json_attribute("Compared Timeline Ids", "Compared Timeline Ids", nlohmann::json::array());
     bookmarked_frames_    = add_int_vec_attribute("Bookmarked Frames");
     playhead_volume_      = add_float_attribute("Volume", "Volume", 100.0);
 

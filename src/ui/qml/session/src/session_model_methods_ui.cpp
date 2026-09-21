@@ -44,16 +44,28 @@ QString SessionModel::getNextName(const QString &nameTemplate) const {
     return result;
 }
 
-void SessionModel::setSessionSelection(const QModelIndexList &indexes) const {
+void SessionModel::setSessionSelection(const QModelIndexList &indexes) {
     try {
         UuidActorVector selection;
 
+        QModelIndexList timelines;
         for (auto &i : indexes) {
             selection.emplace_back(UuidActor(
                 UuidFromQUuid(i.data(actorUuidRole).toUuid()),
                 actorFromQString(system(), i.data(actorRole).toString())));
+
+            if (i.isValid() && i.data(typeRole) == QString("Timeline")) {
+                timelines.push_back(i);
+            }
+
         }
         anon_mail(timeline::item_selection_atom_v, selection).send(session_actor_);
+
+        if (timelines != multi_select_timeline_indeces_) {
+            multi_select_timeline_indeces_ = timelines;
+            emit selectedTimelinesIndecesChanged();
+        }
+
     } catch (const std::exception &err) {
         spdlog::warn("{} {}", __PRETTY_FUNCTION__, err.what());
     }
@@ -238,6 +250,10 @@ void SessionModel::updateCurrentMediaContainerIndexFromBackend() {
 
         if (r != current_playlist_index_) {
             current_playlist_index_ = r;
+            if (data(current_playlist_index_, typeRole) == QString("Timeline")) {
+                last_timeline_index_ = current_playlist_index_;
+                emit lastTimelineIndexChanged();
+            }
             emit currentMediaContainerChanged();
         }
 

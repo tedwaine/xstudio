@@ -516,7 +516,7 @@ Item {
                         id: scanButton
                         Layout.preferredWidth: 60
                         Layout.fillHeight: true
-                        Layout.margins: 5
+                        Layout.margins: 2
                         property var hovered: mma.containsMouse
                         property var pressed: mma.pressed
                         radius: 4
@@ -534,8 +534,8 @@ Item {
                             hoverEnabled: true
                             acceptedButtons: Qt.LeftButton
                             onClicked: {
+                                wasClicked = true;
                                 sendCommand({"action": "force_scan", "path": model.path})
-                                wasClicked = true
                             }
                         }
                         visible: isHovered && !model.isLoading

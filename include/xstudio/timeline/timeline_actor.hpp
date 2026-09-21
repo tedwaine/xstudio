@@ -103,6 +103,12 @@ class TimelineActor : public caf::event_based_actor {
 
     void duplicate_playhead(caf::actor duplicated_timeline);
 
+    void serialise_selection_for_clipboard(
+        caf::typed_response_promise<utility::JsonStore> rp, const utility::UuidVector &selected_items);
+
+    void paste_tracks_from_serialisation(
+        caf::typed_response_promise<utility::JsonStore> rp, const std::string &track_serialisation);
+
     Timeline base_;
     caf::actor change_event_group_;
 

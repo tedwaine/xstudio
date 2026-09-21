@@ -33,7 +33,34 @@ Item {
        path: "/plugin/data_source/shotbrowser/transfer/leafs"
     }
 
+    XsPreference {
+        id: projectPref
+        path: "/plugin/data_source/shotbrowser/browser/project"
+    }
+
+
     property var leaves: fullTransfer.value ? [] : transferLeafs.value
+
+    function getOffline() {
+        var selection = []
+
+        for (var i = 0; i < appWindow.mediaListModelData.rowCount(); ++i) {
+            let si = appWindow.mediaListModelData.rowToSourceIndex(i)
+            let state = theSessionData.get(si, "mediaStatusRole")
+            if(state != undefined && state != "Online") {
+                theSessionData.fetchMoreWait(si)
+                selection.push(si)
+            }
+        }
+
+
+        appWindow.mediaSelectionModel.select(
+            helpers.createItemSelection(selection),
+            ItemSelectionModel.ClearAndSelect
+        )
+
+        return selection
+    }
 
 
     XsHotkey {
@@ -45,6 +72,22 @@ Item {
             helpers.QUuidFromUuidString(inspectedMediaSetProperties.values.actorUuidRole), true
         )
         componentName: "ShotBrowser"
+    }
+
+    XsHotkey {
+        id: qc_offline_current
+        name: "Quick Cache Offline - Current"
+        description: "Quick Cache Offline media"
+        onActivated: ShotBrowserHelpers.useCache(getOffline())
+        componentName: "Media List"
+    }
+
+    XsHotkey {
+        id: qc_selected_current
+        name: "Quick Cache Selected - Current"
+        description: "Quick Cache Selected media"
+        onActivated: ShotBrowserHelpers.useCache(mediaSelectionModel.selectedIndexes)
+        componentName: "Media List"
     }
 
     XsMenuModelItem {
@@ -74,14 +117,20 @@ Item {
     XsMenuModelItem {
         text: "Publish Media Notes..." + (enabled ? "" : " (Production Only)")
         enabled: ShotBrowserEngine.shotGridLoginAllowed
-        menuPath: ""
-        menuItemPosition: 210
+        menuPath: "Publish"
+        menuItemPosition: 2
         menuModelName: "media_list_menu_"
         onActivated: {
             ShotBrowserEngine.connected = true
             publish_notes.show()
             publish_notes.publishFromMedia(menuContext.mediaSelection)
         }
+        Component.onCompleted: {
+            // we need this so the menu model knows where to insert the
+            // "Transfer" sub menu in the top level menu
+            setMenuPathPosition("Publish", 210)
+        }
+
     }
 
     // XsMenuModelItem {
@@ -91,6 +140,7 @@ Item {
     //     menuModelName: "media_list_menu_"
     //     onActivated: ShotBrowserHelpers.downloadMissingMovies(menuContext.mediaSelection)
     // }
+
     XsMenuModelItem {
         text: "Refresh SG Metadata"
         menuPath: ""
@@ -101,52 +151,121 @@ Item {
 
     XsMenuModelItem {
         text: "Download SG Movie"
-        menuPath: ""
+        menuPath: "Media Actions"
         menuItemPosition: 261
         menuModelName: "media_list_menu_"
         onActivated: ShotBrowserHelpers.downloadMovies(menuContext.mediaSelection)
     }
 
     XsMenuModelItem {
-        text: "movie_dneg"
-        menuPath: "Quick Cache"
-        menuItemPosition: 1
+        text: "Quick Cache Offline"
+        menuPath: ""
+        hotkeyUuid: qc_offline_current.uuid
+        menuItemPosition: 261
         menuModelName: "media_list_menu_"
-        onActivated: ShotBrowserHelpers.useCache(menuContext.mediaSelection, text)
+        onActivated: ShotBrowserHelpers.useCache(getOffline())
     }
 
     XsMenuModelItem {
-        text: "client_movie"
-        menuPath: "Quick Cache"
+        text: "Current"
+        menuPath: "Quick Cache|Selected"
+        hotkeyUuid: qc_selected_current.uuid
+        menuItemPosition: 1
+        menuModelName: "media_list_menu_"
+        onActivated: ShotBrowserHelpers.useCache(menuContext.mediaSelection)
+    }
+
+    XsMenuModelItem {
+        text: "movie_dneg"
+        menuPath: "Quick Cache|Selected"
         menuItemPosition: 2
         menuModelName: "media_list_menu_"
         onActivated: ShotBrowserHelpers.useCache(menuContext.mediaSelection, text)
     }
 
     XsMenuModelItem {
-        text: "review_proxy_1"
-        menuPath: "Quick Cache"
+        text: "client_movie"
+        menuPath: "Quick Cache|Selected"
         menuItemPosition: 3
         menuModelName: "media_list_menu_"
         onActivated: ShotBrowserHelpers.useCache(menuContext.mediaSelection, text)
     }
 
     XsMenuModelItem {
-        text: "review_proxy_2"
-        menuPath: "Quick Cache"
+        text: "review_proxy_1"
+        menuPath: "Quick Cache|Selected"
         menuItemPosition: 4
+        menuModelName: "media_list_menu_"
+        onActivated: ShotBrowserHelpers.useCache(menuContext.mediaSelection, text)
+    }
+
+    XsMenuModelItem {
+        text: "review_proxy_2"
+        menuPath: "Quick Cache|Selected"
+        menuItemPosition: 5
         menuModelName: "media_list_menu_"
         onActivated: ShotBrowserHelpers.useCache(menuContext.mediaSelection, text)
     }
 
    XsMenuModelItem {
         text: "main_proxy0"
-        menuPath: "Quick Cache"
-        menuItemPosition: 5
+        menuPath: "Quick Cache|Selected"
+        menuItemPosition: 6
         menuModelName: "media_list_menu_"
         onActivated: ShotBrowserHelpers.useCache(menuContext.mediaSelection, text)
         Component.onCompleted: setMenuPathPosition("Quick Cache", 262)
     }
+
+    XsMenuModelItem {
+        text: "Current"
+        hotkeyUuid: qc_offline_current.uuid
+        menuPath: "Quick Cache|Offline"
+        menuItemPosition: 1
+        menuModelName: "media_list_menu_"
+        onActivated: ShotBrowserHelpers.useCache(getOffline())
+    }
+
+    XsMenuModelItem {
+        text: "movie_dneg"
+        menuPath: "Quick Cache|Offline"
+        menuItemPosition: 2
+        menuModelName: "media_list_menu_"
+        onActivated: ShotBrowserHelpers.useCache(getOffline(), text)
+    }
+
+    XsMenuModelItem {
+        text: "client_movie"
+        menuPath: "Quick Cache|Offline"
+        menuItemPosition: 3
+        menuModelName: "media_list_menu_"
+        onActivated: ShotBrowserHelpers.useCache(getOffline(), text)
+    }
+
+    XsMenuModelItem {
+        text: "review_proxy_1"
+        menuPath: "Quick Cache|Offline"
+        menuItemPosition: 4
+        menuModelName: "media_list_menu_"
+        onActivated: ShotBrowserHelpers.useCache(getOffline(), text)
+    }
+
+    XsMenuModelItem {
+        text: "review_proxy_2"
+        menuPath: "Quick Cache|Offline"
+        menuItemPosition: 5
+        menuModelName: "media_list_menu_"
+        onActivated: ShotBrowserHelpers.useCache(getOffline(), text)
+    }
+
+   XsMenuModelItem {
+        text: "main_proxy0"
+        menuPath: "Quick Cache|Offline"
+        menuItemPosition: 6
+        menuModelName: "media_list_menu_"
+        onActivated: ShotBrowserHelpers.useCache(getOffline(), text)
+        Component.onCompleted: setMenuPathPosition("Quick Cache", 262)
+    }
+
 
     XsMenuModelItem {
         text: "True"
@@ -263,7 +382,7 @@ Item {
     XsMenuModelItem {
         text: "Create SG Playlist..." + (enabled ? "" : " (Production Only)")
         enabled: ShotBrowserEngine.shotGridLoginAllowed
-        menuPath: "Pipeline|Playlists"
+        menuPath: "Pipeline|ShotGrid Playlists"
         menuItemPosition: 1
         menuModelName: "main menu bar"
         onActivated: {
@@ -278,9 +397,38 @@ Item {
     }
 
     XsMenuModelItem {
-        text: "Reload SG Playlist"
-        menuPath: "Pipeline|Playlists"
+        text: "Create Reference Playlists"
+        menuPath: "Pipeline|Reference"
+        menuItemPosition: 1
+        menuModelName: "main menu bar"
+        onActivated: {
+            ShotBrowserEngine.connected = true
+            let m = ShotBrowserEngine.presetsModel.termModel("Project")
+            ShotBrowserHelpers.createReferencePlaylists(
+                m.get(
+                    m.searchRecursive(projectPref.value, "nameRole"),
+                    "idRole"
+                )
+            )
+        }
+    }
+
+
+    XsMenuModelItem {
+        text: "Add SG Playlist from Clipboard"
+        menuPath: "Pipeline|ShotGrid Playlists"
         menuItemPosition: 2
+        menuModelName: "main menu bar"
+        onActivated: {
+            let result = /.*\/Playlist\/(\d+).*/.exec(clipboard.text)
+            ShotBrowserHelpers.loadShotGridPlaylist(result[1])
+        }
+    }
+
+    XsMenuModelItem {
+        text: "Reload SG Playlist"
+        menuPath: "Pipeline|ShotGrid Playlists"
+        menuItemPosition: 2.1
         menuModelName: "main menu bar"
         onActivated: ShotBrowserHelpers.syncPlaylistFromShotGrid(
             helpers.QUuidFromUuidString(inspectedMediaSetProperties.values.actorUuidRole)
@@ -290,7 +438,7 @@ Item {
     XsMenuModelItem {
         text: "Reload SG Playlist (Ordered)"
         // enabled: false
-        menuPath: "Pipeline|Playlists"
+        menuPath: "Pipeline|ShotGrid Playlists"
         menuItemPosition: 2.5
         menuModelName: "main menu bar"
         onActivated: ShotBrowserHelpers.syncPlaylistFromShotGrid(
@@ -302,13 +450,25 @@ Item {
     XsMenuModelItem {
         text: "Push Media To SG Playlist" + (enabled ? "" : " (Production Only)")
         enabled: ShotBrowserEngine.shotGridLoginAllowed
-        menuPath: "Pipeline|Playlists"
+        menuPath: "Pipeline|ShotGrid Playlists"
         menuItemPosition: 3
         menuModelName: "main menu bar"
         onActivated: {
             ShotBrowserEngine.connected = true
             sync_to_dialog.show()
             sync_to_dialog.playlistProperties = inspectedMediaSetProperties
+        }
+    }
+
+    XsMenuModelItem {
+        text: "Reveal In ShotGrid..." + (enabled ? "" : " (Production Only)")
+        enabled: ShotBrowserEngine.shotGridLoginAllowed
+        menuPath: "Pipeline|ShotGrid Playlists"
+        menuItemPosition: 4
+        menuModelName: "main menu bar"
+        onActivated: {
+            ShotBrowserEngine.connected = true
+            ShotBrowserHelpers.revealPlaylistInShotgrid(sessionSelectionModel.selectedIndexes)
         }
     }
 
@@ -351,7 +511,7 @@ Item {
     XsMenuModelItem {
         text: "Create SG Playlist..." + (enabled ? "" : " (Production Only)")
         enabled: ShotBrowserEngine.shotGridLoginAllowed
-        menuPath: "Playlists"
+        menuPath: "ShotGrid Playlists"
         menuItemPosition: 1
         menuModelName: "playlist_context_menu"
         onActivated: {
@@ -360,13 +520,24 @@ Item {
             publish_to_dialog.playlistProperties = inspectedMediaSetProperties
         }
         Component.onCompleted: {
-            setMenuPathPosition("Playlists", 10.1)
+            setMenuPathPosition("ShotGrid Playlists", 10.1)
+        }
+    }
+
+    XsMenuModelItem {
+        text: "Add SG Playlist from Clipboard"
+        menuPath: "ShotGrid Playlists"
+        menuItemPosition: 2
+        menuModelName: "playlist_context_menu"
+        onActivated: {
+            let result = /.*\/Playlist\/(\d+).*/.exec(clipboard.text)
+            ShotBrowserHelpers.loadShotGridPlaylist(result[1])
         }
     }
 
     XsMenuModelItem {
         text: "Reload SG Playlist"
-        menuPath: "Playlists"
+        menuPath: "ShotGrid Playlists"
         menuItemPosition: 2
         menuModelName: "playlist_context_menu"
         onActivated: ShotBrowserHelpers.syncPlaylistFromShotGrid(
@@ -377,7 +548,7 @@ Item {
     XsMenuModelItem {
         text: "Reload SG Playlist (Ordered)"
         // enabled: false
-        menuPath: "Playlists"
+        menuPath: "ShotGrid Playlists"
         menuItemPosition: 2.5
         menuModelName: "playlist_context_menu"
         onActivated: ShotBrowserHelpers.syncPlaylistFromShotGrid(
@@ -391,7 +562,7 @@ Item {
     XsMenuModelItem {
         text: "Push Media To SG Playlist" + (enabled ? "" : " (Production Only)")
         enabled: ShotBrowserEngine.shotGridLoginAllowed
-        menuPath: "Playlists"
+        menuPath: "ShotGrid Playlists"
         menuItemPosition: 3
         menuModelName: "playlist_context_menu"
         onActivated: {
@@ -404,12 +575,32 @@ Item {
     XsMenuModelItem {
         text: "Reveal In ShotGrid..." + (enabled ? "" : " (Production Only)")
         enabled: ShotBrowserEngine.shotGridLoginAllowed
-        menuPath: "Playlists"
+        menuPath: "ShotGrid Playlists"
         menuItemPosition: 4
         menuModelName: "playlist_context_menu"
         onActivated: {
             ShotBrowserEngine.connected = true
             ShotBrowserHelpers.revealPlaylistInShotgrid(sessionSelectionModel.selectedIndexes)
+        }
+    }
+
+    XsMenuModelItem {
+        text: "Create Reference Playlists"
+        menuPath: "Reference"
+        menuItemPosition: 1
+        menuModelName: "playlist_context_menu"
+        onActivated: {
+            ShotBrowserEngine.connected = true
+            let m = ShotBrowserEngine.presetsModel.termModel("Project")
+            ShotBrowserHelpers.createReferencePlaylists(
+                m.get(
+                    m.searchRecursive(projectPref.value, "nameRole"),
+                    "idRole"
+                )
+            )
+        }
+        Component.onCompleted: {
+            setMenuPathPosition("Reference", 10.01)
         }
     }
 

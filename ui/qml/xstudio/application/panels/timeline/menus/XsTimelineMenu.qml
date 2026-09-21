@@ -3,6 +3,7 @@ import QtQuick
 import xStudio 1.0
 import xstudio.qml.helpers 1.0
 import xstudio.qml.models 1.0
+import xstudio.qml.viewport 1.0
 
 XsPopupMenu {
 
@@ -44,6 +45,7 @@ XsPopupMenu {
 
     Component.onCompleted: {
         helpers.setMenuPathPosition("Time Mode", "timeline_menu_", 1.9)
+        helpers.setMenuPathPosition("Audio Mode", "timeline_menu_", 1.95)
         // need to reorder snippet menus..
         let rc = embeddedPython.sequenceMenuModel.rowCount();
         for(let i=0; i < embeddedPython.sequenceMenuModel.rowCount(); i++) {
@@ -116,6 +118,30 @@ XsPopupMenu {
     }
 
     XsMenuModelItem {
+        text: qsTr("Play Audio from Audio Tracks")
+        menuPath: "Audio Mode"
+        menuItemPosition: 1.0
+        menuModelName: timelineMenu.menu_model_name
+        panelContext: timelineMenu.panelContext
+
+        menuItemType: "toggle"
+        isChecked: timelineProperties.values.audioModeRole == 0
+        onActivated: timelineProperties.values.audioModeRole = 0
+    }
+
+    XsMenuModelItem {
+        text: qsTr("Play Audio from Video Tracks")
+        menuPath: "Audio Mode"
+        menuItemPosition: 2.0
+        menuModelName: timelineMenu.menu_model_name
+        panelContext: timelineMenu.panelContext
+
+        menuItemType: "toggle"
+        isChecked: timelineProperties.values.audioModeRole == 1
+        onActivated: timelineProperties.values.audioModeRole = 1
+    }
+
+    XsMenuModelItem {
         menuItemType: "divider"
         menuPath: ""
         menuItemPosition: 2
@@ -149,14 +175,27 @@ XsPopupMenu {
     Repeater {
         model: DelegateModel {
             model: embeddedPython.sequenceMenuModel
-            delegate: Item {XsMenuModelItem {
-                text: nameRole
-                menuPath: menuPathRole
-                menuItemPosition: (index*0.01)+80
-                menuModelName: timelineMenu.menu_model_name
-                onActivated: embeddedPython.pyEvalFile(scriptPathRole)
-                panelContext: timelineMenu.panelContext
-            }}
+            delegate: Item {
+                XsHotkey {
+                    id: hk
+                    name: nameRole
+                    description: nameRole
+                    componentName: "Sequence Snippets"
+                    onActivated: embeddedPython.pyEvalFile(scriptPathRole)
+                    sequence: menuHotKeyRole || null
+                    context: ""+timelineMenu.panelContext
+                }
+
+                XsMenuModelItem {
+                    hotkeyUuid: hk.uuid
+                    text: nameRole
+                    menuPath: menuPathRole
+                    menuItemPosition: (index*0.01)+80
+                    menuModelName: timelineMenu.menu_model_name
+                    onActivated: embeddedPython.pyEvalFile(scriptPathRole)
+                    panelContext: timelineMenu.panelContext
+                }
+            }
         }
     }
 

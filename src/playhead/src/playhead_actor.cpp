@@ -142,9 +142,11 @@ PlayheadActor::PlayheadActor(
 
     init();
     set_parent_actor_addr(actor_cast<caf::actor_addr>(this));
-    playlist_selection_addr_ = caf::actor_cast<caf::actor_addr>(playlist_selection);
-    anon_mail(playlist::selection_actor_atom_v, playlist_selection)
-        .send(actor_cast<caf::actor>(this));
+    if (playlist_selection) {
+        playlist_selection_addr_ = caf::actor_cast<caf::actor_addr>(playlist_selection);
+        anon_mail(playlist::selection_actor_atom_v, playlist_selection)
+            .send(actor_cast<caf::actor>(this));
+    }
 
     // for every attribute we expose it in frontend model data, where the id
     // of the model data set is the uuid of the module here. This means if we have
@@ -351,7 +353,12 @@ void PlayheadActor::init() {
             return mail(jump_atom_v, (int)frame).delegate(caf::actor_cast<caf::actor>(this));
         },
 
-        [=](jump_atom, const int frame) -> result<bool> {
+        [=](jump_atom, const int frame) {
+            return mail(jump_atom_v, frame, false).delegate(caf::actor_cast<caf::actor>(this));
+        },
+
+        [=](jump_atom, const int frame, bool force_audio_scrub) -> result<bool> {
+
             auto rp = make_response_promise<bool>();
             // by requesting duration from self we ensure that we have updated
             // internal data about source duration, incase this jump message
@@ -366,9 +373,16 @@ void PlayheadActor::init() {
                                 .then(
 
                                     [=](const timebase::flicks flicks) mutable {
+                                        const bool user_is_scrubbing = user_is_frame_scrubbing_->value();
+                                        if (force_audio_scrub && !user_is_scrubbing) {
+                                            user_is_frame_scrubbing_->set_value(true);
+                                        }
                                         set_position(flicks);
                                         update_child_playhead_positions(true);
                                         rp.deliver(true);
+                                        if (force_audio_scrub && !user_is_scrubbing) {
+                                            user_is_frame_scrubbing_->set_value(false);
+                                        }
                                     },
                                     [=](const error &err) mutable { rp.deliver(err); });
                         } else {
@@ -1186,6 +1200,9 @@ void PlayheadActor::init() {
             // timeline change event ... ignore as its taken care of by sub playhead
         },
 
+        [=](utility::event_atom, timeline::audio_mode_atom, const timeline::AudioMode am) {
+        },
+
         [=](utility::event_atom,
             media_source_atom,
             utility::UuidActor media,
@@ -1408,6 +1425,17 @@ void PlayheadActor::init() {
             caf::actor_addr &) {},
 
         [=](utility::event_atom, media::media_display_info_atom, const utility::JsonStore &) {},
+
+        [=](xstudio::utility::event_atom,
+            xstudio::utility::change_atom,
+            xstudio::timeline::clip_edited_status_atom,
+            const utility::Uuid &,
+            const int ,
+            const utility::Uuid &,
+            const utility::Uuid &,
+            const utility::Uuid &) {
+            // timeline clip edited status change event 
+        },
 
         // controls creation and destruction of children
         [&](utility::event_atom, utility::change_atom) {
@@ -1753,7 +1781,7 @@ void PlayheadActor::make_audio_child_playhead(const int source_index) {
         }
     };
 
-    if (timeline_mode()) {
+    if (timeline_mode() && PlayheadBase::uuid() != TIMELINE_COMPARE_PLAYHEAD_UUID) {
         // Are we already hooked up to the timeline as the audio source?
         if (audio_src_ == timeline_actor_ && audio_playhead_)
             return;

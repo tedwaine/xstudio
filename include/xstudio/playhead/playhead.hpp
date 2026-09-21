@@ -197,6 +197,7 @@ class PlayheadBase : public module::Module {
     module::JsonAttribute *cached_frames_;
     module::IntegerVecAttribute *bookmarked_frames_;
     module::IntegerVecAttribute *media_transition_frames_;
+    module::JsonAttribute *compared_timeline_ids_;
 
     module::IntegerAttribute *max_compare_sources_;
     module::BooleanAttribute *restore_play_state_after_scrub_;

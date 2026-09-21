@@ -74,6 +74,12 @@ Item {
     }
 
     XsAttributeValue {
+        id: __playheadComparedTimelineIds
+        attributeTitle: "Compared Timeline Ids"
+        model: playhead_attrs_model
+    }
+
+    XsAttributeValue {
         id: __playheadBookmarkedFrames
         attributeTitle: "Bookmarked Frames"
         model: playhead_attrs_model
@@ -270,6 +276,7 @@ Item {
     property alias frameRate: __playheadFrameRate.value
     property alias playing: __playheadPlaying.value
     property alias cachedFrames: __playheadCachedFrames.value
+    property alias comparedTimelineIds: __playheadComparedTimelineIds.value
     property alias bookmarkedFrames: __playheadBookmarkedFrames.value
     property alias bookmarkedFrameColours: __playheadBookmarkedFrameColours.value
     property alias loopStartFrame: __playheadLoopStartFrame.value

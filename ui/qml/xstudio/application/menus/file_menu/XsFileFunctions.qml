@@ -324,6 +324,12 @@ Item {
         defaultMediaFolder = folder
     }
 
+    function addSessionFromClipboard() {
+        if (clipboard.text) {
+            doImportSession(helpers.QUrlFromPosixPath(clipboard.text))
+        }
+    }
+
     function addMediaFromClipboard() {
         if (clipboard.data) {
             var index = sessionSelectionModel.currentIndex

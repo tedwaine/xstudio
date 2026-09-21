@@ -425,7 +425,17 @@ void process_item(
 
             anon_mail(item_prop_atom_v, metadata, "").send(actor);
 
-            auto source_range = ii->source_range();
+            // [PTSUP-338477] Ted - I'm commenting out the lines below where the 
+            // active range is set for a track from the OTIO source range.
+            //
+            // The reason is that the xstudio timeline doesn't support tracks
+            // where the active_range != available_range ... we don't have a 
+            // way to trim tracks in this way. If the active range is set for
+            // a track, it breaks the clip insert/move logic in the track actor
+            // and it also means the playable range of the track is fixed regarless
+            // of whether new clips are added to the end which will increase the
+            // available range.
+            /*auto source_range = ii->source_range();
             if (source_range)
                 self->mail(
                         active_range_atom_v,
@@ -433,7 +443,7 @@ void process_item(
                             static_cast<int>(source_range->duration().value()),
                             FrameRate(fps_to_flicks(source_range->duration().rate())))))
                     .request(actor, infinite)
-                    .receive([=](const JsonStore &) {}, [=](const error &err) {});
+                    .receive([=](const JsonStore &) {}, [=](const error &err) {});*/
 
             self->mail(insert_item_atom_v, -1, UuidActorVector({UuidActor(uuid, actor)}))
                 .request(parent, infinite)
@@ -645,7 +655,8 @@ void process_item(
                                 FrameRate(fps_to_flicks(source_range->start_time().rate()))),
                             FrameRateDuration(
                                 static_cast<int>(source_range->duration().value()),
-                                FrameRate(fps_to_flicks(source_range->duration().rate())))))
+                                FrameRate(fps_to_flicks(source_range->duration().rate())))),
+                        false)
                     .request(actor, infinite)
                     .receive([=](const JsonStore &) {}, [=](const error &err) {});
             }
@@ -1235,7 +1246,7 @@ caf::message_handler TimelineActor::default_event_handler() {
     return caf::message_handler(
                {
                    [=](event_atom, item_atom, const Item &) {},
-                   [=](event_atom, item_atom, const JsonStore &, const bool) {},
+                   [=](event_atom, item_atom, const JsonStore &, const bool) {}
                })
         .or_else(NotificationHandler::default_event_handler())
         .or_else(json_store::JsonStoreHandler::default_event_handler())
@@ -1594,6 +1605,7 @@ caf::message_handler TimelineActor::message_handler() {
         },
 
         [=](history::undo_atom, const JsonStore &hist) -> result<bool> {
+
             auto rp = make_response_promise<bool>();
 
             base_.item().undo(hist);
@@ -1898,6 +1910,7 @@ caf::message_handler TimelineActor::message_handler() {
         [=](playlist::add_media_atom,
             const UuidActorVector &uav,
             const Uuid &before_uuid) -> result<bool> {
+                
             auto rp = make_response_promise<bool>();
 
             // add internally
@@ -2269,6 +2282,53 @@ caf::message_handler TimelineActor::message_handler() {
             return change_event_group_;
         },
 
+        [=](playlist::get_media_atom, const bool, const bool) -> result<utility::UuidActorVector> {
+            // this message signature is used to get only the VISIBLE media actors based
+            // on the current timeline state - in other words which media you will actually
+            // see when playing through the whole timeline.
+
+            // clear the focus list, because we want the visible media in the timeline
+            // when focus mode is not active.
+            const auto focus_list = base_.focus_list();
+            base_.set_focus_list(utility::UuidSet());
+            
+            auto rp = make_response_promise<utility::UuidActorVector>();
+            mail(media::get_media_pointers_atom_v, 
+                 media::MediaType::MT_IMAGE,
+                 utility::TimeSourceMode::FIXED,
+                 base_.rate()).request(caf::actor_cast<caf::actor>(this), infinite).then(
+                    [=](const media::FrameTimeMapPtr &mpts) mutable {
+
+                        // restore the focus mode state.
+                        base_.set_focus_list(focus_list);
+
+                        // try and make a list of media ids efficiently.
+                        // Timeline could be very long!
+                        utility::UuidSet visible_media;
+                        utility::Uuid current_media;
+                        for (const auto &i : (*mpts)) {
+                            if (i.second && i.second->media_uuid() != current_media) {
+                                current_media = i.second->media_uuid();
+                                if (visible_media.find(current_media) == visible_media.end()) {
+                                    visible_media.insert(current_media);
+                                }
+                            }
+                        }                        
+
+                        utility::UuidActorVector result;
+                        for (const auto & media_id: visible_media) {
+                            auto p = media_actors_.find(media_id);
+                            if (p != media_actors_.end()) {
+                                result.emplace_back(UuidActor(media_id, p->second));
+                            }
+                        }
+                        rp.deliver(result);
+
+                    },
+                    [=](error &err) mutable { rp.deliver(err); });
+            return rp;
+        },
+
         [=](playlist::get_media_atom, const bool) -> result<std::vector<ContainerDetail>> {
             std::vector<caf::actor> actors;
             // only media actors..
@@ -2608,7 +2668,52 @@ caf::message_handler TimelineActor::message_handler() {
             // This is required by SubPlayhead actor to make the timeline
             // playable.
             return base_.item().get_all_frame_IDs(
-                media_type, tsm, override_rate, base_.focus_list());
+                media_type, tsm, override_rate, base_.audio_mode(), base_.focus_list());
+        },
+
+        [=](serialise_atom, const utility::UuidVector selected_items) -> result<utility::JsonStore> {
+
+            // used for copy action for copy/paste of selected items to clipboard
+            auto rp = make_response_promise<utility::JsonStore>();
+            serialise_selection_for_clipboard(rp, selected_items);
+            return rp;
+        },
+
+        [=](insert_item_atom, const std::string track_serialisation) -> result<JsonStore> { 
+
+            // used for paste action for copy/paste of selected items to clipboard.
+            // See SessionModel::pasteFromClipboard for example use.
+            auto rp = make_response_promise<JsonStore>();
+            mail(insert_item_atom_v, track_serialisation, true).request(caf::actor_cast<caf::actor>(this), infinite).then(
+                [=](JsonStore changes) mutable {
+
+                    // need this to finalise the changes JsonStore for undo/redo stack.
+                    // TODO: work out how the hell to make this operation undo-able!!
+                    /*auto more = base_.item().refresh();
+
+                    if (not more.is_null())
+                        changes.insert(changes.begin(), more.begin(), more.end());
+
+                    mail(event_atom_v, item_atom_v, changes, false).send(base_.event_group());
+                    anon_mail(history::log_atom_v, __sysclock_now(), changes).send(history_);
+                    mail(event_atom_v, change_atom_v).send(this);*/
+                    rp.deliver(changes);
+
+                },
+                [=](caf::error & err) mutable {
+                    rp.deliver(err);
+                });
+            return rp;
+
+        },
+
+        [=](insert_item_atom, const std::string track_serialisation, bool) -> result<JsonStore> { 
+
+            // called from message handler immediately above
+            auto rp = make_response_promise<JsonStore>();
+            paste_tracks_from_serialisation(rp, track_serialisation);
+            return rp;
+
         },
 
         [=](serialise_atom) -> result<JsonStore> {
@@ -2746,7 +2851,27 @@ caf::message_handler TimelineActor::message_handler() {
                 path,
                 data);
             return rp;
-        }};
+        },
+        
+        [=](audio_mode_atom) -> AudioMode {
+            return base_.audio_mode();
+        },
+
+        [=](audio_mode_atom, const AudioMode am) {
+            if (am != base_.audio_mode()) {
+                base_.set_audio_mode(am);
+                mail(event_atom_v, audio_mode_atom_v, am).send(base_.event_group());
+            }
+        },
+
+        [=](event_atom, change_atom, clip_edited_status_atom, const utility::Uuid clip_id, const int edited_status, const utility::Uuid track_id, const utility::Uuid stack_id) {
+
+            // event coming from a clip via track and stack. Send it on  (to UI layer)
+            mail(event_atom_v, change_atom_v, clip_edited_status_atom_v, clip_id, edited_status, track_id, stack_id, base_.item().uuid()).send(base_.event_group());
+
+        }
+    
+    };
 }
 
 
@@ -3709,5 +3834,221 @@ void TimelineActor::duplicate_playhead(caf::actor duplicated_timeline) {
 
     } catch (std::exception &e) {
         spdlog::warn("{} {}", __PRETTY_FUNCTION__, e.what());
+    }
+}
+
+void TimelineActor::serialise_selection_for_clipboard(
+    caf::typed_response_promise<utility::JsonStore> rp, const utility::UuidVector &selected_items) 
+{
+
+    // To provide copy/paste ability between timelines that don't share a parent playlist, we
+    // need to copy the selected clips/tracks from the timeline. We also need to copy the 
+    // source media for the clips that are being copied so they can be re-made if needed.
+
+    if (base_.item().size() == 0) {
+        rp.deliver("");
+        return;
+    }
+    auto stack = base_.item().front();
+            
+    // first step we get a set of duplicated TrackActors that only include selected
+    // clips too (unless the whole track was selected)
+    mail(utility::duplicate_atom_v, selected_items)
+        .request(stack.actor(), infinite).then(
+            [=](const utility::UuidActorVector &copied_tracks) mutable {
+
+                auto auto_responder = AutoResponder<utility::JsonStore>(copied_tracks.size()*2, rp);
+                auto_responder.result() = JsonStore(R"({"tracks":[], "media":{}})"_json);
+
+                // loop over each track that is being copied
+                for (const auto &copied_track : copied_tracks) {
+
+                    // here we serialise the duplicated tracks. To enacy the 'paste' function
+                    // we deserialise into new TrackActor instances
+                    mail(utility::serialise_atom_v)
+                        .request(copied_track.actor(), infinite)
+                        .then(
+                            [=](const utility::JsonStore &result) mutable {
+                                auto_responder.result()["tracks"].push_back(result);
+                                auto_responder.decrement();
+                            },
+                            [=](const caf::error &err) mutable { auto_responder.decrement(err); });
+
+                    // We also fetch all the media items that are referenced by clips in the 
+                    // copied tracks:
+                    mail(playlist::get_media_atom_v)
+                        .request(copied_track.actor(), infinite)
+                        .then(
+                            [=](const UuidActorVector &media) mutable {
+
+                                send_exit(copied_track.actor(), caf::exit_reason::user_shutdown);
+                                for (const auto &m : media) {
+                                    if (auto_responder.result()["media"].contains(to_string(m.uuid()))) {
+                                        auto_responder.decrement();
+                                    } else {
+                                        auto_responder.increment();
+                                        mail(utility::serialise_atom_v)
+                                            .request(m.actor(), infinite)
+                                            .then(
+                                                [=](const utility::JsonStore &result) mutable {
+                                                    auto_responder.result()["media"][to_string(m.uuid())] = result;
+                                                    auto_responder.decrement();
+                                                },
+                                                [=](const caf::error &err) mutable { 
+                                                    auto_responder.decrement(err); 
+                                                });
+                                    }
+                                }
+                                auto_responder.decrement();
+
+                            },
+                            [=](const caf::error &err) mutable { auto_responder.decrement(err); });
+                
+                }
+            },
+            [=](const caf::error &err) mutable { rp.deliver(err); });
+
+}
+
+void TimelineActor::paste_tracks_from_serialisation(
+    caf::typed_response_promise<utility::JsonStore> rp, const std::string &track_serialisation) 
+{
+
+    try {
+
+        const auto jsn = std::make_shared<JsonStore>(nlohmann::json::parse(track_serialisation));
+        auto auto_responder = AutoResponder<utility::JsonStore>(0, rp);
+        auto_responder.result() = JsonStore(R"([])"_json);
+
+        auto add_track_to_stack = [=](const UuidActor pasted_track) mutable {
+
+            anon_mail(link_media_atom_v, media_actors_, true).send(pasted_track.actor());
+            auto stack = base_.item().front();
+            mail(insert_item_atom_v, 0, UuidActorVector({pasted_track}))
+                .request(stack.actor(), infinite)
+                .then(
+                    [=](const utility::JsonStore change) mutable { 
+                        if (change.is_array()) {
+                            for (const auto &v: change) {
+                                auto_responder.result().push_back(v);
+                            }
+                        } else {
+                            auto_responder.result().push_back(change);
+                        }
+                        auto_responder.decrement();
+                    },
+                    [=](caf::error &err) mutable { rp.deliver(err); });
+
+        };
+
+        // If we are copy/pasting clips or tracks from the SAME timeline, the media
+        // for the copied clips will already exist in the timeline.
+        // For different timelines under the same Playlist, the media might also be
+        // available already in the destination timeline.
+        // For different timelines under different playlists, the media for the clips
+        // will not be available and must be created.
+        auto add_missing_media_then_add_track = [=](const Item & track_item, const UuidActor pasted_track) mutable {
+
+            auto_responder.increment();
+
+            UuidActorVector added_media;
+            UuidUuidMap swapped_media_map;
+            UuidActorMap added_media_map;
+
+            scoped_actor sys(system());
+            // loop over items(clips) in the track
+            for (const auto &citem : track_item.children()) {
+                if (citem.item_type() == IT_CLIP) {
+                    // get the media UUID for the clip.
+                    auto media_uuid = citem.prop().value("media_uuid", Uuid());
+
+                    // if the media item is already in the media in this timeline,
+                    // nothing to do (re-link step later will hook it up with the clip)
+                    if (media_actors_.count(media_uuid)) continue;
+
+                    if ((*jsn)["media"].contains(to_string(media_uuid))) {
+
+                        // Timeline does not include the media that the clip needs.
+                        // Create the MediaActor ....
+
+                        // To make things more awkward, it's possible that the media
+                        // that we're creating here exists in another playlist with
+                        // the same UUID, because our copy/paste mechanism is based
+                        // on serialising the media items which preserves the UUID.
+
+                        // So, we use the duplicate mechanism which will clone the
+                        // media but use new UUIDs for the media actor and its children.
+                        // Later we need to re-link these into our new track(s).
+
+                        auto copied_media = spawn<media::MediaActor>(utility::JsonStore((*jsn)["media"][to_string(media_uuid)]));
+                        auto cloned_media = request_receive<UuidUuidActor>(
+                            *sys, copied_media, utility::duplicate_atom_v).second;
+                        swapped_media_map[media_uuid] = cloned_media.uuid();
+                        added_media_map[cloned_media.uuid()] = cloned_media;
+                        added_media.push_back(cloned_media);
+                        send_exit(copied_media, caf::exit_reason::user_shutdown);
+                    }
+                }
+            }
+
+            if (added_media.empty()) {
+                add_track_to_stack(pasted_track);
+                return;
+            }
+
+            mail(playlist::add_media_atom_v, added_media, utility::Uuid()).request(
+                caf::actor_cast<caf::actor>(this), infinite).then(
+                    [=](bool r) mutable {
+
+                        // switches out the media referenced by the new track with any new 
+                        // media that we had to clone above
+                        mail(playhead::source_atom_v, swapped_media_map, added_media_map).request(
+                            pasted_track.actor(), infinite).then(
+                                [=](bool r) mutable {
+
+                                    // now we continue with the operation
+                                    add_track_to_stack(pasted_track);
+
+                                },
+                                [=](caf::error &err) mutable {
+                                    spdlog::warn("{} {}", __PRETTY_FUNCTION__, to_string(err));
+                                    auto_responder.decrement(err);
+                                });
+
+
+                    },
+                    [=](caf::error &err) mutable {
+                        spdlog::warn("{} {}", __PRETTY_FUNCTION__, to_string(err));
+                        auto_responder.decrement(err);
+                    });
+        };
+
+        if (!(*jsn).contains("tracks") || !(*jsn)["tracks"].is_array()) {
+            throw std::runtime_error("No timline tracks in pasted content.");
+        }
+
+        scoped_actor sys(system());
+
+        for (const auto & track_data: (*jsn)["tracks"]) {
+
+            // here we make a track from the serialised data - the UUIDs for the
+            // track and it's children come from 'track_data'.
+            auto copied_track = spawn<TrackActor>(JsonStore(track_data));
+
+            // we duplicate copied_track here - this will ensure unique UUIDs for
+            // the track and its children
+            auto cloned_track = request_receive<UuidActor>(
+                    *sys, copied_track, utility::duplicate_atom_v);
+            auto track_item = request_receive<Item>(*sys, cloned_track.actor(), item_atom_v);
+
+            add_missing_media_then_add_track(track_item, cloned_track);
+
+            send_exit(copied_track, caf::exit_reason::user_shutdown);
+
+        }
+
+    } catch (const std::exception &err) {
+        spdlog::warn("{} {}", __PRETTY_FUNCTION__, err.what());
+        rp.deliver(make_error(xstudio_error::error, err.what()));
     }
 }

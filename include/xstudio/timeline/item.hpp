@@ -302,7 +302,8 @@ class Item : private Items {
         const utility::FrameRate timeline_frame_rate,
         const media::MediaType mt,
         const utility::UuidSet &focus,
-        bool only_if_focussed) const;
+        bool only_if_focussed,
+        const AudioMode audio_mode) const;
 
     [[nodiscard]] std::optional<ResolvedItem> resolve_time(
         const utility::FrameRate &time,
@@ -336,6 +337,7 @@ class Item : private Items {
         const media::MediaType media_type,
         const utility::TimeSourceMode tsm,
         const utility::FrameRate &override_rate,
+        const timeline::AudioMode audio_mode = AM_USE_AUDIO_STACK,
         const utility::UuidSet &focus_list = utility::UuidSet());
 
   private:

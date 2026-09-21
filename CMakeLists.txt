@@ -98,6 +98,9 @@ set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -fpic")
 set(TEST_RESOURCE "${CMAKE_CURRENT_SOURCE_DIR}/test_resource")
 set(ROOT_DIR ${CMAKE_CURRENT_SOURCE_DIR})
 
+# Generated headers (e.g. QML export headers) live in the build tree, not the source tree.
+include_directories(${CMAKE_BINARY_DIR}/gen-include)
+
 if(WIN32)
   set(CMAKE_CXX_STANDARD 20)
   add_compile_definitions($<$<CONFIG:Debug>:_ITERATOR_DEBUG_LEVEL=0>)
@@ -266,6 +269,10 @@ if(INSTALL_XSTUDIO)
   install(DIRECTORY include/xstudio
           DESTINATION include)
 
+  # QML export headers are generated into the build tree (see cmake/macros.cmake)
+  install(DIRECTORY ${CMAKE_BINARY_DIR}/gen-include/xstudio
+          DESTINATION include)
+
   INSTALL(DIRECTORY extern/ DESTINATION extern)
 
   add_subdirectory(share/preference)
@@ -306,6 +313,14 @@ if(INSTALL_XSTUDIO)
       FILE ${PROJECT_NAME}Targets.cmake
       NAMESPACE xstudio::
       EXPORT_LINK_INTERFACE_LIBRARIES
+    )
+
+    # Also export the targets into the build tree, next to the generated
+    # xStudioConfig.cmake, so out-of-tree plugins can consume the build
+    # directory directly (xStudio_DIR=<build dir>) without installing.
+    export(EXPORT xstudio
+      FILE ${CMAKE_CURRENT_BINARY_DIR}/${PROJECT_NAME}Targets.cmake
+      NAMESPACE xstudio::
     )
 
   endif()

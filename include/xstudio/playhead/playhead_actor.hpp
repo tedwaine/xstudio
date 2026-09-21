@@ -34,6 +34,8 @@ class PlayheadActor : public caf::event_based_actor, public PlayheadBase {
 
     [[nodiscard]] const char *name() const override { return NAME.c_str(); }
 
+    static inline const utility::Uuid TIMELINE_COMPARE_PLAYHEAD_UUID = utility::Uuid("442f6169-a3b0-465d-850d-03280b224d70");
+
   private:
     inline static const std::string NAME = "PlayheadActor";
 

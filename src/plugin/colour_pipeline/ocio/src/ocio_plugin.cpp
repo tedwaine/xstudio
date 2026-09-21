@@ -161,7 +161,39 @@ caf::message_handler OCIOColourPipeline::message_handler_extensions() {
                                redraw_viewport();
                            }
                        }
-                   }})
+                    },
+                    [=](get_colourspace_info_atom, caf::actor media_source) -> result<utility::JsonStore> {
+                        // this message handler is used by the python plugin to get the colourspace options for
+                        // the given media soure.
+                        auto rp = make_response_promise<utility::JsonStore>();
+                        mail(get_colour_pipe_params_atom_v)
+                            .request(media_source, infinite)
+                            .then(
+                                [=](const utility::JsonStore &colour_params) mutable {
+
+                                    // Determine the source colourspace
+                                    std::string src_cs = m_engine_.detect_source_colourspace(
+                                        colour_params, global_settings_.untonemapped_mode);
+                
+                                    std::vector<std::string> all_colourspaces;
+                                    std::vector<std::string> displays;
+                                    std::map<std::string, std::vector<std::string>> display_views;
+
+                                    m_engine_.get_ocio_displays_view_colourspaces(
+                                        colour_params, all_colourspaces, displays, display_views);
+
+                                    utility::JsonStore result;
+                                    result["current_colourspace"] = src_cs;
+                                    result["available_colourspaces"] = all_colourspaces;
+                                    rp.deliver(result);
+
+                                },
+                                [=](const caf::error &err) mutable {
+                                    rp.deliver(err);
+                                });
+                        return rp;
+                    }
+               })
         .or_else(ColourPipeline::message_handler_extensions());
 }
 

@@ -240,7 +240,7 @@ XsHotkeyArea {
     XsHotkey {
         id: select_offline_hotkey
         name: "Select Offline Media"
-        description: "Sellect Offline Media in playlist/subset"
+        description: "Select Offline Media in playlist/subset"
         context: hotkey_area.context
         componentName: "Media List"
         onActivated: media_list_functions.selectAllOffline()

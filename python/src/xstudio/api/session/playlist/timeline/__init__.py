@@ -4,6 +4,7 @@ from xstudio.core import active_range_atom, available_range_atom, undo_atom, red
 from xstudio.core import URI, selection_actor_atom, item_selection_atom, item_type_atom, get_media_atom, save_atom, export_atom
 from xstudio.core import get_playlist_atom
 from xstudio.core import import_atom, erase_item_atom, get_playhead_atom, FrameRate, FrameRateDuration
+from xstudio.core import AudioMode, audio_mode_atom
 from xstudio.api.session.container import Container
 from xstudio.api.intrinsic import History
 from xstudio.api.session.media.media import Media
@@ -438,6 +439,17 @@ class Timeline(Item, NotificationHandler, JsonStoreHandler):
         result = self.connection.request_receive(self.remote, get_media_atom())[0]
         return [Media(self.connection, i.actor, i.uuid) for i in result]
 
+    @property
+    def visible_media(self):
+        """Get only media that is visible when playing through the timeline. 
+        This is the media that is in the video stack and not hidden by a track 
+        or stack.
+
+        Returns:
+            media(list[media]): Media
+        """
+        result = self.connection.request_receive(self.remote, get_media_atom(), True, True)[0]
+        return [Media(self.connection, i.actor, i.uuid) for i in result]
 
     @property
     def playhead(self):
@@ -473,6 +485,26 @@ class Timeline(Item, NotificationHandler, JsonStoreHandler):
         result =  self.connection.request_receive(self.remote, get_playlist_atom())[0]
         return Playlist(self.connection, result)
 
+    @property
+    def audio_mode(self):
+        """Get the audio mode of the timeline. The audio mode determines if 
+        audio is played from the media in the video stack or the audio stack.
+
+        Returns:
+            source(AudioMode): Currently timeline audio mode.
+        """
+        result =  self.connection.request_receive(self.remote, audio_mode_atom())[0]
+        return result
+
+    @audio_mode.setter
+    def audio_mode(self, amode):
+        """Set the current, audio mode of the timeline. The audio mode determines if 
+        audio is played from the media in the video stack or the audio stack.
+
+        Args:
+            AudioMode: AudioMode.AM_USE_AUDIO_STACK or AudioMode.AM_USE_VIDEO_STACK
+        """
+        self.connection.send(self.remote, audio_mode_atom(), amode)
 
     # @property
     # def audio_tracks(self):
