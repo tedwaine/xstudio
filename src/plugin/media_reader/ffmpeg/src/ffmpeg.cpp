@@ -206,11 +206,8 @@ ImageBufPtr FFMpegMediaReader::image(const media::AVFrameID &mptr) {
         if (rt && !rt->shader_params().is_null()) {
             if (rt->shader_params().value("pix_fmt", 0) != 0) {
                 rt->set_shader(ffmpeg_shader_rgb);
-                std::cerr << "OINMK\n";
             } else {
                 rt->set_shader(ffmpeg_shader_yuv);
-                std::cerr << "NOINK " << ffmpeg_shader_yuv << "\n";
-                std::cerr << ((const FFMPegPixelUnpackShader *)ffmpeg_shader_yuv.get())->shader_code() << "\n";
             }
             last_decoded_image_ = rt;
         }
