@@ -339,10 +339,11 @@ void OffscreenViewport::__renderViewportUnderQML() {
 
     xstudio_viewport_->init();
 
+    viewport::RendererInterfacePtr renderer_interface;
     if (image_to_render_) {
-        xstudio_viewport_->render(nullptr,image_to_render_);
+        xstudio_viewport_->render(renderer_interface, image_to_render_);
     } else {
-        xstudio_viewport_->render(nullptr);
+        xstudio_viewport_->render(renderer_interface);
     }
 
     glPopClientAttrib();
@@ -450,7 +451,7 @@ bool OffscreenViewport::setupTextureAndFrameBuffer(
 }
 
 void OffscreenViewport::render(
-    void *encoder,
+    viewport::RendererInterfacePtr &renderer_interface,
     const int w,
     const int h,
     const viewport::ImageFormat format,
@@ -570,7 +571,7 @@ void OffscreenViewport::render(
         // note we have a signal/slot connection that causes renderViewportUnderQML
         // to be called at the right moment so the xstudio Viewport can be drawn before
         // the QML is rendered
-        render_control_->render(nullptr); // nullptr is the encoder for OpenGL, Metal etc. - we don't need it for OpenGL
+        render_control_->render(); 
         render_control_->endFrame();
 
     } else {
@@ -579,7 +580,7 @@ void OffscreenViewport::render(
         glViewport(0, 0, w, h);
 
         if (image_to_use) {
-            xstudio_viewport_->render(nullptr, image_to_use, include_drawings);
+            xstudio_viewport_->render(renderer_interface, image_to_use, include_drawings);
         } else {
             if (sync_fetch_playhead_image) {
                 xstudio_viewport_->prepare_render_data(utility::clock::now(), true);
@@ -588,7 +589,7 @@ void OffscreenViewport::render(
             } else {
                 xstudio_viewport_->prepare_render_data();
             }
-            xstudio_viewport_->render(nullptr);
+            xstudio_viewport_->render(renderer_interface);
         }
 
         // auto t2 = utility::clock::now();
