@@ -55,7 +55,7 @@ AudioWaveformOverlayRenderer::~AudioWaveformOverlayRenderer() {
         glDeleteBuffers(1, &vao_);
 }
 
-void AudioWaveformOverlayRenderer::render_image_overlay(
+void AudioWaveformOverlayRenderer::render_image_overlay(viewport::RendererInterfacePtr &renderer_interface,
     const Imath::M44f &transform_window_to_viewport_space,
     const Imath::M44f &transform_viewport_to_image_space,
     const float viewport_du_dpixel,

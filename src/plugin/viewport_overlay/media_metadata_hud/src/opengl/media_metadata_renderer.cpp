@@ -47,6 +47,7 @@ using namespace xstudio;
 using namespace xstudio::ui::viewport;
 
 void MediaMetadataRenderer::render_image_overlay(
+    viewport::RendererInterfacePtr &renderer_interface,
     const Imath::M44f &transform_window_to_viewport_space,
     const Imath::M44f &transform_viewport_to_image_space,
     const float viewport_du_dpixel,

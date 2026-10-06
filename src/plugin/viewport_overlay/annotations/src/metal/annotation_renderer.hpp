@@ -33,13 +33,14 @@ class AnnotationsRenderer : public plugin::ViewportOverlayRenderer {
         std::atomic_bool &cursor_blink,
         std::atomic_bool &hide_all,
         std::atomic_int *hide_strokes,
-        std::atomic_bool *hide_all2) : viewport_name_(std::move(viewport_name)),
+        std::atomic_bool *hide_all2,
+        std::atomic_int *visibility_override) : viewport_name_(std::move(viewport_name)),
       cursor_blink_(cursor_blink),
       hide_all_(hide_all),
       hide_strokes_(hide_strokes),
       hide_per_viewport_(hide_all2) {}
 
-    void render_image_overlay(
+    void render_image_overlay(viewport::RendererInterfacePtr &renderer_interface,
         const Imath::M44f &transform_window_to_viewport_space,
         const Imath::M44f &transform_viewport_to_image_space,
         const float viewport_du_dpixel,
@@ -47,6 +48,7 @@ class AnnotationsRenderer : public plugin::ViewportOverlayRenderer {
         const xstudio::media_reader::ImageBufPtr &frame) override {}
 
     void render_viewport_overlay(
+        viewport::RendererInterfacePtr &renderer_interface,
         const Imath::M44f &transform_window_to_viewport_space,
         const Imath::M44f &transform_viewport_to_normalised_coords,
         const media_reader::ImageBufDisplaySetPtr &on_screen_frames,
@@ -72,7 +74,7 @@ class AnnotationsExtrasRenderer : public plugin::ViewportOverlayRenderer {
     AnnotationsExtrasRenderer(PixelPatch &pixel_patch, const std::string &viewport_name)
         : pixel_patch_(pixel_patch), viewport_name_(viewport_name) {}
 
-    void render_image_overlay(
+    void render_image_overlay(viewport::RendererInterfacePtr &renderer_interface,
         const Imath::M44f &transform_window_to_viewport_space,
         const Imath::M44f &transform_viewport_to_image_space,
         const float viewport_du_dpixel,
@@ -80,6 +82,7 @@ class AnnotationsExtrasRenderer : public plugin::ViewportOverlayRenderer {
         const xstudio::media_reader::ImageBufPtr &frame) override {}
 
     void render_viewport_overlay(
+        viewport::RendererInterfacePtr &renderer_interface,
         const Imath::M44f &transform_window_to_viewport_space,
         const Imath::M44f &transform_viewport_to_normalised_coords,
         const media_reader::ImageBufDisplaySetPtr &on_screen_frames,
