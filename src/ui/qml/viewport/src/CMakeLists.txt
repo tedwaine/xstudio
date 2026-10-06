@@ -12,6 +12,10 @@ SET(LINK_DEPS
 	xstudio::utility
 )
 
+if (${XSTUDIO_GRAPHICS_API} STREQUAL "Metal")
+	LIST(APPEND LINK_DEPS "-framework QuartzCore")
+endif()
+
 SET(EXTRAMOC
 	"${ROOT_DIR}/include/xstudio/ui/qml/hotkey_ui.hpp"
 	"${ROOT_DIR}/include/xstudio/ui/qml/qml_viewport.hpp"

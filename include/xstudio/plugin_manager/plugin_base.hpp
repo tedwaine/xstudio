@@ -10,6 +10,25 @@
 #include "xstudio/utility/blind_data.hpp"
 #include <caf/all.hpp>
 
+namespace xstudio::ui::viewport {
+
+/**
+ *  @brief RendererInterface class.
+ *
+ *  @details
+ *   Pure abstract base class used to pass a graphics API specific interface from the QT layer
+ *   to the lower level ViewportRenderer.
+ *   For example, in Metal this would include the device id, command queue and command buffer.
+ */
+struct RendererInterface {
+  public:
+    RendererInterface()          = default;
+    virtual ~RendererInterface() = default;
+};
+typedef std::shared_ptr<RendererInterface> RendererInterfacePtr;
+
+} // namespace xstudio::ui::viewport
+
 namespace xstudio::plugin {
 
 class GPUPreDrawHook {
@@ -59,6 +78,7 @@ class ViewportOverlayRenderer {
     allows for alpha blending on a black background. Alternatively
     the overlay can render ontop of the image, after it is drawn.*/
     virtual void render_image_overlay(
+        ui::viewport::RendererInterfacePtr &renderer_interface,
         const Imath::M44f &transform_window_to_viewport_space,
         const Imath::M44f &transform_viewport_to_image_space,
         const float viewport_du_dpixel,
@@ -68,6 +88,7 @@ class ViewportOverlayRenderer {
     /* An overlay can render visuals to the viewport without an associated
     image via this method. */
     virtual void render_viewport_overlay(
+        ui::viewport::RendererInterfacePtr &renderer_interface,
         const Imath::M44f &transform_window_to_viewport_space,
         const Imath::M44f &transform_viewport_to_normalised_coords,
         const media_reader::ImageBufDisplaySetPtr &on_screen_frames,

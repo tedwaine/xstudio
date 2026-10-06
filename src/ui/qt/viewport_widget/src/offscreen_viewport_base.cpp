@@ -661,7 +661,7 @@ void OffscreenViewportBase::exportToCompressedFormat(
     }
 }
 
-utility::JsonStore OffscreenViewport::getColorMetadataExport() {
+utility::JsonStore OffscreenViewportBase::getColorMetadataExport() {
     utility::JsonStore res;
 
     if (xstudio_viewport_->colour_pipeline()) {
