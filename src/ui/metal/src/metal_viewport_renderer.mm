@@ -164,10 +164,106 @@ std::cerr << "Render " << window_id_ << " " << window_size.x << " " << window_si
     }
     renderer_->render(stateInfo, window_size);
 
+    // this value tells us how much we are zoomed into the image in the viewport (in
+    // the x dimension). If the image is width-fitted exactly to the viewport, then this
+    // value will be 1.0 (what it means is the coordinates -1.0 to 1.0 are mapped to
+    // the width of the viewport)
+    const float image_zoom_in_viewport = viewport_to_image_space[0][0];
+
+
+    // this value gives us how much of the parent window is covered by the viewport.
+    // So if the xstudio window is 1000px in width, and the viewport is 500px wide
+    // (with the rest of the UI taking up the remainder) then this value will be 0.5
+    const float viewport_x_size_in_window =
+        window_to_viewport_matrix[0][0] / window_to_viewport_matrix[3][3];
+
+    // this value tells us how much a screen pixel width in the viewport is in the units
+    // of viewport coordinate space
+    const float viewport_du_dx =
+        image_zoom_in_viewport / (window_size.x * viewport_x_size_in_window);
+
+    /* we do our own clear of the viewport */
+    // clear_viewport_area(window_to_viewport_matrix, window_size);
+
+    if (images && images->layout_data()) {
+
+        // glDisable(GL_DEPTH_TEST);
+
+        // we must avoid painting outside the geometry of the viewport window, or it will be
+        // visible underneath QML elements with opactity etc. or other viewports in the
+        // same window
+        /*glScissor(
+            viewport_coords_in_window()[0],
+            viewport_coords_in_window()[1],
+            viewport_coords_in_window()[2],
+            viewport_coords_in_window()[3]);*/
+
+        //textures()[0]->queue_image_set_for_upload(images);
+
+        for (const auto &idx : images->layout_data()->image_draw_order_hint_) {
+            __draw_image(
+                renderer_interface,
+                images,
+                idx,
+                window_to_viewport_matrix,
+                viewport_to_image_space,
+                viewport_du_dx);
+        }
+
+        // enable scissor
+        if (images->layout_data()->draw_hero_overlays_only_) {
+            __draw_per_image_overlays(
+                renderer_interface,
+                images,
+                images->hero_sub_playhead_index(),
+                window_to_viewport_matrix,
+                viewport_to_image_space,
+                viewport_du_dx,
+                device_pixel_ratio,
+                overlay_renderers);
+        } else {
+            for (const auto &idx : images->layout_data()->image_draw_order_hint_) {
+                __draw_per_image_overlays(
+                    renderer_interface,
+                    images,
+                    idx,
+                    window_to_viewport_matrix,
+                    viewport_to_image_space,
+                    viewport_du_dx,
+                    device_pixel_ratio,
+                    overlay_renderers);
+            }
+        }
+        // disable scissor
+    }
+
+    // enable scissor
+
+    // Some plugins want to draw on the whole viewport canvas (not over a particular
+    // image)
+    for (auto orf : overlay_renderers) {
+
+        orf->render_viewport_overlay(
+            renderer_interface,
+            window_to_viewport_matrix,
+            viewport_to_image_space,
+            images,
+            abs(viewport_du_dx),
+            device_pixel_ratio);
+    }
+    // disable scissor
+
+
+#ifdef DEBUG_GRAB_FRAMEBUFFER
+    grab_framebuffer_to_disk();
+#endif
+
+    // restore depth
 
 }
 
 void MetalViewportRenderer::__draw_image(
+    viewport::RendererInterfacePtr &renderer_interface,
     const media_reader::ImageBufDisplaySetPtr &images,
     const int index,
     const Imath::M44f &window_to_viewport_matrix,
@@ -201,6 +297,7 @@ void MetalViewportRenderer::__draw_image(
     //upload_image_and_colour_data(image_to_be_drawn);
 
     draw_image(
+        renderer_interface,
         image_to_be_drawn,
         images->layout_data(),
         index,
@@ -213,6 +310,7 @@ void MetalViewportRenderer::__draw_image(
 
 
 void MetalViewportRenderer::__draw_per_image_overlays(
+    viewport::RendererInterfacePtr &renderer_interface,
     const media_reader::ImageBufDisplaySetPtr &images,
     const int index,
     const Imath::M44f &window_to_viewport_matrix,
@@ -233,10 +331,11 @@ void MetalViewportRenderer::__draw_per_image_overlays(
 
     /* Call the render functions of overlay plugins - note that if the overlay prefers to draw
     before the image but we have no alpha channel, we still call its render function here */
-    /*if (target_image) {
+    if (target_image) {
 
         for (auto &orf : overlay_renderers) {
             orf->render_image_overlay(
+                renderer_interface,
                 window_to_viewport_matrix,
                 to_image_matrix,
                 abs(viewport_du_dx),
@@ -248,7 +347,7 @@ void MetalViewportRenderer::__draw_per_image_overlays(
         if (!target_image.error_details().empty()) {
 
             std::vector<float> vtxs;
-            std::ignore = resources_->text_renderer_->precompute_text_rendering_vertex_layout(
+            /*td::ignore = resources_->text_renderer_->precompute_text_rendering_vertex_layout(
                 vtxs,
                 target_image.error_details(),
                 Imath::V2f(0.0f, 0.0f),
@@ -264,12 +363,13 @@ void MetalViewportRenderer::__draw_per_image_overlays(
                 utility::ColourTriplet(1.0f, 1.0f, 1.0f),
                 viewport_du_dx,
                 15.0f,
-                1.0f);
+                1.0f);*/
         }
-    }*/
+    }
 }
 
 void MetalViewportRenderer::draw_image(
+    viewport::RendererInterfacePtr &renderer_interface,
     const media_reader::ImageBufPtr &image_to_be_drawn,
     const media_reader::ImageSetLayoutDataPtr &layout_data,
     const int index,
@@ -479,9 +579,15 @@ void TestRenderer::init(int framesInFlight, MetalRendererInterface *stateInfo)
     }
 
     NSError *err = nullptr;
-    pipeline_ = [device_ newRenderPipelineStateWithDescriptor: rpDesc error: &err];
+    MTLRenderPipelineReflection *reflection = nullptr;
+    pipeline_ = [device_ newRenderPipelineStateWithDescriptor: rpDesc
+                                                      options: MTLPipelineOptionArgumentInfo | MTLPipelineOptionBufferTypeInfo
+                                                   reflection: &reflection
+                                                        error: &err];
     if (!pipeline_) {
         NSAlert *anAlert = [NSAlert alertWithError:err];
         [anAlert runModal];
+    } else {
+        shader_program_->load_uniform_layout(reflection);
     }
 }

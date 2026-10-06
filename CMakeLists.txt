@@ -16,7 +16,7 @@ if(APPLE)
     list(REMOVE_DUPLICATES CMAKE_IGNORE_PREFIX_PATH)
 endif()
 
-set(XSTUDIO_GRAPHICS_API OpenGL CACHE STRING "Graphics API to use (OpenGL, Metal, Software)")
+set(XSTUDIO_GRAPHICS_API Metal CACHE STRING "Graphics API to use (OpenGL, Metal, Software)")
 
 if (${XSTUDIO_GRAPHICS_API} STREQUAL "Metal")
   set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fobjc-arc")

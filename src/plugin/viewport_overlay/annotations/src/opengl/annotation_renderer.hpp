@@ -44,7 +44,7 @@ class AnnotationsRenderer : public plugin::ViewportOverlayRenderer {
         std::atomic_bool *hide_all2,
         std::atomic_int *visibility_override);
 
-    void render_image_overlay(
+    void render_image_overlay(viewport::RendererInterfacePtr &renderer_interface,
         const Imath::M44f &transform_window_to_viewport_space,
         const Imath::M44f &transform_viewport_to_image_space,
         const float viewport_du_dpixel,
@@ -52,6 +52,7 @@ class AnnotationsRenderer : public plugin::ViewportOverlayRenderer {
         const xstudio::media_reader::ImageBufPtr &frame) override;
 
     void render_viewport_overlay(
+        viewport::RendererInterfacePtr &renderer_interface,
         const Imath::M44f &transform_window_to_viewport_space,
         const Imath::M44f &transform_viewport_to_normalised_coords,
         const media_reader::ImageBufDisplaySetPtr &on_screen_frames,
@@ -80,6 +81,7 @@ class AnnotationsExtrasRenderer : public plugin::ViewportOverlayRenderer {
         : pixel_patch_(pixel_patch), viewport_name_(viewport_name) {}
 
     void render_image_overlay(
+        viewport::RendererInterfacePtr &renderer_interface,
         const Imath::M44f &transform_window_to_viewport_space,
         const Imath::M44f &transform_viewport_to_image_space,
         const float viewport_du_dpixel,
@@ -87,6 +89,7 @@ class AnnotationsExtrasRenderer : public plugin::ViewportOverlayRenderer {
         const xstudio::media_reader::ImageBufPtr &frame) override;
 
     void render_viewport_overlay(
+        viewport::RendererInterfacePtr &renderer_interface,
         const Imath::M44f &transform_window_to_viewport_space,
         const Imath::M44f &transform_viewport_to_normalised_coords,
         const media_reader::ImageBufDisplaySetPtr &on_screen_frames,

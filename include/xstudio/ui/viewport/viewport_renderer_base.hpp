@@ -16,21 +16,6 @@ enum RenderHints {
 };
 
 /**
- *  @brief RendererInterface class.
- *
- *  @details
- *   Pure abstract base class used to pass a graphics API specific interface from the QT layer
- *   to the lower level ViewportRenderer.
- *   For example, in Metal this would include the device id, command queue and command buffer.
- */
-struct RendererInterface {
-  public:
-    RendererInterface()          = default;
-    virtual ~RendererInterface() = default;
-};
-typedef std::shared_ptr<RendererInterface> RendererInterfacePtr;
-
-/**
  *  @brief ViewportRenderer class.
  *
  *  @details

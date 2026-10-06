@@ -45,6 +45,7 @@ class MetalViewportRenderer : public viewport::ViewportRenderer {
     void restore_client_state() override;
 
     virtual void draw_image(
+        viewport::RendererInterfacePtr &renderer_interface,
         const media_reader::ImageBufPtr &image_to_be_drawn,
         const media_reader::ImageSetLayoutDataPtr &layout_data,
         const int index,
@@ -67,6 +68,7 @@ class MetalViewportRenderer : public viewport::ViewportRenderer {
     const std::array<int, 4> &viewport_coords_in_window() { return viewport_coords_in_window_; }
 
     void __draw_image(
+    viewport::RendererInterfacePtr &renderer_interface,
         const media_reader::ImageBufDisplaySetPtr &all_images,
         const int index,
         const Imath::M44f &window_to_viewport_matrix,
@@ -74,6 +76,7 @@ class MetalViewportRenderer : public viewport::ViewportRenderer {
         const float viewport_du_dx);
 
     void __draw_per_image_overlays(
+        viewport::RendererInterfacePtr &renderer_interface,
         const media_reader::ImageBufDisplaySetPtr &all_images,
         const int index,
         const Imath::M44f &window_to_viewport_matrix,
