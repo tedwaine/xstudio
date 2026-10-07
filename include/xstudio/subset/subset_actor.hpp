@@ -11,13 +11,12 @@
 namespace xstudio::subset {
 class SubsetActor : public caf::event_based_actor {
   public:
-    SubsetActor(caf::actor_config &cfg, caf::actor playlist, const utility::JsonStore &jsn);
+    SubsetActor(caf::actor_config &cfg, const utility::JsonStore &jsn, caf::actor playlist);
     SubsetActor(
         caf::actor_config &cfg,
-        caf::actor playlist,
         const std::string &name,
         const utility::Uuid &uuid        = utility::Uuid::generate(),
-        const std::string &override_type = "Subset");
+        caf::actor playlist = caf::actor());
     ~SubsetActor() override = default;
 
     [[nodiscard]] const char *name() const override { return NAME.c_str(); }

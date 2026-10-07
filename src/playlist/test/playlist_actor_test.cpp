@@ -300,7 +300,7 @@ TEST(PlaylistActorContainerTest, Test) {
             },
             [&](const caf::error &err) { EXPECT_TRUE(false) << to_string(err); });
 
-    f.self->mail(create_subset_atom_v, "SubsetTest", gu1, false)
+    f.self->mail(create_session_object_atom_v, "Subset", "SubsetTest", gu1, false)
         .request(tmp, infinite)
         .receive(
             [&](const UuidUuidActor &a) {
@@ -308,7 +308,7 @@ TEST(PlaylistActorContainerTest, Test) {
             },
             [&](const caf::error &err) { EXPECT_TRUE(false) << to_string(err); });
 
-    f.self->mail(create_subset_atom_v, "SubsetTest2", gu1, true)
+    f.self->mail(create_session_object_atom_v, "Subset", "SubsetTest2", gu1, true)
         .request(tmp, infinite)
         .receive(
             [&](const UuidUuidActor &a) {
