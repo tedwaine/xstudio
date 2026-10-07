@@ -15,6 +15,7 @@ class ViewportCompositeRenderer : public metal::MetalViewportRenderer {
     void pre_init() override {}
 
     void draw_image(
+        viewport::RendererInterfacePtr &renderer_interface,        
         const media_reader::ImageBufPtr &image,
         const media_reader::ImageSetLayoutDataPtr &layout_data,
         const int index,

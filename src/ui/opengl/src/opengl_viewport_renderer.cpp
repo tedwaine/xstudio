@@ -376,9 +376,12 @@ void OpenGLViewportRenderer::render(
     glEnable(GL_SCISSOR_TEST);
     // Some plugins want to draw on the whole viewport canvas (not over a particular
     // image)
+    viewport::RendererInterfacePtr dummy_interface;
+
     for (auto orf : overlay_renderers) {
 
         orf->render_viewport_overlay(
+            dummy_interface,
             window_to_viewport_matrix,
             viewport_to_image_space,
             images,
@@ -482,8 +485,11 @@ void OpenGLViewportRenderer::__draw_per_image_overlays(
     before the image but we have no alpha channel, we still call its render function here */
     if (target_image) {
 
+        viewport::RendererInterfacePtr dummy_interface;
+
         for (auto &orf : overlay_renderers) {
             orf->render_image_overlay(
+                dummy_interface,
                 window_to_viewport_matrix,
                 to_image_matrix,
                 abs(viewport_du_dx),

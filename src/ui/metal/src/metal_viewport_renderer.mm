@@ -506,7 +506,14 @@ void TestRenderer::render(MetalRendererInterface *stateInfo, const Imath::V2i &w
 
     id<MTLRenderCommandEncoder> encoder = (__bridge id<MTLRenderCommandEncoder>) stateInfo->command_encoder;
     
-    std::cerr << "Render " << encoder << " " << stateInfo->currentFrameSlot << " " << window_size.x << " " << window_size.y << "\n";
+    static int t = 0;
+    static int g = 1;
+    if (t == 100) g = -1;
+    if (t == 0) g = 1;
+    t += g;
+    utility::JsonStore params;
+    params["t"] = float(t)/100.0f;
+    std::cerr << params.dump(2) << std::endl;
 
     MTLViewport vp;
     vp.originX = 0;
@@ -517,7 +524,10 @@ void TestRenderer::render(MetalRendererInterface *stateInfo, const Imath::V2i &w
     vp.zfar = 1;
     [encoder setViewport: vp];
 
-    [encoder setFragmentBuffer: ubuf_[stateInfo->currentFrameSlot] offset: 0 atIndex: 0];
+    shader_program_->set_shader_parameters(params);
+    shader_program_->bind_uniforms(encoder);
+
+    //[encoder setFragmentBuffer: ubuf_[stateInfo->currentFrameSlot] offset: 0 atIndex: 0];
     [encoder setVertexBuffer: vbuf_ offset: 0 atIndex: 1];
     [encoder setRenderPipelineState: pipeline_];
     [encoder drawPrimitives: MTLPrimitiveTypeTriangleStrip vertexStart: 0 vertexCount: 4 instanceCount: 1 baseInstance: 0];
