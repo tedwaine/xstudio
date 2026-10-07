@@ -86,6 +86,8 @@ bool MetalShaderProgram::set_type_info(MTLDataType type, UniformMember &m) {
 
 void MetalShaderProgram::load_uniform_layout(MTLRenderPipelineReflection *reflection) {
 
+    std::cerr << "load_uniform_layout " << std::endl;
+
     uniforms_.clear();
     uniform_blocks_.clear();
 
@@ -108,6 +110,7 @@ void MetalShaderProgram::load_uniform_layout(MTLRenderPipelineReflection *reflec
                     type            = member.arrayType.elementType;
                 }
                 if (set_type_info(type, um)) {
+                    std::cerr << [member.name UTF8String] << " " << type << std::endl;
                     uniforms_[[member.name UTF8String]].push_back(um);
                 }
             }
@@ -183,8 +186,11 @@ void MetalShaderProgram::set_shader_parameters(const utility::JsonStore &shader_
 
     for (auto it = shader_params.begin(); it != shader_params.end(); ++it) {
         const auto found = uniforms_.find(it.key());
-        if (found == uniforms_.end())
+        if (found == uniforms_.end()) {
+            std::cerr << "Uniform not found: " << it.key() << std::endl;
             continue;
+        }
+        std::cerr << "Setting uniform: " << it.key() << std::endl;
         for (const auto &member : found->second) {
             try {
                 write_uniform(member, it.value());
@@ -202,6 +208,7 @@ void MetalShaderProgram::bind_uniforms(id<MTLRenderCommandEncoder> encoder) {
         if (block.vertex) {
             [encoder setVertexBytes: block.data.data() length: block.data.size() atIndex: block.index];
         } else {
+            std::cerr << "Binding fragment uniform block at index: " << block.index << " " <<block.data.size() << std::endl;
             [encoder setFragmentBytes: block.data.data() length: block.data.size() atIndex: block.index];
         }
     }
