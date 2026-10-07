@@ -1202,9 +1202,9 @@ TimelineActor::TimelineActor(
 TimelineActor::TimelineActor(
     caf::actor_config &cfg,
     const std::string &name,
-    const FrameRate &rate,
     const Uuid &uuid,
     const caf::actor &playlist,
+    const FrameRate &rate,
     const bool with_tracks)
     : caf::event_based_actor(cfg),
       base_(name, rate, uuid, this),
@@ -2504,7 +2504,10 @@ caf::message_handler TimelineActor::message_handler() {
 
         [=](rate_atom,
             const utility::FrameRate &new_rate,
-            const bool force_media_rate_to_match) -> bool { return true; },
+            const bool force_media_rate_to_match) -> bool {
+            base_.item().override_frame_rate(new_rate, force_media_rate_to_match);
+            return true; 
+        },
 
         [=](duplicate_atom) -> result<UuidActor> {
             auto rp = make_response_promise<UuidActor>();
@@ -4378,3 +4381,5 @@ void TimelineActor::auto_replace_media_at_playhead_clip(caf::typed_response_prom
     first_step();
 
 }
+
+REGISTER_SESSION_OBJECT(TimelineActor, Timeline)

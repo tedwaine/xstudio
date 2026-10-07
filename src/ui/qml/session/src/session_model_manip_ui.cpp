@@ -540,7 +540,7 @@ QModelIndexList SessionModel::insertRows(
                         //     count);
 
                         for (auto i = 0; i < count; i++) {
-                            anon_mail(playlist::create_subset_atom_v, name, before, false)
+                            anon_mail(playlist::create_session_object_atom_v, "Subset", name, before, false)
                                 .send(actor);
                             result.push_back(index(row + i, 0, parent));
                         }
@@ -568,7 +568,7 @@ QModelIndexList SessionModel::insertRows(
 
                         for (auto i = 0; i < count; i++) {
                             anon_mail(
-                                playlist::create_contact_sheet_atom_v, name, before, false)
+                                playlist::create_session_object_atom_v, "ContactSheet", name, before, false)
                                 .send(actor);
                             result.push_back(index(row + i, 0, parent));
                         }
@@ -598,11 +598,11 @@ QModelIndexList SessionModel::insertRows(
                             spdlog::warn("{}", StdFromQString(qrate));
                             if (qrate == "")
                                 anon_mail(
-                                    playlist::create_timeline_atom_v, name, before, false, true)
+                                    playlist::create_session_object_atom_v, "Timeline", name, before, false, true)
                                     .send(actor);
                             else {
                                 anon_mail(
-                                    playlist::create_timeline_atom_v,
+                                    playlist::create_session_object_atom_v, "Timeline",
                                     name,
                                     FrameRate(StdFromQString(qrate)),
                                     before,

@@ -1081,97 +1081,8 @@ void SessionModel::init(caf::actor_system &_system) {
             },
 
             [=](utility::event_atom,
-                playlist::create_subset_atom,
-                const utility::UuidActor &ua) {
-                try {
-                    auto src     = caf::actor_cast<caf::actor>(self()->current_sender());
-                    auto src_str = actorToString(system(), src);
-                    // spdlog::info(
-                    //     "create_subset_atom {} {} {}",
-                    //     to_string(src),
-                    //     src_str,
-                    //     to_string(ua.uuid()));
-                    // request update of children..
-                    // find container owner..
-                    auto index = searchRecursive(
-                        QVariant::fromValue(QStringFromStd(src_str)), actorRole);
-
-                    /*spdlog::info(
-                        "create_subset_atom {} {} {}",
-                        to_string(src),
-                        src_str,
-                        to_string(ua.uuid()));*/
-
-
-                    if (index.isValid()) {
-                        const nlohmann::json &j = indexToData(index);
-                        // request update of containers.
-                        try {
-                            if (j.at("type") == "Playlist") {
-                                // spdlog::warn("create_subset_atom Playlist {}", j.dump(2));
-
-                                index = SessionModel::index(2, 0, index);
-                                if (index.isValid()) {
-                                    const nlohmann::json &jj = indexToData(index);
-                                    requestData(
-                                        QVariant::fromValue(QUuidFromUuid(jj.at("id"))),
-                                        idRole,
-                                        index,
-                                        index,
-                                        JSONTreeModel::Roles::childrenRole);
-                                }
-                            }
-                        } catch (const std::exception &err) {
-                            spdlog::warn("{} {}", __PRETTY_FUNCTION__, err.what());
-                        }
-                    }
-                } catch (const std::exception &err) {
-                    spdlog::warn("{} {}", __PRETTY_FUNCTION__, err.what());
-                }
-            },
-            [=](utility::event_atom,
-                playlist::create_timeline_atom,
-                const utility::UuidActor &ua) {
-                try {
-                    auto src     = caf::actor_cast<caf::actor>(self()->current_sender());
-                    auto src_str = actorToString(system(), src);
-                    // spdlog::info(
-                    //     "create_subset_atom {} {} {}",
-                    //     to_string(src),
-                    //     src_str,
-                    //     to_string(ua.uuid()));
-                    // request update of children..
-                    // find container owner..
-                    auto index = searchRecursive(
-                        QVariant::fromValue(QStringFromStd(src_str)), actorRole);
-
-                    if (index.isValid()) {
-                        const nlohmann::json &j = indexToData(index);
-                        // request update of containers.
-                        try {
-                            if (j.at("type") == "Playlist") {
-
-                                index = SessionModel::index(2, 0, index);
-                                if (index.isValid()) {
-                                    const nlohmann::json &jj = indexToData(index);
-                                    requestData(
-                                        QVariant::fromValue(QUuidFromUuid(jj.at("id"))),
-                                        idRole,
-                                        index,
-                                        index,
-                                        JSONTreeModel::Roles::childrenRole);
-                                }
-                            }
-                        } catch (const std::exception &err) {
-                            spdlog::warn("{} {}", __PRETTY_FUNCTION__, err.what());
-                        }
-                    }
-                } catch (const std::exception &err) {
-                    spdlog::warn("{} {}", __PRETTY_FUNCTION__, err.what());
-                }
-            },
-            [=](utility::event_atom,
-                playlist::create_contact_sheet_atom,
+                playlist::create_session_object_atom,
+                const std::string &type,
                 const utility::UuidActor &ua) {
                 try {
                     auto src     = caf::actor_cast<caf::actor>(self()->current_sender());
@@ -1180,7 +1091,7 @@ void SessionModel::init(caf::actor_system &_system) {
                         QVariant::fromValue(QStringFromStd(src_str)), actorRole);
 
                     /*spdlog::info(
-                        "create_contact_sheet_atom {} {} {}",
+                        "create_session_object_atom {} {} {}",
                         to_string(src),
                         src_str,
                         to_string(ua.uuid()));*/

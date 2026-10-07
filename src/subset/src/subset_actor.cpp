@@ -18,7 +18,7 @@ using namespace xstudio::subset;
 using namespace xstudio::playlist;
 
 SubsetActor::SubsetActor(
-    caf::actor_config &cfg, caf::actor playlist, const utility::JsonStore &jsn)
+    caf::actor_config &cfg, const utility::JsonStore &jsn, caf::actor playlist)
     : caf::event_based_actor(cfg),
       playlist_(caf::actor_cast<actor_addr>(playlist)),
       base_(static_cast<utility::JsonStore>(jsn["base"])) {
@@ -56,13 +56,12 @@ SubsetActor::SubsetActor(
 
 SubsetActor::SubsetActor(
     caf::actor_config &cfg,
-    caf::actor playlist,
     const std::string &name,
     const utility::Uuid &uuid,
-    const std::string &override_type)
+    caf::actor playlist)
     : caf::event_based_actor(cfg),
       playlist_(caf::actor_cast<actor_addr>(playlist)),
-      base_(name, override_type, uuid) {
+      base_(name, "Subset", uuid) {
 
     jsn_handler_ = json_store::JsonStoreHandler(
         dynamic_cast<caf::event_based_actor *>(this), base_.event_group());
@@ -149,10 +148,14 @@ caf::message_handler SubsetActor::message_handler() {
             auto rp = make_response_promise<UuidActor>();
 
             auto uuid      = utility::Uuid::generate();
-            auto duplicate = spawn<subset::SubsetActor>(
-                caf::actor_cast<caf::actor>(playlist_), base_.name(), uuid);
+            auto duplicate = Container::create_session_object(
+                system(),
+                "Subset",
+                base_.name(),
+                uuid,
+                caf::actor_cast<caf::actor>(playlist_)
+            );
             anon_mail(playhead::playhead_rate_atom_v, base_.playhead_rate()).send(duplicate);
-
 
             mail(json_store::get_json_atom_v)
                 .request(jsn_handler_.json_actor(), infinite)
@@ -1003,3 +1006,5 @@ void SubsetActor::duplicate_children(caf::actor duplicated_subset) {
         spdlog::warn("{} {}", __PRETTY_FUNCTION__, e.what());
     }
 }
+
+REGISTER_SESSION_OBJECT(SubsetActor, Subset)

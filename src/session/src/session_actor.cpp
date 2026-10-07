@@ -547,15 +547,16 @@ SessionActor::SessionActor(
     link_to(bookmarks_);
 
     for (const auto &[key, value] : jsn["actors"].items()) {
-        if (value["base"]["container"]["type"] == "Playlist") {
-            try {
-                playlists_[key] = spawn<playlist::PlaylistActor>(
-                    static_cast<utility::JsonStore>(value), caf::actor_cast<caf::actor>(this));
-                link_to(playlists_[key]);
-                join_event_group(this, playlists_[key]);
-            } catch (const std::exception &e) {
-                spdlog::error("{}", e.what());
-            }
+        try {
+            playlists_[key] = Container::create_session_object(
+                system(),
+                value["base"]["container"]["type"].get<std::string>(),
+                static_cast<utility::JsonStore>(value),
+                caf::actor_cast<caf::actor>(this));
+            link_to(playlists_[key]);
+            join_event_group(this, playlists_[key]);
+        } catch (const std::exception &e) {
+            spdlog::error("{}", e.what());
         }
     }
 
@@ -709,8 +710,7 @@ caf::message_handler SessionActor::message_handler() {
             // This can be used to make a temporary playlist to preview stuff in the
             // xSTUDIO viewport without adding to the full session
             const auto uuid = utility::Uuid::generate();
-            auto actor =
-                spawn<playlist::PlaylistActor>(name, uuid, caf::actor_cast<caf::actor>(this));
+            auto actor = Container::create_session_object(system(), "Playlist", name, uuid, caf::actor_cast<caf::actor>(this));
             hidden_playlists_[uuid] = actor;
             anon_mail(media_rate_atom_v, base_.media_rate()).send(actor);
             anon_mail(playhead::playhead_rate_atom_v, base_.playhead_rate()).send(actor);
@@ -2144,8 +2144,16 @@ void SessionActor::create_playlist(
     if (name.empty())
         name = get_next_name("Playlist {}");
 
-    auto actor = spawn<playlist::PlaylistActor>(
-        name, utility::Uuid(), caf::actor_cast<caf::actor>(this));
+    // auto actor = spawn<playlist::PlaylistActor>(
+    //     name, utility::Uuid(), caf::actor_cast<caf::actor>(this));
+    auto actor = Container::create_session_object(
+        system(),
+        "Playlist",
+        name,
+        utility::Uuid::generate(),
+        caf::actor_cast<caf::actor>(this)
+    );
+
     anon_mail(media_rate_atom_v, base_.media_rate()).send(actor);
     anon_mail(playhead::playhead_rate_atom_v, base_.playhead_rate()).send(actor);
     create_container(actor, rp, uuid_before, into);

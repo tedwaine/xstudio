@@ -273,46 +273,36 @@ PlaylistActor::PlaylistActor(
     spdlog::debug("media loaded in {:.3} seconds.", sw);
     // deserialise containers
     for (const auto &[key, value] : jsn.at("actors").items()) {
-        if (value.at("base").at("container").at("type") == "Subset") {
-            try {
-                auto actor = system().spawn<subset::SubsetActor>(
-                    this, static_cast<utility::JsonStore>(value));
-                container_[key] = actor;
-                link_to(actor);
-                join_event_group(this, actor);
-            } catch (const std::exception &e) {
-                spdlog::error("{}", e.what());
-            }
-        } else if (value.at("base").at("container").at("type") == "ContactSheet") {
-            try {
-                auto actor = system().spawn<contact_sheet::ContactSheetActor>(
-                    this, static_cast<utility::JsonStore>(value));
-                container_[key] = actor;
-                link_to(actor);
-                join_event_group(this, actor);
-            } catch (const std::exception &e) {
-                spdlog::error("{}", e.what());
-            }
-        } else if (value.at("base").at("container").at("type") == "Timeline") {
-            try {
-                auto actor = system().spawn<timeline::TimelineActor>(
-                    static_cast<utility::JsonStore>(value), caf::actor_cast<caf::actor>(this));
-
-                container_[key] = actor;
-                link_to(actor);
-                join_event_group(this, actor);
-                // link media to clips.
-                anon_mail(timeline::link_media_atom_v, media_, false).send(actor);
-            } catch (const std::exception &e) {
-                spdlog::error("{}", e.what());
-            }
-        } else if (value.at("base").at("container").at("type") == "PlayheadSelection") {
+        
+        if (value.at("base").at("container").at("type") == "PlayheadSelection") {
 
             try {
 
                 selection_actor_ = system().spawn<playhead::PlayheadSelectionActor>(
                     static_cast<utility::JsonStore>(value), caf::actor_cast<caf::actor>(this));
                 link_to(selection_actor_);
+
+            } catch (const std::exception &e) {
+                spdlog::error("{}", e.what());
+            }
+
+        } else {
+
+            try {
+
+                auto actor = Container::create_session_object(
+                    system(),
+                    value.at("base").at("container").at("type"),
+                    static_cast<utility::JsonStore>(value),
+                    caf::actor_cast<caf::actor>(this));
+
+                container_[key] = actor;
+                link_to(actor);
+                join_event_group(this, actor);
+                if (value.at("base").at("container").at("type") == "Timeline") {
+                    // link media to clips.
+                    anon_mail(timeline::link_media_atom_v, media_, false).send(actor);
+                }
 
             } catch (const std::exception &e) {
                 spdlog::error("{}", e.what());
@@ -362,11 +352,10 @@ caf::message_handler PlaylistActor::default_event_handler() {
                     const std::string &,
                     const JsonStore &) {},
                 [=](json_store::update_atom, const JsonStore &) {},
-                [=](utility::event_atom, create_subset_atom, const utility::UuidActor &) {},
                 [=](utility::event_atom,
-                    create_contact_sheet_atom,
+                    create_session_object_atom,
+                    const std::string &type,
                     const utility::UuidActor &) {},
-                [=](utility::event_atom, create_timeline_atom, const utility::UuidActor &) {},
                 [=](utility::event_atom, notification_atom, const caf::actor &,const JsonStore &jsn) {},
 
                 [=](utility::event_atom,
@@ -787,91 +776,14 @@ caf::message_handler PlaylistActor::message_handler() {
             media::add_media_source_atom,
             const utility::UuidActorVector &) {},
 
-        [=](convert_to_contact_sheet_atom,
+        [=](convert_session_object_atom,
+            const std::string &type,
             utility::Uuid uuid,
             const std::string &name,
             const utility::Uuid &uuid_before) -> result<utility::UuidUuidActor> {
             auto rp = make_response_promise<utility::UuidUuidActor>();
 
-            mail(create_contact_sheet_atom_v, name, uuid_before, false)
-                .request(actor_cast<caf::actor>(this), infinite)
-                .then(
-                    [=](const utility::UuidUuidActor &result) mutable {
-                        rp.deliver(result);
-                        // clone data from target and inject into new actor
-                        auto src_container = base_.containers().cfind_any(uuid);
-
-                        if (src_container) {
-                            mail(get_media_atom_v)
-                                .request(container_[(*src_container)->value().uuid()], infinite)
-                                .then(
-                                    [=](const std::vector<UuidActor> &media) mutable {
-                                        anon_mail(add_media_atom_v, media, Uuid())
-                                            .send(result.second.actor());
-                                        anon_mail(
-                                            reflag_container_atom_v,
-                                            (*src_container)->value().flag(),
-                                            result.first)
-                                            .send(actor_cast<caf::actor>(this));
-                                    },
-                                    [=](error &err) mutable {
-                                        spdlog::warn(
-                                            "{} {}", __PRETTY_FUNCTION__, to_string(err));
-                                    });
-                        }
-                    },
-
-                    [=](error &err) mutable { rp.deliver(std::move(err)); });
-
-            return rp;
-        },
-
-        [=](convert_to_timeline_atom,
-            const utility::Uuid &uuid,
-            const std::string &name,
-            const utility::Uuid &uuid_before) -> result<utility::UuidUuidActor> {
-            auto rp = make_response_promise<utility::UuidUuidActor>();
-
-            mail(create_timeline_atom_v, name, uuid_before, false, true)
-                .request(actor_cast<caf::actor>(this), infinite)
-                .then(
-                    [=](const utility::UuidUuidActor &result) mutable {
-                        rp.deliver(result);
-                        // clone data from target and inject into new actor
-                        auto src_container = base_.containers().cfind_any(uuid);
-
-                        if (src_container) {
-                            mail(get_media_atom_v)
-                                .request(container_[(*src_container)->value().uuid()], infinite)
-                                .then(
-                                    [=](const std::vector<UuidActor> &media) mutable {
-                                        anon_mail(add_media_atom_v, media, Uuid())
-                                            .send(result.second.actor());
-                                        anon_mail(
-                                            reflag_container_atom_v,
-                                            (*src_container)->value().flag(),
-                                            result.first)
-                                            .send(actor_cast<caf::actor>(this));
-                                    },
-                                    [=](error &err) mutable {
-                                        spdlog::warn(
-                                            "{} {}", __PRETTY_FUNCTION__, to_string(err));
-                                    });
-                        }
-                    },
-
-                    [=](error &err) mutable { rp.deliver(std::move(err)); });
-
-            return rp;
-        },
-
-        [=](convert_to_subset_atom,
-            const utility::Uuid &uuid,
-            const std::string &name,
-            const utility::Uuid &uuid_before) -> result<utility::UuidUuidActor> {
-            auto rp = make_response_promise<utility::UuidUuidActor>();
-
-            mail(create_subset_atom_v, name, uuid_before, false)
+            mail(create_session_object_atom_v, type, name, uuid_before, false)
                 .request(actor_cast<caf::actor>(this), infinite)
                 .then(
                     [=](const utility::UuidUuidActor &result) mutable {
@@ -921,13 +833,21 @@ caf::message_handler PlaylistActor::message_handler() {
             return rp;
         },
 
-        [=](create_contact_sheet_atom,
+        [=](create_session_object_atom,
+            const std::string &type,
             const std::string &name,
             const utility::Uuid &uuid_before,
             const bool into) -> result<utility::UuidUuidActor> {
             // try insert as requested, but add to end if it fails.
             auto rp    = make_response_promise<utility::UuidUuidActor>();
-            auto actor = spawn<contact_sheet::ContactSheetActor>(this, name);
+            auto actor = Container::create_session_object(
+                system(),
+                type,
+                name,
+                utility::Uuid::generate(),
+                caf::actor_cast<caf::actor>(this)
+            );
+
             anon_mail(playhead::playhead_rate_atom_v, base_.playhead_rate()).send(actor);
             create_container(actor, rp, uuid_before, into);
             return rp;
@@ -971,7 +891,8 @@ caf::message_handler PlaylistActor::message_handler() {
             return make_error(xstudio_error::error, "Invalid uuid");
         },
 
-        [=](create_timeline_atom,
+        [=](create_session_object_atom,
+            const std::string &type,
             const std::string &name,
             const utility::FrameRate &rate,
             const utility::Uuid &uuid_before,
@@ -981,16 +902,17 @@ caf::message_handler PlaylistActor::message_handler() {
             auto rp    = make_response_promise<utility::UuidUuidActor>();
             auto actor = spawn<timeline::TimelineActor>(
                 name,
-                (rate == timebase::k_flicks_zero_seconds ? base_.media_rate() : rate),
                 utility::Uuid::generate(),
                 actor_cast<caf::actor>(this),
+                (rate == timebase::k_flicks_zero_seconds ? base_.media_rate() : rate),
                 with_tracks);
             // anon_mail(playhead::playhead_rate_atom_v, base_.playhead_rate()).send(actor);
             create_container(actor, rp, uuid_before, into);
             return rp;
         },
 
-        [=](create_timeline_atom,
+        [=](create_session_object_atom,
+            const std::string &type,
             const std::string &name,
             const utility::Uuid &uuid_before,
             const bool into,
@@ -999,23 +921,11 @@ caf::message_handler PlaylistActor::message_handler() {
             auto rp    = make_response_promise<utility::UuidUuidActor>();
             auto actor = spawn<timeline::TimelineActor>(
                 name,
-                base_.media_rate(),
                 utility::Uuid::generate(),
                 actor_cast<caf::actor>(this),
+                base_.media_rate(),
                 with_tracks);
             // anon_mail(playhead::playhead_rate_atom_v, base_.playhead_rate()).send(actor);
-            create_container(actor, rp, uuid_before, into);
-            return rp;
-        },
-
-        [=](create_subset_atom,
-            const std::string &name,
-            const utility::Uuid &uuid_before,
-            const bool into) -> result<utility::UuidUuidActor> {
-            // try insert as requested, but add to end if it fails.
-            auto rp    = make_response_promise<utility::UuidUuidActor>();
-            auto actor = spawn<subset::SubsetActor>(this, name);
-            anon_mail(playhead::playhead_rate_atom_v, base_.playhead_rate()).send(actor);
             create_container(actor, rp, uuid_before, into);
             return rp;
         },
@@ -1983,7 +1893,7 @@ caf::message_handler PlaylistActor::message_handler() {
                                 const auto name =
                                     fs::path(uri_to_posix_path(path)).stem().string();
                                 // spdlog::warn("Loaded from python {}", name);
-                                mail(create_timeline_atom_v, name, uuid_before, false, false)
+                                mail(create_session_object_atom_v, "Timeline", name, uuid_before, false, false)
                                     .request(actor_cast<caf::actor>(this), infinite)
                                     .then(
                                         [=](const utility::UuidUuidActor &uua) mutable {
@@ -2173,24 +2083,12 @@ void PlaylistActor::create_container(
                     cuuid = base_.insert_container(tmp);
                 }
 
-                if (detail.type_ == "Subset")
-                    mail(
-                        utility::event_atom_v,
-                        create_subset_atom_v,
-                        UuidActor(detail.uuid_, actor))
-                        .send(base_.event_group());
-                else if (detail.type_ == "ContactSheet")
-                    mail(
-                        utility::event_atom_v,
-                        create_contact_sheet_atom_v,
-                        UuidActor(detail.uuid_, actor))
-                        .send(base_.event_group());
-                else if (detail.type_ == "Timeline")
-                    mail(
-                        utility::event_atom_v,
-                        create_timeline_atom_v,
-                        UuidActor(detail.uuid_, actor))
-                        .send(base_.event_group());
+                mail(
+                    utility::event_atom_v,
+                    create_session_object_atom_v,
+                    detail.type_,
+                    UuidActor(detail.uuid_, actor))
+                    .send(base_.event_group());
 
                 base_.send_changed();
                 rp.deliver(std::make_pair(*cuuid, UuidActor(detail.uuid_, actor)));
@@ -2309,14 +2207,8 @@ void PlaylistActor::notify_tree(const utility::UuidTree<utility::PlaylistItem> &
         // container_[tree.value().uuid()]}});
         auto ua = UuidActor(tree.value().uuid(), container_[tree.value().uuid()]);
 
-        if (tree.value().type() == "Subset") {
-            mail(utility::event_atom_v, create_subset_atom_v, ua).send(base_.event_group());
-        } else if (tree.value().type() == "ContactSheet") {
-            mail(utility::event_atom_v, create_contact_sheet_atom_v, ua)
-                .send(base_.event_group());
-        } else if (tree.value().type() == "Timeline") {
-            mail(utility::event_atom_v, create_timeline_atom_v, ua).send(base_.event_group());
-        }
+        mail(utility::event_atom_v, create_session_object_atom_v, tree.value().type(), ua)
+            .send(base_.event_group());
     }
 
     for (const auto &i : tree.children_) {
@@ -2870,7 +2762,8 @@ void PlaylistActor::recursive_add_media_with_subsets(
                                     fs::path p(uri_to_posix_path(subfolder));
                                     const auto subset_name = std::string(p.filename().string());
                                     mail(
-                                        create_subset_atom_v,
+                                        create_session_object_atom_v,
+                                        "Subset",
                                         subset_name,
                                         utility::Uuid(),
                                         false)
@@ -2908,3 +2801,5 @@ void PlaylistActor::recursive_add_media_with_subsets(
 
     mail(utility::event_atom_v, loading_media_atom_v, true).send(base_.event_group());
 }
+
+REGISTER_SESSION_OBJECT(PlaylistActor, Playlist)
