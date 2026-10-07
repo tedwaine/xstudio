@@ -19,6 +19,25 @@
 #include <fmt/format.h>
 #include <semver.hpp>
 
+//
+#define REGISTER_SESSION_OBJECT(SESSION_OBJECT_CLASS, SESSION_OBJECT_TYPENAME)                              \
+namespace {                                                                                                 \
+caf::actor from_json(caf::actor_system &system, const utility::JsonStore &jsn, const caf::actor &parent) {  \
+    return system.spawn<SESSION_OBJECT_CLASS>(jsn, parent);                                                 \
+}                                                                                                           \
+caf::actor from_name_and_uuid(                                                                              \
+    caf::actor_system &system, const std::string &name,                                                     \
+    const utility::Uuid &uuid, const caf::actor &parent) {                                                  \
+    return system.spawn<SESSION_OBJECT_CLASS>(name, uuid, parent);                                          \
+}                                                                                                           \
+struct PlaylistObjectFactoryRegistrar {                                                                     \
+    PlaylistObjectFactoryRegistrar() {                                                                      \
+        utility::Container::register_session_object_factory(                                                \
+            #SESSION_OBJECT_TYPENAME, from_json, from_name_and_uuid);                                       \
+    }                                                                                                       \
+} __registrar;                                                                                              \
+} // namespace
+
 namespace xstudio::utility {
 
 struct ContainerDetail {
@@ -83,6 +102,7 @@ class Container {
     void set_uuid(const utility::Uuid &uuid) { uuid_ = uuid; }
     void set_version(const std::string &version) { version_.from_string(version); }
     void set_file_version(const std::string &version, bool warn = false);
+    void override_type(const std::string &type) { type_ = type; }
 
     [[nodiscard]] ContainerDetail detail(caf::actor act, caf::actor group) const {
         return ContainerDetail(name_, type_, uuid_, std::move(act), std::move(group));
@@ -217,6 +237,13 @@ class Container {
             f.field("name", x.name_), f.field("type", x.type_), f.field("uuid", x.uuid_));
     }
 
+    static caf::actor create_session_object(caf::actor_system &system, const std::string &type, const utility::JsonStore &json, const caf::actor &parent=caf::actor());
+    static caf::actor create_session_object(caf::actor_system &system, const std::string &type, const std::string &name, const utility::Uuid & uuid, const caf::actor &parent=caf::actor());
+
+    typedef std::function<caf::actor(caf::actor_system &system, const utility::JsonStore &, const caf::actor &)> SessionObjectFactorySignature;
+    typedef std::function<caf::actor(caf::actor_system &system, const std::string &, const utility::Uuid &, const caf::actor &)> SessionObjectFactorySignature2;
+    static void register_session_object_factory(const std::string_view object_name, SessionObjectFactorySignature factory, SessionObjectFactorySignature2 factory2);
+
   private:
     void register_container(const Container &cnt);
     void unregister_container(const Container &cnt);
@@ -229,6 +256,9 @@ class Container {
     semver::version version_;
     semver::version file_version_;
     time_point last_changed_ = {utility::clock::now()};
+
+    static std::map<std::string, std::pair<SessionObjectFactorySignature, SessionObjectFactorySignature2>> playlist_object_factories;
+
 };
 
 std::ostream &operator<<(std::ostream &out, const Container &rhs) {

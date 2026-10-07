@@ -13,6 +13,36 @@ using namespace xstudio::utility;
 static std::map<utility::Uuid, std::string> cnt_map;
 static std::mutex cnt_mutex;
 
+std::map<std::string, std::pair<Container::SessionObjectFactorySignature, Container::SessionObjectFactorySignature2>> Container::playlist_object_factories;
+
+void Container::register_session_object_factory(const std::string_view object_name, SessionObjectFactorySignature factory, SessionObjectFactorySignature2 factory2) {
+    playlist_object_factories[std::string(object_name)] = std::make_pair(factory, factory2);
+}
+
+caf::actor Container::create_session_object(
+    caf::actor_system &system,
+    const std::string &object_type,
+    const utility::JsonStore &json,
+    const caf::actor &parent) {
+    const auto it   = playlist_object_factories.find(object_type);
+    if (it != playlist_object_factories.end()) {
+        return it->second.first(system, json, parent);
+    }
+    throw std::runtime_error(fmt::format("No session object factory registered for type: {}", object_type).c_str());
+}
+
+caf::actor Container::create_session_object(
+    caf::actor_system &system,
+    const std::string &object_type,
+    const std::string &name,
+    const utility::Uuid &uuid,
+    const caf::actor &parent) {
+    const auto it   = playlist_object_factories.find(object_type);
+    if (it != playlist_object_factories.end()) {
+        return it->second.second(system, name, uuid, parent);
+    }
+    throw std::runtime_error(fmt::format("No session object factory registered for type: {}", object_type).c_str());
+}
 
 void Container::register_container(const Container &cnt) {
     std::lock_guard<std::mutex> m(cnt_mutex);

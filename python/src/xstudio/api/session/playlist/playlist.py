@@ -1,11 +1,11 @@
 # SPDX-License-Identifier: Apache-2.0
 from xstudio.core import get_playhead_atom, get_media_atom, get_container_atom
-from xstudio.core import Uuid, create_group_atom, create_contact_sheet_atom, add_media_atom
-from xstudio.core import rename_container_atom, create_subset_atom, create_timeline_atom
+from xstudio.core import Uuid, create_group_atom, create_session_object_atom, add_media_atom
+from xstudio.core import rename_container_atom
 from xstudio.core import move_container_atom, remove_container_atom, type_atom, parse_posix_path
 from xstudio.core import create_divider_atom, media_rate_atom, playhead_rate_atom, URI, FrameRate
 from xstudio.core import remove_media_atom, VectorUuid, move_media_atom, create_playhead_atom, selection_actor_atom
-from xstudio.core import convert_to_timeline_atom, convert_to_subset_atom, convert_to_contact_sheet_atom
+from xstudio.core import convert_session_object_atom
 from xstudio.core import reflag_container_atom, expanded_atom, session_atom, copy_media_atom
 from xstudio.core import FrameList, FrameRate, MediaType
 
@@ -324,7 +324,7 @@ class Playlist(Container, NotificationHandler, JsonStoreHandler):
         if not isinstance(before, Uuid):
             before = before.uuid
 
-        result = self.connection.request_receive(self.remote, create_subset_atom(), name, before, into)[0]
+        result = self.connection.request_receive(self.remote, create_session_object_atom(), "Subset", name, before, into)[0]
 
         return (result[0], Subset(self.connection, result[1].actor, result[1].uuid))
 
@@ -359,7 +359,7 @@ class Playlist(Container, NotificationHandler, JsonStoreHandler):
         if not isinstance(before, Uuid):
             before = before.uuid
 
-        result = self.connection.request_receive(self.remote, create_timeline_atom(), name, before, into, with_tracks)[0]
+        result = self.connection.request_receive(self.remote, create_session_object_atom(), "Timeline", name, before, into, with_tracks)[0]
 
         return (result[0], Timeline(self.connection, result[1].actor, result[1].uuid))
 
@@ -377,7 +377,7 @@ class Playlist(Container, NotificationHandler, JsonStoreHandler):
         if not isinstance(before, Uuid):
             before = before.uuid
 
-        result = self.connection.request_receive(self.remote, create_contact_sheet_atom(), name, before, into)[0]
+        result = self.connection.request_receive(self.remote, create_session_object_atom(), "ContactSheet", name, before, into)[0]
         return (result[0], ContactSheet(self.connection, result[1].actor, result[1].uuid))
 
     @property
@@ -548,7 +548,7 @@ class Playlist(Container, NotificationHandler, JsonStoreHandler):
         if isinstance(src, Container):
             src = src.uuid
 
-        result = self.connection.request_receive(self.remote, convert_to_subset_atom(), src, name, before)[0]
+        result = self.connection.request_receive(self.remote, convert_session_object_atom(), "Subset", src, name, before)[0]
 
         return (result[0], Subset(self.connection, result[1].actor, result[1].uuid))
 
@@ -571,7 +571,7 @@ class Playlist(Container, NotificationHandler, JsonStoreHandler):
         if isinstance(src, Container):
             src = src.uuid
 
-        result = self.connection.request_receive(self.remote, convert_to_contact_sheet_atom(), src, name, before)[0]
+        result = self.connection.request_receive(self.remote, convert_session_object_atom(), "ContactSheet", src, name, before)[0]
         return (result[0], ContactSheet(self.connection, result[1].actor, result[1].uuid))
 
     def convert_to_timeline(self, src, name="Converted", before=Uuid()):
@@ -593,7 +593,7 @@ class Playlist(Container, NotificationHandler, JsonStoreHandler):
         if isinstance(src, Container):
             src = src.uuid
 
-        result = self.connection.request_receive(self.remote, convert_to_timeline_atom(), src, name, before)[0]
+        result = self.connection.request_receive(self.remote, convert_session_object_atom(), "Timeline", src, name, before)[0]
         return (result[0], Timeline(self.connection, result[1].actor, result[1].uuid))
 
     @property

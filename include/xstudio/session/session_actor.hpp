@@ -25,6 +25,7 @@ class SessionActor : public caf::event_based_actor {
     [[nodiscard]] const char *name() const override { return NAME.c_str(); }
 
   private:
+
     inline static const std::string NAME = "SessionActor";
 
     void init();

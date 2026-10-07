@@ -19,15 +19,17 @@ using namespace xstudio::playlist;
 using namespace xstudio::subset;
 
 ContactSheetActor::ContactSheetActor(
-    caf::actor_config &cfg, caf::actor playlist, const utility::JsonStore &jsn)
-    : SubsetActor(cfg, playlist, jsn) {
+    caf::actor_config &cfg, const utility::JsonStore &jsn, caf::actor playlist)
+    : SubsetActor(cfg, jsn, playlist) {
 
+    base_.override_type("ContactSheet");
     init();
 }
 
 ContactSheetActor::ContactSheetActor(
-    caf::actor_config &cfg, caf::actor playlist, const std::string &name)
-    : SubsetActor(cfg, playlist, name, utility::Uuid::generate(), "ContactSheet") {
+    caf::actor_config &cfg, const std::string &name, const utility::Uuid &uuid, caf::actor playlist)
+    : SubsetActor(cfg, name, uuid, playlist) {
+    base_.override_type("ContactSheet");
     init();
 }
 
@@ -49,14 +51,13 @@ void ContactSheetActor::init() {
 
         [=](duplicate_atom) -> result<UuidActor> {
             // clone ourself..
-            auto actor =
-                spawn<ContactSheetActor>(caf::actor_cast<caf::actor>(playlist_), base_.name());
+            auto uuid = utility::Uuid::generate();
+            auto actor = Container::create_session_object(system(),"ContactSheet", base_.name(), uuid, caf::actor_cast<caf::actor>(playlist_));
             anon_mail(playhead::playhead_rate_atom_v, base_.playhead_rate()).send(actor);
             // get uuid from actor..
             try {
                 caf::scoped_actor sys(system());
                 // get uuid..
-                Uuid uuid = request_receive<Uuid>(*sys, actor, utility::uuid_atom_v);
 
                 // maybe not be safe.. as ordering isn't implicit..
                 std::vector<UuidActor> media_actors;
@@ -137,3 +138,5 @@ void ContactSheetActor::init() {
                     });
         }};
 }
+
+REGISTER_SESSION_OBJECT(ContactSheetActor, ContactSheet)

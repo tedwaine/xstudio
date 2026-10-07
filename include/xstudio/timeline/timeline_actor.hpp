@@ -10,16 +10,18 @@
 namespace xstudio::timeline {
 class TimelineActor : public caf::event_based_actor {
   public:
+
     TimelineActor(
         caf::actor_config &cfg,
         const utility::JsonStore &jsn,
         const caf::actor &playlist = caf::actor());
+        
     TimelineActor(
         caf::actor_config &cfg,
         const std::string &name        = "Timeline",
-        const utility::FrameRate &rate = utility::FrameRate(),
         const utility::Uuid &uuid      = utility::Uuid::generate(),
         const caf::actor &playlist     = caf::actor(),
+        const utility::FrameRate &rate = utility::FrameRate(),
         const bool with_tracks         = false);
     ~TimelineActor() override = default;
 
