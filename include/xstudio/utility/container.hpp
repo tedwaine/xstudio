@@ -245,9 +245,6 @@ class Container {
     static void register_session_object_factory(const std::string_view object_name, SessionObjectFactorySignature factory, SessionObjectFactorySignature2 factory2);
 
   private:
-    void register_container(const Container &cnt);
-    void unregister_container(const Container &cnt);
-
     caf::event_based_actor *actor_{nullptr};
     caf::actor event_group_;
     std::string name_;

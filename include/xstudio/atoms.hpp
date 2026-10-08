@@ -87,6 +87,11 @@ namespace utility {
     struct absolute_receive_timeout;
     struct ContainerDetail;
     struct CopyResult;
+
+    typedef std::shared_ptr<const std::any> AnyPtr;
+    class ObjectDataTree;    
+    typedef std::shared_ptr<const ObjectDataTree> ObjectDataTreePtr;
+
 } // namespace utility
 
 namespace colour_pipeline {
@@ -210,6 +215,8 @@ CAF_ALLOW_UNSAFE_MESSAGE_TYPE(xstudio::ui::Hotkey)
 CAF_ALLOW_UNSAFE_MESSAGE_TYPE(xstudio::ui::viewport::GPUShaderPtr)
 CAF_ALLOW_UNSAFE_MESSAGE_TYPE(xstudio::ui::viewport::ViewportRendererPtr)
 CAF_ALLOW_UNSAFE_MESSAGE_TYPE(xstudio::ui::viewport::ViewportFramePostProcessorPtr)
+CAF_ALLOW_UNSAFE_MESSAGE_TYPE(xstudio::utility::AnyPtr)
+CAF_ALLOW_UNSAFE_MESSAGE_TYPE(xstudio::utility::ObjectDataTreePtr)
 
 
 // clang-format off
@@ -292,6 +299,8 @@ CAF_BEGIN_TYPE_ID_BLOCK(xstudio_simple_types, FIRST_CUSTOM_ID)
     CAF_ADD_TYPE_ID(xstudio_simple_types, (xstudio::utility::TimeSourceMode))
     CAF_ADD_TYPE_ID(xstudio_simple_types, (xstudio::utility::Uuid))
     CAF_ADD_TYPE_ID(xstudio_simple_types, (xstudio::utility::UuidActorMap))
+    CAF_ADD_TYPE_ID(xstudio_simple_types, (xstudio::utility::AnyPtr))
+    CAF_ADD_TYPE_ID(xstudio_simple_types, (xstudio::utility::ObjectDataTreePtr))
     CAF_ADD_TYPE_ID(xstudio_simple_types, (xstudio::xstudio_error))
     CAF_ADD_TYPE_ID(xstudio_simple_types, (xstudio::ui::viewport::ImageFormat))
     CAF_ADD_TYPE_ID(xstudio_simple_types, (xstudio::timeline::Marker))
@@ -503,6 +512,7 @@ CAF_BEGIN_TYPE_ID_BLOCK(xstudio_framework_atoms, FIRST_CUSTOM_ID + (200 * 2))
     CAF_ADD_ATOM(xstudio_framework_atoms, xstudio::utility, user_start_action_atom)
     CAF_ADD_ATOM(xstudio_framework_atoms, xstudio::utility, user_stop_action_atom)
     CAF_ADD_ATOM(xstudio_framework_atoms, xstudio::utility, user_status_atom)
+    CAF_ADD_ATOM(xstudio_framework_atoms, xstudio::utility, property_atom)
 
     CAF_ADD_ATOM(xstudio_framework_atoms, xstudio::json_store, sync_atom)
     CAF_ADD_ATOM(xstudio_framework_atoms, xstudio::module, reset_module_atom)
