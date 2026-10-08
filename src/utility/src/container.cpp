@@ -10,9 +10,6 @@
 using namespace xstudio;
 using namespace xstudio::utility;
 
-static std::map<utility::Uuid, std::string> cnt_map;
-static std::mutex cnt_mutex;
-
 std::map<std::string, std::pair<Container::SessionObjectFactorySignature, Container::SessionObjectFactorySignature2>> Container::playlist_object_factories;
 
 void Container::register_session_object_factory(const std::string_view object_name, SessionObjectFactorySignature factory, SessionObjectFactorySignature2 factory2) {
@@ -43,24 +40,6 @@ caf::actor Container::create_session_object(
     }
     throw std::runtime_error(fmt::format("No session object factory registered for type: {}", object_type).c_str());
 }
-
-void Container::register_container(const Container &cnt) {
-    std::lock_guard<std::mutex> m(cnt_mutex);
-    cnt_map[cnt.uuid()] = cnt.type();
-    // spdlog::warn("register {} {}",to_string(cnt.uuid()),cnt.type());
-}
-
-void Container::unregister_container(const Container &cnt) {
-    std::lock_guard<std::mutex> m(cnt_mutex);
-    // spdlog::error("unregistered {} {}", to_string(cnt.uuid()), cnt.type());
-    cnt_map.erase(cnt.uuid());
-
-    // if (cnt_map.size() < 30) {
-    //     for (const auto &i : cnt_map)
-    //         spdlog::error("NOT unregistered {} {}", to_string(i.first), i.second);
-    // }
-}
-
 
 void Container::set_file_version(const std::string &version, const bool warn) {
     semver::version nv(version);

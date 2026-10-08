@@ -23,7 +23,7 @@ using namespace xstudio::media_metadata;
 using namespace caf;
 
 MediaStreamActor::MediaStreamActor(caf::actor_config &cfg, const JsonStore &jsn)
-    : caf::event_based_actor(cfg), base_(static_cast<JsonStore>(jsn["base"])) {
+    : utility::ObjectActor(cfg), base_(static_cast<JsonStore>(jsn["base"])) {
     jsn_handler_ = JsonStoreHandler(
         dynamic_cast<caf::event_based_actor *>(this),
         base_.event_group(),
@@ -40,7 +40,7 @@ MediaStreamActor::MediaStreamActor(
     const StreamDetail &detail,
     const utility::Uuid &uuid,
     const JsonStore &meta)
-    : caf::event_based_actor(cfg), base_(detail) {
+    : utility::ObjectActor(cfg), base_(detail) {
 
     jsn_handler_ = JsonStoreHandler(
         dynamic_cast<caf::event_based_actor *>(this),
