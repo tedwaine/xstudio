@@ -7,9 +7,11 @@ import xStudio 1.0
 import "."
 
 XsPlaylistItemBase {
+
     isExpandable: subItemsCount != 0
     implicitHeight: itemRowStdHeight + subItems.height + indicator_height
     clip: true
+    id: root
 
     Behavior on implicitHeight {NumberAnimation{duration: 100 }}
 
@@ -27,6 +29,11 @@ XsPlaylistItemBase {
     property var subItemsModelIndex: modelIndex && modelIndex.valid ? theSessionData.index(2, 0, modelIndex) : undefined
     property var subItemsCount: subItemsModel.count
 
+        property string sourcey: `XsPlaylistItemBase {
+        anchors.fill: parent
+            }`
+
+
     /* Here we have a model to iterate over the contents of the playlist (if
         any) such as subsets, timelines, dividers etc */
     DelegateModel {
@@ -41,10 +48,26 @@ XsPlaylistItemBase {
 
         // playlists are one level in at row=0, column=0.
         rootIndex: subItemsModelIndex
-        delegate: chooser
+        delegate: Item {
+
+            id: containerItem
+            property var comp
+            Layout.fillWidth: true
+            Layout.preferredHeight: comp ? comp.implicitHeight : 0
+
+            function doLoad() {
+                comp = Qt.createQmlObject(root.sourcey, containerItem)
+                comp.iconSource = "qrc:/icons/communities.svg"
+                comp.indent = true
+                comp.modelIndex = helpers.makePersistent(subItemsModel.modelIndex(index))
+                console.log("comp.modelIndex", comp.modelIndex)
+            }
+            property var foo: typeRole
+            onFooChanged: doLoad()
+        }
     }
 
-    DelegateChooser {
+    /* DelegateChooser {
         id: chooser
         role: "typeRole"
 
@@ -96,7 +119,7 @@ XsPlaylistItemBase {
 
         }
 
-    }
+    } */
 
     // The layout to show the playlist sub-items
     ColumnLayout {

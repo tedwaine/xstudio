@@ -11,6 +11,7 @@
 #include "xstudio/utility/tree.hpp"
 #include "xstudio/utility/uuid.hpp"
 #include "xstudio/utility/notification_handler.hpp"
+#include "xstudio/utility/xs_actor.hpp"
 
 namespace xstudio::media {
 class MediaActor : public caf::event_based_actor {
@@ -207,8 +208,10 @@ class MediaSourceActor : public caf::event_based_actor {
     std::map<int, UriStatus> uri_status_cache_;
 };
 
-class MediaStreamActor : public caf::event_based_actor {
+class MediaStreamActor : public utility::ObjectActor {
+
   public:
+
     MediaStreamActor(
         caf::actor_config &cfg,
         const StreamDetail &detail,
@@ -216,15 +219,16 @@ class MediaStreamActor : public caf::event_based_actor {
         const utility::JsonStore &meta = utility::JsonStore());
     MediaStreamActor(caf::actor_config &cfg, const utility::JsonStore &jsn);
     ~MediaStreamActor() override = default;
-    caf::message_handler message_handler();
-
-    caf::behavior make_behavior() override {
-        return message_handler()
-            .or_else(base_.container_message_handler(this))
-            .or_else(jsn_handler_.message_handler());
-    }
-
+    
     [[nodiscard]] const char *name() const override { return NAME.c_str(); }
+
+  protected:
+
+    caf::message_handler message_handler() override;
+    
+    caf::message_handler extra_message_handlers() override {
+        return base_.container_message_handler(this).or_else(jsn_handler_.message_handler());
+    }
 
   private:
     void apply_auto_rotation(const float rotation_degrees);
