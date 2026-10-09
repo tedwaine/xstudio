@@ -14,7 +14,7 @@ class ViewportCompositeRenderer : public opengl::OpenGLViewportRenderer {
 
     ~ViewportCompositeRenderer() override = default;
 
-    void pre_init() override;
+    void pre_init(RendererInterfacePtr &renderer_interface) override;
 
     void draw_image(
         const media_reader::ImageBufPtr &image,

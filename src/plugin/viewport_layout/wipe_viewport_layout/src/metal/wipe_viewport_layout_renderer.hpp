@@ -15,7 +15,7 @@ class ViewportWipeRenderer : public metal::MetalViewportRenderer {
 
     ~ViewportWipeRenderer() override = default;
 
-    void pre_init() override {}
+    void pre_init(RendererInterfacePtr &renderer_interface) override {}
 
     void draw_image(
         viewport::RendererInterfacePtr &renderer_interface,

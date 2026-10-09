@@ -15,7 +15,7 @@ class ViewportWipeRenderer : public opengl::OpenGLViewportRenderer {
 
     ~ViewportWipeRenderer() override;
 
-    void pre_init() override;
+    void pre_init(RendererInterfacePtr &renderer_interface) override;
 
     void draw_image(
         const media_reader::ImageBufPtr &image,

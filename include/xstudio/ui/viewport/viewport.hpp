@@ -156,9 +156,9 @@ class Viewport : public module::Module {
      *  @details Carry out first time render one-shot initialisation of any member
      * data or other state/data initialisation of graphics resources
      */
-    void init() {
+    void init(RendererInterfacePtr &renderer_interface) {
         if (active_renderer_)
-            active_renderer_->init();
+            active_renderer_->init(renderer_interface);
     }
 
     /**
