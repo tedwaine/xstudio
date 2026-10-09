@@ -99,7 +99,7 @@ class OpenGLViewportRenderer : public viewport::ViewportRenderer {
         const float device_pixel_ratio,
         const std::vector<plugin::ViewportOverlayRendererPtr> &overlay_renderers);
 
-    void pre_init() override;
+    void pre_init(RendererInterfacePtr &renderer_interface) override;
 
     bool activate_shader(
         const viewport::GPUShaderPtr &image_buffer_unpack_shader,
