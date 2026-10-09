@@ -76,8 +76,8 @@ ViewportCompositeRenderer::ViewportCompositeRenderer(
     const std::string &window_id, const utility::JsonStore &prefs)
     : OpenGLViewportRenderer(window_id, prefs) {}
 
-void ViewportCompositeRenderer::pre_init() {
-    OpenGLViewportRenderer::pre_init();
+void ViewportCompositeRenderer::pre_init(RendererInterfacePtr &renderer_interface) {
+    OpenGLViewportRenderer::pre_init(renderer_interface);
     offscreen_texture_target_A_ = std::make_unique<OpenGLOffscreenRenderer>(GL_RGBA32F);
     offscreen_texture_target_B_ = std::make_unique<OpenGLOffscreenRenderer>(GL_RGBA32F);
     shader_ = std::make_unique<ui::opengl::GLShaderProgram>(vertex_shader, frag_shader);

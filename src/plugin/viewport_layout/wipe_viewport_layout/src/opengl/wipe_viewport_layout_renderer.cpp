@@ -17,8 +17,8 @@ ViewportWipeRenderer::~ViewportWipeRenderer() {
         glDeleteVertexArrays(1, &wipe_vao_);
 }
 
-void ViewportWipeRenderer::pre_init() {
-    OpenGLViewportRenderer::pre_init();
+void ViewportWipeRenderer::pre_init(RendererInterfacePtr &renderer_interface) {
+    OpenGLViewportRenderer::pre_init(renderer_interface);
     glGenBuffers(1, &wipe_vbo_);
     glGenVertexArrays(1, &wipe_vao_);
 }

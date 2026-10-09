@@ -642,7 +642,7 @@ void OpenGLViewportRenderer::init_shader_uniforms(
     }
 }
 
-void OpenGLViewportRenderer::pre_init() { resources_->init(); }
+void OpenGLViewportRenderer::pre_init(RendererInterfacePtr &renderer_interface) { resources_->init(); }
 
 OpenGLViewportRenderer::SharedResources::SharedResources(const utility::JsonStore &prefs) {
 

@@ -66,9 +66,9 @@ class ViewportRenderer {
              {CubicWhenZoomedOut, "Cubic", "Cubic", false}*/
     };
 
-    void init() {
+    void init(RendererInterfacePtr &renderer_interface) {
         if (!done_init_) {
-            pre_init();
+            pre_init(renderer_interface);
             done_init_ = true;
         }
     }
@@ -102,7 +102,7 @@ class ViewportRenderer {
      *  @details Carry out first time render one-shot initialisation of any member
      * data or other state/data initialisation of graphics resources
      */
-    virtual void pre_init() = 0;
+    virtual void pre_init(RendererInterfacePtr &renderer_interface) = 0;
 
     std::map<utility::Uuid, plugin::GPUPreDrawHookPtr> pre_render_gpu_hooks_;
 

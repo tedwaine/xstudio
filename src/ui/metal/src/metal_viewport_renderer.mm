@@ -5,6 +5,8 @@
 
 #include "xstudio/ui/metal/metal_viewport_renderer.hpp"
 #include "xstudio/ui/metal/metal_shader_program.hpp"
+#include "xstudio/ui/metal/no_image_shader_program.hpp"
+#include "xstudio/ui/metal/shader_program_base.hpp"
 #include "xstudio/media_reader/media_reader.hpp"
 #include "xstudio/utility/logging.hpp"
 #include "xstudio/utility/uuid.hpp"
@@ -17,85 +19,15 @@ using namespace xstudio::colour_pipeline;
 using namespace xstudio::utility;
 
 namespace {
-const std::string vertexShader = R"(
-#include <metal_stdlib>
-#include <simd/simd.h>
 
-using namespace metal;
+id<MTLDevice> device_ = nil;
+id<MTLBuffer> vbuf_ = nil;
+id<MTLBuffer> ubuf_[3] = {nil, nil, nil};
+id<MTLRenderPipelineState> pipeline_ = nil;
+MTLRenderPipelineDescriptor *rpDesc = nil;
+MTLRenderPipelineReflection *reflection = nullptr;
 
-struct main0_out
-{
-    float2 coords [[user(locn0)]];
-    float4 gl_Position [[position]];
-};
-
-struct main0_in
-{
-    float4 vertices [[attribute(0)]];
-};
-
-vertex main0_out main0(main0_in in [[stage_in]])
-{
-    main0_out out = {};
-    out.gl_Position = in.vertices;
-    out.coords = in.vertices.xy;
-    return out;
 }
-)";
-
-const std::string fragmentShader = R"(
-#include <metal_stdlib>
-#include <simd/simd.h>
-
-using namespace metal;
-
-struct buf
-{
-    float t;
-};
-
-struct main0_out
-{
-    float4 fragColor [[color(0)]];
-};
-
-struct main0_in
-{
-    float2 coords [[user(locn0)]];
-};
-
-fragment main0_out main0(main0_in in [[stage_in]], constant buf& ubuf [[buffer(0)]])
-{
-    main0_out out = {};
-    float i = 1.0 - (pow(abs(in.coords.x), 4.0) + pow(abs(in.coords.y), 4.0));
-    i = smoothstep(ubuf.t - 0.800000011920928955078125, ubuf.t + 0.800000011920928955078125, i);
-    i = floor(i * 20.0) / 20.0;
-    out.fragColor = float4((in.coords * 0.5) + float2(0.5), i, i)*2.0;
-    return out;
-})";
-} // anon namespace
-
-namespace xstudio::ui::metal {
-class TestRenderer
-{
-    public:
-    TestRenderer() = default;
-    ~TestRenderer() = default;
-
-    void init(int framesInFlight, MetalRendererInterface *stateInfo);
-    void render(MetalRendererInterface *stateInfo, const Imath::V2i &window_size);
-
-    bool initialized_ = false;
-    id<MTLDevice> device_;
-    id<MTLBuffer> vbuf_;
-    id<MTLBuffer> ubuf_[3];
-
-    MetalShaderProgramPtr shader_program_;
-
-    id<MTLRenderPipelineState> pipeline_;
-};
-} // namespace xstudio::ui::metal
-
 
 MetalViewportRenderer::MetalViewportRenderer(
     const std::string &window_id, const utility::JsonStore &prefs)
@@ -115,6 +47,41 @@ MetalViewportRenderer::~MetalViewportRenderer() {
 void MetalViewportRenderer::upload_image_and_colour_data(
     const media_reader::ImageBufPtr &image) {
 
+    colour_pipeline::ColourPipelineDataPtr colour_pipe_data = image.colour_pipe_data();
+
+    /*if (!textures().size())
+        return;*/
+
+    if (image) {
+
+        if (image->error_state() == BufferErrorState::HAS_ERROR) {
+            // the frame contains errors, no need to continue from that point
+            active_shader_program_ = no_image_shader_program_;
+            return;
+        }
+
+        // check if the frame we need to draw has already been
+        // uploaded to texture memory and set the 'draw_texture_index_'
+        // accordingly
+        // textures()[0]->upload_image(image);
+    }
+
+    if (colour_pipe_data && colour_pipe_data->cache_id() != latest_colour_pipe_data_cacheid_) {
+        colour_pipe_lut_collection_.clear();
+        for (const auto &op : colour_pipe_data->operations()) {
+            colour_pipe_lut_collection_.upload_luts(op->luts_);
+            colour_pipe_lut_collection_.register_texture(op->textures_);
+        }
+        latest_colour_pipe_data_cacheid_ = colour_pipe_data->cache_id();
+    }
+
+    if (!(image && colour_pipe_data &&
+          activate_shader(image->shader(), colour_pipe_data->operations()))) {
+
+        active_shader_program_ = no_image_shader_program_;
+    }
+
+    bind_textures(image);
 
 }
 
@@ -129,7 +96,20 @@ void MetalViewportRenderer::release_textures() {
 // static std::mutex m;
 
 void MetalViewportRenderer::clear_viewport_area(
+    viewport::RendererInterfacePtr &renderer_interface,
     const Imath::M44f &window_to_viewport_matrix, const Imath::V2i &window_size) {
+
+    MetalRendererInterface *stateInfo = static_cast<MetalRendererInterface *>(renderer_interface.get());
+    id<MTLRenderCommandEncoder> encoder = (__bridge id<MTLRenderCommandEncoder>) stateInfo->command_encoder;
+    
+    MTLViewport vp;
+    vp.originX = 0;
+    vp.originY = 0;
+    vp.width = window_size.x;
+    vp.height = window_size.y;
+    vp.znear = 0;
+    vp.zfar = 1;
+    [encoder setViewport: vp];
 
 }
 
@@ -159,10 +139,18 @@ std::cerr << "Render " << window_id_ << " " << window_size.x << " " << window_si
     }
 
     MetalRendererInterface *stateInfo = static_cast<MetalRendererInterface *>(renderer_interface.get());
-    if (!renderer_) {
+
+    id<MTLDevice> device_id = (__bridge id<MTLDevice>) stateInfo->device;
+
+    if (device_id != device_) {
+        device_ = device_id;
+        do_init(renderer_interface);
+    }
+
+    /*if (!renderer_) {
         renderer_ = new TestRenderer();
     }
-    renderer_->render(stateInfo, window_size);
+    renderer_->render(stateInfo, window_size);*/
 
     // this value tells us how much we are zoomed into the image in the viewport (in
     // the x dimension). If the image is width-fitted exactly to the viewport, then this
@@ -183,7 +171,7 @@ std::cerr << "Render " << window_id_ << " " << window_size.x << " " << window_si
         image_zoom_in_viewport / (window_size.x * viewport_x_size_in_window);
 
     /* we do our own clear of the viewport */
-    // clear_viewport_area(window_to_viewport_matrix, window_size);
+    clear_viewport_area(renderer_interface, window_to_viewport_matrix, window_size);
 
     if (images && images->layout_data()) {
 
@@ -294,7 +282,7 @@ void MetalViewportRenderer::__draw_image(
 
     // if we've received a new image and/or colour pipeline data (LUTs etc) since the last
     // draw, upload the data
-    //upload_image_and_colour_data(image_to_be_drawn);
+    upload_image_and_colour_data(image_to_be_drawn);
 
     draw_image(
         renderer_interface,
@@ -377,10 +365,8 @@ void MetalViewportRenderer::draw_image(
     const Imath::M44f &viewport_to_image_space,
     const float viewport_du_dx) {
 
+    MetalRendererInterface *stateInfo = static_cast<MetalRendererInterface *>(renderer_interface.get());
 
-    /*active_shader_program_->use();
-
-    // set-up core shader parameters (e.g. image transform matrix etc)
     init_shader_uniforms(
         image_to_be_drawn,
         window_to_viewport_matrix,
@@ -388,6 +374,19 @@ void MetalViewportRenderer::draw_image(
         viewport_du_dx,
         layout_data->custom_layout_data_,
         index);
+
+    id<MTLRenderCommandEncoder> encoder = (__bridge id<MTLRenderCommandEncoder>) stateInfo->command_encoder;
+    
+    active_shader_program_->bind_uniforms(encoder);
+
+    //[encoder setFragmentBuffer: ubuf_[stateInfo->currentFrameSlot] offset: 0 atIndex: 0];
+    [encoder setVertexBuffer: vbuf_ offset: 0 atIndex: 1];
+    [encoder setRenderPipelineState: pipeline_];
+    [encoder drawPrimitives: MTLPrimitiveTypeTriangleStrip vertexStart: 0 vertexCount: 4 instanceCount: 1 baseInstance: 0];
+
+    /*active_shader_program_->use();
+
+    // set-up core shader parameters (e.g. image transform matrix etc)
 
     glDisable(GL_BLEND);
     // the actual draw .. a quad that spans -1.0, 1.0 in x & y.
@@ -403,29 +402,25 @@ bool MetalViewportRenderer::activate_shader(
     const viewport::GPUShaderPtr &virt_image_buffer_unpack_shader,
     const std::vector<colour_pipeline::ColourOperationDataPtr> &colour_operations) {
 
-    return false;
-
-    /*if (!virt_image_buffer_unpack_shader ||
-        virt_image_buffer_unpack_shader->graphics_api() != GraphicsAPI::OpenGL) {
+    if (!virt_image_buffer_unpack_shader ||
+        virt_image_buffer_unpack_shader->graphics_api() != GraphicsAPI::Metal) {
         spdlog::warn("{} {}", __PRETTY_FUNCTION__, "No shader passed with image buffer.");
         return false;
     }
 
     auto image_buffer_unpack_shader =
-        static_cast<opengl::OpenGLShader const *>(virt_image_buffer_unpack_shader.get());
+        static_cast<metal::MetalShader const *>(virt_image_buffer_unpack_shader.get());
     if (!image_buffer_unpack_shader) {
     }
 
-    std::cerr << "FOPKL " << image_buffer_unpack_shader << " " << image_buffer_unpack_shader->shader_code() << std::endl;
     std::string shader_id = to_string(image_buffer_unpack_shader->shader_id());
-std::cerr << "Fasfa " << shader_id << "\n";
 
     for (const auto &op : colour_operations) {
         shader_id += op->cache_id();
     }
 
     // do we already have this shader compiled?
-    if (shader_programs().find(shader_id) == shader_programs().end()) {
+    if (shader_programs_.find(shader_id) == shader_programs_.end()) {
 
         // try to compile the shader for this combo of image buffer unpack
         // and colour pipeline components
@@ -435,33 +430,33 @@ std::cerr << "Fasfa " << shader_id << "\n";
             std::vector<std::string> shader_components;
             for (const auto &colour_op : colour_operations) {
                 // sanity check - this should be impossible, though
-                if (colour_op->shader_->graphics_api() != GraphicsAPI::OpenGL) {
+                if (colour_op->shader_->graphics_api() != GraphicsAPI::Metal) {
                     throw std::runtime_error(
-                        "Non-OpenGL shader data in colour operation chain!");
+                        "Non-Metal shader data in colour operation chain!");
                 }
-                auto pr = static_cast<opengl::OpenGLShader const *>(colour_op->shader_.get());
+                auto pr = static_cast<metal::MetalShader const *>(colour_op->shader_.get());
                 shader_components.push_back(pr->shader_code());
             }
 
-            shader_programs()[shader_id].reset(new GLShaderProgram(
+            /*shader_programs_[shader_id].reset(new MetalShaderProgram(
                 default_vertex_shader,
                 image_buffer_unpack_shader->shader_code(),
                 shader_components,
-                use_ssbo_));
+                use_ssbo_));*/
 
         } catch (std::exception &e) {
             spdlog::error("{}", e.what());
-            shader_programs()[shader_id].reset();
+            shader_programs_[shader_id].reset();
         }
     }
 
-    if (shader_programs()[shader_id]) {
-        active_shader_program_ = shader_programs()[shader_id];
+    if (shader_programs_[shader_id]) {
+        active_shader_program_ = shader_programs_[shader_id];
     } else {
-        active_shader_program_ = no_image_shader_program();
+        active_shader_program_ = no_image_shader_program_;
     }
 
-    return active_shader_program_ != no_image_shader_program();*/
+    return active_shader_program_ != no_image_shader_program_;
 }
 
 void MetalViewportRenderer::init_shader_uniforms(
@@ -472,7 +467,7 @@ void MetalViewportRenderer::init_shader_uniforms(
     const utility::JsonStore &layout_data,
     const int image_index) const {
     
-    /*   try {
+    try {
         // set-up core shader parameters (e.g. image transform matrix etc)
         utility::JsonStore shader_params = core_shader_params(
             image_to_be_drawn,
@@ -491,86 +486,43 @@ void MetalViewportRenderer::init_shader_uniforms(
         }
     } catch (std::exception &e) {
         spdlog::error("{} {}", __PRETTY_FUNCTION__, e.what());
-    }*/ 
+    } 
 }
 
-void MetalViewportRenderer::pre_init() { 
-    // resources_->init(); 
-}
+void MetalViewportRenderer::do_init(RendererInterfacePtr &renderer_interface) { 
 
-void TestRenderer::render(MetalRendererInterface *stateInfo, const Imath::V2i &window_size)
-{
-    if (!initialized_) {
-        init(stateInfo->framesInFlight, stateInfo);
-    }
+    static const float vertices[] = {
+        -1, -1,
+        1, -1,
+        -1, 1,
+        1, 1
+    };
 
-    id<MTLRenderCommandEncoder> encoder = (__bridge id<MTLRenderCommandEncoder>) stateInfo->command_encoder;
-    
-    static int t = 0;
-    static int g = 1;
-    if (t == 100) g = -1;
-    if (t == 0) g = 1;
-    t += g;
-    utility::JsonStore params;
-    params["t"] = float(t)/100.0f;
-    std::cerr << params.dump(2) << std::endl;
+    MetalRendererInterface *stateInfo = static_cast<MetalRendererInterface *>(renderer_interface.get());
 
-    MTLViewport vp;
-    vp.originX = 0;
-    vp.originY = 0;
-    vp.width = window_size.x;
-    vp.height = window_size.y;
-    vp.znear = 0;
-    vp.zfar = 1;
-    [encoder setViewport: vp];
-
-    shader_program_->set_shader_parameters(params);
-    shader_program_->bind_uniforms(encoder);
-
-    //[encoder setFragmentBuffer: ubuf_[stateInfo->currentFrameSlot] offset: 0 atIndex: 0];
-    [encoder setVertexBuffer: vbuf_ offset: 0 atIndex: 1];
-    [encoder setRenderPipelineState: pipeline_];
-    [encoder drawPrimitives: MTLPrimitiveTypeTriangleStrip vertexStart: 0 vertexCount: 4 instanceCount: 1 baseInstance: 0];
-
-}
-
-
-static const float vertices[] = {
-    -1, -1,
-    1, -1,
-    -1, 1,
-    1, 1
-};
-
-const int UBUF_SIZE = 4;
-
-void TestRenderer::init(int framesInFlight, MetalRendererInterface *stateInfo)
-{
-
-    assert(framesInFlight <= 3);
-    initialized_ = true;
-    std::cerr << "A " << framesInFlight << "\n";
+    assert(stateInfo->framesInFlight <= 3);
     device_ = (__bridge id<MTLDevice>) stateInfo->device;
     vbuf_ = [device_ newBufferWithLength: sizeof(vertices) options: MTLResourceStorageModeShared];
     void *p = [vbuf_ contents];
     memcpy(p, vertices, sizeof(vertices));
 
-    for (int i = 0; i < framesInFlight; ++i)
-        ubuf_[i] = [device_ newBufferWithLength: UBUF_SIZE options: MTLResourceStorageModeShared];
+    /*for (int i = 0; i < stateInfo->framesInFlight; ++i)
+        ubuf_[i] = [device_ newBufferWithLength: UBUF_SIZE options: MTLResourceStorageModeShared];*/
 
     MTLVertexDescriptor *inputLayout = [MTLVertexDescriptor vertexDescriptor];
     inputLayout.attributes[0].format = MTLVertexFormatFloat2;
     inputLayout.attributes[0].offset = 0;
     inputLayout.attributes[0].bufferIndex = 1; // ubuf is 0, vbuf is 1
-    inputLayout.layouts[1].stride = 2 * sizeof(float);
+    inputLayout.layouts[1].stride = 2 * sizeof(float); // vbuf layout
+    //inputLayout.layouts[0].stride = UBUF_SIZE; // ubuf layout
 
-    MTLRenderPipelineDescriptor *rpDesc = [[MTLRenderPipelineDescriptor alloc] init];
+    rpDesc = [[MTLRenderPipelineDescriptor alloc] init];
     rpDesc.vertexDescriptor = inputLayout;
 
-    shader_program_.reset(new MetalShaderProgram(device_, vertexShader, fragmentShader, true));
+    //active_shader_program_.reset(new MetalShaderProgram(device_, vertexShader, fragmentShader, true));
 
-    rpDesc.vertexFunction = shader_program_->vertexFunction();
-    rpDesc.fragmentFunction = shader_program_->fragmentFunction();
+    //rpDesc.vertexFunction = active_shader_program_->vertexFunction();
+    //rpDesc.fragmentFunction = active_shader_program_->fragmentFunction();
 
     rpDesc.colorAttachments[0].pixelFormat = MTLPixelFormatBGRA8Unorm;
     rpDesc.colorAttachments[0].blendingEnabled = true;
@@ -589,7 +541,6 @@ void TestRenderer::init(int framesInFlight, MetalRendererInterface *stateInfo)
     }
 
     NSError *err = nullptr;
-    MTLRenderPipelineReflection *reflection = nullptr;
     pipeline_ = [device_ newRenderPipelineStateWithDescriptor: rpDesc
                                                       options: MTLPipelineOptionArgumentInfo | MTLPipelineOptionBufferTypeInfo
                                                    reflection: &reflection
@@ -598,6 +549,16 @@ void TestRenderer::init(int framesInFlight, MetalRendererInterface *stateInfo)
         NSAlert *anAlert = [NSAlert alertWithError:err];
         [anAlert runModal];
     } else {
-        shader_program_->load_uniform_layout(reflection);
+        active_shader_program_->load_uniform_layout(reflection);
     }
+
+    // add shader for no image render
+    try {
+        no_image_shader_program_ =
+            MetalShaderProgramPtr(static_cast<MetalShaderProgram *>(new NoImageShaderProgram()));
+    } catch (std::exception &e) {
+        spdlog::critical("{} {}", __PRETTY_FUNCTION__, e.what());
+    }
+    // resources_->init(); 
 }
+
