@@ -7,6 +7,6 @@ namespace xstudio::ui::metal {
 
 class NoImageShaderProgram : public MetalShaderProgram {
   public:
-    NoImageShaderProgram();
+    NoImageShaderProgram(id<MTLDevice> device);
 };
 } // namespace xstudio::ui::metal

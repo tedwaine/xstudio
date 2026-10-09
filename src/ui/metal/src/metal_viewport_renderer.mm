@@ -18,16 +18,19 @@ using namespace xstudio::media_reader;
 using namespace xstudio::colour_pipeline;
 using namespace xstudio::utility;
 
-namespace {
+namespace xstudio::ui::metal {
 
-id<MTLDevice> device_ = nil;
-id<MTLBuffer> vbuf_ = nil;
-id<MTLBuffer> ubuf_[3] = {nil, nil, nil};
-id<MTLRenderPipelineState> pipeline_ = nil;
-MTLRenderPipelineDescriptor *rpDesc = nil;
-MTLRenderPipelineReflection *reflection = nullptr;
+class MetalRenderPipe {
+public:
+    id<MTLDevice> device_;
+    id<MTLBuffer> vbuf_ ;
+    id<MTLBuffer> ubuf_[3];
+    id<MTLRenderPipelineState> pipeline_;
+    MTLRenderPipelineDescriptor *rpDesc = nullptr;
+    MTLRenderPipelineReflection *reflection = nullptr;
+};
 
-}
+} // namespace xstudio::ui::metal
 
 MetalViewportRenderer::MetalViewportRenderer(
     const std::string &window_id, const utility::JsonStore &prefs)
@@ -133,7 +136,7 @@ void MetalViewportRenderer::render(
     const float device_pixel_ratio,
     const std::vector<plugin::ViewportOverlayRendererPtr> &overlay_renderers) {
 
-std::cerr << "Render " << window_id_ << " " << window_size.x << " " << window_size.y << " " << renderer_interface << "\n";
+std::cerr << "Render " << window_id_ << " " << window_size.x << " " << window_size.y << " " << renderer_interface << " " << this << "\n";
     if (!renderer_interface) {
         return;
     }
@@ -142,8 +145,11 @@ std::cerr << "Render " << window_id_ << " " << window_size.x << " " << window_si
 
     id<MTLDevice> device_id = (__bridge id<MTLDevice>) stateInfo->device;
 
-    if (device_id != device_) {
-        device_ = device_id;
+    if (!render_pipe_) {
+        render_pipe_ = std::make_shared<MetalRenderPipe>();
+    }
+
+    if (device_id != render_pipe_->device_) {
         do_init(renderer_interface);
     }
 
@@ -367,6 +373,35 @@ void MetalViewportRenderer::draw_image(
 
     MetalRendererInterface *stateInfo = static_cast<MetalRendererInterface *>(renderer_interface.get());
 
+    std::cerr << "active_shader_program_ " << active_shader_program_ << std::endl;
+
+    id<MTLRenderCommandEncoder> encoder = (__bridge id<MTLRenderCommandEncoder>) stateInfo->command_encoder;
+    
+    active_shader_program_->bind_uniforms(encoder);
+
+    std::cerr << "OINK " << active_shader_program_->vertexFunction() << std::endl;
+    render_pipe_->rpDesc.vertexFunction = active_shader_program_->vertexFunction();
+    render_pipe_->rpDesc.fragmentFunction = active_shader_program_->fragmentFunction();
+    std::cerr << "A\n" << std::endl;
+    NSError *err = nullptr;
+    MTLRenderPipelineReflection *local_reflection = nullptr;
+    render_pipe_->pipeline_ = [render_pipe_->device_ newRenderPipelineStateWithDescriptor: render_pipe_->rpDesc
+                                                      options: MTLPipelineOptionArgumentInfo | MTLPipelineOptionBufferTypeInfo
+                                                   reflection: &local_reflection
+                                                        error: &err];
+    std::cerr << "B\n" << std::endl;
+
+    render_pipe_->reflection = local_reflection;
+    if (!render_pipe_->pipeline_) {
+        std::cerr << "Error creating pipeline: " << err.localizedDescription.UTF8String << std::endl;
+        return;
+        //NSAlert *anAlert = [NSAlert alertWithError:err];
+        //[anAlert runModal];
+    } else {
+        active_shader_program_->load_uniform_layout(render_pipe_->reflection);
+    }
+    std::cerr << "C\n" << std::endl;
+
     init_shader_uniforms(
         image_to_be_drawn,
         window_to_viewport_matrix,
@@ -375,13 +410,11 @@ void MetalViewportRenderer::draw_image(
         layout_data->custom_layout_data_,
         index);
 
-    id<MTLRenderCommandEncoder> encoder = (__bridge id<MTLRenderCommandEncoder>) stateInfo->command_encoder;
-    
-    active_shader_program_->bind_uniforms(encoder);
+    std::cerr << "@STAGE " << std::endl;
 
     //[encoder setFragmentBuffer: ubuf_[stateInfo->currentFrameSlot] offset: 0 atIndex: 0];
-    [encoder setVertexBuffer: vbuf_ offset: 0 atIndex: 1];
-    [encoder setRenderPipelineState: pipeline_];
+    [encoder setVertexBuffer: render_pipe_->vbuf_ offset: 0 atIndex: 1];
+    [encoder setRenderPipelineState: render_pipe_->pipeline_];
     [encoder drawPrimitives: MTLPrimitiveTypeTriangleStrip vertexStart: 0 vertexCount: 4 instanceCount: 1 baseInstance: 0];
 
     /*active_shader_program_->use();
@@ -402,22 +435,26 @@ bool MetalViewportRenderer::activate_shader(
     const viewport::GPUShaderPtr &virt_image_buffer_unpack_shader,
     const std::vector<colour_pipeline::ColourOperationDataPtr> &colour_operations) {
 
+std::cerr << "C" << std::endl;
     if (!virt_image_buffer_unpack_shader ||
         virt_image_buffer_unpack_shader->graphics_api() != GraphicsAPI::Metal) {
         spdlog::warn("{} {}", __PRETTY_FUNCTION__, "No shader passed with image buffer.");
         return false;
     }
+std::cerr << "C" << std::endl;
 
     auto image_buffer_unpack_shader =
         static_cast<metal::MetalShader const *>(virt_image_buffer_unpack_shader.get());
     if (!image_buffer_unpack_shader) {
     }
+std::cerr << "C" << std::endl;
 
     std::string shader_id = to_string(image_buffer_unpack_shader->shader_id());
 
     for (const auto &op : colour_operations) {
         shader_id += op->cache_id();
     }
+std::cerr << "C " << shader_id << std::endl;
 
     // do we already have this shader compiled?
     if (shader_programs_.find(shader_id) == shader_programs_.end()) {
@@ -430,12 +467,16 @@ bool MetalViewportRenderer::activate_shader(
             std::vector<std::string> shader_components;
             for (const auto &colour_op : colour_operations) {
                 // sanity check - this should be impossible, though
-                if (colour_op->shader_->graphics_api() != GraphicsAPI::Metal) {
+                if (colour_op->shader_ && colour_op->shader_->graphics_api() != GraphicsAPI::Metal) {
                     throw std::runtime_error(
                         "Non-Metal shader data in colour operation chain!");
                 }
+                std::cerr << "cp " << colour_op->cache_id() << " " << colour_op->shader_ << std::endl;
                 auto pr = static_cast<metal::MetalShader const *>(colour_op->shader_.get());
-                shader_components.push_back(pr->shader_code());
+                if (pr) {
+                    std::cerr << "Adding shader component: " << pr->shader_code() << std::endl;
+                    shader_components.push_back(pr->shader_code());
+                }
             }
 
             /*shader_programs_[shader_id].reset(new MetalShaderProgram(
@@ -450,12 +491,16 @@ bool MetalViewportRenderer::activate_shader(
         }
     }
 
+std::cerr << "D" << std::endl;
     if (shader_programs_[shader_id]) {
         active_shader_program_ = shader_programs_[shader_id];
     } else {
         active_shader_program_ = no_image_shader_program_;
     }
+active_shader_program_ = no_image_shader_program_;
 
+    std::cerr << this << " no_image_shader_program_ " << no_image_shader_program_ << std::endl;
+std::cerr << "active_shader_program_ " << active_shader_program_ << std::endl;
     return active_shader_program_ != no_image_shader_program_;
 }
 
@@ -501,9 +546,9 @@ void MetalViewportRenderer::do_init(RendererInterfacePtr &renderer_interface) {
     MetalRendererInterface *stateInfo = static_cast<MetalRendererInterface *>(renderer_interface.get());
 
     assert(stateInfo->framesInFlight <= 3);
-    device_ = (__bridge id<MTLDevice>) stateInfo->device;
-    vbuf_ = [device_ newBufferWithLength: sizeof(vertices) options: MTLResourceStorageModeShared];
-    void *p = [vbuf_ contents];
+    render_pipe_->device_ = (__bridge id<MTLDevice>) stateInfo->device;
+    render_pipe_->vbuf_ = [render_pipe_->device_ newBufferWithLength: sizeof(vertices) options: MTLResourceStorageModeShared];
+    void *p = [render_pipe_->vbuf_ contents];
     memcpy(p, vertices, sizeof(vertices));
 
     /*for (int i = 0; i < stateInfo->framesInFlight; ++i)
@@ -516,49 +561,43 @@ void MetalViewportRenderer::do_init(RendererInterfacePtr &renderer_interface) {
     inputLayout.layouts[1].stride = 2 * sizeof(float); // vbuf layout
     //inputLayout.layouts[0].stride = UBUF_SIZE; // ubuf layout
 
-    rpDesc = [[MTLRenderPipelineDescriptor alloc] init];
-    rpDesc.vertexDescriptor = inputLayout;
+    render_pipe_->rpDesc = [[MTLRenderPipelineDescriptor alloc] init];
+    render_pipe_->rpDesc.vertexDescriptor = inputLayout;
 
     //active_shader_program_.reset(new MetalShaderProgram(device_, vertexShader, fragmentShader, true));
 
     //rpDesc.vertexFunction = active_shader_program_->vertexFunction();
     //rpDesc.fragmentFunction = active_shader_program_->fragmentFunction();
 
-    rpDesc.colorAttachments[0].pixelFormat = MTLPixelFormatBGRA8Unorm;
-    rpDesc.colorAttachments[0].blendingEnabled = true;
-    rpDesc.colorAttachments[0].sourceRGBBlendFactor = MTLBlendFactorSourceAlpha;
-    rpDesc.colorAttachments[0].sourceAlphaBlendFactor = MTLBlendFactorSourceAlpha;
-    rpDesc.colorAttachments[0].destinationRGBBlendFactor = MTLBlendFactorOne;
-    rpDesc.colorAttachments[0].destinationAlphaBlendFactor = MTLBlendFactorOne;
+    render_pipe_->rpDesc.colorAttachments[0].pixelFormat = MTLPixelFormatBGRA8Unorm;
+    render_pipe_->rpDesc.colorAttachments[0].blendingEnabled = true;
+    render_pipe_->rpDesc.colorAttachments[0].sourceRGBBlendFactor = MTLBlendFactorSourceAlpha;
+    render_pipe_->rpDesc.colorAttachments[0].sourceAlphaBlendFactor = MTLBlendFactorSourceAlpha;
+    render_pipe_->rpDesc.colorAttachments[0].destinationRGBBlendFactor = MTLBlendFactorOne;
+    render_pipe_->rpDesc.colorAttachments[0].destinationAlphaBlendFactor = MTLBlendFactorOne;
 
-    if (device_.depth24Stencil8PixelFormatSupported) {
-        rpDesc.depthAttachmentPixelFormat = MTLPixelFormatDepth24Unorm_Stencil8;
-        rpDesc.stencilAttachmentPixelFormat = MTLPixelFormatDepth24Unorm_Stencil8;
+    if (render_pipe_->device_.depth24Stencil8PixelFormatSupported) {
+        render_pipe_->rpDesc.depthAttachmentPixelFormat = MTLPixelFormatDepth24Unorm_Stencil8;
+        render_pipe_->rpDesc.stencilAttachmentPixelFormat = MTLPixelFormatDepth24Unorm_Stencil8;
     } else
     {
-        rpDesc.depthAttachmentPixelFormat = MTLPixelFormatDepth32Float_Stencil8;
-        rpDesc.stencilAttachmentPixelFormat = MTLPixelFormatDepth32Float_Stencil8;
+        render_pipe_->rpDesc.depthAttachmentPixelFormat = MTLPixelFormatDepth32Float_Stencil8;
+        render_pipe_->rpDesc.stencilAttachmentPixelFormat = MTLPixelFormatDepth32Float_Stencil8;
     }
 
-    NSError *err = nullptr;
-    pipeline_ = [device_ newRenderPipelineStateWithDescriptor: rpDesc
-                                                      options: MTLPipelineOptionArgumentInfo | MTLPipelineOptionBufferTypeInfo
-                                                   reflection: &reflection
-                                                        error: &err];
-    if (!pipeline_) {
-        NSAlert *anAlert = [NSAlert alertWithError:err];
-        [anAlert runModal];
-    } else {
-        active_shader_program_->load_uniform_layout(reflection);
-    }
+    std::cerr << "A\n";
+
+    std::cerr << "B\n";
 
     // add shader for no image render
     try {
         no_image_shader_program_ =
-            MetalShaderProgramPtr(static_cast<MetalShaderProgram *>(new NoImageShaderProgram()));
+            MetalShaderProgramPtr(static_cast<MetalShaderProgram *>(new NoImageShaderProgram(render_pipe_->device_)));
     } catch (std::exception &e) {
         spdlog::critical("{} {}", __PRETTY_FUNCTION__, e.what());
     }
+
+    std::cerr << this << "no_image_shader_program_ " << no_image_shader_program_ << std::endl;
     // resources_->init(); 
 }
 

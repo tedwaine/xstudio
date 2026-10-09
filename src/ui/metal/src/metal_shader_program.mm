@@ -111,6 +111,7 @@ id<MTLFunction> MetalShaderProgram::compileShaderFromSource(const std::string &s
     // srcstr is autoreleased, opts is managed by ARC
 
     if (err) {
+        std::cerr << "Error compiling shader: " << err.localizedDescription.UTF8String << std::endl;
         NSAlert *anAlert = [NSAlert alertWithError:err];
         [anAlert runModal];
         return nullptr;
@@ -120,6 +121,7 @@ id<MTLFunction> MetalShaderProgram::compileShaderFromSource(const std::string &s
     id<MTLFunction> fn = [lib newFunctionWithName: name];
     // [name release]; // NSString created with stringWithCString is autoreleased
 
+    std::cerr << "Successfully compiled shader: " << entryPoint << std::endl;
     return fn;
 }
 
@@ -241,7 +243,7 @@ void MetalShaderProgram::write_uniform(const UniformMember &m, const nlohmann::j
                 const nlohmann::json &v =
                     value.is_array() ? value[first + i * elem_comps + src] : value;
                 uint8_t *dst = elem + c * col_stride + r * comp_size;
-
+                std::cerr << v.dump() << " ";
                 switch (m.kind) {
                 case 'f': {
                     const float x = v.get<float>();
@@ -264,6 +266,7 @@ void MetalShaderProgram::write_uniform(const UniformMember &m, const nlohmann::j
             }
         }
     }
+    std::cerr << "@END" << std::endl;
 }
 
 void MetalShaderProgram::set_shader_parameters(const utility::JsonStore &shader_params) {
@@ -302,5 +305,36 @@ void MetalShaderProgram::bind_uniforms(id<MTLRenderCommandEncoder> encoder) {
 }
 
 void MetalShaderProgram::set_shader_parameters(const media_reader::ImageBufPtr &image) {
+
+    auto do_uniform_write = [=](const std::vector<UniformMember> & members, const nlohmann::json &value) {
+        for (const auto &member : members) {
+            try {
+                write_uniform(member, value);
+            } catch (std::exception &e) {
+                spdlog::warn("MetalShaderProgram: bad value for \"image_dims\": {}", e.what());
+            }
+        }
+    };
+    
+    auto found = uniforms_.find("image_dims");
+    if (found != uniforms_.end()) {
+        utility::JsonStore v(image->image_size_in_pixels());
+        do_uniform_write(found->second, v);
+    }
+
+    found = uniforms_.find("image_bounds_min");
+
+    if (found != uniforms_.end()) {
+        utility::JsonStore v(image->image_pixels_bounding_box().min);
+        do_uniform_write(found->second, v);
+    }
+
+    found = uniforms_.find("image_bounds_max");
+
+    if (found != uniforms_.end()) {
+        utility::JsonStore v(image->image_pixels_bounding_box().max);
+        do_uniform_write(found->second, v);
+    }
+
     // Method implementation here
 }

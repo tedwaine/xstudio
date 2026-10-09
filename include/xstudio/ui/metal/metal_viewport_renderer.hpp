@@ -18,6 +18,8 @@ namespace xstudio::ui::metal {
 // is included in C++ only files elsewhere.
 class MetalShaderProgram;
 typedef std::shared_ptr<MetalShaderProgram> MetalShaderProgramPtr;
+class MetalRenderPipe;
+typedef std::shared_ptr<MetalRenderPipe> MetalRenderPipePtr;
 
 struct MetalRendererInterface : public viewport::RendererInterface {
     void *command_encoder  = nullptr;
@@ -107,7 +109,9 @@ class MetalViewportRenderer : public viewport::ViewportRenderer {
         const float device_pixel_ratio,
         const std::vector<plugin::ViewportOverlayRendererPtr> &overlay_renderers);
 
-    void pre_init(viewport::RendererInterfacePtr &renderer_interface) override;
+    void pre_init(viewport::RendererInterfacePtr &renderer_interface) override {}
+
+    void do_init(viewport::RendererInterfacePtr &renderer_interface);
 
     bool activate_shader(
         const viewport::GPUShaderPtr &image_buffer_unpack_shader,
@@ -130,5 +134,6 @@ class MetalViewportRenderer : public viewport::ViewportRenderer {
     MetalShaderProgramPtr no_image_shader_program_;
     ColourPipeLutCollection colour_pipe_lut_collection_;
     std::map<std::string, MetalShaderProgramPtr> shader_programs_;
+    MetalRenderPipePtr render_pipe_;
 };
 } // namespace xstudio::ui::metal
