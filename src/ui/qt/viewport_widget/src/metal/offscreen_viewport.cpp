@@ -84,7 +84,7 @@ void OffscreenViewport::__renderViewportUnderQML() {
     
     quick_win_->beginExternalCommands();
 
-    xstudio_viewport_->init();
+    xstudio_viewport_->init(renderer_interface);
 
     if (image_to_render_) {
         xstudio_viewport_->render(renderer_interface, image_to_render_);
