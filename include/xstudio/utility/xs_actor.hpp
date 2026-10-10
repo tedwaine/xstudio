@@ -23,7 +23,7 @@ public:
     ObjectDataTreePtr deep_copy() const;
 
     PropertyMap properties_;
-    std::vector<ObjectDataTreePtr> children_data_;
+    std::map<int, ObjectDataTreePtr> children_data_;
 };
 
 /* This base actor class provides a heirarchical structure for actors within
