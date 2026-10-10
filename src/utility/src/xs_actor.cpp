@@ -6,7 +6,7 @@ using namespace xstudio::utility;
 ObjectDataTreePtr ObjectDataTree::deep_copy() const {
     auto copy = std::make_shared<ObjectDataTree>();
     for (const auto &child : children_data_) {
-        copy->children_data_.push_back(child->deep_copy());
+        copy->children_data_[child.first] = child.second->deep_copy();
     }
     for (const auto &prop : properties_) {
         copy->properties_[prop.first] = std::make_shared<const std::any>(*prop.second);
@@ -20,11 +20,12 @@ ObjectActor::ObjectActor(caf::actor_config &cfg) : caf::event_based_actor(cfg) {
 }
 
 void ObjectActor::add_child(caf::actor child) {
-    children_.push_back(caf::actor_cast<caf::actor_addr>(child));
+    int cidx = children_.empty() ? 0 : children_.rbegin()->first + 1;
+    children_[cidx] = caf::actor_cast<caf::actor_addr>(child);
     mail(property_atom_v).request(child, infinite).then(
         [=](const ObjectDataTreePtr &child_data) mutable {
-            full_state_.children_data_.push_back(child_data);
-            std::vector<int> child_index{int(full_state_.children_data_.size()-1)};
+            //full_state_.children_data_[cidx] = child_data;
+            std::vector<int> child_index{cidx};
             mail(property_atom_v, child_index, child_data).send(properties_events_group_);
         },
         [=](const caf::error &err) {
@@ -35,7 +36,7 @@ void ObjectActor::add_child(caf::actor child) {
 }
 
 void ObjectActor::remove_child(caf::actor child) {
-    children_.erase(std::remove(children_.begin(), children_.end(), child), children_.end());
+    //children_.erase(std::remove(children_.begin(), children_.end(), caf::actor_cast<caf::actor_addr>(child)), children_.end());
 }
 
 caf::message_handler ObjectActor::private_message_handler() {
@@ -96,7 +97,22 @@ caf::message_handler ObjectActor::private_message_handler() {
 
         },
         [=](property_atom) -> ObjectDataTreePtr {
-            return full_state_.deep_copy();
+
+            ObjectDataTree * result = new ObjectDataTree();
+            auto auto_responder = AutoResponder<ObjectDataTreePtr>(children_.size());
+            auto_responder.result().reset(new ObjectDataTree()); 
+            for (size_t i = 0; i < children_.size(); ++i) {
+                mail(property_atom_v).request(caf::actor_cast<caf::actor>(children_[i]), infinite).then(
+                    [=](ObjectDataTreePtr cdata) {
+                        result->children_data_[i] = cdata;
+                        auto_responder.decrement();
+                    },
+                    [=](const caf::error &err) {
+                        auto_responder.decrement(err);
+                    }
+                );
+            }
+            return auto_responder.response_promise();
         }
     };
 }
