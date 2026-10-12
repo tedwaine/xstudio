@@ -100,29 +100,147 @@ fragment main0_out main0(main0_in in [[stage_in]], constant buf& ubuf [[buffer(0
 })";
 } // anon namespace
 
+const std::string wizbod = R"(
+extern "C" float4 computeCustomEffects(float4 blobby, float tt) {
+    return blobby*tt;
+})";
+
 id<MTLFunction> MetalShaderProgram::compileShaderFromSource(const std::string &src, const std::string &entryPoint)
 {
+    if (@available(macOS 26.0, *)) {
 
-    NSString *srcstr = [NSString stringWithCString: src.c_str() encoding:[NSString defaultCStringEncoding]];
-    MTLCompileOptions *opts = [[MTLCompileOptions alloc] init];
-    opts.languageVersion = MTLLanguageVersion1_2;
-    NSError *err = nullptr;
-    id<MTLLibrary> lib = [device_ newLibraryWithSource: srcstr options: opts error: &err];
-    // srcstr is autoreleased, opts is managed by ARC
+        if (!compiler_) {
+            compiler_descriptor_       = [[MTL4CompilerDescriptor alloc] init];
+            compiler_descriptor_.label = @"xstudio.metal_shader_program.compiler";
 
-    if (err) {
-        std::cerr << "Error compiling shader: " << err.localizedDescription.UTF8String << std::endl;
-        NSAlert *anAlert = [NSAlert alertWithError:err];
-        [anAlert runModal];
-        return nullptr;
+            NSError *compiler_err = nullptr;
+            compiler_             = [device_ newCompilerWithDescriptor: compiler_descriptor_ error: &compiler_err];
+            if (!compiler_) {
+                std::cerr << "Error creating Metal4 compiler: "
+                          << compiler_err.localizedDescription.UTF8String << std::endl;
+                return nullptr;
+            }
+        }
+
+        NSString *srcstr = [NSString stringWithCString: src.c_str() encoding:[NSString defaultCStringEncoding]];
+        MTLCompileOptions *opts = [[MTLCompileOptions alloc] init];
+        opts.languageVersion = MTLLanguageVersion3_2;
+        // the base shaders call out to an extern function resolved later via a preloaded dynamic library
+        opts.allowReferencingUndefinedSymbols = YES;
+
+        MTL4LibraryDescriptor *lib_desc = [[MTL4LibraryDescriptor alloc] init];
+        lib_desc.source  = srcstr;
+        lib_desc.options = opts;
+        // srcstr/opts/lib_desc are managed by ARC
+
+        NSError *err = nullptr;
+        id<MTLLibrary> lib = [compiler_ newLibraryWithDescriptor: lib_desc error: &err];
+
+        if (!lib) {
+            std::cerr << "Error compiling shader: " << err.localizedDescription.UTF8String << std::endl;
+            NSAlert *anAlert = [NSAlert alertWithError:err];
+            [anAlert runModal];
+            return nullptr;
+        }
+
+        NSString *name = [NSString stringWithCString: entryPoint.c_str() encoding:[NSString defaultCStringEncoding]];
+        id<MTLFunction> fn = [lib newFunctionWithName: name];
+
+        std::cerr << "Successfully compiled shader: " << entryPoint << std::endl;
+        return fn;
+
+    } else {
+
+        NSString *srcstr = [NSString stringWithCString: src.c_str() encoding:[NSString defaultCStringEncoding]];
+        MTLCompileOptions *opts = [[MTLCompileOptions alloc] init];
+        opts.languageVersion = MTLLanguageVersion1_2;
+        opts.allowReferencingUndefinedSymbols = YES;
+        NSError *err = nullptr;
+        id<MTLLibrary> lib = [device_ newLibraryWithSource: srcstr options: opts error: &err];
+        // srcstr is autoreleased, opts is managed by ARC
+
+        if (err) {
+            std::cerr << "Error compiling shader: " << err.localizedDescription.UTF8String << std::endl;
+            NSAlert *anAlert = [NSAlert alertWithError:err];
+            [anAlert runModal];
+            return nullptr;
+        }
+
+        NSString *name = [NSString stringWithCString: entryPoint.c_str() encoding:[NSString defaultCStringEncoding]];
+        id<MTLFunction> fn = [lib newFunctionWithName: name];
+        // [name release]; // NSString created with stringWithCString is autoreleased
+
+        std::cerr << "Successfully compiled shader: " << entryPoint << std::endl;
+        return fn;
     }
+}
 
-    NSString *name = [NSString stringWithCString: entryPoint.c_str() encoding:[NSString defaultCStringEncoding]];
-    id<MTLFunction> fn = [lib newFunctionWithName: name];
-    // [name release]; // NSString created with stringWithCString is autoreleased
+id<MTLDynamicLibrary> MetalShaderProgram::compileUtilityLibrary(const std::string &src, const std::string &installName)
+{
+    NSString *srcstr  = [NSString stringWithCString: src.c_str() encoding:[NSString defaultCStringEncoding]];
+    NSString *install = [NSString stringWithCString: installName.c_str() encoding:[NSString defaultCStringEncoding]];
 
-    std::cerr << "Successfully compiled shader: " << entryPoint << std::endl;
-    return fn;
+    if (@available(macOS 26.0, *)) {
+
+        if (!compiler_) {
+            compiler_descriptor_       = [[MTL4CompilerDescriptor alloc] init];
+            compiler_descriptor_.label = @"xstudio.metal_shader_program.compiler";
+
+            NSError *compiler_err = nullptr;
+            compiler_             = [device_ newCompilerWithDescriptor: compiler_descriptor_ error: &compiler_err];
+            if (!compiler_) {
+                std::cerr << "Error creating Metal4 compiler: "
+                          << compiler_err.localizedDescription.UTF8String << std::endl;
+                return nullptr;
+            }
+        }
+
+        MTLCompileOptions *opts = [[MTLCompileOptions alloc] init];
+        opts.languageVersion = MTLLanguageVersion3_2;
+        opts.libraryType     = MTLLibraryTypeDynamic;
+        opts.installName     = install;
+
+        MTL4LibraryDescriptor *lib_desc = [[MTL4LibraryDescriptor alloc] init];
+        lib_desc.source  = srcstr;
+        lib_desc.options = opts;
+
+        NSError *err = nullptr;
+        id<MTLLibrary> lib = [compiler_ newLibraryWithDescriptor: lib_desc error: &err];
+        if (!lib) {
+            std::cerr << "Error compiling utility library: " << err.localizedDescription.UTF8String << std::endl;
+            return nullptr;
+        }
+
+        id<MTLDynamicLibrary> dylib = [compiler_ newDynamicLibrary: lib error: &err];
+        if (!dylib) {
+            std::cerr << "Error creating dynamic library: " << err.localizedDescription.UTF8String << std::endl;
+            return nullptr;
+        }
+
+        return dylib;
+
+    } else {
+
+        MTLCompileOptions *opts = [[MTLCompileOptions alloc] init];
+        opts.languageVersion = MTLLanguageVersion1_2;
+        opts.libraryType     = MTLLibraryTypeDynamic;
+        opts.installName     = install;
+
+        NSError *err = nullptr;
+        id<MTLLibrary> lib = [device_ newLibraryWithSource: srcstr options: opts error: &err];
+        if (!lib) {
+            std::cerr << "Error compiling utility library: " << err.localizedDescription.UTF8String << std::endl;
+            return nullptr;
+        }
+
+        id<MTLDynamicLibrary> dylib = [device_ newDynamicLibrary: lib error: &err];
+        if (!dylib) {
+            std::cerr << "Error creating dynamic library: " << err.localizedDescription.UTF8String << std::endl;
+            return nullptr;
+        }
+
+        return dylib;
+    }
 }
 
 MetalShaderProgram::MetalShaderProgram(
@@ -145,6 +263,7 @@ void MetalShaderProgram::compile() {
     // Method implementation here
     vertex_shader_ = compileShaderFromSource(vertex_shaders_.back(), "main0");
     fragment_shader_ = compileShaderFromSource(fragment_shaders_.back(), "main0");
+    utility_library_ = compileUtilityLibrary(wizbod, "xstudio.utility_shader_lib");
 }
 
 void MetalShaderProgram::inject_colour_op_shader(const std::string &colour_op_shader) {

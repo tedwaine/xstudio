@@ -81,7 +81,7 @@ void QMLViewportRenderer::paint() {
 
         // m_window->resetOpenGLState();
         if (xstudio_viewport_->playing()) {
-            emit(doRedraw());
+            //emit(doRedraw());
         }
 
         m_window->endExternalCommands();
