@@ -28,3 +28,17 @@ target_link_libraries(${PROJECT_NAME}
 	PRIVATE
 		freetype
 )
+
+add_custom_command(TARGET metal_viewport POST_BUILD
+
+    # Build the dynamic Metal library (libUserDylib.metallib). -dynamiclib and
+    # -install_name are required or the resulting metallib has no library type
+    # and newDynamicLibraryWithURL: rejects it.
+    COMMAND xcrun metal
+            -dynamiclib
+            -install_name pixel_unpack_utils_shader.metallib
+            "${CMAKE_CURRENT_SOURCE_DIR}/pixel_unpack_utils_shader.metal"
+            -o  "${CMAKE_BINARY_DIR}/xSTUDIO.app/Contents/Resources/pixel_unpack_utils_shader.metallib"
+
+    VERBATIM
+)
