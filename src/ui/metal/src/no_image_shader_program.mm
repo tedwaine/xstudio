@@ -56,8 +56,7 @@ vertex main0_out main0(main0_in in [[stage_in]], constant uniform_data& udata [[
     rpos.y = rpos.y/udata.image_aspect;
 
     out.gl_Position = rpos*udata.image_transform_matrix*udata.to_coord_system*udata.to_canvas;
-
-    out.coords = float2(rpos.x, rpos.y);
+    out.coords = float2(udata.image_bounds_min.x + bdbx*(in.vertices.x + 1.0f)*0.5f, udata.image_bounds_min.y + bdby*(in.vertices.y + 1.0f)*0.5f);
 
     return out;
 }
@@ -76,6 +75,7 @@ struct buf
     float to_display_exposure_contrast_exposureVal;
 };
 
+
 struct main0_out
 {
     float4 fragColor [[color(0)]];
@@ -86,20 +86,39 @@ struct main0_in
     float2 coords [[user(locn0)]];
 };
 
-extern "C" float4 computeCustomEffects(float4 blobby, float tt);
+struct unpack_uniforms
+{
+    int2 texture_dims;
+    int frame_width_pixels;
+    int pix_fmt;
+    int y_linesize;
+    int u_linesize;
+    int v_linesize;
+    int a_linesize;
+    int y_plane_bytes_offset;
+    int u_plane_bytes_offset;
+    int v_plane_bytes_offset;
+    int a_plane_bytes_offset;
+    bool half_scale_uvy;
+    bool half_scale_uvx;
+    int bits_per_channel;
+    float3x3 yuv_conv;
+    float3 yuv_offsets;
+    float norm_coeff;
+
+};
+
+extern "C" float4 computeCustomEffects(int2 texCoords, constant unpack_uniforms& tt, const device uint8_t *foo);
 
 fragment main0_out main0(
     main0_in in [[stage_in]],
     constant buf& ubuf [[buffer(0)]],
-    const device float *foo [[buffer(1)]])
-{
+    const device uint8_t *foo [[buffer(1)]],
+    constant unpack_uniforms& unif [[buffer(2)]]
+){
     main0_out out = {};
-    int yindex = int(round(in.coords.y*1080.0));
-    int xindex = int(round(in.coords.x*1920.0));
-    int index = max(0, min(xindex + yindex*1920, 1920*1080-1));
-    float bar = foo[index];
-    out.fragColor = computeCustomEffects(
-        float4(in.coords.x, bar, 0.5+ubuf.to_display_exposure_contrast_exposureVal, 1.0), ubuf.to_display_exposure_contrast_exposureVal);
+    int2 texCoords = int2(round(in.coords.x), round(in.coords.y));
+    out.fragColor = computeCustomEffects(texCoords, unif, foo);
     return out;
 })";
 } // anon namespace
