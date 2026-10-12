@@ -48,6 +48,7 @@ class MetalShaderProgram {
 
     id<MTLFunction> fragmentFunction() { return fragment_shader_; }
     id<MTLFunction> vertexFunction() { return vertex_shader_; }
+    id<MTLDynamicLibrary> utilityLibrary() { return utility_library_; }
 
     void compile();
 
@@ -78,7 +79,7 @@ class MetalShaderProgram {
     std::map<std::string, std::vector<UniformMember>> uniforms_;
 
     id<MTLFunction> compileShaderFromSource(const std::string &src, const std::string &entryPoint);
-
+    id<MTLDynamicLibrary> compileUtilityLibrary(const std::string &src, const std::string &installName);
     int get_param_location(const std::string &param_name);
     std::map<std::string, int> locations_;
     std::vector<std::string> vertex_shaders_;
@@ -86,7 +87,10 @@ class MetalShaderProgram {
     std::vector<std::string> orig_fragment_shaders_;
     id<MTLFunction> vertex_shader_;
     id<MTLFunction> fragment_shader_;
+    id<MTLDynamicLibrary> utility_library_;
     id<MTLDevice> device_;
+    MTL4CompilerDescriptor *compiler_descriptor_ API_AVAILABLE(macos(26.0));
+    id<MTL4Compiler> compiler_ API_AVAILABLE(macos(26.0));
     int colour_operation_index_ = {1};
     bool transpose_matrices_    = {false};
 };

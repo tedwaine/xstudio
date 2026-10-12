@@ -25,6 +25,7 @@ public:
     id<MTLDevice> device_;
     id<MTLBuffer> vbuf_ ;
     id<MTLBuffer> ubuf_[3];
+    id<MTLBuffer> testBuffer_;
     id<MTLRenderPipelineState> pipeline_;
     MTLRenderPipelineDescriptor *rpDesc = nullptr;
     MTLRenderPipelineReflection *reflection = nullptr;
@@ -379,9 +380,27 @@ void MetalViewportRenderer::draw_image(
     
     active_shader_program_->bind_uniforms(encoder);
 
-    std::cerr << "OINK " << active_shader_program_->vertexFunction() << std::endl;
-    render_pipe_->rpDesc.vertexFunction = active_shader_program_->vertexFunction();
-    render_pipe_->rpDesc.fragmentFunction = active_shader_program_->fragmentFunction();
+
+    if (image_to_be_drawn && image_to_be_drawn->buffer()) {
+
+        static auto key = image_to_be_drawn.frame_id().key();
+        if (key != image_to_be_drawn.frame_id().key()) {
+            key = image_to_be_drawn.frame_id().key();
+            render_pipe_->testBuffer_ = [render_pipe_->device_ newBufferWithBytesNoCopy : image_to_be_drawn->buffer()
+                                                        length: image_to_be_drawn->size()
+                                                    options : MTLResourceStorageModeShared
+                                                deallocator:^(void *pointer, NSUInteger length) {
+            std::cerr << "Freeing buf." << std::endl;
+            //free(pointer);
+            }];
+        }
+    }    
+
+
+    [encoder setFragmentBuffer:render_pipe_->testBuffer_ 
+                           offset:0 
+                          atIndex:1];
+
     std::cerr << "A\n" << std::endl;
     NSError *err = nullptr;
     MTLRenderPipelineReflection *local_reflection = nullptr;
@@ -389,6 +408,8 @@ void MetalViewportRenderer::draw_image(
                                                       options: MTLPipelineOptionArgumentInfo | MTLPipelineOptionBufferTypeInfo
                                                    reflection: &local_reflection
                                                         error: &err];
+
+
     std::cerr << "B\n" << std::endl;
 
     render_pipe_->reflection = local_reflection;
@@ -435,19 +456,17 @@ bool MetalViewportRenderer::activate_shader(
     const viewport::GPUShaderPtr &virt_image_buffer_unpack_shader,
     const std::vector<colour_pipeline::ColourOperationDataPtr> &colour_operations) {
 
-std::cerr << "C" << std::endl;
     if (!virt_image_buffer_unpack_shader ||
         virt_image_buffer_unpack_shader->graphics_api() != GraphicsAPI::Metal) {
         spdlog::warn("{} {}", __PRETTY_FUNCTION__, "No shader passed with image buffer.");
         return false;
     }
-std::cerr << "C" << std::endl;
-
     auto image_buffer_unpack_shader =
         static_cast<metal::MetalShader const *>(virt_image_buffer_unpack_shader.get());
     if (!image_buffer_unpack_shader) {
+        spdlog::warn("{} {}", __PRETTY_FUNCTION__, "Failed to cast image buffer unpack shader to MetalShader.");
+        return false;
     }
-std::cerr << "C" << std::endl;
 
     std::string shader_id = to_string(image_buffer_unpack_shader->shader_id());
 
@@ -471,10 +490,10 @@ std::cerr << "C " << shader_id << std::endl;
                     throw std::runtime_error(
                         "Non-Metal shader data in colour operation chain!");
                 }
-                std::cerr << "cp " << colour_op->cache_id() << " " << colour_op->shader_ << std::endl;
+                //std::cerr << "cp " << colour_op->cache_id() << " " << colour_op->shader_ << std::endl;
                 auto pr = static_cast<metal::MetalShader const *>(colour_op->shader_.get());
                 if (pr) {
-                    std::cerr << "Adding shader component: " << pr->shader_code() << std::endl;
+                    //std::cerr << "Adding shader component: " << pr->shader_code() << std::endl;
                     shader_components.push_back(pr->shader_code());
                 }
             }
@@ -494,13 +513,15 @@ std::cerr << "C " << shader_id << std::endl;
 std::cerr << "D" << std::endl;
     if (shader_programs_[shader_id]) {
         active_shader_program_ = shader_programs_[shader_id];
-    } else {
-        active_shader_program_ = no_image_shader_program_;
     }
-active_shader_program_ = no_image_shader_program_;
 
-    std::cerr << this << " no_image_shader_program_ " << no_image_shader_program_ << std::endl;
-std::cerr << "active_shader_program_ " << active_shader_program_ << std::endl;
+    if (active_shader_program_ != no_image_shader_program_) {
+        active_shader_program_ = no_image_shader_program_;
+        render_pipe_->rpDesc.vertexFunction = active_shader_program_->vertexFunction();
+        render_pipe_->rpDesc.fragmentFunction = active_shader_program_->fragmentFunction();
+        render_pipe_->rpDesc.fragmentPreloadedLibraries = @[active_shader_program_->utilityLibrary()];
+    }
+
     return active_shader_program_ != no_image_shader_program_;
 }
 
@@ -588,7 +609,6 @@ void MetalViewportRenderer::do_init(RendererInterfacePtr &renderer_interface) {
     std::cerr << "A\n";
 
     std::cerr << "B\n";
-
     // add shader for no image render
     try {
         no_image_shader_program_ =

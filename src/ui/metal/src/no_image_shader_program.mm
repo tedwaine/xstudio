@@ -86,10 +86,20 @@ struct main0_in
     float2 coords [[user(locn0)]];
 };
 
-fragment main0_out main0(main0_in in [[stage_in]], constant buf& ubuf [[buffer(0)]])
+extern "C" float4 computeCustomEffects(float4 blobby, float tt);
+
+fragment main0_out main0(
+    main0_in in [[stage_in]],
+    constant buf& ubuf [[buffer(0)]],
+    const device float *foo [[buffer(1)]])
 {
     main0_out out = {};
-    out.fragColor = float4(in.coords.x, in.coords.y, 0.5+ubuf.to_display_exposure_contrast_exposureVal, 1.0);
+    int yindex = int(round(in.coords.y*1080.0));
+    int xindex = int(round(in.coords.x*1920.0));
+    int index = max(0, min(xindex + yindex*1920, 1920*1080-1));
+    float bar = foo[index];
+    out.fragColor = computeCustomEffects(
+        float4(in.coords.x, bar, 0.5+ubuf.to_display_exposure_contrast_exposureVal, 1.0), ubuf.to_display_exposure_contrast_exposureVal);
     return out;
 })";
 } // anon namespace

@@ -135,5 +135,6 @@ class MetalViewportRenderer : public viewport::ViewportRenderer {
     ColourPipeLutCollection colour_pipe_lut_collection_;
     std::map<std::string, MetalShaderProgramPtr> shader_programs_;
     MetalRenderPipePtr render_pipe_;
+    std::shared_ptr<float> testBuffer;
 };
 } // namespace xstudio::ui::metal
