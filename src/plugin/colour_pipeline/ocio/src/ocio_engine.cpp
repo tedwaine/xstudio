@@ -8,6 +8,8 @@
 
 #if defined(__xstudio_opengl__)
 #include "xstudio/ui/opengl/shader_program_base.hpp"
+#elif defined(__xstudio_metal__)
+#include "xstudio/ui/metal/shader_program_base.hpp"
 #endif
 
 #include "shaders.hpp"
@@ -42,11 +44,17 @@ ColourOperationDataPtr OCIOEngine::linearise_op_data(
     OCIO::TransformRcPtr transform =
         source_transform(src_colour_mgmt_metadata, untonemapped_mode, bypass);
 
+#if defined(__xstudio_opengl__)
+    auto language = OCIO::GPU_LANGUAGE_GLSL_4_0;
+#elif defined(__xstudio_metal__)
+    auto language = OCIO::GPU_LANGUAGE_MSL_2_0;
+#endif
+
     auto shader_builder = ShaderBuilder()
                               .setConfig(config)
                               .setContext(context)
                               .setTransform(transform)
-                              .setLanguage(OCIO::GPU_LANGUAGE_GLSL_4_0)
+                              .setLanguage(language)
                               .setFunctionName("OCIOLinearise")
                               .setResourcePrefix("to_linear_");
 
@@ -58,6 +66,9 @@ ColourOperationDataPtr OCIOEngine::linearise_op_data(
 #if defined(__xstudio_opengl__)
     data->shader_ =
         std::make_shared<ui::opengl::OpenGLShader>(utility::Uuid::generate(), shader_text);
+#elif defined(__xstudio_metal__)
+    data->shader_ =
+        std::make_shared<ui::metal::MetalShader>(utility::Uuid::generate(), shader_text);
 #endif
 
     data->set_cache_id(to_string(PLUGIN_UUID) + shader_builder.getCacheString());
