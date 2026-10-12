@@ -263,7 +263,26 @@ void MetalShaderProgram::compile() {
     // Method implementation here
     vertex_shader_ = compileShaderFromSource(vertex_shaders_.back(), "main0");
     fragment_shader_ = compileShaderFromSource(fragment_shaders_.back(), "main0");
-    utility_library_ = compileUtilityLibrary(wizbod, "xstudio.utility_shader_lib");
+
+    NSURL *dylib_url = [[NSBundle mainBundle] URLForResource:@"pixel_unpack_utils_shader"
+                                                 withExtension:@"metallib"];
+    NSError *error = nullptr;
+
+    // Load the prebuilt metallib directly as a dynamic library - it was compiled offline
+    // without the bitcode needed to re-derive a MTLDynamicLibrary from a plain MTLLibrary.
+    id<MTLDynamicLibrary> dylib;
+    if (@available(macOS 26.0, *)) {
+        dylib = [compiler_ newDynamicLibraryWithURL: dylib_url error: &error];
+    } else {
+        dylib = [device_ newDynamicLibraryWithURL: dylib_url error: &error];
+    }
+
+    if (!dylib) {
+        std::cerr << "Error creating dynamic library: " << error.localizedDescription.UTF8String << std::endl;
+        exit(EXIT_FAILURE);
+    }
+
+    utility_library_ = dylib;//compileUtilityLibrary(wizbod, "xstudio.utility_shader_lib");
 }
 
 void MetalShaderProgram::inject_colour_op_shader(const std::string &colour_op_shader) {
@@ -455,5 +474,6 @@ void MetalShaderProgram::set_shader_parameters(const media_reader::ImageBufPtr &
         do_uniform_write(found->second, v);
     }
 
+    set_shader_parameters(image->shader_params());
     // Method implementation here
 }
