@@ -208,7 +208,7 @@ class MediaSourceActor : public caf::event_based_actor {
     std::map<int, UriStatus> uri_status_cache_;
 };
 
-class MediaStreamActor : public utility::ObjectActor {
+class MediaStreamActor : public utility::ObjectActor, MediaStream {
 
   public:
 
@@ -227,7 +227,7 @@ class MediaStreamActor : public utility::ObjectActor {
     caf::message_handler message_handler() override;
     
     caf::message_handler extra_message_handlers() override {
-        return base_.container_message_handler(this).or_else(jsn_handler_.message_handler());
+        return MediaStream::container_message_handler(this).or_else(jsn_handler_.message_handler());
     }
 
   private:
@@ -235,7 +235,7 @@ class MediaStreamActor : public utility::ObjectActor {
 
     inline static const std::string NAME = "MediaStreamActor";
     void init();
-    MediaStream base_;
     json_store::JsonStoreHandler jsn_handler_;
+    
 };
 } // namespace xstudio::media

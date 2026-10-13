@@ -23,10 +23,10 @@ using namespace xstudio::media_metadata;
 using namespace caf;
 
 MediaStreamActor::MediaStreamActor(caf::actor_config &cfg, const JsonStore &jsn)
-    : utility::ObjectActor(cfg), base_(static_cast<JsonStore>(jsn["base"])) {
+    : utility::ObjectActor(cfg), MediaStream(static_cast<JsonStore>(jsn["base"])) {
     jsn_handler_ = JsonStoreHandler(
         dynamic_cast<caf::event_based_actor *>(this),
-        base_.event_group(),
+        MediaStream::event_group(),
         utility::Uuid::generate(),
         not jsn.count("store") or jsn["store"].is_null()
             ? JsonStore()
@@ -40,16 +40,16 @@ MediaStreamActor::MediaStreamActor(
     const StreamDetail &detail,
     const utility::Uuid &uuid,
     const JsonStore &meta)
-    : utility::ObjectActor(cfg), base_(detail) {
+    : utility::ObjectActor(cfg), MediaStream(detail) {
 
     jsn_handler_ = JsonStoreHandler(
         dynamic_cast<caf::event_based_actor *>(this),
-        base_.event_group(),
+        MediaStream::event_group(),
         utility::Uuid::generate(),
         meta);
 
     if (not uuid.is_null())
-        base_.set_uuid(uuid);
+        MediaStream::set_uuid(uuid);
 
     init();
 }
@@ -58,35 +58,35 @@ caf::message_handler MediaStreamActor::message_handler() {
     return caf::message_handler{
         [=](xstudio::broadcast::broadcast_down_atom, const caf::actor_addr &) {},
 
-        [=](get_media_type_atom) -> MediaType { return base_.media_type(); },
+        [=](get_media_type_atom) -> MediaType { return MediaStream::media_type(); },
 
-        [=](get_stream_detail_atom) -> StreamDetail { return base_.detail(); },
+        [=](get_stream_detail_atom) -> StreamDetail { return MediaStream::detail(); },
 
-        [=](const StreamDetail &detail) { base_.set_detail(detail); },
+        [=](const StreamDetail &detail) { MediaStream::set_detail(detail); },
 
         [=](transform_matrix_atom, const Imath::M44f &tform) -> bool {
-            if (tform != base_.transform()) {
-                base_.set_transform(tform);
-                base_.send_changed();
-                mail(utility::event_atom_v, utility::change_atom_v).send(base_.event_group());
+            if (tform != MediaStream::transform()) {
+                MediaStream::set_transform(tform);
+                MediaStream::send_changed();
+                mail(utility::event_atom_v, utility::change_atom_v).send(MediaStream::event_group());
             }
             return true;
         },
 
-        [=](transform_matrix_atom) -> Imath::M44f { return base_.transform(); },
+        [=](transform_matrix_atom) -> Imath::M44f { return MediaStream::transform(); },
 
         [=](media::rotation_atom, const float r) -> bool {
             apply_auto_rotation(r);
             // metadata changed - need to broadcast an update
-            base_.send_changed();
-            mail(utility::event_atom_v, change_atom_v).send(base_.event_group());
+            MediaStream::send_changed();
+            mail(utility::event_atom_v, change_atom_v).send(MediaStream::event_group());
             return true;
         },
 
         [=](media::rotation_atom) -> float {
             float r = 0.0f;
             try {
-                const Imath::M44f tform = base_.transform();
+                const Imath::M44f tform = MediaStream::transform();
                 Imath::V3f rot;
                 Imath::extractEulerXYZ(tform, rot);
                 r = -rot.z * 180.0f / M_PI;
@@ -103,8 +103,8 @@ caf::message_handler MediaStreamActor::message_handler() {
                     json.get("/metadata/stream/@/side_data/rotation").get<float>());
             }
             // metadata changed - need to broadcast an update
-            base_.send_changed();
-            mail(utility::event_atom_v, change_atom_v).send(base_.event_group());
+            MediaStream::send_changed();
+            mail(utility::event_atom_v, change_atom_v).send(MediaStream::event_group());
             return mail(atom, json).delegate(jsn_handler_.json_actor());
         },
 
@@ -114,17 +114,17 @@ caf::message_handler MediaStreamActor::message_handler() {
                 json.contains(nlohmann::json::json_pointer("/side_data/rotation"))) {
                 apply_auto_rotation(json.get("/side_data/rotation").get<float>());
             }
-            base_.send_changed();
-            mail(utility::event_atom_v, change_atom_v).send(base_.event_group());
+            MediaStream::send_changed();
+            mail(utility::event_atom_v, change_atom_v).send(MediaStream::event_group());
             return mail(atom, json, path).delegate(jsn_handler_.json_actor());
         },
 
         [=](media::pixel_aspect_atom, const double new_aspect) {
-            StreamDetail detail  = base_.detail();
+            StreamDetail detail  = MediaStream::detail();
             detail.pixel_aspect_ = new_aspect;
-            base_.set_detail(detail);
-            base_.send_changed();
-            mail(utility::event_atom_v, change_atom_v).send(base_.event_group());
+            MediaStream::set_detail(detail);
+            MediaStream::send_changed();
+            mail(utility::event_atom_v, change_atom_v).send(MediaStream::event_group());
         },
 
         [=](utility::duplicate_atom) -> result<UuidActor> {
@@ -135,7 +135,7 @@ caf::message_handler MediaStreamActor::message_handler() {
                 .request(jsn_handler_.json_actor(), infinite)
                 .then([=](const JsonStore &meta) mutable {
                     const auto uuid  = utility::Uuid::generate();
-                    const auto actor = spawn<MediaStreamActor>(base_.detail(), uuid, meta);
+                    const auto actor = spawn<MediaStreamActor>(MediaStream::detail(), uuid, meta);
                     rp.deliver(UuidActor(uuid, actor));
                 });
 
@@ -149,7 +149,7 @@ caf::message_handler MediaStreamActor::message_handler() {
                 .then([=](const JsonStore &meta) mutable {
                     JsonStore jsn;
                     jsn["store"] = meta;
-                    jsn["base"]  = base_.serialise();
+                    jsn["base"]  = MediaStream::serialise();
 
                     rp.deliver(jsn);
                 });
@@ -163,11 +163,11 @@ void MediaStreamActor::init() {
     // only parial..
     // spdlog::debug(
     //     "Created MediaStreamActor {} {} {}",
-    //     base_.name(),
-    //     to_readable_string(base_.media_type()),
-    //     to_string(base_.duration()));
-    print_on_create(this, base_);
-    print_on_exit(this, base_);
+    //     MediaStream::name(),
+    //     to_readable_string(MediaStream::media_type()),
+    //     to_string(MediaStream::duration()));
+    print_on_create(this, *this);
+    print_on_exit(this, *this);
 }
 
 void MediaStreamActor::apply_auto_rotation(const float rotation_degrees) {
@@ -190,7 +190,7 @@ void MediaStreamActor::apply_auto_rotation(const float rotation_degrees) {
 
         // make virtual corners of the un-rotated image
         const float a =
-            float(base_.detail().resolution_.y) / float(base_.detail().resolution_.x);
+            float(MediaStream::detail().resolution_.y) / float(MediaStream::detail().resolution_.x);
         std::array<Imath::V4f, 4> corners = {
             Imath::V4f(1.0f, a, 0.0f, 1.0f),
             Imath::V4f(1.0f, -a, 0.0f, 1.0f),
@@ -211,9 +211,9 @@ void MediaStreamActor::apply_auto_rotation(const float rotation_degrees) {
         m.scale(Imath::V3f(1.0f / rightmost, 1.0f / rightmost, 1.0f));
     }
 
-    if (m != base_.transform()) {
-        base_.set_transform(m);
+    if (m != MediaStream::transform()) {
+        MediaStream::set_transform(m);
         mail(utility::event_atom_v, change_atom_v, media::rotation_atom_v, rotation_degrees)
-            .send(base_.event_group());
+            .send(MediaStream::event_group());
     }
 }
