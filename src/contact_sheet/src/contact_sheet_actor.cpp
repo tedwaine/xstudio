@@ -22,14 +22,14 @@ ContactSheetActor::ContactSheetActor(
     caf::actor_config &cfg, const utility::JsonStore &jsn, caf::actor playlist)
     : SubsetActor(cfg, jsn, playlist) {
 
-    base_.override_type("ContactSheet");
+    Subset::override_type("ContactSheet");
     init();
 }
 
 ContactSheetActor::ContactSheetActor(
     caf::actor_config &cfg, const std::string &name, const utility::Uuid &uuid, caf::actor playlist)
     : SubsetActor(cfg, name, uuid, playlist) {
-    base_.override_type("ContactSheet");
+    Subset::override_type("ContactSheet");
     init();
 }
 
@@ -52,8 +52,8 @@ void ContactSheetActor::init() {
         [=](duplicate_atom) -> result<UuidActor> {
             // clone ourself..
             auto uuid = utility::Uuid::generate();
-            auto actor = Container::create_session_object(system(),"ContactSheet", base_.name(), uuid, caf::actor_cast<caf::actor>(playlist_));
-            anon_mail(playhead::playhead_rate_atom_v, base_.playhead_rate()).send(actor);
+            auto actor = Container::create_session_object(system(),"ContactSheet", Subset::name(), uuid, caf::actor_cast<caf::actor>(playlist_));
+            anon_mail(playhead::playhead_rate_atom_v, Subset::playhead_rate()).send(actor);
             // get uuid from actor..
             try {
                 caf::scoped_actor sys(system());
@@ -61,7 +61,7 @@ void ContactSheetActor::init() {
 
                 // maybe not be safe.. as ordering isn't implicit..
                 std::vector<UuidActor> media_actors;
-                for (const auto &i : base_.media())
+                for (const auto &i : Subset::media())
                     media_actors.emplace_back(UuidActor(i, actors_[i]));
 
                 request_receive<bool>(
@@ -91,7 +91,7 @@ void ContactSheetActor::init() {
                 caf::actor_cast<caf::actor_addr>(this));
             link_to(actor);
 
-            anon_mail(playhead::playhead_rate_atom_v, base_.playhead_rate()).send(actor);
+            anon_mail(playhead::playhead_rate_atom_v, Subset::playhead_rate()).send(actor);
 
             playhead_ = UuidActor(uuid, actor);
 

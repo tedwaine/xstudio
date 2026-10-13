@@ -86,8 +86,9 @@ caf::message_handler ObjectActor::private_message_handler() {
         },
         [=](property_atom, std::vector<int> index_in_tree, const ObjectDataTreePtr &child_data) {
 
-            // Data has been updated of a child's child
-            // what's the index of the child that sent this?
+            // A child's data (or the child of a child etc.) has been updated. Foward the update
+            // to our parent via properties_events_group_. We append the index of the child the
+            // forwarded this to us to index_in_tree.
             int cindex = child_index();
             if (cindex < 0) return;
             index_in_tree.insert(index_in_tree.begin(), cindex);
