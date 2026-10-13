@@ -7,6 +7,7 @@
 #include "xstudio/playlist/playlist.hpp"
 #include "xstudio/utility/uuid.hpp"
 #include "xstudio/utility/notification_handler.hpp"
+#include "xstudio/utility/xs_actor.hpp"
 
 namespace xstudio {
 
@@ -16,7 +17,7 @@ namespace utility {
 
 namespace playlist {
 
-    class PlaylistActor : public caf::event_based_actor {
+    class PlaylistActor : public xstudio::utility::ObjectActor, Playlist {
       public:
         PlaylistActor(
             caf::actor_config &cfg,
@@ -40,12 +41,11 @@ namespace playlist {
 
         void init();
 
-        caf::message_handler message_handler();
+        caf::message_handler message_handler() override;
 
-        caf::behavior make_behavior() override {
-            return message_handler()
-                .or_else(base_.container_message_handler(this))
-                .or_else(notification_.message_handler(this, base_.event_group()))
+        caf::message_handler extra_message_handlers() override {
+            return Playlist::container_message_handler(this)
+                .or_else(notification_.message_handler(this, Playlist::event_group()))
                 .or_else(utility::NotificationHandler::default_event_handler());
         }
 
@@ -99,7 +99,7 @@ namespace playlist {
             const utility::UuidUuidMap &media_map);
 
       private:
-        Playlist base_;
+
         utility::NotificationHandler notification_;
         utility::JsonStore playhead_serialisation_;
 
