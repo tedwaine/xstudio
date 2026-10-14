@@ -1,4 +1,5 @@
 #include "xstudio/broadcast/broadcast_actor.hpp"
+#include "xstudio/utility/helpers.hpp"
 #include "xstudio/utility/xs_actor.hpp"
 
 using namespace xstudio::utility;
@@ -20,7 +21,7 @@ ObjectActor::ObjectActor(caf::actor_config &cfg) : caf::event_based_actor(cfg) {
 }
 
 void ObjectActor::add_child(caf::actor child) {
-    int cidx = children_.empty() ? 0 : children_.rbegin()->first + 1;
+    /*int cidx = children_.empty() ? 0 : children_.rbegin()->first + 1;
     children_[cidx] = caf::actor_cast<caf::actor_addr>(child);
     mail(property_atom_v).request(child, infinite).then(
         [=](const ObjectDataTreePtr &child_data) mutable {
@@ -31,7 +32,7 @@ void ObjectActor::add_child(caf::actor child) {
         [=](const caf::error &err) {
             spdlog::error("{} Error while requesting child data: {}", __PRETTY_FUNCTION__, to_string(err));
         }
-    );
+    );*/
 
 }
 
@@ -96,18 +97,18 @@ caf::message_handler ObjectActor::private_message_handler() {
             mail(property_atom_v, index_in_tree, child_data).send(properties_events_group_);
 
         },
-        [=](property_atom) -> ObjectDataTreePtr {
+        [=](property_atom) -> result<ObjectDataTreePtr> {
 
             ObjectDataTree * result = new ObjectDataTree();
-            auto auto_responder = AutoResponder<ObjectDataTreePtr>(children_.size());
+            auto auto_responder = utility::AutoResponder<ObjectDataTreePtr>(children_.size(), this);
             auto_responder.result().reset(new ObjectDataTree()); 
             for (size_t i = 0; i < children_.size(); ++i) {
                 mail(property_atom_v).request(caf::actor_cast<caf::actor>(children_[i]), infinite).then(
-                    [=](ObjectDataTreePtr cdata) {
+                    [=](ObjectDataTreePtr cdata) mutable {
                         result->children_data_[i] = cdata;
                         auto_responder.decrement();
                     },
-                    [=](const caf::error &err) {
+                    [=](const caf::error &err) mutable{
                         auto_responder.decrement(err);
                     }
                 );

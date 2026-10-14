@@ -9,10 +9,11 @@
 #include "xstudio/utility/json_store.hpp"
 #include "xstudio/utility/uuid.hpp"
 #include "xstudio/utility/notification_handler.hpp"
+#include "xstudio/utility/xs_actor.hpp"
 
 namespace xstudio::session {
 
-class SessionActor : public caf::event_based_actor {
+class SessionActor : public xstudio::utility::ObjectActor, protected Session {
   public:
     SessionActor(
         caf::actor_config &cfg,
@@ -30,8 +31,9 @@ class SessionActor : public caf::event_based_actor {
 
     void init();
 
-    caf::message_handler message_handler();
-    caf::behavior make_behavior() override { return behavior_; }
+    caf::message_handler message_handler() override;
+
+    caf::message_handler extra_message_handlers() override;
 
     void create_container(
         caf::actor actor,
@@ -117,7 +119,6 @@ class SessionActor : public caf::event_based_actor {
     utility::NotificationHandler notification_;
 
     caf::behavior behavior_;
-    Session base_;
     caf::actor json_store_;
     caf::actor bookmarks_;
     caf::actor ioactor_;

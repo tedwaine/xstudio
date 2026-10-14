@@ -6,9 +6,10 @@
 #include "xstudio/timeline/timeline.hpp"
 #include "xstudio/utility/notification_handler.hpp"
 #include "xstudio/json_store/json_store_handler.hpp"
+#include "xstudio/utility/xs_actor.hpp"
 
 namespace xstudio::timeline {
-class TimelineActor : public caf::event_based_actor {
+class TimelineActor : public xstudio::utility::ObjectActor, protected Timeline {
   public:
 
     TimelineActor(
@@ -33,12 +34,11 @@ class TimelineActor : public caf::event_based_actor {
     inline static const std::string NAME = "TimelineActor";
     void init();
 
-    caf::message_handler message_handler();
+    caf::message_handler message_handler() override;
 
-    caf::behavior make_behavior() override {
-        return message_handler()
-            .or_else(base_.container_message_handler(this))
-            .or_else(notification_.message_handler(this, base_.event_group()))
+    caf::message_handler extra_message_handlers() override {
+        return Timeline::container_message_handler(this)
+            .or_else(notification_.message_handler(this, Timeline::event_group()))
             .or_else(jsn_handler_.message_handler());
     }
 
@@ -122,7 +122,6 @@ class TimelineActor : public caf::event_based_actor {
         caf::typed_response_promise<bool> rp,
         utility::UuidActor media);
 
-    Timeline base_;
     caf::actor change_event_group_;
 
     utility::Uuid history_uuid_;
