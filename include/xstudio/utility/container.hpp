@@ -69,6 +69,8 @@ struct ContainerDetail {
     caf::actor group_;
 };
 
+class ObjectActor;
+
 class Container {
   public:
     Container(
@@ -245,6 +247,8 @@ class Container {
     static void register_session_object_factory(const std::string_view object_name, SessionObjectFactorySignature factory, SessionObjectFactorySignature2 factory2);
 
   private:
+
+    ObjectActor *object_actor_{nullptr};
     caf::event_based_actor *actor_{nullptr};
     caf::actor event_group_;
     std::string name_;

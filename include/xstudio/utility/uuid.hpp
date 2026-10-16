@@ -165,6 +165,10 @@ class UuidActor {
 
     friend bool operator!=(const UuidActor &a, const UuidActor &b) { return !(a == b); };
 
+    static constexpr bool has_weak_ptr_semantics = false;
+
+    caf::actor get() const { return actor(); }
+
     operator caf::actor &() { return actor_; }
     operator const caf::actor &() const { return actor_; }
     operator utility::Uuid &() { return uuid_; }

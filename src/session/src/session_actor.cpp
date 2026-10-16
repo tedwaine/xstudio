@@ -614,6 +614,12 @@ void SessionActor::init() {
     ioactor_ = spawn<SessionIOActor>();
     link_to(ioactor_);
 
+    // This object actor acts as the root for all playlists within the session.
+    playlists_root_ = utility::UuidActor(utility::Uuid::generate(), spawn<utility::ObjectActor>());
+    add_child(playlists_root_);
+
+    anon_mail(property_atom_v, broadcast::join_broadcast_atom_v, caf::actor_cast<caf::actor>(this)).send(playlists_root_.actor());
+
     /* Here we create a playhead used exclusively for comparing multiple timelines,
     which is a special 'mode' activated when the user selects multiple timelines
     in the playlists */
@@ -2070,7 +2076,21 @@ caf::message_handler SessionActor::message_handler() {
             const bool /*is_main_playhead*/) {
             // event from 'global_playhead_events_actor'
             // the onscreen media for the given viewport has changed
-        }};
+        },
+    
+        [=](property_atom, const std::vector<int> &index_in_tree, const ObjectDataTreePtr &child_data) {
+
+            std::cerr << "Hello sir\n";
+
+        },
+
+        [=](property_atom, const std::vector<int> &index_in_tree, const std::string &key, const AnyPtr &value) {
+
+            std::cerr << "Hello sir 2\n";
+
+        }
+
+    };
 }
 
 
@@ -2172,11 +2192,23 @@ void SessionActor::create_container(
                 if (not cuuid) {
                     cuuid = Session::insert_container(tmp);
                 }
+
                 Session::send_changed();
                 mail(utility::event_atom_v, add_playlist_atom_v, UuidActor(detail.uuid_, actor))
                     .send(Session::event_group());
 
-                rp.deliver(std::make_pair(*cuuid, UuidActor(detail.uuid_, actor)));
+                std::cerr << "OIOI " << to_string(playlists_root_.actor()) << "\n";
+                mail(utility::add_children_atom_v, UuidActor(detail.uuid_, actor)).request(playlists_root_.actor(), infinite).then(
+                    [=](bool) mutable {
+                        rp.deliver(std::make_pair(*cuuid, UuidActor(detail.uuid_, actor)));
+                    },
+                    [=](error &err) mutable {
+                        std::cerr << "DGDS " << to_string(err) << "\n";
+                        rp.deliver(std::make_pair(*cuuid, UuidActor(detail.uuid_, actor)));
+                    }
+                );
+
+
             },
             [=](error &err) mutable { rp.deliver(err); });
 }

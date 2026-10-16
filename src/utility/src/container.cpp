@@ -5,7 +5,15 @@
 #include "xstudio/utility/container.hpp"
 #include "xstudio/utility/helpers.hpp"
 #include "xstudio/utility/logging.hpp"
+#include "xstudio/utility/xs_actor.hpp"
 #include "xstudio/broadcast/broadcast_actor.hpp"
+
+BEGIN_REGISTER_PROPERTY_NAMES()
+    "nameRole",
+    "actorRole",
+    "uuidRole",
+    "typeRole"
+END_REGISTER_PROPERTY_NAMES()
 
 using namespace xstudio;
 using namespace xstudio::utility;
@@ -89,15 +97,29 @@ caf::message_handler Container::default_event_handler() {
 }
 
 caf::message_handler Container::container_message_handler(caf::event_based_actor *act) {
+    
     actor_       = act;
+    object_actor_ = dynamic_cast<ObjectActor *>(act);
     event_group_ = actor_->spawn<broadcast::BroadcastActor>(actor_);
     actor_->link_to(event_group_);
 
+    if (object_actor_) {
+        object_actor_->set_property("nameRole", name_);
+        object_actor_->set_property("typeRole", type_);
+        object_actor_->set_property("uuidRole", uuid_);
+        object_actor_->set_property("actorRole", caf::actor_cast<caf::actor_addr>(act));
+    }   
+
     return caf::message_handler({
         [=](name_atom, const std::string &name) { // make_set_name_handler
-            name_ = name;
-            actor_->mail(event_atom_v, name_atom_v, name).send(event_group_);
-            send_changed();
+            if (name != name_) {
+                name_ = name;
+                actor_->mail(event_atom_v, name_atom_v, name).send(event_group_);
+                send_changed();
+                if (object_actor_) {
+                    object_actor_->set_property("nameRole", name_);
+                }
+            }
         },
         [=](name_atom) -> std::string { return name_; }, // make_get_name_handler
         [=](last_changed_atom) -> time_point {
