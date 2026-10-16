@@ -284,7 +284,7 @@ if(INSTALL_XSTUDIO)
 
   if(BUILD_DOCS)
     message("BUILDING DOCS")
-    add_subdirectory(docs)
+    #add_subdirectory(docs)
   else()
     if (APPLE)
       install(DIRECTORY share/docs/ DESTINATION ${CMAKE_BINARY_DIR}/xSTUDIO.app/Contents/Resources/docs)
