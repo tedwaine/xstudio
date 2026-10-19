@@ -58,6 +58,7 @@ target_link_libraries(${PROJECT_NAME}
 		xstudio::ui::qml::helper
 		xstudio::ui::qml::log
 		xstudio::ui::qml::session
+		xstudio::ui::qml::session_v2
 		xstudio::ui::qml::studio
 		xstudio::ui::qml::viewport
 		xstudio::ui::qt::viewport_widget

@@ -11,6 +11,7 @@
 #include "xstudio/ui/qml/qml_viewport.hpp"           //NOLINT
 #include "xstudio/ui/qml/QTreeModelToTableModel.hpp" //NOLINT
 #include "xstudio/ui/qml/session_model_ui.hpp"       //NOLINT
+#include "xstudio/ui/qml/new_session_model_ui.hpp"   //NOLINT
 #include "xstudio/ui/qml/shotgun_provider_ui.hpp"
 #include "xstudio/ui/qml/studio_ui.hpp" //NOLINT
 #include "xstudio/ui/qml/thumbnail_provider_ui.hpp"
@@ -68,6 +69,9 @@ void xstudio::ui::qml::setup_xstudio_qml_emgine(QQmlEngine *engine, caf::actor_s
     qmlRegisterType<ConformEngineUI>("xstudio.qml.conform", 1, 0, "XsConformEngine");
 
     qmlRegisterType<SessionModel>("xstudio.qml.session", 1, 0, "XsSessionModel");
+
+    qmlRegisterType<SessionModelRoot>("xstudio.qml.session", 1, 0, "XsSessionModelNew");
+    qmlRegisterType<SessionModelNode>("xstudio.qml.session", 1, 0, "XsSessionModelNode");
 
     qmlRegisterType<MenusModelData>("xstudio.qml.models", 1, 0, "XsMenusModel");
     qmlRegisterType<ModulesModelData>("xstudio.qml.models", 1, 0, "XsModuleData");

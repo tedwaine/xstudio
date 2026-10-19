@@ -546,6 +546,8 @@ SessionActor::SessionActor(
     join_event_group(this, bookmarks_);
     link_to(bookmarks_);
 
+    init();
+
     for (const auto &[key, value] : jsn["actors"].items()) {
         try {
             playlists_[key] = Container::create_session_object(
@@ -553,6 +555,9 @@ SessionActor::SessionActor(
                 value["base"]["container"]["type"].get<std::string>(),
                 static_cast<utility::JsonStore>(value),
                 caf::actor_cast<caf::actor>(this));
+
+            anon_mail(utility::add_children_atom_v, UuidActor(key, playlists_[key])).send(playlists_root_);
+
             link_to(playlists_[key]);
             join_event_group(this, playlists_[key]);
         } catch (const std::exception &e) {
@@ -560,7 +565,6 @@ SessionActor::SessionActor(
         }
     }
 
-    init();
 
     check_media_hook_plugin_version(jsn, path);
 
@@ -615,7 +619,7 @@ void SessionActor::init() {
     link_to(ioactor_);
 
     // This object actor acts as the root for all playlists within the session.
-    playlists_root_ = utility::UuidActor(utility::Uuid::generate(), spawn<utility::ObjectActor>());
+    playlists_root_ = utility::UuidActor(utility::Uuid::generate(), spawn<utility::ObjectActor>("PlaylistsRoot"));
     add_child(playlists_root_);
 
     anon_mail(property_atom_v, broadcast::join_broadcast_atom_v, caf::actor_cast<caf::actor>(this)).send(playlists_root_.actor());
@@ -2212,7 +2216,6 @@ void SessionActor::create_container(
                 mail(utility::event_atom_v, add_playlist_atom_v, UuidActor(detail.uuid_, actor))
                     .send(Session::event_group());
 
-                std::cerr << "OIOI " << to_string(playlists_root_.actor()) << "\n";
                 mail(utility::add_children_atom_v, UuidActor(detail.uuid_, actor)).request(playlists_root_.actor(), infinite).then(
                     [=](bool) mutable {
                         rp.deliver(std::make_pair(*cuuid, UuidActor(detail.uuid_, actor)));

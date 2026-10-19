@@ -8,7 +8,7 @@
 #include "xstudio/utility/xs_actor.hpp"
 #include "xstudio/broadcast/broadcast_actor.hpp"
 
-BEGIN_REGISTER_PROPERTY_NAMES()
+BEGIN_REGISTER_PROPERTY_NAMES(SessionModel)
     "nameRole",
     "actorRole",
     "uuidRole",

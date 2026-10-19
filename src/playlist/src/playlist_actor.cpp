@@ -35,6 +35,16 @@ const auto MEDIA_NOTIFY_DELAY_FAST = std::chrono::milliseconds(100);
 
 using namespace nlohmann;
 
+BEGIN_REGISTER_PROPERTY_NAMES(SessionModel)
+    "mediaCountRole",
+    "expandedRole",
+    "placeHolderRole",
+    "metadataChangedRole",
+    "flagColourRole",
+    "notificationRole",
+    "errorRole"
+END_REGISTER_PROPERTY_NAMES()
+
 void blocking_loader(
     blocking_actor *self,
     caf::typed_response_promise<std::vector<UuidActor>> rp,
@@ -270,6 +280,10 @@ PlaylistActor::PlaylistActor(
             }
         }
     }
+
+    set_property("mediaCountRole", int(media_.size()));
+    set_property("expandedRole", Playlist::expanded());
+
     spdlog::debug("media loaded in {:.3} seconds.", sw);
     // deserialise containers
     for (const auto &[key, value] : jsn.at("actors").items()) {
@@ -1500,6 +1514,12 @@ caf::message_handler PlaylistActor::message_handler() {
         },
 
         [=](reflag_container_atom, const std::string &flag, const utility::Uuid &uuid) -> bool {
+
+            if (uuid == Playlist::uuid()) {
+                std::cerr << "FLAGGY!\n";
+                set_property("flagColourRole", flag);
+            }
+
             bool result = Playlist::reflag_container(flag, uuid);
             if (result) {
                 mail(utility::event_atom_v, reflag_container_atom_v, uuid, flag)
@@ -1936,7 +1956,9 @@ caf::message_handler PlaylistActor::message_handler() {
 
         [=](expanded_atom) -> bool { return Playlist::expanded(); },
 
-        [=](expanded_atom, const bool expanded) { Playlist::set_expanded(expanded); },
+        [=](expanded_atom, const bool expanded) { 
+            Playlist::set_expanded(expanded); 
+        },
 
         // handle child change events.
         [=](utility::event_atom, utility::name_atom, const std::string & /*name*/) {},

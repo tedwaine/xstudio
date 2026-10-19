@@ -440,6 +440,8 @@ ApplicationWindow {
         }
     }
 
+    //property alias theSessionDataNew: sessionData.sessionNew
+
     // Makes these important global items visible in child contexts
     property alias theSessionData: sessionData.session
     property alias sessionSelectionModel: sessionData.sessionSelectionModel
