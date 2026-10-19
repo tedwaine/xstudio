@@ -8,6 +8,7 @@ import QuickFuture
 
 import xStudio 1.0
 import "./delegates"
+import xstudio.qml.session 1.0
 
 XsListView { id: playlists
 
@@ -38,18 +39,28 @@ XsListView { id: playlists
         z: -1
     }
 
+    XsSessionModelNode {
+        id: playlistsFoo    
+        childSearchPropertyKey: "nameRole"
+        childSearchPropertyValue: "PlaylistsRoot"
+    }
+
+
     DelegateModel {
         id: playlistsModel
 
         // this is required as "model" doesn't issue notifications on change
-        property var notifyModel: theSessionData
+        property var notifyModel: playlistsFoo
 
         // we use the main session data model
         model: notifyModel
 
         // point at session 0,0, it's children are the playlists.
-        rootIndex: notifyModel.playlistsRootIdx
-        delegate: chooser
+        delegate: XsPlaylistItemDelegate {
+                modelIndex: helpers.makePersistent(playlistsFoo.index(index, 0))
+                width: playlists.width
+                onModelIndexChanged: console.log("INDY", modelIndex)
+            }
     }
 
     DelegateChooser {

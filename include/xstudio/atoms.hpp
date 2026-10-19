@@ -519,6 +519,7 @@ CAF_BEGIN_TYPE_ID_BLOCK(xstudio_framework_atoms, FIRST_CUSTOM_ID + (200 * 2))
     CAF_ADD_ATOM(xstudio_framework_atoms, xstudio::utility, add_children_atom)
     CAF_ADD_ATOM(xstudio_framework_atoms, xstudio::utility, remove_children_atom)
     CAF_ADD_ATOM(xstudio_framework_atoms, xstudio::utility, move_children_atom)
+    CAF_ADD_ATOM(xstudio_framework_atoms, xstudio::utility, find_children_atom)
 
     CAF_ADD_ATOM(xstudio_framework_atoms, xstudio::json_store, sync_atom)
     CAF_ADD_ATOM(xstudio_framework_atoms, xstudio::module, reset_module_atom)

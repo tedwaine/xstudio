@@ -9,6 +9,7 @@ SET(LINK_DEPS
 	xstudio::ui::qml::helper
 	xstudio::ui::qml::log
 	xstudio::ui::qml::session
+	xstudio::ui::qml::session_v2
 	xstudio::ui::qml::viewport
 	xstudio::ui::qt::viewport_widget
 	xstudio::utility

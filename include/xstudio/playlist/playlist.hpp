@@ -73,7 +73,9 @@ class Playlist : public utility::Container {
     void set_playhead_rate(const utility::FrameRate &rate) { playhead_rate_ = rate; }
 
     [[nodiscard]] bool expanded() const { return expanded_; }
-    void set_expanded(const bool expanded) { expanded_ = expanded; }
+    void set_expanded(const bool expanded) { 
+        expanded_ = expanded; 
+    }
 
   private:
     utility::UuidListContainer media_list_;

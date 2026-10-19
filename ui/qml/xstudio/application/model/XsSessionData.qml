@@ -15,6 +15,10 @@ Item {
     id: collecion
     property var sessionActorAddr
 
+    /*XsSessionModelNew {
+        id: sessionDataNode
+    }*/
+
     XsSessionModel {
 
         id: sessionData
@@ -245,6 +249,7 @@ Item {
 
     property alias embeddedPython: embeddedPython
 
+    //property alias sessionNew: sessionDataNode
     property alias session: sessionData
 
     /* This gives us access to a few properties like the filesystem path of
