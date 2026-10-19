@@ -20,7 +20,7 @@ CAF_POP_WARNINGS
 namespace xstudio::ui::qml {
 
 /*
-SessionModel_v2 class.
+UIDataModel class.
 
 We derive from QAbstractItemModelto expose our simple database data in
 a tree-like structure that can be used to instance QML elements
@@ -40,7 +40,7 @@ derivatives. Refer to the Qt docs for more information as well as the
 demo QML code that is part of this project.
 
 */
-class SessionModel_v2 : public caf::mixin::actor_object<QAbstractItemModel> {
+class UIDataModel : public caf::mixin::actor_object<QAbstractItemModel> {
 
     Q_OBJECT
 
@@ -50,8 +50,8 @@ class SessionModel_v2 : public caf::mixin::actor_object<QAbstractItemModel> {
 
     using super = caf::mixin::actor_object<QAbstractItemModel>;
 
-    SessionModel_v2(QObject *parent = nullptr);
-    ~SessionModel_v2() override = default;
+    UIDataModel(QObject *parent = nullptr);
+    ~UIDataModel() override = default;
 
     void init(caf::actor_system &system);
 
@@ -68,8 +68,8 @@ class SessionModel_v2 : public caf::mixin::actor_object<QAbstractItemModel> {
     [[nodiscard]] QModelIndex parent(const QModelIndex &child) const override;
     [[nodiscard]] QVariant
     data(const QModelIndex &index, int role = Qt::DisplayRole) const override;
-    [[nodiscard]] QHash<int, QByteArray> roleNames() const override;
     [[nodiscard]] bool canFetchMore(const QModelIndex &parent) const override;
+    [[nodiscard]] QHash<int, QByteArray> roleNames() const override { return data_roles_; }
 
     // When roleData is set in QML, this method is invoked
     [[nodiscard]] bool
@@ -80,7 +80,15 @@ class SessionModel_v2 : public caf::mixin::actor_object<QAbstractItemModel> {
 
   signals:
 
+  protected:
+
+    virtual caf::message_handler message_handler() { return caf::message_handler(); }
+
+    void set_source_of_data(caf::actor source);
+
   private:
+
+    caf::message_handler core_message_handler();
 
     // QModelIndex::internalId() is a never-reused id from nodes_by_id_, not a pointer, so a
     // stale index can never resolve to a freed (or address-recycled) node.
@@ -94,8 +102,87 @@ class SessionModel_v2 : public caf::mixin::actor_object<QAbstractItemModel> {
     std::unordered_map<quintptr, const utility::ObjectDataTree *> nodes_by_id_;
     std::unordered_map<const utility::ObjectDataTree *, quintptr> ids_by_node_;
     quintptr next_id_ = 1;
+    QHash<int, QByteArray> data_roles_;
+    std::map<std::string, int> data_roles_inverse_;
 
-    caf::actor backend_plugin_;
+    caf::actor source_of_data_;
     bool is_versions_list_ = {false};
 };
+
+class SessionModelRoot : public UIDataModel {
+
+    Q_OBJECT
+
+  Q_PROPERTY(QString rootActor READ rootActor WRITE setRootActor NOTIFY rootActorChanged)
+
+  public:
+
+    using super = UIDataModel;
+
+    SessionModelRoot(QObject *parent = nullptr);
+    ~SessionModelRoot() override = default;
+
+    [[nodiscard]] QString rootActor() const { return root_actor_as_string_; }
+    void setRootActor(const QString &actor);
+
+  signals:
+
+    void rootActorChanged();
+
+  protected:
+
+    caf::message_handler message_handler() override;
+    virtual void reload() {}
+    void connect_to_studio();
+
+    caf::actor session_actor_;
+    caf::actor root_actor_;
+    QString root_actor_as_string_;
+
+  private:
+
+
+};
+
+class SessionModelNode : public SessionModelRoot {
+
+  Q_OBJECT
+
+  Q_PROPERTY(QString childSearchPropertyKey READ childSearchPropertyKey WRITE setChildSearchPropertyKey NOTIFY childSearchPropertyKeyChanged)
+  Q_PROPERTY(QVariant childSearchPropertyValue READ childSearchPropertyValue WRITE setChildSearchPropertyValue NOTIFY childSearchPropertyValueChanged)
+
+  public:
+
+    using super = SessionModelRoot;
+
+    SessionModelNode(QObject *parent = nullptr);
+    ~SessionModelNode() override = default;
+
+    [[nodiscard]] QString childSearchPropertyKey() const { return child_search_property_key_; }
+    [[nodiscard]] QVariant childSearchPropertyValue() const { return child_search_property_value_; }
+
+    void setChildSearchPropertyKey(const QString &key);
+    void setChildSearchPropertyValue(const QVariant &value);
+
+  protected:
+
+    caf::message_handler message_handler() override;
+    void reload() override;
+
+  signals:
+
+    void childSearchPropertyKeyChanged();
+    void childSearchPropertyValueChanged();
+
+  public Q_SLOTS:
+
+    void doReload() { reload(); }
+
+  private:
+
+    QString child_search_property_key_;
+    QVariant child_search_property_value_;
+
+};
+
 } // namespace xstudio::ui::qml

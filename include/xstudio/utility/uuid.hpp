@@ -165,6 +165,9 @@ class UuidActor {
 
     friend bool operator!=(const UuidActor &a, const UuidActor &b) { return !(a == b); };
 
+    // Matches caf::actor's traits so UuidActor can be passed directly as the
+    // `Handle` of caf's mail(...).request(...) (dynamically typed, strong ref).
+    using signatures                             = caf::none_t;
     static constexpr bool has_weak_ptr_semantics = false;
 
     caf::actor get() const { return actor(); }

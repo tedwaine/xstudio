@@ -9,26 +9,29 @@
 /* Use these macros to register property names for ObjectDataTree.
 
 Any 'property' that you wish to set on an ObjectActor must be registered using these macros.
+Provide the name of the model for which you are registering property names as a parameter
+of the BEGIN_ macro statement
 
 Use as follows:
 
-BEGIN_REGISTER_PROPERTY_NAMES()
+BEGIN_REGISTER_PROPERTY_NAMES("SessionModel")
     "nameRole",
     "actorAddressRole",
     ...
 END_REGISTER_PROPERTY_NAMES()
 */
-#define BEGIN_REGISTER_PROPERTY_NAMES() \
+#define BEGIN_REGISTER_PROPERTY_NAMES(MODEL_NAME) \
 namespace { \
 struct ObjectDataTreeRegistrar { \
+    const std::string model_name_ = #MODEL_NAME; \
     ObjectDataTreeRegistrar() { \
         std::vector<std::string> roleNames({
 
 #define END_REGISTER_PROPERTY_NAMES() \
         }); \
-        xstudio::utility::ObjectDataTree::register_property_names(roleNames); \
+        xstudio::utility::ObjectDataTree::register_property_names(model_name_, roleNames); \
     } \
-} __registrar; \
+} __role_names_registrar; \
 } // anonymous namespace
 
 namespace xstudio {
@@ -40,23 +43,36 @@ using ObjectDataTreePtr = std::shared_ptr<const ObjectDataTree>;
 class ObjectDataTree {
 public:
 
-    static void register_property_names(const std::vector<std::string> &roleNames);
-    static const std::set<std::string> &property_names();
+    static void register_property_names(const std::string &model_name, const std::vector<std::string> &roleNames);
+    static const std::map<int, std::string> &property_names(const std::string &model_name);
 
     using AnyPtr = std::shared_ptr<const std::any>;
     using PropertyMap = std::map<std::string, AnyPtr>;
 
+    // Compares the typed value held by two property values. Supports the
+    // property value types used by ObjectDataTree: std::string, int, bool,
+    // float and JsonStore. Returns false for unsupported or mismatched types.
+    static bool values_equal(const std::any &a, const std::any &b);
+    static bool values_equal(const AnyPtr &a, const AnyPtr &b);    
+
     ObjectDataTree(ObjectDataTree *parent = nullptr) : parent_(parent) {}
     virtual ~ObjectDataTree() = default;
 
-    ObjectDataTreePtr deep_copy(ObjectDataTree *parent = nullptr) const;
+    ObjectDataTree * deep_copy(ObjectDataTree *parent = nullptr) const;
+
+    [[nodiscard]] AnyPtr get_property(const std::string &key) const {
+        auto it = properties_.find(key);
+        return it != properties_.end() ? it->second : nullptr;
+    }
+
+    void dump(const int indent = 0) const;
 
     PropertyMap properties_;
     std::map<int, ObjectDataTreePtr> children_data_;
     ObjectDataTree * parent_ = nullptr;
 
     private:
-    static std::set<std::string> &property_names_mutable();
+    static std::set<std::string> &property_names_mutable(const std::string &model_name);
 };
 
 /* This base actor class provides a heirarchical structure for actors within
@@ -77,7 +93,7 @@ allowing us to automatically update the UI and other dependent components.
 class ObjectActor : public caf::event_based_actor {
 public:
 
-    ObjectActor(caf::actor_config &cfg);
+    ObjectActor(caf::actor_config &cfg, const std::string &name="", const utility::Uuid &uuid = utility::Uuid());
 
     virtual ~ObjectActor() = default;
 
@@ -103,6 +119,22 @@ protected:
         full_state_.properties_[key] = std::make_shared<const std::any>(value);
         mail(property_atom_v, std::vector<int>(), key, full_state_.properties_[key]).send(properties_events_group_);
     }
+
+    template <typename T>
+    std::optional<T> get_property(const std::string &key) const {
+        if (full_state_.properties_.count(key)) {
+            return std::any_cast<T>(*(full_state_.properties_.at(key)));
+        }
+        return std::nullopt; // Property not found
+    }
+
+    AnyPtr get_property(const std::string &key) const {
+        if (full_state_.properties_.count(key)) {
+            return full_state_.properties_.at(key);
+        }
+        return nullptr; // Property not found
+    }
+
 
     void add_child(const UuidActor &child, const utility::Uuid &before = utility::Uuid());
     void remove_child(const UuidActor &child);
