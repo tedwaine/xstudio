@@ -4416,4 +4416,16 @@ void TimelineActor::auto_replace_media_at_playhead_clip(caf::typed_response_prom
 
 }
 
-REGISTER_SESSION_OBJECT(TimelineActor, Timeline)
+namespace {
+static const char * session_list_qml = R"qml(
+    import QtQuick
+    import xStudio 1.0
+
+    XsPlaylistItemBase {
+        anchors.fill: parent
+        iconSource: "qrc:/icons/view_object_track.svg"
+    }
+)qml";
+}
+    
+REGISTER_SESSION_OBJECT(TimelineActor, Timeline, session_list_qml)

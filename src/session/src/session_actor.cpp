@@ -549,15 +549,14 @@ SessionActor::SessionActor(
     init();
 
     for (const auto &[key, value] : jsn["actors"].items()) {
+
         try {
+
             playlists_[key] = Container::create_session_object(
                 system(),
                 value["base"]["container"]["type"].get<std::string>(),
                 static_cast<utility::JsonStore>(value),
                 caf::actor_cast<caf::actor>(this));
-
-            anon_mail(utility::add_children_atom_v, UuidActor(key, playlists_[key])).send(playlists_root_);
-
             link_to(playlists_[key]);
             join_event_group(this, playlists_[key]);
         } catch (const std::exception &e) {
@@ -565,7 +564,38 @@ SessionActor::SessionActor(
         }
     }
 
+    // Now we have created child playlists etc. we also need to create
+    // divider objects which are described in the legacy Session PlaylistTree
+    // object (which also tells us the ordering of the playlists and dividers)
+    //
+    utility::UuidActorVector ordered_children;
+    for (const auto &c: Session::containers().children()) {
+        const PlaylistItem &playlist_item = c.value();
+        auto it = playlists_.find(playlist_item.uuid());
+        if (it != playlists_.end()) {
+            ordered_children.push_back(UuidActor(playlist_item.uuid(), it->second));
+        } else {
+            try {
+                // this is where Dividers are made
+                auto actor = Container::create_session_object(
+                    system(),
+                    playlist_item.type(),
+                    playlist_item.name(),
+                    playlist_item.uuid(),
+                    caf::actor_cast<caf::actor>(this));
+                ordered_children.push_back(utility::UuidActor(playlist_item.uuid(), actor));
+                non_playlists_[playlist_item.uuid()] = actor;
+                link_to(actor);
+                    
+            } catch (const std::exception &e) {
+                spdlog::error("{}", e.what());
+            }
+        }
+    }
 
+    // We add these children to the ObjectActor heirarchy here:
+    anon_mail(utility::add_children_atom_v, ordered_children).send(playlists_root_);
+    
     check_media_hook_plugin_version(jsn, path);
 
     if (!Session::current_playlist_uuid().is_null()) {
@@ -1543,6 +1573,12 @@ caf::message_handler SessionActor::message_handler() {
                         unlink_from(a);
                         playlists_.erase(playlists_.find(i));
                         send_exit(a, caf::exit_reason::user_shutdown);
+                    } else if (non_playlists_.count(i)) {
+                        auto a = non_playlists_[i];
+                        removed_playlist_uuids.push_back(i);
+                        unlink_from(a);
+                        non_playlists_.erase(non_playlists_.find(i));
+                        send_exit(a, caf::exit_reason::user_shutdown);
                     }
                 }
             }
@@ -1554,6 +1590,12 @@ caf::message_handler SessionActor::message_handler() {
                     removed_playlist_uuids.push_back(auuid);
                     unlink_from(a);
                     playlists_.erase(playlists_.find(auuid));
+                    send_exit(a, caf::exit_reason::user_shutdown);
+                } else if (non_playlists_.count(auuid)) {
+                    auto a = non_playlists_[auuid];
+                    removed_playlist_uuids.push_back(auuid);
+                    unlink_from(a);
+                    non_playlists_.erase(non_playlists_.find(auuid));
                     send_exit(a, caf::exit_reason::user_shutdown);
                 }
             }
@@ -2188,6 +2230,7 @@ void SessionActor::create_container(
         .request(actor, infinite)
         .await(
             [=](const ContainerDetail &detail) mutable {
+
                 playlists_[detail.uuid_] = actor;
                 link_to(actor);
                 join_event_group(this, actor);

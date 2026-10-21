@@ -1003,4 +1003,16 @@ void SubsetActor::duplicate_children(caf::actor duplicated_subset) {
     }
 }
 
-REGISTER_SESSION_OBJECT(SubsetActor, Subset)
+namespace {
+static const char * session_list_qml = R"qml(
+    import QtQuick
+    import xStudio 1.0
+
+    XsPlaylistItemBase {
+        anchors.fill: parent
+        iconSource: "qrc:/icons/communities.svg"
+    }
+)qml";
+}
+    
+REGISTER_SESSION_OBJECT(SubsetActor, Subset, session_list_qml)
