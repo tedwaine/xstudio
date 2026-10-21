@@ -620,6 +620,8 @@ QFuture<QVariant> Helpers::pythonAsyncCallback(
         args         = m.toVariant();
     }
 
+    qDebug() << "pythonAsyncCallback args:" << args;
+
     return QtConcurrent::run([=]() -> QVariant {
         try {
 

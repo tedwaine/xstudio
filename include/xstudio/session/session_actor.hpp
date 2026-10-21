@@ -124,6 +124,7 @@ class SessionActor : public xstudio::utility::ObjectActor, protected Session {
     caf::actor ioactor_;
     std::map<utility::Uuid, caf::actor> playlists_;
     std::map<utility::Uuid, caf::actor> hidden_playlists_;
+    std::map<utility::Uuid, caf::actor> non_playlists_;
     std::map<caf::actor_addr, std::string> serialise_targets_;
     // std::map<utility::Uuid, caf::actor> players_;
 

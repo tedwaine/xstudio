@@ -45,6 +45,8 @@ namespace {
             return std::any_cast<bool>(a);
         if (a.type() == typeid(float))
             return std::any_cast<float>(a);
+        if (a.type() == typeid(utility::Uuid))
+            return QUuidFromUuid(std::any_cast<utility::Uuid>(a));
         if (a.type() == typeid(JsonStore) || a.type() == typeid(nlohmann::json))
             return json_to_qvariant(std::any_cast<const JsonStore &>(a));
 
@@ -78,6 +80,32 @@ caf::message_handler UIDataModel::core_message_handler() {
     return caf::message_handler {
         [=](broadcast::broadcast_down_atom, const caf::actor_addr & /*downed_actor*/) {
         },
+        [=](utility::event_atom, remove_children_atom, std::vector<int> index_in_tree) {
+
+            std::cerr << "Removing children at indices: ";
+            for (auto idx : index_in_tree) {
+                std::cerr << idx << " ";
+            }
+            std::cerr << "\n";
+            if (index_in_tree.empty())
+                return;
+            QModelIndex parent_index = QModelIndex();
+            int row = index_in_tree.back();
+            index_in_tree.pop_back();
+            for (int i = 0; i < index_in_tree.size(); ++i) {
+                parent_index = index(index_in_tree[i], 0, parent_index);
+            }
+            ObjectDataTree * node = const_cast<ObjectDataTree *>(UIDataModel::node_from_index(parent_index));
+            std::cerr << "Parent index: " << *(node->get_property<std::string>("nameRole")) << "\n";
+            if (node && node->children_data_.size() > row) {
+                beginRemoveRows(parent_index, row, row);
+                unregister_subtree(node->children_data_[row].get());
+                node->children_data_.erase(node->children_data_.begin() + row);
+                endRemoveRows();
+            }
+
+        },
+
         [=](property_atom, const std::vector<int> &index_in_tree, const std::string &key, const AnyPtr &value) {
 
             QModelIndex parent_index = QModelIndex();
@@ -111,6 +139,7 @@ caf::message_handler UIDataModel::core_message_handler() {
             ObjectDataTree * node = const_cast<ObjectDataTree *>(UIDataModel::node_from_index(parent_index));
             if (node) {
                 register_subtree(child_data.get());
+                node->children_data_.resize(std::max(node->children_data_.size(), size_t(num_rows + 1)));
                 node->children_data_[num_rows] = child_data;
             }
             endInsertRows();
@@ -158,12 +187,12 @@ void UIDataModel::register_subtree(const ObjectDataTree *node) {
     nodes_by_id_[id]  = node;
     ids_by_node_[node] = id;
     for (const auto &child : node->children_data_)
-        register_subtree(child.second.get());
+        register_subtree(child.get());
 }
 
 void UIDataModel::unregister_subtree(const ObjectDataTree *node) {
     for (const auto &child : node->children_data_)
-        unregister_subtree(child.second.get());
+        unregister_subtree(child.get());
     auto it = ids_by_node_.find(node);
     if (it != ids_by_node_.end()) {
         nodes_by_id_.erase(it->second);
@@ -187,7 +216,7 @@ int UIDataModel::rowCount(const QModelIndex &parent) const {
 
     const ObjectDataTree *node = node_from_index(parent);
     const int rt = node ? static_cast<int>(node->children_data_.size()) : 0;
-    qDebug() << "Row count for parent" << parent << "is" << rt;
+    // qDebug() << "Row count for parent" << parent << "is" << rt;
     return rt;
 }
 
@@ -199,14 +228,16 @@ bool UIDataModel::hasChildren(const QModelIndex &parent) const { return rowCount
 QModelIndex UIDataModel::index(int row, int column, const QModelIndex &parent) const {
 
     const ObjectDataTree *node = node_from_index(parent);
+
+    //qDebug() << "Creating index for row" << row << "column" << column << "parent" << parent << " node " << node;
+
     if (!node || column != 0)
         return {};
 
-    auto it = node->children_data_.find(row);
-    if (it == node->children_data_.end())
+    if (node->children_data_.size() <= row)
         return {};
 
-    const quintptr id = id_of(it->second.get());
+    const quintptr id = id_of(node->children_data_[row].get());
     return id ? createIndex(row, column, id) : QModelIndex();
 }
 
@@ -229,10 +260,11 @@ QModelIndex UIDataModel::parent(const QModelIndex &child) const {
     if (!parent_id)
         return {};
 
-    for (const auto &[row, sibling] : parent_node->parent_->children_data_) {
-        if (sibling.get() == parent_node)
-            return createIndex(row, 0, parent_id);
-    }
+    auto p = std::find_if(parent_node->parent_->children_data_.begin(), parent_node->parent_->children_data_.end(), [parent_node](const ObjectDataTreePtr &c) {
+        return c.get() == parent_node;
+    });
+    if (p != parent_node->parent_->children_data_.end())
+        return createIndex(std::distance(parent_node->parent_->children_data_.begin(), p), 0, parent_id);
     return {};
 }
 
@@ -248,10 +280,31 @@ QVariant UIDataModel::data(const QModelIndex &index, int role) const {
 
 }
 
+QVariant UIDataModel::getData(const QModelIndex &index, const QString &role) const {
+
+    const ObjectDataTree *node = node_from_index(index);
+    if (!node || index.column() != 0)
+        return {};
+
+    const std::string roleName = role.toStdString();
+    return qvariantFromAnyPtr(node->get_property(roleName));
+}
 
 bool UIDataModel::setData(const QModelIndex &index, const QVariant &value, int role) {
     bool result = false;
-    return result;
+    const ObjectDataTree *node = node_from_index(index);
+    if (node && node->properties_.contains("actorRole")) {
+        auto actor_addr = node->get_property< caf::actor_addr >("actorRole");
+        caf::actor actor = actor_addr ? caf::actor_cast<caf::actor>(*actor_addr) : caf::actor();
+        if (actor) {
+            AnyPtr d = anyPtrFromQVariant(value);
+            if (d) {
+                const std::string roleName = data_roles_.value(role).toStdString();
+                self()->mail(property_atom_v, roleName, d).send(actor);
+            }
+        }
+    }
+    return false;
 }
 
 bool UIDataModel::canFetchMore(const QModelIndex &parent) const {

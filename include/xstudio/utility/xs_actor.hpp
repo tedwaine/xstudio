@@ -65,10 +65,22 @@ public:
         return it != properties_.end() ? it->second : nullptr;
     }
 
+    template <typename T>
+    std::optional<T> get_property(const std::string &key) const {
+        if (properties_.count(key)) {
+            try {
+                return std::any_cast<T>(*(properties_.at(key)));
+            } catch (const std::bad_any_cast &) {
+                return std::nullopt; // Type mismatch
+            }
+        }
+        return std::nullopt; // Property not found
+    }
+
     void dump(const int indent = 0) const;
 
     PropertyMap properties_;
-    std::map<int, ObjectDataTreePtr> children_data_;
+    std::vector<ObjectDataTreePtr> children_data_;
     ObjectDataTree * parent_ = nullptr;
 
     private:
@@ -122,17 +134,11 @@ protected:
 
     template <typename T>
     std::optional<T> get_property(const std::string &key) const {
-        if (full_state_.properties_.count(key)) {
-            return std::any_cast<T>(*(full_state_.properties_.at(key)));
-        }
-        return std::nullopt; // Property not found
+        return full_state_.get_property<T>(key);
     }
 
     AnyPtr get_property(const std::string &key) const {
-        if (full_state_.properties_.count(key)) {
-            return full_state_.properties_.at(key);
-        }
-        return nullptr; // Property not found
+        return full_state_.get_property(key); // Property not found
     }
 
 

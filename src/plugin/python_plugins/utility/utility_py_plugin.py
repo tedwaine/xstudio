@@ -3,7 +3,7 @@
 
 import numpy as np
 
-from xstudio.core import AttributeRole, Uuid
+from xstudio.core import AttributeRole, Uuid, PlaylistTree
 from xstudio.plugin import PluginBase
 
 # This plugin is intended to allow for various utility functions to be 
@@ -93,6 +93,45 @@ class UtilityPythonPlugin(PluginBase):
                 tr[0] = [-abs(tr[0][0]) if flop else abs(tr[0][0]), tr[0][1], tr[0][2], tr[0][3]]
                 tr[1] = [tr[1][0], -abs(tr[1][1]) if flip else abs(tr[1][1]), tr[1][2], tr[1][3]]
                 media.transform_matrix = tr
+
+    def remove_session_items(self, *args):
+        """Remove session items based on their UUIDs. Items
+        can be playlists, subsets, contact sheets, timelines etc.
+
+        Args:
+            session_items_uuids (list): List of UUIDs of session items to remove.
+        """
+        # More than awkward! We need to get the container uuid
+        # for the session items. A Playlist has two Uuids, it's
+        # 'own' uuid and that of its container. Why? I don't know.
+        session_items_uuids = [Uuid(a) for a in args]
+        print ("Session items UUIDs to remove:", session_items_uuids)
+        tree = self.connection.api.session.playlist_tree
+        def get_container_uuids(tree_branch, item_uuids):
+            print ("Checking tree branch:", tree_branch.uuid, "for item UUIDs:", tree_branch.name, hasattr(tree_branch, "children"))
+            if not hasattr(tree_branch, "children"):
+                return []
+            container_uuids = []
+            for child in tree_branch.children:
+                if child.value_uuid in session_items_uuids:
+                    container_uuids.append(child.uuid)
+                elif child.uuid in session_items_uuids:
+                    container_uuids.append(child.uuid)
+                else:
+                    container_uuids.extend(get_container_uuids(child, item_uuids))
+            return container_uuids
+
+        container_uuids = get_container_uuids(tree, session_items_uuids)
+        print ("Container UUIDs to remove:", container_uuids)
+
+        for uuid in container_uuids:
+            self.connection.api.session.remove_container(uuid)
+
+        for p in self.connection.api.session.playlists:
+            container_uuids = get_container_uuids(p.playlist_tree, session_items_uuids)
+            for uuid in container_uuids:
+                p.remove_container(uuid)
+
 
 def create_plugin_instance(connection):
     """Create and return a plugin instance."""

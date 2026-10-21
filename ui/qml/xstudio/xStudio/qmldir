@@ -36,6 +36,10 @@ XsPlaylistItems           1.0 ../application/panels/playlists/XsPlaylistItems.qm
 XsPlaylistPlusMenu        1.0 ../application/panels/playlists/menus/XsPlaylistPlusMenu.qml
 XsPlaylistRemoveMenu      1.0 ../application/panels/playlists/menus/XsPlaylistRemoveMenu.qml
 XsPlaylistsView           1.0 ../application/panels/playlists/XsPlaylists.qml
+XsPlaylistDividerDelegate 1.0 ../application/panels/playlists/delegates/XsPlaylistDividerDelegate.qml
+XsPlaylistItemDelegate    1.0 ../application/panels/playlists/delegates/XsPlaylistItemDelegate.qml
+XsPlaylistsView           1.0 ../application/panels/playlists/XsPlaylists.qml
+XsPlaylistItemBase        1.0 ../application/panels/playlists/delegates/XsPlaylistItemBase.qml
 
 XsPythonPanel     		  1.0 ../application/panels/python/XsPythonPanel.qml
 

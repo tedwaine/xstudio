@@ -39,51 +39,29 @@ XsListView { id: playlists
         z: -1
     }
 
-    XsSessionModelNode {
-        id: playlistsFoo    
-        childSearchPropertyKey: "nameRole"
-        childSearchPropertyValue: "PlaylistsRoot"
-    }
-
-
     DelegateModel {
         id: playlistsModel
 
         // this is required as "model" doesn't issue notifications on change
-        property var notifyModel: playlistsFoo
+        property var notifyModel: playlistsModelData
 
         // we use the main session data model
         model: notifyModel
 
         // point at session 0,0, it's children are the playlists.
-        delegate: XsPlaylistItemDelegate {
-                modelIndex: helpers.makePersistent(playlistsFoo.index(index, 0))
-                width: playlists.width
-                onModelIndexChanged: console.log("INDY", modelIndex)
-            }
-    }
-
-    DelegateChooser {
-        id: chooser
-        role: "typeRole"
-
-        DelegateChoice {
-            roleValue: "ContainerDivider";
-
-            XsPlaylistDividerDelegate{
-                modelIndex: helpers.makePersistent(playlistsModel.modelIndex(index))
-                width: playlists.width
+        delegate: Item {
+            id: pitem
+            width: playlists.width
+            height: widget ? widget.implicitHeight : 0
+            property var widget
+            property var code: qmlCodeRole
+            onCodeChanged: {
+                if (typeof code === "string") {
+                    widget = Qt.createQmlObject(code, pitem)
+                    widget.modelIndex = helpers.makePersistent(playlistsModelData.index(index, 0))
+                }
             }
         }
-        DelegateChoice {
-            roleValue: "Playlist";
-
-            XsPlaylistItemDelegate {
-                modelIndex: helpers.makePersistent(playlistsModel.modelIndex(index))
-                width: playlists.width
-            }
-        }
-
     }
 
     XsLabel {
@@ -164,7 +142,7 @@ XsListView { id: playlists
         id: drag_drop_handler
         targetWidget: playlists
         dragSourceName: "PlayListView"
-        dragData: sessionSelectionModel.selectedIndexes
+        dragData: playlistsSelectionModel.selectedIndexes
 
         onDragged: (mousePosition, source, data) => {
             computeTargetDropIndex(mousePosition.y)

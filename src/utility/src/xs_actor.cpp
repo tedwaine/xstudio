@@ -52,7 +52,7 @@ bool ObjectDataTree::values_equal(const AnyPtr &a, const AnyPtr &b) {
 ObjectDataTree* ObjectDataTree::deep_copy(ObjectDataTree *parent) const {
     auto copy = new ObjectDataTree(parent);
     for (const auto &child : children_data_) {
-        copy->children_data_[child.first].reset(child.second->deep_copy(copy));
+        copy->children_data_.push_back(ObjectDataTreePtr(child->deep_copy(copy)));
     }
     for (const auto &prop : properties_) {
         copy->properties_[prop.first] = std::make_shared<const std::any>(*prop.second);
@@ -67,7 +67,7 @@ void ObjectDataTree::dump(const int indent) const
     }
     spdlog::info("{}Children:", std::string(indent, ' '));
     for (const auto &child : children_data_) {
-        children_data_.at(child.first)->dump(indent + 2);
+        child->dump(indent + 2);
     }
 }
 
@@ -156,6 +156,11 @@ int ObjectActor::child_index(const caf::strong_actor_ptr &child) const {
 
 
 void ObjectActor::remove_child(const UuidActor &child) {
+    std::cerr << "Removing " << to_string(child.actor()) << "\n";
+    int cidx = child_index(child);
+    if (cidx != -1)
+        children_.erase(children_.begin() + cidx);
+    mail(utility::event_atom_v, remove_children_atom_v, std::vector<int>{cidx}).send(properties_events_group_);
     //children_.erase(std::remove(children_.begin(), children_.end(), caf::actor_cast<caf::actor_addr>(child)), children_.end());
 }
 
@@ -164,6 +169,15 @@ caf::message_handler ObjectActor::private_message_handler() {
     return caf::message_handler {
 
         [=](broadcast::broadcast_down_atom, const caf::actor_addr & /*downed_actor*/) {
+        },
+
+        [=](utility::event_atom, remove_children_atom, std::vector<int> index_in_tree) {
+
+            int cindex = child_index(current_sender());
+            if (cindex < 0) return;
+            index_in_tree.insert(index_in_tree.begin(), cindex);
+            mail(utility::event_atom_v, remove_children_atom_v, index_in_tree).send(properties_events_group_);
+
         },
 
         [=](find_children_atom, const std::string &prop_key, const AnyPtr &value, int depth) -> result<utility::UuidActor> {
@@ -206,6 +220,12 @@ caf::message_handler ObjectActor::private_message_handler() {
             add_child(child);
             return true;
         },
+        [=](add_children_atom, const utility::UuidActorVector &childred) -> bool {
+            for (const auto &child : childred) {
+                add_child(child);
+            }
+            return true;
+        },        
         [=](property_atom, broadcast::leave_broadcast_atom, caf::actor subscriber) -> result <bool> {
             auto rp = make_response_promise<bool>();
             mail(broadcast::leave_broadcast_atom_v, subscriber).request(properties_events_group_, infinite).then(
@@ -230,13 +250,11 @@ caf::message_handler ObjectActor::private_message_handler() {
             );
             return rp;
         },
-        [=](property_atom, const std::string &key, const AnyPtr &value) {
-            // A child's data has been updated.
-            // what's the index of the child that sent this?
-            int cindex = child_index(current_sender());
-            if (cindex < 0) return;
-            // bubble it up
-            mail(property_atom_v, std::vector<int>{cindex}, value).send(properties_events_group_);
+        [=](property_atom, const std::string &key, const AnyPtr &value) -> bool {
+
+            full_state_.properties_[key] = value;
+            mail(property_atom_v, std::vector<int>(), key, value).send(properties_events_group_);
+            return true;
         },
         [=](property_atom, std::vector<int> index_in_tree, const std::string &key, const AnyPtr &value) {
             // A child's data has been updated.
@@ -257,9 +275,6 @@ caf::message_handler ObjectActor::private_message_handler() {
             int cindex = child_index(current_sender());
             if (cindex < 0) return;
 
-            /*if (child_index >= 0 && child_index < full_state_.children_data_.size()) {
-                full_state_.children_data_[child_index] = child_data;
-            }*/
             // bubble it up
             mail(property_atom_v, std::vector<int>{cindex}, child_data).send(properties_events_group_);
 
@@ -276,10 +291,12 @@ caf::message_handler ObjectActor::private_message_handler() {
 
         },
         [=](property_atom, const std::string &key, const AnyPtr &value) {
+
             // A property has been updated.
             int cindex = child_index(current_sender());
             if (cindex < 0) return;
             mail(property_atom_v, std::vector<int>{cindex}, key, value).send(properties_events_group_);
+
         },
         [=](property_atom, const std::string &key) -> result<AnyPtr> {
             return full_state_.properties_.count(key) ? full_state_.properties_[key] : AnyPtr();
@@ -292,6 +309,11 @@ caf::message_handler ObjectActor::private_message_handler() {
             for (size_t i = 0; i < children_.size(); ++i) {
                 mail(property_atom_v).request(children_[i].actor(), infinite).then(
                     [=](ObjectDataTreePtr cdata) mutable {
+                        // this const_cast is ok as we 'own' cdata - it was a copy
+                        // made by the child and returned to us by this very
+                        // message handler (in the child)
+                        const_cast<ObjectDataTree *>(cdata.get())->parent_ = result;
+                        result->children_data_.resize(std::max(result->children_data_.size(), size_t(i+1)));
                         result->children_data_[i] = cdata;
                         auto_responder.decrement();
                     },

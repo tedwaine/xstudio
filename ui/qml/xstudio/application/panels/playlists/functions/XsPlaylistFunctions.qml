@@ -54,19 +54,21 @@ Item {
     }
 
     function renamePlaylist() {
-        if(sessionSelectionModel.selectedIndexes.length != 1) {
+
+        // FIXME
+        if(playlistsSelectionModel.selectedIndexes.length != 1) {
             dialogHelpers.errorDialogFunc(
                 "Rename Playlist ...",
                 "Please select a single item to rename."
                 )
         } else {
-            let index = sessionSelectionModel.selectedIndexes[0]
-            let name = theSessionData.get(index, "nameRole")
-            let type = theSessionData.get(index, "typeRole")
+            let index = playlistsSelectionModel.selectedIndexes[0]
+            let name = playlistsModelData.get(index, "nameRole")
+            let type = playlistsModelData.get(index, "typeRole")
             dialogHelpers.textInputDialog(
                 function(new_name, button) {
 			        if (button == "Cancel") return
-			        theSessionData.set(index, new_name, "nameRole")
+			        playlistsModelData.set(index, new_name, "nameRole")
 				},
                 "Rename " + type,
                 "Enter a new name for the " + type,
@@ -76,30 +78,34 @@ Item {
     }
 
     function removeUnusedMedia() {
-        for (var idx = 0; idx < sessionSelectionModel.selectedIndexes.length; ++idx) {
-            if (theSessionData.get(sessionSelectionModel.selectedIndexes[idx], "typeRole") == "Playlist") {
-                theSessionData.purgePlaylist(sessionSelectionModel.selectedIndexes[idx])
+        // FIXME
+        for (var idx = 0; idx < playlistsSelectionModel.selectedIndexes.length; ++idx) {
+            if (playlistsModelData.get(playlistsSelectionModel.selectedIndexes[idx], "typeRole") == "Playlist") {
+                playlistsModelData.purgePlaylist(playlistsSelectionModel.selectedIndexes[idx])
             }
         }
     }
 
     function duplicate() {
-        for (var i = 0; i < sessionSelectionModel.selectedIndexes.length; ++i) {
-            let index = sessionSelectionModel.selectedIndexes[i]
-            theSessionData.duplicateRows(index.row, 1, index.parent)
+        // FIXME
+        for (var i = 0; i < playlistsSelectionModel.selectedIndexes.length; ++i) {
+            let index = playlistsSelectionModel.selectedIndexes[i]
+            playlistsModelData.duplicateRows(index.row, 1, index.parent)
         }
     }
 
     function combine() {
-        if(sessionSelectionModel.selectedIndexes.length) {
-            theSessionData.mergeRows(sessionSelectionModel.selectedIndexes)
+        // FIXME
+        if(playlistsSelectionModel.selectedIndexes.length) {
+            playlistsModelData.mergeRows(playlistsSelectionModel.selectedIndexes)
         }
     }
 
     function copySelectedNames() {
+        // FIXME
         let result = []
-        for(let i =0;i<sessionSelectionModel.selectedIndexes.length;i++) {
-            result.push(theSessionData.get(sessionSelectionModel.selectedIndexes[i], "nameRole"))
+        for(let i =0;i<playlistsSelectionModel.selectedIndexes.length;i++) {
+            result.push(playlistsModelData.get(playlistsSelectionModel.selectedIndexes[i], "nameRole"))
         }
         clipboard.text = result.join("\n")
     }

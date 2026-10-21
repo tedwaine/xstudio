@@ -194,7 +194,7 @@ void register_playlistcontainer_class(py::module &m, const std::string &name) {
         // .def("value_uuid", &PlaylistTree::value_uuid)
         // .def("empty", &PlaylistTree::empty)
         // .def("size", &PlaylistTree::size)
-        // .def("children", &PlaylistTree::children)
+        .def("children", &xstudio::utility::UuidTree<xstudio::utility::PlaylistItem>::children)
         // .def("value", &UuidTree::value)
         .def(
             "name",

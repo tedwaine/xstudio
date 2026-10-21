@@ -139,4 +139,16 @@ void ContactSheetActor::init() {
         }};
 }
 
-REGISTER_SESSION_OBJECT(ContactSheetActor, ContactSheet)
+namespace {
+static const char * session_list_qml = R"qml(
+    import QtQuick
+    import xStudio 1.0
+
+    XsPlaylistItemBase {
+        anchors.fill: parent
+        iconSource: "qrc:/icons/grid_view.svg"
+    }
+)qml";
+}
+
+REGISTER_SESSION_OBJECT(ContactSheetActor, ContactSheet, session_list_qml)

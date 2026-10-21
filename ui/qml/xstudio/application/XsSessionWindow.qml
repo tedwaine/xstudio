@@ -457,6 +457,7 @@ ApplicationWindow {
     property alias globalStoreModel: sessionData.globalStoreModel
     property alias mediaSelectionModel: sessionData.mediaSelectionModel
     property alias playlistsModelData: sessionData.playlistsModelData
+    property alias playlistsSelectionModel: sessionData.playlistsSelectionModel 
     property alias currentMediaContainerIndex: sessionData.currentMediaContainerIndex
     property alias viewportCurrentMediaContainerIndex: sessionData.viewportCurrentMediaContainerIndex
     property alias inspectedMediaSetProperties: sessionData.inspectedMediaSetProperties

@@ -15,18 +15,9 @@ XsPlaylistItemBase {
 
     Behavior on implicitHeight {NumberAnimation{duration: 100 }}
 
-    // when a playlist is freshly created the corresponding node in the model
-    // is not fully populated with the playlist structure (and the placeholderRole
-    // is true). The node data is filled out when the backend has notified the
-    // model with the playlist data and placeholderRole becomes false.
-    property var is_placeholder: placeHolderRole
-    onIs_placeholderChanged: {
-        subItemsModelIndex = theSessionData.index(2, 0, modelIndex)
-    }
-
     /* .... the third row gives us the data of the subsets/timelines etc. i.e.
     the children lists of the playlist */
-    property var subItemsModelIndex: modelIndex && modelIndex.valid ? theSessionData.index(2, 0, modelIndex) : undefined
+    property var subItemsModelIndex: modelIndex// && modelIndex.valid ? theSessionData.index(2, 0, modelIndex) : undefined
     property var subItemsCount: subItemsModel.count
 
         property string sourcey: `XsPlaylistItemBase {
@@ -41,85 +32,33 @@ XsPlaylistItemBase {
 
         // we use the main session data model
         // this is required as "model" doesn't issue notifications on change
-        property var notifyModel: theSessionData
+        //property var notifyModel: theSessionData
 
         // we use the main session data model
-        model: notifyModel
+        model: playlistsModelData
 
         // playlists are one level in at row=0, column=0.
         rootIndex: subItemsModelIndex
         delegate: Item {
-
-            id: containerItem
-            property var comp
+            id: pitem
             Layout.fillWidth: true
-            Layout.preferredHeight: comp ? comp.implicitHeight : 0
-
-            function doLoad() {
-                comp = Qt.createQmlObject(root.sourcey, containerItem)
-                comp.iconSource = "qrc:/icons/communities.svg"
-                comp.indent = true
-                comp.modelIndex = helpers.makePersistent(subItemsModel.modelIndex(index))
-                console.log("comp.modelIndex", comp.modelIndex)
+            Layout.preferredHeight: widget ? widget.implicitHeight : 0
+            property var widget
+            property var code: qmlCodeRole
+            onCodeChanged: {
+                if (typeof code === "string" && subItemsModelIndex) {
+                    widget = Qt.createQmlObject(code, pitem)
+                    let idx = playlistsModelData.index(index, 0, subItemsModelIndex)
+                    console.log("A", subItemsModelIndex)
+                    console.log("B", idx)
+                    console.log("B", idx.parent)
+                    widget.modelIndex = idx
+                    widget.indent = true
+                }
             }
-            property var foo: typeRole
-            onFooChanged: doLoad()
         }
+
     }
-
-    /* DelegateChooser {
-        id: chooser
-        role: "typeRole"
-
-        DelegateChoice {
-
-            roleValue: "Subset"
-
-            XsPlaylistItemBase {
-                Layout.fillWidth: true
-
-                iconSource: "qrc:/icons/communities.svg"
-                indent: true
-                modelIndex: helpers.makePersistent(subItemsModel.modelIndex(index))
-            }
-        }
-
-        DelegateChoice {
-
-            roleValue: "ContactSheet"
-            XsPlaylistItemBase {
-                Layout.fillWidth: true
-
-                iconSource: "qrc:/icons/grid_view.svg"
-                indent: true
-                modelIndex: helpers.makePersistent(subItemsModel.modelIndex(index))
-             }
-        }
-
-        DelegateChoice {
-
-            roleValue: "Timeline"
-            XsPlaylistItemBase {
-                Layout.fillWidth: true
-
-                iconSource: "qrc:/icons/view_object_track.svg"
-                indent: true
-                modelIndex: helpers.makePersistent(subItemsModel.modelIndex(index))
-             }
-        }
-
-        DelegateChoice {
-
-            roleValue: "ContainerDivider"
-            XsPlaylistDividerDelegate {
-                modelIndex: helpers.makePersistent(subItemsModel.modelIndex(index))
-                indent: true
-                Layout.fillWidth: true
-            }
-
-        }
-
-    } */
 
     // The layout to show the playlist sub-items
     ColumnLayout {

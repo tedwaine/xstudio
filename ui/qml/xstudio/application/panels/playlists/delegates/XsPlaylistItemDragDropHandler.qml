@@ -12,7 +12,9 @@ XsDragDropHandler {
     targetWidget: bgDiv
 
     dragSourceName: "PlayList"
-    dragData: sessionSelectionModel.selectedIndexes
+
+    // FIXME
+    dragData: playlistsSelectionModel.selectedIndexes
 
     onDragged: (mousePosition, source, data) => {
         if (source == "PlayList") {
@@ -64,8 +66,8 @@ XsDragDropHandler {
                 // if the selected playlists/subsets aren't SIBLINGS of
                 // this item then this item cannot be a valid target
                 // for playlists reordering
-                for (var i in sessionSelectionModel.selectedIndexes) {
-                    var idx = sessionSelectionModel.selectedIndexes[i]
+                for (var i in playlistsSelectionModel.selectedIndexes) {
+                    var idx = playlistsSelectionModel.selectedIndexes[i]
                     if (idx.parent != modelIndex.parent) {
                         canReceiveDrag = false
                         return
@@ -82,6 +84,9 @@ XsDragDropHandler {
             let type = modelIndex.model.get(modelIndex, "typeRole")
 
             if (button == "Move" && data.length) {
+
+                // FIXME
+
                 // as we are moving out of current playlist, we need to modify
                 // selection so that something other than what's being moved
                 // is in the selection
