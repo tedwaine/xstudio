@@ -3,9 +3,13 @@ import QtQuick
 import QtQuick.Layouts
 import QtQuick.Controls.Basic
 
+import QuickFuture 1.0
+import QuickPromise 1.0
+
 import xStudio 1.0
 import xstudio.qml.helpers 1.0
 import xstudio.qml.models 1.0
+import xstudio.qml.session 1.0
 import "./menus"
 import "./widgets"
 import "./functions"
@@ -273,30 +277,26 @@ Item{
     }
 
 
+    // FIXME
     function doRemove(button) {
 
         if (button == "Cancel") return
 
-        let indexes_to_be_deleted = []
-        let selected = sessionSelectionModel.selectedIndexes
-        var new_selected_item = undefined;
+        let selected = playlistsSelectionModel.selectedIndexes
+        var item_uuids = [];
         for (var i = 0; i < selected.length; ++i) {
-            let index = selected[i]
-            indexes_to_be_deleted.push(helpers.makePersistent(index))
-
-            // if a subset or timeline is deleted, we want to select its
-            // parent playlist afterwards (as long as the parent isn't also
-            // to be deleted)
-            let type = theSessionData.get(index, "typeRole")
-            if (type == "Subset" || type == "Timeline" || type == "ContactSheet") {
-                var playlist_idx = index.parent.parent
-                if (!selected.includes(playlist_idx)) {
-                    new_selected_item = helpers.makePersistent(playlist_idx)
-                }
-            }
+            item_uuids.push(playlistsModelData.getData(selected[i], "uuidRole"))
         }
 
-        if (!new_selected_item) {
+        Future.promise(
+            helpers.pythonAsyncCallback("UtilityPythonPlugin", "remove_session_items", item_uuids)
+        ).then(function(result) {
+        },
+	    function() {
+            console.log("ERROR", __rr)
+	    })
+
+        /*if (!new_selected_item) {
 
             // if playlist 2 of 4 is being deleted, we want to select playlist
             // 2 after the deletion (i.e. the playlist that WAS 3rd before the
@@ -343,7 +343,7 @@ Item{
 
         }
 
-        sessionSelectionModel.clear()
+        playlistsSelectionModel.clear()
 
         for (var i = 0; i < indexes_to_be_deleted.length; ++i) {
             theSessionData.removeRows(
@@ -357,18 +357,18 @@ Item{
         // select the first remaining playlist, if any
         if (new_selected_item) {
 
-            sessionSelectionModel.setCurrentIndex(
+            playlistsSelectionModel.setCurrentIndex(
                 new_selected_item,
                 ItemSelectionModel.ClearAndSelect
                 )
 
         } else if (theSessionData.rowCount(theSessionData.index(0,0))) {
 
-            sessionSelectionModel.setCurrentIndex(
+            playlistsSelectionModel.setCurrentIndex(
                 theSessionData.index(0,0,theSessionData.index(0,0)),
                 ItemSelectionModel.ClearAndSelect
                 )
-        }
+        }*/
 
     }
 

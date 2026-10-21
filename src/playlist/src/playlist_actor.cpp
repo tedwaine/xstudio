@@ -42,7 +42,8 @@ BEGIN_REGISTER_PROPERTY_NAMES(SessionModel)
     "metadataChangedRole",
     "flagColourRole",
     "notificationRole",
-    "errorRole"
+    "errorRole",
+    "qmlCodeRole"
 END_REGISTER_PROPERTY_NAMES()
 
 void blocking_loader(
@@ -285,6 +286,14 @@ PlaylistActor::PlaylistActor(
     set_property("expandedRole", Playlist::expanded());
 
     spdlog::debug("media loaded in {:.3} seconds.", sw);
+
+    
+    // session objects like Subsets, ContactSheets and Timelines
+    // are put in this map as we create them. Unfortunately Dividers
+    // have to be made later as they are only serialised to the
+    // PlaylistTree and not 'actors' entry in the json.
+    std::map<utility::Uuid, utility::UuidActor> children;
+
     // deserialise containers
     for (const auto &[key, value] : jsn.at("actors").items()) {
         
@@ -310,6 +319,7 @@ PlaylistActor::PlaylistActor(
                     static_cast<utility::JsonStore>(value),
                     caf::actor_cast<caf::actor>(this));
 
+                children[key] = utility::UuidActor(key, actor);
                 container_[key] = actor;
                 link_to(actor);
                 join_event_group(this, actor);
@@ -323,6 +333,34 @@ PlaylistActor::PlaylistActor(
             }
         }
     }
+
+    // Now we loop over the playlist tree (to be deprecated) to add our children 
+    // the the ObjectActor base class hierarchy.
+    for (const auto &child : Playlist::containers().children()) {
+        const PlaylistItem &playlist_item = child.value(); 
+        std::cerr << "Type: " << playlist_item.type() << std::endl;
+        auto it = children.find(playlist_item.uuid());
+        if (it != children.end()) {
+            add_child(it->second);
+        } else {
+
+            try {
+
+                // this is where Dividers are made
+                auto actor = Container::create_session_object(
+                    system(),
+                    playlist_item.type(),
+                    playlist_item.name(),
+                    playlist_item.uuid(),
+                    caf::actor_cast<caf::actor>(this));
+                add_child(utility::UuidActor(playlist_item.uuid(), actor));
+
+            } catch (const std::exception &e) {
+                spdlog::error("{}", e.what());
+            }
+        }
+    }
+
     init();
 }
 
@@ -854,13 +892,16 @@ caf::message_handler PlaylistActor::message_handler() {
             const bool into) -> result<utility::UuidUuidActor> {
             // try insert as requested, but add to end if it fails.
             auto rp    = make_response_promise<utility::UuidUuidActor>();
+            const auto uuid = utility::Uuid::generate();
             auto actor = Container::create_session_object(
                 system(),
                 type,
                 name,
-                utility::Uuid::generate(),
+                uuid,
                 caf::actor_cast<caf::actor>(this)
             );
+
+            add_child(utility::UuidActor(uuid, actor));
 
             anon_mail(playhead::playhead_rate_atom_v, Playlist::playhead_rate()).send(actor);
             create_container(actor, rp, uuid_before, into);
@@ -883,6 +924,15 @@ caf::message_handler PlaylistActor::message_handler() {
             const bool into) -> result<Uuid> {
             auto i = Playlist::insert_divider(name, uuid_before, into);
             if (i) {
+                
+                auto actor = Container::create_session_object(
+                    system(),
+                    "ContainerDivider",
+                    name,
+                    *i,
+                    caf::actor_cast<caf::actor>(this));
+                add_child(utility::UuidActor(*i, actor));
+
                 mail(utility::event_atom_v, create_divider_atom_v, *i)
                     .send(Playlist::event_group());
                 Playlist::send_changed();
@@ -1560,9 +1610,13 @@ caf::message_handler PlaylistActor::message_handler() {
 
             // uuid of actor
             auto children = Playlist::container_children(cuuid);
+            std::cerr << "HELLO " << to_string(cuuid) << "\n";
             if (children) {
+                std::cerr << "OK " << (*children).size() << "\n";
                 for (const auto &i : *children) {
+                    std::cerr << "Remive " << to_string(i) << "\n";
                     if (container_.count(i)) {
+                        std::cerr << "Found in container_\n";
                         auto a = container_[i];
                         if (remove_orphans) {
                             try {
@@ -1582,10 +1636,13 @@ caf::message_handler PlaylistActor::message_handler() {
             }
 
             if (Playlist::cfind(cuuid)) {
+                std::cerr << "Found container: " << to_string(cuuid) << "\n";
                 auto auuid = (*Playlist::cfind(cuuid))->value().uuid();
                 if (Playlist::remove_container(cuuid)) {
                     result = true;
+                    std::cerr << "Aye\n";
                     if (container_.count(auuid)) {
+                        std::cerr << "YHODG\n";
                         auto a = container_[auuid];
                         if (remove_orphans) {
                             try {
@@ -1600,6 +1657,7 @@ caf::message_handler PlaylistActor::message_handler() {
                         unlink_from(a);
                         container_.erase(container_.find(auuid));
                         send_exit(a, caf::exit_reason::user_shutdown);
+                        std::cerr << "EXITING " << to_string(a) << "\n";
                     }
                 }
             }
@@ -1957,6 +2015,7 @@ caf::message_handler PlaylistActor::message_handler() {
         [=](expanded_atom) -> bool { return Playlist::expanded(); },
 
         [=](expanded_atom, const bool expanded) { 
+            set_property("expandedRole", expanded);
             Playlist::set_expanded(expanded); 
         },
 
@@ -2824,4 +2883,16 @@ void PlaylistActor::recursive_add_media_with_subsets(
     mail(utility::event_atom_v, loading_media_atom_v, true).send(Playlist::event_group());
 }
 
-REGISTER_SESSION_OBJECT(PlaylistActor, Playlist)
+namespace {
+static const char * session_list_qml = R"qml(
+    import QtQuick
+    import xStudio 1.0
+
+    XsPlaylistItemDelegate {
+        anchors.fill: parent
+    }
+)qml";
+}
+    
+
+REGISTER_SESSION_OBJECT(PlaylistActor, Playlist, session_list_qml)

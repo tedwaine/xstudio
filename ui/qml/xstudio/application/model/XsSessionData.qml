@@ -548,21 +548,27 @@ Item {
     property alias mediaSelectionModel: mediaSelectionModel
 
     /* This model gives us access to the playlists */
-    DelegateModel {
-
-        id: playlistsModelData
-
-        // this is required as "model" doesn't issue notifications on change
-        property var notifyModel: sessionData
-
-        // our model is the main sessionData instance
-        model: notifyModel
-
-        // the playlists in the session start one level down at row=0, column=0.
-        rootIndex: sessionData.playlistsRootIdx
-
+    XsSessionModelNode {
+        id: playlistsModelData    
+        childSearchPropertyKey: "nameRole"
+        childSearchPropertyValue: "PlaylistsRoot"
     }
     property alias playlistsModelData: playlistsModelData
+
+    /* This selection model tells us which playlist(s), contact sheets, timelines etc
+    are currently selected in the UI */
+    ItemSelectionModel {
+        id: playlistsSelectionModel
+        model: playlistsModelData
+        onCurrentIndexChanged: {
+            //currentMediaContainerIndex = currentIndex
+        }
+        onSelectionChanged: {
+            //sessionData.setSessionSelection(sessionSelectionModel.selectedIndexes)
+        }
+    }
+    property alias playlistsSelectionModel: playlistsSelectionModel
+
 
     /* This gives us direct access to the properties of the inspected
     playlist - in other words the playlist that is showing in the media list */

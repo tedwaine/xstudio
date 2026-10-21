@@ -59,50 +59,14 @@ XsPopupMenu {
         menuPath: ""
         menuPosition: 0.0
         onFlagSet: (flag, flag_text) => {
-            for (var i = 0; i < sessionSelectionModel.selectedIndexes.length; ++i) {
-                let index = sessionSelectionModel.selectedIndexes[i]
-                theSessionData.set(index, flag, "flagColourRole")
+            for (var i = 0; i < playlistsSelectionModel.selectedIndexes.length; ++i) {
+                let index = playlistsSelectionModel.selectedIndexes[i]
+                playlistsModelData.set(index, flag, "flagColourRole")
                 if (flag_text)
-                    theSessionData.set(index, flag_text, "flagTextRole")
+                    playlistsModelData.set(index, flag_text, "flagTextRole")
             }
         }
     }
-
-   // XsMenuModelItem {
-   //      text: qsTr("Dump JSON")
-   //      menuPath: "Debug"
-   //      menuItemPosition: 100
-   //      menuModelName: contextMenu.menu_model_name
-   //      onActivated: {
-   //          for(let i=0;i<sessionSelectionModel.selectedIndexes.length;i++) {
-   //              let idx = sessionSelectionModel.selectedIndexes[i]
-   //              console.log(idx.model.get(idx, "jsonTextRole"))
-   //              for(let j=0; j< theSessionData.rowCount(idx); j++) {
-   //                  let idxx = theSessionData.index(j,0,idx)
-   //                  console.log(idx.model.get(idxx, "jsonTextRole"))
-   //                  for(let k=0; k< theSessionData.rowCount(idxx); k++) {
-   //                      let idxxx = theSessionData.index(k,0,idxx)
-   //                      console.log(idx.model.get(idxxx, "jsonTextRole"))
-   //                  }
-   //              }
-   //          }
-   //      }
-   //      panelContext: contextMenu.panelContext
-   //  }
-
-   // XsMenuModelItem {
-   //      text: qsTr("Dump Metadata")
-   //      menuPath: "Debug"
-   //      menuItemPosition: 100
-   //      menuModelName: contextMenu.menu_model_name
-   //      onActivated: {
-   //          for(let i=0;i<sessionSelectionModel.selectedIndexes.length;i++) {
-   //              let idx = sessionSelectionModel.selectedIndexes[i]
-   //              console.log(theSessionData.getJSON(idx, ""))
-   //          }
-   //      }
-   //      panelContext: contextMenu.panelContext
-   //  }
 
     XsMenuModelItem {
         text: "Selected Names"

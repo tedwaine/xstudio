@@ -49,14 +49,14 @@ Item {
 
     function updateDecorations() {
         if(typeRole == "Playlist" && !placeHolder) {
-            let meta = theSessionData.getJSONObject(modelIndex, "/ui/decorators")
+            /*let meta = theSessionData.getJSONObject(modelIndex, "/ui/decorators")
             if(meta != undefined) {
                 let tmp = []
                 for (const [key, value] of Object.entries(meta)) {
                   tmp.push([key, value])
                 }
                 decoratorModel = tmp
-            }
+            }*/
         }
     }
 
@@ -112,19 +112,24 @@ Item {
     property var modelIndex
 
     onModelIndexChanged: {
-        if (modelIndex.valid && modelIndex.row) {
+        /*if (modelIndex.valid && modelIndex.row) {
             let prev_item_idx = theSessionData.index(modelIndex.row-1,0,modelIndex.parent)
             lineVisible = theSessionData.get(prev_item_idx, "typeRole") != "ContainerDivider"
         } else {
             lineVisible = true
-        }
+        }*/
         updateDecorations()
     }
 
     /* first index in playlist is media ... */
 
     property bool isCurrent: modelIndex == currentMediaContainerIndex
-    property bool isSelected: sessionSelectionModel.isSelected(modelIndex)
+    property bool isSelected: playlistsSelectionModel.isSelected(modelIndex)
+    onIsSelectedChanged: {
+        if (isSelected) {
+            console.log("Item selected:", modelIndex, nameRole, modelIndex.parent)
+        }
+    }
     property bool isMissing: false
     property bool isExpanded: false
     property bool isExpandable: false
@@ -135,9 +140,9 @@ Item {
     property alias down: ma.pressed
 
     Connections {
-        target: sessionSelectionModel // this bubbles up from XsSessionWindow
+        target: playlistsSelectionModel // this bubbles up from XsSessionWindow
         function onSelectedIndexesChanged() {
-            isSelected = sessionSelectionModel.isSelected(modelIndex)
+            isSelected = playlistsSelectionModel.isSelected(modelIndex)
         }
     }
 
@@ -180,7 +185,7 @@ Item {
             // item under the mouse (unless its the end of a drag/drop)
             interactive = true
             if (!drag_drop_handler.dragging) {
-                sessionSelectionModel.setCurrentIndex(
+                playlistsSelectionModel.setCurrentIndex(
                     modelIndex,
                     ItemSelectionModel.ClearAndSelect
                     )
@@ -195,7 +200,7 @@ Item {
                 if (!isSelected) {
                     // right click does an exclusive select, unless
                     // already selected in which case selection doesn't change
-                    sessionSelectionModel.setCurrentIndex(
+                    playlistsSelectionModel.setCurrentIndex(
                         modelIndex,
                         ItemSelectionModel.ClearAndSelect
                         )
@@ -205,25 +210,26 @@ Item {
 
             // Put the content of the playlist into the media browser etc.
             // but don't put it on screen.
+            // FIXME
             if (mouse.modifiers == Qt.ControlModifier) {
-                if (!(sessionSelectionModel.selectedIndexes.length == 1 &&
-                    sessionSelectionModel.selectedIndexes[0] == modelIndex)) {
-                    sessionSelectionModel.select(modelIndex, ItemSelectionModel.Toggle)
+                if (!(playlistsSelectionModel.selectedIndexes.length == 1 &&
+                    playlistsSelectionModel.selectedIndexes[0] == modelIndex)) {
+                    playlistsSelectionModel.select(modelIndex, ItemSelectionModel.Toggle)
 
                     // only change current selection if there is one item in selection.
-                    if(sessionSelectionModel.selectedIndexes.length == 1) {
-                        sessionSelectionModel.setCurrentIndex(sessionSelectionModel.selectedIndexes[0], ItemSelectionModel.NoUpdate)
+                    if(playlistsSelectionModel.selectedIndexes.length == 1) {
+                        playlistsSelectionModel.setCurrentIndex(playlistsSelectionModel.selectedIndexes[0], ItemSelectionModel.NoUpdate)
                     }
                 }
 
-            } else if (!isSelected && mouse.modifiers == Qt.ShiftModifier && sessionSelectionModel.selectedIndexes.length) {
+            } else if (!isSelected && mouse.modifiers == Qt.ShiftModifier && playlistsSelectionModel.selectedIndexes.length) {
 
                 // shift select ... find nearest item already in selection, and select all items
                 // in between
                 var nearest
                 var dist = 1000000
-                for (var i in sessionSelectionModel.selectedIndexes) {
-                    var idx = sessionSelectionModel.selectedIndexes[i]
+                for (var i in playlistsSelectionModel.selectedIndexes) {
+                    var idx = playlistsSelectionModel.selectedIndexes[i]
                     if (idx.parent == modelIndex.parent) {
                         if (Math.abs(idx.row-modelIndex.row) < dist) {
                             dist = Math.abs(idx.row-modelIndex.row)
@@ -237,27 +243,27 @@ Item {
                     var end_row = nearest.row > modelIndex.row ? nearest.row : modelIndex.row
                     var indexes = []
                     for (var row = start_row; row <= end_row; ++row) {
-                        indexes.push(theSessionData.index(row, 0, modelIndex.parent))
+                        //indexes.push(theSessionData.index(row, 0, modelIndex.parent))
                     }
-                    sessionSelectionModel.select(
+                    playlistsSelectionModel.select(
                         helpers.createItemSelection(indexes),
                         ItemSelectionModel.Select
                     )
                 }
 
-                if(sessionSelectionModel.selectedIndexes.length == 1) {
-                    sessionSelectionModel.setCurrentIndex(sessionSelectionModel.selectedIndexes[0], ItemSelectionModel.NoUpdate)
+                if(playlistsSelectionModel.selectedIndexes.length == 1) {
+                    playlistsSelectionModel.setCurrentIndex(playlistsSelectionModel.selectedIndexes[0], ItemSelectionModel.NoUpdate)
                 }
 
 
             } else if (!isSelected) {
-                sessionSelectionModel.setCurrentIndex(modelIndex, ItemSelectionModel.ClearAndSelect)
+                playlistsSelectionModel.setCurrentIndex(modelIndex, ItemSelectionModel.ClearAndSelect)
             }
 
             var valid_drag_selection = true
-            for (var i in sessionSelectionModel.selectedIndexes) {
-                var idx = sessionSelectionModel.selectedIndexes[i]
-                if (idx.parent != sessionSelectionModel.selectedIndexes[0].parent) {
+            for (var i in playlistsSelectionModel.selectedIndexes) {
+                var idx = playlistsSelectionModel.selectedIndexes[i]
+                if (idx.parent != playlistsSelectionModel.selectedIndexes[0].parent) {
                     valid_drag_selection = false
                 }
             }
@@ -267,7 +273,7 @@ Item {
         }
 
         onPositionChanged: (mouse) => {
-            if (pressed && sessionSelectionModel.selectedIndexes.length) {
+            if (pressed && playlistsSelectionModel.selectedIndexes.length) {
                 interactive = false
                 drag_drop_handler.doDrag(mouse.x, mouse.y)
             }
@@ -276,8 +282,10 @@ Item {
         onDoubleClicked: {
             // Put the content of the playlist into the media browser etc.
             // and also put it on screen
-            sessionSelectionModel.setCurrentIndex(modelIndex, ItemSelectionModel.ClearAndSelect)
-            viewportCurrentMediaContainerIndex = modelIndex
+            playlistsSelectionModel.setCurrentIndex(modelIndex, ItemSelectionModel.ClearAndSelect)
+
+            // FIXME
+            // viewportCurrentMediaContainerIndex = modelIndex
         }
 
     }

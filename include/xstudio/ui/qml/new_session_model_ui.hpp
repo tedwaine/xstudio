@@ -78,6 +78,8 @@ class UIDataModel : public caf::mixin::actor_object<QAbstractItemModel> {
     // Replaces the whole tree. The model takes (shared) ownership of the nodes.
     void set_root(const utility::ObjectDataTreePtr &root);
 
+    Q_INVOKABLE QVariant getData(const QModelIndex &index, const QString &role) const;
+
   signals:
 
   protected:
