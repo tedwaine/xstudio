@@ -1530,6 +1530,24 @@ caf::message_handler SessionActor::message_handler() {
             bool changed = Session::move_container(uuid, uuid_before, into);
 
             if (changed) {
+
+                // uuid and uuid_before are the PlaylistTree item entry UUIDs.
+                // We want to map these to the actual object Uuid (i.e. the
+                // Uuid of the correspondingsubset, divider etc)
+                const utility::PlaylistTree &pl_tree = Session::containers();
+                utility::Uuid object_uuid;
+                utility::Uuid before_object_uuid;
+
+                for (const auto &i : pl_tree.children()) {
+                    if (i.uuid() == uuid) object_uuid = i.value().uuid();
+                    if (i.uuid() == uuid_before) before_object_uuid = i.value().uuid();                    
+                }
+
+                if (!object_uuid.is_null()) {
+                    // enact the re-ordering in the object tree
+                    anon_mail(utility::move_children_atom_v, object_uuid, before_object_uuid).send(playlists_root_);
+                }
+                
                 Session::send_changed();
                 mail(utility::event_atom_v, playlist::move_container_atom_v, uuid, uuid_before)
                     .send(Session::event_group());

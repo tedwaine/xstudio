@@ -160,11 +160,16 @@ XsDragDropHandler {
             })
         } else if (source == "External JSON") {
 
+            let playlsitUuid = playlistsModelData.getData(modelIndex, "uuidRole")
+            let oldModelIndex = theSessionData.searchRecursive(playlsitUuid, "actorUuidRole")
+
+            console.log("oldModelIndex", oldModelIndex)
+
             Future.promise(
                 theSessionData.handleDropFuture(
                     Qt.CopyAction,
                     data,
-                    modelIndex)
+                    oldModelIndex)
             ).then(function(quuids){
                 mediaSelectionModel.selectNewMedia(modelIndex, quuids)
             })
@@ -179,7 +184,7 @@ XsDragDropHandler {
             }
             var py_args = {
                     "items_to_move": ids,
-                    "move_before_this_item": playlistsModelData.getData(modelIndex, "uuidRole"),
+                    "move_before_this_item": dragToEnd ? null : playlistsModelData.getData(modelIndex, "uuidRole"),
                 }
 
             Future.promise(
