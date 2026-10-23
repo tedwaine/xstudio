@@ -122,7 +122,7 @@ QString xstudio::ui::qml::getThumbnailURL(
 
 nlohmann::json xstudio::ui::qml::qvariant_to_json(const QVariant &var) {
 
-    if (not var.isValid())
+    if (not var.isValid() || var.isNull())
         return {};
 
     switch (QMetaType::Type(var.typeId())) {

@@ -12,7 +12,8 @@ BEGIN_REGISTER_PROPERTY_NAMES(SessionModel)
     "nameRole",
     "actorRole",
     "uuidRole",
-    "typeRole"
+    "typeRole",
+    "flagColourRole",
 END_REGISTER_PROPERTY_NAMES()
 
 using namespace xstudio;
@@ -107,7 +108,9 @@ caf::message_handler Container::container_message_handler(caf::event_based_actor
         object_actor_->set_property("nameRole", name_);
         object_actor_->set_property("typeRole", type_);
         object_actor_->set_property("uuidRole", uuid_);
+        object_actor_->set_property("errorRole", 0);
         object_actor_->set_property("actorRole", caf::actor_cast<caf::actor_addr>(act));
+        object_actor_->set_property("flagColourRole", ColourTriplet(drand48(), drand48(), drand48(), 1.0f));
     }   
 
     return caf::message_handler({

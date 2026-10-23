@@ -55,6 +55,9 @@ XsListView { id: playlists
             height: widget ? widget.implicitHeight : 0
             property var widget
             property var code: qmlCodeRole
+            Component.onCompleted: {
+                console.log("Component completed for item with code:", code)
+            }
             onCodeChanged: {
                 if (typeof code === "string") {
                     widget = Qt.createQmlObject(code, pitem)

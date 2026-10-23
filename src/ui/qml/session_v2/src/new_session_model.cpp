@@ -19,6 +19,40 @@ using namespace xstudio::utility;
 namespace {
 
     AnyPtr anyPtrFromQVariant(const QVariant &var) {
+
+        /*if (var.isNull() || !var.isValid())
+            return nullptr;
+        else if(var.canConvert<QColor>()) {
+            const QColor c = var.value<QColor>();
+            return std::make_shared<const std::any>(ColourTriplet(
+                c.redF(),
+                c.greenF(),
+                c.blueF(),
+                c.alphaF()
+            )); }
+        else if (var.canConvert<int>()) {
+            const int i = var.value<int>();
+            return std::make_shared<const std::any>(i);
+        }
+        else if (var.canConvert<bool>()) {
+            const bool b = var.value<bool>();
+            return std::make_shared<const std::any>(b);
+        }
+        else if (var.canConvert<float>()) {
+            const float f = var.value<float>();
+            return std::make_shared<const std::any>(f);
+
+        }
+        else if (var.canConvert<QUuid>()) {
+            const QUuid u = var.value<QUuid>();
+            return std::make_shared<const std::any>(UuidFromQUuid(u));
+        }
+        else if (var.canConvert<QString>()) {
+            const QString s = var.value<QString>();
+            return std::make_shared<const std::any>(s.toStdString());
+        } */
+
+
         const nlohmann::json json_value = qvariant_to_json(var);
         if (json_value.is_boolean()) {
             return std::make_shared<const std::any>(json_value.get<bool>());
@@ -29,6 +63,16 @@ namespace {
         } else if (json_value.is_string()) {
             return std::make_shared<const std::any>(json_value.get<std::string>());
         }
+
+         if(var.canConvert<QColor>()) {
+            const QColor c = var.value<QColor>();
+            return std::make_shared<const std::any>(ColourTriplet(
+                c.redF(),
+                c.greenF(),
+                c.blueF(),
+                c.alphaF()
+            )); }
+
         return std::make_shared<const std::any>(json_value);
     }
 
@@ -47,6 +91,11 @@ namespace {
             return std::any_cast<float>(a);
         if (a.type() == typeid(Uuid))
             return QUuidFromUuid(std::any_cast<Uuid>(a));
+        if (a.type() == typeid(ColourTriplet))
+            return QColor(std::max(0, std::min(255, int(round(std::any_cast<const ColourTriplet &>(a).r * 255.0f)))),
+                          std::max(0, std::min(255, int(round(std::any_cast<const ColourTriplet &>(a).g * 255.0f)))),
+                          std::max(0, std::min(255, int(round(std::any_cast<const ColourTriplet &>(a).b * 255.0f)))),
+                          std::max(0, std::min(255, int(round(std::any_cast<const ColourTriplet &>(a).a * 255.0f)))));
         if (a.type() == typeid(JsonStore) || a.type() == typeid(nlohmann::json))
             return json_to_qvariant(std::any_cast<const JsonStore &>(a));
 
@@ -80,7 +129,7 @@ caf::message_handler UIDataModel::core_message_handler() {
     return caf::message_handler {
         [=](broadcast::broadcast_down_atom, const caf::actor_addr & /*downed_actor*/) {
         },
-        [=](event_atom, move_children_atom, const std::vector<int> &index_in_tree, const int row, const int destination_row) {
+        [=](event_atom, move_children_atom, const std::vector<int> &index_in_tree, const int row, int destination_row) {
         
             QModelIndex parent_index = QModelIndex();
             for (const auto &i: index_in_tree) {
@@ -91,7 +140,7 @@ caf::message_handler UIDataModel::core_message_handler() {
             if (node) {
                 std::cerr << "Node name: " << *(node->get_property<std::string>("nameRole")) << "\n";
             }
-            if (node && node->children_data_.size() > row && node->children_data_.size() > destination_row) {
+            if (node && node->children_data_.size() > row && node->children_data_.size() >= destination_row) {
 
                 if (destination_row > row) {
                     if (!beginMoveRows(parent_index, row, row, parent_index, destination_row)) {
@@ -108,7 +157,7 @@ caf::message_handler UIDataModel::core_message_handler() {
                 }
 
                 std::cerr << "A: " << *(node->children_data_[row]->get_property<std::string>("nameRole")) << "\n";
-                std::cerr << "B: " << *(node->children_data_[destination_row]->get_property<std::string>("nameRole")) << "\n";
+                //std::cerr << "B: " << *(node->children_data_[destination_row]->get_property<std::string>("nameRole")) << "\n";
                 auto to_move = node->children_data_[row];
                 node->children_data_.erase(node->children_data_.begin() + row);
                 if (destination_row > row) {
@@ -158,6 +207,7 @@ caf::message_handler UIDataModel::core_message_handler() {
         [=](property_atom, const ObjectDataTreePtr &child_data) {
         },
         [=](const ObjectDataTreePtr &child_data) {
+            child_data->dump();
             set_root(child_data);
         },
         [=](property_atom, const std::vector<int> &index_in_tree, const ObjectDataTreePtr &child_data) {
@@ -253,7 +303,7 @@ int UIDataModel::rowCount(const QModelIndex &parent) const {
 
     const ObjectDataTree *node = node_from_index(parent);
     const int rt = node ? static_cast<int>(node->children_data_.size()) : 0;
-    // qDebug() << "Row count for parent" << parent << "is" << rt;
+     qDebug() << "Row count for parent" << parent << "is" << rt;
     return rt;
 }
 

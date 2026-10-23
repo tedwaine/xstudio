@@ -1461,12 +1461,11 @@ caf::message_handler PlaylistActor::message_handler() {
                 utility::Uuid before_object_uuid;
 
                 for (const auto &i : pl_tree.children()) {
-                    std::cerr << "Childler " << i.value().name() << "\n";
                     if (i.uuid() == uuid) object_uuid = i.value().uuid();
                     if (i.uuid() == uuid_before) before_object_uuid = i.value().uuid();                    
                 }
 
-                if (!object_uuid.is_null() && !before_object_uuid.is_null()) {
+                if (!object_uuid.is_null()) {
                     // Do something with object_uuid and before_object_uuid if needed
                     ObjectActor::child_moved(object_uuid, before_object_uuid);
                 }
