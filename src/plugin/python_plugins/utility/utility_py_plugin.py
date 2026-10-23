@@ -148,8 +148,6 @@ class UtilityPythonPlugin(PluginBase):
             move_before_this_item (str): UUID of the item before which to move the items.
         """
 
-        print ("Moving items:", items_to_move, "before:", move_before_this_item)
-
         # More than awkward! We need to get the container uuid
         # for the session items. A Playlist has two Uuids, it's
         # 'own' uuid and that of its container. Why? I don't know.
@@ -173,14 +171,18 @@ class UtilityPythonPlugin(PluginBase):
         if not parent:
             raise ValueError("Parent container not found for the items to move.")
 
-        target_uuid = self.__object_uuid_to_container_uuid(
-            parent.playlist_tree,
-            [Uuid(move_before_this_item)]
-        )
-        if not target_uuid:
-            raise ValueError("Target UUID not found for move_before_this_item.")
-        target_uuid = target_uuid[0]
+        if not move_before_this_item:
+            target_uuid = Uuid()
+        else:
+            target_uuid = self.__object_uuid_to_container_uuid(
+                parent.playlist_tree,
+                [Uuid(move_before_this_item)]
+            )
+            if not target_uuid:
+                raise ValueError("Target UUID not found for move_before_this_item.")
+            target_uuid = target_uuid[0]
                 
+        print("Container UUIDs to move:", parent, container_uuids, target_uuid)
         for cuuid in container_uuids:
             parent.move_container(
                 cuuid, target_uuid, False)

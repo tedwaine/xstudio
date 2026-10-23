@@ -125,7 +125,7 @@ Item {
     /* first index in playlist is media ... */
 
     property bool isCurrent: modelIndex == currentMediaContainerIndex
-    property bool isSelected: playlistsSelectionModel.isSelected(modelIndex)
+    property bool isSelected: modelIndex ? playlistsSelectionModel.isSelected(modelIndex) : false
     onIsSelectedChanged: {
         if (isSelected) {
             console.log("Item selected:", modelIndex, nameRole, modelIndex.parent)
@@ -172,6 +172,11 @@ Item {
                 border.width: 1
                 border.color: fma.containsMouse ? XsStyleSheet.accentColor : "transparent"
             }
+        }
+
+        property var aaa: flagColourRole
+        onAaaChanged: {
+            console.log("aaa changed:", aaa)
         }
 
         onReleased: (mouse) => {

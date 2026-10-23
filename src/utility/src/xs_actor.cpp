@@ -136,7 +136,6 @@ void ObjectActor::add_child(const UuidActor &child, const Uuid & before) {
 
 void ObjectActor::child_moved(const Uuid &child_id, const Uuid &before_child_id) {
     
-    std::cerr << "S\n";
     int cidx = -1;
     for (size_t i = 0; i < children_.size(); ++i) {
         if (children_[i].uuid() == child_id) {
@@ -144,29 +143,30 @@ void ObjectActor::child_moved(const Uuid &child_id, const Uuid &before_child_id)
             break;
         }
     }
-    std::cerr << "S\n";
 
     if (cidx == -1) return;
-    std::cerr << "S\n";
 
-    int before_cidx = -1;
+    int before_cidx = -1;    
     for (size_t i = 0; i < children_.size(); ++i) {
         if (children_[i].uuid() == before_child_id) {
             before_cidx = static_cast<int>(i);
             break;
         }
     }
-    std::cerr << "S\n";
 
-    if (before_cidx != -1 && cidx != before_cidx) {
+    if ((before_cidx != -1 || before_child_id.is_null()) && cidx != before_cidx) {
         auto to_move = children_[cidx];
         children_.erase(children_.begin() + cidx);
-        if (cidx < before_cidx) {
-            children_.insert(children_.begin() + before_cidx - 1, to_move);
+        if (before_cidx == -1) {
+            children_.push_back(to_move);
         } else {
-            children_.insert(children_.begin() + before_cidx, to_move);
+            if (cidx < before_cidx) {
+                children_.insert(children_.begin() + before_cidx - 1, to_move);
+            } else {
+                children_.insert(children_.begin() + before_cidx, to_move);
+            }
         }
-        mail(event_atom_v, move_children_atom_v, std::vector<int>(), cidx, before_cidx).send(properties_events_group_);
+        mail(event_atom_v, move_children_atom_v, std::vector<int>(), cidx, before_cidx == -1 ? (int)children_.size() : before_cidx).send(properties_events_group_);
     }
 }
 
@@ -207,6 +207,13 @@ caf::message_handler ObjectActor::private_message_handler() {
         [=](broadcast::broadcast_down_atom, const caf::actor_addr & /*downed_actor*/) {
         },
 
+        [=](move_children_atom, const utility::Uuid &uuid, const utility::Uuid &uuid_before) -> bool {
+
+            child_moved(uuid, uuid_before);
+            return true;
+
+        },
+
         [=](event_atom, move_children_atom, std::vector<int> index_in_tree, const int child_id, const int before_child_id) {
 
             int cindex = child_index(current_sender());
@@ -229,7 +236,18 @@ caf::message_handler ObjectActor::private_message_handler() {
 
             // try match to ourselves
             auto prop = get_property(prop_key);
+
+            auto vv = get_property<std::string>("nameRole");
+            std::cerr << "Property value for " << prop_key << ": " << (vv ? *vv : "nope") << std::endl;
+
+            try {
+                std::cerr << "DOIN " << std::any_cast<std::string>(*value) << std::endl;
+            } catch (const std::bad_any_cast &e) {
+                std::cerr << "Failed to cast value for property " << prop_key << ": " << e.what() << std::endl;
+            }
+
             if (ObjectDataTree::values_equal(prop, value)) {
+                std::cerr << "Match found for property " << prop_key << std::endl;
                 auto uuid = get_property<Uuid>("uuidRole");
                 if (uuid) {
                     return UuidActor(*uuid, caf::actor_cast<caf::actor>(this));
@@ -246,6 +264,7 @@ caf::message_handler ObjectActor::private_message_handler() {
             for (auto child : children_) {
                 mail(find_children_atom_v, prop_key, value, depth-1).request(child.actor(), infinite).then(
                     [=](const UuidActor &c) mutable {
+                        std::cerr << "Child found: " << prop_key << std::endl;
                         auto_responder.result() = c;
                         auto_responder.decrement();
                     },
