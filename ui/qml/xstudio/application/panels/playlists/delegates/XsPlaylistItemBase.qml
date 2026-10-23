@@ -109,7 +109,8 @@ Item {
 
     /* modelIndex should be set to point into the session data model and get
     to the playlist that we are representing */
-    property var modelIndex
+
+    property var modelIndex: parent.modelIndex
 
     onModelIndexChanged: {
         /*if (modelIndex.valid && modelIndex.row) {
@@ -210,7 +211,6 @@ Item {
 
             // Put the content of the playlist into the media browser etc.
             // but don't put it on screen.
-            // FIXME
             if (mouse.modifiers == Qt.ControlModifier) {
                 if (!(playlistsSelectionModel.selectedIndexes.length == 1 &&
                     playlistsSelectionModel.selectedIndexes[0] == modelIndex)) {
@@ -243,7 +243,7 @@ Item {
                     var end_row = nearest.row > modelIndex.row ? nearest.row : modelIndex.row
                     var indexes = []
                     for (var row = start_row; row <= end_row; ++row) {
-                        //indexes.push(theSessionData.index(row, 0, modelIndex.parent))
+                        indexes.push(playlistsModelData.index(row, 0, modelIndex.parent))
                     }
                     playlistsSelectionModel.select(
                         helpers.createItemSelection(indexes),

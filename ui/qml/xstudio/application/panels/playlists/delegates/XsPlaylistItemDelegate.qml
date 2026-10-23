@@ -45,14 +45,10 @@ XsPlaylistItemBase {
             Layout.preferredHeight: widget ? widget.implicitHeight : 0
             property var widget
             property var code: qmlCodeRole
+            property var modelIndex: playlistsModelData.index(index, 0, subItemsModelIndex)
             onCodeChanged: {
                 if (typeof code === "string" && subItemsModelIndex) {
                     widget = Qt.createQmlObject(code, pitem)
-                    let idx = playlistsModelData.index(index, 0, subItemsModelIndex)
-                    console.log("A", subItemsModelIndex)
-                    console.log("B", idx)
-                    console.log("B", idx.parent)
-                    widget.modelIndex = idx
                     widget.indent = true
                 }
             }
