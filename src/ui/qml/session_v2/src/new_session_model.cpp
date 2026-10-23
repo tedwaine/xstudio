@@ -45,8 +45,8 @@ namespace {
             return std::any_cast<bool>(a);
         if (a.type() == typeid(float))
             return std::any_cast<float>(a);
-        if (a.type() == typeid(utility::Uuid))
-            return QUuidFromUuid(std::any_cast<utility::Uuid>(a));
+        if (a.type() == typeid(Uuid))
+            return QUuidFromUuid(std::any_cast<Uuid>(a));
         if (a.type() == typeid(JsonStore) || a.type() == typeid(nlohmann::json))
             return json_to_qvariant(std::any_cast<const JsonStore &>(a));
 
@@ -80,20 +80,57 @@ caf::message_handler UIDataModel::core_message_handler() {
     return caf::message_handler {
         [=](broadcast::broadcast_down_atom, const caf::actor_addr & /*downed_actor*/) {
         },
-        [=](utility::event_atom, remove_children_atom, std::vector<int> index_in_tree) {
-
-            std::cerr << "Removing children at indices: ";
-            for (auto idx : index_in_tree) {
-                std::cerr << idx << " ";
+        [=](event_atom, move_children_atom, const std::vector<int> &index_in_tree, const int row, const int destination_row) {
+        
+            QModelIndex parent_index = QModelIndex();
+            for (const auto &i: index_in_tree) {
+                parent_index = index(i, 0, parent_index);
             }
-            std::cerr << "\n";
+            qDebug() << "Moving row " << row << " to " << destination_row << " " << parent_index << "\n";
+            ObjectDataTree * node = const_cast<ObjectDataTree *>(UIDataModel::node_from_index(parent_index));
+            if (node) {
+                std::cerr << "Node name: " << *(node->get_property<std::string>("nameRole")) << "\n";
+            }
+            if (node && node->children_data_.size() > row && node->children_data_.size() > destination_row) {
+
+                if (destination_row > row) {
+                    if (!beginMoveRows(parent_index, row, row, parent_index, destination_row)) {
+                        qDebug() << "NOPE1\n";
+                    }
+                } else {
+                    if (!beginMoveRows(parent_index, row, row, parent_index, destination_row)) {
+                        qDebug() << "NOPE2\n";
+                    }
+                }
+
+                for (auto &cc: node->children_data_) {
+                    std::cerr << "Child name: " << *(cc->get_property<std::string>("nameRole")) << "\n";
+                }
+
+                std::cerr << "A: " << *(node->children_data_[row]->get_property<std::string>("nameRole")) << "\n";
+                std::cerr << "B: " << *(node->children_data_[destination_row]->get_property<std::string>("nameRole")) << "\n";
+                auto to_move = node->children_data_[row];
+                node->children_data_.erase(node->children_data_.begin() + row);
+                if (destination_row > row) {
+                    node->children_data_.insert(node->children_data_.begin() + destination_row - 1, to_move);
+                } else {
+                    node->children_data_.insert(node->children_data_.begin() + destination_row, to_move);
+                }
+
+                // std::swap(node->children_data_[row], node->children_data_[destination_row]);
+                endMoveRows();
+            }
+
+        },
+        [=](event_atom, remove_children_atom, std::vector<int> index_in_tree) {
+
             if (index_in_tree.empty())
                 return;
             QModelIndex parent_index = QModelIndex();
             int row = index_in_tree.back();
             index_in_tree.pop_back();
-            for (int i = 0; i < index_in_tree.size(); ++i) {
-                parent_index = index(index_in_tree[i], 0, parent_index);
+            for (const auto &i: index_in_tree) {
+                parent_index = index(i, 0, parent_index);
             }
             ObjectDataTree * node = const_cast<ObjectDataTree *>(UIDataModel::node_from_index(parent_index));
             std::cerr << "Parent index: " << *(node->get_property<std::string>("nameRole")) << "\n";
@@ -109,8 +146,8 @@ caf::message_handler UIDataModel::core_message_handler() {
         [=](property_atom, const std::vector<int> &index_in_tree, const std::string &key, const AnyPtr &value) {
 
             QModelIndex parent_index = QModelIndex();
-            for (int i = 0; i < index_in_tree.size(); ++i) {
-                parent_index = index(index_in_tree[i], 0, parent_index);
+            for (const auto &i: index_in_tree) {
+                parent_index = index(i, 0, parent_index);
             }
             ObjectDataTree * node = const_cast<ObjectDataTree *>(UIDataModel::node_from_index(parent_index));
             if (node && data_roles_inverse_.contains(key)) {
@@ -164,11 +201,11 @@ void UIDataModel::set_source_of_data(caf::actor source) {
         return;
 
     if (source_of_data_)
-        self()->mail(utility::property_atom_v, broadcast::leave_broadcast_atom_v, as_actor()).send(source_of_data_);
+        self()->mail(property_atom_v, broadcast::leave_broadcast_atom_v, as_actor()).send(source_of_data_);
 
     source_of_data_ = std::move(source);
-    self()->mail(utility::property_atom_v, broadcast::join_broadcast_atom_v, as_actor()).send(source_of_data_);
-    self()->mail(utility::property_atom_v).send(source_of_data_);
+    self()->mail(property_atom_v, broadcast::join_broadcast_atom_v, as_actor()).send(source_of_data_);
+    self()->mail(property_atom_v).send(source_of_data_);
 
 }
 
@@ -320,12 +357,12 @@ SessionModelRoot::SessionModelRoot(QObject *parent)
 caf::message_handler SessionModelRoot::message_handler() {
 
     return caf::message_handler {
-        [=](utility::event_atom, session::session_atom, caf::actor session) {
+        [=](event_atom, session::session_atom, caf::actor session) {
             bool session_is_root = session_actor_ == root_actor_;
             session_actor_ = session;
             if (!session_is_root) reload();
         },
-        [=](utility::event_atom,
+        [=](event_atom,
             session::session_request_atom,
             const std::string &,
             const JsonStore &) {
@@ -343,14 +380,14 @@ void SessionModelRoot::connect_to_studio() {
     try {
         // join studio events, so we know when a new session has been created
         auto studio_events =
-            utility::request_receive<caf::actor>(*sys, studio_actor, utility::get_event_group_atom_v);
-        utility::request_receive<bool>(*sys, studio_events, broadcast::join_broadcast_atom_v, caf::actor_cast<caf::actor>(self()));
+            request_receive<caf::actor>(*sys, studio_actor, get_event_group_atom_v);
+        request_receive<bool>(*sys, studio_events, broadcast::join_broadcast_atom_v, caf::actor_cast<caf::actor>(self()));
     } catch (const std::exception &err) {
         spdlog::error("Failed to get studio events actor: {}", err.what());
     }
 
     try {
-        session_actor_ = utility::request_receive<caf::actor>(*sys, studio_actor, session::session_atom_v);
+        session_actor_ = request_receive<caf::actor>(*sys, studio_actor, session::session_atom_v);
         root_actor_ = session_actor_;
         QString asString = actorToQString(system(), session_actor_);
         if (asString != root_actor_as_string_) {
@@ -393,7 +430,7 @@ SessionModelNode::SessionModelNode(QObject *parent)
 caf::message_handler SessionModelNode::message_handler() {
 
     return (caf::message_handler {
-        [=](utility::UuidActor &child_we_searched_for) {
+        [=](UuidActor &child_we_searched_for) {
             root_actor_ = child_we_searched_for.actor();
             set_source_of_data(root_actor_);
         }
@@ -429,7 +466,7 @@ void SessionModelNode::reload() {
         AnyPtr searchValue = anyPtrFromQVariant(child_search_property_value_);
 
         // we get a UuidActor in our message handler in response to this message
-        self()->mail(utility::find_children_atom_v, child_search_property_key_.toStdString(), searchValue, 1).send(session_actor_);
+        self()->mail(find_children_atom_v, child_search_property_key_.toStdString(), searchValue, 1).send(session_actor_);
 
     } catch (const std::exception &err) {
         spdlog::error("Failed to perform action with child search properties: {}", err.what());

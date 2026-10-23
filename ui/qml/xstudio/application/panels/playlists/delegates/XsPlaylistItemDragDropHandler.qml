@@ -171,18 +171,32 @@ XsDragDropHandler {
             return
 
         } else if (source == "PlayList" && canReceiveDrag) {
+
             var ids = []
             for (var i in data) {
-                ids.push(theSessionData.get(data[i], "idRole"))
+                let selectedIndex = data[i]
+                ids.push(playlistsModelData.getData(selectedIndex, "uuidRole"))
             }
+            var py_args = {
+                    "items_to_move": ids,
+                    "move_before_this_item": playlistsModelData.getData(modelIndex, "uuidRole"),
+                }
+
             Future.promise(
+                helpers.pythonAsyncCallback("UtilityPythonPlugin", "move_session_items", py_args)
+            ).then(function(result) {
+            },
+	        function() {
+                console.log("ERROR", __rr)
+	        })
+            /*Future.promise(
                 theSessionData.handleDropFuture(
                     Qt.MoveAction,
                     {"xstudio/container-ids": ids},
                     dragToEnd ? theSessionData.index(-1, -1): modelIndex)
             ).then(function(quuids){
                 //console.log("quuids", quuids)
-            })
+            })*/
 
         }
     }

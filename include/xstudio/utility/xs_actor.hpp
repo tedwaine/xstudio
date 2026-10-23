@@ -144,6 +144,9 @@ protected:
 
     void add_child(const UuidActor &child, const utility::Uuid &before = utility::Uuid());
     void remove_child(const UuidActor &child);
+
+    void child_moved(const Uuid &child_id, const Uuid &before_child_id);
+
     int child_index(const UuidActor &child) const;
     int child_index(const caf::strong_actor_ptr &child) const;
 

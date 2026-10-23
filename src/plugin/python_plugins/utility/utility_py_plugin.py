@@ -94,44 +94,98 @@ class UtilityPythonPlugin(PluginBase):
                 tr[1] = [tr[1][0], -abs(tr[1][1]) if flip else abs(tr[1][1]), tr[1][2], tr[1][3]]
                 media.transform_matrix = tr
 
-    def remove_session_items(self, *args):
-        """Remove session items based on their UUIDs. Items
-        can be playlists, subsets, contact sheets, timelines etc.
-
-        Args:
-            session_items_uuids (list): List of UUIDs of session items to remove.
-        """
+    def __object_uuid_to_container_uuid(self, tree, items_uuids):
+        """Convert object UUIDs to their corresponding container UUIDs."""
         # More than awkward! We need to get the container uuid
         # for the session items. A Playlist has two Uuids, it's
-        # 'own' uuid and that of its container. Why? I don't know.
-        session_items_uuids = [Uuid(a) for a in args]
-        print ("Session items UUIDs to remove:", session_items_uuids)
-        tree = self.connection.api.session.playlist_tree
+        # 'own' uuid and that of its container in the PlaylsitTree. 
+        # Why? I don't know.
         def get_container_uuids(tree_branch, item_uuids):
-            print ("Checking tree branch:", tree_branch.uuid, "for item UUIDs:", tree_branch.name, hasattr(tree_branch, "children"))
             if not hasattr(tree_branch, "children"):
                 return []
             container_uuids = []
             for child in tree_branch.children:
-                if child.value_uuid in session_items_uuids:
+                if child.value_uuid in items_uuids:
                     container_uuids.append(child.uuid)
-                elif child.uuid in session_items_uuids:
+                elif child.uuid in items_uuids:
                     container_uuids.append(child.uuid)
                 else:
                     container_uuids.extend(get_container_uuids(child, item_uuids))
             return container_uuids
 
-        container_uuids = get_container_uuids(tree, session_items_uuids)
-        print ("Container UUIDs to remove:", container_uuids)
+        return get_container_uuids(tree, items_uuids)
+
+    def remove_session_items(self, *args):
+        """Remove session items based on their UUIDs. Items
+        can be playlists, subsets, contact sheets, timelines etc.
+
+        Called from the UI (QML) layer when doing 'Remove' action
+        on playlists
+
+        Args:
+            session_items_uuids (list): List of UUIDs of session items to remove.
+        """
+        object_uuids = [Uuid(a) for a in args]
+        container_uuids = self.__object_uuid_to_container_uuid(
+            self.connection.api.session.playlist_tree,
+            object_uuids)
 
         for uuid in container_uuids:
             self.connection.api.session.remove_container(uuid)
 
         for p in self.connection.api.session.playlists:
-            container_uuids = get_container_uuids(p.playlist_tree, session_items_uuids)
+            container_uuids = self.__object_uuid_to_container_uuid(
+                p.playlist_tree,
+                object_uuids)
             for uuid in container_uuids:
                 p.remove_container(uuid)
 
+    def move_session_items(self, items_to_move, move_before_this_item):
+        """Move session items to a new parent container.
+
+        Args:
+            items_to_move (list): List of UUIDs of session items to move.
+            move_before_this_item (str): UUID of the item before which to move the items.
+        """
+
+        print ("Moving items:", items_to_move, "before:", move_before_this_item)
+
+        # More than awkward! We need to get the container uuid
+        # for the session items. A Playlist has two Uuids, it's
+        # 'own' uuid and that of its container. Why? I don't know.
+        object_uuids = [Uuid(a) for a in items_to_move]
+        parent = None
+        container_uuids = self.__object_uuid_to_container_uuid(
+            self.connection.api.session.playlist_tree,
+            object_uuids)
+        if container_uuids:
+            parent = self.connection.api.session
+        else:
+            for p in self.connection.api.session.playlists:
+                container_uuids = self.__object_uuid_to_container_uuid(
+                    p.playlist_tree,
+                    object_uuids
+                    )
+                if container_uuids:
+                    parent = p
+                    break
+
+        if not parent:
+            raise ValueError("Parent container not found for the items to move.")
+
+        target_uuid = self.__object_uuid_to_container_uuid(
+            parent.playlist_tree,
+            [Uuid(move_before_this_item)]
+        )
+        if not target_uuid:
+            raise ValueError("Target UUID not found for move_before_this_item.")
+        target_uuid = target_uuid[0]
+                
+        for cuuid in container_uuids:
+            parent.move_container(
+                cuuid, target_uuid, False)
+
+        return True            
 
 def create_plugin_instance(connection):
     """Create and return a plugin instance."""

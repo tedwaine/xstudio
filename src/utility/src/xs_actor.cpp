@@ -71,7 +71,7 @@ void ObjectDataTree::dump(const int indent) const
     }
 }
 
-ObjectActor::ObjectActor(caf::actor_config &cfg, const std::string &name, const utility::Uuid &uuid) : caf::event_based_actor(cfg) {
+ObjectActor::ObjectActor(caf::actor_config &cfg, const std::string &name, const Uuid &uuid) : caf::event_based_actor(cfg) {
     properties_events_group_ = spawn<broadcast::BroadcastActor>(this);
     link_to(properties_events_group_);
 
@@ -83,7 +83,7 @@ ObjectActor::ObjectActor(caf::actor_config &cfg, const std::string &name, const 
 
 }
 
-void ObjectActor::add_child(const UuidActor &child, const utility::Uuid & before) {
+void ObjectActor::add_child(const UuidActor &child, const Uuid & before) {
 
     // monitor the child
     monitor(child.actor(), [this, a = child](const error &err) {
@@ -134,6 +134,42 @@ void ObjectActor::add_child(const UuidActor &child, const utility::Uuid & before
 
 }
 
+void ObjectActor::child_moved(const Uuid &child_id, const Uuid &before_child_id) {
+    
+    std::cerr << "S\n";
+    int cidx = -1;
+    for (size_t i = 0; i < children_.size(); ++i) {
+        if (children_[i].uuid() == child_id) {
+            cidx = static_cast<int>(i);
+            break;
+        }
+    }
+    std::cerr << "S\n";
+
+    if (cidx == -1) return;
+    std::cerr << "S\n";
+
+    int before_cidx = -1;
+    for (size_t i = 0; i < children_.size(); ++i) {
+        if (children_[i].uuid() == before_child_id) {
+            before_cidx = static_cast<int>(i);
+            break;
+        }
+    }
+    std::cerr << "S\n";
+
+    if (before_cidx != -1 && cidx != before_cidx) {
+        auto to_move = children_[cidx];
+        children_.erase(children_.begin() + cidx);
+        if (cidx < before_cidx) {
+            children_.insert(children_.begin() + before_cidx - 1, to_move);
+        } else {
+            children_.insert(children_.begin() + before_cidx, to_move);
+        }
+        mail(event_atom_v, move_children_atom_v, std::vector<int>(), cidx, before_cidx).send(properties_events_group_);
+    }
+}
+
 int ObjectActor::child_index(const UuidActor &child) const {
     int cindex = -1;
     auto it = std::find(children_.begin(), children_.end(), child);
@@ -160,7 +196,7 @@ void ObjectActor::remove_child(const UuidActor &child) {
     int cidx = child_index(child);
     if (cidx != -1)
         children_.erase(children_.begin() + cidx);
-    mail(utility::event_atom_v, remove_children_atom_v, std::vector<int>{cidx}).send(properties_events_group_);
+    mail(event_atom_v, remove_children_atom_v, std::vector<int>{cidx}).send(properties_events_group_);
     //children_.erase(std::remove(children_.begin(), children_.end(), caf::actor_cast<caf::actor_addr>(child)), children_.end());
 }
 
@@ -171,21 +207,30 @@ caf::message_handler ObjectActor::private_message_handler() {
         [=](broadcast::broadcast_down_atom, const caf::actor_addr & /*downed_actor*/) {
         },
 
-        [=](utility::event_atom, remove_children_atom, std::vector<int> index_in_tree) {
+        [=](event_atom, move_children_atom, std::vector<int> index_in_tree, const int child_id, const int before_child_id) {
 
             int cindex = child_index(current_sender());
             if (cindex < 0) return;
             index_in_tree.insert(index_in_tree.begin(), cindex);
-            mail(utility::event_atom_v, remove_children_atom_v, index_in_tree).send(properties_events_group_);
+            mail(event_atom_v, move_children_atom_v, index_in_tree, child_id, before_child_id).send(properties_events_group_);
 
         },
 
-        [=](find_children_atom, const std::string &prop_key, const AnyPtr &value, int depth) -> result<utility::UuidActor> {
+        [=](event_atom, remove_children_atom, std::vector<int> index_in_tree) {
+
+            int cindex = child_index(current_sender());
+            if (cindex < 0) return;
+            index_in_tree.insert(index_in_tree.begin(), cindex);
+            mail(event_atom_v, remove_children_atom_v, index_in_tree).send(properties_events_group_);
+
+        },
+
+        [=](find_children_atom, const std::string &prop_key, const AnyPtr &value, int depth) -> result<UuidActor> {
 
             // try match to ourselves
             auto prop = get_property(prop_key);
             if (ObjectDataTree::values_equal(prop, value)) {
-                auto uuid = get_property<utility::Uuid>("uuidRole");
+                auto uuid = get_property<Uuid>("uuidRole");
                 if (uuid) {
                     return UuidActor(*uuid, caf::actor_cast<caf::actor>(this));
                 }
@@ -197,10 +242,10 @@ caf::message_handler ObjectActor::private_message_handler() {
                 return caf::make_error(xstudio_error::error, "No matching child found.");
             }
 
-            auto auto_responder = utility::AutoResponder<utility::UuidActor>(children_.size(), this);
+            auto auto_responder = AutoResponder<UuidActor>(children_.size(), this);
             for (auto child : children_) {
                 mail(find_children_atom_v, prop_key, value, depth-1).request(child.actor(), infinite).then(
-                    [=](const utility::UuidActor &c) mutable {
+                    [=](const UuidActor &c) mutable {
                         auto_responder.result() = c;
                         auto_responder.decrement();
                     },
@@ -212,15 +257,15 @@ caf::message_handler ObjectActor::private_message_handler() {
             return auto_responder.response_promise();
         },
 
-        [=](add_children_atom, const utility::UuidActor &child, const utility::Uuid &before) -> bool {
+        [=](add_children_atom, const UuidActor &child, const Uuid &before) -> bool {
             add_child(child, before);
             return true;
         },
-        [=](add_children_atom, const utility::UuidActor &child) -> bool {
+        [=](add_children_atom, const UuidActor &child) -> bool {
             add_child(child);
             return true;
         },
-        [=](add_children_atom, const utility::UuidActorVector &childred) -> bool {
+        [=](add_children_atom, const UuidActorVector &childred) -> bool {
             for (const auto &child : childred) {
                 add_child(child);
             }
@@ -303,7 +348,7 @@ caf::message_handler ObjectActor::private_message_handler() {
         },
         [=](property_atom) -> result<ObjectDataTreePtr> {
 
-            auto auto_responder = utility::AutoResponder<ObjectDataTreePtr>(children_.size(), this);
+            auto auto_responder = AutoResponder<ObjectDataTreePtr>(children_.size(), this);
             auto result = full_state_.deep_copy();            
             auto_responder.result().reset(result); 
             for (size_t i = 0; i < children_.size(); ++i) {

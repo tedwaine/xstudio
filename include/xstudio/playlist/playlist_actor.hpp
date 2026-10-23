@@ -109,6 +109,7 @@ namespace playlist {
         caf::actor global_prefs_actor_;
         std::map<utility::Uuid, caf::actor> media_;
         std::map<utility::Uuid, caf::actor> container_;
+        std::set<utility::Uuid> dividers_;
         bool is_in_viewer_ = {false};
         caf::actor json_store_;
         bool content_changed_{false};
