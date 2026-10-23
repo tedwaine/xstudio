@@ -277,26 +277,28 @@ Item{
     }
 
 
-    // FIXME
+    // FIXME - still need to respond to change in selection, i.e. make sure the new selection is applied after items are removed
     function doRemove(button) {
 
         if (button == "Cancel") return
 
+        var new_selected_item = undefined;
         let selected = playlistsSelectionModel.selectedIndexes
         var item_uuids = [];
+        var indexes_to_be_deleted = [];
         for (var i = 0; i < selected.length; ++i) {
             item_uuids.push(playlistsModelData.getData(selected[i], "uuidRole"))
+            let type = playlistsModelData.getData(selected[i], "typeRole")
+            if (type == "Subset" || type == "Timeline" || type == "ContactSheet") {
+                var playlist_idx = selected[i].parent
+                if (!selected.includes(playlist_idx)) {
+                    new_selected_item = helpers.makePersistent(playlist_idx)
+                }
+            }
+            indexes_to_be_deleted.push(helpers.makePersistent(selected[i]))
         }
 
-        Future.promise(
-            helpers.pythonAsyncCallback("UtilityPythonPlugin", "remove_session_items", item_uuids)
-        ).then(function(result) {
-        },
-	    function() {
-            console.log("ERROR", __rr)
-	    })
-
-        /*if (!new_selected_item) {
+        if (!new_selected_item) {
 
             // if playlist 2 of 4 is being deleted, we want to select playlist
             // 2 after the deletion (i.e. the playlist that WAS 3rd before the
@@ -306,9 +308,9 @@ Item{
                 // check if
                 var index_to_be_deleted = indexes_to_be_deleted[i]
 
-                if ((index_to_be_deleted.row+1) < theSessionData.rowCount(index_to_be_deleted.parent)) {
+                if ((index_to_be_deleted.row+1) < playlistsModelData.rowCount(index_to_be_deleted.parent)) {
                     var next_idx = helpers.makePersistent(
-                        theSessionData.index(
+                        playlistsModelData.index(
                             index_to_be_deleted.row+1,
                             0,
                             index_to_be_deleted.parent
@@ -328,7 +330,7 @@ Item{
                     var index_to_be_deleted = indexes_to_be_deleted[i]
                     if (index_to_be_deleted.row) {
                         var prev_idx = helpers.makePersistent(
-                            theSessionData.index(
+                            playlistsModelData.index(
                                 index_to_be_deleted.row-1,
                                 0,
                                 index_to_be_deleted.parent
@@ -343,16 +345,15 @@ Item{
 
         }
 
-        playlistsSelectionModel.clear()
+        Future.promise(
+            helpers.pythonAsyncCallback("UtilityPythonPlugin", "remove_session_items", item_uuids)
+        ).then(function(result) {
+        },
+	    function() {
+            console.log("ERROR", __rr)
+	    })
 
-        for (var i = 0; i < indexes_to_be_deleted.length; ++i) {
-            theSessionData.removeRows(
-                indexes_to_be_deleted[i].row,
-                1,
-                false,
-                indexes_to_be_deleted[i].parent
-                )
-        }
+        playlistsSelectionModel.clear()
 
         // select the first remaining playlist, if any
         if (new_selected_item) {
@@ -362,13 +363,13 @@ Item{
                 ItemSelectionModel.ClearAndSelect
                 )
 
-        } else if (theSessionData.rowCount(theSessionData.index(0,0))) {
+        } else if (playlistsModelData.rowCount(playlistsModelData.index(0,0))) {
 
             playlistsSelectionModel.setCurrentIndex(
-                theSessionData.index(0,0,theSessionData.index(0,0)),
+                playlistsModelData.index(0,0,playlistsModelData.index(0,0)),
                 ItemSelectionModel.ClearAndSelect
                 )
-        }*/
+        }
 
     }
 

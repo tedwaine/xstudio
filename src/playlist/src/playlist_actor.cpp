@@ -354,6 +354,13 @@ PlaylistActor::PlaylistActor(
                     playlist_item.uuid(),
                     caf::actor_cast<caf::actor>(this));
                 add_child(utility::UuidActor(playlist_item.uuid(), actor));
+                container_[playlist_item.uuid()] = actor;
+                if (playlist_item.type() == "ContainerDivider") {
+                    // we need to keep track of dividers because, at the moment,
+                    // they are serilised in the PlaylistTree and not as a 
+                    // child object of the PlaylistActor
+                    dividers_.insert(playlist_item.uuid());
+                }
 
             } catch (const std::exception &e) {
                 spdlog::error("{}", e.what());
@@ -1444,8 +1451,28 @@ caf::message_handler PlaylistActor::message_handler() {
             const utility::Uuid &uuid,
             const utility::Uuid &uuid_before,
             const bool into) -> bool {
+
             bool result = Playlist::move_container(uuid, uuid_before, into);
             if (result) {
+                
+                // uuid and uuid_before are the PlaylistTree item entry UUIDs.
+                // We want to map these to the actual object Uuid (i.e. the
+                // Uuid of the correspondingsubset, divider etc)
+                const utility::PlaylistTree &pl_tree = Playlist::containers();
+                utility::Uuid object_uuid;
+                utility::Uuid before_object_uuid;
+
+                for (const auto &i : pl_tree.children()) {
+                    std::cerr << "Childler " << i.value().name() << "\n";
+                    if (i.uuid() == uuid) object_uuid = i.value().uuid();
+                    if (i.uuid() == uuid_before) before_object_uuid = i.value().uuid();                    
+                }
+
+                if (!object_uuid.is_null() && !before_object_uuid.is_null()) {
+                    // Do something with object_uuid and before_object_uuid if needed
+                    ObjectActor::child_moved(object_uuid, before_object_uuid);
+                }
+
                 mail(utility::event_atom_v, move_container_atom_v, uuid, uuid_before, into)
                     .send(Playlist::event_group());
                 Playlist::send_changed();
@@ -1610,13 +1637,9 @@ caf::message_handler PlaylistActor::message_handler() {
 
             // uuid of actor
             auto children = Playlist::container_children(cuuid);
-            std::cerr << "HELLO " << to_string(cuuid) << "\n";
             if (children) {
-                std::cerr << "OK " << (*children).size() << "\n";
                 for (const auto &i : *children) {
-                    std::cerr << "Remive " << to_string(i) << "\n";
                     if (container_.count(i)) {
-                        std::cerr << "Found in container_\n";
                         auto a = container_[i];
                         if (remove_orphans) {
                             try {
@@ -1636,13 +1659,10 @@ caf::message_handler PlaylistActor::message_handler() {
             }
 
             if (Playlist::cfind(cuuid)) {
-                std::cerr << "Found container: " << to_string(cuuid) << "\n";
                 auto auuid = (*Playlist::cfind(cuuid))->value().uuid();
                 if (Playlist::remove_container(cuuid)) {
                     result = true;
-                    std::cerr << "Aye\n";
                     if (container_.count(auuid)) {
-                        std::cerr << "YHODG\n";
                         auto a = container_[auuid];
                         if (remove_orphans) {
                             try {
@@ -1657,7 +1677,6 @@ caf::message_handler PlaylistActor::message_handler() {
                         unlink_from(a);
                         container_.erase(container_.find(auuid));
                         send_exit(a, caf::exit_reason::user_shutdown);
-                        std::cerr << "EXITING " << to_string(a) << "\n";
                     }
                 }
             }
@@ -2040,8 +2059,8 @@ caf::message_handler PlaylistActor::message_handler() {
                             clients.push_back(i.second);
 
                         for (const auto &i : container_) {
-                            if (only_this_container.is_null() ||
-                                only_this_container == i.first) {
+                            if ((only_this_container.is_null() ||
+                                only_this_container == i.first) && dividers_.find(i.first) == dividers_.end()) {
                                 clients.push_back(i.second);
                             }
                         }
@@ -2162,6 +2181,9 @@ void PlaylistActor::create_container(
                 auto cuuid = Playlist::insert_container(tmp, uuid_before, into);
                 if (not cuuid) {
                     cuuid = Playlist::insert_container(tmp);
+                }
+                if (detail.type_ == "ContainerDivider") {
+                    dividers_.insert(detail.uuid_);
                 }
 
                 mail(
@@ -2325,6 +2347,9 @@ void PlaylistActor::duplicate_tree(utility::UuidTree<utility::PlaylistItem> &tre
 
             tree.value().set_uuid(result.uuid());
             container_[result.uuid()] = result.actor();
+            if (type == "ContainerDivider") {
+                dividers_.insert(result.uuid());
+            }
             link_to(result.actor());
             // update name
             auto name = request_receive<std::string>(*sys, result.actor(), name_atom_v);
