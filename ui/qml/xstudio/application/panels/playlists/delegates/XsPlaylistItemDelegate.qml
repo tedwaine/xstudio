@@ -4,6 +4,7 @@ import QtQuick.Layouts
 import Qt.labs.qmlmodels
 
 import xStudio 1.0
+import xstudio.qml.session 1.0
 import "."
 
 XsPlaylistItemBase {
@@ -20,11 +21,6 @@ XsPlaylistItemBase {
     property var subItemsModelIndex: modelIndex// && modelIndex.valid ? theSessionData.index(2, 0, modelIndex) : undefined
     property var subItemsCount: subItemsModel.count
 
-        property string sourcey: `XsPlaylistItemBase {
-        anchors.fill: parent
-            }`
-
-
     /* Here we have a model to iterate over the contents of the playlist (if
         any) such as subsets, timelines, dividers etc */
     DelegateModel {
@@ -37,17 +33,18 @@ XsPlaylistItemBase {
         // we use the main session data model
         model: playlistsModelData
 
-        // playlists are one level in at row=0, column=0.
-        rootIndex: subItemsModelIndex
+        // Containers (Subset, ContactSheet, Divider etc.) are grouped under row=1, column=0 in the playlists model.
+        rootIndex: playlistsModelData.index(1, 0, subItemsModelIndex)
+
         delegate: Item {
             id: pitem
             Layout.fillWidth: true
             Layout.preferredHeight: widget ? widget.implicitHeight : 0
             property var widget
             property var code: qmlCodeRole
-            property var modelIndex: playlistsModelData.index(index, 0, subItemsModelIndex)
+            property var modelIndex: playlistsModelData.index(index, 0, subItemsModel.rootIndex)
             onCodeChanged: {
-                if (typeof code === "string" && subItemsModelIndex) {
+                if (typeof code === "string") {
                     widget = Qt.createQmlObject(code, pitem)
                     widget.indent = true
                 }

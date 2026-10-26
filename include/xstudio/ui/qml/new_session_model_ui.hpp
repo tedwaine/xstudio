@@ -88,6 +88,8 @@ class UIDataModel : public caf::mixin::actor_object<QAbstractItemModel> {
 
     void set_source_of_data(caf::actor source);
 
+    bool tronk_ = {false};
+
   private:
 
     caf::message_handler core_message_handler();
@@ -142,6 +144,7 @@ class SessionModelRoot : public UIDataModel {
     QString root_actor_as_string_;
 
   private:
+
 
 
 };

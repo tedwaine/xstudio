@@ -461,9 +461,11 @@ nlohmann::json qvariant_to_json(const QVariant &var);
 QVariant json_to_qvariant(const nlohmann::json &var);
 
 QString actorToQString(actor_system &sys, const caf::actor &actor);
+QString actorToQString(actor_system &sys, const caf::actor_addr &actor_addr);
 caf::actor actorFromQString(actor_system &sys, const QString &addr);
 
 std::string actorToString(actor_system &sys, const caf::actor &actor);
+std::string actorToString(actor_system &sys, const caf::actor_addr &actor_addr);
 caf::actor actorFromString(actor_system &sys, const std::string &addr);
 
 std::pair<int, std::string> decodeQKeyEvent(const QKeyEvent *key_event);

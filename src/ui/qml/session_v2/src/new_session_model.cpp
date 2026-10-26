@@ -7,6 +7,7 @@ using namespace xstudio::ui::qml;
 #include <caf/actor_registry.hpp>
 
 #include "xstudio/ui/qml/helper_ui.hpp"
+#include "xstudio/thumbnail/thumbnail.hpp"
 
 CAF_PUSH_WARNINGS
 #include <QQmlExtensionPlugin>
@@ -81,6 +82,8 @@ namespace {
             return QVariant();
         }
         const std::any &a = *var;
+        if (a.type() == typeid(caf::actor_addr))
+            return actorToQString(CafSystemObject::get_actor_system(), std::any_cast<const caf::actor_addr &>(a));
         if (a.type() == typeid(std::string))
             return QString::fromStdString(std::any_cast<const std::string &>(a));
         if (a.type() == typeid(int))
@@ -98,6 +101,16 @@ namespace {
                           std::max(0, std::min(255, int(round(std::any_cast<const ColourTriplet &>(a).a * 255.0f)))));
         if (a.type() == typeid(JsonStore) || a.type() == typeid(nlohmann::json))
             return json_to_qvariant(std::any_cast<const JsonStore &>(a));
+        if (a.type() == typeid(thumbnail::ThumbnailBufferPtr)) {
+            const auto &buf = std::any_cast<const thumbnail::ThumbnailBufferPtr &>(a);
+            std::cerr << "Creating QImage from ThumbnailBufferPtr" << std::endl;
+            return QImage(
+                    (uchar *)&(buf->data()[0]),
+                    buf->width(),
+                    buf->height(),
+                    3 * buf->width(),
+                    QImage::Format_RGB888);
+        }
 
         return QVariant();
     }
@@ -135,29 +148,21 @@ caf::message_handler UIDataModel::core_message_handler() {
             for (const auto &i: index_in_tree) {
                 parent_index = index(i, 0, parent_index);
             }
-            qDebug() << "Moving row " << row << " to " << destination_row << " " << parent_index << "\n";
             ObjectDataTree * node = const_cast<ObjectDataTree *>(UIDataModel::node_from_index(parent_index));
-            if (node) {
-                std::cerr << "Node name: " << *(node->get_property<std::string>("nameRole")) << "\n";
-            }
             if (node && node->children_data_.size() > row && node->children_data_.size() >= destination_row) {
 
                 if (destination_row > row) {
                     if (!beginMoveRows(parent_index, row, row, parent_index, destination_row)) {
-                        qDebug() << "NOPE1\n";
+                        spdlog::warn("Failed to begin move rows");
+                        return;
                     }
                 } else {
                     if (!beginMoveRows(parent_index, row, row, parent_index, destination_row)) {
-                        qDebug() << "NOPE2\n";
+                        spdlog::warn("Failed to begin move rows");
+                        return;
                     }
                 }
 
-                for (auto &cc: node->children_data_) {
-                    std::cerr << "Child name: " << *(cc->get_property<std::string>("nameRole")) << "\n";
-                }
-
-                std::cerr << "A: " << *(node->children_data_[row]->get_property<std::string>("nameRole")) << "\n";
-                //std::cerr << "B: " << *(node->children_data_[destination_row]->get_property<std::string>("nameRole")) << "\n";
                 auto to_move = node->children_data_[row];
                 node->children_data_.erase(node->children_data_.begin() + row);
                 if (destination_row > row) {
@@ -165,9 +170,8 @@ caf::message_handler UIDataModel::core_message_handler() {
                 } else {
                     node->children_data_.insert(node->children_data_.begin() + destination_row, to_move);
                 }
-
-                // std::swap(node->children_data_[row], node->children_data_[destination_row]);
                 endMoveRows();
+
             }
 
         },
@@ -182,7 +186,6 @@ caf::message_handler UIDataModel::core_message_handler() {
                 parent_index = index(i, 0, parent_index);
             }
             ObjectDataTree * node = const_cast<ObjectDataTree *>(UIDataModel::node_from_index(parent_index));
-            std::cerr << "Parent index: " << *(node->get_property<std::string>("nameRole")) << "\n";
             if (node && node->children_data_.size() > row) {
                 beginRemoveRows(parent_index, row, row);
                 unregister_subtree(node->children_data_[row].get());
@@ -207,7 +210,11 @@ caf::message_handler UIDataModel::core_message_handler() {
         [=](property_atom, const ObjectDataTreePtr &child_data) {
         },
         [=](const ObjectDataTreePtr &child_data) {
-            child_data->dump();
+
+            if (self()->current_sender() != source_of_data_)
+                return;
+            auto oi = child_data->get_property<std::string>("nameRole");
+            std::cerr << "Name ASFADSFADS role: " << this << " " << (oi ? *oi : "NOP") << std::endl;
             set_root(child_data);
         },
         [=](property_atom, const std::vector<int> &index_in_tree, const ObjectDataTreePtr &child_data) {
@@ -234,6 +241,11 @@ caf::message_handler UIDataModel::core_message_handler() {
         },
         [=](property_atom, const std::string &key, const AnyPtr &value) {
         },
+        [=](property_atom, const AnyPtr &value, const std::string &key, const uint64_t ui_layer_node_id) {
+
+            // this is a response to a request for missing data
+
+        },
         [=](bool value) {
         }/*,
         [=](caf::message &m) {
@@ -247,15 +259,34 @@ caf::message_handler UIDataModel::core_message_handler() {
 
 void UIDataModel::set_source_of_data(caf::actor source) {
 
+    // No change?
     if (source_of_data_ == source)
         return;
 
+    // Leave the previous source of data's broadcast group if we have one.
     if (source_of_data_)
         self()->mail(property_atom_v, broadcast::leave_broadcast_atom_v, as_actor()).send(source_of_data_);
 
     source_of_data_ = std::move(source);
-    self()->mail(property_atom_v, broadcast::join_broadcast_atom_v, as_actor()).send(source_of_data_);
-    self()->mail(property_atom_v).send(source_of_data_);
+    if (source_of_data_) {
+
+        if (tronk_)
+            spdlog::info("Joining new source of data's broadcast group. {}", to_string(source_of_data_));
+
+        try {
+            scoped_actor sys{system()};
+            auto name_role = request_receive<utility::AnyPtr>(*sys, source_of_data_, property_atom_v, "nameRole");
+            std::cerr << "Name PLIMPOM role: " << this << " " << std::any_cast<std::string>(*name_role) << std::endl;
+        } catch (std::exception &e) {
+            spdlog::error("Error while requesting nameRole: {}", e.what());
+        }
+
+        // JKoin the new source of data's broadcast group.
+        self()->mail(property_atom_v, broadcast::join_broadcast_atom_v, as_actor()).send(source_of_data_);
+
+        // Request the full model data of the new source
+        self()->mail(property_atom_v).send(source_of_data_);
+    }
 
 }
 
@@ -363,6 +394,13 @@ QVariant UIDataModel::data(const QModelIndex &index, int role) const {
         return {};
 
     const std::string roleName = data_roles_.value(role).toStdString();
+    if (node->property_missing(roleName)) {
+        auto act = node->get_property< caf::actor_addr >("actorRole");
+        if (act) {
+            self()->mail(utility::property_atom_v, roleName, index.internalId(), as_actor()).send(caf::actor_cast<caf::actor>(*act));
+        }
+        return {};
+    }
     return qvariantFromAnyPtr(node->get_property(roleName));
 
 }
@@ -448,7 +486,6 @@ void SessionModelRoot::connect_to_studio() {
     } catch (const std::exception &err) {
         spdlog::error("Failed to get session actor: {}", err.what());
     }
-    std::cerr << "Connected to studio and session actor " << this << ".\n";
 }
 
 void SessionModelRoot::setRootActor(const QString &actor) {
@@ -460,6 +497,8 @@ void SessionModelRoot::setRootActor(const QString &actor) {
         try {
 
             root_actor_ = actorFromQString(system(), root_actor_as_string_);
+                    tronk_ = true;
+
             set_source_of_data(root_actor_);
 
         } catch (const std::exception &err) {

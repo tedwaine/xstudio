@@ -47,7 +47,7 @@ caf::message_handler MediaSourceActor::default_event_handler() {
 }
 
 MediaSourceActor::MediaSourceActor(caf::actor_config &cfg, const JsonStore &jsn)
-    : caf::event_based_actor(cfg), base_(static_cast<JsonStore>(jsn["base"])), parent_() {
+    : utility::ObjectActor(cfg), MediaSource(static_cast<JsonStore>(jsn["base"])), parent_() {
     if (not jsn.count("store") or jsn["store"].is_null()) {
         json_store_ = spawn<json_store::JsonStoreActor>(
             utility::Uuid::generate(),
@@ -62,7 +62,7 @@ MediaSourceActor::MediaSourceActor(caf::actor_config &cfg, const JsonStore &jsn)
         // is on disk? We need to re-scan for media metadata. Setting the
         // media_detadata_up_to_date_ flag here will allow for this.
         if (jsn["store"].contains("metadata") && jsn["store"]["metadata"].contains("media")) {
-            media_metadata_ref_checksum_ = base_.checksum();
+            media_metadata_ref_checksum_ = MediaSource::checksum();
         }
     }
     link_to(json_store_);
@@ -72,10 +72,12 @@ MediaSourceActor::MediaSourceActor(caf::actor_config &cfg, const JsonStore &jsn)
     for (const auto &[key, value] : jsn["actors"].items()) {
         if (value["base"]["container"]["type"] == "MediaStream") {
             try {
+
                 media_streams_[Uuid(key)] =
                     system().spawn<media::MediaStreamActor>(static_cast<JsonStore>(value));
                 link_to(media_streams_[Uuid(key)]);
                 join_event_group(this, media_streams_[Uuid(key)]);
+                ObjectActor::add_child(utility::UuidActor(Uuid(key), media_streams_[Uuid(key)]));
 
                 // as of xSTUDIO v2 media detail has been extended to have
                 // reoslution and pixel aspect info. If we're reading from
@@ -103,9 +105,9 @@ MediaSourceActor::MediaSourceActor(
     const utility::FrameRate &rate,
     const utility::Uuid &uuid,
     const utility::JsonStore &initial_json)
-    : caf::event_based_actor(cfg), base_(name, _uri, frame_list), parent_() {
+    : utility::ObjectActor(cfg, name, uuid), MediaSource(name, _uri, frame_list), parent_() {
     if (not uuid.is_null())
-        base_.set_uuid(uuid);
+        MediaSource::set_uuid(uuid);
 
     json_store_ = spawn<json_store::JsonStoreActor>(
         utility::Uuid::generate(), initial_json, std::chrono::milliseconds(50));
@@ -127,9 +129,9 @@ MediaSourceActor::MediaSourceActor(
     const utility::FrameRate &rate,
     const utility::Uuid &uuid,
     const utility::JsonStore &initial_json)
-    : caf::event_based_actor(cfg), base_(name, _uri), parent_() {
+    : utility::ObjectActor(cfg, name, uuid), MediaSource(name, _uri), parent_() {
     if (not uuid.is_null())
-        base_.set_uuid(uuid);
+        MediaSource::set_uuid(uuid);
     json_store_ = spawn<json_store::JsonStoreActor>(
         utility::Uuid::generate(), initial_json, std::chrono::milliseconds(50));
     link_to(json_store_);
@@ -150,18 +152,18 @@ MediaSourceActor::MediaSourceActor(
     const utility::Uuid &uuid,
     const utility::JsonStore &initial_json)
 
-    : caf::event_based_actor(cfg), base_(name, media_reference), parent_() {
+    : utility::ObjectActor(cfg, name, uuid), MediaSource(name, media_reference), parent_() {
     if (not uuid.is_null())
-        base_.set_uuid(uuid);
-    base_.set_reader(reader);
+        MediaSource::set_uuid(uuid);
+    MediaSource::set_reader(reader);
     json_store_ = spawn<json_store::JsonStoreActor>(
         utility::Uuid::generate(), initial_json, std::chrono::milliseconds(50));
     link_to(json_store_);
     join_event_group(this, json_store_);
 
-    // MediaReference mr = base_.media_reference();
+    // MediaReference mr = MediaSource::media_reference();
     // mr.set_timecode_from_frames();
-    // base_.set_media_reference(mr);
+    // MediaSource::set_media_reference(mr);
 
     // special case , when duplicating, as that'll suppy streams.
     // anon_mail(acquire_media_detail_atom_v,
@@ -187,12 +189,12 @@ void MediaSourceActor::update_media_detail() {
         // by a different tool.
         int frame;
         auto _uri =
-            base_.media_reference().uri(base_.media_reference().frame_count() / 2, frame);
+            MediaSource::media_reference().uri(MediaSource::media_reference().frame_count() / 2, frame);
 
         if (!_uri) {
             // ok, middle frame didn't work lets try the first frame
             // after all as a fallback
-            _uri = base_.media_reference().uri(0, frame);
+            _uri = MediaSource::media_reference().uri(0, frame);
         }
 
         if (not _uri)
@@ -239,7 +241,7 @@ void MediaSourceActor::acquire_detail(
     if (media_streams_.size()) {
         rp.deliver(true);
         return;
-    } else if (base_.media_status() != MS_UNKNOWN && !base_.online()) {
+    } else if (MediaSource::media_status() != MS_UNKNOWN && !MediaSource::online()) {
         rp.deliver(false);
         return;
     }
@@ -261,7 +263,7 @@ void MediaSourceActor::acquire_detail(
             // 'streams' in xSTUDIO) - this is less likely to mismatch the rest
             // of the sequence than first frame which can be a slate frame made
             // by a different tool.
-            auto _uri = base_.media_reference().pick_representative_frame();
+            auto _uri = MediaSource::media_reference().pick_representative_frame();
 
             if (not _uri)
                 throw std::runtime_error("Invalid frame index");
@@ -287,25 +289,25 @@ void MediaSourceActor::acquire_detail(
                     [=](const error &err) mutable {
                         // set media status..
                         // set duration to one frame. Or things get upset.
-                        // base_.media_reference().set_duration(
+                        // MediaSource::media_reference().set_duration(
                         //     FrameRateDuration(1,
-                        //     base_.media_reference().duration().rate()));
+                        //     MediaSource::media_reference().duration().rate()));
                         log_caf_error(err, spdlog::level::debug);
-                        if (base_.error_detail() != to_string(err)) {
-                            base_.send_changed();
+                        if (MediaSource::error_detail() != to_string(err)) {
+                            MediaSource::send_changed();
                             mail(utility::event_atom_v, change_atom_v)
-                                .send(base_.event_group());
-                            base_.set_error_detail(to_string(err));
+                                .send(MediaSource::event_group());
+                            MediaSource::set_error_detail(to_string(err));
                         }
                         for (auto &_rp : pending_stream_detail_requests_) {
                             _rp.deliver(false);
                         }
                         pending_stream_detail_requests_.clear();
-                        base_.set_media_status(MS_UNREADABLE);
+                        MediaSource::set_media_status(MS_UNREADABLE);
                     });
 
         } catch (const std::exception &err) {
-            base_.set_error_detail(err.what());
+            MediaSource::set_error_detail(err.what());
             for (auto &_rp : pending_stream_detail_requests_) {
                 _rp.deliver(false);
             }
@@ -325,7 +327,7 @@ void MediaSourceActor::acquire_detail(
                         auto p =
                             partialSeqNameMap.find(partial_seq_behaviour.get<std::string>());
                         if (p != partialSeqNameMap.end()) {
-                            base_.set_partial_seq_behaviour(p->second);
+                            MediaSource::set_partial_seq_behaviour(p->second);
                         }
                     }
                     main_method();
@@ -343,9 +345,9 @@ void MediaSourceActor::acquire_detail(
 void MediaSourceActor::update_media_status() {
     auto scanner = system().registry().template get<caf::actor>(scanner_registry);
     if (scanner) {
-        anon_mail(media_status_atom_v, base_.media_reference(), this).send(scanner);
-        if (std::get<2>(base_.checksum()) == 0)
-            anon_mail(checksum_atom_v, this, base_.media_reference()).send(scanner);
+        anon_mail(media_status_atom_v, MediaSource::media_reference(), this).send(scanner);
+        if (std::get<2>(MediaSource::checksum()) == 0)
+            anon_mail(checksum_atom_v, this, MediaSource::media_reference()).send(scanner);
     }
 }
 
@@ -360,12 +362,12 @@ caf::message_handler MediaSourceActor::message_handler() {
             const std::string &path,
             const JsonStore &full) {
             if (current_sender() == json_store_)
-                mail(json_store::update_atom_v, change, path, full).send(base_.event_group());
+                mail(json_store::update_atom_v, change, path, full).send(MediaSource::event_group());
         },
 
         [=](json_store::update_atom, const JsonStore &full) mutable {
             if (current_sender() == json_store_)
-                mail(json_store::update_atom_v, full).send(base_.event_group());
+                mail(json_store::update_atom_v, full).send(MediaSource::event_group());
         },
 
         [=](acquire_media_detail_atom, const bool reload) -> result<bool> {
@@ -375,7 +377,7 @@ caf::message_handler MediaSourceActor::message_handler() {
             // update state..
             update_media_status();
 
-            acquire_detail(base_.media_reference().rate(), rp);
+            acquire_detail(MediaSource::media_reference().rate(), rp);
 
             return rp;
         },
@@ -383,10 +385,10 @@ caf::message_handler MediaSourceActor::message_handler() {
         [=](acquire_media_detail_atom) -> result<bool> {
             auto rp = make_response_promise<bool>();
 
-            acquire_detail(base_.media_reference().rate(), rp);
+            acquire_detail(MediaSource::media_reference().rate(), rp);
             // why ?
             // mail(utility::event_atom_v, utility::name_atom_v,
-            // base_.name()).send(base_.event_group());
+            // MediaSource::name()).send(MediaSource::event_group());
             return rp;
         },
 
@@ -395,18 +397,18 @@ caf::message_handler MediaSourceActor::message_handler() {
             acquire_detail(rate, rp);
             // why ?
             // mail(utility::event_atom_v, utility::name_atom_v,
-            // base_.name()).send(base_.event_group());
+            // MediaSource::name()).send(MediaSource::event_group());
             return rp;
         },
 
-        [=](media_status_atom) -> MediaStatus { return base_.media_status(); },
+        [=](media_status_atom) -> MediaStatus { return MediaSource::media_status(); },
 
         [=](media_status_atom, const MediaStatus status) -> bool {
-            if (base_.media_status() != status) {
-                base_.set_media_status(status);
-                base_.send_changed();
+            if (MediaSource::media_status() != status) {
+                MediaSource::set_media_status(status);
+                MediaSource::send_changed();
                 mail(utility::event_atom_v, media_status_atom_v, status)
-                    .send(base_.event_group());
+                    .send(MediaSource::event_group());
             }
             return true;
         },
@@ -437,10 +439,11 @@ caf::message_handler MediaSourceActor::message_handler() {
                         join_event_group(this, media_stream.actor());
                         link_to(media_stream.actor());
                         media_streams_[media_stream.uuid()] = media_stream.actor();
-                        base_.add_media_stream(mt, media_stream.uuid());
-                        base_.send_changed();
+                        MediaSource::add_media_stream(mt, media_stream.uuid());
+                        ObjectActor::add_child(media_stream);
+                        MediaSource::send_changed();
                         mail(utility::event_atom_v, add_media_stream_atom_v, media_stream)
-                            .send(base_.event_group());
+                            .send(MediaSource::event_group());
                         rp.deliver(media_stream);
                     },
                     [=](const error &err) mutable { rp.deliver(err); });
@@ -452,8 +455,8 @@ caf::message_handler MediaSourceActor::message_handler() {
         },
 
         [=](colour_pipeline::set_colour_pipe_params_atom, const utility::JsonStore &params) {
-            base_.send_changed();
-            mail(utility::event_atom_v, change_atom_v).send(base_.event_group());
+            MediaSource::send_changed();
+            mail(utility::event_atom_v, change_atom_v).send(MediaSource::event_group());
             return mail(json_store::set_json_atom_v, params, "/colour_pipeline")
                 .delegate(json_store_);
         },
@@ -466,10 +469,10 @@ caf::message_handler MediaSourceActor::message_handler() {
                 .request(caf::actor_cast<caf::actor>(this), infinite)
                 .then(
                     [=](bool) mutable {
-                        if (media_streams_.count(base_.current(media_type)))
+                        if (media_streams_.count(MediaSource::current(media_type)))
                             rp.deliver(UuidActor(
-                                base_.current(media_type),
-                                media_streams_.at(base_.current(media_type))));
+                                MediaSource::current(media_type),
+                                media_streams_.at(MediaSource::current(media_type))));
                         if (!silent)
                             rp.deliver(make_error(xstudio_error::error, "No streams"));
                         else
@@ -485,10 +488,10 @@ caf::message_handler MediaSourceActor::message_handler() {
         },
 
         [=](current_media_stream_atom, const MediaType media_type, const Uuid &uuid) -> bool {
-            auto result = base_.set_current(media_type, uuid);
+            auto result = MediaSource::set_current(media_type, uuid);
             if (result) {
-                base_.send_changed();
-                mail(utility::event_atom_v, change_atom_v).send(base_.event_group());
+                MediaSource::send_changed();
+                mail(utility::event_atom_v, change_atom_v).send(MediaSource::event_group());
             }
             return result;
         },
@@ -501,7 +504,7 @@ caf::message_handler MediaSourceActor::message_handler() {
                 .request(caf::actor_cast<caf::actor>(this), infinite)
                 .then(
                     [=](bool) mutable {
-                        if (base_.empty()) {
+                        if (MediaSource::empty()) {
                             rp.deliver(std::vector<ContainerDetail>());
                             return;
                         }
@@ -515,8 +518,8 @@ caf::message_handler MediaSourceActor::message_handler() {
                                     for (size_t i = 0; i < details.size(); i++)
                                         lookup[details[i].uuid_] = i;
 
-                                    // order results based on base_.media_sources()
-                                    for (const auto &i : base_.streams(media_type)) {
+                                    // order results based on MediaSource::media_sources()
+                                    for (const auto &i : MediaSource::streams(media_type)) {
                                         if (lookup.count(i))
                                             result.push_back(details[lookup[i]]);
                                     }
@@ -539,10 +542,10 @@ caf::message_handler MediaSourceActor::message_handler() {
                     request_receive<StreamDetail>(*sys, strm.second, get_stream_detail_atom_v);
                 if (stream_detail.name_ == stream_id &&
                     stream_detail.media_type_ == media_type) {
-                    auto result = base_.set_current(media_type, strm.first);
+                    auto result = MediaSource::set_current(media_type, strm.first);
                     if (result) {
-                        base_.send_changed();
-                        mail(utility::event_atom_v, change_atom_v).send(base_.event_group());
+                        MediaSource::send_changed();
+                        mail(utility::event_atom_v, change_atom_v).send(MediaSource::event_group());
                     }
                     return result;
                 }
@@ -551,35 +554,35 @@ caf::message_handler MediaSourceActor::message_handler() {
         },
 
         [=](media::rotation_atom, const float r) -> result<bool> {
-            if (not media_streams_.count(base_.current(MT_IMAGE))) {
+            if (not media_streams_.count(MediaSource::current(MT_IMAGE))) {
                 return make_error(xstudio_error::error, "No MediaStream");
             }
 
             auto rp = make_response_promise<bool>();
-            rp.delegate(media_streams_[base_.current(MT_IMAGE)], media::rotation_atom_v, r);
+            rp.delegate(media_streams_[MediaSource::current(MT_IMAGE)], media::rotation_atom_v, r);
             return rp;
         },
 
         [=](media::rotation_atom) -> result<float> {
-            if (not media_streams_.count(base_.current(MT_IMAGE))) {
+            if (not media_streams_.count(MediaSource::current(MT_IMAGE))) {
                 return 0.0f;
             }
 
             auto rp = make_response_promise<float>();
-            rp.delegate(media_streams_[base_.current(MT_IMAGE)], media::rotation_atom_v);
+            rp.delegate(media_streams_[MediaSource::current(MT_IMAGE)], media::rotation_atom_v);
             return rp;
         },
 
         [=](transform_matrix_atom, const Imath::M44f &tform) -> bool {
-            if (tform != base_.transform()) {
-                base_.set_transform(tform);
-                base_.send_changed();
-                mail(utility::event_atom_v, utility::change_atom_v).send(base_.event_group());
+            if (tform != MediaSource::transform()) {
+                MediaSource::set_transform(tform);
+                MediaSource::send_changed();
+                mail(utility::event_atom_v, utility::change_atom_v).send(MediaSource::event_group());
             }
             return true;
         },
 
-        [=](transform_matrix_atom) -> Imath::M44f { return base_.transform(); },
+        [=](transform_matrix_atom) -> Imath::M44f { return MediaSource::transform(); },
 
         [=](get_media_pointer_atom atom,
             const MediaType media_type,
@@ -589,11 +592,11 @@ caf::message_handler MediaSourceActor::message_handler() {
                 .request(caf::actor_cast<caf::actor>(this), infinite)
                 .then(
                     [=](bool) mutable {
-                        if (base_.current(media_type).is_null()) {
+                        if (MediaSource::current(media_type).is_null()) {
                             rp.deliver(make_error(xstudio_error::error, "No streams"));
                         }
                         // auto dur =
-                        // base_.media_reference(base_.current(media_type)).duration();
+                        // MediaSource::media_reference(MediaSource::current(media_type)).duration();
                         LogicalFrameRanges ranges;
                         ranges.emplace_back(logical_frame, logical_frame);
                         mail(get_media_pointers_atom_v, media_type, ranges)
@@ -623,9 +626,9 @@ caf::message_handler MediaSourceActor::message_handler() {
                 .then(
                     [=](bool) mutable {
                         const auto dur =
-                            base_.media_reference(base_.current(media_type)).duration();
+                            MediaSource::media_reference(MediaSource::current(media_type)).duration();
 
-                        if (base_.current(media_type).is_null()) {
+                        if (MediaSource::current(media_type).is_null()) {
 
                             // no stream, so we generate blank frame(s) and
                             // fill out the expected duration based on the media reference.
@@ -638,11 +641,11 @@ caf::message_handler MediaSourceActor::message_handler() {
                             media::AVFrameID blank = *(media::make_blank_frame(
                                 media_type,
                                 parent_uuid_,
-                                base_.uuid(),
+                                MediaSource::uuid(),
                                 utility::Uuid(),
                                 parent_,
                                 caf::actor_cast<caf::actor_addr>(this),
-                                base_.media_reference().rate()));
+                                MediaSource::media_reference().rate()));
                             blank.set_frame_status(media::FS_NOT_ON_DISK);
                             auto result = new media::FrameTimeMap;
                             timebase::flicks t(0);
@@ -700,8 +703,8 @@ caf::message_handler MediaSourceActor::message_handler() {
             float position) -> result<thumbnail::ThumbnailBufferPtr> {
             auto rp = make_response_promise<thumbnail::ThumbnailBufferPtr>();
 
-            int frame = (int)round(float(base_.media_reference().frame_count()) * position);
-            frame     = std::max(0, std::min(frame, base_.media_reference().frame_count() - 1));
+            int frame = (int)round(float(MediaSource::media_reference().frame_count()) * position);
+            frame     = std::max(0, std::min(frame, MediaSource::media_reference().frame_count() - 1));
             mail(get_media_pointer_atom_v, media::MediaType::MT_IMAGE, frame)
                 .request(caf::actor_cast<caf::actor>(this), infinite)
                 .then(
@@ -712,7 +715,7 @@ caf::message_handler MediaSourceActor::message_handler() {
                                 [=](const thumbnail::ThumbnailBufferPtr &buf) mutable {
                                     // mail(utility::event_atom_v,
                                     // media_reader::get_thumbnail_atom_v,
-                                    // buf).send(base_.event_group());
+                                    // buf).send(MediaSource::event_group());
                                     rp.deliver(buf);
                                 },
                                 [=](error &err) mutable { rp.deliver(err); });
@@ -734,8 +737,8 @@ caf::message_handler MediaSourceActor::message_handler() {
                 .request(caf::actor_cast<caf::actor>(this), infinite)
                 .then(
                     [=](const StreamDetail &detail) mutable {
-                        if (base_.media_reference().rate() != detail.duration_.rate()) {
-                            auto mr = base_.media_reference();
+                        if (MediaSource::media_reference().rate() != detail.duration_.rate()) {
+                            auto mr = MediaSource::media_reference();
                             mr.set_rate(detail.duration_.rate());
                             rp.delegate(
                                 caf::actor_cast<caf::actor>(this), media_reference_atom_v, mr);
@@ -747,7 +750,7 @@ caf::message_handler MediaSourceActor::message_handler() {
             return rp;
         },
 
-        [=](media_reference_atom) -> MediaReference { return base_.media_reference(); },
+        [=](media_reference_atom) -> MediaReference { return MediaSource::media_reference(); },
 
         [=](media_reference_atom, MediaReference mr) {
             return mail(media_reference_atom_v, mr, false)
@@ -762,26 +765,26 @@ caf::message_handler MediaSourceActor::message_handler() {
             // MediaReference(URI("file:///user_data/ted/DRG/O_006_tcf_6140_comp_v045_422.mov"),
             // True, FrameRate())
 
-            if (mr != base_.media_reference() || force_change_signal) {
+            if (mr != MediaSource::media_reference() || force_change_signal) {
 
-                if (mr.uri() != base_.media_reference().uri() ||
+                if (mr.uri() != MediaSource::media_reference().uri() ||
                     mr.duration().duration() == timebase::k_flicks_zero_seconds) {
 
-                    base_.set_media_status(MS_UNKNOWN);
+                    MediaSource::set_media_status(MS_UNKNOWN);
 
                     // URI is changing! Need a full rebuild
                     if (!mr.rate().count())
-                        mr.set_rate(base_.media_reference().rate());
+                        mr.set_rate(MediaSource::media_reference().rate());
 
                     // delete streams
                     for (const auto &i : media_streams_) {
                         unlink_from(i.second);
                         send_exit(i.second, caf::exit_reason::user_shutdown);
                     }
-                    base_.clear();
+                    MediaSource::clear();
                     media_streams_.clear();
 
-                    base_.set_media_reference(mr);
+                    MediaSource::set_media_reference(mr);
                     uri_status_cache_.clear();
 
                     // rebuild our streams etc.
@@ -798,12 +801,12 @@ caf::message_handler MediaSourceActor::message_handler() {
 
                 } else {
 
-                    base_.set_media_reference(mr);
+                    MediaSource::set_media_reference(mr);
                     uri_status_cache_.clear();
                     // update state..
                     update_media_status();
-                    base_.send_changed();
-                    mail(utility::event_atom_v, change_atom_v).send(base_.event_group());
+                    MediaSource::send_changed();
+                    mail(utility::event_atom_v, change_atom_v).send(MediaSource::event_group());
                     rp.deliver(true);
                 }
 
@@ -815,15 +818,15 @@ caf::message_handler MediaSourceActor::message_handler() {
 
         [=](media_reference_atom, const Uuid &uuid) -> std::pair<Uuid, MediaReference> {
             if (uuid.is_null())
-                return std::pair<Uuid, MediaReference>(base_.uuid(), base_.media_reference());
-            return std::pair<Uuid, MediaReference>(uuid, base_.media_reference());
+                return std::pair<Uuid, MediaReference>(MediaSource::uuid(), MediaSource::media_reference());
+            return std::pair<Uuid, MediaReference>(uuid, MediaSource::media_reference());
         },
 
         [=](get_media_stream_atom,
             const MediaType media_type,
             bool current) -> result<caf::actor> {
-            if (media_streams_.count(base_.current(media_type))) {
-                return media_streams_[base_.current(media_type)];
+            if (media_streams_.count(MediaSource::current(media_type))) {
+                return media_streams_[MediaSource::current(media_type)];
             }
             return make_error(xstudio_error::error, "No MediaStreams");
         },
@@ -831,7 +834,7 @@ caf::message_handler MediaSourceActor::message_handler() {
         [=](get_media_stream_atom, const MediaType media_type) -> std::vector<UuidActor> {
             std::vector<UuidActor> sm;
 
-            for (const auto &i : base_.streams(media_type))
+            for (const auto &i : MediaSource::streams(media_type))
                 sm.emplace_back(UuidActor(i, media_streams_.at(i)));
 
             return sm;
@@ -868,15 +871,15 @@ caf::message_handler MediaSourceActor::message_handler() {
         },
 
         [=](get_media_type_atom, const MediaType media_type) -> bool {
-            return base_.has_type(media_type);
+            return MediaSource::has_type(media_type);
         },
 
         [=](get_stream_detail_atom, const MediaType media_type) -> result<StreamDetail> {
-            if (media_streams_.count(base_.current(media_type))) {
+            if (media_streams_.count(MediaSource::current(media_type))) {
                 auto rp = make_response_promise<StreamDetail>();
 
                 mail(get_stream_detail_atom_v)
-                    .request(media_streams_.at(base_.current(media_type)), infinite)
+                    .request(media_streams_.at(MediaSource::current(media_type)), infinite)
                     .then(
                         [=](const StreamDetail &sd) mutable { rp.deliver(sd); },
                         [=](error &err) mutable { rp.deliver(std::move(err)); });
@@ -885,7 +888,7 @@ caf::message_handler MediaSourceActor::message_handler() {
             }
 
             // mark as bad source..
-            // if (base_.media_status() == MS_ONLINE) {
+            // if (MediaSource::media_status() == MS_ONLINE) {
             //     anon_mail(media_status_atom_v, MS_MISSING).send(this);
             // }
 
@@ -935,10 +938,10 @@ caf::message_handler MediaSourceActor::message_handler() {
             std::vector<caf::actor> children_to_try({json_store_});
 
             if (try_children) {
-                if (media_streams_.count(base_.current(MT_IMAGE)))
-                    children_to_try.push_back(media_streams_.at(base_.current(MT_IMAGE)));
-                if (media_streams_.count(base_.current(MT_AUDIO)))
-                    children_to_try.push_back(media_streams_.at(base_.current(MT_AUDIO)));
+                if (media_streams_.count(MediaSource::current(MT_IMAGE)))
+                    children_to_try.push_back(media_streams_.at(MediaSource::current(MT_IMAGE)));
+                if (media_streams_.count(MediaSource::current(MT_AUDIO)))
+                    children_to_try.push_back(media_streams_.at(MediaSource::current(MT_AUDIO)));
             }
 
             rp.delegate(caf::actor_cast<caf::actor>(this), _get_atom, path, children_to_try);
@@ -967,7 +970,7 @@ caf::message_handler MediaSourceActor::message_handler() {
             const std::vector<std::string> &paths) -> caf::result<JsonStore> {
             // multi json store value request
             auto rp = make_response_promise<JsonStore>();
-            if (media_metadata_ref_checksum_ != base_.checksum()) {
+            if (media_metadata_ref_checksum_ != MediaSource::checksum()) {
                 mail(media_metadata::get_metadata_atom_v)
                     .request(caf::actor_cast<actor>(this), infinite)
                     .then(
@@ -981,22 +984,22 @@ caf::message_handler MediaSourceActor::message_handler() {
 
         [=](json_store::set_json_atom atom, const JsonStore &json) {
             // metadata changed - need to broadcast an update
-            base_.send_changed();
-            mail(utility::event_atom_v, change_atom_v).send(base_.event_group());
+            MediaSource::send_changed();
+            mail(utility::event_atom_v, change_atom_v).send(MediaSource::event_group());
             return mail(atom, json).delegate(json_store_);
         },
 
         [=](json_store::merge_json_atom atom, const JsonStore &json) {
             // metadata changed - need to broadcast an update
-            base_.send_changed();
-            mail(utility::event_atom_v, change_atom_v).send(base_.event_group());
+            MediaSource::send_changed();
+            mail(utility::event_atom_v, change_atom_v).send(MediaSource::event_group());
             return mail(atom, json).delegate(json_store_);
         },
 
         [=](json_store::set_json_atom atom, const JsonStore &json, const std::string &path) {
             // metadata changed - need to broadcast an update
-            base_.send_changed();
-            mail(utility::event_atom_v, change_atom_v).send(base_.event_group());
+            MediaSource::send_changed();
+            mail(utility::event_atom_v, change_atom_v).send(MediaSource::event_group());
             return mail(atom, json, path).delegate(json_store_);
         },
 
@@ -1055,7 +1058,7 @@ caf::message_handler MediaSourceActor::message_handler() {
         [=](media_metadata::get_metadata_atom) -> caf::result<bool> {
             auto rp = make_response_promise<bool>();
 
-            if (media_metadata_ref_checksum_ == base_.checksum()) {
+            if (media_metadata_ref_checksum_ == MediaSource::checksum()) {
                 rp.deliver(true);
                 return rp;
             }
@@ -1069,7 +1072,7 @@ caf::message_handler MediaSourceActor::message_handler() {
 
             try {
 
-                if (not base_.media_reference().container()) {
+                if (not MediaSource::media_reference().container()) {
 
                     // We may have 100s or 1000s of frames in this source ... we can't read
                     // metadata from all of them it's too expensive so we pick a frame
@@ -1079,7 +1082,7 @@ caf::message_handler MediaSourceActor::message_handler() {
                     // disk for display but this makes its way into xSTUDIO by a different
                     // route (via the playheads and viewport) rather than through the
                     // MediaSourceActor
-                    auto test_frame_uri = base_.media_reference().pick_representative_frame();
+                    auto test_frame_uri = MediaSource::media_reference().pick_representative_frame();
 
                     // #pragma message "Currently only reading metadata on first frame for image
                     // sequences"
@@ -1100,14 +1103,14 @@ caf::message_handler MediaSourceActor::message_handler() {
                                         .request(json_store_, infinite)
                                         .then(
                                             [=](const bool &done) mutable {
-                                                media_metadata_ref_checksum_ = base_.checksum();
+                                                media_metadata_ref_checksum_ = MediaSource::checksum();
                                                 rp.deliver(done);
                                                 // notify any watchers that metadata is updated
                                                 mail(
                                                     utility::event_atom_v,
                                                     get_metadata_atom_v,
                                                     meta.first)
-                                                    .send(base_.event_group());
+                                                    .send(MediaSource::event_group());
                                             },
                                             [=](error &err) mutable {
                                                 rp.deliver(std::move(err));
@@ -1118,7 +1121,7 @@ caf::message_handler MediaSourceActor::message_handler() {
                         rp.deliver(make_error(
                             xstudio_error::error,
                             std::string("Sequence with no frames ") +
-                                to_string(base_.media_reference().uri())));
+                                to_string(MediaSource::media_reference().uri())));
                     }
 
                     /*for(size_t i=0;i<frames.size();i++) {
@@ -1133,7 +1136,7 @@ caf::message_handler MediaSourceActor::message_handler() {
                                                                     rp.deliver(done);
                                                                     // notify any watchers that
                     metadata is updated mail(utility::event_atom_v,
-                    get_metadata_atom_v, meta.first).send(base_.event_group());
+                    get_metadata_atom_v, meta.first).send(MediaSource::event_group());
                                                             }
                                                     },
                                             [=](error& err) mutable {
@@ -1149,7 +1152,7 @@ caf::message_handler MediaSourceActor::message_handler() {
                     }*/
 
                 } else {
-                    mail(get_metadata_atom_v, base_.media_reference().uri())
+                    mail(get_metadata_atom_v, MediaSource::media_reference().uri())
                         .request(m_actor, infinite)
                         .then(
                             [=](const std::pair<JsonStore, int> &meta) mutable {
@@ -1163,14 +1166,14 @@ caf::message_handler MediaSourceActor::message_handler() {
                                     .request(json_store_, infinite)
                                     .then(
                                         [=](const bool &done) mutable {
-                                            media_metadata_ref_checksum_ = base_.checksum();
+                                            media_metadata_ref_checksum_ = MediaSource::checksum();
                                             rp.deliver(done);
                                             // notify any watchers that metadata is updated
                                             mail(
                                                 utility::event_atom_v,
                                                 get_metadata_atom_v,
                                                 meta.first)
-                                                .send(base_.event_group());
+                                                .send(MediaSource::event_group());
                                         },
                                         [=](error &err) mutable {
                                             rp.deliver(std::move(err));
@@ -1188,10 +1191,10 @@ caf::message_handler MediaSourceActor::message_handler() {
         },
 
         [=](media_metadata::get_metadata_atom, const int sequence_frame) -> caf::result<bool> {
-            if (base_.media_reference().container())
+            if (MediaSource::media_reference().container())
                 return make_error(xstudio_error::error, "Media has no frames");
 
-            auto _uri = base_.media_reference().uri_from_frame(sequence_frame);
+            auto _uri = MediaSource::media_reference().uri_from_frame(sequence_frame);
             if (not _uri)
                 return make_error(xstudio_error::error, "Invalid frame index");
 
@@ -1231,26 +1234,26 @@ caf::message_handler MediaSourceActor::message_handler() {
             float rotation_degrees) {
             // comes from stream actor
             mail(utility::event_atom_v, change_atom_v, media::rotation_atom_v, rotation_degrees)
-                .send(base_.event_group());
+                .send(MediaSource::event_group());
         },
 
         [=](utility::get_group_atom _get_group_atom) {
             return mail(_get_group_atom).delegate(json_store_);
         },
 
-        [=](media::checksum_atom) -> MediaSourceChecksum { return base_.checksum(); },
+        [=](media::checksum_atom) -> MediaSourceChecksum { return MediaSource::checksum(); },
 
         [=](media::checksum_atom, const std::pair<std::string, uintmax_t> &checksum) {
             // force thumbnail update on change. Might cause double update..
-            auto old_size = std::get<2>(base_.checksum());
-            if (base_.set_checksum(checksum) and old_size) {
+            auto old_size = std::get<2>(MediaSource::checksum());
+            if (MediaSource::set_checksum(checksum) and old_size) {
 
                 // trigger re-fetch of media metadata. The (checksum is used to test if
                 // we really need to re-scan for metadata).
                 anon_mail(get_metadata_atom_v).send(caf::actor_cast<caf::actor>(this));
 
-                mail(utility::event_atom_v, media_status_atom_v, base_.media_status())
-                    .send(base_.event_group());
+                mail(utility::event_atom_v, media_status_atom_v, MediaSource::media_status())
+                    .send(MediaSource::event_group());
 
                 // trigger re-eval of reader..
                 mail(get_media_pointer_atom_v, MT_IMAGE, static_cast<int>(0))
@@ -1267,14 +1270,14 @@ caf::message_handler MediaSourceActor::message_handler() {
         },
 
         [=](media::pixel_aspect_atom, const double new_aspect) {
-            if (media_streams_.count(base_.current(MT_IMAGE)))
+            if (media_streams_.count(MediaSource::current(MT_IMAGE)))
                 anon_mail(media::pixel_aspect_atom_v, new_aspect)
-                    .send(media_streams_.at(base_.current(MT_IMAGE)));
+                    .send(media_streams_.at(MediaSource::current(MT_IMAGE)));
         },
 
         [=](media::rescan_atom atom) -> result<MediaReference> {
             auto rp = make_response_promise<MediaReference>();
-            if (!base_.media_reference().container()) {
+            if (!MediaSource::media_reference().container()) {
                 // before we do the rescan, we need to update the partial_sequence_behaviour
                 // in case it has changed since the last scan of the frames
                 auto prefs_actor =
@@ -1288,8 +1291,8 @@ caf::message_handler MediaSourceActor::message_handler() {
                                     auto p = partialSeqNameMap.find(
                                         partial_seq_behaviour.get<std::string>());
                                     if (p != partialSeqNameMap.end()) {
-                                        if (p->second != base_.partial_seq_behaviour()) {
-                                            base_.set_partial_seq_behaviour(p->second);
+                                        if (p->second != MediaSource::partial_seq_behaviour()) {
+                                            MediaSource::set_partial_seq_behaviour(p->second);
                                             rp.delegate(
                                                 caf::actor_cast<caf::actor>(this), atom, true);
                                         }
@@ -1319,11 +1322,11 @@ caf::message_handler MediaSourceActor::message_handler() {
 
             auto scanner = system().registry().template get<caf::actor>(scanner_registry);
             if (scanner) {
-                mail(atom, base_.media_reference())
+                mail(atom, MediaSource::media_reference())
                     .request(scanner, infinite)
                     .then(
                         [=](MediaReference mr) mutable {
-                            if (!mr.container() && base_.partial_seq_behaviour() !=
+                            if (!mr.container() && MediaSource::partial_seq_behaviour() !=
                                                        PS_COLLAPSE_TO_ON_DISK_FRAMES) {
 
                                 // at this point, media_reference will contain a list of
@@ -1350,17 +1353,17 @@ caf::message_handler MediaSourceActor::message_handler() {
                                                 scanner_registry);
                                         if (scanner)
                                             anon_mail(
-                                                checksum_atom_v, this, base_.media_reference())
+                                                checksum_atom_v, this, MediaSource::media_reference())
                                                 .send(scanner);
 
                                         anon_mail(invalidate_cache_atom_v).send(this);
-                                        rp.deliver(base_.media_reference());
+                                        rp.deliver(MediaSource::media_reference());
                                     },
                                     [=](const error &err) mutable { rp.deliver(err); });
                         },
                         [=](const error &err) mutable { rp.deliver(err); });
             } else {
-                rp.deliver(base_.media_reference());
+                rp.deliver(MediaSource::media_reference());
             }
 
             return rp;
@@ -1371,7 +1374,7 @@ caf::message_handler MediaSourceActor::message_handler() {
         [=](utility::parent_atom, const UuidActor &parent) {
             parent_uuid_ = parent.uuid();
             parent_      = actor_cast<actor_addr>(parent.actor());
-            base_.send_changed();
+            MediaSource::send_changed();
         },
 
         // deprecated
@@ -1382,7 +1385,7 @@ caf::message_handler MediaSourceActor::message_handler() {
                     [=](const utility::Uuid &parent_uuid) { parent_uuid_ = parent_uuid; },
                     ERR_HANDLER_FUNC);
             parent_ = actor_cast<actor_addr>(parent);
-            base_.send_changed();
+            MediaSource::send_changed();
         },
 
         [=](utility::serialise_atom) -> result<JsonStore> {
@@ -1403,7 +1406,7 @@ caf::message_handler MediaSourceActor::message_handler() {
                                 .then(
                                     [=](std::vector<JsonStore> json) mutable {
                                         JsonStore jsn;
-                                        jsn["base"]   = base_.serialise();
+                                        jsn["base"]   = MediaSource::serialise();
                                         jsn["store"]  = meta;
                                         jsn["actors"] = {};
                                         for (const auto &j : json)
@@ -1416,7 +1419,7 @@ caf::message_handler MediaSourceActor::message_handler() {
                         } else {
                             JsonStore jsn;
                             jsn["store"]  = meta;
-                            jsn["base"]   = base_.serialise();
+                            jsn["base"]   = MediaSource::serialise();
                             jsn["actors"] = {};
                             rp.deliver(jsn);
                         }
@@ -1428,8 +1431,8 @@ caf::message_handler MediaSourceActor::message_handler() {
 
 
 void MediaSourceActor::init() {
-    print_on_create(this, base_);
-    print_on_exit(this, base_);
+    print_on_create(this, *this);
+    print_on_exit(this, *this);
 
     update_media_status();
 
@@ -1464,23 +1467,23 @@ void MediaSourceActor::get_media_pointers_for_frames(
             .then(
                 [=](const JsonStore &colour_mgmt_data) mutable {
                     // fetch media detail
-                    if (!media_streams_.contains(base_.current(media_type))) {
+                    if (!media_streams_.contains(MediaSource::current(media_type))) {
                         rp.deliver(make_error(xstudio_error::error, "No streams"));
                         return;
                     }
 
                     mail(get_stream_detail_atom_v)
-                        .request(media_streams_.at(base_.current(media_type)), infinite)
+                        .request(media_streams_.at(MediaSource::current(media_type)), infinite)
                         .then(
                             [=](const StreamDetail &detail) mutable {
                                 // get the transform matrix for the stream
-                                if (!media_streams_.contains(base_.current(media_type))) {
+                                if (!media_streams_.contains(MediaSource::current(media_type))) {
                                     rp.deliver(make_error(xstudio_error::error, "No streams"));
                                     return;
                                 }
                                 mail(transform_matrix_atom_v)
                                     .request(
-                                        media_streams_.at(base_.current(media_type)), infinite)
+                                        media_streams_.at(MediaSource::current(media_type)), infinite)
                                     .then(
                                         [=](const Imath::M44f &stream_tform) mutable {
                                             get_media_pointers_for_frames(
@@ -1548,13 +1551,13 @@ void MediaSourceActor::get_media_pointers_for_frames(
     media::AVFrameID blank = *(media::make_blank_frame(
         media_type,
         parent_uuid_,
-        base_.uuid(),
+        MediaSource::uuid(),
         clip_uuid,
         parent_,
         caf::actor_cast<caf::actor_addr>(this)));
     blank.set_frame_status(media::FS_NOT_ON_DISK);
 
-    if (base_.current(media_type).is_null()) {
+    if (MediaSource::current(media_type).is_null()) {
 
         // in the case where there is no source, return list of empty frames.
         // This is useful for sources that have no audio or no video, to keep
@@ -1574,7 +1577,7 @@ void MediaSourceActor::get_media_pointers_for_frames(
 
     media::AVFrameIDs result;
     media::AVFrameID base_frame_id;
-    auto timecode = base_.media_reference(base_.current(media_type)).timecode();
+    auto timecode = MediaSource::media_reference(MediaSource::current(media_type)).timecode();
 
     int prev_range_last = 0;
 
@@ -1582,7 +1585,7 @@ void MediaSourceActor::get_media_pointers_for_frames(
     // status to all frames. For frame sequence media (jpg, exr etc) we check
     // if each frame is on disk in 'uri_for_logical_frame'
     FrameStatus init_frame_status = FS_ON_DISK;
-    const auto &media_ref         = base_.media_reference(base_.current(media_type));
+    const auto &media_ref         = MediaSource::media_reference(MediaSource::current(media_type));
     if (media_ref.container()) {
         const auto path = fs::path(utility::uri_to_posix_path(media_ref.uri()));
         if (to_string(media_ref.uri()).find("file") == 0) {
@@ -1630,23 +1633,23 @@ void MediaSourceActor::get_media_pointers_for_frames(
                     base_frame_id = media::AVFrameID(
                         _uri,
                         frame,
-                        *(base_.media_reference(base_.current(media_type)).frame(0)),
+                        *(MediaSource::media_reference(MediaSource::current(media_type)).frame(0)),
                         frame_status,
                         mod_time.time_since_epoch().count(),
                         media_detail.pixel_aspect_,
-                        base_.media_reference(base_.current(media_type)).rate(),
+                        MediaSource::media_reference(MediaSource::current(media_type)).rate(),
                         media_detail.name_,
                         media_detail.key_format_,
-                        base_.reader(),
+                        MediaSource::reader(),
                         parent_,
                         caf::actor_cast<caf::actor_addr>(this),
                         colour_mgmt_data,
-                        base_.uuid(),
+                        MediaSource::uuid(),
                         parent_uuid_,
                         clip_uuid,
                         media_type,
                         timecode,
-                        stream_tform * base_.transform() * parent_tform,
+                        stream_tform * MediaSource::transform() * parent_tform,
                         media_ref.container());
                 }
 
@@ -1693,14 +1696,14 @@ caf::uri MediaSourceActor::uri_for_logical_frame(
     FrameStatus &frame_status,
     std::filesystem::file_time_type &mod_time) {
 
-    const auto &media_ref = base_.media_reference(base_.current(media_type));
+    const auto &media_ref = MediaSource::media_reference(MediaSource::current(media_type));
 
     auto _uri = media_ref.uri(logical_frame, frame);
     if (not _uri)
         throw std::runtime_error("Time out of range");
     keyframe = frame;
 
-    if (!media_ref.container() && base_.partial_seq_behaviour() == PS_DONT_HOLD_FRAME) {
+    if (!media_ref.container() && MediaSource::partial_seq_behaviour() == PS_DONT_HOLD_FRAME) {
 
         auto p = uri_status_cache_.find(logical_frame);
         if (p != uri_status_cache_.end()) {
@@ -1723,7 +1726,7 @@ caf::uri MediaSourceActor::uri_for_logical_frame(
         mod_time = uri_status_cache_[logical_frame].mod_timestamp_;
         return *_uri;
 
-    } else if (!media_ref.container() && base_.partial_seq_behaviour() == PS_HOLD_FRAME) {
+    } else if (!media_ref.container() && MediaSource::partial_seq_behaviour() == PS_HOLD_FRAME) {
 
         // To enable 'held frame' behaviour, we need to know if the requested
         // frame is on-disk, and if not, whether there is another frame in
@@ -1851,13 +1854,13 @@ void MediaSourceActor::update_stream_media_reference(
     const utility::FrameRate &rate,
     const utility::Timecode &timecode) {
 
-    MediaReference media_reference = base_.media_reference(stream_uuid);
+    MediaReference media_reference = MediaSource::media_reference(stream_uuid);
 
     if (not media_reference.timecode().total_frames())
         media_reference.set_timecode(timecode);
 
     if (!media_reference.container() &&
-        base_.partial_seq_behaviour() != PS_COLLAPSE_TO_ON_DISK_FRAMES) {
+        MediaSource::partial_seq_behaviour() != PS_COLLAPSE_TO_ON_DISK_FRAMES) {
 
         // at this point, media_reference will contain a list of numbered frames that
         // are on disk only. If we don't have PS_COLLAPSE_TO_ON_DISK_FRAMES behaviour,
@@ -1916,7 +1919,7 @@ void MediaSourceActor::update_stream_media_reference(
         // number to set the timecode.
         media_reference.set_timecode_from_frames();
     }
-    base_.set_media_reference(media_reference);
+    MediaSource::set_media_reference(media_reference);
     uri_status_cache_.clear();
 }
 
@@ -1957,7 +1960,7 @@ void MediaSourceActor::send_stream_metadata_to_stream_actors(const utility::Json
 void MediaSourceActor::duplicate(caf::typed_response_promise<utility::UuidUuidActor> rp) {
     auto uuid = utility::Uuid::generate();
     auto actor =
-        spawn<MediaSourceActor>(base_.name(), base_.reader(), base_.media_reference(), uuid);
+        spawn<MediaSourceActor>(MediaSource::name(), MediaSource::reader(), MediaSource::media_reference(), uuid);
 
     // using a lambda to try and make this more, err, 'readable'
     auto copy_metadata = [=](UuidActor destination,
@@ -1970,7 +1973,7 @@ void MediaSourceActor::duplicate(caf::typed_response_promise<utility::UuidUuidAc
                         .request(destination.actor(), infinite)
                         .then(
                             [=](bool) mutable {
-                                rp.deliver(UuidUuidActor(base_.uuid(), destination));
+                                rp.deliver(UuidUuidActor(MediaSource::uuid(), destination));
                             },
                             [=](const error &err) mutable { rp.deliver(err); });
                 },
@@ -1992,7 +1995,7 @@ void MediaSourceActor::duplicate(caf::typed_response_promise<utility::UuidUuidAc
                             .await(
                                 [=](UuidActor) mutable {
                                     // set the current stream as required
-                                    if (p.first == base_.current(MT_IMAGE)) {
+                                    if (p.first == MediaSource::current(MT_IMAGE)) {
 
                                         anon_mail(
                                             current_media_stream_atom_v,
@@ -2000,7 +2003,7 @@ void MediaSourceActor::duplicate(caf::typed_response_promise<utility::UuidUuidAc
                                             stream.uuid())
                                             .send(actor);
 
-                                    } else if (p.first == base_.current(MT_AUDIO)) {
+                                    } else if (p.first == MediaSource::current(MT_AUDIO)) {
 
                                         anon_mail(
                                             current_media_stream_atom_v,
@@ -2028,7 +2031,7 @@ void MediaSourceActor::build_media_streams(
     const MediaDetail &md,
     const utility::FrameRate &rate) {
 
-    base_.set_reader(md.reader_);
+    MediaSource::set_reader(md.reader_);
 
     bool media_ref_set = false;
 
@@ -2040,7 +2043,8 @@ void MediaSourceActor::build_media_streams(
         link_to(stream);
         join_event_group(this, stream);
         media_streams_[uuid] = stream;
-        base_.add_media_stream(stream_detail.media_type_, uuid);
+        MediaSource::add_media_stream(stream_detail.media_type_, uuid);
+        ObjectActor::add_child(utility::UuidActor(uuid, stream));
 
         if (!media_ref_set) {
             // Note - it looks like we have separate media references
@@ -2053,23 +2057,23 @@ void MediaSourceActor::build_media_streams(
         }
 
         mail(utility::event_atom_v, add_media_stream_atom_v, UuidActor(uuid, stream))
-            .send(base_.event_group());
+            .send(MediaSource::event_group());
 
         spdlog::debug(
             "Media {} fps, {} frames {} timecode.",
-            base_.media_reference().rate().to_fps(),
-            base_.media_reference().frame_count(),
-            to_string(base_.media_reference().timecode()));
+            MediaSource::media_reference().rate().to_fps(),
+            MediaSource::media_reference().frame_count(),
+            to_string(MediaSource::media_reference().timecode()));
     }
 
     if (md.streams_.empty()) {
-        if (base_.media_status() == MS_ONLINE) {
+        if (MediaSource::media_status() == MS_ONLINE) {
             anon_mail(media_status_atom_v, MS_MISSING).send(this);
         }
     }
 
-    if (media_metadata_ref_checksum_ == base_.checksum() &&
-        base_.media_reference().container()) {
+    if (media_metadata_ref_checksum_ == MediaSource::checksum() &&
+        MediaSource::media_reference().container()) {
 
         // Metadata for streams has already been retrieved. We
         // want to add the per-stream metadata to the NEW MediaStreamActors
@@ -2081,7 +2085,7 @@ void MediaSourceActor::build_media_streams(
                     send_stream_metadata_to_stream_actors(media_metadata);
                 },
                 [=](const caf::error &err) mutable {
-                    log_caf_error(err, spdlog::level::critical, to_string(base_.media_reference().uri()));
+                    log_caf_error(err, spdlog::level::critical, to_string(MediaSource::media_reference().uri()));
                 });
 
     } else {
@@ -2094,13 +2098,13 @@ void MediaSourceActor::build_media_streams(
                     anon_mail(media_hook::get_media_hook_atom_v).send(this);
                 },
                 [=](const caf::error &err) mutable {
-                    log_caf_error(err, spdlog::level::critical, to_string(base_.media_reference().uri()));
+                    log_caf_error(err, spdlog::level::critical, to_string(MediaSource::media_reference().uri()));
                     anon_mail(media_hook::get_media_hook_atom_v).send(this);
                 });
     }
 
-    base_.send_changed();
-    mail(utility::event_atom_v, change_atom_v).send(base_.event_group());
+    MediaSource::send_changed();
+    mail(utility::event_atom_v, change_atom_v).send(MediaSource::event_group());
 
     for (auto &_rp : pending_stream_detail_requests_) {
         _rp.deliver(true);

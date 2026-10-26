@@ -554,6 +554,7 @@ Item {
         childSearchPropertyValue: "PlaylistsRoot"
     }
     property alias playlistsModelData: playlistsModelData
+    property var inspectedContainerActor
 
     /* This selection model tells us which playlist(s), contact sheets, timelines etc
     are currently selected in the UI */

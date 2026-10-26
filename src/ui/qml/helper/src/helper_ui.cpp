@@ -45,6 +45,10 @@ std::string xstudio::ui::qml::actorToString(actor_system &sys, const caf::actor 
     return xstudio::utility::actor_to_string(sys, actor);
 }
 
+std::string xstudio::ui::qml::actorToString(actor_system &sys, const caf::actor_addr &actor_addr) {
+    return xstudio::utility::actor_to_string(sys, actor_addr);
+}
+
 caf::actor xstudio::ui::qml::actorFromString(actor_system &sys, const std::string &str_addr) {
     return xstudio::utility::actor_from_string(sys, str_addr);
 }
@@ -52,6 +56,10 @@ caf::actor xstudio::ui::qml::actorFromString(actor_system &sys, const std::strin
 
 QString xstudio::ui::qml::actorToQString(actor_system &sys, const caf::actor &actor) {
     return QStringFromStd(actorToString(sys, actor));
+}
+
+QString xstudio::ui::qml::actorToQString(actor_system &sys, const caf::actor_addr &actor_addr) {
+    return QStringFromStd(actorToString(sys, actor_addr));
 }
 
 caf::actor xstudio::ui::qml::actorFromQString(actor_system &sys, const QString &addr_str) {

@@ -38,7 +38,12 @@ XsListView {
         width: itemRowWidth
     }
 
-    model: mediaListModelData
+    model: mediaModelData
+
+    XsSessionModelNode {
+        id: mediaModelData    
+        rootActor: inspectedContainerActor
+    }
 
     PropertyAnimation{
         id: autoScrollAnimator

@@ -14,7 +14,7 @@
 #include "xstudio/utility/xs_actor.hpp"
 
 namespace xstudio::media {
-class MediaActor : public caf::event_based_actor {
+class MediaActor : public utility::ObjectActor, private Media {
   public:
     // MediaActor(
     //     caf::actor_config &cfg,
@@ -32,18 +32,24 @@ class MediaActor : public caf::event_based_actor {
     MediaActor(caf::actor_config &cfg, const utility::JsonStore &jsn, const bool async = false);
     ~MediaActor() override = default;
 
-    caf::message_handler message_handler();
+      [[nodiscard]] const char *name() const override { return NAME.c_str(); }
+      inline static const std::string NAME = "MediaActor";
 
-    caf::behavior make_behavior() override {
-        return message_handler().or_else(base_.container_message_handler(this))
-                .or_else(notification_.message_handler(this, base_.event_group()))
-                .or_else(utility::NotificationHandler::default_event_handler());
-    }
-    [[nodiscard]] const char *name() const override { return NAME.c_str(); }
-    static caf::message_handler default_event_handler();
+      static caf::message_handler default_event_handler();
 
+    protected:
+
+      caf::message_handler message_handler() override;
+
+      caf::message_handler extra_message_handlers() override {
+          return Media::container_message_handler(this)
+              .or_else(notification_.message_handler(this, Media::event_group()))
+              .or_else(utility::NotificationHandler::default_event_handler());
+      }
+       
+      utility::AnyPtr get_property(const std::string &key) override;
+      
   private:
-    inline static const std::string NAME = "MediaActor";
     void init();
 
     void deserialise(const utility::JsonStore &jsn);
@@ -82,7 +88,6 @@ class MediaActor : public caf::event_based_actor {
         caf::actor src_bookmarks,
         caf::actor dst_bookmarks);
 
-    Media base_;
     utility::NotificationHandler notification_;
 
     caf::actor json_store_;
@@ -96,7 +101,7 @@ class MediaActor : public caf::event_based_actor {
     bool pending_media_display_info_{false};
 };
 
-class MediaSourceActor : public caf::event_based_actor {
+class MediaSourceActor  : public utility::ObjectActor, private MediaSource {
   public:
     MediaSourceActor(
         caf::actor_config &cfg,
@@ -128,15 +133,18 @@ class MediaSourceActor : public caf::event_based_actor {
 
     static caf::message_handler default_event_handler();
 
-    caf::message_handler message_handler();
+  protected:
 
-    caf::behavior make_behavior() override {
-        return message_handler().or_else(base_.container_message_handler(this));
-    }
+    caf::message_handler message_handler() override;
+
+    caf::message_handler extra_message_handlers() override {
+          return MediaSource::container_message_handler(this);
+      }
 
     [[nodiscard]] const char *name() const override { return NAME.c_str(); }
 
   private:
+
     void update_media_status();
 
     void update_media_detail();
@@ -185,7 +193,6 @@ class MediaSourceActor : public caf::event_based_actor {
     inline static const std::string NAME = "MediaSourceActor";
     void init();
 
-    MediaSource base_;
     caf::actor json_store_;
     std::map<utility::Uuid, caf::actor> media_streams_;
     caf::actor_addr parent_;

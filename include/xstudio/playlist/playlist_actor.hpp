@@ -110,6 +110,13 @@ namespace playlist {
         std::map<utility::Uuid, caf::actor> media_;
         std::map<utility::Uuid, caf::actor> container_;
         std::set<utility::Uuid> dividers_;
+
+        // ObjectActor node that groups all media items in this playlist
+        utility::UuidActor media_list_; 
+
+        // ObjectActor node that groups all child containers in this playlist (SUbsets, ContactSheets, Timelines, etc.)
+        utility::UuidActor child_containers_; 
+
         bool is_in_viewer_ = {false};
         caf::actor json_store_;
         bool content_changed_{false};
