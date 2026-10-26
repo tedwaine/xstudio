@@ -4,6 +4,24 @@
 
 using namespace xstudio::utility;
 
+inline std::string to_string2(const xstudio::utility::AnyPtr & ptr) {
+
+    if (!ptr)
+        return "null";
+    const auto &a = *ptr;
+    if (a.type() == typeid(std::string))
+        return std::any_cast<const std::string &>(a);
+    if (a.type() == typeid(int))
+        return std::to_string(std::any_cast<int>(a));
+    if (a.type() == typeid(bool))
+        return std::any_cast<bool>(a) ? "true" : "false";
+    if (a.type() == typeid(float))
+        return std::to_string(std::any_cast<float>(a));
+    if (a.type() == typeid(JsonStore))
+        return std::any_cast<const JsonStore &>(a).dump();
+    return "unsupported type";
+}
+
 std::set<std::string> &ObjectDataTree::property_names_mutable(const std::string &model_name) {
     // Function-local static: constructed on first use, so safe to call from other TUs' static init.
     static std::map<std::string, std::set<std::string>> names;
@@ -60,14 +78,16 @@ ObjectDataTree* ObjectDataTree::deep_copy(ObjectDataTree *parent) const {
     return copy;
 }
 
-void ObjectDataTree::dump(const int indent) const
+void ObjectDataTree::dump(const int depth, const int indent) const
 {
     for (const auto &prop : properties_) {
-        spdlog::info("{}{}: {}", std::string(indent, ' '), prop.first, prop.second ? "set" : "null");
+        spdlog::info("{}{}: {}", std::string(indent, ' '), prop.first, to_string2(prop.second));
     }
+    if (depth == 0)
+        return;
     spdlog::info("{}Children:", std::string(indent, ' '));
     for (const auto &child : children_data_) {
-        child->dump(indent + 2);
+        child->dump(depth == -1 ? -1 : depth - 1, indent + 2);
     }
 }
 
@@ -80,6 +100,8 @@ ObjectActor::ObjectActor(caf::actor_config &cfg, const std::string &name, const 
     // overwriting these values
     set_property("nameRole", name);
     set_property("uuidRole", uuid);
+    std::cerr << "Name " << name << to_string(caf::actor_cast<caf::actor>(this)) << std::endl;
+    set_property("actorRole", caf::actor_cast<caf::actor_addr>(this));
 
 }
 
@@ -235,25 +257,13 @@ caf::message_handler ObjectActor::private_message_handler() {
         [=](find_children_atom, const std::string &prop_key, const AnyPtr &value, int depth) -> result<UuidActor> {
 
             // try match to ourselves
-            auto prop = get_property(prop_key);
-
-            auto vv = get_property<std::string>("nameRole");
-            std::cerr << "Property value for " << prop_key << ": " << (vv ? *vv : "nope") << std::endl;
-
-            try {
-                std::cerr << "DOIN " << std::any_cast<std::string>(*value) << std::endl;
-            } catch (const std::bad_any_cast &e) {
-                std::cerr << "Failed to cast value for property " << prop_key << ": " << e.what() << std::endl;
-            }
+            auto prop = __get_property(prop_key);
 
             if (ObjectDataTree::values_equal(prop, value)) {
-                std::cerr << "Match found for property " << prop_key << std::endl;
                 auto uuid = get_property<Uuid>("uuidRole");
                 if (uuid) {
                     return UuidActor(*uuid, caf::actor_cast<caf::actor>(this));
                 }
-            } else {
-
             }
 
             if (depth <= 0) {
@@ -264,7 +274,6 @@ caf::message_handler ObjectActor::private_message_handler() {
             for (auto child : children_) {
                 mail(find_children_atom_v, prop_key, value, depth-1).request(child.actor(), infinite).then(
                     [=](const UuidActor &c) mutable {
-                        std::cerr << "Child found: " << prop_key << std::endl;
                         auto_responder.result() = c;
                         auto_responder.decrement();
                     },
@@ -289,7 +298,13 @@ caf::message_handler ObjectActor::private_message_handler() {
                 add_child(child);
             }
             return true;
-        },        
+        },
+        [=](property_atom, const std::string &key, const uint64_t ui_layer_node_id, caf::actor sender) {
+            auto r = __get_property(key);
+            if (r) {
+                mail(utility::property_atom_v, r, key, ui_layer_node_id).send(sender);
+            }
+        },
         [=](property_atom, broadcast::leave_broadcast_atom, caf::actor subscriber) -> result <bool> {
             auto rp = make_response_promise<bool>();
             mail(broadcast::leave_broadcast_atom_v, subscriber).request(properties_events_group_, infinite).then(

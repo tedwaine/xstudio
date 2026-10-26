@@ -58,6 +58,10 @@ public:
     ObjectDataTree(ObjectDataTree *parent = nullptr) : parent_(parent) {}
     virtual ~ObjectDataTree() = default;
 
+    bool property_missing(const std::string &key) const {
+        return properties_.find(key) == properties_.end();
+    }
+
     ObjectDataTree * deep_copy(ObjectDataTree *parent = nullptr) const;
 
     [[nodiscard]] AnyPtr get_property(const std::string &key) const {
@@ -77,7 +81,7 @@ public:
         return std::nullopt; // Property not found
     }
 
-    void dump(const int indent = 0) const;
+    void dump(const int depth = -1, const int indent = 0) const;
 
     PropertyMap properties_;
     std::vector<ObjectDataTreePtr> children_data_;
@@ -120,6 +124,10 @@ protected:
     /** Override this to define the core message handler for your actor implementation. */
     virtual caf::message_handler message_handler() { return caf::message_handler{}; }
 
+    /** Override this to implement on-demand property retrieval in your actor. This method
+    is only called when the property is not found in the local property map. */
+    virtual AnyPtr get_property(const std::string &key) { return AnyPtr(); }
+
     /** Override this to define additional message handlers - for example message handlers from additional classes
     in the inheritance chain between your class and the ObjectActor root base class. */
     virtual caf::message_handler extra_message_handlers() {
@@ -137,8 +145,12 @@ protected:
         return full_state_.get_property<T>(key);
     }
 
-    AnyPtr get_property(const std::string &key) const {
-        return full_state_.get_property(key); // Property not found
+    AnyPtr __get_property(const std::string &key) {
+        auto p = full_state_.get_property(key); // Property not found
+        if (!p)
+            p = get_property(key); // Try to get it on-demand if not found locally
+        if (p) full_state_.properties_[key] = p;
+        return p;
     }
 
 

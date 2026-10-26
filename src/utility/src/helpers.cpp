@@ -148,13 +148,17 @@ caf::actor_system &ActorSystemSingleton::actor_system_ref(caf::actor_system &sys
 }
 
 std::string xstudio::utility::actor_to_string(caf::actor_system &sys, const caf::actor &actor) {
+    return actor_to_string(sys, caf::actor_cast<caf::actor_addr>(actor));
+}
+
+std::string xstudio::utility::actor_to_string(caf::actor_system &sys, const caf::actor_addr &actor_addr) {
     std::string result;
 
     try {
         caf::binary_serializer::container_type buf;
         caf::binary_serializer bs{sys, buf};
 
-        auto e = bs.apply(caf::actor_cast<caf::actor_addr>(actor));
+        auto e = bs.apply(actor_addr);
         if (not e)
             throw std::runtime_error(to_string(bs.get_error()));
 

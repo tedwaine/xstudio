@@ -153,11 +153,16 @@ XsDragDropHandler {
                     data)
             }
         } else if (source == "External URIS") {
+
+            let targetUuid = playlistsModelData.getData(modelIndex, "uuidRole")
+            let oldSessionIndex = theSessionData.searchRecursive(targetUuid, "actorUuidRole")
+
             Future.promise(
-                theSessionData.handleDropFuture(Qt.CopyAction, {"text/uri-list": data}, modelIndex)
+                theSessionData.handleDropFuture(Qt.CopyAction, {"text/uri-list": data}, oldSessionIndex)
             ).then(function(quuids){
-                mediaSelectionModel.selectNewMedia(modelIndex, quuids)
+                mediaSelectionModel.selectNewMedia(oldSessionIndex, quuids)
             })
+
         } else if (source == "External JSON") {
 
             let playlsitUuid = playlistsModelData.getData(modelIndex, "uuidRole")

@@ -183,6 +183,7 @@ const std::array session_extensions{".XST", ".XSZ"};
 
 
 std::string actor_to_string(caf::actor_system &sys, const caf::actor &actor);
+std::string actor_to_string(caf::actor_system &sys, const caf::actor_addr &actor_addr);
 caf::actor actor_from_string(caf::actor_system &sys, const std::string &str_addr);
 
 void join_event_group(caf::event_based_actor *source, caf::actor actor);

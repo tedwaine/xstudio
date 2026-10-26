@@ -289,6 +289,16 @@ Item {
             // and also put it on screen
             playlistsSelectionModel.setCurrentIndex(modelIndex, ItemSelectionModel.ClearAndSelect)
 
+            inspectedContainerActor = playlistsModelData.getData(playlistsModelData.index(0, 0, modelIndex), "actorRole")
+
+            console.log("nameRole:", playlistsModelData.getData(playlistsModelData.index(1, 0, modelIndex), "nameRole"))
+            console.log("nameRole:", playlistsModelData.getData(modelIndex, "nameRole"))
+            console.log("actorRole:", playlistsModelData.getData(playlistsModelData.index(1, 0, modelIndex), "actorRole"))
+            console.log("actorRole:", playlistsModelData.getData(modelIndex, "actorRole"))
+
+            console.log("playlistsModelData.index(1, 0, modelIndex)", modelIndex, playlistsModelData.index(1, 0, modelIndex))
+
+            console.log("inspectedContainerActor set to:", inspectedContainerActor)
             // FIXME
             // viewportCurrentMediaContainerIndex = modelIndex
         }

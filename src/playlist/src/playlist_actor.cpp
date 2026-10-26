@@ -286,14 +286,7 @@ PlaylistActor::PlaylistActor(
     set_property("expandedRole", Playlist::expanded());
 
     spdlog::debug("media loaded in {:.3} seconds.", sw);
-
     
-    // session objects like Subsets, ContactSheets and Timelines
-    // are put in this map as we create them. Unfortunately Dividers
-    // have to be made later as they are only serialised to the
-    // PlaylistTree and not 'actors' entry in the json.
-    std::map<utility::Uuid, utility::UuidActor> children;
-
     // deserialise containers
     for (const auto &[key, value] : jsn.at("actors").items()) {
         
@@ -319,7 +312,6 @@ PlaylistActor::PlaylistActor(
                     static_cast<utility::JsonStore>(value),
                     caf::actor_cast<caf::actor>(this));
 
-                children[key] = utility::UuidActor(key, actor);
                 container_[key] = actor;
                 link_to(actor);
                 join_event_group(this, actor);
@@ -334,15 +326,11 @@ PlaylistActor::PlaylistActor(
         }
     }
 
-    // Now we loop over the playlist tree (to be deprecated) to add our children 
-    // the the ObjectActor base class hierarchy.
+    // Now we loop over the playlist tree (to be deprecated) to add dividers that
+    // are only serialised in the PlaylistTree and not as child objects of the PlaylistActor.
     for (const auto &child : Playlist::containers().children()) {
         const PlaylistItem &playlist_item = child.value(); 
-        std::cerr << "Type: " << playlist_item.type() << std::endl;
-        auto it = children.find(playlist_item.uuid());
-        if (it != children.end()) {
-            add_child(it->second);
-        } else {
+        if (playlist_item.type() == "ContainerDivider") {
 
             try {
 
@@ -353,14 +341,12 @@ PlaylistActor::PlaylistActor(
                     playlist_item.name(),
                     playlist_item.uuid(),
                     caf::actor_cast<caf::actor>(this));
-                add_child(utility::UuidActor(playlist_item.uuid(), actor));
                 container_[playlist_item.uuid()] = actor;
-                if (playlist_item.type() == "ContainerDivider") {
-                    // we need to keep track of dividers because, at the moment,
-                    // they are serilised in the PlaylistTree and not as a 
-                    // child object of the PlaylistActor
-                    dividers_.insert(playlist_item.uuid());
-                }
+
+                // we need to keep track of dividers because, at the moment,
+                // they are serilised in the PlaylistTree and not as a 
+                // child object of the PlaylistActor
+                dividers_.insert(playlist_item.uuid());                
 
             } catch (const std::exception &e) {
                 spdlog::error("{}", e.what());
@@ -906,7 +892,8 @@ caf::message_handler PlaylistActor::message_handler() {
                 caf::actor_cast<caf::actor>(this)
             );
 
-            add_child(utility::UuidActor(uuid, actor));
+            anon_mail(utility::add_children_atom_v, utility::UuidActor(uuid, actor), uuid_before)
+                .send(child_containers_);
 
             anon_mail(playhead::playhead_rate_atom_v, Playlist::playhead_rate()).send(actor);
             create_container(actor, rp, uuid_before, into);
@@ -936,7 +923,9 @@ caf::message_handler PlaylistActor::message_handler() {
                     name,
                     *i,
                     caf::actor_cast<caf::actor>(this));
-                add_child(utility::UuidActor(*i, actor));
+
+                anon_mail(utility::add_children_atom_v, utility::UuidActor(*i, actor), uuid_before)
+                    .send(child_containers_);
 
                 mail(utility::event_atom_v, create_divider_atom_v, *i)
                     .send(Playlist::event_group());
@@ -2116,6 +2105,36 @@ caf::message_handler PlaylistActor::message_handler() {
 void PlaylistActor::init() {
     print_on_create(this, *this);
     print_on_exit(this, *this);
+
+    // for the class hierarchy that is reflecgted in the UI we add an ObjectActor that groups all the
+    // media items in this playlist. This allows us to separate from other children, namely sub-containers
+    // like Subset, COntactSheet, Timeline etc.
+    const auto media_list_uuid = utility::Uuid::generate();
+    media_list_ = utility::UuidActor(media_list_uuid, spawn<utility::ObjectActor>("Media List", media_list_uuid));
+    add_child(utility::UuidActor(media_list_uuid, media_list_));
+
+    // we need to add media already added to the PlaylistActor (in the constructor) to the media_list_ (if any)
+    utility::UuidActorVector all_media;
+    for (auto & m: Playlist::media()) {
+        all_media.push_back(utility::UuidActor(m, media_[m]));
+    }
+    anon_mail(utility::add_children_atom_v, all_media).send(media_list_);
+
+    const auto child_containers_uuid = utility::Uuid::generate();
+    child_containers_ = utility::UuidActor(child_containers_uuid, spawn<utility::ObjectActor>("Child Containers", child_containers_uuid));
+    add_child(utility::UuidActor(child_containers_uuid, child_containers_));
+
+    // Add all child containers (that may have been added in the constructor if the PlaylistActor
+    // was constructed from JsonStore serialisation) to the child_containers_ ObjectActor.
+    utility::UuidActorVector containers;
+    for (const auto &child : Playlist::containers().children()) {
+        const PlaylistItem &playlist_item = child.value(); 
+        auto it = container_.find(playlist_item.uuid());
+        if (it != container_.end()) {
+            containers.push_back(utility::UuidActor(it->first, it->second));
+        }
+    }
+    anon_mail(utility::add_children_atom_v, containers).send(child_containers_);
 
     // Playlist::event_group() =
     // system().groups().get_local(to_string(actor_cast<caf::actor>(this)));//system().groups().anonymous();
