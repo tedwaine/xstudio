@@ -35,17 +35,6 @@ const auto MEDIA_NOTIFY_DELAY_FAST = std::chrono::milliseconds(100);
 
 using namespace nlohmann;
 
-BEGIN_REGISTER_PROPERTY_NAMES(SessionModel)
-    "mediaCountRole",
-    "expandedRole",
-    "placeHolderRole",
-    "metadataChangedRole",
-    "flagColourRole",
-    "notificationRole",
-    "errorRole",
-    "qmlCodeRole"
-END_REGISTER_PROPERTY_NAMES()
-
 void blocking_loader(
     blocking_actor *self,
     caf::typed_response_promise<std::vector<UuidActor>> rp,
@@ -282,8 +271,8 @@ PlaylistActor::PlaylistActor(
         }
     }
 
-    set_property("mediaCountRole", int(media_.size()));
-    set_property("expandedRole", Playlist::expanded());
+    set_property(session::mediaCountRole, int(media_.size()));
+    set_property(session::expandedRole, Playlist::expanded());
 
     spdlog::debug("media loaded in {:.3} seconds.", sw);
     
@@ -1580,7 +1569,7 @@ caf::message_handler PlaylistActor::message_handler() {
 
             if (uuid == Playlist::uuid()) {
                 std::cerr << "FLAGGY!\n";
-                set_property("flagColourRole", flag);
+                set_property(session::flagColourRole, flag);
             }
 
             bool result = Playlist::reflag_container(flag, uuid);
@@ -2016,7 +2005,7 @@ caf::message_handler PlaylistActor::message_handler() {
         [=](expanded_atom) -> bool { return Playlist::expanded(); },
 
         [=](expanded_atom, const bool expanded) { 
-            set_property("expandedRole", expanded);
+            set_property(session::expandedRole, expanded);
             Playlist::set_expanded(expanded); 
         },
 

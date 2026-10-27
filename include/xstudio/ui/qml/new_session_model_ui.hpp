@@ -90,7 +90,7 @@ class UIDataModel : public caf::mixin::actor_object<QAbstractItemModel> {
 
     bool tronk_ = {false};
 
-  private:
+  protected:
 
     caf::message_handler core_message_handler();
 
@@ -107,7 +107,7 @@ class UIDataModel : public caf::mixin::actor_object<QAbstractItemModel> {
     std::unordered_map<const utility::ObjectDataTree *, quintptr> ids_by_node_;
     quintptr next_id_ = 1;
     QHash<int, QByteArray> data_roles_;
-    std::map<std::string, int> data_roles_inverse_;
+    QMap<QString, int> data_roles_inverse_;
 
     caf::actor source_of_data_;
     bool is_versions_list_ = {false};
