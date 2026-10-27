@@ -6,34 +6,6 @@
 #include "xstudio/atoms.hpp"
 #include "xstudio/utility/uuid.hpp"
 
-/* Use these macros to register property names for ObjectDataTree.
-
-Any 'property' that you wish to set on an ObjectActor must be registered using these macros.
-Provide the name of the model for which you are registering property names as a parameter
-of the BEGIN_ macro statement
-
-Use as follows:
-
-BEGIN_REGISTER_PROPERTY_NAMES("SessionModel")
-    "nameRole",
-    "actorAddressRole",
-    ...
-END_REGISTER_PROPERTY_NAMES()
-*/
-#define BEGIN_REGISTER_PROPERTY_NAMES(MODEL_NAME) \
-namespace { \
-struct ObjectDataTreeRegistrar { \
-    const std::string model_name_ = #MODEL_NAME; \
-    ObjectDataTreeRegistrar() { \
-        std::vector<std::string> roleNames({
-
-#define END_REGISTER_PROPERTY_NAMES() \
-        }); \
-        xstudio::utility::ObjectDataTree::register_property_names(model_name_, roleNames); \
-    } \
-} __role_names_registrar; \
-} // anonymous namespace
-
 namespace xstudio {
 namespace utility {
 
@@ -43,11 +15,8 @@ using ObjectDataTreePtr = std::shared_ptr<const ObjectDataTree>;
 class ObjectDataTree {
 public:
 
-    static void register_property_names(const std::string &model_name, const std::vector<std::string> &roleNames);
-    static const std::map<int, std::string> &property_names(const std::string &model_name);
-
     using AnyPtr = std::shared_ptr<const std::any>;
-    using PropertyMap = std::map<std::string, AnyPtr>;
+    using PropertyMap = std::map<int, AnyPtr>;
 
     // Compares the typed value held by two property values. Supports the
     // property value types used by ObjectDataTree: std::string, int, bool,
@@ -58,19 +27,19 @@ public:
     ObjectDataTree(ObjectDataTree *parent = nullptr) : parent_(parent) {}
     virtual ~ObjectDataTree() = default;
 
-    bool property_missing(const std::string &key) const {
+    bool property_missing(const int &key) const {
         return properties_.find(key) == properties_.end();
     }
 
     ObjectDataTree * deep_copy(ObjectDataTree *parent = nullptr) const;
 
-    [[nodiscard]] AnyPtr get_property(const std::string &key) const {
+    [[nodiscard]] AnyPtr get_property(const int &key) const {
         auto it = properties_.find(key);
         return it != properties_.end() ? it->second : nullptr;
     }
 
     template <typename T>
-    std::optional<T> get_property(const std::string &key) const {
+    std::optional<T> get_property(const int &key) const {
         if (properties_.count(key)) {
             try {
                 return std::any_cast<T>(*(properties_.at(key)));
@@ -88,7 +57,7 @@ public:
     ObjectDataTree * parent_ = nullptr;
 
     private:
-    static std::set<std::string> &property_names_mutable(const std::string &model_name);
+
 };
 
 /* This base actor class provides a heirarchical structure for actors within
@@ -126,7 +95,7 @@ protected:
 
     /** Override this to implement on-demand property retrieval in your actor. This method
     is only called when the property is not found in the local property map. */
-    virtual AnyPtr get_property(const std::string &key) { return AnyPtr(); }
+    virtual AnyPtr get_property(const int key) { return AnyPtr(); }
 
     /** Override this to define additional message handlers - for example message handlers from additional classes
     in the inheritance chain between your class and the ObjectActor root base class. */
@@ -135,17 +104,17 @@ protected:
     }
 
     template <typename T>
-    void set_property(const std::string &key, const T & value) {
+    void set_property(const int key, const T & value) {
         full_state_.properties_[key] = std::make_shared<const std::any>(value);
         mail(property_atom_v, std::vector<int>(), key, full_state_.properties_[key]).send(properties_events_group_);
     }
 
     template <typename T>
-    std::optional<T> get_property(const std::string &key) const {
+    std::optional<T> get_property(const int key) const {
         return full_state_.get_property<T>(key);
     }
 
-    AnyPtr __get_property(const std::string &key) {
+    AnyPtr __get_property(const int key) {
         auto p = full_state_.get_property(key); // Property not found
         if (!p)
             p = get_property(key); // Try to get it on-demand if not found locally

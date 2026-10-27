@@ -1751,9 +1751,9 @@ caf::message_handler TimelineActor::message_handler() {
                                 const auto duration = frame_handles.at("duration_frames").get<int>();
 
                                 auto trimmed_range = utility::FrameRange(
-                                    start_frame*base_.item().rate(), 
-                                    duration*base_.item().rate(),
-                                    base_.item().rate());
+                                    start_frame*Timeline::item().rate(), 
+                                    duration*Timeline::item().rate(),
+                                    Timeline::item().rate());
 
                                 mail(active_range_atom_v, trimmed_range, true).request(new_clip.actor(), infinite).then(
                                     [=](const JsonStore &jsn) mutable {

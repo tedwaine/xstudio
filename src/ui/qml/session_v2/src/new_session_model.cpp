@@ -19,6 +19,61 @@ using namespace xstudio::utility;
 
 namespace {
 
+    static const std::map<int, QString> sessionRoleNames({
+        {session::activeDurationRole, "activeDurationRole"},
+        {session::activeRangeValidRole, "activeRangeValidRole"},
+        {session::activeStartRole, "activeStartRole"},
+        {session::actorRole, "actorRole"},
+        {session::actorUuidRole, "actorUuidRole"},
+        {session::audioActorUuidRole, "audioActorUuidRole"},
+        {session::audioModeRole, "audioModeRole"},
+        {session::availableDurationRole, "availableDurationRole"},
+        {session::availableStartRole, "availableStartRole"},
+        {session::bitDepthRole, "bitDepthRole"},
+        {session::bookmarkUuidsRole, "bookmarkUuidsRole"},
+        {session::busyRole, "busyRole"},
+        {session::clipMediaUuidRole, "clipMediaUuidRole"},
+        {session::clipEditedStatusRole, "clipEditedStatusRole"},
+        {session::containerUuidRole, "containerUuidRole"},
+        {session::enabledRole, "enabledRole"},
+        {session::errorRole, "errorRole"},
+        {session::expandedRole, "expandedRole"},
+        {session::flagColourRole, "flagColourRole"},
+        {session::flagTextRole, "flagTextRole"},
+        {session::formatRole, "formatRole"},
+        {session::groupActorRole, "groupActorRole"},
+        {session::imageActorUuidRole, "imageActorUuidRole"},
+        {session::lockedRole, "lockedRole"},
+        {session::markersRole, "markersRole"},
+        {session::mediaCountRole, "mediaCountRole"},
+        {session::mediaDisplayInfoRole, "mediaDisplayInfoRole"},
+        {session::mediaStatusRole, "mediaStatusRole"},
+        {session::metadataChangedRole, "metadataChangedRole"},
+        {session::mtimeRole, "mtimeRole"},
+        {session::nameRole, "nameRole"},
+        {session::notificationRole, "notificationRole"},
+        {session::pathRole, "pathRole"},
+        {session::pathShakeRole, "pathShakeRole"},
+        {session::pixelAspectRole, "pixelAspectRole"},
+        {session::placeHolderRole, "placeHolderRole"},
+        {session::propertyRole, "propertyRole"},
+        {session::qmlCodeRole, "qmlCodeRole"},
+        {session::rateFPSRole, "rateFPSRole"},
+        {session::rateFPSStringRole, "rateFPSStringRole"},
+        {session::resolutionRole, "resolutionRole"},
+        {session::rotationRole, "rotationRole"},
+        {session::selectionRole, "selectionRole"},
+        {session::thumbnailImageRole, "thumbnailImageRole"},
+        {session::thumbnailURLRole, "thumbnailURLRole"},
+        {session::timecodeAsFramesRole, "timecodeAsFramesRole"},
+        {session::trackIndexRole, "trackIndexRole"},
+        {session::trimmedDurationRole, "trimmedDurationRole"},
+        {session::trimmedStartRole, "trimmedStartRole"},
+        {session::typeRole, "typeRole"},
+        {session::uuidRole, "uuidRole"},
+        {session::userDataRole, "userDataRole"}
+    });
+
     AnyPtr anyPtrFromQVariant(const QVariant &var) {
 
         /*if (var.isNull() || !var.isValid())
@@ -131,9 +186,9 @@ void UIDataModel::init(caf::actor_system &_system) {
     });
 
     int i = Qt::UserRole;
-    for (const auto &p : ObjectDataTree::property_names("SessionModel")) {
-        data_roles_[Qt::UserRole+p.first] = p.second.c_str();
-        data_roles_inverse_[p.second.c_str()] = Qt::UserRole+p.first;
+    for (const auto &p : sessionRoleNames) {
+        data_roles_[p.first] = p.second.toUtf8();
+        data_roles_inverse_[p.second] = p.first;
     }
 
 }
@@ -195,16 +250,18 @@ caf::message_handler UIDataModel::core_message_handler() {
 
         },
 
-        [=](property_atom, const std::vector<int> &index_in_tree, const std::string &key, const AnyPtr &value) {
+        [=](property_atom, const std::vector<int> &index_in_tree, const int key, const AnyPtr &value) {
 
             QModelIndex parent_index = QModelIndex();
             for (const auto &i: index_in_tree) {
                 parent_index = index(i, 0, parent_index);
             }
+            qDebug() << "Updating property for key: " << key << " index " << parent_index;
             ObjectDataTree * node = const_cast<ObjectDataTree *>(UIDataModel::node_from_index(parent_index));
-            if (node && data_roles_inverse_.contains(key)) {
+            if (node && data_roles_.contains(key)) {
                 node->properties_[key] = value;
-                emit dataChanged(parent_index, parent_index, {data_roles_inverse_[key]});
+                std::cerr << "YUP\n";
+                emit dataChanged(parent_index, parent_index, {key});
             }
         },
         [=](property_atom, const ObjectDataTreePtr &child_data) {
@@ -213,8 +270,9 @@ caf::message_handler UIDataModel::core_message_handler() {
 
             if (self()->current_sender() != source_of_data_)
                 return;
-            auto oi = child_data->get_property<std::string>("nameRole");
+            auto oi = child_data->get_property<std::string>(session::nameRole);
             std::cerr << "Name ASFADSFADS role: " << this << " " << (oi ? *oi : "NOP") << std::endl;
+            child_data->dump(3,2);
             set_root(child_data);
         },
         [=](property_atom, const std::vector<int> &index_in_tree, const ObjectDataTreePtr &child_data) {
@@ -239,9 +297,9 @@ caf::message_handler UIDataModel::core_message_handler() {
             endInsertRows();
 
         },
-        [=](property_atom, const std::string &key, const AnyPtr &value) {
+        [=](property_atom, const int key, const AnyPtr &value) {
         },
-        [=](property_atom, const AnyPtr &value, const std::string &key, const uint64_t ui_layer_node_id) {
+        [=](property_atom, const AnyPtr &value, const int key, const uint64_t ui_layer_node_id) {
 
             // this is a response to a request for missing data
 
@@ -269,17 +327,6 @@ void UIDataModel::set_source_of_data(caf::actor source) {
 
     source_of_data_ = std::move(source);
     if (source_of_data_) {
-
-        if (tronk_)
-            spdlog::info("Joining new source of data's broadcast group. {}", to_string(source_of_data_));
-
-        try {
-            scoped_actor sys{system()};
-            auto name_role = request_receive<utility::AnyPtr>(*sys, source_of_data_, property_atom_v, "nameRole");
-            std::cerr << "Name PLIMPOM role: " << this << " " << std::any_cast<std::string>(*name_role) << std::endl;
-        } catch (std::exception &e) {
-            spdlog::error("Error while requesting nameRole: {}", e.what());
-        }
 
         // JKoin the new source of data's broadcast group.
         self()->mail(property_atom_v, broadcast::join_broadcast_atom_v, as_actor()).send(source_of_data_);
@@ -392,16 +439,21 @@ QVariant UIDataModel::data(const QModelIndex &index, int role) const {
     const ObjectDataTree *node = node_from_index(index);
     if (!node || index.column() != 0)
         return {};
-
-    const std::string roleName = data_roles_.value(role).toStdString();
-    if (node->property_missing(roleName)) {
-        auto act = node->get_property< caf::actor_addr >("actorRole");
+    if (!data_roles_.contains(role))
+        return {};
+    std::cerr << role << " ";
+    if (node->property_missing(role)) {
+        auto act = node->get_property< caf::actor_addr >(session::actorRole);
         if (act) {
-            self()->mail(utility::property_atom_v, roleName, index.internalId(), as_actor()).send(caf::actor_cast<caf::actor>(*act));
+            self()->mail(utility::property_atom_v, role, index.internalId(), as_actor()).send(caf::actor_cast<caf::actor>(*act));
         }
+        auto pp = sessionRoleNames.find(role);
+        qDebug() << "nah " << (pp != sessionRoleNames.end() ? pp->second : "unknown") << " ";
         return {};
     }
-    return qvariantFromAnyPtr(node->get_property(roleName));
+    QVariant r = qvariantFromAnyPtr(node->get_property(role));
+    qDebug() << r << " ";
+    return r;
 
 }
 
@@ -411,21 +463,22 @@ QVariant UIDataModel::getData(const QModelIndex &index, const QString &role) con
     if (!node || index.column() != 0)
         return {};
 
-    const std::string roleName = role.toStdString();
-    return qvariantFromAnyPtr(node->get_property(roleName));
+    const auto p = data_roles_inverse_.find(role);
+    if (p == data_roles_inverse_.end())
+        return {};
+    return qvariantFromAnyPtr(node->get_property(p.value()));
 }
 
 bool UIDataModel::setData(const QModelIndex &index, const QVariant &value, int role) {
     bool result = false;
     const ObjectDataTree *node = node_from_index(index);
-    if (node && node->properties_.contains("actorRole")) {
-        auto actor_addr = node->get_property< caf::actor_addr >("actorRole");
+    if (node && node->properties_.contains(session::actorRole)) {
+        auto actor_addr = node->get_property< caf::actor_addr >(session::actorRole);
         caf::actor actor = actor_addr ? caf::actor_cast<caf::actor>(*actor_addr) : caf::actor();
         if (actor) {
             AnyPtr d = anyPtrFromQVariant(value);
             if (d) {
-                const std::string roleName = data_roles_.value(role).toStdString();
-                self()->mail(property_atom_v, roleName, d).send(actor);
+                self()->mail(property_atom_v, role, d).send(actor);
             }
         }
     }
@@ -497,8 +550,6 @@ void SessionModelRoot::setRootActor(const QString &actor) {
         try {
 
             root_actor_ = actorFromQString(system(), root_actor_as_string_);
-                    tronk_ = true;
-
             set_source_of_data(root_actor_);
 
         } catch (const std::exception &err) {
@@ -512,6 +563,7 @@ SessionModelNode::SessionModelNode(QObject *parent)
     : SessionModelRoot(parent) {
 
     QObject::connect(this, &SessionModelRoot::rootActorChanged, this, &SessionModelNode::doReload);
+    QObject::connect(this, &SessionModelRoot::modelReset, this, &SessionModelNode::doReload);
     init(CafSystemObject::get_actor_system());
     connect_to_studio();
 }
@@ -554,8 +606,13 @@ void SessionModelNode::reload() {
         // Perform some action when both key and value are set
         AnyPtr searchValue = anyPtrFromQVariant(child_search_property_value_);
 
+        auto p = data_roles_inverse_.find(child_search_property_key_);
+        if (p == data_roles_inverse_.end()) {
+            throw std::runtime_error("Unknown role: " + child_search_property_key_.toStdString());
+        }
+
         // we get a UuidActor in our message handler in response to this message
-        self()->mail(find_children_atom_v, child_search_property_key_.toStdString(), searchValue, 1).send(session_actor_);
+        self()->mail(find_children_atom_v, p.value(), searchValue, 1).send(session_actor_);
 
     } catch (const std::exception &err) {
         spdlog::error("Failed to perform action with child search properties: {}", err.what());

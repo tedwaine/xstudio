@@ -22,29 +22,6 @@ inline std::string to_string2(const xstudio::utility::AnyPtr & ptr) {
     return "unsupported type";
 }
 
-std::set<std::string> &ObjectDataTree::property_names_mutable(const std::string &model_name) {
-    // Function-local static: constructed on first use, so safe to call from other TUs' static init.
-    static std::map<std::string, std::set<std::string>> names;
-    return names[model_name];
-}
-
-void ObjectDataTree::register_property_names(const std::string &model_name, const std::vector<std::string> &roleNames) {
-    auto &names = property_names_mutable(model_name);
-    for (const auto &roleName : roleNames)
-        names.insert(roleName);
-}
-
-const std::map<int, std::string> & ObjectDataTree::property_names(const std::string &model_name) {
-    static std::map<std::string, std::map<int, std::string>> names_map;
-    if (!names_map[model_name].empty())
-        return names_map[model_name];
-    int index = 0;
-    for (const auto &nm: property_names_mutable(model_name)) {
-        names_map[model_name][index++] = nm;
-    }
-    return names_map[model_name];
-}
-
 bool ObjectDataTree::values_equal(const std::any &a, const std::any &b) {
     if (a.type() != b.type())
         return false;
@@ -98,10 +75,9 @@ ObjectActor::ObjectActor(caf::actor_config &cfg, const std::string &name, const 
     // Note - derived classes that are containers, for example, will
     // set the name and uuid in their own constructors therefore 
     // overwriting these values
-    set_property("nameRole", name);
-    set_property("uuidRole", uuid);
-    std::cerr << "Name " << name << to_string(caf::actor_cast<caf::actor>(this)) << std::endl;
-    set_property("actorRole", caf::actor_cast<caf::actor_addr>(this));
+    set_property(session::nameRole, name);
+    set_property(session::uuidRole, uuid);
+    set_property(session::actorRole, caf::actor_cast<caf::actor_addr>(this));
 
 }
 
@@ -214,7 +190,6 @@ int ObjectActor::child_index(const caf::strong_actor_ptr &child) const {
 
 
 void ObjectActor::remove_child(const UuidActor &child) {
-    std::cerr << "Removing " << to_string(child.actor()) << "\n";
     int cidx = child_index(child);
     if (cidx != -1)
         children_.erase(children_.begin() + cidx);
@@ -254,13 +229,13 @@ caf::message_handler ObjectActor::private_message_handler() {
 
         },
 
-        [=](find_children_atom, const std::string &prop_key, const AnyPtr &value, int depth) -> result<UuidActor> {
+        [=](find_children_atom, const int prop_key, const AnyPtr &value, int depth) -> result<UuidActor> {
 
             // try match to ourselves
             auto prop = __get_property(prop_key);
 
             if (ObjectDataTree::values_equal(prop, value)) {
-                auto uuid = get_property<Uuid>("uuidRole");
+                auto uuid = get_property<Uuid>(session::uuidRole);
                 if (uuid) {
                     return UuidActor(*uuid, caf::actor_cast<caf::actor>(this));
                 }
@@ -299,7 +274,7 @@ caf::message_handler ObjectActor::private_message_handler() {
             }
             return true;
         },
-        [=](property_atom, const std::string &key, const uint64_t ui_layer_node_id, caf::actor sender) {
+        [=](property_atom, const int key, const uint64_t ui_layer_node_id, caf::actor sender) {
             auto r = __get_property(key);
             if (r) {
                 mail(utility::property_atom_v, r, key, ui_layer_node_id).send(sender);
@@ -329,18 +304,19 @@ caf::message_handler ObjectActor::private_message_handler() {
             );
             return rp;
         },
-        [=](property_atom, const std::string &key, const AnyPtr &value) -> bool {
+        [=](property_atom, const int key, const AnyPtr &value) -> bool {
 
             full_state_.properties_[key] = value;
             mail(property_atom_v, std::vector<int>(), key, value).send(properties_events_group_);
             return true;
         },
-        [=](property_atom, std::vector<int> index_in_tree, const std::string &key, const AnyPtr &value) {
+        [=](property_atom, std::vector<int> index_in_tree, const int key, const AnyPtr &value) {
             // A child's data has been updated.
             // what's the index of the child that sent this?
             int cindex = child_index(current_sender());
+             std::cerr << "donk " << *(get_property<std::string>(session::nameRole)) << " " << key << std::endl;
             if (cindex < 0) {
-                std::cerr << "nope " << *(get_property<std::string>("nameRole")) << std::endl;
+                std::cerr << "nope " << *(get_property<std::string>(session::nameRole)) << std::endl;
                 return;
             }
             // bubble it up
@@ -369,7 +345,7 @@ caf::message_handler ObjectActor::private_message_handler() {
             mail(property_atom_v, index_in_tree, child_data).send(properties_events_group_);
 
         },
-        [=](property_atom, const std::string &key, const AnyPtr &value) {
+        [=](property_atom, const int key, const AnyPtr &value) {
 
             // A property has been updated.
             int cindex = child_index(current_sender());
@@ -377,7 +353,7 @@ caf::message_handler ObjectActor::private_message_handler() {
             mail(property_atom_v, std::vector<int>{cindex}, key, value).send(properties_events_group_);
 
         },
-        [=](property_atom, const std::string &key) -> result<AnyPtr> {
+        [=](property_atom, const int key) -> result<AnyPtr> {
             return full_state_.properties_.count(key) ? full_state_.properties_[key] : AnyPtr();
         },
         [=](property_atom) -> result<ObjectDataTreePtr> {
