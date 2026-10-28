@@ -97,12 +97,12 @@ caf::message_handler Container::container_message_handler(caf::event_based_actor
     actor_->link_to(event_group_);
 
     if (object_actor_) {
-        object_actor_->set_property(session::nameRole, name_);
-        object_actor_->set_property(session::typeRole, type_);
-        object_actor_->set_property(session::uuidRole, uuid_);
-        object_actor_->set_property(session::errorRole, 0);
-        object_actor_->set_property(session::actorRole, caf::actor_cast<caf::actor_addr>(act));
-        object_actor_->set_property(session::flagColourRole, ColourTriplet(drand48(), drand48(), drand48(), 1.0f));
+        object_actor_->set_data_value(session::nameRole, name_);
+        object_actor_->set_data_value(session::typeRole, type_);
+        object_actor_->set_data_value(session::uuidRole, uuid_);
+        object_actor_->set_data_value(session::errorRole, 0);
+        object_actor_->set_data_value(session::actorRole, caf::actor_cast<caf::actor_addr>(act));
+        object_actor_->set_data_value(session::flagColourRole, ColourTriplet(drand48(), drand48(), drand48(), 1.0f));
     }   
 
     return caf::message_handler({
@@ -112,7 +112,7 @@ caf::message_handler Container::container_message_handler(caf::event_based_actor
                 actor_->mail(event_atom_v, name_atom_v, name).send(event_group_);
                 send_changed();
                 if (object_actor_) {
-                    object_actor_->set_property(session::nameRole, name_);
+                    object_actor_->set_data_value(session::nameRole, name_);
                 }
             }
         },

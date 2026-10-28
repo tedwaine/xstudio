@@ -5,19 +5,100 @@
 #include "xstudio/module/module.hpp"
 
 #include <iostream>
+#include <typeinfo>
+#include <typeindex>
 
 using namespace xstudio::module;
 using namespace xstudio;
 
+namespace {
+
+template <class T, class F>
+inline std::pair<const std::type_index, std::function<nlohmann::json(utility::AnyPtr const &)>>
+to_any_to_json(F const &f) {
+    return {std::type_index(typeid(T)), [g = f](utility::AnyPtr const &a) -> nlohmann::json {
+                return g(std::any_cast<T const &>(*a));
+            }};
+}
+
+/*
+Map of functions to convert certain types wrapped by std::any to nlohmann::json
+*/
+
+inline const std::
+    unordered_map<std::type_index, std::function<nlohmann::json(utility::AnyPtr const &)>> &
+    any_to_json() {
+
+    static std::unordered_map<std::type_index, std::function<nlohmann::json(utility::AnyPtr const &)>>
+        _any_to_json{
+            to_any_to_json<nlohmann::json>(
+                [](nlohmann::json x) -> nlohmann::json { return x; }),
+            to_any_to_json<int>(
+                [](int x) -> nlohmann::json { return nlohmann::json(x); }),
+            to_any_to_json<int64_t>(
+                [](int64_t x) -> nlohmann::json { return nlohmann::json(x); }),
+            to_any_to_json<float>([](float x) -> nlohmann::json { return nlohmann::json(x); }),
+            to_any_to_json<double>(
+                [](double x) -> nlohmann::json { return nlohmann::json(x); }),
+            to_any_to_json<bool>([](bool x) -> nlohmann::json { return nlohmann::json(x); }),
+            to_any_to_json<utility::Uuid>(
+                [](utility::Uuid x) -> nlohmann::json { return nlohmann::json(x); }),
+            to_any_to_json<std::string>(
+                [](std::string x) -> nlohmann::json { return nlohmann::json(x); }),
+            to_any_to_json<std::array<float, 4>>(
+                [](std::array<float, 4> x) -> nlohmann::json { return nlohmann::json(x); }),
+            to_any_to_json<Imath::V3f>([](Imath::V3f x) -> nlohmann::json {
+                return nlohmann::json{"vec3", 1, x.x, x.y, x.z};
+            }),
+            to_any_to_json<Imath::V4f>([](Imath::V4f x) -> nlohmann::json {
+                return nlohmann::json{"vec4", 1, x.x, x.y, x.z, x.w};
+            }),
+            to_any_to_json<utility::ColourTriplet>(
+                [](utility::ColourTriplet x) -> nlohmann::json {
+                    return nlohmann::json{"colour", 1, x.r, x.g, x.b};
+                }),
+            to_any_to_json<std::vector<float>>(
+                [](std::vector<float> x) -> nlohmann::json { return nlohmann::json(x); }),
+            to_any_to_json<std::vector<int>>(
+                [](std::vector<int> x) -> nlohmann::json { return nlohmann::json(x); }),
+            to_any_to_json<std::vector<bool>>(
+                [](std::vector<bool> x) -> nlohmann::json { return nlohmann::json(x); }),
+            to_any_to_json<std::vector<std::string>>(
+                [](std::vector<std::string> x) -> nlohmann::json { return nlohmann::json(x); }),
+            to_any_to_json<std::vector<utility::Uuid>>(
+                [](std::vector<utility::Uuid> x) -> nlohmann::json {
+                    return nlohmann::json(x);
+                }),
+        };
+    return _any_to_json;
+}
+
+
+    nlohmann::json to_json(const utility::AnyPtr &v) {
+
+        if (v && v->has_value()) {
+            auto atj = any_to_json();
+            if (const auto it = atj.find(std::type_index(v->type())); it != atj.cend()) {
+                return it->second(v);
+            } else {
+                spdlog::warn(
+                    "{} Unregistered type {}", __PRETTY_FUNCTION__, v->type().name());
+            }
+        }
+
+        return {};
+
+    }
+} // namespace module
 
 Attribute::Attribute(
     const std::string &title, const std::string &abbr_title, const std::string &type_name) {
-    role_data_[Enabled].set(true);
-    role_data_[Type].set(type_name);
-    role_data_[Title].set(title);
-    role_data_[AbbrTitle].set(abbr_title);
-    role_data_[UuidRole].set(utility::Uuid::generate());
-    role_data_[UIDataModels].set(std::vector<std::string>());
+    role_data_.set_data_value(Enabled, true);
+    role_data_.set_data_value(Type, type_name);
+    role_data_.set_data_value(Title, title);
+    role_data_.set_data_value(AbbrTitle, abbr_title);
+    role_data_.set_data_value(UuidRole, utility::Uuid::generate());
+    role_data_.set_data_value(UIDataModels, std::vector<std::string>());
 }
 
 void Attribute::set_owner(Module *owner) { owner_ = owner; }
@@ -28,15 +109,16 @@ void Attribute::set_redraw_viewport_on_change(const bool redraw_viewport_on_chan
 
 nlohmann::json Attribute::role_data_as_json(const int role) const {
 
-    const auto p = role_data_.find(role);
-    if (p == role_data_.end()) {
+    const utility::AnyPtr v = role_data_.get_data_value(role);
+    if (!v) {
         std::stringstream msg;
         msg << "Attribute::role_data_as_json " << get_role_data<std::string>(Title)
             << " of type " << get_role_data<std::string>(Type)
             << " does not have role data for " << role_name(role) << "\n";
         throw std::runtime_error(msg.str().c_str());
     }
-    return p->second.to_json();
+    
+    return to_json(v);
 }
 
 void Attribute::update_role_data_from_json(
@@ -57,8 +139,8 @@ void Attribute::notify_change(
 nlohmann::json Attribute::as_json() const {
 
     nlohmann::json result;
-    for (auto p : role_data_) {
-        result[role_name(p.first)] = p.second.to_json();
+    for (const auto &p : role_data_) {
+        result[role_name(p.first)] = to_json(p.second);
     }
 
     return result;
@@ -132,7 +214,7 @@ void Attribute::expose_in_ui_attrs_group(const std::string &group_name, bool exp
             set_role_data(UIDataModels, std::vector<std::string>({group_name}));
             return;
         }
-        auto n = role_data_[UIDataModels].get<std::vector<std::string>>();
+        auto n = get_role_data<std::vector<std::string>>(UIDataModels);
         for (const auto &g : n) {
             if (g == group_name)
                 return;
@@ -141,7 +223,7 @@ void Attribute::expose_in_ui_attrs_group(const std::string &group_name, bool exp
         set_role_data(UIDataModels, n);
 
     } else if (has_role_data(UIDataModels)) {
-        auto n = role_data_[UIDataModels].get<std::vector<std::string>>();
+        auto n = get_role_data<std::vector<std::string>>(UIDataModels);
         for (auto p = n.begin(); p != n.end(); ++p) {
             if (*p == group_name) {
                 n.erase(p);

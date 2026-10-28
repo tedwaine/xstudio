@@ -204,7 +204,7 @@ caf::message_handler UIDataModel::core_message_handler() {
                 parent_index = index(i, 0, parent_index);
             }
             ObjectDataTree * node = const_cast<ObjectDataTree *>(UIDataModel::node_from_index(parent_index));
-            if (node && node->children_data_.size() > row && node->children_data_.size() >= destination_row) {
+            if (node && node->num_nodes() > row && node->num_nodes() >= destination_row) {
 
                 if (destination_row > row) {
                     if (!beginMoveRows(parent_index, row, row, parent_index, destination_row)) {
@@ -218,13 +218,7 @@ caf::message_handler UIDataModel::core_message_handler() {
                     }
                 }
 
-                auto to_move = node->children_data_[row];
-                node->children_data_.erase(node->children_data_.begin() + row);
-                if (destination_row > row) {
-                    node->children_data_.insert(node->children_data_.begin() + destination_row - 1, to_move);
-                } else {
-                    node->children_data_.insert(node->children_data_.begin() + destination_row, to_move);
-                }
+                node->move_node(row, destination_row);
                 endMoveRows();
 
             }
@@ -241,16 +235,30 @@ caf::message_handler UIDataModel::core_message_handler() {
                 parent_index = index(i, 0, parent_index);
             }
             ObjectDataTree * node = const_cast<ObjectDataTree *>(UIDataModel::node_from_index(parent_index));
-            if (node && node->children_data_.size() > row) {
+            if (node && node->num_nodes() > row) {
                 beginRemoveRows(parent_index, row, row);
-                unregister_subtree(node->children_data_[row].get());
-                node->children_data_.erase(node->children_data_.begin() + row);
+                unregister_subtree(node->get_node(row).get());
+                node->remove_node(row);
                 endRemoveRows();
             }
 
         },
 
-        [=](property_atom, const std::vector<int> &index_in_tree, const int key, const AnyPtr &value) {
+        [=](event_atom, add_children_atom, std::vector<int> index_in_tree, const int insertion_index) {
+
+            QModelIndex parent_index = QModelIndex();
+            for (const auto &i: index_in_tree) {
+                parent_index = index(i, 0, parent_index);
+            }
+            ObjectDataTree * node = const_cast<ObjectDataTree *>(UIDataModel::node_from_index(parent_index));
+            if (node) {
+                beginInsertRows(parent_index, insertion_index, insertion_index);
+                endInsertRows();
+            }
+
+        },
+
+        [=](event_atom, property_atom, const std::vector<int> &index_in_tree, const int key, const AnyPtr &value) {
 
             QModelIndex parent_index = QModelIndex();
             for (const auto &i: index_in_tree) {
@@ -259,45 +267,37 @@ caf::message_handler UIDataModel::core_message_handler() {
             qDebug() << "Updating property for key: " << key << " index " << parent_index;
             ObjectDataTree * node = const_cast<ObjectDataTree *>(UIDataModel::node_from_index(parent_index));
             if (node && data_roles_.contains(key)) {
-                node->properties_[key] = value;
-                std::cerr << "YUP\n";
+                node->set_data_value(key, value);
                 emit dataChanged(parent_index, parent_index, {key});
             }
-        },
-        [=](property_atom, const ObjectDataTreePtr &child_data) {
         },
         [=](const ObjectDataTreePtr &child_data) {
 
             if (self()->current_sender() != source_of_data_)
                 return;
-            auto oi = child_data->get_property<std::string>(session::nameRole);
+            auto oi = child_data->get_data_value<std::string>(session::nameRole);
             std::cerr << "Name ASFADSFADS role: " << this << " " << (oi ? *oi : "NOP") << std::endl;
             child_data->dump(3,2);
             set_root(child_data);
         },
-        [=](property_atom, const std::vector<int> &index_in_tree, const ObjectDataTreePtr &child_data) {
+        [=](event_atom, add_children_atom, std::vector<int> index_in_tree, const int insertion_index, const ObjectDataTreePtr &child_data) {
 
             QModelIndex parent_index = QModelIndex();
             for (int i = 0; i < index_in_tree.size() - 1; ++i) {
                 parent_index = index(index_in_tree[i], 0, parent_index);
             }
 
-            int num_rows = rowCount(parent_index);
-
             // New row lands at index num_rows (the old row count), so begin/endInsertRows
             // must announce that same row, not num_rows+1 (which is out of bounds and
             // leaves views unable to resolve the new index).
-            beginInsertRows(parent_index, num_rows, num_rows);
+            beginInsertRows(parent_index, insertion_index, insertion_index);
             ObjectDataTree * node = const_cast<ObjectDataTree *>(UIDataModel::node_from_index(parent_index));
             if (node) {
                 register_subtree(child_data.get());
-                node->children_data_.resize(std::max(node->children_data_.size(), size_t(num_rows + 1)));
-                node->children_data_[num_rows] = child_data;
+                node->insert_node(child_data, insertion_index);
             }
             endInsertRows();
 
-        },
-        [=](property_atom, const int key, const AnyPtr &value) {
         },
         [=](property_atom, const AnyPtr &value, const int key, const uint64_t ui_layer_node_id) {
 
@@ -351,12 +351,12 @@ void UIDataModel::register_subtree(const ObjectDataTree *node) {
     const quintptr id = next_id_++;
     nodes_by_id_[id]  = node;
     ids_by_node_[node] = id;
-    for (const auto &child : node->children_data_)
+    for (const auto &child : (*node))
         register_subtree(child.get());
 }
 
 void UIDataModel::unregister_subtree(const ObjectDataTree *node) {
-    for (const auto &child : node->children_data_)
+    for (const auto &child : (*node))
         unregister_subtree(child.get());
     auto it = ids_by_node_.find(node);
     if (it != ids_by_node_.end()) {
@@ -380,7 +380,7 @@ quintptr UIDataModel::id_of(const ObjectDataTree *node) const {
 int UIDataModel::rowCount(const QModelIndex &parent) const {
 
     const ObjectDataTree *node = node_from_index(parent);
-    const int rt = node ? static_cast<int>(node->children_data_.size()) : 0;
+    const int rt = node ? static_cast<int>(node->num_nodes()) : 0;
      qDebug() << "Row count for parent" << parent << "is" << rt;
     return rt;
 }
@@ -399,16 +399,16 @@ QModelIndex UIDataModel::index(int row, int column, const QModelIndex &parent) c
     if (!node || column != 0)
         return {};
 
-    if (node->children_data_.size() <= row)
+    if (node->num_nodes() <= row)
         return {};
 
-    const quintptr id = id_of(node->children_data_[row].get());
+    const quintptr id = id_of(node->get_node(row).get());
     return id ? createIndex(row, column, id) : QModelIndex();
 }
 
 QModelIndex UIDataModel::parent(const QModelIndex &child) const {
 
-    // The tree root has no parent_ and is represented by the invalid QModelIndex. A node's
+    // The tree root has no parent() and is represented by the invalid QModelIndex. A node's
     // row is its key in the parent's children_data_.
     if (!child.isValid())
         return {};
@@ -417,19 +417,19 @@ QModelIndex UIDataModel::parent(const QModelIndex &child) const {
     if (!node)
         return {};
 
-    const ObjectDataTree *parent_node = node->parent_;
-    if (!parent_node || !parent_node->parent_)
+    const ObjectDataTree *parent_node = node->parent();
+    if (!parent_node || !parent_node->parent())
         return {};
 
     const quintptr parent_id = id_of(parent_node);
     if (!parent_id)
         return {};
 
-    auto p = std::find_if(parent_node->parent_->children_data_.begin(), parent_node->parent_->children_data_.end(), [parent_node](const ObjectDataTreePtr &c) {
+    auto p = std::find_if(parent_node->parent()->begin(), parent_node->parent()->end(), [parent_node](const ObjectDataTreePtr &c) {
         return c.get() == parent_node;
     });
-    if (p != parent_node->parent_->children_data_.end())
-        return createIndex(std::distance(parent_node->parent_->children_data_.begin(), p), 0, parent_id);
+    if (p != parent_node->parent()->end())
+        return createIndex(std::distance(parent_node->parent()->begin(), p), 0, parent_id);
     return {};
 }
 
@@ -441,9 +441,8 @@ QVariant UIDataModel::data(const QModelIndex &index, int role) const {
         return {};
     if (!data_roles_.contains(role))
         return {};
-    std::cerr << role << " ";
-    if (node->property_missing(role)) {
-        auto act = node->get_property< caf::actor_addr >(session::actorRole);
+    if (!node->has_data_value(role)) {
+        auto act = node->get_data_value< caf::actor_addr >(session::actorRole);
         if (act) {
             self()->mail(utility::property_atom_v, role, index.internalId(), as_actor()).send(caf::actor_cast<caf::actor>(*act));
         }
@@ -451,7 +450,7 @@ QVariant UIDataModel::data(const QModelIndex &index, int role) const {
         qDebug() << "nah " << (pp != sessionRoleNames.end() ? pp->second : "unknown") << " ";
         return {};
     }
-    QVariant r = qvariantFromAnyPtr(node->get_property(role));
+    QVariant r = qvariantFromAnyPtr(node->get_data_value(role));
     qDebug() << r << " ";
     return r;
 
@@ -466,14 +465,14 @@ QVariant UIDataModel::getData(const QModelIndex &index, const QString &role) con
     const auto p = data_roles_inverse_.find(role);
     if (p == data_roles_inverse_.end())
         return {};
-    return qvariantFromAnyPtr(node->get_property(p.value()));
+    return qvariantFromAnyPtr(node->get_data_value(p.value()));
 }
 
 bool UIDataModel::setData(const QModelIndex &index, const QVariant &value, int role) {
     bool result = false;
     const ObjectDataTree *node = node_from_index(index);
-    if (node && node->properties_.contains(session::actorRole)) {
-        auto actor_addr = node->get_property< caf::actor_addr >(session::actorRole);
+    if (node && node->has_data_value(session::actorRole)) {
+        auto actor_addr = node->get_data_value< caf::actor_addr >(session::actorRole);
         caf::actor actor = actor_addr ? caf::actor_cast<caf::actor>(*actor_addr) : caf::actor();
         if (actor) {
             AnyPtr d = anyPtrFromQVariant(value);

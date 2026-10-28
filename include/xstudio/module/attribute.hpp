@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 #pragma once
 
-#include "xstudio/module/attribute_role_data.hpp"
+#include "xstudio/utility/data_tree.hpp"
 
 namespace xstudio::module {
 
@@ -138,19 +138,15 @@ class Attribute {
     void set_redraw_viewport_on_change(const bool redraw_viewport_on_change);
 
     template <typename T> [[nodiscard]] T get_role_data(const int role) const {
-        const auto p = role_data_.find(role);
-        if (p == role_data_.end()) {
-            std::stringstream msg;
-            msg << "Attribute " << get_role_data<std::string>(Title) << " of type "
-                << get_role_data<std::string>(Type) << " does not have role data for "
-                << role_name(role) << "\n";
-            throw std::runtime_error(msg.str().c_str());
+        try {
+            return role_data_.get_data_value_t<T>(role);
+        } catch (const std::exception &e) {
+            throw std::runtime_error(std::string("Failed to get role data: ") + role_data_as_json(role).dump());
         }
-        return p->second.get<T>();
     }
 
     [[nodiscard]] bool has_role_data(const int role) const {
-        return role_data_.find(role) != role_data_.end();
+        return role_data_.has_data_value(role);
     }
 
     [[nodiscard]] nlohmann::json role_data_as_json(const int role) const;
@@ -163,18 +159,16 @@ class Attribute {
     void update_from_json(const nlohmann::json &data, const bool notify);
 
     void delete_role_data(const int role) {
-        if (has_role_data(role)) {
-            role_data_.erase(role_data_.find(role));
-        }
+        role_data_.delete_entry(role);
     }
 
     void set_role_data(const int role, const char *data) {
-        set_role_data(role, std::string(data));
+        role_data_.set_data_value(role, std::string(data));
     }
 
     template <typename T>
     void set_role_data(const int role, const T &data, const bool owner_notify = true) {
-        if (role_data_[role].set(data)) {
+        if (role_data_.set_data_value_check(role, data)) {
             Attribute::notify_change(role, data, owner_notify);
         }
     }
@@ -217,7 +211,7 @@ class Attribute {
 
     void notify_change(const int r, const nlohmann::json &data, const bool owner_notify);
 
-    std::map<int, AttributeData> role_data_;
+    utility::PropertyMap role_data_;
 
   private:
     Module *owner_{nullptr};

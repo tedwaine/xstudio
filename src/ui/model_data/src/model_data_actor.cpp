@@ -633,6 +633,8 @@ void GlobalUIModelData::insert_attribute_data_into_model(
         if (!already_a_client) {
             p->second->clients_.insert(caf::actor_cast<caf::actor_addr>(client));
             monitor(client);
+        } else {
+            std::cerr << "Attr " << attr_data["title"] << " already a client of " << model_name <<std::endl;
         }
 
     } else {

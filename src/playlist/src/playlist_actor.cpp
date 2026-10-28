@@ -271,8 +271,8 @@ PlaylistActor::PlaylistActor(
         }
     }
 
-    set_property(session::mediaCountRole, int(media_.size()));
-    set_property(session::expandedRole, Playlist::expanded());
+    set_data_value(session::mediaCountRole, int(media_.size()));
+    set_data_value(session::expandedRole, Playlist::expanded());
 
     spdlog::debug("media loaded in {:.3} seconds.", sw);
     
@@ -1569,7 +1569,7 @@ caf::message_handler PlaylistActor::message_handler() {
 
             if (uuid == Playlist::uuid()) {
                 std::cerr << "FLAGGY!\n";
-                set_property(session::flagColourRole, flag);
+                set_data_value(session::flagColourRole, flag);
             }
 
             bool result = Playlist::reflag_container(flag, uuid);
@@ -2005,7 +2005,7 @@ caf::message_handler PlaylistActor::message_handler() {
         [=](expanded_atom) -> bool { return Playlist::expanded(); },
 
         [=](expanded_atom, const bool expanded) { 
-            set_property(session::expandedRole, expanded);
+            set_data_value(session::expandedRole, expanded);
             Playlist::set_expanded(expanded); 
         },
 

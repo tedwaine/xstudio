@@ -650,7 +650,7 @@ caf::message_handler MediaActor::message_handler() {
             // media source is broadcasting a new thumbnail
             try {
                 if (media_sources_.at(Media::current(media::MT_IMAGE)) == current_sender()) {
-                    set_property(session::thumbnailImageRole, buf);
+                    set_data_value(session::thumbnailImageRole, buf);
                     mail(utility::event_atom_v, media_reader::get_thumbnail_atom_v, buf)
                         .send(Media::event_group());
                 }
@@ -672,7 +672,7 @@ caf::message_handler MediaActor::message_handler() {
                 .then(
                     [=](thumbnail::ThumbnailBufferPtr &buf) mutable {
                         rp.deliver(buf);
-                        set_property(session::thumbnailImageRole, buf);
+                        set_data_value(session::thumbnailImageRole, buf);
                         mail(utility::event_atom_v, media_reader::get_thumbnail_atom_v, buf)
                             .send(Media::event_group());
                     },
@@ -2107,7 +2107,7 @@ void MediaActor::build_media_list_info(caf::typed_response_promise<utility::Json
             if (media_list_columns_info_ != *result) {
                 media_list_columns_info_ = *result;
 
-                set_property(session::mediaDisplayInfoRole, media_list_columns_info_);
+                set_data_value(session::mediaDisplayInfoRole, media_list_columns_info_);
 
                 // Media display info has changed. Emit a change event so the UI can update.
                 // This is needed so that the columns in the media list update when metadata
@@ -2256,7 +2256,7 @@ void MediaActor::duplicate(
             [=](const caf::error &err) mutable { rp.deliver(err); });
 }
 
-utility::AnyPtr MediaActor::get_property(const int key) 
+utility::AnyPtr MediaActor::get_data_value(const int key) 
 {
     if (key == session::thumbnailImageRole) {
         anon_mail(media_reader::get_thumbnail_atom_v, 0.5f).send(caf::actor_cast<caf::actor>(this));

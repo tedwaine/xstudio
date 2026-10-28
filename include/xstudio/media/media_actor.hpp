@@ -47,7 +47,7 @@ class MediaActor : public utility::ObjectActor, private Media {
               .or_else(utility::NotificationHandler::default_event_handler());
       }
        
-      utility::AnyPtr get_property(const int key) override;
+      utility::AnyPtr get_data_value(const int key) override;
       
   private:
     void init();
