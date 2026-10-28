@@ -14,11 +14,11 @@ FloatAttribute::FloatAttribute(
     const int float_display_decimals,
     const float fscrub_sensitivity)
     : TypeAttribute<float>(title, abbr_title, value, type_name(Attribute::FloatAttribute)) {
-    role_data_[FloatScrubMin]         = float_min;
-    role_data_[FloatScrubMax]         = float_max;
-    role_data_[FloatScrubStep]        = float_step;
-    role_data_[FloatScrubSensitivity] = fscrub_sensitivity;
-    role_data_[FloatDisplayDecimals]  = float_display_decimals;
+    set_role_data(FloatScrubMin, float_min);
+    set_role_data(FloatScrubMax, float_max);
+    set_role_data(FloatScrubStep, float_step);
+    set_role_data(FloatScrubSensitivity, fscrub_sensitivity);
+    set_role_data(FloatDisplayDecimals, float_display_decimals);
 }
 
 StringChoiceAttribute::StringChoiceAttribute(
@@ -29,8 +29,8 @@ StringChoiceAttribute::StringChoiceAttribute(
     const std::vector<std::string> &abbr_options)
     : TypeAttribute<std::string>(
           title, abbr_title, value, type_name(Attribute::StringChoiceAttribute)) {
-    role_data_[StringChoices]     = options;
-    role_data_[AbbrStringChoices] = abbr_options;
+    set_role_data(StringChoices, options);
+    set_role_data(AbbrStringChoices, abbr_options);
 }
 
 BooleanAttribute::BooleanAttribute(
@@ -44,7 +44,7 @@ StringAttribute::StringAttribute(
 
 QmlCodeAttribute::QmlCodeAttribute(const std::string &title, const std::string &code)
     : TypeAttribute<std::string>(title, title, "", type_name(Attribute::QmlCodeAttribute)) {
-    role_data_[QmlCode] = code;
+    set_role_data(QmlCode, code);
 }
 
 IntegerAttribute::IntegerAttribute(
@@ -54,8 +54,8 @@ IntegerAttribute::IntegerAttribute(
     const int64_t int_min,
     const int64_t int_max)
     : TypeAttribute<int64_t>(title, abbr_title, value, type_name(Attribute::IntegerAttribute)) {
-    role_data_[IntegerMin] = int_min;
-    role_data_[IntegerMax] = int_max;
+    set_role_data(IntegerMin, int_min);
+    set_role_data(IntegerMax, int_max);
 }
 
 ColourAttribute::ColourAttribute(

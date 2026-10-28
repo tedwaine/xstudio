@@ -46,11 +46,7 @@ void Module::parent_actor_exiting() {
 
         disconnect_from_ui();
 
-        auto central_models_data_actor =
-            self()->home_system().registry().template get<caf::actor>(
-                global_ui_model_data_registry);
-
-        if (central_models_data_actor) {
+        if (central_ui_models_actor_) {
 
             // make sure attribute data is removed from UI data models that expose
             // attrs in the UI layer
@@ -69,7 +65,7 @@ void Module::parent_actor_exiting() {
                                 group,
                                 attribute->uuid(),
                                 caf::actor())
-                                .send(central_models_data_actor);
+                                .send(central_ui_models_actor_);
                         }
                     } catch (...) {
                     }
@@ -81,8 +77,12 @@ void Module::parent_actor_exiting() {
 
 void Module::set_parent_actor_addr(caf::actor_addr addr) {
 
-
     parent_actor_addr_ = addr;
+
+    central_ui_models_actor_ =
+            self()->home_system().registry().template get<caf::actor>(
+                global_ui_model_data_registry);
+
     if (!attribute_events_group_) {
         attribute_events_group_ =
             self()->home_system().spawn<broadcast::BroadcastActor>(self());
@@ -267,17 +267,13 @@ void Module::remove_attribute(const utility::Uuid &attribute_uuid) {
     auto attr = get_attribute(attribute_uuid);
     if (attr) {
 
-        auto central_models_data_actor =
-            self()->home_system().registry().template get<caf::actor>(
-                global_ui_model_data_registry);
-
         if (attr->has_role_data(Attribute::UIDataModels)) {
             auto groups =
                 attr->get_role_data<std::vector<std::string>>(Attribute::UIDataModels);
             for (const auto &group_name : groups) {
 
                 anon_mail(ui::model_data::remove_rows_atom_v, group_name, attribute_uuid)
-                    .send(central_models_data_actor);
+                    .send(central_ui_models_actor_);
             }
         }
         for (auto p = attributes_.begin(); p != attributes_.end(); p++) {
@@ -1189,11 +1185,8 @@ caf::message_handler Module::message_handler() {
 
                  for (const auto uuid : p.second) {
                      if (uuid == menu_id) {
-                         auto central_models_data_actor =
-                             self()->home_system().registry().template get<caf::actor>(
-                                 global_ui_model_data_registry);
                          anon_mail(ui::model_data::remove_node_atom_v, p.first, menu_id)
-                             .send(central_models_data_actor);
+                             .send(central_ui_models_actor_);
                          return;
                      }
                  }
@@ -1227,10 +1220,6 @@ void Module::notify_change(
 
         if (attr->has_role_data(Attribute::UIDataModels)) {
 
-            auto central_models_data_actor =
-                self()->home_system().registry().template get<caf::actor>(
-                    global_ui_model_data_registry);
-
             auto groups =
                 attr->get_role_data<std::vector<std::string>>(Attribute::UIDataModels);
             for (const auto &group_name : groups) {
@@ -1241,7 +1230,7 @@ void Module::notify_change(
                     Attribute::role_name(role),
                     value,
                     self())
-                    .send(central_models_data_actor);
+                    .send(central_ui_models_actor_);
             }
         }
         attribute_changed(attr_uuid, role, self_notify);
@@ -1336,10 +1325,6 @@ void Module::attribute_changed(const utility::Uuid &attr_uuid, const int role_id
 
     if (role_id == Attribute::UIDataModels && attr) {
 
-        auto central_models_data_actor =
-            self()->home_system().registry().template get<caf::actor>(
-                global_ui_model_data_registry);
-
         auto groups = attr->get_role_data<std::vector<std::string>>(Attribute::UIDataModels);
 
         for (const auto &group_name : groups) {
@@ -1350,7 +1335,7 @@ void Module::attribute_changed(const utility::Uuid &attr_uuid, const int role_id
                 attr_uuid,
                 Attribute::role_name(Attribute::ToolbarPosition),
                 self())
-                .send(central_models_data_actor);
+                .send(central_ui_models_actor_);
         }
     } else if (role_id == Attribute::CallbackData && attr) {
 
@@ -1572,10 +1557,6 @@ void Module::connect_to_ui() {
     // and this is forwarded to the UI. Likewise, if the UI changes an attribute
     // a message is sent to the middleman which is passed back to Module here so
     // we update the actual attribute.
-
-    auto central_models_data_actor = self()->home_system().registry().template get<caf::actor>(
-        global_ui_model_data_registry);
-
     for (auto &a : attributes_) {
 
         if (a->has_role_data(Attribute::UIDataModels)) {
@@ -1589,7 +1570,7 @@ void Module::connect_to_ui() {
                     a->uuid(),
                     Attribute::role_name(Attribute::ToolbarPosition),
                     self())
-                    .send(central_models_data_actor);
+                    .send(central_ui_models_actor_);
             }
         }
     }
@@ -1624,7 +1605,7 @@ void Module::disconnect_from_ui() {
         // but active in the UI needs to know where the playhead is etc.
 
         // tell the UI middleman to remove our attributes from its data models
-        /*auto central_models_data_actor =
+        /*auto central_ui_models_actor_ =
             self()->home_system().registry().template get<caf::actor>(
                 global_ui_model_data_registry);
 
@@ -1636,7 +1617,7 @@ void Module::disconnect_from_ui() {
         &group_name : groups) { anon_mail(ui::model_data::deregister_model_data_atom_v,
                         group_name,
                         a->uuid(),
-                        self()).send(central_models_data_actor);
+                        self()).send(central_ui_models_actor_);
                 }
             }
         }*/
@@ -1690,6 +1671,7 @@ void Module::update_attrs_from_preferences(const utility::JsonStore &entire_pref
             try {
 
                 auto pref_path = attr->get_role_data<std::string>(Attribute::PreferencePath);
+                std::cerr << "Preference path: " << pref_path << std::endl;
 
                 try {
 
@@ -1855,9 +1837,6 @@ utility::Uuid Module::insert_menu_item(
     const std::string &user_data,
     const std::string &custom_menu_qml) {
     try {
-        auto central_models_data_actor =
-            self()->home_system().registry().template get<caf::actor>(
-                global_ui_model_data_registry);
 
         utility::JsonStore menu_item_data;
         if (attr) {
@@ -1927,7 +1906,7 @@ utility::Uuid Module::insert_menu_item(
                  menu_path,
                  menu_item_data,
                  self())
-                .send(central_models_data_actor);
+                .send(central_ui_models_actor_);
         } else {
             anon_mail(
                 ui::model_data::insert_or_update_menu_node_atom_v,
@@ -1935,7 +1914,7 @@ utility::Uuid Module::insert_menu_item(
                 menu_path,
                 menu_item_data,
                 self())
-                .send(central_models_data_actor);
+                .send(central_ui_models_actor_);
         }
 
         menu_items_[menu_model_name].push_back(menu_item_data["uuid"]);
@@ -1954,10 +1933,6 @@ utility::Uuid Module::insert_hotkey_into_menu(
     const utility::Uuid &hotkey) {
     try {
 
-        auto central_models_data_actor =
-            self()->home_system().registry().template get<caf::actor>(
-                global_ui_model_data_registry);
-
         utility::JsonStore menu_item_data;
         menu_item_data["menu_item_type"]     = "button";
         auto menu_item_id                    = utility::Uuid::generate();
@@ -1973,7 +1948,7 @@ utility::Uuid Module::insert_hotkey_into_menu(
                  menu_path,
                  menu_item_data,
                  self())
-                .send(central_models_data_actor);
+                .send(central_ui_models_actor_);
         } else {
             anon_mail(
                 ui::model_data::insert_or_update_menu_node_atom_v,
@@ -1981,7 +1956,7 @@ utility::Uuid Module::insert_hotkey_into_menu(
                 menu_path,
                 menu_item_data,
                 self())
-                .send(central_models_data_actor);
+                .send(central_ui_models_actor_);
         }
 
         menu_items_[menu_model_name].push_back(menu_item_id);
@@ -1995,13 +1970,10 @@ utility::Uuid Module::insert_hotkey_into_menu(
 
 void Module::remove_all_menu_items(const std::string &menu_model_name) {
     if (menu_items_.find(menu_model_name) != menu_items_.end()) {
-        auto central_models_data_actor =
-            self()->home_system().registry().template get<caf::actor>(
-                global_ui_model_data_registry);
 
         for (const auto &uuid : menu_items_[menu_model_name]) {
             anon_mail(ui::model_data::remove_node_atom_v, menu_model_name, uuid)
-                .send(central_models_data_actor);
+                .send(central_ui_models_actor_);
         }
     }
 }
@@ -2009,9 +1981,6 @@ void Module::remove_all_menu_items(const std::string &menu_model_name) {
 void Module::update_attribute_menu_item_data(Attribute *attr) {
 
     try {
-        auto central_models_data_actor =
-            self()->home_system().registry().template get<caf::actor>(
-                global_ui_model_data_registry);
 
         utility::JsonStore menu_item_data = attribute_menu_item_data(attr);
 
@@ -2049,7 +2018,7 @@ void Module::update_attribute_menu_item_data(Attribute *attr) {
                     menu_path,
                     menu_item_data,
                     self())
-                    .send(central_models_data_actor);
+                    .send(central_ui_models_actor_);
             }
         }
 
@@ -2059,19 +2028,14 @@ void Module::update_attribute_menu_item_data(Attribute *attr) {
 }
 
 void Module::remove_menu_item(const std::string &menu_model_name, const utility::Uuid item_id) {
-    auto central_models_data_actor = self()->home_system().registry().template get<caf::actor>(
-        global_ui_model_data_registry);
-
     anon_mail(ui::model_data::remove_node_atom_v, menu_model_name, item_id)
-        .send(central_models_data_actor);
+        .send(central_ui_models_actor_);
 }
 
 utility::Uuid Module::insert_menu_divider(
     const std::string &menu_model_name,
     const std::string &menu_path,
     const float menu_item_position) {
-    auto central_models_data_actor = self()->home_system().registry().template get<caf::actor>(
-        global_ui_model_data_registry);
 
     utility::JsonStore menu_item_data;
 
@@ -2085,7 +2049,7 @@ utility::Uuid Module::insert_menu_divider(
         menu_path,
         menu_item_data,
         self())
-        .send(central_models_data_actor);
+        .send(central_ui_models_actor_);
 
     return menu_item_data["uuid"];
 }
@@ -2095,15 +2059,12 @@ void Module::set_submenu_position_in_parent(
     const std::string &submenu,
     const float submenu_position) {
 
-    auto central_models_data_actor = self()->home_system().registry().template get<caf::actor>(
-        global_ui_model_data_registry);
-
     anon_mail(
         ui::model_data::insert_or_update_menu_node_atom_v,
         menu_model_name,
         submenu,
         submenu_position)
-        .send(central_models_data_actor);
+        .send(central_ui_models_actor_);
 }
 
 void Module::make_attribute_visible_in_viewport_toolbar(
@@ -2115,25 +2076,13 @@ void Module::make_attribute_visible_in_viewport_toolbar(
         if (!self())
             return;
 
-        auto central_models_data_actor =
-            self()->home_system().registry().template get<caf::actor>(
-                global_ui_model_data_registry);
-
-        if (central_models_data_actor) {
+        if (central_ui_models_actor_) {
 
             for (const auto &viewport_name : connected_viewport_names_) {
 
                 std::string toolbar_name = viewport_name + "_toolbar";
                 attr->expose_in_ui_attrs_group(toolbar_name, true);
 
-                anon_mail(
-                    ui::model_data::register_model_data_atom_v,
-                    toolbar_name,
-                    utility::JsonStore(attr->as_json()),
-                    attr->uuid(),
-                    Attribute::role_name(Attribute::ToolbarPosition),
-                    self())
-                    .send(central_models_data_actor);
             }
         }
 
@@ -2146,11 +2095,7 @@ void Module::make_attribute_visible_in_viewport_toolbar(
         if (!self())
             return;
 
-        auto central_models_data_actor =
-            self()->home_system().registry().template get<caf::actor>(
-                global_ui_model_data_registry);
-
-        if (central_models_data_actor) {
+        if (central_ui_models_actor_) {
             for (const auto &viewport_name : connected_viewport_names_) {
 
                 std::string toolbar_name = viewport_name + "_toolbar";
@@ -2161,7 +2106,7 @@ void Module::make_attribute_visible_in_viewport_toolbar(
                     toolbar_name,
                     attr->uuid(),
                     caf::actor())
-                    .send(central_models_data_actor);
+                    .send(central_ui_models_actor_);
             }
         }
     }
@@ -2269,25 +2214,16 @@ void Module::expose_attribute_in_model_data(
     Attribute *attr, const std::string &model_name, const bool expose) {
 
     attr->expose_in_ui_attrs_group(model_name, expose);
-    auto central_models_data_actor = self()->home_system().registry().template get<caf::actor>(
-        global_ui_model_data_registry);
 
     try {
         if (expose) {
-            anon_mail(
-                ui::model_data::register_model_data_atom_v,
-                model_name,
-                utility::JsonStore(attr->as_json()),
-                attr->uuid(),
-                Attribute::role_name(Attribute::ToolbarPosition),
-                self())
-                .send(central_models_data_actor);
+            
         } else {
             // this removes the attribute from the model of name
             // 'model_name'
             anon_mail(
                 ui::model_data::deregister_model_data_atom_v, model_name, attr->uuid(), self())
-                .send(central_models_data_actor);
+                .send(central_ui_models_actor_);
         }
     } catch (std::exception &) {
     }
@@ -2395,9 +2331,6 @@ void Module::register_ui_panel_qml(
     const float &viewport_popout_button_position,
     const utility::Uuid toggle_hotkey_id) {
 
-    auto central_models_data_actor = self()->home_system().registry().template get<caf::actor>(
-        global_ui_model_data_registry);
-
     utility::JsonStore data;
     data["view_name"]       = panel_name;
     data["view_qml_source"] = qml_code;
@@ -2408,7 +2341,7 @@ void Module::register_ui_panel_qml(
         data,
         0, // row
         1, // count
-        caf::actor()).send(central_models_data_actor);*/
+        caf::actor()).send(central_ui_models_actor_);*/
 
     scoped_actor sys{self()->home_system()};
     try {
@@ -2421,7 +2354,7 @@ void Module::register_ui_panel_qml(
             0,              // row
             1,              // count
             data)
-            .send(central_models_data_actor);
+            .send(central_ui_models_actor_);
 
     } catch (std::exception &e) {
         spdlog::warn("{} {}", __PRETTY_FUNCTION__, e.what());
@@ -2455,7 +2388,7 @@ void Module::register_ui_panel_qml(
                 0,                // row
                 1,                // count
                 data)
-                .send(central_models_data_actor);
+                .send(central_ui_models_actor_);
 
         } catch (std::exception &e) {
             spdlog::warn("{} {}", __PRETTY_FUNCTION__, e.what());
@@ -2507,9 +2440,6 @@ Attribute *Module::register_viewport_dockable_widget(
 
 void Module::register_singleton_qml(const std::string &qml_code) {
 
-    auto central_models_data_actor = self()->home_system().registry().template get<caf::actor>(
-        global_ui_model_data_registry);
-
     utility::JsonStore data;
     data["source"]        = qml_code;
     data["actor_address"] = utility::actor_to_string(
@@ -2526,7 +2456,7 @@ void Module::register_singleton_qml(const std::string &qml_code) {
             0,                 // row
             1,                 // count
             data)
-            .send(central_models_data_actor);
+            .send(central_ui_models_actor_);
 
     } catch (std::exception &e) {
         spdlog::warn("{} {}", __PRETTY_FUNCTION__, e.what());

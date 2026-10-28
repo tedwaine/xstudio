@@ -5,60 +5,11 @@
 #include <caf/all.hpp>
 #include "xstudio/atoms.hpp"
 #include "xstudio/utility/uuid.hpp"
+#include "xstudio/utility/data_tree.hpp"
 
 namespace xstudio {
 namespace utility {
 
-class ObjectDataTree;    
-using ObjectDataTreePtr = std::shared_ptr<const ObjectDataTree>;
-
-class ObjectDataTree {
-public:
-
-    using AnyPtr = std::shared_ptr<const std::any>;
-    using PropertyMap = std::map<int, AnyPtr>;
-
-    // Compares the typed value held by two property values. Supports the
-    // property value types used by ObjectDataTree: std::string, int, bool,
-    // float and JsonStore. Returns false for unsupported or mismatched types.
-    static bool values_equal(const std::any &a, const std::any &b);
-    static bool values_equal(const AnyPtr &a, const AnyPtr &b);    
-
-    ObjectDataTree(ObjectDataTree *parent = nullptr) : parent_(parent) {}
-    virtual ~ObjectDataTree() = default;
-
-    bool property_missing(const int &key) const {
-        return properties_.find(key) == properties_.end();
-    }
-
-    ObjectDataTree * deep_copy(ObjectDataTree *parent = nullptr) const;
-
-    [[nodiscard]] AnyPtr get_property(const int &key) const {
-        auto it = properties_.find(key);
-        return it != properties_.end() ? it->second : nullptr;
-    }
-
-    template <typename T>
-    std::optional<T> get_property(const int &key) const {
-        if (properties_.count(key)) {
-            try {
-                return std::any_cast<T>(*(properties_.at(key)));
-            } catch (const std::bad_any_cast &) {
-                return std::nullopt; // Type mismatch
-            }
-        }
-        return std::nullopt; // Property not found
-    }
-
-    void dump(const int depth = -1, const int indent = 0) const;
-
-    PropertyMap properties_;
-    std::vector<ObjectDataTreePtr> children_data_;
-    ObjectDataTree * parent_ = nullptr;
-
-    private:
-
-};
 
 /* This base actor class provides a heirarchical structure for actors within
 the xSTUDIO session data model. In particular it provides a framework for 
@@ -95,7 +46,7 @@ protected:
 
     /** Override this to implement on-demand property retrieval in your actor. This method
     is only called when the property is not found in the local property map. */
-    virtual AnyPtr get_property(const int key) { return AnyPtr(); }
+    virtual AnyPtr get_data_value(const int key) { return AnyPtr(); }
 
     /** Override this to define additional message handlers - for example message handlers from additional classes
     in the inheritance chain between your class and the ObjectActor root base class. */
@@ -104,24 +55,15 @@ protected:
     }
 
     template <typename T>
-    void set_property(const int key, const T & value) {
-        full_state_.properties_[key] = std::make_shared<const std::any>(value);
-        mail(property_atom_v, std::vector<int>(), key, full_state_.properties_[key]).send(properties_events_group_);
+    void set_data_value(const int key, const T & value) {
+        data_.set_data_value(key, value);
+        mail(event_atom_v, property_atom_v, std::vector<int>(), key, data_.get_data_value(key)).send(properties_events_group_);
     }
 
     template <typename T>
-    std::optional<T> get_property(const int key) const {
-        return full_state_.get_property<T>(key);
+    std::optional<T> get_data_value(const int key) const {
+        return data_.get_data_value<T>(key);
     }
-
-    AnyPtr __get_property(const int key) {
-        auto p = full_state_.get_property(key); // Property not found
-        if (!p)
-            p = get_property(key); // Try to get it on-demand if not found locally
-        if (p) full_state_.properties_[key] = p;
-        return p;
-    }
-
 
     void add_child(const UuidActor &child, const utility::Uuid &before = utility::Uuid());
     void remove_child(const UuidActor &child);
@@ -137,8 +79,19 @@ private:
 
     caf::message_handler private_message_handler();
 
+    AnyPtr __get_property(const int key) {
+        AnyPtr result = data_.get_data_value(key);
+        if (!result) {
+            result = get_data_value(key); // Try to get it on-demand if not found locally
+            if (result) {
+                data_.set_data_value(key, result);
+            }
+        }
+        return result;
+    }
+
     caf::actor properties_events_group_;
-    ObjectDataTree full_state_;
+    PropertyMap data_;
 
 };
 

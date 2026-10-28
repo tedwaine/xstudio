@@ -69,8 +69,8 @@ void PlayheadBase::add_attributes() {
     viewport_scrub_sensitivity_->set_role_data(
         module::Attribute::PreferencePath, "/ui/viewport/viewport_scrub_sensitivity");
 
-    auto_align_mode_->set_role_data(
-        module::Attribute::UIDataModels, nlohmann::json{"playhead_align_mode"});
+    /*auto_align_mode_->set_role_data(
+        module::Attribute::UIDataModels, nlohmann::json{"playhead_align_mode"});*/
 
     velocity_->set_role_data(module::Attribute::ToolbarPosition, 3.0f);
 

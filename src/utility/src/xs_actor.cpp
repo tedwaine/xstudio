@@ -4,69 +4,6 @@
 
 using namespace xstudio::utility;
 
-inline std::string to_string2(const xstudio::utility::AnyPtr & ptr) {
-
-    if (!ptr)
-        return "null";
-    const auto &a = *ptr;
-    if (a.type() == typeid(std::string))
-        return std::any_cast<const std::string &>(a);
-    if (a.type() == typeid(int))
-        return std::to_string(std::any_cast<int>(a));
-    if (a.type() == typeid(bool))
-        return std::any_cast<bool>(a) ? "true" : "false";
-    if (a.type() == typeid(float))
-        return std::to_string(std::any_cast<float>(a));
-    if (a.type() == typeid(JsonStore))
-        return std::any_cast<const JsonStore &>(a).dump();
-    return "unsupported type";
-}
-
-bool ObjectDataTree::values_equal(const std::any &a, const std::any &b) {
-    if (a.type() != b.type())
-        return false;
-    if (a.type() == typeid(std::string))
-        return std::any_cast<const std::string &>(a) == std::any_cast<const std::string &>(b);
-    if (a.type() == typeid(int))
-        return std::any_cast<int>(a) == std::any_cast<int>(b);
-    if (a.type() == typeid(bool))
-        return std::any_cast<bool>(a) == std::any_cast<bool>(b);
-    if (a.type() == typeid(float))
-        return std::any_cast<float>(a) == std::any_cast<float>(b);
-    if (a.type() == typeid(JsonStore))
-        return std::any_cast<const JsonStore &>(a) == std::any_cast<const JsonStore &>(b);
-    return false;
-}
-
-bool ObjectDataTree::values_equal(const AnyPtr &a, const AnyPtr &b) {
-    if (!a || !b)
-        return a == b;
-    return values_equal(*a, *b);
-}
-
-ObjectDataTree* ObjectDataTree::deep_copy(ObjectDataTree *parent) const {
-    auto copy = new ObjectDataTree(parent);
-    for (const auto &child : children_data_) {
-        copy->children_data_.push_back(ObjectDataTreePtr(child->deep_copy(copy)));
-    }
-    for (const auto &prop : properties_) {
-        copy->properties_[prop.first] = std::make_shared<const std::any>(*prop.second);
-    }
-    return copy;
-}
-
-void ObjectDataTree::dump(const int depth, const int indent) const
-{
-    for (const auto &prop : properties_) {
-        spdlog::info("{}{}: {}", std::string(indent, ' '), prop.first, to_string2(prop.second));
-    }
-    if (depth == 0)
-        return;
-    spdlog::info("{}Children:", std::string(indent, ' '));
-    for (const auto &child : children_data_) {
-        child->dump(depth == -1 ? -1 : depth - 1, indent + 2);
-    }
-}
 
 ObjectActor::ObjectActor(caf::actor_config &cfg, const std::string &name, const Uuid &uuid) : caf::event_based_actor(cfg) {
     properties_events_group_ = spawn<broadcast::BroadcastActor>(this);
@@ -75,9 +12,9 @@ ObjectActor::ObjectActor(caf::actor_config &cfg, const std::string &name, const 
     // Note - derived classes that are containers, for example, will
     // set the name and uuid in their own constructors therefore 
     // overwriting these values
-    set_property(session::nameRole, name);
-    set_property(session::uuidRole, uuid);
-    set_property(session::actorRole, caf::actor_cast<caf::actor_addr>(this));
+    set_data_value(session::nameRole, name);
+    set_data_value(session::uuidRole, uuid);
+    set_data_value(session::actorRole, caf::actor_cast<caf::actor_addr>(this));
 
 }
 
@@ -92,48 +29,45 @@ void ObjectActor::add_child(const UuidActor &child, const Uuid & before) {
     auto it = std::find_if(children_.begin(), children_.end(), [before](const UuidActor &c) {
         return c.uuid() == before;
     });
+    const int insert_index = std::distance(children_.begin(), it);
     children_.insert(it, child);
 
     // join the child'd property events broadcast group
-    mail(property_atom_v, broadcast::join_broadcast_atom_v, caf::actor_cast<caf::actor>(this)).request(child.actor(), infinite).then(
+    mail(property_atom_v, broadcast::join_broadcast_atom_v, caf::actor_cast<caf::actor>(this)).request(child, infinite).then(
         [=](const bool) {
             // handle response if needed
         },
         [=](const caf::error &err) {
+
+            std::cerr << "FAO " << to_string(child.actor()) << "\n";
+            mail(name_atom_v).request(child.actor(), infinite).then(
+                [=](const std::string &name) {
+                    std::cerr << "Child name: " << name << "\n";
+                },
+                [=](const caf::error &err) {
+                    std::cerr << "Error fetching child name: " << to_string(err) << "\n";
+                }
+            );
+
             spdlog::error("{} Error while joining broadcast: {}", __PRETTY_FUNCTION__, to_string(err));
         }
     );
 
-    // fetch the full state of the child's data and re-broadcast it up the tree to our
-    // parent (if we have one)
-    mail(property_atom_v).request(child.actor(), infinite).then(
-        [=](const ObjectDataTreePtr &child_data) mutable {
-            //full_state_.children_data_[cidx] = child_data;
-            std::vector<int> cidxs{child_index(child)};
-            mail(property_atom_v, cidxs, child_data).send(properties_events_group_);
-        },
-        [=](const caf::error &err) {
-            spdlog::error("{} Error while requesting child data: {}", __PRETTY_FUNCTION__, to_string(err));
-        }
-    );
-
-    /*int cidx = children_.empty() ? 0 : children_.rbegin()->first + 1;
-    children_[cidx] = caf::actor_cast<caf::actor_addr>(child);
     mail(property_atom_v).request(child, infinite).then(
-        [=](const ObjectDataTreePtr &child_data) mutable {
-            //full_state_.children_data_[cidx] = child_data;
-            std::vector<int> child_index{cidx};
-            mail(property_atom_v, child_index, child_data).send(properties_events_group_);
+        [=](const ObjectDataTreePtr &child_data) {
+
+            mail(event_atom_v, add_children_atom_v, std::vector<int>{}, insert_index, child_data).send(properties_events_group_);
+
         },
         [=](const caf::error &err) {
-            spdlog::error("{} Error while requesting child data: {}", __PRETTY_FUNCTION__, to_string(err));
-        }
-    );*/
+            log_caf_error(err);
+        });
 
 }
 
 void ObjectActor::child_moved(const Uuid &child_id, const Uuid &before_child_id) {
     
+    // get the index of the child to be moved
     int cidx = -1;
     for (size_t i = 0; i < children_.size(); ++i) {
         if (children_[i].uuid() == child_id) {
@@ -141,18 +75,23 @@ void ObjectActor::child_moved(const Uuid &child_id, const Uuid &before_child_id)
             break;
         }
     }
-
     if (cidx == -1) return;
 
+    // get the index of the child before which the current child should be moved
+    // if before_child_id is null, it means the child should be moved to the end of the list
     int before_cidx = -1;    
-    for (size_t i = 0; i < children_.size(); ++i) {
-        if (children_[i].uuid() == before_child_id) {
-            before_cidx = static_cast<int>(i);
-            break;
+    if (!before_child_id.is_null()) {
+        for (size_t i = 0; i < children_.size(); ++i) {
+            if (children_[i].uuid() == before_child_id) {
+                before_cidx = static_cast<int>(i);
+                break;
+            }
         }
     }
 
     if ((before_cidx != -1 || before_child_id.is_null()) && cidx != before_cidx) {
+
+        // move the child to the new position in the children_ vector
         auto to_move = children_[cidx];
         children_.erase(children_.begin() + cidx);
         if (before_cidx == -1) {
@@ -164,7 +103,13 @@ void ObjectActor::child_moved(const Uuid &child_id, const Uuid &before_child_id)
                 children_.insert(children_.begin() + before_cidx, to_move);
             }
         }
-        mail(event_atom_v, move_children_atom_v, std::vector<int>(), cidx, before_cidx == -1 ? (int)children_.size() : before_cidx).send(properties_events_group_);
+        // notify down the tree that a child has been moved
+        mail(
+            event_atom_v,
+            move_children_atom_v,
+            std::vector<int>(),
+            cidx,
+            before_cidx == -1 ? (int)children_.size() : before_cidx).send(properties_events_group_);
     }
 }
 
@@ -190,11 +135,12 @@ int ObjectActor::child_index(const caf::strong_actor_ptr &child) const {
 
 
 void ObjectActor::remove_child(const UuidActor &child) {
+
     int cidx = child_index(child);
     if (cidx != -1)
         children_.erase(children_.begin() + cidx);
     mail(event_atom_v, remove_children_atom_v, std::vector<int>{cidx}).send(properties_events_group_);
-    //children_.erase(std::remove(children_.begin(), children_.end(), caf::actor_cast<caf::actor_addr>(child)), children_.end());
+
 }
 
 caf::message_handler ObjectActor::private_message_handler() {
@@ -213,6 +159,7 @@ caf::message_handler ObjectActor::private_message_handler() {
 
         [=](event_atom, move_children_atom, std::vector<int> index_in_tree, const int child_id, const int before_child_id) {
 
+            // children were moved further up the tree. Rebroadcast.
             int cindex = child_index(current_sender());
             if (cindex < 0) return;
             index_in_tree.insert(index_in_tree.begin(), cindex);
@@ -222,6 +169,7 @@ caf::message_handler ObjectActor::private_message_handler() {
 
         [=](event_atom, remove_children_atom, std::vector<int> index_in_tree) {
 
+            // a child was removed further up the tree. Rebroadcast.
             int cindex = child_index(current_sender());
             if (cindex < 0) return;
             index_in_tree.insert(index_in_tree.begin(), cindex);
@@ -229,13 +177,26 @@ caf::message_handler ObjectActor::private_message_handler() {
 
         },
 
+        [=](event_atom, add_children_atom, std::vector<int> index_in_tree, const int insertion_index, const ObjectDataTreePtr &child_data) {
+
+            // a child was added further up the tree. Rebroadcast.
+            int cindex = child_index(current_sender());
+            if (cindex < 0) return;
+            index_in_tree.insert(index_in_tree.begin(), cindex);
+            mail(event_atom_v, add_children_atom_v, index_in_tree, insertion_index, child_data).send(properties_events_group_);
+
+        },
+
         [=](find_children_atom, const int prop_key, const AnyPtr &value, int depth) -> result<UuidActor> {
+
+            // This allows us to recursively search the tree to find an actor that has
+            // a property with the specified key and value.
 
             // try match to ourselves
             auto prop = __get_property(prop_key);
 
             if (ObjectDataTree::values_equal(prop, value)) {
-                auto uuid = get_property<Uuid>(session::uuidRole);
+                auto uuid = get_data_value<Uuid>(session::uuidRole);
                 if (uuid) {
                     return UuidActor(*uuid, caf::actor_cast<caf::actor>(this));
                 }
@@ -268,13 +229,21 @@ caf::message_handler ObjectActor::private_message_handler() {
             add_child(child);
             return true;
         },
-        [=](add_children_atom, const UuidActorVector &childred) -> bool {
-            for (const auto &child : childred) {
+        [=](add_children_atom, const UuidActorVector &children) -> bool {
+            for (const auto &child : children) {
                 add_child(child);
             }
             return true;
         },
         [=](property_atom, const int key, const uint64_t ui_layer_node_id, caf::actor sender) {
+            // This is an a-sync request for data from a subscriber to the tree. We respond with the requested property if it exists.
+            // Our virtual 'get_data_value' method is called, giving derived classes a chance to provide the property value
+            // or alternatively make an async request to obtain it and notify the subscriber via the property events group.ßß
+
+            // For example, this is how we get Media thumbnails for the Media list. If the thumbnail hasn't already been
+            // generated, the media actor will do an async request for the thumbnail from the thumbnail service. When it
+            // eventually gets the thumbnail it uses 'set_data_value' to update the property and notify subscribers so
+            // although the requester here may not get an immediate response, it will eventually receive the property update via the events group.
             auto r = __get_property(key);
             if (r) {
                 mail(utility::property_atom_v, r, key, ui_layer_node_id).send(sender);
@@ -306,60 +275,30 @@ caf::message_handler ObjectActor::private_message_handler() {
         },
         [=](property_atom, const int key, const AnyPtr &value) -> bool {
 
-            full_state_.properties_[key] = value;
-            mail(property_atom_v, std::vector<int>(), key, value).send(properties_events_group_);
+            data_.set_data_value(key, value);
+            mail(event_atom_v, property_atom_v, std::vector<int>(), key, value).send(properties_events_group_);
             return true;
         },
-        [=](property_atom, std::vector<int> index_in_tree, const int key, const AnyPtr &value) {
+        [=](event_atom, property_atom, std::vector<int> index_in_tree, const int key, const AnyPtr &value) {
             // A child's data has been updated.
             // what's the index of the child that sent this?
             int cindex = child_index(current_sender());
-             std::cerr << "donk " << *(get_property<std::string>(session::nameRole)) << " " << key << std::endl;
             if (cindex < 0) {
-                std::cerr << "nope " << *(get_property<std::string>(session::nameRole)) << std::endl;
+                spdlog::debug("Child index not found for sender");
                 return;
             }
             // bubble it up
             index_in_tree.insert(index_in_tree.begin(), cindex);
-            mail(property_atom_v, index_in_tree, key, value).send(properties_events_group_);
-        },
-        [=](property_atom, const ObjectDataTreePtr &child_data) {
-
-            // A child's data has been updated.
-            // what's the index of the child that sent this?
-            int cindex = child_index(current_sender());
-            if (cindex < 0) return;
-
-            // bubble it up
-            mail(property_atom_v, std::vector<int>{cindex}, child_data).send(properties_events_group_);
-
-        },
-        [=](property_atom, std::vector<int> index_in_tree, const ObjectDataTreePtr &child_data) {
-
-            // A child's data (or the child of a child etc.) has been updated. Foward the update
-            // to our parent via properties_events_group_. We append the index of the child the
-            // forwarded this to us to index_in_tree.
-            int cindex = child_index(current_sender());
-            if (cindex < 0) return;
-            index_in_tree.insert(index_in_tree.begin(), cindex);
-            mail(property_atom_v, index_in_tree, child_data).send(properties_events_group_);
-
-        },
-        [=](property_atom, const int key, const AnyPtr &value) {
-
-            // A property has been updated.
-            int cindex = child_index(current_sender());
-            if (cindex < 0) return;
-            mail(property_atom_v, std::vector<int>{cindex}, key, value).send(properties_events_group_);
-
+            mail(event_atom_v, property_atom_v, index_in_tree, key, value).send(properties_events_group_);
         },
         [=](property_atom, const int key) -> result<AnyPtr> {
-            return full_state_.properties_.count(key) ? full_state_.properties_[key] : AnyPtr();
+            return data_.get_data_value(key);
         },
         [=](property_atom) -> result<ObjectDataTreePtr> {
 
+            // Request the full state of the tree rooted at this actor.
             auto auto_responder = AutoResponder<ObjectDataTreePtr>(children_.size(), this);
-            auto result = full_state_.deep_copy();            
+            auto result = new ObjectDataTree(data_);
             auto_responder.result().reset(result); 
             for (size_t i = 0; i < children_.size(); ++i) {
                 mail(property_atom_v).request(children_[i].actor(), infinite).then(
@@ -367,9 +306,8 @@ caf::message_handler ObjectActor::private_message_handler() {
                         // this const_cast is ok as we 'own' cdata - it was a copy
                         // made by the child and returned to us by this very
                         // message handler (in the child)
-                        const_cast<ObjectDataTree *>(cdata.get())->parent_ = result;
-                        result->children_data_.resize(std::max(result->children_data_.size(), size_t(i+1)));
-                        result->children_data_[i] = cdata;
+                        const_cast<ObjectDataTree *>(cdata.get())->set_parent(result);
+                        result->new_node(cdata, i);
                         auto_responder.decrement();
                     },
                     [=](const caf::error &err) mutable{

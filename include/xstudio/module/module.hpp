@@ -405,7 +405,8 @@ class Module {
     caf::actor keypress_monitor_actor_;
     caf::actor keyboard_and_mouse_group_;
     caf::actor attribute_events_group_;
-
+    caf::actor central_ui_models_actor_;
+    
     std::set<utility::Uuid> attrs_in_toolbar_;
     std::set<std::string> connected_viewport_names_;
     std::set<caf::actor> connected_viewports_;

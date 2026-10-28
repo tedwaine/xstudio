@@ -13,7 +13,7 @@ template <typename T> class TypeAttribute : public Attribute {
         const T &value,
         const std::string &type_name)
         : Attribute(title, abbr_title, type_name) {
-        role_data_[Value] = value;
+        set_role_data(Value, value);
     }
 
   public:
