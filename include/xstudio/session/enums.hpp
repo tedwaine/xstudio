@@ -65,7 +65,8 @@ typedef enum {
     trimmedStartRole,
     typeRole,
     uuidRole,
-    userDataRole
+    userDataRole,
+    myNewDataValueRole
 } SessionRoles;
 
 }

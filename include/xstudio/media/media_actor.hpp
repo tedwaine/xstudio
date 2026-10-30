@@ -99,6 +99,8 @@ class MediaActor : public utility::ObjectActor, private Media {
     utility::JsonStore media_list_columns_info_;
     utility::time_point creation_time_ = {utility::clock::now()};
     bool pending_media_display_info_{false};
+
+    utility::ColourTriplet my_new_data_value_;
 };
 
 class MediaSourceActor  : public utility::ObjectActor, private MediaSource {
