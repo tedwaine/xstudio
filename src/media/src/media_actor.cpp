@@ -1549,6 +1549,9 @@ void MediaActor::init() {
     // for filtering our metadata
     mail(media::media_display_info_atom_v, true).send(metadata_filter_actor);
     join_event_group(this, metadata_filter_actor);
+
+    my_new_data_value_ = utility::ColourTriplet(drand48(), drand48(), drand48());
+    set_data_value(session::myNewDataValueRole, my_new_data_value_);
 }
 
 void MediaActor::add_or_rename_media_source(

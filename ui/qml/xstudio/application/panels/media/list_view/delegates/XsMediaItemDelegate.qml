@@ -19,7 +19,7 @@ Rectangle {
     id: listItem
     width: parent.width
     implicitHeight: itemRowHeight + drag_target_indicator.height
-    color: "transparent"
+    color: myNewDataValueRole
 
     property color hintColor: XsStyleSheet.hintColor
 

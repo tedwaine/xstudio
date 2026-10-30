@@ -71,7 +71,8 @@ namespace {
         {session::trimmedStartRole, "trimmedStartRole"},
         {session::typeRole, "typeRole"},
         {session::uuidRole, "uuidRole"},
-        {session::userDataRole, "userDataRole"}
+        {session::userDataRole, "userDataRole"},
+        {session::myNewDataValueRole, "myNewDataValueRole"}
     });
 
     AnyPtr anyPtrFromQVariant(const QVariant &var) {
