@@ -17,63 +17,23 @@ using namespace xstudio;
 using namespace xstudio::ui::qml;
 using namespace xstudio::utility;
 
-namespace {
+#define MAKE_ENUM_NAME_MAP(enumName)\
+{\
+    QStringList enumStrings(QString(enumName##Strings.data()).split(QRegularExpression("\\W+"), Qt::SkipEmptyParts));\
+    assert((enumName##All.size()-1) == enumStrings.size());\
+    int i = 0;\
+    auto pp = enumName##All.begin();\
+    pp++;\
+    while (pp != enumName##All.end()) {\
+        data_roles_[*pp] = enumStrings[i].toUtf8();\
+        data_roles_inverse_[enumStrings[i++]] = (*(pp++));\
+    }\
+}
 
-    static const std::map<int, QString> sessionRoleNames({
-        {session::activeDurationRole, "activeDurationRole"},
-        {session::activeRangeValidRole, "activeRangeValidRole"},
-        {session::activeStartRole, "activeStartRole"},
-        {session::actorRole, "actorRole"},
-        {session::actorUuidRole, "actorUuidRole"},
-        {session::audioActorUuidRole, "audioActorUuidRole"},
-        {session::audioModeRole, "audioModeRole"},
-        {session::availableDurationRole, "availableDurationRole"},
-        {session::availableStartRole, "availableStartRole"},
-        {session::bitDepthRole, "bitDepthRole"},
-        {session::bookmarkUuidsRole, "bookmarkUuidsRole"},
-        {session::busyRole, "busyRole"},
-        {session::clipMediaUuidRole, "clipMediaUuidRole"},
-        {session::clipEditedStatusRole, "clipEditedStatusRole"},
-        {session::containerUuidRole, "containerUuidRole"},
-        {session::enabledRole, "enabledRole"},
-        {session::errorRole, "errorRole"},
-        {session::expandedRole, "expandedRole"},
-        {session::flagColourRole, "flagColourRole"},
-        {session::flagTextRole, "flagTextRole"},
-        {session::formatRole, "formatRole"},
-        {session::groupActorRole, "groupActorRole"},
-        {session::imageActorUuidRole, "imageActorUuidRole"},
-        {session::lockedRole, "lockedRole"},
-        {session::markersRole, "markersRole"},
-        {session::mediaCountRole, "mediaCountRole"},
-        {session::mediaDisplayInfoRole, "mediaDisplayInfoRole"},
-        {session::mediaStatusRole, "mediaStatusRole"},
-        {session::metadataChangedRole, "metadataChangedRole"},
-        {session::mtimeRole, "mtimeRole"},
-        {session::nameRole, "nameRole"},
-        {session::notificationRole, "notificationRole"},
-        {session::pathRole, "pathRole"},
-        {session::pathShakeRole, "pathShakeRole"},
-        {session::pixelAspectRole, "pixelAspectRole"},
-        {session::placeHolderRole, "placeHolderRole"},
-        {session::propertyRole, "propertyRole"},
-        {session::qmlCodeRole, "qmlCodeRole"},
-        {session::rateFPSRole, "rateFPSRole"},
-        {session::rateFPSStringRole, "rateFPSStringRole"},
-        {session::resolutionRole, "resolutionRole"},
-        {session::rotationRole, "rotationRole"},
-        {session::selectionRole, "selectionRole"},
-        {session::thumbnailImageRole, "thumbnailImageRole"},
-        {session::thumbnailURLRole, "thumbnailURLRole"},
-        {session::timecodeAsFramesRole, "timecodeAsFramesRole"},
-        {session::trackIndexRole, "trackIndexRole"},
-        {session::trimmedDurationRole, "trimmedDurationRole"},
-        {session::trimmedStartRole, "trimmedStartRole"},
-        {session::typeRole, "typeRole"},
-        {session::uuidRole, "uuidRole"},
-        {session::userDataRole, "userDataRole"},
-        {session::myNewDataValueRole, "myNewDataValueRole"}
-    });
+//std::vector<Fart> FartAll = {Bum, Willy, Poo};
+//inline static const std::vector<QString> FartStrings = {"Bum", "Willy", "Poo"};
+
+namespace {
 
     AnyPtr anyPtrFromQVariant(const QVariant &var) {
 
@@ -159,7 +119,6 @@ namespace {
             return json_to_qvariant(std::any_cast<const JsonStore &>(a));
         if (a.type() == typeid(thumbnail::ThumbnailBufferPtr)) {
             const auto &buf = std::any_cast<const thumbnail::ThumbnailBufferPtr &>(a);
-            std::cerr << "Creating QImage from ThumbnailBufferPtr" << std::endl;
             return QImage(
                     (uchar *)&(buf->data()[0]),
                     buf->width(),
@@ -186,11 +145,7 @@ void UIDataModel::init(caf::actor_system &_system) {
         return message_handler().or_else(core_message_handler());
     });
 
-    int i = Qt::UserRole;
-    for (const auto &p : sessionRoleNames) {
-        data_roles_[p.first] = p.second.toUtf8();
-        data_roles_inverse_[p.second] = p.first;
-    }
+    MAKE_ENUM_NAME_MAP(session::SessionRoles)
 
 }
 
@@ -444,12 +399,9 @@ QVariant UIDataModel::data(const QModelIndex &index, int role) const {
         if (act) {
             self()->mail(utility::property_atom_v, role, index.internalId(), as_actor()).send(caf::actor_cast<caf::actor>(*act));
         }
-        auto pp = sessionRoleNames.find(role);
-        //qDebug() << "nah " << (pp != sessionRoleNames.end() ? pp->second : "unknown") << " ";
         return {};
     }
     QVariant r = qvariantFromAnyPtr(node->get_data_value(role));
-    //qDebug() << r << " ";
     return r;
 
 }
