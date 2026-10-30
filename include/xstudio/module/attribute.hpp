@@ -141,7 +141,7 @@ class Attribute {
         try {
             return role_data_.get_data_value_t<T>(role);
         } catch (const std::exception &e) {
-            throw std::runtime_error(std::string("Failed to get role data: ") + role_data_as_json(role).dump());
+            throw std::runtime_error(std::string("Failed to get role data: ") + role_data_as_json(role).dump() + typeid(T).name() + " " + e.what());
         }
     }
 

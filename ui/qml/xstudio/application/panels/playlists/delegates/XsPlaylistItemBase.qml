@@ -174,11 +174,6 @@ Item {
             }
         }
 
-        property var aaa: flagColourRole
-        onAaaChanged: {
-            console.log("aaa changed:", aaa)
-        }
-
         onReleased: (mouse) => {
 
             if (mouse.button == Qt.RightButton ||

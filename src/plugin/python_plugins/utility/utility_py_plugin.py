@@ -141,7 +141,10 @@ class UtilityPythonPlugin(PluginBase):
                 p.remove_container(uuid)
 
     def move_session_items(self, items_to_move, move_before_this_item):
-        """Move session items to a new parent container.
+        """Move session items within their parent container. This enables drag/drop
+        reordering within the playlists panel. The UUIDs provided must be the IDs
+        of session items parented to the same container - either the session itself
+        or a playlist.
 
         Args:
             items_to_move (list): List of UUIDs of session items to move.
@@ -182,7 +185,6 @@ class UtilityPythonPlugin(PluginBase):
                 raise ValueError("Target UUID not found for move_before_this_item.")
             target_uuid = target_uuid[0]
                 
-        print("Container UUIDs to move:", parent, container_uuids, target_uuid)
         for cuuid in container_uuids:
             parent.move_container(
                 cuuid, target_uuid, False)
