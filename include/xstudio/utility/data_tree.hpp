@@ -5,6 +5,7 @@
 #include <caf/all.hpp>
 #include "xstudio/atoms.hpp"
 #include "xstudio/utility/uuid.hpp"
+#include "xstudio/utility/json_store.hpp"
 
 namespace xstudio {
 namespace utility {
@@ -31,7 +32,7 @@ class PropertyMap : private std::map<int, AnyPtr> {
 
     PropertyMap() = default;
 
-    void delete_entry(const int &key) {
+    void delete_entry(const int key) {
         auto it = find(key);
         if (it != end()) {
             erase(it);
@@ -43,7 +44,7 @@ class PropertyMap : private std::map<int, AnyPtr> {
         return it != end() ? it->second : nullptr;
     }
 
-    bool has_data_value(const int &key) const {
+    bool has_data_value(const int key) const {
         return find(key) != end();
     }
 
@@ -75,12 +76,26 @@ class PropertyMap : private std::map<int, AnyPtr> {
         return std::nullopt; // Property not found
     }
 
-    void set_data_value(const int &key, const AnyPtr &value) {
+    void set_data_value(const int key, const AnyPtr &value) {
         (*this)[key] = value;
     }
 
+    // specialized version for double - allows setting of underlying
+    // int, int64_t, float, and double types
+    bool set_data_value_check(const int key, const double &value);
+
+    bool set_data_value_check(const int key, const int64_t &value);
+
+    bool set_data_value_check(const int key, const int &value);
+
+    bool set_data_value_check(const int key, const float &value);
+
+    bool set_data_value_check(const int key, const utility::JsonStore &value);
+
+    bool set_data_value_check(const int key, const nlohmann::json &value);
+
     template <typename T>
-    bool set_data_value_check(const int &key, const T &value) {
+    bool set_data_value_check(const int key, const T &value) {
         auto it = find(key);
         if (it != end() && it->second && it->second->type() == typeid(T)) {
             if (std::any_cast<T>(*(it->second)) == value) {
@@ -92,7 +107,7 @@ class PropertyMap : private std::map<int, AnyPtr> {
     }
 
     template <typename T>
-    void set_data_value(const int &key, const T &value) {
+    void set_data_value(const int key, const T &value) {
         (*this)[key] = std::make_shared<const std::any>(value);
     }
 
@@ -136,19 +151,19 @@ public:
     ObjectDataTree(const PropertyMap &properties = {}) : data_(properties) {}
     virtual ~ObjectDataTree() = default;
 
-    bool has_data_value(const int &key) const {
+    bool has_data_value(const int key) const {
         return data_.has_data_value(key);
     }
 
-    [[nodiscard]] AnyPtr get_data_value(const int &key) const { return data_.get_data_value(key); }
+    [[nodiscard]] AnyPtr get_data_value(const int key) const { return data_.get_data_value(key); }
 
     template <typename T>
-    std::optional<T> get_data_value(const int &key) const { return data_.get_data_value<T>(key); }
+    std::optional<T> get_data_value(const int key) const { return data_.get_data_value<T>(key); }
 
-    void set_data_value(const int &key, const AnyPtr &value) { data_.set_data_value(key, value); }
+    void set_data_value(const int key, const AnyPtr &value) { data_.set_data_value(key, value); }
 
     template <typename T>
-    void set_data_value(const int &key, const T &value) { data_.set_data_value<T>(key, value); }
+    void set_data_value(const int key, const T &value) { data_.set_data_value<T>(key, value); }
 
     void dump(const int depth = -1, const int indent = 0) const;
 

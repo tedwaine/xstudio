@@ -33,14 +33,14 @@ void ObjectActor::add_child(const UuidActor &child, const Uuid & before) {
     children_.insert(it, child);
 
     // join the child'd property events broadcast group
-    mail(property_atom_v, broadcast::join_broadcast_atom_v, caf::actor_cast<caf::actor>(this)).request(child, infinite).then(
+    self()->mail(property_atom_v, broadcast::join_broadcast_atom_v, caf::actor_cast<caf::actor>(this)).request(child, infinite).then(
         [=](const bool) {
             // handle response if needed
         },
         [=](const caf::error &err) {
 
             std::cerr << "FAO " << to_string(child.actor()) << "\n";
-            mail(name_atom_v).request(child.actor(), infinite).then(
+            self()->mail(name_atom_v).request(child.actor(), infinite).then(
                 [=](const std::string &name) {
                     std::cerr << "Child name: " << name << "\n";
                 },
@@ -53,7 +53,7 @@ void ObjectActor::add_child(const UuidActor &child, const Uuid & before) {
         }
     );
 
-    mail(property_atom_v).request(child, infinite).then(
+    self()->mail(property_atom_v).request(child, infinite).then(
         [=](const ObjectDataTreePtr &child_data) {
 
             mail(event_atom_v, add_children_atom_v, std::vector<int>{}, insert_index, child_data).send(properties_events_group_);

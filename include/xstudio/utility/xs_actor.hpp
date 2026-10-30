@@ -75,6 +75,8 @@ protected:
 
     std::vector<UuidActor> children_;
 
+    caf::event_based_actor *self() { return static_cast<caf::event_based_actor *>(this); }
+
 private:
 
     caf::message_handler private_message_handler();

@@ -40,13 +40,11 @@ XsListView { id: playlists
     }
 
     DelegateModel {
+
         id: playlistsModel
 
-        // this is required as "model" doesn't issue notifications on change
-        property var notifyModel: playlistsModelData
-
         // we use the main session data model
-        model: notifyModel
+        model: playlistsModelData
 
         // point at session 0,0, it's children are the playlists.
         delegate: Item {
@@ -55,10 +53,10 @@ XsListView { id: playlists
             height: widget ? widget.implicitHeight : 0
             property var widget
             property var code: qmlCodeRole
-            Component.onCompleted: {
-                console.log("Component completed for item with code:", code)
-            }
             onCodeChanged: {
+                // The actual delegate item is created dynamically from the QML code string
+                // provided by the backend class. See REGISTER_SESSION_OBJECT macro in the
+                // C++ code.
                 if (typeof code === "string") {
                     widget = Qt.createQmlObject(code, pitem)
                     widget.modelIndex = helpers.makePersistent(playlistsModelData.index(index, 0))

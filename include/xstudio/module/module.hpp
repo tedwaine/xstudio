@@ -396,11 +396,14 @@ class Module {
     // This method can be overriden to receive a callback when the number of viewports
     // connected to the module changes. This is used by the Playhead class, for example
     virtual void connected_viewports_changed(std::set<caf::actor> &connected_viewports) {}
+    
 
   private:
+  
     void notify_attribute_destroyed(Attribute *);
     void attribute_changed(const utility::Uuid &attr_uuid, const int role_id, bool notify);
     void add_attribute(Attribute *attr);
+    void register_attribute_in_ui_models(Attribute *a);
 
     caf::actor keypress_monitor_actor_;
     caf::actor keyboard_and_mouse_group_;

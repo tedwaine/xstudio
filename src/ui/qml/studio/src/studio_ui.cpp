@@ -26,7 +26,7 @@ StudioUI::StudioUI(caf::actor_system &system, QObject *parent) : QMLActor(parent
 
     // create the offscreen viewport used for snapshot and note thumbnail
     // generation
-    offscreen_snapshot_viewport();
+    //offscreen_snapshot_viewport();
 }
 
 StudioUI::~StudioUI() {

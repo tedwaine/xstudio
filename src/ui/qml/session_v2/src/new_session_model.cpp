@@ -264,7 +264,7 @@ caf::message_handler UIDataModel::core_message_handler() {
             for (const auto &i: index_in_tree) {
                 parent_index = index(i, 0, parent_index);
             }
-            qDebug() << "Updating property for key: " << key << " index " << parent_index;
+            //qDebug() << "Updating property for key: " << key << " index " << parent_index;
             ObjectDataTree * node = const_cast<ObjectDataTree *>(UIDataModel::node_from_index(parent_index));
             if (node && data_roles_.contains(key)) {
                 node->set_data_value(key, value);
@@ -275,9 +275,6 @@ caf::message_handler UIDataModel::core_message_handler() {
 
             if (self()->current_sender() != source_of_data_)
                 return;
-            auto oi = child_data->get_data_value<std::string>(session::nameRole);
-            std::cerr << "Name ASFADSFADS role: " << this << " " << (oi ? *oi : "NOP") << std::endl;
-            child_data->dump(3,2);
             set_root(child_data);
         },
         [=](event_atom, add_children_atom, std::vector<int> index_in_tree, const int insertion_index, const ObjectDataTreePtr &child_data) {
@@ -381,7 +378,7 @@ int UIDataModel::rowCount(const QModelIndex &parent) const {
 
     const ObjectDataTree *node = node_from_index(parent);
     const int rt = node ? static_cast<int>(node->num_nodes()) : 0;
-     qDebug() << "Row count for parent" << parent << "is" << rt;
+    // qDebug() << "Row count for parent" << parent << "is" << rt;
     return rt;
 }
 
@@ -447,11 +444,11 @@ QVariant UIDataModel::data(const QModelIndex &index, int role) const {
             self()->mail(utility::property_atom_v, role, index.internalId(), as_actor()).send(caf::actor_cast<caf::actor>(*act));
         }
         auto pp = sessionRoleNames.find(role);
-        qDebug() << "nah " << (pp != sessionRoleNames.end() ? pp->second : "unknown") << " ";
+        //qDebug() << "nah " << (pp != sessionRoleNames.end() ? pp->second : "unknown") << " ";
         return {};
     }
     QVariant r = qvariantFromAnyPtr(node->get_data_value(role));
-    qDebug() << r << " ";
+    //qDebug() << r << " ";
     return r;
 
 }

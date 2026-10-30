@@ -77,6 +77,7 @@ if (BUILD_TESTING)
 			PRIVATE TEST_RESOURCE=\"${TEST_RESOURCE}\"
 			PRIVATE ROOT_DIR=\"${ROOT_DIR}\"
 			PRIVATE $<$<CONFIG:Debug>:XSTUDIO_DEBUG=1>
+			$<$<PLATFORM_ID:Darwin>:__apple__> # Define __apple__ for MacOS
 		)
 	endmacro()
 endif (BUILD_TESTING)
@@ -589,6 +590,50 @@ macro(create_test PATH DEPS)
 	get_filename_component(PARENT ${PARENT} NAME)
 
 	add_executable(${NAME} ${FILENAME})
+	default_options_gtest(${NAME})
+	target_link_libraries(${NAME}
+		PRIVATE
+		xstudio::global
+		"${DEPS}"
+		${GTEST_LDFLAGS}
+	)
+	set_target_properties(${NAME} PROPERTIES LINK_DEPENDS_NO_SHARED true)
+
+	add_test(${PARENT}_${NAME} ${NAME})
+
+	if (WIN32)
+		# No rpath on Windows - without these on PATH every test exits 0xc0000135.
+		set(TEST_DLL_DIRS "${CMAKE_BINARY_DIR}/bin")
+		if (DEFINED VCPKG_INSTALLED_DIR AND DEFINED VCPKG_TARGET_TRIPLET)
+			list(APPEND TEST_DLL_DIRS "${VCPKG_INSTALLED_DIR}/${VCPKG_TARGET_TRIPLET}/bin")
+		endif()
+
+		set(TEST_PATH_MODS "")
+		foreach(DLL_DIR ${TEST_DLL_DIRS})
+			file(TO_NATIVE_PATH "${DLL_DIR}" NATIVE_DLL_DIR)
+			list(APPEND TEST_PATH_MODS "PATH=path_list_prepend:${NATIVE_DLL_DIR}")
+		endforeach()
+
+		set_tests_properties(${PARENT}_${NAME} PROPERTIES
+			ENVIRONMENT_MODIFICATION "${TEST_PATH_MODS}")
+	endif()
+
+	# Unit tests - fail fast rather than wait out ctest's 1500s default.
+	set_tests_properties(${PARENT}_${NAME} PROPERTIES TIMEOUT 5)
+
+endmacro()
+
+macro(create_test_with_qml PATH DEPS QRCFILE)
+
+	message("create ${PATH} ${DEPS} ${QRCFILE}")
+
+	get_filename_component(NAME ${PATH} NAME_WE)
+	get_filename_component(FILENAME ${PATH} NAME)
+	get_filename_component(PARENT ${PATH} DIRECTORY)
+	get_filename_component(PARENT ${PARENT} DIRECTORY)
+	get_filename_component(PARENT ${PARENT} NAME)
+
+	add_executable(${NAME} ${FILENAME} ${QRCFILE})
 	default_options_gtest(${NAME})
 	target_link_libraries(${NAME}
 		PRIVATE

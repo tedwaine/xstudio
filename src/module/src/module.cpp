@@ -531,6 +531,7 @@ caf::message_handler Module::message_handler() {
 
              if (attr) {
                  try {
+                    std::cerr << "YONL " << attr_title << " " << value << std::endl;
                      attr->set_role_data(role, value, notify);
                  } catch (std::exception &e) {
                      spdlog::warn("{} {}", __PRETTY_FUNCTION__, e.what());
@@ -1325,18 +1326,8 @@ void Module::attribute_changed(const utility::Uuid &attr_uuid, const int role_id
 
     if (role_id == Attribute::UIDataModels && attr) {
 
-        auto groups = attr->get_role_data<std::vector<std::string>>(Attribute::UIDataModels);
+        register_attribute_in_ui_models(attr);
 
-        for (const auto &group_name : groups) {
-            anon_mail(
-                ui::model_data::register_model_data_atom_v,
-                group_name,
-                utility::JsonStore(attr->as_json()),
-                attr_uuid,
-                Attribute::role_name(Attribute::ToolbarPosition),
-                self())
-                .send(central_ui_models_actor_);
-        }
     } else if (role_id == Attribute::CallbackData && attr) {
 
         const utility::JsonStore callback_data(
@@ -1559,20 +1550,8 @@ void Module::connect_to_ui() {
     // we update the actual attribute.
     for (auto &a : attributes_) {
 
-        if (a->has_role_data(Attribute::UIDataModels)) {
-            auto groups = a->get_role_data<std::vector<std::string>>(Attribute::UIDataModels);
-            for (const auto &group_name : groups) {
-
-                anon_mail(
-                    ui::model_data::register_model_data_atom_v,
-                    group_name,
-                    utility::JsonStore(a->as_json()),
-                    a->uuid(),
-                    Attribute::role_name(Attribute::ToolbarPosition),
-                    self())
-                    .send(central_ui_models_actor_);
-            }
-        }
+        register_attribute_in_ui_models(a.get());
+        
     }
 }
 
@@ -1671,7 +1650,6 @@ void Module::update_attrs_from_preferences(const utility::JsonStore &entire_pref
             try {
 
                 auto pref_path = attr->get_role_data<std::string>(Attribute::PreferencePath);
-                std::cerr << "Preference path: " << pref_path << std::endl;
 
                 try {
 
@@ -2472,4 +2450,21 @@ utility::Uuid Module::create_qml_item(const std::string &qml_code) {
     expose_attribute_in_model_data(attr, "dynamic qml items", true);
     attr->set_value(true);
     return attr->uuid();
+}
+
+void Module::register_attribute_in_ui_models(Attribute *a) {
+
+    if (a->has_role_data(Attribute::UIDataModels)) {
+        auto groups = a->get_role_data<std::vector<std::string>>(Attribute::UIDataModels);
+        for (const auto &group_name : groups) {
+            anon_mail(
+                ui::model_data::register_model_data_atom_v,
+                group_name,
+                utility::JsonStore(a->as_json()),
+                a->uuid(),
+                Attribute::role_name(Attribute::ToolbarPosition),
+                self())
+                .send(central_ui_models_actor_);
+        }
+    }
 }

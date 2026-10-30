@@ -1445,7 +1445,8 @@ caf::message_handler PlaylistActor::message_handler() {
 
                 if (!object_uuid.is_null()) {
                     // Do something with object_uuid and before_object_uuid if needed
-                    ObjectActor::child_moved(object_uuid, before_object_uuid);
+                    // enact the re-ordering in the object tree
+                    anon_mail(utility::move_children_atom_v, object_uuid, before_object_uuid).send(child_containers_);
                 }
 
                 mail(utility::event_atom_v, move_container_atom_v, uuid, uuid_before, into)
