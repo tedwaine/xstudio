@@ -129,7 +129,7 @@ void Attribute::update_role_data_from_json(
 }
 
 void Attribute::notify_change(
-    const int role, const nlohmann::json &data, const bool self_notify) {
+    const int role, const bool self_notify) {
     if (owner_) {
         owner_->notify_change(
             uuid(), role, role_data_as_json(role), redraw_viewport_on_change_, self_notify);

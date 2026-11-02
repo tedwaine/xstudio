@@ -8,6 +8,7 @@ using namespace xstudio::ui::qml;
 
 #include "xstudio/ui/qml/helper_ui.hpp"
 #include "xstudio/thumbnail/thumbnail.hpp"
+#include "xstudio/module/attribute.hpp"
 
 CAF_PUSH_WARNINGS
 #include <QQmlExtensionPlugin>
@@ -17,7 +18,7 @@ using namespace xstudio;
 using namespace xstudio::ui::qml;
 using namespace xstudio::utility;
 
-#define MAKE_ENUM_NAME_MAP(enumName)\
+#define SETUP_ROLES(enumName)\
 {\
     QStringList enumStrings(QString(enumName##Strings.data()).split(QRegularExpression("\\W+"), Qt::SkipEmptyParts));\
     assert((enumName##All.size()-1) == enumStrings.size());\
@@ -29,9 +30,6 @@ using namespace xstudio::utility;
         data_roles_inverse_[enumStrings[i++]] = (*(pp++));\
     }\
 }
-
-//std::vector<Fart> FartAll = {Bum, Willy, Poo};
-//inline static const std::vector<QString> FartStrings = {"Bum", "Willy", "Poo"};
 
 namespace {
 
@@ -115,8 +113,10 @@ namespace {
                           std::max(0, std::min(255, int(round(std::any_cast<const ColourTriplet &>(a).g * 255.0f)))),
                           std::max(0, std::min(255, int(round(std::any_cast<const ColourTriplet &>(a).b * 255.0f)))),
                           std::max(0, std::min(255, int(round(std::any_cast<const ColourTriplet &>(a).a * 255.0f)))));
-        if (a.type() == typeid(JsonStore) || a.type() == typeid(nlohmann::json))
-            return json_to_qvariant(std::any_cast<const JsonStore &>(a));
+        if (a.type() == typeid(JsonStore))
+            return json_to_qvariant(std::any_cast<const JsonStore &>(a));        
+        if (a.type() == typeid(nlohmann::json))
+            return json_to_qvariant(std::any_cast<const nlohmann::json &>(a));
         if (a.type() == typeid(thumbnail::ThumbnailBufferPtr)) {
             const auto &buf = std::any_cast<const thumbnail::ThumbnailBufferPtr &>(a);
             return QImage(
@@ -144,8 +144,6 @@ void UIDataModel::init(caf::actor_system &_system) {
     set_message_handler([=](caf::actor_companion * /*self*/) -> caf::message_handler {
         return message_handler().or_else(core_message_handler());
     });
-
-    MAKE_ENUM_NAME_MAP(session::SessionRoles)
 
 }
 
@@ -210,6 +208,7 @@ caf::message_handler UIDataModel::core_message_handler() {
             if (node) {
                 beginInsertRows(parent_index, insertion_index, insertion_index);
                 endInsertRows();
+                emit lengthChanged();
             }
 
         },
@@ -236,7 +235,7 @@ caf::message_handler UIDataModel::core_message_handler() {
         [=](event_atom, add_children_atom, std::vector<int> index_in_tree, const int insertion_index, const ObjectDataTreePtr &child_data) {
 
             QModelIndex parent_index = QModelIndex();
-            for (int i = 0; i < index_in_tree.size() - 1; ++i) {
+            for (int i = 0; i < (static_cast<int>(index_in_tree.size()) - 1); ++i) {
                 parent_index = index(index_in_tree[i], 0, parent_index);
             }
 
@@ -250,7 +249,12 @@ caf::message_handler UIDataModel::core_message_handler() {
                 node->insert_node(child_data, insertion_index);
             }
             endInsertRows();
+            emit lengthChanged();
 
+        },
+        [=](model_data::register_model_data_atom, caf::actor data_source) {
+            std::cerr << "@ UIDataModel::register_model_data_atom" << std::endl;
+            set_source_of_data(data_source);
         },
         [=](property_atom, const AnyPtr &value, const int key, const uint64_t ui_layer_node_id) {
 
@@ -298,6 +302,7 @@ void UIDataModel::set_root(const ObjectDataTreePtr &root) {
     if (root_)
         register_subtree(root_.get());
     endResetModel();
+    emit lengthChanged();
 }
 
 void UIDataModel::register_subtree(const ObjectDataTree *node) {
@@ -434,6 +439,44 @@ bool UIDataModel::setData(const QModelIndex &index, const QVariant &value, int r
     return false;
 }
 
+QModelIndex UIDataModel::searchRecursive(const QVariant &value, const QString &role, const QModelIndex &parent, const int depth) const {
+
+    const auto p = data_roles_inverse_.find(role);
+    if (p == data_roles_inverse_.end()) {
+        return {};
+    }
+    const int role_id = p.value();
+
+    const ObjectDataTree *node = node_from_index(parent);
+    if (!node)
+        return {};
+
+    auto value_ptr = anyPtrFromQVariant(value);
+
+    for (int i = 0; i < node->num_nodes(); ++i) {
+        const auto &c = node->get_node(i);
+        const auto r = c->get_data_value(role_id);
+        try {
+            if (r && ObjectDataTree::values_equal(r, value_ptr))
+                return index(i, 0, parent);
+        } catch (const std::exception &err) {
+            qDebug() << "Exception while comparing values:" << err.what();
+        }
+    }
+    int num_rows = rowCount(parent);
+    if (depth == 0) {
+        qDebug() << "Maximum search depth reached " << value << " for role " << num_rows << " " <<role;
+        return {};
+    }
+    for (int row = 0; row < num_rows; ++row) {
+        const auto idx = searchRecursive(value, role, index(row, 0, parent), depth-1);
+        if (idx.isValid())
+            return idx;
+    }
+    return {};
+}
+
+
 bool UIDataModel::canFetchMore(const QModelIndex &parent) const {
     auto result          = false;
     return true;
@@ -441,6 +484,8 @@ bool UIDataModel::canFetchMore(const QModelIndex &parent) const {
 
 SessionModelRoot::SessionModelRoot(QObject *parent)
     : UIDataModel(parent) {
+
+    SETUP_ROLES(session::SessionRoles)
 
 }
 
@@ -565,5 +610,35 @@ void SessionModelNode::reload() {
 
     } catch (const std::exception &err) {
         spdlog::error("Failed to perform action with child search properties: {}", err.what());
+    }
+}
+
+AttributesModelData::AttributesModelData(QObject *parent)
+    : UIDataModel(parent) 
+{
+    init(CafSystemObject::get_actor_system());
+    auto pp = module::Attribute::role_names.begin();
+    while (pp != module::Attribute::role_names.end()) {
+        data_roles_[pp->first] = pp->second.c_str();
+        data_roles_inverse_[pp->second.c_str()] = pp->first;
+        ++pp;
+    }
+}
+
+void AttributesModelData::setModelDataName(const QString &name) {
+
+    if (group_name_ != name) {
+
+        group_name_ = name;
+        emit modelDataNameChanged();
+
+        auto central_models_data_actor =
+            system().registry().template get<caf::actor>(global_ui_model_data_registry);
+
+        anon_mail(ui::model_data::register_model_data_atom_v,
+            group_name_.toStdString(),
+            as_actor()).send(central_models_data_actor);
+
+
     }
 }

@@ -106,10 +106,10 @@ static const std::string attr_uuid_role_name(
 
 } // namespace
 
-GlobalUIModelData::GlobalUIModelData(caf::actor_config &cfg) : caf::event_based_actor(cfg) {
+GlobalUIModelData::GlobalUIModelData(caf::actor_config &cfg) : utility::ObjectActor(cfg, "GlobalUIModelData", utility::Uuid::generate()) {
 
-    print_on_create(this, "GlobalUIModelData");
-    print_on_exit(this, "GlobalUIModelData");
+    utility::print_on_create(this, "GlobalUIModelData");
+    utility::print_on_exit(this, "GlobalUIModelData");
 
     system().registry().put(global_ui_model_data_registry, this);
 
@@ -162,8 +162,35 @@ GlobalUIModelData::GlobalUIModelData(caf::actor_config &cfg) : caf::event_based_
 
     });
 
-    behavior_.assign(
+    utility::Uuid uuid = utility::Uuid::generate();
+    attribute_data_model_actor_ = utility::UuidActor(uuid, spawn<utility::ObjectActor>("AttributeDataModelActor", uuid));
+    add_child(attribute_data_model_actor_);
+
+}
+
+caf::message_handler GlobalUIModelData::message_handler() {
+
+    return caf::message_handler{
         [=](broadcast::broadcast_down_atom, const caf::actor_addr &) {},
+
+        [=](register_model_data_atom,
+            const std::string &model_name,
+            const utility::UuidActor & attribute_watcher) {
+
+            auto attribute_group_actor = get_attribute_group_node(model_name);
+            if (attribute_group_actor) {
+                anon_mail(utility::add_children_atom_v, attribute_watcher).send(attribute_group_actor);
+            }
+
+        },
+
+        [=](register_model_data_atom, const std::string &model_name, caf::actor subscriber_to_model) {
+            auto attribute_group_actor = get_attribute_group_node(model_name);
+            if (attribute_group_actor) {
+                anon_mail(register_model_data_atom_v, attribute_group_actor.actor()).send(subscriber_to_model);
+            }
+        },
+
         [=](register_model_data_atom,
             const std::string &model_name,
             const bool deregister,
@@ -420,7 +447,8 @@ GlobalUIModelData::GlobalUIModelData(caf::actor_config &cfg) : caf::event_based_
         [=](const caf::error &err) {
             log_caf_error(err);
         },
-        [=](caf::message &msg) { spdlog::warn("{} {}", __PRETTY_FUNCTION__, to_string(msg)); });
+        [=](caf::message &msg) { spdlog::warn("{} {}", __PRETTY_FUNCTION__, to_string(msg)); }
+    };
 }
 
 void GlobalUIModelData::set_data(
@@ -1647,3 +1675,22 @@ void GlobalUIModelData::do_cleanup_for_exited_clients() {
 #ifdef __GNUC__ // Check if GCC compiler is being used
 #pragma GCC diagnostic pop
 #endif
+
+utility::UuidActor GlobalUIModelData::get_attribute_group_node(const std::string &model_name) {
+
+    // Implementation for adding an attribute watcher to the specified model
+    utility::UuidActor attribute_group_actor;
+    auto m = new_models_.find(model_name);
+    if (m != new_models_.end()) {
+        attribute_group_actor = m->second;
+    } else {
+        utility::Uuid uuid = utility::Uuid::generate();
+        attribute_group_actor = utility::UuidActor(uuid, spawn<utility::ObjectActor>(model_name, uuid));
+        std::cerr << "Adding new attribute group node for model: " << model_name << std::endl;
+        new_models_[model_name] = attribute_group_actor;
+        anon_mail(utility::add_children_atom_v, attribute_group_actor).send(attribute_data_model_actor_);
+    }
+
+
+    return attribute_group_actor;
+}

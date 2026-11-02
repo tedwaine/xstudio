@@ -13,7 +13,7 @@ TEST(MANAGEDDIR, Test) {
 
     EXPECT_EQ(t.max_size(), size_t(0));
     EXPECT_EQ(t.max_count(), size_t(0));
-    EXPECT_EQ(t.max_age(), std::chrono::seconds(0));
+    EXPECT_EQ(t.max_age().count(), std::chrono::seconds(0).count());
     EXPECT_EQ(t.current_size(), size_t(0));
     EXPECT_EQ(t.current_count(), size_t(0));
     EXPECT_EQ(t.current_max_age(), fs::file_time_type::max());
@@ -26,7 +26,7 @@ TEST(MANAGEDDIR, Test) {
 
     EXPECT_EQ(t.max_size(), size_t(10));
     EXPECT_EQ(t.max_count(), size_t(20));
-    EXPECT_EQ(t.max_age(), test_time);
+    EXPECT_EQ(t.max_age().count(), test_time.count());
     EXPECT_EQ(t.target_string(), "test");
 
     t.prune_on_exit(true);

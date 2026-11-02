@@ -73,8 +73,10 @@ void xstudio::ui::qml::setup_xstudio_qml_emgine(QQmlEngine *engine, caf::actor_s
     qmlRegisterType<SessionModelRoot>("xstudio.qml.session", 1, 0, "XsSessionModelNew");
     qmlRegisterType<SessionModelNode>("xstudio.qml.session", 1, 0, "XsSessionModelNode");
 
+    qmlRegisterType<AttributesModelData>("xstudio.qml.models", 1, 0, "XsModuleData");
+
     qmlRegisterType<MenusModelData>("xstudio.qml.models", 1, 0, "XsMenusModel");
-    qmlRegisterType<ModulesModelData>("xstudio.qml.models", 1, 0, "XsModuleData");
+    //qmlRegisterType<ModulesModelData>("xstudio.qml.models", 1, 0, "XsModuleData");
     qmlRegisterType<PanelsModel>("xstudio.qml.models", 1, 0, "XsPanelsLayoutModel");
     qmlRegisterType<MediaListColumnsModel>(
         "xstudio.qml.models", 1, 0, "XsMediaListColumnsModel");

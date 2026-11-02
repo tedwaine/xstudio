@@ -44,7 +44,7 @@ class UIDataModel : public caf::mixin::actor_object<QAbstractItemModel> {
 
     Q_OBJECT
 
-    QML_NAMED_ELEMENT(DemoPluginSessionModelV2)
+    Q_PROPERTY(int length READ length NOTIFY lengthChanged)
 
   public:
 
@@ -75,10 +75,14 @@ class UIDataModel : public caf::mixin::actor_object<QAbstractItemModel> {
     [[nodiscard]] bool
     setData(const QModelIndex &index, const QVariant &value, int role = Qt::EditRole) override;
 
-    // Replaces the whole tree. The model takes (shared) ownership of the nodes.
-    void set_root(const utility::ObjectDataTreePtr &root);
-
     Q_INVOKABLE QVariant getData(const QModelIndex &index, const QString &role) const;
+
+    Q_INVOKABLE QModelIndex searchRecursive(const QVariant &value, const QString &role, const QModelIndex &parent = QModelIndex(), const int depth = 10) const;
+
+    [[nodiscard]] int length() const { return rowCount(); }
+
+  signals:
+    void lengthChanged();
 
   signals:
 
@@ -88,7 +92,8 @@ class UIDataModel : public caf::mixin::actor_object<QAbstractItemModel> {
 
     void set_source_of_data(caf::actor source);
 
-    bool tronk_ = {false};
+    // Replaces the whole tree. The model takes (shared) ownership of the nodes.
+    void set_root(const utility::ObjectDataTreePtr &root);
 
   protected:
 
@@ -145,8 +150,6 @@ class SessionModelRoot : public UIDataModel {
 
   private:
 
-
-
 };
 
 class SessionModelNode : public SessionModelRoot {
@@ -187,6 +190,35 @@ class SessionModelNode : public SessionModelRoot {
 
     QString child_search_property_key_;
     QVariant child_search_property_value_;
+
+};
+
+class AttributesModelData : public UIDataModel {
+
+  Q_OBJECT
+
+  Q_PROPERTY(QString modelDataName READ modelDataName WRITE setModelDataName NOTIFY modelDataNameChanged)
+
+  public:
+  
+    using super = UIDataModel;
+
+    AttributesModelData(QObject *parent = nullptr);
+    ~AttributesModelData() override = default;
+
+    [[nodiscard]] QString modelDataName() const { return group_name_; }
+
+    void setModelDataName(const QString &name);
+
+  protected:
+
+  signals:
+
+    void modelDataNameChanged();
+
+  private:
+
+    QString group_name_;
 
 };
 

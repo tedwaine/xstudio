@@ -48,16 +48,31 @@ protected:
     is only called when the property is not found in the local property map. */
     virtual AnyPtr get_data_value(const int key) { return AnyPtr(); }
 
+    /** Override this function to process a request to change a data value. Return 
+    true if the change is allowed, false otherwise. Exceptions may be thrown to indicate errors. 
+    For example, if you have a slider value that is clamped, you can reject a change that 
+    falls outside a range with your own logic here.*/
+    virtual bool request_to_set_data_value(const int key, const AnyPtr &value) {
+        return data_.set_data_value_check(key, value);
+    }
+
     /** Override this to define additional message handlers - for example message handlers from additional classes
     in the inheritance chain between your class and the ObjectActor root base class. */
     virtual caf::message_handler extra_message_handlers() {
         return caf::message_handler{};
     }
 
+    void set_data_value(const int key, const AnyPtr &value) {
+        if (data_.set_data_value_check(key, value)) {
+            mail(event_atom_v, property_atom_v, std::vector<int>(), key, data_.get_data_value(key)).send(properties_events_group_);
+        }
+    }
+
     template <typename T>
     void set_data_value(const int key, const T & value) {
-        data_.set_data_value(key, value);
-        mail(event_atom_v, property_atom_v, std::vector<int>(), key, data_.get_data_value(key)).send(properties_events_group_);
+        if (data_.set_data_value_check(key, value)) {
+            mail(event_atom_v, property_atom_v, std::vector<int>(), key, data_.get_data_value(key)).send(properties_events_group_);
+        }
     }
 
     template <typename T>

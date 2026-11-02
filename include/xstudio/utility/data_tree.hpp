@@ -80,6 +80,8 @@ class PropertyMap : private std::map<int, AnyPtr> {
         (*this)[key] = value;
     }
 
+    bool set_data_value_check(const int key, const AnyPtr &value);
+
     // specialized version for double - allows setting of underlying
     // int, int64_t, float, and double types
     bool set_data_value_check(const int key, const double &value);

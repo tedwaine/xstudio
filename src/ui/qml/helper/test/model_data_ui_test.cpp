@@ -13,6 +13,7 @@ CAF_PUSH_WARNINGS
 #include <QDebug>
 #include <QGuiApplication>
 #include <QQmlApplicationEngine>
+#include <QTimer>
 CAF_POP_WARNINGS
 
 
@@ -28,7 +29,6 @@ public:
             8.0f);
         my_float_attr_->expose_in_ui_attrs_group("Attrs Group");
         my_float_attr_->expose_in_ui_attrs_group("Attrs Group2");
-        std::cerr << "TestPlugin constructed\n";
 
         my_string_attr_ = add_string_attribute(
             "My String Attribute", 
@@ -41,7 +41,6 @@ public:
             "My JSON Attribute",
             utility::JsonStore(nlohmann::json::parse(R"({"key": "value"})")));
         my_json_attr_->expose_in_ui_attrs_group("Attrs Group");
-        std::cerr << "TestPlugin constructed\n";
 
     }
 
@@ -62,14 +61,14 @@ Item {
     Component.onCompleted: {
         console.log("Component completed")
     }
-    XsModuleData {
+    XsModuleDataNew {
         id: moduleData
-        modelDataName: "Attrs Group"
+        groupName: "Attrs Group"
     }
 
-    XsModuleData {
+    XsModuleDataNew {
         id: moduleData2
-        modelDataName: "Attrs Group2"
+        groupName: "Attrs Group2"
     }
 
     XsAttributeValue {
@@ -141,7 +140,7 @@ class MyApp : public QGuiApplication {
 public:
     MyApp(int &argc, char **argv) : QGuiApplication(argc, argv) {}
     bool notify(QObject *receiver, QEvent *event) override {
-        qDebug() << "Notifying receiver:" << receiver << "event:" << event;
+        //qDebug() << "Notifying receiver:" << receiver << "event:" << event;
         return QGuiApplication::notify(receiver, event);
     }
 };
@@ -173,6 +172,16 @@ int main(int argc, char *argv[]) {
     self->send(test_plugin, module::connect_to_ui_atom_v);
 
     MyApp app(argc, argv);
+
+    // On macOS, calling QCoreApplication::processEvents() before
+    // QCoreApplication::exec() has ever run triggers Qt's lazy
+    // NSApplication bootstrap (ensureNSAppInitialized), which can hang
+    // indefinitely. Running (and immediately quitting) a real event loop
+    // once up front forces Qt through its normal startup path instead,
+    // so the processEvents() calls further down and in the TEST bodies
+    // below behave correctly.
+    QTimer::singleShot(0, &app, &QCoreApplication::quit);
+    app.exec();
 
     QQmlApplicationEngine engine;
     //caf::actor viewport_actor = self->spawn<GLXWindowViewportActor>();
@@ -215,6 +224,12 @@ int main(int argc, char *argv[]) {
     return result;
 }
 
+
+void process_ui_events() {
+    usleep(100000); // sleep for 100ms to allow the UI to update
+    QCoreApplication::processEvents(QEventLoop::AllEvents, 100);
+}
+
 TEST(UIModelDataTest, QmlItemsExist) { 
     
     ASSERT_NE(float_val_obj, nullptr);
@@ -226,10 +241,10 @@ TEST(UIModelDataTest, QmlItemsExist) {
 
 
 TEST(UIModelDataTest, FloatValRead) { 
-    
-    ASSERT_NE(float_val_obj, nullptr);
+
+    process_ui_events();
+    process_ui_events();
     ASSERT_EQ(float_val_obj->property("value").toFloat(), 8.0f);
-    ASSERT_NE(float_val2_obj, nullptr);
     ASSERT_EQ(float_val2_obj->property("value").toFloat(), 8.0f);
 
 }
@@ -247,8 +262,7 @@ TEST(UIModelDataTest, ChangeFloatValFromBackend) {
         true,
         utility::JsonStore(nlohmann::json(-8.0f)));
 
-    usleep(100000); // sleep for 100ms to allow the UI to update
-    QCoreApplication::processEvents(QEventLoop::AllEvents, 100);
+    process_ui_events();
 
     ASSERT_EQ(float_val_obj->property("value").toFloat(), -8.0f);
     ASSERT_EQ(float_val2_obj->property("value").toFloat(), -8.0f);
@@ -260,8 +274,7 @@ TEST(UIModelDataTest, ChangeFloatValFromFrontend) {
     caf::scoped_actor self{CafActorSystem::system()};
 
     float_val_obj->setProperty("trigger", true);
-    QCoreApplication::processEvents();
-    usleep(100000); // sleep for 100ms to allow the UI to update
+    process_ui_events();
 
     auto val = utility::request_receive<utility::JsonStore>(
         *self,
@@ -269,12 +282,12 @@ TEST(UIModelDataTest, ChangeFloatValFromFrontend) {
         module::attribute_value_atom_v,
         "My Float Attribute");
 
+    std::cerr << "val " << val.dump() << std::endl;
     ASSERT_TRUE(val.is_number_float());
     ASSERT_EQ(val.get<float>(), 81.0f);
 
     float_val2_obj->setProperty("trigger", true);
-    QCoreApplication::processEvents(QEventLoop::AllEvents, 100);
-    usleep(100000); // sleep for 100ms to allow the UI to update
+    process_ui_events();
 
     val = utility::request_receive<utility::JsonStore>(
         *self,
@@ -308,8 +321,7 @@ TEST(UIModelDataTest, ChangeStringValFromBackend) {
         true,
         utility::JsonStore(nlohmann::json("World")));
 
-    usleep(100000); // sleep for 100ms to allow the UI to update
-    QCoreApplication::processEvents(QEventLoop::AllEvents, 100);
+    process_ui_events();
 
     ASSERT_EQ(string_val_obj->property("value").toString(), "World");
         
@@ -320,8 +332,7 @@ TEST(UIModelDataTest, ChangeStringValFromFrontend) {
     caf::scoped_actor self{CafActorSystem::system()};
 
     string_val_obj->setProperty("trigger", true);
-    QCoreApplication::processEvents(QEventLoop::AllEvents, 100);
-    usleep(100000); // sleep for 100ms to allow the UI to update
+    process_ui_events();
 
     auto val = utility::request_receive<utility::JsonStore>(
         *self,
@@ -354,8 +365,7 @@ TEST(UIModelDataTest, ChangeJsonValFromBackend) {
         true,
         utility::JsonStore(nlohmann::json::parse(R"({"something":"else"})")));
 
-    usleep(100000); // sleep for 100ms to allow the UI to update
-    QCoreApplication::processEvents();
+    process_ui_events();
 
     ASSERT_EQ(ui::qml::qvariant_to_json(json_val_obj->property("value")), nlohmann::json::parse(R"({"something":"else"})"));
         
@@ -366,8 +376,7 @@ TEST(UIModelDataTest, ChangeJsonValFromFrontend) {
     caf::scoped_actor self{CafActorSystem::system()};
 
     json_val_obj->setProperty("trigger", true);
-    QCoreApplication::processEvents(QEventLoop::AllEvents, 100);
-    usleep(100000); // sleep for 100ms to allow the UI to update
+    process_ui_events();
 
     auto val = utility::request_receive<utility::JsonStore>(
         *self,

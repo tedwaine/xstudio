@@ -271,6 +271,18 @@ if (BUILD_TESTING)
 		else()
 			find_package(PkgConfig)
 			pkg_search_module(GTEST REQUIRED gtest_main)
+			if(APPLE)
+				# pkg-config only gives us raw "-L<dir> -lgtest_main" link
+				# flags for vcpkg's gtest, so CMake has no target/IMPORTED
+				# library info to auto-compute an rpath entry for it (unlike
+				# properly imported libraries, e.g. Qt frameworks). The
+				# dylibs actually live in vcpkg's "manual-link" directory,
+				# which isn't on the dynamic linker's default search path,
+				# so without an explicit rpath entry the test executable
+				# fails to launch with a "Library not loaded" error.
+				set_property(TARGET ${name} APPEND PROPERTY BUILD_RPATH "${GTEST_LIBRARY_DIRS}")
+				set_property(TARGET ${name} APPEND PROPERTY INSTALL_RPATH "${GTEST_LIBRARY_DIRS}")
+			endif()
 		endif()
 		if (NOT CAF_FOUND)
 			find_package(CAF COMPONENTS core io)
