@@ -265,7 +265,7 @@ TEST(StackActorAddTest, Test) {
     {
         auto uuid = utility::Uuid::generate();
         auto invalid =
-            f.self->spawn<TimelineActor>("Invalid Timeline", utility::FrameRate(), uuid);
+            f.self->spawn<TimelineActor>("Invalid Timeline");
         EXPECT_THROW(
             request_receive<JsonStore>(
                 *(f.self),

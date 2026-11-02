@@ -7,6 +7,7 @@
 // #include "xstudio/colour_pipeline/colour_pipeline.hpp"
 #include "xstudio/utility/uuid.hpp"
 #include "xstudio/utility/tree.hpp"
+#include "xstudio/utility/xs_actor.hpp"
 
 namespace xstudio::ui::model_data {
 
@@ -27,20 +28,24 @@ Model data can also be retrieved and written to preferences files. In
 this way we model the layout of the UI panels and maintain it in the
 user's preferences.
 */
-class GlobalUIModelData : public caf::event_based_actor {
+class GlobalUIModelData : public utility::ObjectActor {
 
   public:
     GlobalUIModelData(caf::actor_config &cfg);
     ~GlobalUIModelData() override = default;
 
-    caf::behavior make_behavior() override { return behavior_; }
-
     [[nodiscard]] const char *name() const override { return NAME.c_str(); }
 
     void on_exit() override;
 
+  protected:
+
+    caf::message_handler message_handler() override;
+
   private:
     inline static const std::string NAME = "GlobalUIModelData";
+
+    utility::UuidActor get_attribute_group_node(const std::string &model_name);
 
     [[nodiscard]] utility::JsonStore model_data_as_json(const std::string &model_name) const;
 
@@ -182,6 +187,7 @@ class GlobalUIModelData : public caf::event_based_actor {
 
     utility::clock::time_point cleanup_timepoint_;
 
-    caf::behavior behavior_;
+    utility::UuidActor attribute_data_model_actor_;
+    std::map<std::string, utility::UuidActor> new_models_;
 };
 } // namespace xstudio::ui::model_data

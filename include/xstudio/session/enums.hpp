@@ -2,6 +2,7 @@
 #pragma once
 
 #include <map>
+#include "xstudio/utility/enums.hpp"
 
 namespace xstudio::session {
 typedef enum {
@@ -13,11 +14,7 @@ typedef enum {
     EF_LAST
 } ExportFormat;
 
-#define AWESOME_MAKE_ENUM(name, start, ...) typedef enum { name##First=start, __VA_ARGS__ } name;\
-inline static const std::vector<name> name##All = {name##First, __VA_ARGS__};\
-inline static const std::string_view name##Strings = #__VA_ARGS__;
-
-AWESOME_MAKE_ENUM(
+MAKE_ENUM(
     SessionRoles,
     4096, 
     activeDurationRole,

@@ -273,11 +273,21 @@ caf::message_handler ObjectActor::private_message_handler() {
             );
             return rp;
         },
-        [=](property_atom, const int key, const AnyPtr &value) -> bool {
+        [=](property_atom, const int key, const AnyPtr &value) -> result<bool> {
 
-            data_.set_data_value(key, value);
-            mail(event_atom_v, property_atom_v, std::vector<int>(), key, value).send(properties_events_group_);
-            return true;
+            // request to change a data value (usually from the UI layer)
+            bool result = false;
+            try {
+                if (request_to_set_data_value(key, value)) {
+                    // broadcast the property change up the tree
+                    mail(event_atom_v, property_atom_v, std::vector<int>(), key, value).send(properties_events_group_);
+                    result = true;
+                }
+            } catch (const std::exception &e) {
+                return caf::make_error(caf::sec::runtime_error, e.what());
+            }
+            return result;
+
         },
         [=](event_atom, property_atom, std::vector<int> index_in_tree, const int key, const AnyPtr &value) {
             // A child's data has been updated.

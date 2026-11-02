@@ -25,6 +25,34 @@ namespace {
 
 }
 
+bool PropertyMap::set_data_value_check(const int key, const AnyPtr &value) {
+    AnyPtr current_value = get_data_value(key);
+    if (!current_value) {
+        set_data_value(key, value);
+        return true;
+    }
+    if (ObjectDataTree::values_equal(current_value, value)) {
+        return false; // No change
+    }
+
+    if (value) {
+        // when setting a number, we avoid changing the underlying type
+        // to the incoming 'value'. These template specializations handle that.
+        if (value->type() == typeid(int64_t)) {
+            return set_data_value_check(key, std::any_cast<int64_t>(*value));
+        } else if (value->type() == typeid(int)) {
+            return set_data_value_check(key, std::any_cast<int>(*value));
+        } else if (value->type() == typeid(float)) {
+            return set_data_value_check(key, std::any_cast<float>(*value));
+        } else if (value->type() == typeid(double)) {
+            return set_data_value_check(key, std::any_cast<double>(*value));
+        }
+    }
+
+    set_data_value(key, value);
+    return true; // Value changed
+}
+
 bool PropertyMap::set_data_value_check(const int key, const int64_t &value) {
     AnyPtr current_value = get_data_value(key);
     if (!current_value) {
@@ -63,6 +91,7 @@ bool PropertyMap::set_data_value_check(const int key, const double &value) {
     bool rt = false;
     AnyPtr current_value = get_data_value(key);
     const std::type_info &id = current_value ? current_value->type() : typeid(void);
+
     if (id == typeid(int64_t)) {
         if (std::any_cast<int64_t>(*(current_value)) != static_cast<int64_t>(value)) {
             set_data_value(key, std::make_shared<const std::any>(static_cast<int64_t>(value)));

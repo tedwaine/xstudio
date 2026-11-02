@@ -63,7 +63,7 @@ TEST(SubsetActorTest, Test) {
     anon_mail(add_media_atom_v, media2, Uuid()).send(playlist);
 
     // spawn subset..
-    auto subset = f.self->spawn<SubsetActor>(playlist, "Test");
+    auto subset = f.self->spawn<SubsetActor>("Test", utility::Uuid::generate(), playlist);
 
     request_receive<bool>(*(f.self), subset, add_media_atom_v, media, Uuid());
 

@@ -39,7 +39,7 @@ class Attribute {
         {JsonAttribute, "JsonAttribute"}};
 
     enum Role {
-        Type,
+        Type=8192, // avoid overlap with Session data roles
         Enabled,
         Activated,
         Title,
@@ -145,6 +145,8 @@ class Attribute {
         }
     }
 
+    utility::AnyPtr raw_role_data(const int role) const { return role_data_.get_data_value(role); }
+
     [[nodiscard]] bool has_role_data(const int role) const {
         return role_data_.has_data_value(role);
     }
@@ -162,6 +164,12 @@ class Attribute {
         role_data_.delete_entry(role);
     }
 
+    void set_role_data(const int role, const utility::AnyPtr &data, const bool owner_notify = true) {
+        if (role_data_.set_data_value_check(role, data)) {
+            Attribute::notify_change(role, owner_notify);
+        }
+    }
+
     void set_role_data(const int role, const char *data) {
         role_data_.set_data_value(role, std::string(data));
     }
@@ -169,7 +177,7 @@ class Attribute {
     template <typename T>
     void set_role_data(const int role, const T &data, const bool owner_notify = true) {
         if (role_data_.set_data_value_check(role, data)) {
-            Attribute::notify_change(role, data, owner_notify);
+            Attribute::notify_change(role, owner_notify);
         }
     }
 
@@ -184,6 +192,8 @@ class Attribute {
     bool operator==(const utility::Uuid &o_uuid) const { return uuid() == o_uuid; }
 
     [[nodiscard]] bool belongs_to_groups(const std::vector<std::string> &group_name) const;
+
+    const utility::PropertyMap &data_map() const { return role_data_; }
 
     // NOT defined inline, deliberately. get_role_data<T>() ends in a
     // std::any_cast, which matches on type_info IDENTITY, not on type name.
@@ -209,7 +219,7 @@ class Attribute {
     Attribute(
         const std::string &title, const std::string &abbr_title, const std::string &type_name);
 
-    void notify_change(const int r, const nlohmann::json &data, const bool owner_notify);
+    void notify_change(const int r, const bool owner_notify);
 
     utility::PropertyMap role_data_;
 

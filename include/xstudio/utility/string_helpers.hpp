@@ -3,6 +3,8 @@
 
 #ifdef _WIN32
 #include <winsock2.h>
+#else
+#include <unistd.h>
 #endif
 #include <filesystem>
 #include <algorithm>
@@ -15,9 +17,6 @@
 #include <regex>
 #include <sstream>
 #include <string>
-#ifdef __linux__
-#include <unistd.h>
-#endif
 #include <vector>
 #include <cstdarg>
 

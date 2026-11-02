@@ -7,6 +7,7 @@
 #include "xstudio/utility/logging.hpp"
 #include "xstudio/utility/helpers.hpp"
 #include "xstudio/utility/tree.hpp"
+#include "xstudio/utility/xs_actor.hpp"
 #include "xstudio/module/module.hpp"
 #include "xstudio/ui/mouse.hpp"
 #include "xstudio/playhead/playhead.hpp"
@@ -20,7 +21,57 @@ using namespace xstudio::utility;
 using namespace xstudio::module;
 using namespace xstudio;
 
-namespace {
+namespace xstudio::module {
+
+class AttributeWatcherActor : public utility::ObjectActor {
+
+    utility::Uuid attribute_uuid_;
+    caf::actor module;
+
+    public:
+
+    AttributeWatcherActor(
+        caf::actor_config &cfg,
+        const utility::PropertyMap &attribute_data,
+        const utility::Uuid &attribute_uuid,
+        caf::actor module): utility::ObjectActor(cfg, to_string(attribute_uuid)), attribute_uuid_(attribute_uuid), module(module) {
+        for (const auto &p: attribute_data) {
+            // Process each role data entry here
+            set_data_value(p.first, p.second);
+        }
+    }
+
+    protected:
+
+    caf::message_handler message_handler() override {
+
+        return {
+            [=](change_attribute_event_atom, const int role, const utility::AnyPtr &data_value) {
+                try {
+                    set_data_value(role, data_value);
+                } catch (std::exception &e) {
+                    spdlog::error("Exception in AttributeWatcherActor: {}", e.what());
+                }
+            }
+        };
+    }
+
+    bool request_to_set_data_value(const int key, const AnyPtr &value) override {
+        // This method is called when the UI layer is tring to change an attribute
+        // value. We check if the change is allowed.
+
+        // Tell the Module (backend) to update the correponding attribute with the new value.
+        // If the change is successful, the backend will notify us via the attribute_changed_atom message.
+        anon_mail(change_attribute_request_atom_v, attribute_uuid_, key, value).send(module);
+
+        std::cerr << "Holy biscuit " << value->type().name() << std::endl;
+        
+        // no immediate change is made locally; we wait for the backend to confirm the change.
+        return false;
+    }
+
+};
+
 caf::behavior delayed_resend(caf::event_based_actor *) {
     return {[](update_attribute_in_preferences_atom, caf::actor_addr module) {
         auto mod = caf::actor_cast<caf::actor>(module);
@@ -29,6 +80,7 @@ caf::behavior delayed_resend(caf::event_based_actor *) {
         }
     }};
 }
+
 } // namespace
 
 Module::Module(const std::string name, const utility::Uuid &uuid)
@@ -457,6 +509,23 @@ caf::message_handler Module::message_handler() {
              }
          },
 
+        [=](change_attribute_request_atom,
+             utility::Uuid attr_uuid,
+             const int role,
+             const utility::AnyPtr &value) -> bool {
+             for (const auto &p : attributes_) {
+                 if (p->uuid() == attr_uuid) {
+
+                     try {
+                         p->set_role_data(role, value);
+                     } catch (std::exception &e) {
+                         spdlog::warn("{} {}", __PRETTY_FUNCTION__, e.what());
+                     }
+                 }
+             }
+             return true;
+         },         
+
          [=](change_attribute_request_atom,
              utility::Uuid attr_uuid,
              const int role,
@@ -691,7 +760,7 @@ caf::message_handler Module::message_handler() {
              if (a) {
                  a->monitor(watcher, [this, addr = watcher.address()](const error &) {
                      auto act_addr = caf::actor_cast<caf::actor_addr>(addr);
-                     for (auto &p : attribute_watchers_) {
+                     for (auto &p : attribute_extra_watchers_) {
                          auto q = p.second.find(act_addr);
                          if (q != p.second.end()) {
                              p.second.erase(q);
@@ -700,7 +769,7 @@ caf::message_handler Module::message_handler() {
                  });
              }
 
-             attribute_watchers_[attr->uuid()].insert(
+             attribute_extra_watchers_[attr->uuid()].insert(
                  caf::actor_cast<caf::actor_addr>((watcher)));
              anon_mail(
                  utility::event_atom_v,
@@ -714,7 +783,7 @@ caf::message_handler Module::message_handler() {
 
          [=](watch_attribute_atom, bool unwatch, caf::actor watcher) {
              auto act_addr = caf::actor_cast<caf::actor_addr>(watcher);
-             for (auto &p : attribute_watchers_) {
+             for (auto &p : attribute_extra_watchers_) {
                  auto q = p.second.find(act_addr);
                  if (q != p.second.end()) {
                      p.second.erase(q);
@@ -1219,6 +1288,14 @@ void Module::notify_change(
         anon_mail(change_attribute_event_atom_v, module_uuid_, attr_uuid, role, value)
             .send(attribute_events_group_);
 
+        auto p = attribute_watchers_.find(attr_uuid);
+        if (p != attribute_watchers_.end()) {
+            for (const auto &q : p->second) {
+                anon_mail(change_attribute_event_atom_v, role, attr->raw_role_data(role))
+                    .send(q.second);
+            }
+        }
+
         if (attr->has_role_data(Attribute::UIDataModels)) {
 
             auto groups =
@@ -1304,10 +1381,10 @@ void Module::attribute_changed(const utility::Uuid &attr_uuid, const int role_id
 
     {
         // notfiy attribute watchers
-        auto p     = attribute_watchers_.find(attr_uuid);
+        auto p     = attribute_extra_watchers_.find(attr_uuid);
         auto _self = caf::actor_cast<caf::event_based_actor *>(self());
 
-        if (p != attribute_watchers_.end()) {
+        if (p != attribute_extra_watchers_.end()) {
             for (auto &watcher : p->second) {
                 caf::actor a = caf::actor_cast<caf::actor>(watcher);
                 if (a) {
@@ -2455,16 +2532,52 @@ utility::Uuid Module::create_qml_item(const std::string &qml_code) {
 void Module::register_attribute_in_ui_models(Attribute *a) {
 
     if (a->has_role_data(Attribute::UIDataModels)) {
+
         auto groups = a->get_role_data<std::vector<std::string>>(Attribute::UIDataModels);
         for (const auto &group_name : groups) {
-            anon_mail(
-                ui::model_data::register_model_data_atom_v,
-                group_name,
-                utility::JsonStore(a->as_json()),
-                a->uuid(),
-                Attribute::role_name(Attribute::ToolbarPosition),
-                self())
-                .send(central_ui_models_actor_);
+
+            // When an attribute is registered in a UI model, we are making the attribute
+            // data available in QML via an XsModelData object. This will allow us to get
+            // to attribute data to read and write.
+
+            // The mechanism is that we make a watcher actor for the attribute that receives
+            // updates about the attribute's state and changes. We then add this watcher
+            // actor as a child of an object actor that represents the UI model group.
+
+            // Then we have a QtObject / Actor mixin class that interfaces with the group
+            // actor to update the UI when the attribute changes.
+
+            utility::UuidActor new_watcher;
+            auto p = attribute_watchers_.find(a->uuid());
+            if (p == attribute_watchers_.end()) {
+                // create a new AttributeWatcherActor for this group
+                utility::Uuid uuid = utility::Uuid::generate();
+                new_watcher = utility::UuidActor(uuid, self()->home_system().spawn<AttributeWatcherActor>(
+                    a->data_map(),
+                    a->uuid(),
+                    caf::actor_cast<caf::actor>(self())));
+                attribute_watchers_[a->uuid()][group_name] = new_watcher;
+            } else {
+                auto q = p->second.find(group_name);
+                if (q == p->second.end()) {
+                    utility::Uuid uuid = utility::Uuid::generate();
+                    new_watcher = utility::UuidActor(uuid, self()->home_system().spawn<AttributeWatcherActor>(
+                        a->data_map(),
+                        a->uuid(),
+                        caf::actor_cast<caf::actor>(self())));
+                    attribute_watchers_[a->uuid()][group_name] = new_watcher;
+                }
+            }
+
+            if (new_watcher) {
+                // We have a new watcher actor. Send it to the central UI
+                // models actor so that it can be added to a group object.
+                anon_mail(
+                    ui::model_data::register_model_data_atom_v,
+                    group_name,
+                    new_watcher)
+                    .send(central_ui_models_actor_);
+            }
         }
     }
 }
