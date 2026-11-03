@@ -5,6 +5,7 @@ SET(LINK_DEPS
 	xstudio::audio_output
 	xstudio::module
 	xstudio::global
+	xstudio::utility
 	xstudio::ui::viewport	
 )
 

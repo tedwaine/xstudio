@@ -1686,7 +1686,6 @@ utility::UuidActor GlobalUIModelData::get_attribute_group_node(const std::string
     } else {
         utility::Uuid uuid = utility::Uuid::generate();
         attribute_group_actor = utility::UuidActor(uuid, spawn<utility::ObjectActor>(model_name, uuid));
-        std::cerr << "Adding new attribute group node for model: " << model_name << std::endl;
         new_models_[model_name] = attribute_group_actor;
         anon_mail(utility::add_children_atom_v, attribute_group_actor).send(attribute_data_model_actor_);
     }

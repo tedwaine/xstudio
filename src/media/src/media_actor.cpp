@@ -25,6 +25,9 @@ using namespace xstudio::media_metadata;
 using namespace caf;
 
 void MediaActor::deserialise(const JsonStore &jsn) {
+
+    Media::deserialise(jsn.at("base"));
+
     if (not jsn.count("store") or jsn.at("store").is_null()) {
         json_store_ = spawn<json_store::JsonStoreActor>(
             utility::Uuid::generate(), utility::JsonStore(), std::chrono::milliseconds(50));
@@ -1550,8 +1553,6 @@ void MediaActor::init() {
     mail(media::media_display_info_atom_v, true).send(metadata_filter_actor);
     join_event_group(this, metadata_filter_actor);
 
-    my_new_data_value_ = utility::ColourTriplet(drand48(), drand48(), drand48());
-    set_data_value(session::myNewDataValueRole, my_new_data_value_);
 }
 
 void MediaActor::add_or_rename_media_source(

@@ -284,18 +284,18 @@ Item {
             // and also put it on screen
             playlistsSelectionModel.setCurrentIndex(modelIndex, ItemSelectionModel.ClearAndSelect)
 
-            inspectedContainerActor = playlistsModelData.getData(playlistsModelData.index(0, 0, modelIndex), "actorRole")
+            // set the viewed container in the backend
+            var py_args = {
+                    "actor": playlistsModelData.getData(modelIndex, "actorRole")
+                }
+            Future.promise(
+                helpers.pythonAsyncCallback("UtilityPythonPlugin", "set_viewed_container", py_args)
+            ).then(function(result) {
+            },
+	        function() {
+                console.log("ERROR", __rr)
+	        })
 
-            console.log("nameRole:", playlistsModelData.getData(playlistsModelData.index(1, 0, modelIndex), "nameRole"))
-            console.log("nameRole:", playlistsModelData.getData(modelIndex, "nameRole"))
-            console.log("actorRole:", playlistsModelData.getData(playlistsModelData.index(1, 0, modelIndex), "actorRole"))
-            console.log("actorRole:", playlistsModelData.getData(modelIndex, "actorRole"))
-
-            console.log("playlistsModelData.index(1, 0, modelIndex)", modelIndex, playlistsModelData.index(1, 0, modelIndex))
-
-            console.log("inspectedContainerActor set to:", inspectedContainerActor)
-            // FIXME
-            // viewportCurrentMediaContainerIndex = modelIndex
         }
 
     }

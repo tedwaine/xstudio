@@ -119,11 +119,13 @@ utility::UuidVector to_uuid_vector(const utility::UuidActorVector &v) {
 
 
 PlayheadActor::PlayheadActor(caf::actor_config &cfg, const std::string &name)
-    : caf::event_based_actor(cfg),
+    : utility::ObjectActor(cfg, name),
       PlayheadBase(name, std::move(utility::Uuid::generate())),
       offscreen_only_(true),
       audio_path_(NO_AUDIO) {
 
+    set_data_value(session::typeRole, "Playhead");
+    set_data_value(session::uuidRole, PlayheadBase::uuid());
     init();
     set_parent_actor_addr(actor_cast<caf::actor_addr>(this));
 }
@@ -135,31 +137,18 @@ PlayheadActor::PlayheadActor(
     caf::actor playlist_selection,
     const utility::Uuid uuid,
     caf::actor_addr parent_playlist)
-    : caf::event_based_actor(cfg),
-      PlayheadBase(name, std::move(uuid)),
+    : utility::ObjectActor(cfg, name, uuid),
+      PlayheadBase(name, uuid),
       parent_playlist_(std::move(parent_playlist)),
       audio_path_(audio_path) {
 
+    set_data_value(session::typeRole, "Playhead");
     init();
     set_parent_actor_addr(actor_cast<caf::actor_addr>(this));
     if (playlist_selection) {
         playlist_selection_addr_ = caf::actor_cast<caf::actor_addr>(playlist_selection);
         anon_mail(playlist::selection_actor_atom_v, playlist_selection)
             .send(actor_cast<caf::actor>(this));
-    }
-
-    // for every attribute we expose it in frontend model data, where the id
-    // of the model data set is the uuid of the module here. This means if we have
-    // the uuid of a module at the frontend we can get to any and all of its
-    // attribute data if/when we need to. For example, this is how we get to
-    // the Playhead attribute data in the frontend qml code ... the Playhead
-    // Uuid is published by the parent playlist/subset/timeline in the main
-    // SessionModel - we use this to connect to the model data of a given
-    // Playhead so we can talk to the Playhead of the 'current' timeline, subset,
-    // or playlist
-    for (auto &attr : attributes_) {
-        expose_attribute_in_model_data(
-            attr.get(), std::string("{") + to_string(Module::uuid()) + std::string("}"), true);
     }
 
     make_source_menu_model();
@@ -245,7 +234,24 @@ void PlayheadActor::init() {
 
     apply_compare_prefs();
 
-    behavior_.assign(
+    // Here we spwan an attribute watcher to each attribute of the playhead. We then
+    // make each watcher a child of the playhead actor. The PlayheadActor itself is
+    // a child of the session object (Playlist, Contact Sheet, Timeline etc.) and
+    // so by indexing into the session model data to reach the playhead we can access
+    // the attributes of the playhead in the UI.
+    for (auto &attr : attributes_) {
+        utility::Uuid uuid = utility::Uuid::generate();
+        auto attr_watcher = utility::UuidActor(uuid, spawn<module::AttributeWatcherActor>(
+            attr->data_map(),
+            attr->uuid(),
+            caf::actor_cast<caf::actor>(this)));
+        add_child(attr_watcher);
+    }
+
+}
+
+caf::message_handler PlayheadActor::message_handler() {
+    return caf::message_handler{
         [=](caf::exit_msg &msg) {
             disconnect_from_ui();
 
@@ -1527,7 +1533,7 @@ void PlayheadActor::init() {
 
                         deserialise(j);
                         auto layouts_manager =
-                            self()->home_system().registry().template get<caf::actor>(
+                            system().registry().template get<caf::actor>(
                                 viewport_layouts_manager);
 
                         // following desrialisation, we set-up the compare mode
@@ -1614,7 +1620,7 @@ void PlayheadActor::init() {
             }
         },
 
-        [=](bool) {});
+        [=](bool) {}};
 }
 
 void PlayheadActor::connect_to_playlist_selection_actor(
@@ -3019,7 +3025,7 @@ void PlayheadActor::attribute_changed(const utility::Uuid &attr_uuid, const int 
     } else if (attr_uuid == compare_mode_->uuid()) {
 
         auto layouts_manager =
-            self()->home_system().registry().template get<caf::actor>(viewport_layouts_manager);
+            system().registry().template get<caf::actor>(viewport_layouts_manager);
 
         // get the assembly mode for the new compare mode
         mail(playhead::compare_mode_atom_v, compare_mode_->value())

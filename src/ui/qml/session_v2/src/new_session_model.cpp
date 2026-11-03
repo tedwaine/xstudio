@@ -231,6 +231,9 @@ caf::message_handler UIDataModel::core_message_handler() {
             if (self()->current_sender() != source_of_data_)
                 return;
             set_root(child_data);
+
+            auto vv = child_data->get_data_value<std::string>(session::nameRole);
+            if (vv) std::cerr << "NAAAME " << *vv << std::endl;
         },
         [=](event_atom, add_children_atom, std::vector<int> index_in_tree, const int insertion_index, const ObjectDataTreePtr &child_data) {
 
@@ -253,7 +256,6 @@ caf::message_handler UIDataModel::core_message_handler() {
 
         },
         [=](model_data::register_model_data_atom, caf::actor data_source) {
-            std::cerr << "@ UIDataModel::register_model_data_atom" << std::endl;
             set_source_of_data(data_source);
         },
         [=](property_atom, const AnyPtr &value, const int key, const uint64_t ui_layer_node_id) {
@@ -360,7 +362,7 @@ QModelIndex UIDataModel::index(int row, int column, const QModelIndex &parent) c
     if (node->num_nodes() <= row)
         return {};
 
-    const quintptr id = id_of(node->get_node(row).get());
+    const quintptr id = id_of(row >= 0 ? node->get_node(row).get() : node);
     return id ? createIndex(row, column, id) : QModelIndex();
 }
 

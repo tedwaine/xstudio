@@ -68,6 +68,10 @@ protected:
         }
     }
 
+    void set_data_value(const int key, const char *value) {
+        set_data_value(key, std::string(value));
+    }
+
     template <typename T>
     void set_data_value(const int key, const T & value) {
         if (data_.set_data_value_check(key, value)) {

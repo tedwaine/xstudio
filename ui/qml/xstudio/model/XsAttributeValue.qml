@@ -14,7 +14,6 @@ XsModelProperty {
     }
 
     onModelLengthChanged: {
-        if (modelLength > 0) console.log("Model length changed, new length:", modelLength)
         update_index()
     }
 
@@ -23,7 +22,6 @@ XsModelProperty {
             var was_valid = index.valid
             index = model.searchRecursive(attributeTitle, "title")
             if (!was_valid && index.valid) {
-                console.log("Index became valid for attributeTitle:", attributeTitle)
                 indexBecameValid()
             }
         }

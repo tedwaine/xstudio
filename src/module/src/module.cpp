@@ -23,55 +23,6 @@ using namespace xstudio;
 
 namespace xstudio::module {
 
-class AttributeWatcherActor : public utility::ObjectActor {
-
-    utility::Uuid attribute_uuid_;
-    caf::actor module;
-
-    public:
-
-    AttributeWatcherActor(
-        caf::actor_config &cfg,
-        const utility::PropertyMap &attribute_data,
-        const utility::Uuid &attribute_uuid,
-        caf::actor module): utility::ObjectActor(cfg, to_string(attribute_uuid)), attribute_uuid_(attribute_uuid), module(module) {
-        for (const auto &p: attribute_data) {
-            // Process each role data entry here
-            set_data_value(p.first, p.second);
-        }
-    }
-
-    protected:
-
-    caf::message_handler message_handler() override {
-
-        return {
-            [=](change_attribute_event_atom, const int role, const utility::AnyPtr &data_value) {
-                try {
-                    set_data_value(role, data_value);
-                } catch (std::exception &e) {
-                    spdlog::error("Exception in AttributeWatcherActor: {}", e.what());
-                }
-            }
-        };
-    }
-
-    bool request_to_set_data_value(const int key, const AnyPtr &value) override {
-        // This method is called when the UI layer is tring to change an attribute
-        // value. We check if the change is allowed.
-
-        // Tell the Module (backend) to update the correponding attribute with the new value.
-        // If the change is successful, the backend will notify us via the attribute_changed_atom message.
-        anon_mail(change_attribute_request_atom_v, attribute_uuid_, key, value).send(module);
-
-        std::cerr << "Holy biscuit " << value->type().name() << std::endl;
-        
-        // no immediate change is made locally; we wait for the backend to confirm the change.
-        return false;
-    }
-
-};
-
 caf::behavior delayed_resend(caf::event_based_actor *) {
     return {[](update_attribute_in_preferences_atom, caf::actor_addr module) {
         auto mod = caf::actor_cast<caf::actor>(module);
@@ -98,32 +49,13 @@ void Module::parent_actor_exiting() {
 
         disconnect_from_ui();
 
-        if (central_ui_models_actor_) {
-
-            // make sure attribute data is removed from UI data models that expose
-            // attrs in the UI layer
-            for (auto &attribute : attributes_) {
-
-                if (attribute->has_role_data(Attribute::UIDataModels)) {
-
-                    try {
-
-                        auto groups = attribute->get_role_data<std::vector<std::string>>(
-                            Attribute::UIDataModels);
-
-                        for (const auto &group : groups) {
-                            anon_mail(
-                                ui::model_data::deregister_model_data_atom_v,
-                                group,
-                                attribute->uuid(),
-                                caf::actor())
-                                .send(central_ui_models_actor_);
-                        }
-                    } catch (...) {
-                    }
-                }
+        scoped_actor sys{self()->home_system()};
+        for (auto &p: attribute_watchers_) {
+            for (auto &w: p.second) {
+                sys->send_exit(w.second, caf::exit_reason::user_shutdown);
             }
         }
+
     }
 }
 
@@ -2156,12 +2088,6 @@ void Module::make_attribute_visible_in_viewport_toolbar(
                 std::string toolbar_name = viewport_name + "_toolbar";
                 attr->expose_in_ui_attrs_group(toolbar_name, false);
 
-                anon_mail(
-                    ui::model_data::deregister_model_data_atom_v,
-                    toolbar_name,
-                    attr->uuid(),
-                    caf::actor())
-                    .send(central_ui_models_actor_);
             }
         }
     }
@@ -2270,18 +2196,6 @@ void Module::expose_attribute_in_model_data(
 
     attr->expose_in_ui_attrs_group(model_name, expose);
 
-    try {
-        if (expose) {
-            
-        } else {
-            // this removes the attribute from the model of name
-            // 'model_name'
-            anon_mail(
-                ui::model_data::deregister_model_data_atom_v, model_name, attr->uuid(), self())
-                .send(central_ui_models_actor_);
-        }
-    } catch (std::exception &) {
-    }
 }
 
 void Module::connect_to_viewport(
@@ -2534,6 +2448,28 @@ void Module::register_attribute_in_ui_models(Attribute *a) {
     if (a->has_role_data(Attribute::UIDataModels)) {
 
         auto groups = a->get_role_data<std::vector<std::string>>(Attribute::UIDataModels);
+
+        // If an attribute has been removed from a UI attributes group, then we handle this
+        // here
+        {
+            scoped_actor sys{self()->home_system()};
+            auto p = attribute_watchers_.find(a->uuid());
+            if (p != attribute_watchers_.end()) {
+                auto q = p->second.begin();
+                while (q != p->second.end()) {
+                    auto &w = *q;
+                    auto watcher = std::find_if(groups.begin(), groups.end(), [&](const std::string &g) { return g == w.first; });
+                    if (watcher == groups.end()) {
+                        // attr must have been removed from this UI group. We just shut down the corresponding watcher actor.
+                        sys->send_exit(w.second, caf::exit_reason::user_shutdown);
+                        q = attribute_watchers_[a->uuid()].erase(q);
+                    } else {
+                        ++q;
+                    }
+                }
+            }
+        }
+
         for (const auto &group_name : groups) {
 
             // When an attribute is registered in a UI model, we are making the attribute

@@ -1,4 +1,5 @@
 import QtQuick
+import QuickFuture 1.0
 
 import xstudio.qml.session 1.0
 import xstudio.qml.helpers 1.0
@@ -556,13 +557,59 @@ Item {
     property alias playlistsModelData: playlistsModelData
     property var inspectedContainerActor
 
+    XsSessionModelNode {
+        id: the_session
+        onModelReset: {
+            __foo.index = index(0, 0).parent
+            console.log("ASDASD: " + getData(index(-1, -1), "nameRole"))
+        }
+    }
+
+        Repeater {
+            model: dd
+        }
+            DelegateModel {
+                id: dd
+                model: the_session
+                delegate: Item {
+                    property var nnnn: nameRole
+                    onNnnnChanged: {
+                        console.log("Name role changed to: " + nnnn)
+                    }
+                }
+            }
+
+
+    property var playheadIdFooFoar: __foo.value
+    XsModelProperty {
+        id: __foo
+        role: "nameRole"
+        onIndexChanged: console.log("Index changed for __foo: " + __foo.index)
+    }
+    onPlayheadIdFooFoarChanged: {
+        console.log("Playhead ID Foo Foar changed to: " + playheadIdFooFoar)
+    }
+
+
+
     /* This selection model tells us which playlist(s), contact sheets, timelines etc
     are currently selected in the UI */
     ItemSelectionModel {
         id: playlistsSelectionModel
         model: playlistsModelData
         onCurrentIndexChanged: {
-            //currentMediaContainerIndex = currentIndex
+                        // set the viewed container in the backend
+            var py_args = {
+                    "actor": playlistsModelData.getData(currentIndex, "actorRole")
+                }
+            Future.promise(
+                helpers.pythonAsyncCallback("UtilityPythonPlugin", "set_inspected_container", py_args)
+            ).then(function(result) {
+            },
+	        function() {
+                console.log("ERROR", __rr)
+	        })
+
         }
         onSelectionChanged: {
             //sessionData.setSessionSelection(sessionSelectionModel.selectedIndexes)

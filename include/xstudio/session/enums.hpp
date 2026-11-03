@@ -53,6 +53,7 @@ MAKE_ENUM(
     pathShakeRole,
     pixelAspectRole,
     placeHolderRole,
+    playheadUuidRole,
     propertyRole,
     qmlCodeRole,
     rateFPSRole,
@@ -69,7 +70,9 @@ MAKE_ENUM(
     typeRole,
     uuidRole,
     userDataRole,
-    myNewDataValueRole
+    activePlayheadActorRole,
+    viewedContainerRole,
+    inspectedContainerRole
 )
 
 }
