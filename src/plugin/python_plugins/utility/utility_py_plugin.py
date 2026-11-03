@@ -4,7 +4,10 @@
 import numpy as np
 
 from xstudio.core import AttributeRole, Uuid, PlaylistTree
+from xstudio.core import actor_from_string, uuid_atom
 from xstudio.plugin import PluginBase
+from xstudio.api.session import Container
+
 
 # This plugin is intended to allow for various utility functions to be 
 # implemented in Python. The first utility function is to allow for the
@@ -190,6 +193,19 @@ class UtilityPythonPlugin(PluginBase):
                 cuuid, target_uuid, False)
 
         return True            
+
+    def set_viewed_container(self, actor):
+        """Set the viewed container in the backend."""
+        uuid = self.connection.request_receive(actor, uuid_atom())[0]
+        cont = Container(self.connection, actor, uuid)
+        self.connection.api.session.viewed_container = cont
+
+    def set_inspected_container(self, actor):
+        """Set the inspected container in the backend."""
+        uuid = self.connection.request_receive(actor, uuid_atom())[0]
+        cont = Container(self.connection, actor, uuid)
+        self.connection.api.session.inspected_container = cont
+
 
 def create_plugin_instance(connection):
     """Create and return a plugin instance."""

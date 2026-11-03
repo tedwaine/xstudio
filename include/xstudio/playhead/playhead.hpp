@@ -26,7 +26,7 @@ class PlayheadBase : public module::Module {
         const std::string &name  = "PlayheadBase",
         const utility::Uuid uuid = utility::Uuid::generate());
 
-    ~PlayheadBase() override = default;
+    virtual ~PlayheadBase() override = default;
 
     [[nodiscard]] utility::JsonStore serialise() const override;
 

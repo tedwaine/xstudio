@@ -1506,6 +1506,7 @@ caf::message_handler PlaylistActor::message_handler() {
                 selection_actor_,
                 uuid,
                 caf::actor_cast<caf::actor_addr>(this));
+            add_child(utility::UuidActor(uuid, actor));
 
             anon_mail(playhead::playhead_rate_atom_v, Playlist::playhead_rate()).send(actor);
             playhead_ = UuidActor(uuid, actor);

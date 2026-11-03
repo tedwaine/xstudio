@@ -8,6 +8,7 @@
 #include <caf/all.hpp>
 
 #include "xstudio/module/typed_attributes.hpp"
+#include "xstudio/module/attribute_watcher_actor.hpp"
 #include "xstudio/ui/keyboard.hpp"
 #include "xstudio/ui/mouse.hpp"
 #include "xstudio/atoms.hpp"

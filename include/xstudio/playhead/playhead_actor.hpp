@@ -11,12 +11,13 @@
 #include "xstudio/utility/json_store.hpp"
 #include "xstudio/utility/timecode.hpp"
 #include "xstudio/utility/uuid.hpp"
+#include "xstudio/utility/xs_actor.hpp"
 
 namespace xstudio::playhead {
 
 enum AudioPath { GLOBAL_AUDIO, INDEPENDENT_AUDIO, NO_AUDIO };
 
-class PlayheadActor : public caf::event_based_actor, public PlayheadBase {
+class PlayheadActor : public utility::ObjectActor, public PlayheadBase {
   public:
     // Constructor for special 'offscreen only' playhead that doesn't need
     // to connect to the UI to function
@@ -30,7 +31,7 @@ class PlayheadActor : public caf::event_based_actor, public PlayheadBase {
         const utility::Uuid uuid        = utility::Uuid::generate(),
         caf::actor_addr parent_playlist = caf::actor_addr());
 
-    ~PlayheadActor() override = default;
+    virtual ~PlayheadActor() override = default;
 
     [[nodiscard]] const char *name() const override { return NAME.c_str(); }
 
@@ -43,8 +44,10 @@ class PlayheadActor : public caf::event_based_actor, public PlayheadBase {
 
     void play();
 
-    caf::behavior make_behavior() override {
-        return behavior_.or_else(PlayheadBase::message_handler());
+    caf::message_handler message_handler() override;
+
+    caf::message_handler extra_message_handlers() override {
+        return PlayheadBase::message_handler();
     }
 
     void clear_all_precache_requests(caf::typed_response_promise<bool> rp);

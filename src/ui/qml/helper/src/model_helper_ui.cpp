@@ -111,8 +111,10 @@ void ModelProperty::setIndex(const QModelIndex &index) {
 }
 
 void ModelProperty::removed(const QModelIndex &parent, int first, int last) {
-    if (not index_.isValid()) {
+    if (not index_.isValid() && parent.model()) {
         setIndex(parent.model()->index(-1, -1, parent));
+    } else {
+        setIndex(QModelIndex());
     }
 }
 

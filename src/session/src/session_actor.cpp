@@ -1656,11 +1656,13 @@ caf::message_handler SessionActor::message_handler() {
                     inspected_monitor_.dispose();
 
                 inspectedContainer_ = playlist;
+                set_data_value(inspectedContainerRole, inspectedContainer_.actor());
                 if (inspectedContainer_) {
                     inspected_monitor_ = monitor(
                         inspectedContainer_.actor(),
                         [this, addr = inspectedContainer_.actor().address()](const error &) {
                             inspectedContainer_ = UuidActor();
+                            set_data_value(inspectedContainerRole, caf::actor());
                             Session::set_current_playlist_uuid(utility::Uuid());
                             mail(
                                 utility::event_atom_v,
@@ -1695,11 +1697,13 @@ caf::message_handler SessionActor::message_handler() {
                     viewed_monitor_.dispose();
 
                 viewedContainer_ = playlist;
+                set_data_value(viewedContainerRole, viewedContainer_.actor());
                 if (viewedContainer_) {
                     viewed_monitor_ = monitor(
                         viewedContainer_.actor(),
                         [this, addr = viewedContainer_.actor().address()](const error &) {
                             viewedContainer_ = UuidActor();
+                            set_data_value(viewedContainerRole, caf::actor());
                             Session::set_viewed_playlist_uuid(utility::Uuid());
                             mail(
                                 utility::event_atom_v,
