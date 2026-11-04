@@ -535,11 +535,6 @@ Item {
     // mediaListModelData will give us the filtered media list that is used
     // to drive the "media list" widgets
     property string mediaListSearchString
-    XsMediaListModelData {
-        id: filteredMediaListData
-    }
-    property alias mediaListModelDataRoot: filteredMediaListData.rootIndex
-    property alias mediaListModelData: filteredMediaListData.model
     onMediaListSearchStringChanged: {
         session.updateMediaListFilterString(playheadSelectionIndex, mediaListSearchString)
     }
@@ -556,7 +551,21 @@ Item {
         childSearchPropertyValue: "PlaylistsRoot"
     }
     property alias playlistsModelData: playlistsModelData
-    property var inspectedContainerActor
+    property var inspectedContainerActor: the_session.rootData.inspectedContainerRole
+
+    XsSessionModelNode {
+        id: __mediaModelData    
+        rootActor: inspectedContainerActor
+        childSearchPropertyKey: "nameRole"
+        childSearchPropertyValue: "Media List"
+    }
+    property alias mediaModelData: filteredModel
+
+    XsMediaListFilterModel {
+        sourceModel: __mediaModelData
+        searchString: mediaListSearchString
+        id: filteredModel
+    }
 
     XsSessionModelNode {
         id: the_session

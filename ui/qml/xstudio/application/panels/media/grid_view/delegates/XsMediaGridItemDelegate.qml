@@ -68,18 +68,6 @@ Rectangle{
     property bool playOnClick: false
     property bool isOnScreen: actorUuidRole == currentPlayhead.mediaUuid
 
-    property var actorUuidRole__: actorUuidRole
-    onActorUuidRole__Changed: setSelectionIndex( modelIndex() )
-
-    Connections {
-        target: mediaSelectionModel
-        function onSelectedIndexesChanged() {
-            setSelectionIndex( modelIndex() )
-        }
-    }
-
-
-
 
     /**************************************************************
     Item Functions
@@ -89,17 +77,11 @@ Rectangle{
         id: functions
     }
 
-    property var setSelectionIndex: functions.setSelectionIndex
     property var toggleSelection: functions.toggleSelection
     property var exclusiveSelect: functions.exclusiveSelect
     property var inclusiveSelect: functions.inclusiveSelect
 
-    property int selectionIndex: 0
-
-    function modelIndex() {
-        return helpers.makePersistent(mediaListModelData.rowToSourceIndex(index))
-    }
-
+    property int selectionIndex: -1
 
     property color highlightColor: XsStyleSheet.accentColor
     property color bgColorPressed: Qt.darker(XsStyleSheet.accentColor, 3)

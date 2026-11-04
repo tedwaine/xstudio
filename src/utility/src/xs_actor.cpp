@@ -186,6 +186,7 @@ caf::message_handler ObjectActor::private_message_handler() {
             auto prop = __get_property(prop_key);
 
             if (ObjectDataTree::values_equal(prop, value)) {
+
                 auto uuid = get_data_value<Uuid>(session::uuidRole);
                 if (uuid) {
                     return UuidActor(*uuid, caf::actor_cast<caf::actor>(this));
@@ -200,7 +201,9 @@ caf::message_handler ObjectActor::private_message_handler() {
             for (auto child : children_) {
                 mail(find_children_atom_v, prop_key, value, depth-1).request(child.actor(), infinite).then(
                     [=](const UuidActor &c) mutable {
-                        auto_responder.result() = c;
+                        if (c) {
+                            auto_responder.result() = c;
+                        }
                         auto_responder.decrement();
                     },
                     [=](const caf::error &err) mutable {
