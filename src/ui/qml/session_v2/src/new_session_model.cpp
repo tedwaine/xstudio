@@ -604,12 +604,12 @@ void SessionModelRoot::setRootActor(const QString &actor) {
 
     if (root_actor_as_string_ != actor) {
         root_actor_as_string_ = actor;
-        emit rootActorChanged();
 
         try {
 
             root_actor_ = actorFromQString(system(), root_actor_as_string_);
             set_source_of_data(root_actor_);
+            emit rootActorChanged();
 
         } catch (const std::exception &err) {
             spdlog::error("Failed to convert actor from QString: {}", err.what());
@@ -621,7 +621,6 @@ void SessionModelRoot::setRootActor(const QString &actor) {
 SessionModelNode::SessionModelNode(QObject *parent)
     : SessionModelRoot(parent) {
 
-    QObject::connect(this, &SessionModelRoot::rootActorChanged, this, &SessionModelNode::doReload);
     QObject::connect(this, &SessionModelRoot::modelReset, this, &SessionModelNode::doReload);
     init(CafSystemObject::get_actor_system());
     connect_to_studio();
@@ -631,8 +630,7 @@ caf::message_handler SessionModelNode::message_handler() {
 
     return (caf::message_handler {
         [=](UuidActor &child_we_searched_for) {
-            root_actor_ = child_we_searched_for.actor();
-            set_source_of_data(root_actor_);
+            set_source_of_data(child_we_searched_for.actor());
         }
     }).or_else(SessionModelRoot::message_handler());
 }
@@ -671,7 +669,7 @@ void SessionModelNode::reload() {
         }
 
         // we get a UuidActor in our message handler in response to this message
-        self()->mail(find_children_atom_v, p.value(), searchValue, 1).send(session_actor_);
+        self()->mail(find_children_atom_v, p.value(), searchValue, 2).send(root_actor_);
 
     } catch (const std::exception &err) {
         spdlog::error("Failed to perform action with child search properties: {}", err.what());

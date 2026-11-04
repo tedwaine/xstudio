@@ -1417,7 +1417,7 @@ bool MediaListFilterModel::filterAcceptsRow(
 
     // filter in Media items only
     QVariant t = sourceModel()->data(
-        sourceModel()->index(source_row, 0, source_parent), SessionModel::Roles::typeRole);
+        sourceModel()->index(source_row, 0, source_parent), session::typeRole);
 
     if (t.toString() != "Media")
         return false;

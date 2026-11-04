@@ -6,25 +6,6 @@ import xStudio 1.0
 
 Item {
 
-
-
-
-    function setSelectionIndex(my_index) {
-
-        isSelected = mediaSelectionModel.isSelected(my_index)
-        if (mediaSelectionModel.multiSelected) {
-            if (isSelected) {
-                selectionIndex = mediaSelectionModel.selectedIndexes.indexOf(helpers.qModelIndex(my_index))+1
-            } else {
-                selectionIndex = 0
-            }
-        } else {
-            selectionIndex = mediaListModelData.sourceIndexToRow(my_index)+1
-        }
-    }
-
-
-
     function toggleSelection() {
 
         var myIdx = modelIndex()

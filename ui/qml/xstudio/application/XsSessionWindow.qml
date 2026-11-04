@@ -467,9 +467,8 @@ ApplicationWindow {
     property alias uiLayoutsModel: ui_layouts_model
     property alias singletonsModel: sessionData.singletonsModel
     property alias playlistsPanelBarExtraWidgets: sessionData.playlistsPanelBarExtraWidgets
-    property alias mediaListModelData: sessionData.mediaListModelData
-    property alias mediaListModelDataRoot: sessionData.mediaListModelDataRoot
     property alias mediaListSearchString: sessionData.mediaListSearchString
+    property alias mediaModelData: sessionData.mediaModelData
 
     property var sessionPath: sessionProperties.values.pathRole
     property var sessionPathNative: sessionPath ? helpers.pathFromURL(sessionPath) : ""

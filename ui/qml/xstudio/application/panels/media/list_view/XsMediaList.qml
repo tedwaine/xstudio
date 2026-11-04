@@ -40,11 +40,6 @@ XsListView {
 
     model: mediaModelData
 
-    XsSessionModelNode {
-        id: mediaModelData    
-        rootActor: inspectedContainerActor
-    }
-
     PropertyAnimation{
         id: autoScrollAnimator
         target: mediaList

@@ -30,10 +30,8 @@ Item {
         anchors.bottomMargin: 10
         anchors.leftMargin: 10
 
-        model: mediaListModelData
+        model: mediaModelData
 
     }
-
-
 
 }
