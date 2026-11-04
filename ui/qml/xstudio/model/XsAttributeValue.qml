@@ -21,6 +21,9 @@ XsModelProperty {
         if (model) {
             var was_valid = index.valid
             index = model.searchRecursive(attributeTitle, "title")
+            if (attributeTitle == "Logical Frame") {
+                console.log("Logical Frame index updated to: " + index, value, index.model.getData(index, "value"), index.model.getData(index, "title"))
+            }
             if (!was_valid && index.valid) {
                 indexBecameValid()
             }

@@ -21,6 +21,7 @@ Item  {
     property var name: "BMDecklinkPlugin viewport"
     property var imageBoundariesInViewport
     property var playheadUuid
+    property var playheadActorAddress
     property var imageResolutions
     property var sessionActorAddr
     property bool isQuickview: false
@@ -65,7 +66,7 @@ Item  {
     
     XsPlayhead {
         id: viewportPlayhead
-        uuid: playheadUuid
+        playheadActor: playheadActorAddress
     }
 
     property var hud_plugins_display_data

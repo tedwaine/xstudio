@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 #pragma once
 
+#include <caf/actor.hpp>
 #include "xstudio/utility/data_tree.hpp"
 
 namespace xstudio::module {
@@ -215,6 +216,9 @@ class Attribute {
 
     Attribute(const Attribute &o) = default;
 
+    void set_watcher(caf::actor w) { watcher_ = w; }
+    caf::actor watcher() const { return watcher_; }
+
   protected:
     Attribute(
         const std::string &title, const std::string &abbr_title, const std::string &type_name);
@@ -224,6 +228,7 @@ class Attribute {
     utility::PropertyMap role_data_;
 
   private:
+    caf::actor watcher_;
     Module *owner_{nullptr};
     bool redraw_viewport_on_change_{false};
 };

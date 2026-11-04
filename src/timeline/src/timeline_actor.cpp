@@ -2308,7 +2308,8 @@ caf::message_handler TimelineActor::message_handler() {
                 uuid,
                 caf::actor_cast<caf::actor_addr>(this));
             add_child(UuidActor(uuid, playhead_actor));
-
+            set_data_value(session::activePlayheadActorRole, playhead_actor);
+                
             link_to(playhead_actor);
             playhead_ = UuidActor(uuid, playhead_actor);
 

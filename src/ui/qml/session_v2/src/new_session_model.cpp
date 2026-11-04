@@ -98,8 +98,12 @@ namespace {
         const std::any &a = *var;
         if (a.type() == typeid(caf::actor_addr))
             return actorToQString(CafSystemObject::get_actor_system(), std::any_cast<const caf::actor_addr &>(a));
+        if (a.type() == typeid(caf::actor))
+            return actorToQString(CafSystemObject::get_actor_system(), std::any_cast<const caf::actor &>(a));
         if (a.type() == typeid(std::string))
             return QString::fromStdString(std::any_cast<const std::string &>(a));
+        if (a.type() == typeid(int64_t))
+            return std::any_cast<int64_t>(a);
         if (a.type() == typeid(int))
             return std::any_cast<int>(a);
         if (a.type() == typeid(bool))
@@ -126,6 +130,31 @@ namespace {
                     3 * buf->width(),
                     QImage::Format_RGB888);
         }
+        if (a.type() == typeid(std::vector<float>)) {
+            const auto &vec = std::any_cast<const std::vector<float> &>(a);
+            QVariantList img(vec.size());
+            for (size_t i = 0; i < vec.size(); ++i) {
+                img[i] = vec[i];
+            }
+            return img;
+        }        
+        if (a.type() == typeid(std::vector<int>)) {
+            const auto &vec = std::any_cast<const std::vector<int> &>(a);
+            QVariantList img(vec.size());
+            for (size_t i = 0; i < vec.size(); ++i) {
+                img[i] = vec[i];
+            }
+            return img;
+        }
+        if (a.type() == typeid(std::vector<std::string>)) {
+            const auto &vec = std::any_cast<const std::vector<std::string> &>(a);
+            QVariantList img(vec.size());
+            for (size_t i = 0; i < vec.size(); ++i) {
+                img[i] = QString::fromStdString(vec[i]);
+            }
+            return img;
+        }
+        std::cerr << "Bailing out, unknown type: " << a.type().name() << std::endl;
 
         return QVariant();
     }
@@ -144,6 +173,11 @@ void UIDataModel::init(caf::actor_system &_system) {
     set_message_handler([=](caf::actor_companion * /*self*/) -> caf::message_handler {
         return message_handler().or_else(core_message_handler());
     });
+
+    for (const auto &p : data_roles_inverse_.keys()) {
+        root_data_[p] = QVariant();
+    }
+    emit rootDataChanged();
 
 }
 
@@ -180,6 +214,7 @@ caf::message_handler UIDataModel::core_message_handler() {
         },
         [=](event_atom, remove_children_atom, std::vector<int> index_in_tree) {
 
+            std::cerr << "Remove\n";
             if (index_in_tree.empty())
                 return;
             QModelIndex parent_index = QModelIndex();
@@ -192,6 +227,20 @@ caf::message_handler UIDataModel::core_message_handler() {
             if (node && node->num_nodes() > row) {
                 beginRemoveRows(parent_index, row, row);
                 unregister_subtree(node->get_node(row).get());
+                std::cerr << "Removing node at row " << row << " node->num_nodes() " << node->num_nodes() << " " << node << "\n";
+                auto name = node->get_data_value<std::string>(session::nameRole);
+                if (!name) {
+                    name = node->get_data_value<std::string>(module::Attribute::Title);
+                }
+
+                auto name2 = node->get_node(row)->get_data_value<std::string>(session::nameRole);
+                auto name3 = node->get_node(row)->get_data_value<std::string>(module::Attribute::Title);
+                if (!name2) {
+                }
+
+                if (name) std::cerr << "Node name: " << *name << "\n";
+                if (name2) std::cerr << "Attr name2: " << *name2 << "\n";
+                if (name3) std::cerr << "Attr name3: " << *name3 << "\n";
                 node->remove_node(row);
                 endRemoveRows();
             }
@@ -219,21 +268,31 @@ caf::message_handler UIDataModel::core_message_handler() {
             for (const auto &i: index_in_tree) {
                 parent_index = index(i, 0, parent_index);
             }
-            //qDebug() << "Updating property for key: " << key << " index " << parent_index;
             ObjectDataTree * node = const_cast<ObjectDataTree *>(UIDataModel::node_from_index(parent_index));
             if (node && data_roles_.contains(key)) {
                 node->set_data_value(key, value);
                 emit dataChanged(parent_index, parent_index, {key});
+                if (node == root_.get()) {
+                    auto p = data_roles_.find(key);
+                    if (p != data_roles_.end()) {
+                        root_data_[QString(p.value())] = qvariantFromAnyPtr(value);
+                        emit rootDataChanged();
+                    }
+                }
             }
         },
         [=](const ObjectDataTreePtr &child_data) {
 
             if (self()->current_sender() != source_of_data_)
                 return;
-            set_root(child_data);
 
-            auto vv = child_data->get_data_value<std::string>(session::nameRole);
-            if (vv) std::cerr << "NAAAME " << *vv << std::endl;
+            set_root(child_data);
+            root_data_.clear();
+            for (const auto &p : data_roles_inverse_.keys()) {
+                root_data_[p] = qvariantFromAnyPtr(child_data->get_data_value(data_roles_inverse_[p]));
+            }
+            emit rootDataChanged();
+
         },
         [=](event_atom, add_children_atom, std::vector<int> index_in_tree, const int insertion_index, const ObjectDataTreePtr &child_data) {
 
@@ -255,7 +314,7 @@ caf::message_handler UIDataModel::core_message_handler() {
             emit lengthChanged();
 
         },
-        [=](model_data::register_model_data_atom, caf::actor data_source) {
+        [=](model_data::watch_model_data_atom, caf::actor data_source) {
             set_source_of_data(data_source);
         },
         [=](property_atom, const AnyPtr &value, const int key, const uint64_t ui_layer_node_id) {
@@ -308,6 +367,10 @@ void UIDataModel::set_root(const ObjectDataTreePtr &root) {
 }
 
 void UIDataModel::register_subtree(const ObjectDataTree *node) {
+    if (!node) { 
+        spdlog::warn("Attempted to register a null subtree");
+        return;
+    }
     const quintptr id = next_id_++;
     nodes_by_id_[id]  = node;
     ids_by_node_[node] = id;
@@ -362,7 +425,7 @@ QModelIndex UIDataModel::index(int row, int column, const QModelIndex &parent) c
     if (node->num_nodes() <= row)
         return {};
 
-    const quintptr id = id_of(row >= 0 ? node->get_node(row).get() : node);
+    const quintptr id = id_of(node->get_node(row).get());
     return id ? createIndex(row, column, id) : QModelIndex();
 }
 
@@ -616,15 +679,17 @@ void SessionModelNode::reload() {
 }
 
 AttributesModelData::AttributesModelData(QObject *parent)
-    : UIDataModel(parent) 
+    : SessionModelRoot(parent) 
 {
-    init(CafSystemObject::get_actor_system());
+    data_roles_.clear();
+    data_roles_inverse_.clear();
     auto pp = module::Attribute::role_names.begin();
     while (pp != module::Attribute::role_names.end()) {
         data_roles_[pp->first] = pp->second.c_str();
         data_roles_inverse_[pp->second.c_str()] = pp->first;
         ++pp;
     }
+    init(CafSystemObject::get_actor_system());
 }
 
 void AttributesModelData::setModelDataName(const QString &name) {
@@ -637,7 +702,7 @@ void AttributesModelData::setModelDataName(const QString &name) {
         auto central_models_data_actor =
             system().registry().template get<caf::actor>(global_ui_model_data_registry);
 
-        anon_mail(ui::model_data::register_model_data_atom_v,
+        anon_mail(ui::model_data::watch_model_data_atom_v,
             group_name_.toStdString(),
             as_actor()).send(central_models_data_actor);
 

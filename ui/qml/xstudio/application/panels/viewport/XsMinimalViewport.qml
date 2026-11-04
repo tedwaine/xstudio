@@ -37,7 +37,7 @@ Item {
 
     XsPlayhead {
         id: viewportPlayhead
-        uuid: the_viewport.playheadUuid
+        playheadActor: the_viewport.playheadActorAddress
     }
 
     ColumnLayout {

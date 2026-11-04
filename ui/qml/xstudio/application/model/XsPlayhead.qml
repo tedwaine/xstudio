@@ -8,20 +8,23 @@ Item {
 
     id: the_playhead
 
-    property var uuid // set this to the UUID of the playhead
+    property var playheadActor // set this to the UUID of the playhead
 
     XsModuleData {
 
         id: playhead_attrs_model
         // each playhead exposes its attributes in a model named after the
         // playhead UUID. We connect to the model like this:
-        modelDataName: "" + uuid
-        onModelDataNameChanged: {
+        rootActor: playheadActor
+        onRootActorChanged: {
             // toggling the force connect attr triggers the playhead backend to
             // run the 'connect_to_ui' set-up logic. Playheads should be 'dormant'
             // until we need them, either to put images in the viewport or to
             // be part of populating a timeline interface etc.
             forceConnect = !forceConnect
+        }
+        onLengthChanged: {
+            console.log("Playhead length changed to: " + length)
         }
     }
 
@@ -29,6 +32,9 @@ Item {
         id: __playheadLogicalFrame
         attributeTitle: "Logical Frame"
         model: playhead_attrs_model
+        onValueChanged: {
+            console.log("Logical Frame changed to: " + value)
+        }
     }
 
     XsAttributeValue {

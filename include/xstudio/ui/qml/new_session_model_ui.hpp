@@ -45,6 +45,8 @@ class UIDataModel : public caf::mixin::actor_object<QAbstractItemModel> {
     Q_OBJECT
 
     Q_PROPERTY(int length READ length NOTIFY lengthChanged)
+    //Q_PROPERTY(QModelIndex rootIndex READ rootIndex NOTIFY rootIndexChanged)
+    Q_PROPERTY(QVariantMap rootData READ rootData NOTIFY rootDataChanged)
 
   public:
 
@@ -79,12 +81,16 @@ class UIDataModel : public caf::mixin::actor_object<QAbstractItemModel> {
 
     Q_INVOKABLE QModelIndex searchRecursive(const QVariant &value, const QString &role, const QModelIndex &parent = QModelIndex(), const int depth = 10) const;
 
+    [[nodiscard]] QModelIndex rootIndex() const { return root_index_; }
+
     [[nodiscard]] int length() const { return rowCount(); }
+    [[nodiscard]] const QVariantMap & rootData() const { return root_data_; }
 
   signals:
+
     void lengthChanged();
-
-  signals:
+    void rootIndexChanged();
+    void rootDataChanged();
 
   protected:
 
@@ -113,6 +119,8 @@ class UIDataModel : public caf::mixin::actor_object<QAbstractItemModel> {
     quintptr next_id_ = 1;
     QHash<int, QByteArray> data_roles_;
     QMap<QString, int> data_roles_inverse_;
+    QModelIndex root_index_;
+    QVariantMap root_data_;
 
     caf::actor source_of_data_;
     bool is_versions_list_ = {false};
@@ -193,7 +201,7 @@ class SessionModelNode : public SessionModelRoot {
 
 };
 
-class AttributesModelData : public UIDataModel {
+class AttributesModelData : public SessionModelRoot {
 
   Q_OBJECT
 
@@ -201,7 +209,7 @@ class AttributesModelData : public UIDataModel {
 
   public:
   
-    using super = UIDataModel;
+    using super = SessionModelRoot;
 
     AttributesModelData(QObject *parent = nullptr);
     ~AttributesModelData() override = default;

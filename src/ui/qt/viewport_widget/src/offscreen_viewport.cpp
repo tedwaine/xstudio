@@ -1177,6 +1177,9 @@ void OffscreenViewport::render(
         root_qml_overlays_item_->setProperty(
             "playheadUuid", QUuidFromUuid(xstudio_viewport_->playhead_uuid()));
 
+        root_qml_overlays_item_->setProperty(
+            "playheadActorAddress", actorToQString(self()->home_system(), xstudio_viewport_->playhead()));
+
         if (sync_fetch_playhead_image) {
             sync_python_hud_data();
         }

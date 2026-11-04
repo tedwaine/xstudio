@@ -46,6 +46,8 @@ XsListView { id: playlists
         // we use the main session data model
         model: playlistsModelData
 
+        rootIndex: playlistsModelData.rootIndex
+
         // point at session 0,0, it's children are the playlists.
         delegate: Item {
             id: pitem
@@ -59,7 +61,7 @@ XsListView { id: playlists
                 // C++ code.
                 if (typeof code === "string") {
                     widget = Qt.createQmlObject(code, pitem)
-                    widget.modelIndex = helpers.makePersistent(playlistsModelData.index(index, 0))
+                    widget.modelIndex = helpers.makePersistent(playlistsModelData.index(index, 0, playlistsModelData.rootIndex))
                 }
             }
         }

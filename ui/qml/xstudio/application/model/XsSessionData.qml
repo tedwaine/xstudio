@@ -320,7 +320,8 @@ Item {
     At some point we may rationalise this and build into the singe Session model*/
     XsPlayhead {
         id: current_playhead
-        uuid: sessionData.onScreenPlayheadUuid
+        //uuid: viewedContainer.rootData.activePlayheadActorRole
+        playheadActor: viewedContainer.rootData.activePlayheadActorRole
         onMediaUuidChanged: {
             current_onscreen_media_data.index = session.searchRecursive(mediaUuid, "actorUuidRole", sessionData.viewportCurrentMediaContainerIndex)
             if (!current_onscreen_media_data.index.valid) {
@@ -559,38 +560,53 @@ Item {
 
     XsSessionModelNode {
         id: the_session
-        onModelReset: {
-            __foo.index = index(0, 0).parent
-            console.log("ASDASD: " + getData(index(-1, -1), "nameRole"))
+        property var fonk: rootData.nameRole
+        onFonkChanged: {
+            console.log("Fonk changed to: " + fonk)
         }
     }
 
-        Repeater {
-            model: dd
-        }
-            DelegateModel {
-                id: dd
-                model: the_session
-                delegate: Item {
-                    property var nnnn: nameRole
-                    onNnnnChanged: {
-                        console.log("Name role changed to: " + nnnn)
-                    }
-                }
-            }
-
-
-    property var playheadIdFooFoar: __foo.value
+    property alias currentPlayhead: __foo.value
     XsModelProperty {
         id: __foo
-        role: "nameRole"
-        onIndexChanged: console.log("Index changed for __foo: " + __foo.index)
-    }
-    onPlayheadIdFooFoarChanged: {
-        console.log("Playhead ID Foo Foar changed to: " + playheadIdFooFoar)
+        role: "viewedContainerRole"
+        index: the_session.rootIndex
     }
 
+    onCurrentPlayheadChanged: {
+        console.log("Current playhead changed to: " + currentPlayhead)
+    }
 
+    XsSessionModelNode {
+        id: viewedContainer
+        rootActor: the_session.rootData.viewedContainerRole
+    }
+
+    /*XsModuleData {
+        id: playhead
+        rootActor: viewedContainer.rootData.activePlayheadActorRole
+        onRootActorChanged: {
+            console.log("FEE FOO", rootActor)
+        }
+        onLengthChanged: {
+            console.log("Length changed to: " + length)
+        }
+    }
+
+    DelegateModel {
+        id: dd
+        model: playhead
+        delegate: Item {
+            property var attributeTitle: value
+            onAttributeTitleChanged: {
+                console.log("CRONK ", title, "value changed to: " + attributeTitle)
+            }
+        }
+    }*/
+
+    Repeater {
+        model: dd
+    }
 
     /* This selection model tells us which playlist(s), contact sheets, timelines etc
     are currently selected in the UI */

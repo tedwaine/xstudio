@@ -424,7 +424,7 @@ class Module {
     std::set<utility::Uuid> attrs_waiting_to_update_prefs_;
     std::map<std::string, std::vector<utility::Uuid>> menu_items_;
 
-    std::map<utility::Uuid, std::map<std::string, caf::actor>> attribute_watchers_;
+    std::map<utility::Uuid, std::vector<std::string>> attribute_ui_groups_;
 
 
     std::map<caf::actor_addr, caf::disposable> monitor_;
