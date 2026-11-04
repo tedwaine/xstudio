@@ -20,7 +20,7 @@ XsViewport {
     
     XsPlayhead {
         id: playhead
-        uuid: viewport.playheadUuid
+        playheadActor: viewport.playheadActorAddress
     }
     property alias viewportPlayhead: playhead
 

@@ -72,35 +72,20 @@ Rectangle{
 
     XsPlayhead {
         id: viewportPlayhead
-        uuid: view.playheadUuid
-    }
-
-    property alias viewportPlayhead: viewportPlayhead
-
-    /*
-    // Leaving this here for posterity. Uncommenting this will result in
-    // debug spam telling you about data in viewportPlayheadDataModel.
-    // It gives you an idea about what 'XsModuleData' data does.
-    XsModuleData {
-        id: viewportPlayheadDataModel
-
-        // each playhead exposes its attributes in a model named after the
-        // playhead UUID. We connect to the model like this:
-        modelDataName: viewportPlayhead.uuid
-    }
-    Repeater {
-        model: viewportPlayheadDataModel
-        Item {
-            property var value_: value
-            onValue_Changed: {
-                console.log("playhead attr changed", title, value)
-            }
-            Component.onCompleted: {
-                console.log("playhead attr: ", title, value)
-            }
+        playheadActor: view.playheadActorAddress
+        onPlayheadActorChanged: {
+            // handle playhead actor change if needed
+            console.log("Playhead actor changed to:", playheadActor)
+        }
+        property var asd: logicalFrame
+        onAsdChanged: {
+            // handle logical frame change if needed
+            console.log("Logical frame changed to: ", asd)
         }
     }
-    */
+
+
+    property alias viewportPlayhead: viewportPlayhead
 
     property var visible_doc_widgets: []
 

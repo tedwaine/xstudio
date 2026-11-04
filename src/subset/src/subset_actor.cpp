@@ -536,6 +536,7 @@ caf::message_handler SubsetActor::message_handler() {
                 caf::actor_cast<caf::actor_addr>(this));
             link_to(actor);
             add_child(UuidActor(uuid, actor));
+            set_data_value(session::activePlayheadActorRole, actor);
 
             anon_mail(playhead::playhead_rate_atom_v, Subset::playhead_rate()).send(actor);
 

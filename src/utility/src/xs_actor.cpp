@@ -38,18 +38,7 @@ void ObjectActor::add_child(const UuidActor &child, const Uuid & before) {
             // handle response if needed
         },
         [=](const caf::error &err) {
-
-            std::cerr << "FAO " << to_string(child.actor()) << "\n";
-            self()->mail(name_atom_v).request(child.actor(), infinite).then(
-                [=](const std::string &name) {
-                    std::cerr << "Child name: " << name << "\n";
-                },
-                [=](const caf::error &err) {
-                    std::cerr << "Error fetching child name: " << to_string(err) << "\n";
-                }
-            );
-
-            spdlog::error("{} Error while joining broadcast: {}", __PRETTY_FUNCTION__, to_string(err));
+            log_caf_error(err, spdlog::level::warn, "Error while joining broadcast");
         }
     );
 
@@ -137,9 +126,10 @@ int ObjectActor::child_index(const caf::strong_actor_ptr &child) const {
 void ObjectActor::remove_child(const UuidActor &child) {
 
     int cidx = child_index(child);
-    if (cidx != -1)
+    if (cidx != -1) {
         children_.erase(children_.begin() + cidx);
-    mail(event_atom_v, remove_children_atom_v, std::vector<int>{cidx}).send(properties_events_group_);
+        mail(event_atom_v, remove_children_atom_v, std::vector<int>{cidx}).send(properties_events_group_);
+    }
 
 }
 
@@ -233,6 +223,16 @@ caf::message_handler ObjectActor::private_message_handler() {
             for (const auto &child : children) {
                 add_child(child);
             }
+            return true;
+        },
+        [=](remove_children_atom, const UuidActorVector &children) -> bool {
+            for (const auto &child : children) {
+                remove_child(child);
+            }
+            return true;
+        },
+        [=](remove_children_atom, const UuidActor &child) -> bool {
+            remove_child(child);
             return true;
         },
         [=](property_atom, const int key, const uint64_t ui_layer_node_id, caf::actor sender) {

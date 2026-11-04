@@ -45,7 +45,9 @@ class GlobalUIModelData : public utility::ObjectActor {
   private:
     inline static const std::string NAME = "GlobalUIModelData";
 
-    utility::UuidActor get_attribute_group_node(const std::string &model_name);
+    utility::UuidActor get_ui_data_model_root_node(const std::string &model_name, caf::actor new_watcher=caf::actor());
+
+   void put_ui_data_model_root_node(const std::string &model_name, const utility::UuidActor &actor);
 
     [[nodiscard]] utility::JsonStore model_data_as_json(const std::string &model_name) const;
 
@@ -187,7 +189,12 @@ class GlobalUIModelData : public utility::ObjectActor {
 
     utility::clock::time_point cleanup_timepoint_;
 
-    utility::UuidActor attribute_data_model_actor_;
-    std::map<std::string, utility::UuidActor> new_models_;
+    struct UiDataModels {
+        utility::UuidActor source_;
+        std::set<caf::actor_addr> subscribers_;
+    };
+    typedef std::shared_ptr<UiDataModels> UiDataModelsPtr;
+
+    std::map<std::string, UiDataModelsPtr> new_models_;
 };
 } // namespace xstudio::ui::model_data

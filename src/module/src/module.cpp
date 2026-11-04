@@ -34,6 +34,43 @@ caf::behavior delayed_resend(caf::event_based_actor *) {
 
 } // namespace
 
+AttributeWatcherActor::AttributeWatcherActor(
+    caf::actor_config &cfg,
+    const utility::PropertyMap &attribute_data,
+    const utility::Uuid &attribute_uuid,
+    caf::actor module): utility::ObjectActor(cfg, to_string(attribute_uuid)), attribute_uuid_(attribute_uuid), module(module) {
+    for (const auto &p: attribute_data) {
+        // Process each role data entry here
+        set_data_value(p.first, p.second);
+    }
+}
+
+caf::message_handler AttributeWatcherActor::message_handler() {
+
+    return {
+        [=](change_attribute_event_atom, const int role, const utility::AnyPtr &data_value) {
+            try {
+                set_data_value(role, data_value);
+            } catch (std::exception &e) {
+                spdlog::error("Exception in AttributeWatcherActor: {}", e.what());
+            }
+        }
+    };
+}
+
+bool AttributeWatcherActor::request_to_set_data_value(const int key, const utility::AnyPtr &value) {
+    // This method is called when the UI layer is tring to change an attribute
+    // value. We check if the change is allowed.
+
+    // Tell the Module (backend) to update the correponding attribute with the new value.
+    // If the change is successful, the backend will notify us via the attribute_changed_atom message.
+    anon_mail(change_attribute_request_atom_v, attribute_uuid_, key, value).send(module);
+    
+    // no immediate change is made locally; we wait for the backend to confirm the change.
+    return false;
+}
+
+
 Module::Module(const std::string name, const utility::Uuid &uuid)
     : module_uuid_(uuid), name_(std::move(name)) {}
 
@@ -50,9 +87,10 @@ void Module::parent_actor_exiting() {
         disconnect_from_ui();
 
         scoped_actor sys{self()->home_system()};
-        for (auto &p: attribute_watchers_) {
-            for (auto &w: p.second) {
-                sys->send_exit(w.second, caf::exit_reason::user_shutdown);
+        for (auto &attr: attributes_) {
+            if (attr->watcher()) {
+                sys->send_exit(attr->watcher(), caf::exit_reason::user_shutdown);
+                attr->set_watcher(caf::actor());
             }
         }
 
@@ -342,7 +380,7 @@ AttributeSet Module::menu_attrs(const std::string &root_menu_name) const {
 }
 
 caf::message_handler Module::message_handler() {
-    caf::message_handler h(
+    return caf::message_handler(
         {[=](xstudio::broadcast::broadcast_down_atom, const caf::actor_addr &) {},
 
          [=](attribute_role_data_atom,
@@ -1201,9 +1239,10 @@ caf::message_handler Module::message_handler() {
              set_submenu_position_in_parent(menu_model_name, submenu, submenu_position);
          },
          [=](reset_module_atom) { reset(); },
-         [=](utility::parent_atom) -> caf::actor { return actor_cast<actor>(parent_actor_addr_); }});
-
-    return h.or_else(playhead::PlayheadGlobalEventsActor::default_event_handler());
+         [=](utility::parent_atom) -> caf::actor { return actor_cast<actor>(parent_actor_addr_); },
+            [=](caf::message &m) {
+                std::cerr << "Unhandled message: " << name() << " " << to_string(m) << std::endl;
+            }}).or_else(playhead::PlayheadGlobalEventsActor::default_event_handler());
 }
 
 void Module::notify_change(
@@ -1220,12 +1259,9 @@ void Module::notify_change(
         anon_mail(change_attribute_event_atom_v, module_uuid_, attr_uuid, role, value)
             .send(attribute_events_group_);
 
-        auto p = attribute_watchers_.find(attr_uuid);
-        if (p != attribute_watchers_.end()) {
-            for (const auto &q : p->second) {
-                anon_mail(change_attribute_event_atom_v, role, attr->raw_role_data(role))
-                    .send(q.second);
-            }
+        if (attr->watcher()) {
+            anon_mail(change_attribute_event_atom_v, role, attr->raw_role_data(role))
+                .send(attr->watcher());
         }
 
         if (attr->has_role_data(Attribute::UIDataModels)) {
@@ -2443,77 +2479,66 @@ utility::Uuid Module::create_qml_item(const std::string &qml_code) {
     return attr->uuid();
 }
 
-void Module::register_attribute_in_ui_models(Attribute *a) {
+void Module::register_attribute_in_ui_models(Attribute *attr) {
 
-    if (a->has_role_data(Attribute::UIDataModels)) {
+    if (attr->has_role_data(Attribute::UIDataModels)) {
 
-        auto groups = a->get_role_data<std::vector<std::string>>(Attribute::UIDataModels);
-
-        // If an attribute has been removed from a UI attributes group, then we handle this
-        // here
-        {
-            scoped_actor sys{self()->home_system()};
-            auto p = attribute_watchers_.find(a->uuid());
-            if (p != attribute_watchers_.end()) {
-                auto q = p->second.begin();
-                while (q != p->second.end()) {
-                    auto &w = *q;
-                    auto watcher = std::find_if(groups.begin(), groups.end(), [&](const std::string &g) { return g == w.first; });
-                    if (watcher == groups.end()) {
-                        // attr must have been removed from this UI group. We just shut down the corresponding watcher actor.
-                        sys->send_exit(w.second, caf::exit_reason::user_shutdown);
-                        q = attribute_watchers_[a->uuid()].erase(q);
-                    } else {
-                        ++q;
-                    }
-                }
-            }
-        }
+        const auto groups = attr->get_role_data<std::vector<std::string>>(Attribute::UIDataModels);
+        std::vector<std::string> new_groups;
+        std::vector<std::string> exiting_groups;
+        const auto &previous_groups = attribute_ui_groups_[attr->uuid()];
 
         for (const auto &group_name : groups) {
-
-            // When an attribute is registered in a UI model, we are making the attribute
-            // data available in QML via an XsModelData object. This will allow us to get
-            // to attribute data to read and write.
-
-            // The mechanism is that we make a watcher actor for the attribute that receives
-            // updates about the attribute's state and changes. We then add this watcher
-            // actor as a child of an object actor that represents the UI model group.
-
-            // Then we have a QtObject / Actor mixin class that interfaces with the group
-            // actor to update the UI when the attribute changes.
-
-            utility::UuidActor new_watcher;
-            auto p = attribute_watchers_.find(a->uuid());
-            if (p == attribute_watchers_.end()) {
-                // create a new AttributeWatcherActor for this group
-                utility::Uuid uuid = utility::Uuid::generate();
-                new_watcher = utility::UuidActor(uuid, self()->home_system().spawn<AttributeWatcherActor>(
-                    a->data_map(),
-                    a->uuid(),
-                    caf::actor_cast<caf::actor>(self())));
-                attribute_watchers_[a->uuid()][group_name] = new_watcher;
-            } else {
-                auto q = p->second.find(group_name);
-                if (q == p->second.end()) {
-                    utility::Uuid uuid = utility::Uuid::generate();
-                    new_watcher = utility::UuidActor(uuid, self()->home_system().spawn<AttributeWatcherActor>(
-                        a->data_map(),
-                        a->uuid(),
-                        caf::actor_cast<caf::actor>(self())));
-                    attribute_watchers_[a->uuid()][group_name] = new_watcher;
-                }
-            }
-
-            if (new_watcher) {
-                // We have a new watcher actor. Send it to the central UI
-                // models actor so that it can be added to a group object.
-                anon_mail(
-                    ui::model_data::register_model_data_atom_v,
-                    group_name,
-                    new_watcher)
-                    .send(central_ui_models_actor_);
+            if (std::find(previous_groups.begin(), previous_groups.end(), group_name) == previous_groups.end()) {
+                new_groups.push_back(group_name);
             }
         }
+
+        for (const auto &group_name : previous_groups) {
+            if (std::find(groups.begin(), groups.end(), group_name) == groups.end()) {
+                exiting_groups.push_back(group_name);
+            }
+        }
+
+        if (groups.empty()) {
+            if (attr->watcher()) {
+                /*scoped_actor sys{self()->home_system()};
+                sys->send_exit(attr->watcher(), caf::exit_reason::user_shutdown);
+                attr->set_watcher(caf::actor{});        */
+            }
+            return;
+        } else if (!attr->watcher()) {
+            scoped_actor sys{self()->home_system()};
+            attr->set_watcher(sys->spawn<AttributeWatcherActor>(
+                attr->data_map(),
+                attr->uuid(),
+                self()));
+        }
+
+        attribute_ui_groups_[attr->uuid()] = groups;
+
+        for (const auto &group_name : new_groups) {
+
+            // We have a new watcher actor. Send it to the central UI
+            // models actor so that it can be added to a group object.
+            anon_mail(
+                ui::model_data::register_model_data_atom_v,
+                group_name,
+                utility::UuidActor{attr->uuid(), attr->watcher()})
+                .send(central_ui_models_actor_);
+
+        }
+
+        /*for (const auto &group_name : exiting_groups) {
+
+            // We have an exiting watcher actor. Send it to the central UI
+            // models actor so that it can be removed from a group object.
+            anon_mail(
+                ui::model_data::deregister_model_data_atom_v,
+                group_name,
+                utility::UuidActor{attr->uuid(), attr->watcher()})
+                .send(central_ui_models_actor_);
+
+        }*/
     }
 }

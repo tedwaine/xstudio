@@ -162,10 +162,6 @@ GlobalUIModelData::GlobalUIModelData(caf::actor_config &cfg) : utility::ObjectAc
 
     });
 
-    utility::Uuid uuid = utility::Uuid::generate();
-    attribute_data_model_actor_ = utility::UuidActor(uuid, spawn<utility::ObjectActor>("AttributeDataModelActor", uuid));
-    add_child(attribute_data_model_actor_);
-
 }
 
 caf::message_handler GlobalUIModelData::message_handler() {
@@ -175,20 +171,64 @@ caf::message_handler GlobalUIModelData::message_handler() {
 
         [=](register_model_data_atom,
             const std::string &model_name,
+            const utility::UuidActor & data_source_actor,
+            bool incoming) 
+        {
+            // This is where an ObjectActor can be registered as the root of a UI data model
+            // with the given name. UI components can access the model data via the name.
+            put_ui_data_model_root_node(model_name, data_source_actor);
+        },
+
+        [=](register_model_data_atom,
+            const std::string &model_name,
             const utility::UuidActor & attribute_watcher) {
 
-            auto attribute_group_actor = get_attribute_group_node(model_name);
+            // called by Module class - 'attribute_watcher' is an ObjectActor that sends
+            // and receives updates about the state of an attribute belonging to the Module.
+            // We add this attribute watcher as a node of an ObjectActor that serves as
+            // the root of the 'attribute group'. UI components can then observe this group to
+            // access attribtu state (read and write)
+
+            std::cerr << "Registering attribute watcher for model: " << model_name << " " << to_string(attribute_watcher.actor()) << std::endl;
+            auto attribute_group_actor = get_ui_data_model_root_node(model_name);
             if (attribute_group_actor) {
                 anon_mail(utility::add_children_atom_v, attribute_watcher).send(attribute_group_actor);
             }
 
         },
 
-        [=](register_model_data_atom, const std::string &model_name, caf::actor subscriber_to_model) {
-            auto attribute_group_actor = get_attribute_group_node(model_name);
+        [=](deregister_model_data_atom,
+            const std::string &model_name,
+            const utility::UuidActor & attribute_watcher) {
+
+            // Take an attribute watcher out of a model data tree
+
+            auto attribute_group_actor = get_ui_data_model_root_node(model_name);
             if (attribute_group_actor) {
-                anon_mail(register_model_data_atom_v, attribute_group_actor.actor()).send(subscriber_to_model);
+                anon_mail(utility::remove_children_atom_v, attribute_watcher).send(attribute_group_actor);
             }
+
+        },
+
+        [=](watch_model_data_atom, const std::string &model_name, caf::actor subscriber_to_model) {
+            // This is where UI components request a subscription to a named data model. The data model is 
+            // typically (but not always) built from one or more Attributes that are exposed by the backend.
+            auto attribute_group_actor = get_ui_data_model_root_node(model_name, subscriber_to_model);
+            if (attribute_group_actor) {
+                anon_mail(watch_model_data_atom_v, attribute_group_actor.actor()).send(subscriber_to_model);
+            }
+            monitor(subscriber_to_model, [this, addr = subscriber_to_model.address()](const error &) {
+                for (auto &p : new_models_) {
+                    auto it = p.second->subscribers_.begin();
+                    while (it != p.second->subscribers_.end()) {
+                        if (*it == addr) {
+                            it = p.second->subscribers_.erase(it);
+                        } else {
+                            ++it;
+                        }
+                    }
+                }
+            });
         },
 
         [=](register_model_data_atom,
@@ -1676,20 +1716,39 @@ void GlobalUIModelData::do_cleanup_for_exited_clients() {
 #pragma GCC diagnostic pop
 #endif
 
-utility::UuidActor GlobalUIModelData::get_attribute_group_node(const std::string &model_name) {
+utility::UuidActor GlobalUIModelData::get_ui_data_model_root_node(const std::string &model_name, caf::actor new_watcher) {
 
     // Implementation for adding an attribute watcher to the specified model
-    utility::UuidActor attribute_group_actor;
-    auto m = new_models_.find(model_name);
-    if (m != new_models_.end()) {
-        attribute_group_actor = m->second;
-    } else {
+    if (new_models_.find(model_name)== new_models_.end()) {
         utility::Uuid uuid = utility::Uuid::generate();
-        attribute_group_actor = utility::UuidActor(uuid, spawn<utility::ObjectActor>(model_name, uuid));
-        new_models_[model_name] = attribute_group_actor;
-        anon_mail(utility::add_children_atom_v, attribute_group_actor).send(attribute_data_model_actor_);
+        put_ui_data_model_root_node(model_name, utility::UuidActor(uuid, spawn<utility::ObjectActor>(model_name, uuid)));
     }
 
+    if (model_name == "viewport0_toolbar") std::cerr << "Getting UI data model root node for: " << model_name << std::endl;
 
-    return attribute_group_actor;
+    if (new_watcher) {
+        new_models_[model_name]->subscribers_.insert(caf::actor_cast<caf::actor_addr>(new_watcher));
+    }
+
+    return new_models_[model_name]->source_;
+}
+
+void GlobalUIModelData::put_ui_data_model_root_node(const std::string &model_name, const utility::UuidActor &actor) {
+
+    auto m = new_models_.find(model_name);
+    if (m != new_models_.end()) {
+        if (m->second->source_ != actor) {
+            m->second->source_ = actor;
+            if (model_name == "viewport0_toolbar") std::cerr << "SWITCHING UI data model root node for: " << model_name << std::endl;
+            for (auto &subscriber : m->second->subscribers_) {
+                caf::actor sub = caf::actor_cast<caf::actor>(subscriber);
+                if (sub) {
+                    anon_mail(watch_model_data_atom_v, actor.actor()).send(sub);
+                }
+            }
+        }
+    } else {
+        new_models_[model_name] = std::make_shared<GlobalUIModelData::UiDataModels>();
+        new_models_[model_name]->source_ = actor;
+    }
 }

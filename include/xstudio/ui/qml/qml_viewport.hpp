@@ -43,6 +43,8 @@ namespace qml {
         Q_PROPERTY(QString name READ name NOTIFY nameChanged)
         Q_PROPERTY(QUuid playheadUuid READ playheadUuid NOTIFY playheadUuidChanged)
         Q_PROPERTY(bool hasPlayhead READ hasPlayhead NOTIFY playheadUuidChanged)
+        Q_PROPERTY(QString playheadActorAddress READ playheadActorAddress NOTIFY playheadUuidChanged)
+
         Q_PROPERTY(
             bool isQuickview READ isQuickview WRITE setIsQuickview NOTIFY isQuickviewChanged)
         Q_PROPERTY(

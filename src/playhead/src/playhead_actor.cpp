@@ -240,13 +240,26 @@ void PlayheadActor::init() {
     // so by indexing into the session model data to reach the playhead we can access
     // the attributes of the playhead in the UI.
     for (auto &attr : attributes_) {
-        utility::Uuid uuid = utility::Uuid::generate();
-        auto attr_watcher = utility::UuidActor(uuid, spawn<module::AttributeWatcherActor>(
-            attr->data_map(),
-            attr->uuid(),
-            caf::actor_cast<caf::actor>(this)));
+        utility::UuidActor attr_watcher;
+        if (attr->watcher()) {
+            attr_watcher = utility::UuidActor(attr->uuid(), attr->watcher());
+        } else {
+            attr_watcher = utility::UuidActor(attr->uuid(), spawn<module::AttributeWatcherActor>(
+                attr->data_map(),
+                attr->uuid(),
+                caf::actor_cast<caf::actor>(this)));
+            attr->set_watcher(attr_watcher.actor());
+        }
         add_child(attr_watcher);
     }
+
+    /*auto central_ui_models_actor = system().registry().template get<caf::actor>(global_ui_model_data_registry);
+    mail(
+        model_data::register_model_data_atom_v,
+        to_string(uuid()),
+        utility::UuidActor(uuid(), caf::actor_cast<caf::actor>(this)),
+        true).send(central_ui_models_actor);*/
+
 
 }
 
