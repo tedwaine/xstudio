@@ -724,12 +724,14 @@ class SESSION_QML_EXPORT MediaListFilterModel : public QSortFilterProxyModel {
         return sourceModel()->roleNames();
     }
 
+    Q_INVOKABLE QVariant getData(const int row, const QString &role) const;
+
     Q_INVOKABLE [[nodiscard]] QModelIndex rowToSourceIndex(const int row) const;
 
     Q_INVOKABLE [[nodiscard]] int sourceIndexToRow(const QModelIndex &) const;
 
     Q_INVOKABLE [[nodiscard]] int
-    getRowWithMatchingRoleData(const QVariant &searchValue, const QString &searchRole) const;
+    getRowWithMatchingUuid(const QVariant &uuidValue) const;
 
   protected:
     [[nodiscard]] bool

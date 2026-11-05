@@ -300,8 +300,9 @@ Item {
     function loadMediaCallback(media_urls, folder) {
 
         if (media_urls === false) return
+        sessionFunctions.loadMedia(media_urls)
 
-        let uris = ""
+        /*let uris = ""
         media_urls.forEach(function (item, index) {
             uris = uris + String(item) +"\n"
         })
@@ -319,7 +320,7 @@ Item {
             ).then(function(quuids){
                 mediaSelectionModel.selectFirstNewMedia(index, quuids)
             }) }}(index), 100
-        );
+        );*/
 
         defaultMediaFolder = folder
     }

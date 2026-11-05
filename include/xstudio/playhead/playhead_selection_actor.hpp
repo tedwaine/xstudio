@@ -8,10 +8,10 @@
 #include "xstudio/playhead/playhead.hpp"
 #include "xstudio/playhead/playhead_selection.hpp"
 #include "xstudio/utility/json_store.hpp"
-#include "xstudio/utility/uuid.hpp"
+#include "xstudio/utility/xs_actor.hpp"
 
 namespace xstudio::playhead {
-class PlayheadSelectionActor : public caf::event_based_actor {
+class PlayheadSelectionActor : public utility::ObjectActor, private PlayheadSelection {
   public:
     PlayheadSelectionActor(
         caf::actor_config &cfg, const utility::JsonStore &jsn, caf::actor playlist);
@@ -21,6 +21,10 @@ class PlayheadSelectionActor : public caf::event_based_actor {
 
     [[nodiscard]] const char *name() const override { return NAME.c_str(); }
 
+  protected:
+
+    bool request_to_set_data_value(const int key, const utility::AnyPtr &value) override;
+
   private:
     inline static const std::string NAME = "PlayheadSelectionActor";
     void init();
@@ -28,10 +32,10 @@ class PlayheadSelectionActor : public caf::event_based_actor {
     void on_exit() override;
 
 
-    caf::message_handler message_handler();
+    caf::message_handler message_handler() override;
 
-    caf::behavior make_behavior() override {
-        return message_handler().or_else(base_.container_message_handler(this));
+    caf::message_handler extra_message_handlers() override {
+        return PlayheadSelection::container_message_handler(this);
     }
 
     void select_media(
@@ -47,6 +51,8 @@ class PlayheadSelectionActor : public caf::event_based_actor {
     void select_one();
 
     void select_next_media_item(const int skip_by);
+
+    void update_selection_indeces();
 
   private:
     PlayheadSelection base_;

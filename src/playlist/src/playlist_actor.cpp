@@ -286,6 +286,7 @@ PlaylistActor::PlaylistActor(
                 selection_actor_ = system().spawn<playhead::PlayheadSelectionActor>(
                     static_cast<utility::JsonStore>(value), caf::actor_cast<caf::actor>(this));
                 link_to(selection_actor_);
+                add_child(selection_actor_);
 
             } catch (const std::exception &e) {
                 spdlog::error("{}", e.what());
@@ -2138,6 +2139,7 @@ void PlaylistActor::init() {
     if (!selection_actor_) {
         selection_actor_ = spawn<playhead::PlayheadSelectionActor>(
             Playlist::name() + " SelectionActor", caf::actor_cast<caf::actor>(this));
+        add_child(selection_actor_);
         link_to(selection_actor_);
     }
 

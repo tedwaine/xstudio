@@ -18,6 +18,18 @@ ObjectActor::ObjectActor(caf::actor_config &cfg, const std::string &name, const 
 
 }
 
+void ObjectActor::add_child(const caf::actor child, const utility::Uuid &before)
+{
+    mail(utility::uuid_atom_v).request(child, infinite).then(
+        [=](utility::Uuid uuid) {
+            add_child(UuidActor{uuid, child}, before);
+        },
+        [=](const caf::error &err) {
+            log_caf_error(err);
+        }
+    );
+}
+
 void ObjectActor::add_child(const UuidActor &child, const Uuid & before) {
 
     // monitor the child

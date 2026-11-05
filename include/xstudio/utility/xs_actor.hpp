@@ -84,6 +84,7 @@ protected:
         return data_.get_data_value<T>(key);
     }
 
+    void add_child(const caf::actor child, const utility::Uuid &before = utility::Uuid());
     void add_child(const UuidActor &child, const utility::Uuid &before = utility::Uuid());
     void remove_child(const UuidActor &child);
 

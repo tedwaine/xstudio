@@ -668,6 +668,17 @@ class Session(Container, NotificationHandler, JsonStoreHandler):
             job_id = Uuid(job_id)
         self.connection.send(vid_renderer, render_to_video_atom(), job_id, True)
 
+    def get_next_name(self, name_template):
+        """Generate the next available name based on a template.
+
+        Args:
+            name_template (str): The template for generating the name, e.g., "Playlist {}".
+
+        Returns:
+            str: The next available name.
+        """
+        return self.connection.request_receive(get_next_name_atom(), name_template)[0]
+
     def __vid_renderer_events(self, event_message_content):
 
         if len(event_message_content) == 4 and isinstance(event_message_content[0], event_atom):

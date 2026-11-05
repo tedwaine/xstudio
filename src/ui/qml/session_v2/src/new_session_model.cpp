@@ -5,6 +5,8 @@ using namespace xstudio::ui::qml;
 
 // SPDX-License-Identifier: Apache-2.0
 #include <caf/actor_registry.hpp>
+#include <cctype>
+#include <optional>
 
 #include "xstudio/ui/qml/helper_ui.hpp"
 #include "xstudio/thumbnail/thumbnail.hpp"
@@ -32,6 +34,38 @@ using namespace xstudio::utility;
 }
 
 namespace {
+
+    // Strictly matches the canonical 8-4-4-4-12 hex form, e.g.
+    // '5f56abd3-7557-42b9-b19a-881609257dc1'
+    bool is_canonical_uuid_string(const std::string &s) {
+        if (s.size() != 36)
+            return false;
+        for (size_t i = 0; i < s.size(); ++i) {
+            if (i == 8 || i == 13 || i == 18 || i == 23) {
+                if (s[i] != '-')
+                    return false;
+            } else if (!std::isxdigit(static_cast<unsigned char>(s[i]))) {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    std::optional<UuidVector> uuid_vector_from_json(const nlohmann::json &j) {
+        if (!j.is_array() || j.empty())
+            return std::nullopt;
+        UuidVector result;
+        result.reserve(j.size());
+        for (const auto &el : j) {
+            if (!el.is_string())
+                return std::nullopt;
+            const auto &s = el.get_ref<const std::string &>();
+            if (!is_canonical_uuid_string(s))
+                return std::nullopt;
+            result.emplace_back(s);
+        }
+        return result;
+    }
 
     AnyPtr anyPtrFromQVariant(const QVariant &var) {
 
@@ -67,7 +101,6 @@ namespace {
             return std::make_shared<const std::any>(s.toStdString());
         } */
 
-
         const nlohmann::json json_value = qvariant_to_json(var);
         if (json_value.is_boolean()) {
             return std::make_shared<const std::any>(json_value.get<bool>());
@@ -77,6 +110,8 @@ namespace {
             return std::make_shared<const std::any>(json_value.get<float>());
         } else if (json_value.is_string()) {
             return std::make_shared<const std::any>(json_value.get<std::string>());
+        } else if (auto uuids = uuid_vector_from_json(json_value)) {
+            return std::make_shared<const std::any>(std::move(*uuids));
         }
 
          if(var.canConvert<QColor>()) {
@@ -154,6 +189,14 @@ namespace {
             }
             return img;
         }
+        if (a.type() == typeid(utility::UuidVector)) {
+            const auto &vec = std::any_cast<const utility::UuidVector &>(a);
+            QVariantList img(vec.size());
+            for (size_t i = 0; i < vec.size(); ++i) {
+                img[i] = QUuidFromUuid(vec[i]);
+            }
+            return img;
+        }
         std::cerr << "Bailing out, unknown type: " << a.type().name() << std::endl;
 
         return QVariant();
@@ -167,6 +210,9 @@ void UIDataModel::init(caf::actor_system &_system) {
 
     super::init(_system);
 
+    values_ = new XsQmlPropertyMap(this);
+    QObject::connect(values_, &XsQmlPropertyMap::updateValueRequest, this, &UIDataModel::handleUpdateValueRequest);
+
     // We can defined custom message handlers here so that messages can be
     // received from other components (actors) in xSTUDIO. In this case we will
     // be interfacing with the plugin backend
@@ -175,9 +221,9 @@ void UIDataModel::init(caf::actor_system &_system) {
     });
 
     for (const auto &p : data_roles_inverse_.keys()) {
-        root_data_[p] = QVariant();
+        values_->insert(p, QVariant());
     }
-    emit rootDataChanged();
+    emit valuesChanged();
 
 }
 
@@ -214,7 +260,6 @@ caf::message_handler UIDataModel::core_message_handler() {
         },
         [=](event_atom, remove_children_atom, std::vector<int> index_in_tree) {
 
-            std::cerr << "Remove\n";
             if (index_in_tree.empty())
                 return;
             QModelIndex parent_index = QModelIndex();
@@ -227,20 +272,6 @@ caf::message_handler UIDataModel::core_message_handler() {
             if (node && node->num_nodes() > row) {
                 beginRemoveRows(parent_index, row, row);
                 unregister_subtree(node->get_node(row).get());
-                std::cerr << "Removing node at row " << row << " node->num_nodes() " << node->num_nodes() << " " << node << "\n";
-                auto name = node->get_data_value<std::string>(session::nameRole);
-                if (!name) {
-                    name = node->get_data_value<std::string>(module::Attribute::Title);
-                }
-
-                auto name2 = node->get_node(row)->get_data_value<std::string>(session::nameRole);
-                auto name3 = node->get_node(row)->get_data_value<std::string>(module::Attribute::Title);
-                if (!name2) {
-                }
-
-                if (name) std::cerr << "Node name: " << *name << "\n";
-                if (name2) std::cerr << "Attr name2: " << *name2 << "\n";
-                if (name3) std::cerr << "Attr name3: " << *name3 << "\n";
                 node->remove_node(row);
                 endRemoveRows();
             }
@@ -270,14 +301,26 @@ caf::message_handler UIDataModel::core_message_handler() {
             }
             ObjectDataTree * node = const_cast<ObjectDataTree *>(UIDataModel::node_from_index(parent_index));
             if (node && data_roles_.contains(key)) {
-                node->set_data_value(key, value);
-                emit dataChanged(parent_index, parent_index, {key});
-                if (node == root_.get()) {
-                    auto p = data_roles_.find(key);
-                    if (p != data_roles_.end()) {
-                        root_data_[QString(p.value())] = qvariantFromAnyPtr(value);
-                        emit rootDataChanged();
+                try {
+                    if (node->set_data_value_check(key, value)) {                        
+                        emit dataChanged(parent_index, parent_index, {key});
+                        if (node == root_.get()) {
+
+
+                            auto p = data_roles_.find(key);
+                            if (p != data_roles_.end()) {
+                                values_->setPropertyFromBackend(p.value(), qvariantFromAnyPtr(value));
+                                std::cerr << "Set property: " << p.value().toStdString() << std::endl;
+
+                                QVariant variant = qvariantFromAnyPtr(value);
+                                QVariant dat = values_->value(p.value());
+                                qDebug() << "Variant: " << variant << " Dat: " << dat;
+
+                            }
+                        }
                     }
+                } catch (const std::exception &e) {
+                    std::cerr << "Exception in set_data_value_check: " << e.what() << std::endl;
                 }
             }
         },
@@ -287,11 +330,9 @@ caf::message_handler UIDataModel::core_message_handler() {
                 return;
 
             set_root(child_data);
-            root_data_.clear();
             for (const auto &p : data_roles_inverse_.keys()) {
-                root_data_[p] = qvariantFromAnyPtr(child_data->get_data_value(data_roles_inverse_[p]));
+                values_->setPropertyFromBackend(p.toStdString().c_str(), qvariantFromAnyPtr(child_data->get_data_value(data_roles_inverse_[p])));
             }
-            emit rootDataChanged();
 
         },
         [=](event_atom, add_children_atom, std::vector<int> index_in_tree, const int insertion_index, const ObjectDataTreePtr &child_data) {
@@ -332,6 +373,17 @@ caf::message_handler UIDataModel::core_message_handler() {
         }*/};
 }
 
+void UIDataModel::handleUpdateValueRequest(const QString &key, const QVariant &value) {
+
+    if (!source_of_data_)
+        return;
+    auto p = data_roles_inverse_.find(key);
+    if (p == data_roles_inverse_.end())
+        return;
+    qDebug() << "Updating value for key: " << key.toStdString() << " with value: " << value;
+    self()->mail(property_atom_v, p.value(), anyPtrFromQVariant(value)).send(source_of_data_);
+
+}
 
 void UIDataModel::set_source_of_data(caf::actor source) {
 
@@ -356,6 +408,10 @@ void UIDataModel::set_source_of_data(caf::actor source) {
 }
 
 void UIDataModel::set_root(const ObjectDataTreePtr &root) {
+
+    auto nm = root->get_data_value<std::string>(session::nameRole);
+    std::cerr << "Setting root with name: " << (nm ? *nm : "<none>") << std::endl;
+
     beginResetModel();
     nodes_by_id_.clear();
     ids_by_node_.clear();
@@ -604,16 +660,20 @@ void SessionModelRoot::setRootActor(const QString &actor) {
 
     if (root_actor_as_string_ != actor) {
         root_actor_as_string_ = actor;
+        emit rootActorChanged();
+        reload();
+    }
+}
 
-        try {
+void SessionModelRoot::reload() {
 
-            root_actor_ = actorFromQString(system(), root_actor_as_string_);
-            set_source_of_data(root_actor_);
-            emit rootActorChanged();
+    try {
 
-        } catch (const std::exception &err) {
-            spdlog::error("Failed to convert actor from QString: {}", err.what());
-        }
+        root_actor_ = actorFromQString(system(), root_actor_as_string_);
+        set_source_of_data(root_actor_);
+
+    } catch (const std::exception &err) {
+        spdlog::error("Failed to convert actor from QString: {}", err.what());
     }
 }
 
@@ -630,7 +690,22 @@ caf::message_handler SessionModelNode::message_handler() {
 
     return (caf::message_handler {
         [=](UuidActor &child_we_searched_for) {
-            set_source_of_data(child_we_searched_for.actor());
+
+            // In 'reload' we search for a child mode matching the search
+            // property value at the given key. If the child node is found
+            // we set the source of data to the child node's actor.
+
+            // This allows us to point 'rootActor' at a Playlist node and then
+            // search for the 'Media List' named node (which is an immediate
+            // child of the playlist) which is the node containing all the 
+            // Media items in the playlist.
+
+            if (child_we_searched_for) {
+                set_source_of_data(child_we_searched_for.actor());
+            } else {
+                set_source_of_data(root_actor_);
+            }
+
         }
     }).or_else(SessionModelRoot::message_handler());
 }
@@ -652,9 +727,18 @@ void SessionModelNode::setChildSearchPropertyValue(const QVariant &value) {
     }
 }
 
+
 void SessionModelNode::reload() {
 
-    if (child_search_property_key_.isEmpty() || child_search_property_value_.isNull() || !session_actor_) {
+    if (child_search_property_key_.isEmpty() || child_search_property_value_.isNull() || !root_actor_) {
+        SessionModelRoot::reload();
+        return;
+    }
+
+    try {        
+        root_actor_ = actorFromQString(system(), root_actor_as_string_);
+    } catch (const std::exception &err) {
+        spdlog::error("Failed to convert actor from QString: {}", err.what());
         return;
     }
 

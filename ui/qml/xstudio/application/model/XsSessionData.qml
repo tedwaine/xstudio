@@ -321,7 +321,7 @@ Item {
     XsPlayhead {
         id: current_playhead
         //uuid: viewedContainer.rootData.activePlayheadActorRole
-        playheadActor: viewedContainer.rootData.activePlayheadActorRole
+        playheadActor: viewedContainer.values.activePlayheadActorRole
         onMediaUuidChanged: {
             current_onscreen_media_data.index = session.searchRecursive(mediaUuid, "actorUuidRole", sessionData.viewportCurrentMediaContainerIndex)
             if (!current_onscreen_media_data.index.valid) {
@@ -524,7 +524,7 @@ Item {
         // Set the current selection to be just the single hero media currently being viewed
         function soloSelection() {
             if (!mediaSelectionModel.selectedIndexes.length) return;
-            var row = mediaListModelData.getRowWithMatchingRoleData(currentPlayhead.mediaUuid, "actorUuidRole")
+            var row = mediaListModelData.getRowWithMatchingUuid(currentPlayhead.mediaUuid)
             mediaSelectionModel.select(
                 helpers.createItemSelection([mediaListModelData.rowToSourceIndex(row)]),
                 ItemSelectionModel.ClearAndSelect
@@ -546,12 +546,27 @@ Item {
 
     /* This model gives us access to the playlists */
     XsSessionModelNode {
+        id: mediaSelectionThingy  
+        childSearchPropertyKey: "typeRole"
+        childSearchPropertyValue: "PlayheadSelection"
+        rootActor: inspectedContainerActor
+        property var selectedMediaUuids: values.selectedMediaRole
+        function setMediaSelection(selectedMedia) {
+            values.selectedMediaRole = selectedMedia
+        }
+    }
+    property alias mediaSelectionThingy: mediaSelectionThingy
+    property var mediaSelection: mediaSelectionThingy.values.selectedMediaRole
+
+
+    /* This model gives us access to the playlists */
+    XsSessionModelNode {
         id: playlistsModelData    
         childSearchPropertyKey: "nameRole"
         childSearchPropertyValue: "PlaylistsRoot"
     }
     property alias playlistsModelData: playlistsModelData
-    property var inspectedContainerActor: the_session.rootData.inspectedContainerRole
+    property var inspectedContainerActor: the_session.values.inspectedContainerRole
 
     XsSessionModelNode {
         id: __mediaModelData    
@@ -566,55 +581,15 @@ Item {
         searchString: mediaListSearchString
         id: filteredModel
     }
+    property alias filteredmediaModelData: filteredModel
 
     XsSessionModelNode {
         id: the_session
-        property var fonk: rootData.nameRole
-        onFonkChanged: {
-            console.log("Fonk changed to: " + fonk)
-        }
-    }
-
-    property alias currentPlayhead: __foo.value
-    XsModelProperty {
-        id: __foo
-        role: "viewedContainerRole"
-        index: the_session.rootIndex
-    }
-
-    onCurrentPlayheadChanged: {
-        console.log("Current playhead changed to: " + currentPlayhead)
     }
 
     XsSessionModelNode {
         id: viewedContainer
-        rootActor: the_session.rootData.viewedContainerRole
-    }
-
-    /*XsModuleData {
-        id: playhead
-        rootActor: viewedContainer.rootData.activePlayheadActorRole
-        onRootActorChanged: {
-            console.log("FEE FOO", rootActor)
-        }
-        onLengthChanged: {
-            console.log("Length changed to: " + length)
-        }
-    }
-
-    DelegateModel {
-        id: dd
-        model: playhead
-        delegate: Item {
-            property var attributeTitle: value
-            onAttributeTitleChanged: {
-                console.log("CRONK ", title, "value changed to: " + attributeTitle)
-            }
-        }
-    }*/
-
-    Repeater {
-        model: dd
+        rootActor: the_session.values.viewedContainerRole
     }
 
     /* This selection model tells us which playlist(s), contact sheets, timelines etc
@@ -641,15 +616,6 @@ Item {
         }
     }
     property alias playlistsSelectionModel: playlistsSelectionModel
-
-
-    /* This gives us direct access to the properties of the inspected
-    playlist - in other words the playlist that is showing in the media list */
-    XsModelPropertyMap {
-        id: inspectedMediaSetProperties
-        index: currentMediaContainerIndex
-    }
-    property alias inspectedMediaSetProperties: inspectedMediaSetProperties
 
     /* This gives us direct access to the properties of the current (active)
     playlist - for example viewedMediaSetProperties.values.nameRole gives us

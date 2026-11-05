@@ -72,7 +72,10 @@ MAKE_ENUM(
     userDataRole,
     activePlayheadActorRole,
     viewedContainerRole,
-    inspectedContainerRole
+    inspectedContainerRole,
+    mediaFilterStringRole,
+    selectedMediaRole,
+    selectionIndexRole
 )
 
 }

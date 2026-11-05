@@ -30,7 +30,7 @@ Item {
         anchors.bottomMargin: 10
         anchors.leftMargin: 10
 
-        model: mediaModelData
+        model: filteredmediaModelData
 
     }
 

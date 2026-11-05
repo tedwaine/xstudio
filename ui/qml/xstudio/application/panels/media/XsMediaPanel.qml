@@ -38,8 +38,6 @@ Item{
 
     property real rowHeight: XsStyleSheet.widgetStdHeight
 
-    property var mediaSelection: mediaSelectionModel.selectedIndexes
-
     property bool is_list_view: true
     property int standardCellSize: 150
     property real cellSize: 200

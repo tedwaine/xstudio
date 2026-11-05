@@ -44,6 +44,7 @@ SubsetActor::SubsetActor(
                 static_cast<utility::JsonStore>(jsn["selection_actor"]),
                 caf::actor_cast<caf::actor>(this));
             link_to(selection_actor_);
+            add_child(selection_actor_);
 
         } catch (const std::exception &e) {
             spdlog::error("{}", e.what());
@@ -867,6 +868,7 @@ void SubsetActor::init() {
         selection_actor_ = spawn<playhead::PlayheadSelectionActor>(
             "SubsetPlayheadSelectionActor", caf::actor_cast<caf::actor>(this));
         link_to(selection_actor_);
+        add_child(selection_actor_);
     }
 }
 
