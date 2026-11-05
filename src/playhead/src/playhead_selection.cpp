@@ -29,11 +29,9 @@ JsonStore PlayheadSelection::serialise() const {
 }
 
 UuidVector PlayheadSelection::items_vec() const {
-    UuidVector result;
-    result.insert(
-        result.begin(),
-        selected_media_uuids_.uuids().begin(),
-        selected_media_uuids_.uuids().end());
+   UuidVector result;
+    for (const auto &uuid : selected_media_uuids_.uuids())
+        result.push_back(uuid);
     return result;
 }
 

@@ -7,6 +7,7 @@ from xstudio.core import AttributeRole, Uuid, PlaylistTree
 from xstudio.core import actor_from_string, uuid_atom
 from xstudio.plugin import PluginBase
 from xstudio.api.session import Container
+from xstudio.api.session.playlist import Playlist
 
 
 # This plugin is intended to allow for various utility functions to be 
@@ -205,6 +206,18 @@ class UtilityPythonPlugin(PluginBase):
         uuid = self.connection.request_receive(actor, uuid_atom())[0]
         cont = Container(self.connection, actor, uuid)
         self.connection.api.session.inspected_container = cont
+
+    def load_media(self, media_urls):
+        """Load media files into the session."""
+        print ("Loading media:", media_urls)
+        if not self.connection.api.session.inspected_container:
+            self.connection.api.session.inspected_container = self.connection.api.session.create_playlist(
+                name=self.connection.api.session.get_next_name("Playlist {}")
+                )
+        
+        for path in media_urls:
+            print ("path", path)
+            self.connection.api.session.inspected_container.add_media(path)
 
 
 def create_plugin_instance(connection):

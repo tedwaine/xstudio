@@ -102,16 +102,6 @@ Item {
             Layout.fillWidth: true
             Layout.preferredHeight: btnHeight
         }
-        // XsText{
-        //     Layout.fillWidth: true
-        //     Layout.minimumWidth: 0//btnWidth
-        //     Layout.preferredHeight: btnHeight
-        //     text: searchBtn.isExpanded? "" : inspectedMediaSetProperties.values.nameRole ? inspectedMediaSetProperties.values.nameRole : ""
-        //     font.bold: true
-        //     elide: Text.ElideRight
-        //     opacity: searchBtn.isExpanded? 0:1
-        //     Behavior on opacity { NumberAnimation { duration: 150; easing.type: Easing.OutQuart }  }
-        // }
 
         XsIntegerValueControl {
             visible: !is_list_view

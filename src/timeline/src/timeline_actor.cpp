@@ -72,6 +72,7 @@ caf::actor TimelineActor::deserialise(const JsonStore &value, const bool replace
 
             selection_actor_ = system().spawn<playhead::PlayheadSelectionActor>(
                 static_cast<JsonStore>(value), caf::actor_cast<caf::actor>(this));
+            add_child(selection_actor_);
             link_to(selection_actor_);
 
         } catch (const std::exception &e) {
@@ -2956,6 +2957,7 @@ void TimelineActor::init() {
         selection_actor_ = spawn<playhead::PlayheadSelectionActor>(
             "TimelinePlayheadSelectionActor", caf::actor_cast<caf::actor>(this));
         link_to(selection_actor_);
+        add_child(selection_actor_);
     }
 
     // set_down_handler([=](down_msg &msg) {

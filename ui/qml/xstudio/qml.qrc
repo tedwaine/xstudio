@@ -1,481 +1,445 @@
 <RCC>
-	<qresource prefix="/feather_icons">
-	</qresource>
-
-	<qresource prefix="/">
-
-	    <file>application/main.qml</file>
-	    <file>xStudio/qmldir</file>
-	    <file>xStudio/XsStyleSheet.qml</file>
-
-	    <file>model/XsAttributeValue.qml</file>
-	    <file>model/XsAttributeFullData.qml</file>
-	    <file>application/model/XsMediaListModelData.qml</file>
-	    <file>application/model/XsSessionData.qml</file>
-	    <file>application/model/XsPlayhead.qml</file>
-
-	    <file>model/XsPreference.qml</file>
-
-	    <file>application/XsPopoutViewerWindow.qml</file>
-	    <file>application/XsSessionWindow.qml</file>
-	    <file>application/XsFloatingViewWindow.qml</file>
-	    <file>application/XsFloatingPanel.qml</file>
-	    <file>application/auxillary/XsGlobalDragDropHandler.qml</file>
-	    <file>application/menus/XsMainMenuBar.qml</file>
-	    <file>application/menus/file_menu/XsFileMenu.qml</file>
-	    <file>application/menus/XsSnippetMenu.qml</file>
-	    <file>application/menus/file_menu/XsFileFunctions.qml</file>
-	    <file>application/menus/help_menu/XsHelpMenu.qml</file>
-	    <file>application/menus/help_menu/XsReleaseNotes.qml</file>
-	    <file>application/menus/help_menu/XsAboutDialog.qml</file>
-	    <file>application/quickview/XsQuickViewLauncher.qml</file>
-	    <file>application/quickview/XsQuickViewWindow.qml</file>
-	    <file>utility/XsRuntimeQMLItems.qml</file>
-	    <file>utility/XsFocusRemover.qml</file>
-
-	    <file>utility/layout_framework/XsDragDropHandler.qml</file>
-	    <file>utility/layout_framework/XsLayoutModeBar.qml</file>
-	    <file>utility/layout_framework/XsLayoutTab.qml</file>
-	    <file>utility/layout_framework/XsPanelDivider.qml</file>
-	    <file>utility/layout_framework/XsPanelSplitter.qml</file>
-	    <file>utility/layout_framework/XsTestWindow.qml</file>
-	    <file>utility/layout_framework/XsViewContainer.qml</file>
-	    <file>utility/layout_framework/XsPanelsMenuButton.qml</file>
-	    <file>utility/layout_framework/XsStoredPanelProperties.qml</file>
-
-	    <file>application/panels/media/XsMediaPanel.qml</file>
-	    <file>application/panels/media/XsMediaToolBar.qml</file>
-		<file>application/panels/media/functions/XsMediaItemFunctions.qml</file>
-		<file>application/panels/media/functions/XsMediaListFunctions.qml</file>
-	    <file>application/panels/media/grid_view/XsMediaGridLayout.qml</file>
-	    <file>application/panels/media/grid_view/XsMediaGrid.qml</file>
-	    <file>application/panels/media/grid_view/delegates/XsMediaGridItemDelegate.qml</file>
-	    <file>application/panels/media/list_view/XsMediaHeader.qml</file>
-	    <file>application/panels/media/list_view/XsMediaList.qml</file>
-	    <file>application/panels/media/list_view/XsMediaListLayout.qml</file>
-		<file>application/panels/media/list_view/delegates/XsMediaItemDelegate.qml</file>
-		<file>application/panels/media/list_view/delegates/XsMediaHeaderColumn.qml</file>
-		<file>application/panels/media/list_view/data_indicators/XsMediaFlagIndicator.qml</file>
-		<file>application/panels/media/list_view/data_indicators/XsMediaNotesIndicator.qml</file>
-		<file>application/panels/media/list_view/data_indicators/XsMediaTextItem.qml</file>
-	    <file>application/panels/media/list_view/dialogs/XsMediaListConfigureDialog.qml</file>
-	    <file>application/panels/media/list_view/dialogs/XsMediaMetadataWindow.qml</file>
-	    <file>application/panels/media/widgets/XsMediaListMouseArea.qml</file>
-	    <file>application/panels/media/widgets/XsMediaListPlusMenu.qml</file>
-	    <file>application/panels/media/widgets/XsMediaListRemoveMenu.qml</file>
-		<file>application/panels/media/widgets/XsMediaListContextMenu.qml</file>
-		<file>application/panels/media/widgets/XsMediaListSwitchSourceMenu.qml</file>
-	    <file>application/panels/media/widgets/XsMediaHotKeys.qml</file>
-	    <file>application/panels/media/widgets/XsMediaScrollKeeper.qml</file>
-		<file>application/panels/media/delegates/XsMediaThumbnailHighlight.qml</file>
-		<file>application/panels/media/delegates/XsMediaThumbnailImage.qml</file>
-
-		<file>application/panels/playlists/functions/XsPlaylistFunctions.qml</file>
-	    <file>application/panels/playlists/delegates/XsPlaylistDividerDelegate.qml</file>
-	    <file>application/panels/playlists/delegates/XsPlaylistItemBase.qml</file>
-	    <file>application/panels/playlists/delegates/XsPlaylistItemDelegate.qml</file>
-	    <file>application/panels/playlists/delegates/XsPlaylistItemDragDropHandler.qml</file>
-	    <file>application/panels/playlists/menus/XsPlaylistContextMenu.qml</file>
-	    <file>application/panels/playlists/menus/XsPlaylistPlusMenu.qml</file>
-	    <file>application/panels/playlists/menus/XsPlaylistRemoveMenu.qml</file>
-	    <file>application/panels/playlists/widgets/XsPlaylistHotKeys.qml</file>
-	    <file>application/panels/playlists/XsPlaylistItems.qml</file>
-	    <file>application/panels/playlists/XsPlaylists.qml</file>
-
-	    <file>application/panels/timeline/data/XsSortFilterModel.qml</file>
-	    <file>application/panels/timeline/delegates/XsDelegateAudioTrack.qml</file>
-	    <file>application/panels/timeline/delegates/XsDelegateClip.qml</file>
-	    <file>application/panels/timeline/delegates/XsDelegateGap.qml</file>
-	    <file>application/panels/timeline/delegates/XsDelegateStack.qml</file>
-	    <file>application/panels/timeline/delegates/XsDelegateVideoTrack.qml</file>
-	    <file>application/panels/timeline/delegates/XsDelegateTrack.qml</file>
-	    <file>application/panels/timeline/widgets/XsClipItem.qml</file>
-	    <file>application/panels/timeline/widgets/XsClipDragBoth.qml</file>
-	    <file>application/panels/timeline/widgets/XsClipDragLeft.qml</file>
-	    <file>application/panels/timeline/widgets/XsClipDragRight.qml</file>
-	    <file>application/panels/timeline/widgets/XsClipDragReplace.qml</file>
-	    <file>application/panels/timeline/widgets/XsElideLabel.qml</file>
-	    <file>application/panels/timeline/widgets/XsGapItem.qml</file>
-	    <file>application/panels/timeline/widgets/XsMarkers.qml</file>
-	    <file>application/panels/timeline/widgets/XsTickWidget.qml</file>
-	    <file>application/panels/timeline/widgets/XsTimelineCursor.qml</file>
-	    <file>application/panels/timeline/widgets/XsTrackHeader.qml</file>
-	    <file>application/panels/timeline/menus/XsMarkerMenu.qml</file>
-	    <file>application/panels/timeline/menus/XsNewTrackMenu.qml</file>
-	    <file>application/panels/timeline/XsTimeline.qml</file>
-	    <file>application/panels/timeline/menus/XsTimelineClipMenu.qml</file>
-	    <file>application/panels/timeline/menus/XsTimelineMenu.qml</file>
-	    <file>application/panels/timeline/XsTimelinePanel.qml</file>
-	    <file>application/panels/timeline/XsTimelinePanelParent.qml</file>
-	    <file>application/panels/timeline/menus/XsTimelineTrackMenu.qml</file>
-
-	    <file>application/panels/python/XsPythonPanel.qml</file>
-	    <file>application/panels/log/XsLogPanel.qml</file>
-
-	    <file>application/panels/viewport/XsOffscreenViewportOverlays.qml</file>
-	    <file>application/panels/viewport/XsViewportPanel.qml</file>
-	    <file>application/panels/viewport/XsViewport.qml</file>
-	    <file>application/panels/viewport/XsViewportWidget.qml</file>
-	    <file>application/panels/viewport/XsMinimalViewport.qml</file>
-	    <file>application/panels/viewport/hud/XsHudItem.qml</file>
-	    <file>application/panels/viewport/hud/XsViewportHUD.qml</file>
-	    <file>application/panels/viewport/hud/XsViewportOverlays.qml</file>
-	    <file>application/panels/viewport/widgets/XsViewerSetMediaFPSPopup.qml</file>
-	    <file>application/panels/viewport/widgets/XsViewportActionBar.qml</file>
-	    <file>application/panels/viewport/widgets/XsViewportTransportBar.qml</file>
-	    <file>application/panels/viewport/widgets/XsViewportToolBar.qml</file>
-	    <file>application/panels/viewport/widgets/XsViewportInfoBar.qml</file>
-	    <file>application/panels/viewport/widgets/toolbar/XsViewerAnyMenuButton.qml</file>
-	    <file>application/panels/viewport/widgets/toolbar/XsViewerCompareModeButton.qml</file>
-	    <file>application/panels/viewport/widgets/toolbar/XsViewerFpsButton.qml</file>
-	    <file>application/panels/viewport/widgets/toolbar/XsViewerMediaOffset.qml</file>
-	    <file>application/panels/viewport/widgets/toolbar/XsViewerToggleButton.qml</file>
-	    <file>application/panels/viewport/widgets/toolbar/XsViewerSourceSelectorButton.qml</file>
-	    <file>application/panels/viewport/widgets/toolbar/XsViewerSourceSelectorPopupWindow.qml</file>
-	    <file>application/panels/viewport/widgets/toolbar/XsViewerHUDButton.qml</file>
-	    <file>application/panels/viewport/widgets/toolbar/XsViewerToolbarButtonBase.qml</file>
-	    <file>application/panels/viewport/widgets/toolbar/XsViewerToolbarValueScrubber.qml</file>
-	    <file>application/panels/viewport/widgets/toolbar/XsViewerMenuButton.qml</file>
-	    <file>application/panels/viewport/widgets/transport_bar/XsCurrentFrameIndicator.qml</file>
-	    <file>application/panels/viewport/widgets/transport_bar/XsDurationFPSIndicator.qml</file>
-	    <file>application/panels/viewport/widgets/transport_bar/XsViewerTextDisplay.qml</file>
-	    <file>application/panels/viewport/widgets/transport_bar/XsViewerTimeline.qml</file>
-	    <file>application/panels/viewport/widgets/transport_bar/XsViewerVolumeButton.qml</file>
-	    <file>application/panels/viewport/widgets/XsViewerContextMenu.qml</file>
-	    <file>application/panels/viewport/docked_tools/XsLeftRightDockedTools.qml</file>
-	    <file>application/panels/viewport/docked_tools/XsTopBottomDockedTools.qml</file>
-	</qresource>
-
-	<qresource prefix="/">
-		<file>application/auxillary/XsConformTool.qml</file>
-		<file>application/panels/notes/XsNotesView.qml</file>
-		<file>application/panels/notes/XsNotesSingleton.qml</file>
-		<file>application/panels/notes/XsNotesItemDelegate.qml</file>
-		<file>application/panels/notes/sections/XsNoteSection1.qml</file>
-		<file>application/panels/notes/sections/XsNoteSection2.qml</file>
-		<file>application/panels/notes/sections/XsNoteSection3.qml</file>
-	</qresource>
-
-	<qresource prefix="/">
-
-	    <file>widgets/XsSearchBar.qml</file>
-	    <file>widgets/indicators/XsGradientRectangle.qml</file>
-
-	    <file>widgets/buttons/XsInfoButton.qml</file>
-	    <file>widgets/buttons/XsNavButton.qml</file>
-	    <file>widgets/buttons/XsPrimaryButton.qml</file>
-	    <file>widgets/buttons/XsSearchButton.qml</file>
-	    <file>widgets/buttons/XsSecondaryButton.qml</file>
-	    <file>widgets/buttons/XsSimpleButton.qml</file>
-	    <file>widgets/buttons/XsButtonWithImageAndText.qml</file>
-	    <file>widgets/buttons/XsSortButton.qml</file>
-
-	    <file>widgets/XsCheckBox.qml</file>
-	    <file>widgets/XsCheckBoxSimple.qml</file>
-	    <file>widgets/XsAttrComboBox.qml</file>
-	    <file>widgets/XsComboBox.qml</file>
-	    <file>widgets/XsComboBoxEditable.qml</file>
-	    <file>widgets/XsComboBoxMultiSelectable.qml</file>
-	    <file>widgets/XsScrollBar.qml</file>
-	    <file>widgets/XsSlider.qml</file>
-	    <file>widgets/XsFloatValueControl.qml</file>
-	    <file>widgets/XsIntegerValueControl.qml</file>
-	    <file>widgets/XsColourChooser.qml</file>
-	    <file>widgets/XsFloatAttributeSlider.qml</file>
-	    <file>widgets/XsIntAttributeSlider.qml</file>
-	    <file>widgets/XsBoolAttributeCheckBox.qml</file>
-	    <file>widgets/XsStringAttributeControl.qml</file>
-
-	    <file>application/dialogs/hotkeys/delegates/XsHotkeyDetails.qml</file>
-	    <file>application/dialogs/hotkeys/delegates/XsHotkeyGroup.qml</file>
-	    <file>application/dialogs/hotkeys/delegates/XsHotkeySequence.qml</file>
-	    <file>application/dialogs/hotkeys/XsHotkeysDialog.qml</file>
-	    <file>application/dialogs/hotkeys/XsHotkeySetterDialog.qml</file>
-
-	    <file>application/dialogs/preferences/delegates/XsColourPreference.qml</file>
-	    <file>application/dialogs/preferences/delegates/XsCompareModePref.qml</file>
-	    <file>application/dialogs/preferences/delegates/XsFilePreference.qml</file>
-	    <file>application/dialogs/preferences/delegates/XsFloatPreference.qml</file>
-	    <file>application/dialogs/preferences/delegates/XsIntegerPreference.qml</file>
-	    <file>application/dialogs/preferences/delegates/XsJsonPreference.qml</file>
-	    <file>application/dialogs/preferences/delegates/XsPreferenceCategory.qml</file>
-	    <file>application/dialogs/preferences/delegates/XsStringMultichoicePreference.qml</file>
-	    <file>application/dialogs/preferences/delegates/XsStringPreference.qml</file>
-	    <file>application/dialogs/preferences/delegates/XsTogglePreference.qml</file>
-	    <file>application/dialogs/preferences/widgets/XsPreferenceInfoButton.qml</file>
-	    <file>application/dialogs/preferences/XsPreferencesDialog.qml</file>
-
-	    <file>application/dialogs/XsAttributesPanel.qml</file>
-	    <file>application/dialogs/XsColourDialog.qml</file>
-	    <file>dialogs/XsPopup.qml</file>
-	    <file>application/dialogs/XsSequenceRequestDialog.qml</file>
-	    <file>application/dialogs/XsSnapshotDialog.qml</file>
-	    <file>dialogs/XsStringRequestDialog.qml</file>
-	    <file>dialogs/XsTextEditDialog.qml</file>
-	    <file>dialogs/XsWindow.qml</file>
-	    <file>dialogs/XsDialogHelpers.qml</file>
-
-	    <file>widgets/indicators/XsBusyIndicator.qml</file>
-	    <file>widgets/indicators/XsProgressBar.qml</file>
-	    <file>widgets/indicators/XsNotification.qml</file>
-
-	    <file>widgets/indicators/XsLabel.qml</file>
-	    <file>widgets/indicators/XsTabButton.qml</file>
-	    <file>widgets/XsText.qml</file>
-	    <file>widgets/XsIntegerAttrControl.qml</file>
-	    <file>widgets/XsTextCopyable.qml</file>
-	    <file>widgets/XsTextField.qml</file>
-	    <file>widgets/indicators/XsToolTip.qml</file>
-	    <file>widgets/XsTextInput.qml</file>
-	    <file>widgets/XsTextEdit.qml</file>
-	    <file>widgets/XsTextWithInputField.qml</file>
-	    <file>widgets/XsTextWithComboBox.qml</file>
-	    <file>widgets/XsTextWithComboBoxFullSize.qml</file>
-	    <file>widgets/XsTextWithCheckBox.qml</file>
-	    <file>widgets/XsTextWithCheckAndComboBoxes.qml</file>
-	    <file>widgets/XsTextWithComboBoxMultiSelectable.qml</file>
-
-	    <file>menus/XsFlagMenuItem.qml</file>
-	    <file>menus/XsFlagMenuInserter.qml</file>
-	    <file>menus/XsMenuBar.qml</file>
-	    <file>menus/XsMenu.qml</file>
-	    <file>menus/XsMenuDivider.qml</file>
-	    <file>menus/XsMenuItem.qml</file>
-	    <file>menus/XsMenuItemBasic.qml</file>
-	    <file>menus/XsMenuItemCustom.qml</file>
-	    <file>menus/XsMenuMultiChoice.qml</file>
-	    <file>menus/XsMenuItemToggle.qml</file>
-	    <file>menus/XsMenuItemToggleWithSettings.qml</file>
-	    <file>menus/XsPopupMenu.qml</file>
-
-	    <file>widgets/layout/XsTabBar.qml</file>
-	    <file>widgets/layout/XsGridView.qml</file>
-	    <file>widgets/indicators/XsIcon.qml</file>
-	    <file>widgets/indicators/XsImage.qml</file>
-	    <file>widgets/layout/XsListView.qml</file>
-	    <file>widgets/layout/XsSplitView.qml</file>
-
-	</qresource>
-
-	<qresource prefix="/">
-
-		<file>assets/fonts/OFL.txt</file>
-		<file>assets/fonts/Inter-Black.ttf</file>
-		<file>assets/fonts/Inter-Bold.ttf</file>
-		<file>assets/fonts/Inter-ExtraBold.ttf</file>
-		<file>assets/fonts/Inter-ExtraLight.ttf</file>
-		<file>assets/fonts/Inter-Light.ttf</file>
-		<file>assets/fonts/Inter-Medium.ttf</file>
-		<file>assets/fonts/Inter-Regular.ttf</file>
-		<file>assets/fonts/Inter-SemiBold.ttf</file>
-		<file>assets/fonts/Inter-Thin.ttf</file>
-		<file>assets/fonts/VeraMono.ttf</file>
-		<file>assets/fonts/Overpass-Regular.ttf</file>
-
-	</qresource>
-
-	<qresource prefix="/images">
-	    <file alias="xstudio_backdrop.svg">assets/images/xstudio_backdrop_v004_03.svg</file>
-	    <file alias="sample.png">assets/images/sample.png</file>
-	    <file alias="xstudio_logo_256_v1.svg">assets/icons/xstudio_logo_256_v1.svg</file>
-	</qresource>
-
-	<qresource prefix="/">
-	    <file>model/XsBufferedProperty.qml</file>
-	    <file>model/XsBufferedUIProperty.qml</file>
-	</qresource>
-
-	<qresource prefix="/">
-	    <file>utility/XsTimer.qml</file>
-	</qresource>
-
-	<qresource prefix="/feather_icons">
-		<file alias="rotate-ccw.svg">assets/icons/rotate-ccw.svg</file>
-		<file alias="plus-circle.svg">assets/icons/plus-circle.svg</file>
-		<file alias="book.svg">assets/icons/book.svg</file>
-		<file alias="square.svg">assets/icons/square.svg</file>
-	</qresource>
-
-	<qresource prefix="/cursors">
-		<file alias="magnifier_cursor.svg">assets/cursors/magnifier_cursor.svg</file>
-		<file alias="drag_cursor.svg">assets/cursors/drag_cursor.svg</file>
-		<file alias="colour_picker_cursor.svg">assets/icons/dropper.svg</file>
-		<file alias="point_scan.svg">assets/icons/point_scan.svg</file>
-	</qresource>
-
-	<qresource prefix="/shaders">
-		<file alias="colourwheel.frag.qsb">assets/shaders/colourwheel.frag.qsb</file>
-		<file alias="activity_wheel.frag.qsb">assets/shaders/activity_wheel.frag.qsb</file>
-		<file alias="mask.frag.qsb">assets/shaders/mask.frag.qsb</file>
-	</qresource>
-
-	<qresource prefix="/icons">
-		<file alias="account_tree.svg">assets/icons/account_tree.svg</file>
-		<file alias="ad_group.svg">assets/icons/ad_group.svg</file>
-		<file alias="add.svg">assets/icons/add.svg</file>
-		<file alias="arrow_circle_up.svg">assets/icons/arrow_circle_up.svg</file>
-		<file alias="arrow_drop_down.svg">assets/icons/arrow_drop_down.svg</file>
-		<file alias="arrow_range.svg">assets/icons/arrow_range.svg</file>
-		<file alias="arrow_selector_tool.svg">assets/icons/arrow_selector_tool.svg</file>
-		<file alias="arrow_upward.svg">assets/icons/arrow_upward.svg</file>
-		<file alias="arrows_outward.svg">assets/icons/arrows_outward.svg</file>
-		<file alias="autorenew.svg">assets/icons/autorenew.svg</file>
-		<file alias="bigtop_updates.svg">assets/icons/bigtop_updates.svg</file>
-		<file alias="brush.svg">assets/icons/brush.svg</file>
-		<file alias="build_gang.svg">assets/icons/build_gang.svg</file>
-		<file alias="center_focus_strong.svg">assets/icons/center_focus_strong.svg</file>
-		<file alias="center_focus_weak.svg">assets/icons/center_focus_weak.svg</file>
-		<file alias="check.svg">assets/icons/check.svg</file>
-		<file alias="check_box_checked.svg">assets/icons/check_box_checked.svg</file>
-		<file alias="check_box_unchecked.svg">assets/icons/check_box_unchecked.svg</file>
-		<file alias="check_circle.svg">assets/icons/check_circle.svg</file>
-		<file alias="chevron_right.svg">assets/icons/chevron_right.svg</file>
-		<file alias="close.svg">assets/icons/close.svg</file>
-		<file alias="cloud-download.svg">assets/icons/cloud-download.svg</file>
-		<file alias="communities.svg">assets/icons/communities.svg</file>
-		<file alias="content_copy.svg">assets/icons/content_copy.svg</file>
-		<file alias="content_cut.svg">assets/icons/content_cut.svg</file>
-		<file alias="content_paste.svg">assets/icons/content_paste.svg</file>
-		<file alias="crop_free.svg">assets/icons/crop_free.svg</file>
-		<file alias="delete.svg">assets/icons/delete.svg</file>
-		<file alias="deployed_cube.svg">assets/icons/deployed_cube.svg</file>
-		<file alias="desktop_windows.svg">assets/icons/desktop_windows.svg</file>
-		<file alias="directions_run.svg">assets/icons/directions_run.svg</file>
-		<file alias="disabled.svg">assets/icons/disabled.svg</file>
-		<file alias="dock_bottom.svg">assets/icons/dock_bottom.svg</file>
-		<file alias="dock_bottom_flipped.png">assets/icons/dock_bottom_flipped.png</file>
-		<file alias="dock_left.svg">assets/icons/dock_left.svg</file>
-		<file alias="dock_right.svg">assets/icons/dock_right.svg</file>
-		<file alias="double_arrow.svg">assets/icons/double_arrow.svg</file>
-		<file alias="draft.svg">assets/icons/draft.svg</file>
-		<file alias="dropper.svg">assets/icons/dropper.svg</file>
-		<file alias="edit.svg">assets/icons/edit.svg</file>
-		<file alias="eject.svg">assets/icons/eject.svg</file>
-		<file alias="error.svg">assets/icons/error.svg</file>
-		<file alias="expand.svg">assets/icons/expand.svg</file>
-		<file alias="expand_all.svg">assets/icons/expand_all.svg</file>
-		<file alias="fast_forward.svg">assets/icons/fast_forward.svg</file>
-		<file alias="fast_rewind.svg">assets/icons/fast_rewind.svg</file>
-		<file alias="featured_play_list.svg">assets/icons/featured_play_list.svg</file>
-		<file alias="filter.svg">assets/icons/filter.svg</file>
-		<file alias="filter_none.svg">assets/icons/filter_none.svg</file>
-		<file alias="fit_screen.svg">assets/icons/fit_screen.svg</file>
-		<file alias="fit_select.svg">assets/icons/fit_select.svg</file>
-		<file alias="folder.svg">assets/icons/folder.svg</file>
-		<file alias="folder_open.svg">assets/icons/folder_open.svg</file>
-		<file alias="format_size.svg">assets/icons/format_size.svg</file>
-		<file alias="frame_inspect.svg">assets/icons/frame_inspect.svg</file>
-		<file alias="functions.svg">assets/icons/functions.svg</file>
-		<file alias="grid_view.svg">assets/icons/grid_view.svg</file>
-		<file alias="help.svg">assets/icons/help.svg</file>
-		<file alias="history.svg">assets/icons/history.svg</file>
-		<file alias="home.svg">assets/icons/home.svg</file>
-		<file alias="horizontal_align_center.svg">assets/icons/horizontal_align_center.svg</file>
-		<file alias="hourglass.svg">assets/icons/hourglass.svg</file>
-		<file alias="image.svg">assets/icons/image.svg</file>
-		<file alias="imagesmode.svg">assets/icons/imagesmode.svg</file>
-		<file alias="info.svg">assets/icons/info.svg</file>
-		<file alias="ink_pen.svg">assets/icons/ink_pen.svg</file>
-		<file alias="input.svg">assets/icons/input.svg</file>
-		<file alias="instant_mix.svg">assets/icons/instant_mix.svg</file>
-		<file alias="keep.svg">assets/icons/keep.svg</file>
-		<file alias="keyboard_arrow_up.svg">assets/icons/keyboard_arrow_up.svg</file>
-		<file alias="keyboard_tab.svg">assets/icons/keyboard_tab.svg</file>
-		<file alias="laps.svg">assets/icons/laps.svg</file>
-		<file alias="left_drag.svg">assets/icons/left_drag.svg</file>
-		<file alias="left_right_drag.svg">assets/icons/left_right_drag.svg</file>
-		<file alias="library_add.svg">assets/icons/library_add.svg</file>
-		<file alias="library_music.svg">assets/icons/library_music.svg</file>
-		<file alias="link.svg">assets/icons/link.svg</file>
-		<file alias="list.svg">assets/icons/list.svg</file>
-		<file alias="list_alt.svg">assets/icons/list_alt.svg</file>
-		<file alias="list_alt2.svg">assets/icons/list_alt2.svg</file>
-		<file alias="list_default.svg">assets/icons/list_default.svg</file>
-		<file alias="list_group.svg">assets/icons/list_group.svg</file>
-		<file alias="list_shotgun.svg">assets/icons/list_shotgun.svg</file>
-		<file alias="list_subset.svg">assets/icons/list_subset.svg</file>
-		<file alias="list_view.svg">assets/icons/list_view.svg</file>
-		<file alias="lock.svg">assets/icons/lock.svg</file>
-		<file alias="media_link.svg">assets/icons/media_link.svg</file>
-		<file alias="menu.svg">assets/icons/menu.svg</file>
-		<file alias="more_horiz.svg">assets/icons/more_horiz.svg</file>
-		<file alias="more_vert.svg">assets/icons/more_vert.svg</file>
-		<file alias="movie.svg">assets/icons/movie.svg</file>
-		<file alias="open_in_new.svg">assets/icons/open_in_new.svg</file>
-		<file alias="open_with.svg">assets/icons/open_with.svg</file>
-		<file alias="output.svg">assets/icons/output.svg</file>
-		<file alias="pan.svg">assets/icons/pan.svg</file>
-		<file alias="pause.svg">assets/icons/pause.svg</file>
-		<file alias="pending.svg">assets/icons/pending.svg</file>
-		<file alias="person.svg">assets/icons/person.svg</file>
-		<file alias="photo_camera.svg">assets/icons/photo_camera.svg</file>
-		<file alias="play_arrow.svg">assets/icons/play_arrow.svg</file>
-		<file alias="play_circle.svg">assets/icons/play_circle.svg</file>
-		<file alias="point_scan.svg">assets/icons/point_scan.svg</file>
-		<file alias="quick_reference_all.svg">assets/icons/quick_reference_all.svg</file>
-		<file alias="radio_button_checked.svg">assets/icons/radio_button_checked.svg</file>
-		<file alias="radio_button_unchecked.svg">assets/icons/radio_button_unchecked.svg</file>
-		<file alias="rectangle.svg">assets/icons/rectangle.svg</file>
-		<file alias="redo.svg">assets/icons/redo.svg</file>
-		<file alias="refresh.svg">assets/icons/refresh.svg</file>
-		<file alias="repartition.svg">assets/icons/repartition.svg</file>
-		<file alias="repeat.svg">assets/icons/repeat.svg</file>
-		<file alias="reset_image.svg">assets/icons/reset_image.svg</file>
-		<file alias="reset_tv.svg">assets/icons/reset_tv.svg</file>
-		<file alias="restart.svg">assets/icons/restart.svg</file>
-		<file alias="right_drag.svg">assets/icons/right_drag.svg</file>
-		<file alias="rotate-ccw.svg">assets/icons/rotate-ccw.svg</file>
-		<file alias="scanner.svg">assets/icons/scanner.svg</file>
-		<file alias="search.svg">assets/icons/search.svg</file>
-		<file alias="search_off.svg">assets/icons/search_off.svg</file>
-		<file alias="select.svg">assets/icons/select.svg</file>
-		<file alias="settings.svg">assets/icons/settings.svg</file>
-		<file alias="share.svg">assets/icons/share.svg</file>
-		<file alias="share_off.svg">assets/icons/share_off.svg</file>
-		<file alias="shield_person.svg">assets/icons/shield_person.svg</file>
-		<file alias="skip_next.svg">assets/icons/skip_next.svg</file>
-		<file alias="skip_previous.svg">assets/icons/skip_previous.svg</file>
-		<file alias="sort.svg">assets/icons/sort.svg</file>
-		<file alias="sort_flipped.png">assets/icons/sort_flipped.png</file>
-		<file alias="split_scene.svg">assets/icons/split_scene.svg</file>
-		<file alias="splitscreen.svg">assets/icons/splitscreen.svg</file>
-		<file alias="splitscreen2.svg">assets/icons/splitscreen2.svg</file>
-		<file alias="splitscreen_add.svg">assets/icons/splitscreen_add.svg</file>
-		<file alias="stacks.svg">assets/icons/stacks.svg</file>
-		<file alias="sticky_note.svg">assets/icons/sticky_note.svg</file>
-		<file alias="stylus.svg">assets/icons/stylus.svg</file>
-		<file alias="stylus_note.svg">assets/icons/stylus_note.svg</file>
-		<file alias="swap_horiz.svg">assets/icons/swap_horiz.svg</file>
-		<file alias="swap_vert.svg">assets/icons/swap_vert.svg</file>
-		<file alias="sync.svg">assets/icons/sync.svg</file>
-		<file alias="theaters.svg">assets/icons/theaters.svg</file>
-		<file alias="toolbar_top.svg">assets/icons/toolbar_top.svg</file>
-		<file alias="trending.svg">assets/icons/trending.svg</file>
-		<file alias="triangle.svg">assets/icons/triangle.svg</file>
-		<file alias="tune.svg">assets/icons/tune.svg</file>
-		<file alias="tv_displays.svg">assets/icons/tv_displays.svg</file>
-		<file alias="undo.svg">assets/icons/undo.svg</file>
-		<file alias="unlock.svg">assets/icons/lock_open.svg</file>
-		<file alias="upgrade.svg">assets/icons/upgrade.svg</file>
-		<file alias="upload.svg">assets/icons/upload.svg</file>
-		<file alias="variables_insert.svg">assets/icons/variables_insert.svg</file>
-		<file alias="vertical_align_center.svg">assets/icons/vertical_align_center.svg</file>
-		<file alias="video_cam.svg">assets/icons/video_cam.svg</file>
-		<file alias="view.svg">assets/icons/view.svg</file>
-		<file alias="view_grid.svg">assets/icons/view_grid.svg</file>
-		<file alias="view_object_track.svg">assets/icons/view_object_track.svg</file>
-		<file alias="view_timeline.svg">assets/icons/view_timeline.svg</file>
-		<file alias="visibility.svg">assets/icons/visibility.svg</file>
-		<file alias="visibility_off.svg">assets/icons/visibility_off.svg</file>
-		<file alias="volume_down.svg">assets/icons/volume_down.svg</file>
-		<file alias="volume_mute.svg">assets/icons/volume_mute.svg</file>
-		<file alias="volume_no_sound.svg">assets/icons/volume_no_sound.svg</file>
-		<file alias="volume_off.svg">assets/icons/volume_off.svg</file>
-		<file alias="volume_up.svg">assets/icons/volume_up.svg</file>
-		<file alias="warning.svg">assets/icons/warning.svg</file>
-		<file alias="waves.svg">assets/icons/waves.svg</file>
-		<file alias="width.svg">assets/icons/width.svg</file>
-		<file alias="zoom_in.svg">assets/icons/zoom_in.svg</file>
-	</qresource>
-
+    <qresource prefix="/feather_icons"/>
+    <qresource prefix="/">
+        <file>application/main.qml</file>
+        <file>xStudio/qmldir</file>
+        <file>xStudio/XsStyleSheet.qml</file>
+        <file>model/XsAttributeValue.qml</file>
+        <file>model/XsAttributeFullData.qml</file>
+        <file>application/model/XsSessionData.qml</file>
+        <file>application/model/XsPlayhead.qml</file>
+        <file>model/XsPreference.qml</file>
+        <file>application/XsPopoutViewerWindow.qml</file>
+        <file>application/XsSessionWindow.qml</file>
+        <file>application/XsFloatingViewWindow.qml</file>
+        <file>application/XsFloatingPanel.qml</file>
+        <file>application/auxillary/XsGlobalDragDropHandler.qml</file>
+        <file>application/menus/XsMainMenuBar.qml</file>
+        <file>application/menus/file_menu/XsFileMenu.qml</file>
+        <file>application/menus/XsSnippetMenu.qml</file>
+        <file>application/menus/file_menu/XsFileFunctions.qml</file>
+        <file>application/menus/help_menu/XsHelpMenu.qml</file>
+        <file>application/menus/help_menu/XsReleaseNotes.qml</file>
+        <file>application/menus/help_menu/XsAboutDialog.qml</file>
+        <file>application/quickview/XsQuickViewLauncher.qml</file>
+        <file>application/quickview/XsQuickViewWindow.qml</file>
+        <file>utility/XsRuntimeQMLItems.qml</file>
+        <file>utility/XsFocusRemover.qml</file>
+        <file>utility/layout_framework/XsDragDropHandler.qml</file>
+        <file>utility/layout_framework/XsLayoutModeBar.qml</file>
+        <file>utility/layout_framework/XsLayoutTab.qml</file>
+        <file>utility/layout_framework/XsPanelDivider.qml</file>
+        <file>utility/layout_framework/XsPanelSplitter.qml</file>
+        <file>utility/layout_framework/XsTestWindow.qml</file>
+        <file>utility/layout_framework/XsViewContainer.qml</file>
+        <file>utility/layout_framework/XsPanelsMenuButton.qml</file>
+        <file>utility/layout_framework/XsStoredPanelProperties.qml</file>
+        <file>application/panels/media/XsMediaPanel.qml</file>
+        <file>application/panels/media/XsMediaToolBar.qml</file>
+        <file>application/panels/media/functions/XsMediaItemFunctions.qml</file>
+        <file>application/panels/media/functions/XsMediaListFunctions.qml</file>
+        <file>application/panels/media/grid_view/XsMediaGridLayout.qml</file>
+        <file>application/panels/media/grid_view/XsMediaGrid.qml</file>
+        <file>application/panels/media/grid_view/delegates/XsMediaGridItemDelegate.qml</file>
+        <file>application/panels/media/list_view/XsMediaHeader.qml</file>
+        <file>application/panels/media/list_view/XsMediaList.qml</file>
+        <file>application/panels/media/list_view/XsMediaListLayout.qml</file>
+        <file>application/panels/media/list_view/delegates/XsMediaItemDelegate.qml</file>
+        <file>application/panels/media/list_view/delegates/XsMediaHeaderColumn.qml</file>
+        <file>application/panels/media/list_view/data_indicators/XsMediaFlagIndicator.qml</file>
+        <file>application/panels/media/list_view/data_indicators/XsMediaNotesIndicator.qml</file>
+        <file>application/panels/media/list_view/data_indicators/XsMediaTextItem.qml</file>
+        <file>application/panels/media/list_view/dialogs/XsMediaListConfigureDialog.qml</file>
+        <file>application/panels/media/list_view/dialogs/XsMediaMetadataWindow.qml</file>
+        <file>application/panels/media/widgets/XsMediaListMouseArea.qml</file>
+        <file>application/panels/media/widgets/XsMediaListPlusMenu.qml</file>
+        <file>application/panels/media/widgets/XsMediaListRemoveMenu.qml</file>
+        <file>application/panels/media/widgets/XsMediaListContextMenu.qml</file>
+        <file>application/panels/media/widgets/XsMediaListSwitchSourceMenu.qml</file>
+        <file>application/panels/media/widgets/XsMediaHotKeys.qml</file>
+        <file>application/panels/media/widgets/XsMediaScrollKeeper.qml</file>
+        <file>application/panels/media/delegates/XsMediaThumbnailHighlight.qml</file>
+        <file>application/panels/media/delegates/XsMediaThumbnailImage.qml</file>
+        <file>application/panels/playlists/functions/XsPlaylistFunctions.qml</file>
+        <file>application/panels/playlists/delegates/XsPlaylistDividerDelegate.qml</file>
+        <file>application/panels/playlists/delegates/XsPlaylistItemBase.qml</file>
+        <file>application/panels/playlists/delegates/XsPlaylistItemDelegate.qml</file>
+        <file>application/panels/playlists/delegates/XsPlaylistItemDragDropHandler.qml</file>
+        <file>application/panels/playlists/menus/XsPlaylistContextMenu.qml</file>
+        <file>application/panels/playlists/menus/XsPlaylistPlusMenu.qml</file>
+        <file>application/panels/playlists/menus/XsPlaylistRemoveMenu.qml</file>
+        <file>application/panels/playlists/widgets/XsPlaylistHotKeys.qml</file>
+        <file>application/panels/playlists/XsPlaylistItems.qml</file>
+        <file>application/panels/playlists/XsPlaylists.qml</file>
+        <file>application/panels/timeline/data/XsSortFilterModel.qml</file>
+        <file>application/panels/timeline/delegates/XsDelegateAudioTrack.qml</file>
+        <file>application/panels/timeline/delegates/XsDelegateClip.qml</file>
+        <file>application/panels/timeline/delegates/XsDelegateGap.qml</file>
+        <file>application/panels/timeline/delegates/XsDelegateStack.qml</file>
+        <file>application/panels/timeline/delegates/XsDelegateVideoTrack.qml</file>
+        <file>application/panels/timeline/delegates/XsDelegateTrack.qml</file>
+        <file>application/panels/timeline/widgets/XsClipItem.qml</file>
+        <file>application/panels/timeline/widgets/XsClipDragBoth.qml</file>
+        <file>application/panels/timeline/widgets/XsClipDragLeft.qml</file>
+        <file>application/panels/timeline/widgets/XsClipDragRight.qml</file>
+        <file>application/panels/timeline/widgets/XsClipDragReplace.qml</file>
+        <file>application/panels/timeline/widgets/XsElideLabel.qml</file>
+        <file>application/panels/timeline/widgets/XsGapItem.qml</file>
+        <file>application/panels/timeline/widgets/XsMarkers.qml</file>
+        <file>application/panels/timeline/widgets/XsTickWidget.qml</file>
+        <file>application/panels/timeline/widgets/XsTimelineCursor.qml</file>
+        <file>application/panels/timeline/widgets/XsTrackHeader.qml</file>
+        <file>application/panels/timeline/menus/XsMarkerMenu.qml</file>
+        <file>application/panels/timeline/menus/XsNewTrackMenu.qml</file>
+        <file>application/panels/timeline/XsTimeline.qml</file>
+        <file>application/panels/timeline/menus/XsTimelineClipMenu.qml</file>
+        <file>application/panels/timeline/menus/XsTimelineMenu.qml</file>
+        <file>application/panels/timeline/XsTimelinePanel.qml</file>
+        <file>application/panels/timeline/XsTimelinePanelParent.qml</file>
+        <file>application/panels/timeline/menus/XsTimelineTrackMenu.qml</file>
+        <file>application/panels/python/XsPythonPanel.qml</file>
+        <file>application/panels/log/XsLogPanel.qml</file>
+        <file>application/panels/viewport/XsOffscreenViewportOverlays.qml</file>
+        <file>application/panels/viewport/XsViewportPanel.qml</file>
+        <file>application/panels/viewport/XsViewport.qml</file>
+        <file>application/panels/viewport/XsViewportWidget.qml</file>
+        <file>application/panels/viewport/XsMinimalViewport.qml</file>
+        <file>application/panels/viewport/hud/XsHudItem.qml</file>
+        <file>application/panels/viewport/hud/XsViewportHUD.qml</file>
+        <file>application/panels/viewport/hud/XsViewportOverlays.qml</file>
+        <file>application/panels/viewport/widgets/XsViewerSetMediaFPSPopup.qml</file>
+        <file>application/panels/viewport/widgets/XsViewportActionBar.qml</file>
+        <file>application/panels/viewport/widgets/XsViewportTransportBar.qml</file>
+        <file>application/panels/viewport/widgets/XsViewportToolBar.qml</file>
+        <file>application/panels/viewport/widgets/XsViewportInfoBar.qml</file>
+        <file>application/panels/viewport/widgets/toolbar/XsViewerAnyMenuButton.qml</file>
+        <file>application/panels/viewport/widgets/toolbar/XsViewerCompareModeButton.qml</file>
+        <file>application/panels/viewport/widgets/toolbar/XsViewerFpsButton.qml</file>
+        <file>application/panels/viewport/widgets/toolbar/XsViewerMediaOffset.qml</file>
+        <file>application/panels/viewport/widgets/toolbar/XsViewerToggleButton.qml</file>
+        <file>application/panels/viewport/widgets/toolbar/XsViewerSourceSelectorButton.qml</file>
+        <file>application/panels/viewport/widgets/toolbar/XsViewerSourceSelectorPopupWindow.qml</file>
+        <file>application/panels/viewport/widgets/toolbar/XsViewerHUDButton.qml</file>
+        <file>application/panels/viewport/widgets/toolbar/XsViewerToolbarButtonBase.qml</file>
+        <file>application/panels/viewport/widgets/toolbar/XsViewerToolbarValueScrubber.qml</file>
+        <file>application/panels/viewport/widgets/toolbar/XsViewerMenuButton.qml</file>
+        <file>application/panels/viewport/widgets/transport_bar/XsCurrentFrameIndicator.qml</file>
+        <file>application/panels/viewport/widgets/transport_bar/XsDurationFPSIndicator.qml</file>
+        <file>application/panels/viewport/widgets/transport_bar/XsViewerTextDisplay.qml</file>
+        <file>application/panels/viewport/widgets/transport_bar/XsViewerTimeline.qml</file>
+        <file>application/panels/viewport/widgets/transport_bar/XsViewerVolumeButton.qml</file>
+        <file>application/panels/viewport/widgets/XsViewerContextMenu.qml</file>
+        <file>application/panels/viewport/docked_tools/XsLeftRightDockedTools.qml</file>
+        <file>application/panels/viewport/docked_tools/XsTopBottomDockedTools.qml</file>
+        <file>application/model/XsSessionFunctions.qml</file>
+    </qresource>
+    <qresource prefix="/">
+        <file>application/auxillary/XsConformTool.qml</file>
+        <file>application/panels/notes/XsNotesView.qml</file>
+        <file>application/panels/notes/XsNotesSingleton.qml</file>
+        <file>application/panels/notes/XsNotesItemDelegate.qml</file>
+        <file>application/panels/notes/sections/XsNoteSection1.qml</file>
+        <file>application/panels/notes/sections/XsNoteSection2.qml</file>
+        <file>application/panels/notes/sections/XsNoteSection3.qml</file>
+    </qresource>
+    <qresource prefix="/">
+        <file>widgets/XsSearchBar.qml</file>
+        <file>widgets/indicators/XsGradientRectangle.qml</file>
+        <file>widgets/buttons/XsInfoButton.qml</file>
+        <file>widgets/buttons/XsNavButton.qml</file>
+        <file>widgets/buttons/XsPrimaryButton.qml</file>
+        <file>widgets/buttons/XsSearchButton.qml</file>
+        <file>widgets/buttons/XsSecondaryButton.qml</file>
+        <file>widgets/buttons/XsSimpleButton.qml</file>
+        <file>widgets/buttons/XsButtonWithImageAndText.qml</file>
+        <file>widgets/buttons/XsSortButton.qml</file>
+        <file>widgets/XsCheckBox.qml</file>
+        <file>widgets/XsCheckBoxSimple.qml</file>
+        <file>widgets/XsAttrComboBox.qml</file>
+        <file>widgets/XsComboBox.qml</file>
+        <file>widgets/XsComboBoxEditable.qml</file>
+        <file>widgets/XsComboBoxMultiSelectable.qml</file>
+        <file>widgets/XsScrollBar.qml</file>
+        <file>widgets/XsSlider.qml</file>
+        <file>widgets/XsFloatValueControl.qml</file>
+        <file>widgets/XsIntegerValueControl.qml</file>
+        <file>widgets/XsColourChooser.qml</file>
+        <file>widgets/XsFloatAttributeSlider.qml</file>
+        <file>widgets/XsIntAttributeSlider.qml</file>
+        <file>widgets/XsBoolAttributeCheckBox.qml</file>
+        <file>widgets/XsStringAttributeControl.qml</file>
+        <file>application/dialogs/hotkeys/delegates/XsHotkeyDetails.qml</file>
+        <file>application/dialogs/hotkeys/delegates/XsHotkeyGroup.qml</file>
+        <file>application/dialogs/hotkeys/delegates/XsHotkeySequence.qml</file>
+        <file>application/dialogs/hotkeys/XsHotkeysDialog.qml</file>
+        <file>application/dialogs/hotkeys/XsHotkeySetterDialog.qml</file>
+        <file>application/dialogs/preferences/delegates/XsColourPreference.qml</file>
+        <file>application/dialogs/preferences/delegates/XsCompareModePref.qml</file>
+        <file>application/dialogs/preferences/delegates/XsFilePreference.qml</file>
+        <file>application/dialogs/preferences/delegates/XsFloatPreference.qml</file>
+        <file>application/dialogs/preferences/delegates/XsIntegerPreference.qml</file>
+        <file>application/dialogs/preferences/delegates/XsJsonPreference.qml</file>
+        <file>application/dialogs/preferences/delegates/XsPreferenceCategory.qml</file>
+        <file>application/dialogs/preferences/delegates/XsStringMultichoicePreference.qml</file>
+        <file>application/dialogs/preferences/delegates/XsStringPreference.qml</file>
+        <file>application/dialogs/preferences/delegates/XsTogglePreference.qml</file>
+        <file>application/dialogs/preferences/widgets/XsPreferenceInfoButton.qml</file>
+        <file>application/dialogs/preferences/XsPreferencesDialog.qml</file>
+        <file>application/dialogs/XsAttributesPanel.qml</file>
+        <file>application/dialogs/XsColourDialog.qml</file>
+        <file>dialogs/XsPopup.qml</file>
+        <file>application/dialogs/XsSequenceRequestDialog.qml</file>
+        <file>application/dialogs/XsSnapshotDialog.qml</file>
+        <file>dialogs/XsStringRequestDialog.qml</file>
+        <file>dialogs/XsTextEditDialog.qml</file>
+        <file>dialogs/XsWindow.qml</file>
+        <file>dialogs/XsDialogHelpers.qml</file>
+        <file>widgets/indicators/XsBusyIndicator.qml</file>
+        <file>widgets/indicators/XsProgressBar.qml</file>
+        <file>widgets/indicators/XsNotification.qml</file>
+        <file>widgets/indicators/XsLabel.qml</file>
+        <file>widgets/indicators/XsTabButton.qml</file>
+        <file>widgets/XsText.qml</file>
+        <file>widgets/XsIntegerAttrControl.qml</file>
+        <file>widgets/XsTextCopyable.qml</file>
+        <file>widgets/XsTextField.qml</file>
+        <file>widgets/indicators/XsToolTip.qml</file>
+        <file>widgets/XsTextInput.qml</file>
+        <file>widgets/XsTextEdit.qml</file>
+        <file>widgets/XsTextWithInputField.qml</file>
+        <file>widgets/XsTextWithComboBox.qml</file>
+        <file>widgets/XsTextWithComboBoxFullSize.qml</file>
+        <file>widgets/XsTextWithCheckBox.qml</file>
+        <file>widgets/XsTextWithCheckAndComboBoxes.qml</file>
+        <file>widgets/XsTextWithComboBoxMultiSelectable.qml</file>
+        <file>menus/XsFlagMenuItem.qml</file>
+        <file>menus/XsFlagMenuInserter.qml</file>
+        <file>menus/XsMenuBar.qml</file>
+        <file>menus/XsMenu.qml</file>
+        <file>menus/XsMenuDivider.qml</file>
+        <file>menus/XsMenuItem.qml</file>
+        <file>menus/XsMenuItemBasic.qml</file>
+        <file>menus/XsMenuItemCustom.qml</file>
+        <file>menus/XsMenuMultiChoice.qml</file>
+        <file>menus/XsMenuItemToggle.qml</file>
+        <file>menus/XsMenuItemToggleWithSettings.qml</file>
+        <file>menus/XsPopupMenu.qml</file>
+        <file>widgets/layout/XsTabBar.qml</file>
+        <file>widgets/layout/XsGridView.qml</file>
+        <file>widgets/indicators/XsIcon.qml</file>
+        <file>widgets/indicators/XsImage.qml</file>
+        <file>widgets/layout/XsListView.qml</file>
+        <file>widgets/layout/XsSplitView.qml</file>
+    </qresource>
+    <qresource prefix="/">
+        <file>assets/fonts/OFL.txt</file>
+        <file>assets/fonts/Inter-Black.ttf</file>
+        <file>assets/fonts/Inter-Bold.ttf</file>
+        <file>assets/fonts/Inter-ExtraBold.ttf</file>
+        <file>assets/fonts/Inter-ExtraLight.ttf</file>
+        <file>assets/fonts/Inter-Light.ttf</file>
+        <file>assets/fonts/Inter-Medium.ttf</file>
+        <file>assets/fonts/Inter-Regular.ttf</file>
+        <file>assets/fonts/Inter-SemiBold.ttf</file>
+        <file>assets/fonts/Inter-Thin.ttf</file>
+        <file>assets/fonts/VeraMono.ttf</file>
+        <file>assets/fonts/Overpass-Regular.ttf</file>
+    </qresource>
+    <qresource prefix="/images">
+        <file alias="xstudio_backdrop.svg">assets/images/xstudio_backdrop_v004_03.svg</file>
+        <file alias="sample.png">assets/images/sample.png</file>
+        <file alias="xstudio_logo_256_v1.svg">assets/icons/xstudio_logo_256_v1.svg</file>
+    </qresource>
+    <qresource prefix="/">
+        <file>model/XsBufferedProperty.qml</file>
+        <file>model/XsBufferedUIProperty.qml</file>
+    </qresource>
+    <qresource prefix="/">
+        <file>utility/XsTimer.qml</file>
+    </qresource>
+    <qresource prefix="/feather_icons">
+        <file alias="rotate-ccw.svg">assets/icons/rotate-ccw.svg</file>
+        <file alias="plus-circle.svg">assets/icons/plus-circle.svg</file>
+        <file alias="book.svg">assets/icons/book.svg</file>
+        <file alias="square.svg">assets/icons/square.svg</file>
+    </qresource>
+    <qresource prefix="/cursors">
+        <file alias="magnifier_cursor.svg">assets/cursors/magnifier_cursor.svg</file>
+        <file alias="drag_cursor.svg">assets/cursors/drag_cursor.svg</file>
+        <file alias="colour_picker_cursor.svg">assets/icons/dropper.svg</file>
+        <file alias="point_scan.svg">assets/icons/point_scan.svg</file>
+    </qresource>
+    <qresource prefix="/shaders">
+        <file alias="colourwheel.frag.qsb">assets/shaders/colourwheel.frag.qsb</file>
+        <file alias="activity_wheel.frag.qsb">assets/shaders/activity_wheel.frag.qsb</file>
+        <file alias="mask.frag.qsb">assets/shaders/mask.frag.qsb</file>
+    </qresource>
+    <qresource prefix="/icons">
+        <file alias="account_tree.svg">assets/icons/account_tree.svg</file>
+        <file alias="ad_group.svg">assets/icons/ad_group.svg</file>
+        <file alias="add.svg">assets/icons/add.svg</file>
+        <file alias="arrow_circle_up.svg">assets/icons/arrow_circle_up.svg</file>
+        <file alias="arrow_drop_down.svg">assets/icons/arrow_drop_down.svg</file>
+        <file alias="arrow_range.svg">assets/icons/arrow_range.svg</file>
+        <file alias="arrow_selector_tool.svg">assets/icons/arrow_selector_tool.svg</file>
+        <file alias="arrow_upward.svg">assets/icons/arrow_upward.svg</file>
+        <file alias="arrows_outward.svg">assets/icons/arrows_outward.svg</file>
+        <file alias="autorenew.svg">assets/icons/autorenew.svg</file>
+        <file alias="bigtop_updates.svg">assets/icons/bigtop_updates.svg</file>
+        <file alias="brush.svg">assets/icons/brush.svg</file>
+        <file alias="build_gang.svg">assets/icons/build_gang.svg</file>
+        <file alias="center_focus_strong.svg">assets/icons/center_focus_strong.svg</file>
+        <file alias="center_focus_weak.svg">assets/icons/center_focus_weak.svg</file>
+        <file alias="check.svg">assets/icons/check.svg</file>
+        <file alias="check_box_checked.svg">assets/icons/check_box_checked.svg</file>
+        <file alias="check_box_unchecked.svg">assets/icons/check_box_unchecked.svg</file>
+        <file alias="check_circle.svg">assets/icons/check_circle.svg</file>
+        <file alias="chevron_right.svg">assets/icons/chevron_right.svg</file>
+        <file alias="close.svg">assets/icons/close.svg</file>
+        <file alias="cloud-download.svg">assets/icons/cloud-download.svg</file>
+        <file alias="communities.svg">assets/icons/communities.svg</file>
+        <file alias="content_copy.svg">assets/icons/content_copy.svg</file>
+        <file alias="content_cut.svg">assets/icons/content_cut.svg</file>
+        <file alias="content_paste.svg">assets/icons/content_paste.svg</file>
+        <file alias="crop_free.svg">assets/icons/crop_free.svg</file>
+        <file alias="delete.svg">assets/icons/delete.svg</file>
+        <file alias="deployed_cube.svg">assets/icons/deployed_cube.svg</file>
+        <file alias="desktop_windows.svg">assets/icons/desktop_windows.svg</file>
+        <file alias="directions_run.svg">assets/icons/directions_run.svg</file>
+        <file alias="disabled.svg">assets/icons/disabled.svg</file>
+        <file alias="dock_bottom.svg">assets/icons/dock_bottom.svg</file>
+        <file alias="dock_bottom_flipped.png">assets/icons/dock_bottom_flipped.png</file>
+        <file alias="dock_left.svg">assets/icons/dock_left.svg</file>
+        <file alias="dock_right.svg">assets/icons/dock_right.svg</file>
+        <file alias="double_arrow.svg">assets/icons/double_arrow.svg</file>
+        <file alias="draft.svg">assets/icons/draft.svg</file>
+        <file alias="dropper.svg">assets/icons/dropper.svg</file>
+        <file alias="edit.svg">assets/icons/edit.svg</file>
+        <file alias="eject.svg">assets/icons/eject.svg</file>
+        <file alias="error.svg">assets/icons/error.svg</file>
+        <file alias="expand.svg">assets/icons/expand.svg</file>
+        <file alias="expand_all.svg">assets/icons/expand_all.svg</file>
+        <file alias="fast_forward.svg">assets/icons/fast_forward.svg</file>
+        <file alias="fast_rewind.svg">assets/icons/fast_rewind.svg</file>
+        <file alias="featured_play_list.svg">assets/icons/featured_play_list.svg</file>
+        <file alias="filter.svg">assets/icons/filter.svg</file>
+        <file alias="filter_none.svg">assets/icons/filter_none.svg</file>
+        <file alias="fit_screen.svg">assets/icons/fit_screen.svg</file>
+        <file alias="fit_select.svg">assets/icons/fit_select.svg</file>
+        <file alias="folder.svg">assets/icons/folder.svg</file>
+        <file alias="folder_open.svg">assets/icons/folder_open.svg</file>
+        <file alias="format_size.svg">assets/icons/format_size.svg</file>
+        <file alias="frame_inspect.svg">assets/icons/frame_inspect.svg</file>
+        <file alias="functions.svg">assets/icons/functions.svg</file>
+        <file alias="grid_view.svg">assets/icons/grid_view.svg</file>
+        <file alias="help.svg">assets/icons/help.svg</file>
+        <file alias="history.svg">assets/icons/history.svg</file>
+        <file alias="home.svg">assets/icons/home.svg</file>
+        <file alias="horizontal_align_center.svg">assets/icons/horizontal_align_center.svg</file>
+        <file alias="hourglass.svg">assets/icons/hourglass.svg</file>
+        <file alias="image.svg">assets/icons/image.svg</file>
+        <file alias="imagesmode.svg">assets/icons/imagesmode.svg</file>
+        <file alias="info.svg">assets/icons/info.svg</file>
+        <file alias="ink_pen.svg">assets/icons/ink_pen.svg</file>
+        <file alias="input.svg">assets/icons/input.svg</file>
+        <file alias="instant_mix.svg">assets/icons/instant_mix.svg</file>
+        <file alias="keep.svg">assets/icons/keep.svg</file>
+        <file alias="keyboard_arrow_up.svg">assets/icons/keyboard_arrow_up.svg</file>
+        <file alias="keyboard_tab.svg">assets/icons/keyboard_tab.svg</file>
+        <file alias="laps.svg">assets/icons/laps.svg</file>
+        <file alias="left_drag.svg">assets/icons/left_drag.svg</file>
+        <file alias="left_right_drag.svg">assets/icons/left_right_drag.svg</file>
+        <file alias="library_add.svg">assets/icons/library_add.svg</file>
+        <file alias="library_music.svg">assets/icons/library_music.svg</file>
+        <file alias="link.svg">assets/icons/link.svg</file>
+        <file alias="list.svg">assets/icons/list.svg</file>
+        <file alias="list_alt.svg">assets/icons/list_alt.svg</file>
+        <file alias="list_alt2.svg">assets/icons/list_alt2.svg</file>
+        <file alias="list_default.svg">assets/icons/list_default.svg</file>
+        <file alias="list_group.svg">assets/icons/list_group.svg</file>
+        <file alias="list_shotgun.svg">assets/icons/list_shotgun.svg</file>
+        <file alias="list_subset.svg">assets/icons/list_subset.svg</file>
+        <file alias="list_view.svg">assets/icons/list_view.svg</file>
+        <file alias="lock.svg">assets/icons/lock.svg</file>
+        <file alias="media_link.svg">assets/icons/media_link.svg</file>
+        <file alias="menu.svg">assets/icons/menu.svg</file>
+        <file alias="more_horiz.svg">assets/icons/more_horiz.svg</file>
+        <file alias="more_vert.svg">assets/icons/more_vert.svg</file>
+        <file alias="movie.svg">assets/icons/movie.svg</file>
+        <file alias="open_in_new.svg">assets/icons/open_in_new.svg</file>
+        <file alias="open_with.svg">assets/icons/open_with.svg</file>
+        <file alias="output.svg">assets/icons/output.svg</file>
+        <file alias="pan.svg">assets/icons/pan.svg</file>
+        <file alias="pause.svg">assets/icons/pause.svg</file>
+        <file alias="pending.svg">assets/icons/pending.svg</file>
+        <file alias="person.svg">assets/icons/person.svg</file>
+        <file alias="photo_camera.svg">assets/icons/photo_camera.svg</file>
+        <file alias="play_arrow.svg">assets/icons/play_arrow.svg</file>
+        <file alias="play_circle.svg">assets/icons/play_circle.svg</file>
+        <file alias="point_scan.svg">assets/icons/point_scan.svg</file>
+        <file alias="quick_reference_all.svg">assets/icons/quick_reference_all.svg</file>
+        <file alias="radio_button_checked.svg">assets/icons/radio_button_checked.svg</file>
+        <file alias="radio_button_unchecked.svg">assets/icons/radio_button_unchecked.svg</file>
+        <file alias="rectangle.svg">assets/icons/rectangle.svg</file>
+        <file alias="redo.svg">assets/icons/redo.svg</file>
+        <file alias="refresh.svg">assets/icons/refresh.svg</file>
+        <file alias="repartition.svg">assets/icons/repartition.svg</file>
+        <file alias="repeat.svg">assets/icons/repeat.svg</file>
+        <file alias="reset_image.svg">assets/icons/reset_image.svg</file>
+        <file alias="reset_tv.svg">assets/icons/reset_tv.svg</file>
+        <file alias="restart.svg">assets/icons/restart.svg</file>
+        <file alias="right_drag.svg">assets/icons/right_drag.svg</file>
+        <file alias="rotate-ccw.svg">assets/icons/rotate-ccw.svg</file>
+        <file alias="scanner.svg">assets/icons/scanner.svg</file>
+        <file alias="search.svg">assets/icons/search.svg</file>
+        <file alias="search_off.svg">assets/icons/search_off.svg</file>
+        <file alias="select.svg">assets/icons/select.svg</file>
+        <file alias="settings.svg">assets/icons/settings.svg</file>
+        <file alias="share.svg">assets/icons/share.svg</file>
+        <file alias="share_off.svg">assets/icons/share_off.svg</file>
+        <file alias="shield_person.svg">assets/icons/shield_person.svg</file>
+        <file alias="skip_next.svg">assets/icons/skip_next.svg</file>
+        <file alias="skip_previous.svg">assets/icons/skip_previous.svg</file>
+        <file alias="sort.svg">assets/icons/sort.svg</file>
+        <file alias="sort_flipped.png">assets/icons/sort_flipped.png</file>
+        <file alias="split_scene.svg">assets/icons/split_scene.svg</file>
+        <file alias="splitscreen.svg">assets/icons/splitscreen.svg</file>
+        <file alias="splitscreen2.svg">assets/icons/splitscreen2.svg</file>
+        <file alias="splitscreen_add.svg">assets/icons/splitscreen_add.svg</file>
+        <file alias="stacks.svg">assets/icons/stacks.svg</file>
+        <file alias="sticky_note.svg">assets/icons/sticky_note.svg</file>
+        <file alias="stylus.svg">assets/icons/stylus.svg</file>
+        <file alias="stylus_note.svg">assets/icons/stylus_note.svg</file>
+        <file alias="swap_horiz.svg">assets/icons/swap_horiz.svg</file>
+        <file alias="swap_vert.svg">assets/icons/swap_vert.svg</file>
+        <file alias="sync.svg">assets/icons/sync.svg</file>
+        <file alias="theaters.svg">assets/icons/theaters.svg</file>
+        <file alias="toolbar_top.svg">assets/icons/toolbar_top.svg</file>
+        <file alias="trending.svg">assets/icons/trending.svg</file>
+        <file alias="triangle.svg">assets/icons/triangle.svg</file>
+        <file alias="tune.svg">assets/icons/tune.svg</file>
+        <file alias="tv_displays.svg">assets/icons/tv_displays.svg</file>
+        <file alias="undo.svg">assets/icons/undo.svg</file>
+        <file alias="unlock.svg">assets/icons/lock_open.svg</file>
+        <file alias="upgrade.svg">assets/icons/upgrade.svg</file>
+        <file alias="upload.svg">assets/icons/upload.svg</file>
+        <file alias="variables_insert.svg">assets/icons/variables_insert.svg</file>
+        <file alias="vertical_align_center.svg">assets/icons/vertical_align_center.svg</file>
+        <file alias="video_cam.svg">assets/icons/video_cam.svg</file>
+        <file alias="view.svg">assets/icons/view.svg</file>
+        <file alias="view_grid.svg">assets/icons/view_grid.svg</file>
+        <file alias="view_object_track.svg">assets/icons/view_object_track.svg</file>
+        <file alias="view_timeline.svg">assets/icons/view_timeline.svg</file>
+        <file alias="visibility.svg">assets/icons/visibility.svg</file>
+        <file alias="visibility_off.svg">assets/icons/visibility_off.svg</file>
+        <file alias="volume_down.svg">assets/icons/volume_down.svg</file>
+        <file alias="volume_mute.svg">assets/icons/volume_mute.svg</file>
+        <file alias="volume_no_sound.svg">assets/icons/volume_no_sound.svg</file>
+        <file alias="volume_off.svg">assets/icons/volume_off.svg</file>
+        <file alias="volume_up.svg">assets/icons/volume_up.svg</file>
+        <file alias="warning.svg">assets/icons/warning.svg</file>
+        <file alias="waves.svg">assets/icons/waves.svg</file>
+        <file alias="width.svg">assets/icons/width.svg</file>
+        <file alias="zoom_in.svg">assets/icons/zoom_in.svg</file>
+    </qresource>
 </RCC>

@@ -6,6 +6,7 @@ SET(LINK_DEPS
 	xstudio::timeline
 	xstudio::utility
 	xstudio::session
+	xstudio::ui::qml::session_v2
 )
 
 SET(EXTRAMOC

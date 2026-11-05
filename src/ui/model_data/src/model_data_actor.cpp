@@ -189,7 +189,6 @@ caf::message_handler GlobalUIModelData::message_handler() {
             // the root of the 'attribute group'. UI components can then observe this group to
             // access attribtu state (read and write)
 
-            std::cerr << "Registering attribute watcher for model: " << model_name << " " << to_string(attribute_watcher.actor()) << std::endl;
             auto attribute_group_actor = get_ui_data_model_root_node(model_name);
             if (attribute_group_actor) {
                 anon_mail(utility::add_children_atom_v, attribute_watcher).send(attribute_group_actor);

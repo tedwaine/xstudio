@@ -23,7 +23,7 @@ Rectangle {
 
     property color hintColor: XsStyleSheet.hintColor
 
-    property bool isSelected: false
+    property bool isSelected: selectionIndexRole != undefined
     property bool isDragTarget: false
 
 
@@ -35,7 +35,7 @@ Rectangle {
 
 
     property bool playOnClick: false
-    property bool isOnScreen: actorUuidRole == currentPlayhead.mediaUuid
+    property bool isOnScreen: uuidRole == currentPlayhead.mediaUuid
 
     XsMediaItemFunctions {
         id: functions
@@ -45,7 +45,8 @@ Rectangle {
     property var exclusiveSelect: functions.exclusiveSelect
     property var inclusiveSelect: functions.inclusiveSelect
 
-    property int selectionIndex: -1
+    property int __selectionIndex: mediaSelection.indexOf(uuidRole)
+    property string selectionIndex: isSelected ? ("" + (__selectionIndex+1)) : ""
 
     property color highlightColor: XsStyleSheet.accentColor
     property color bgColorPressed: Qt.darker(XsStyleSheet.accentColor, 3)
@@ -124,7 +125,7 @@ Rectangle {
             Component {
                 id: selection_index
                 XsMediaTextItem {
-                    text: selectionIndex && !notify.visible ? selectionIndex : ""
+                    text: selectionIndexRole ? selectionIndexRole : ""
                     width: size
                     height: itemRowHeight
                     leftMargin: 2

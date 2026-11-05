@@ -17,23 +17,23 @@ using namespace caf;
 
 PlayheadSelectionActor::PlayheadSelectionActor(
     caf::actor_config &cfg, const utility::JsonStore &jsn, caf::actor monitored_playlist)
-    : caf::event_based_actor(cfg),
-      base_(static_cast<utility::JsonStore>(jsn["base"])),
+    : utility::ObjectActor(cfg),
+      PlayheadSelection(static_cast<utility::JsonStore>(jsn["base"])),
       playlist_(std::move(monitored_playlist)) {
 
     init();
 
     // a bit clunky, but to finish deserialisation we need to re-select the
     // media, thus:
-    UuidVector serialised_selection = base_.items_vec();
-    base_.clear();
+    UuidVector serialised_selection = PlayheadSelection::items_vec();
+    PlayheadSelection::clear();
     select_media(serialised_selection);
 }
 
 PlayheadSelectionActor::PlayheadSelectionActor(
     caf::actor_config &cfg, const std::string &name, caf::actor monitored_playlist)
-    : caf::event_based_actor(cfg),
-      base_(name, "PlayheadSelection"),
+    : utility::ObjectActor(cfg, name),
+      PlayheadSelection(name, "PlayheadSelection"),
       playlist_(std::move(monitored_playlist)) {
     init();
 }
@@ -45,17 +45,17 @@ caf::message_handler PlayheadSelectionActor::message_handler() {
         [=](broadcast::broadcast_down_atom, const caf::actor_addr &) {},
 
         [=](playhead::delete_selection_from_playlist_atom) {
-            if (base_.items().empty())
+            if (PlayheadSelection::items().empty())
                 return;
 
-            utility::Uuid deleted_media_source_uuid = base_.items().front().uuid_;
+            utility::Uuid deleted_media_source_uuid = PlayheadSelection::items().front().uuid_;
 
             mail(playlist::get_next_media_atom_v, deleted_media_source_uuid, -1)
                 .request(playlist_, infinite)
                 .then(
                     [=](UuidActor media_actor) mutable {
                         utility::Uuid new_selection_uuid = media_actor.uuid();
-                        mail(playlist::remove_media_atom_v, base_.items())
+                        mail(playlist::remove_media_atom_v, PlayheadSelection::items())
                             .request(playlist_, infinite)
                             .await(
                                 [=](const bool) {
@@ -71,7 +71,7 @@ caf::message_handler PlayheadSelectionActor::message_handler() {
         },
 
         [=](media_hook::gather_media_sources_atom) {
-            anon_mail(media_hook::gather_media_sources_atom_v, base_.items()).send(playlist_);
+            anon_mail(media_hook::gather_media_sources_atom_v, PlayheadSelection::items()).send(playlist_);
         },
 
         [=](playhead::evict_selection_from_cache_atom) -> result<media::MediaKeyVector> {
@@ -95,7 +95,7 @@ caf::message_handler PlayheadSelectionActor::message_handler() {
             return rp;
         },
 
-        [=](playhead::get_selection_atom) -> UuidList { return base_.items(); },
+        [=](playhead::get_selection_atom) -> UuidList { return PlayheadSelection::items(); },
 
         [=](playhead::get_selection_atom, bool) -> std::vector<caf::actor> {
             std::vector<caf::actor> r;
@@ -106,7 +106,7 @@ caf::message_handler PlayheadSelectionActor::message_handler() {
         },
 
         [=](playhead::get_selection_atom, caf::actor requester) {
-            anon_mail(utility::event_atom_v, playhead::selection_changed_atom_v, base_.items())
+            anon_mail(utility::event_atom_v, playhead::selection_changed_atom_v, PlayheadSelection::items())
                 .send(requester);
         },
 
@@ -135,7 +135,7 @@ caf::message_handler PlayheadSelectionActor::message_handler() {
             auto rp = make_response_promise<bool>();
             if (swap.size()) {
                 UuidVector new_uuids;
-                for (const auto &i : base_.items_vec()) {
+                for (const auto &i : PlayheadSelection::items_vec()) {
                     auto p = swap.find(i);
                     if (p != swap.end()) {
                         new_uuids.push_back(p->second);
@@ -201,7 +201,7 @@ caf::message_handler PlayheadSelectionActor::message_handler() {
         },
 
         [=](playlist::select_media_atom, const bool one) {
-            if (base_.empty())
+            if (PlayheadSelection::empty())
                 select_one();
         },
 
@@ -215,18 +215,11 @@ caf::message_handler PlayheadSelectionActor::message_handler() {
             select_media(UuidVector({media_uuid}), true, SM_SELECT);
         },
 
-        [=](playlist::media_filter_string, const std::string &filter_string) {
-            filter_string_ = filter_string;
-        },
-
-        [=](playlist::media_filter_string) -> std::string { return filter_string_; },
-
-
         [=](utility::event_atom, utility::change_atom) {
             if (current_sender() == playlist_) {
                 // the playlist has changed - if it was previously empty but now
                 // (perhaps) has media content then try selecting the first item
-                if (base_.empty())
+                if (PlayheadSelection::empty())
                     anon_mail(playlist::select_media_atom_v, utility::UuidVector()).send(this);
             }
         },
@@ -235,14 +228,14 @@ caf::message_handler PlayheadSelectionActor::message_handler() {
 
         [=](utility::serialise_atom) -> result<JsonStore> {
             JsonStore jsn;
-            jsn["base"]   = base_.serialise();
+            jsn["base"]   = PlayheadSelection::serialise();
             jsn["actors"] = {};
             return result<JsonStore>(jsn);
         },
 
         [=](get_selected_sources_atom) -> utility::UuidActorVector {
             utility::UuidActorVector r;
-            for (const auto &p : base_.items()) {
+            for (const auto &p : PlayheadSelection::items()) {
                 r.emplace_back(p, source_actors_[p]);
             }
             return r;
@@ -251,7 +244,7 @@ caf::message_handler PlayheadSelectionActor::message_handler() {
         },
         [=](utility::event_atom, playlist::remove_media_atom, const UuidVector &) {},
         [=](utility::event_atom, playlist::add_media_atom, const utility::UuidActorVector &) {
-            if (base_.empty())
+            if (PlayheadSelection::empty())
                 anon_mail(playlist::select_media_atom_v, true)
                     .delay(std::chrono::milliseconds(500))
                     .send(this);
@@ -261,7 +254,7 @@ caf::message_handler PlayheadSelectionActor::message_handler() {
 
 void PlayheadSelectionActor::init() {
 
-    spdlog::debug("Created PlayheadSelectionActor {}", base_.name());
+    spdlog::debug("Created PlayheadSelectionActor {}", PlayheadSelection::name());
     print_on_exit(this, "PlayheadSelectionActor");
 
     caf::scoped_actor sys(system());
@@ -269,7 +262,7 @@ void PlayheadSelectionActor::init() {
     mail(uuid_atom_v)
         .request(playlist_, infinite)
         .then(
-            [=](const utility::Uuid &uuid) mutable { base_.set_monitored(uuid); },
+            [=](const utility::Uuid &uuid) mutable { PlayheadSelection::set_monitored(uuid); },
             [=](error &) {});
     mail(playlist::get_change_event_group_atom_v)
         .request(playlist_, infinite)
@@ -293,13 +286,13 @@ void PlayheadSelectionActor::select_media(
     auto deselected = UuidVector();
 
     if (mode == SM_CLEAR)
-        deselected = base_.items_vec();
+        deselected = PlayheadSelection::items_vec();
     else if (mode == SM_DESELECT)
         deselected = media_uuids;
     else if (mode == SM_SELECT)
         selected = media_uuids;
     else if (mode == SM_TOGGLE) {
-        auto current_selection = base_.items_vec();
+        auto current_selection = PlayheadSelection::items_vec();
         auto current_selection_set =
             UuidSet(current_selection.begin(), current_selection.end());
         for (const auto &i : media_uuids) {
@@ -309,7 +302,7 @@ void PlayheadSelectionActor::select_media(
                 selected.push_back(i);
         }
     } else if (mode == SM_CLEAR_AND_SELECT) {
-        deselected = base_.items_vec();
+        deselected = PlayheadSelection::items_vec();
         selected   = media_uuids;
     }
 
@@ -354,7 +347,7 @@ void PlayheadSelectionActor::select_media(
                                 monitor_.erase(mit);
                             }
                             source_actors_.erase(currently_selected);
-                            base_.remove_item(i);
+                            PlayheadSelection::remove_item(i);
                         }
                     }
                     // some uuids might be bogus..
@@ -372,11 +365,13 @@ void PlayheadSelectionActor::select_media(
                     }
 
                     auto tmp = std::vector<caf::actor>();
-                    for (const auto &i : base_.items_vec())
+                    for (const auto &i : PlayheadSelection::items_vec())
                         tmp.push_back(source_actors_[i]);
 
                     mail(utility::event_atom_v, playhead::source_atom_v, tmp)
-                        .send(base_.event_group());
+                        .send(PlayheadSelection::event_group());
+
+                    update_selection_indeces();
                 },
                 [=](error &err) mutable {
                     log_caf_error(err, spdlog::level::err);
@@ -396,16 +391,18 @@ void PlayheadSelectionActor::select_media(
                 }
 
                 source_actors_.erase(currently_selected);
-                base_.remove_item(i);
+                PlayheadSelection::remove_item(i);
             }
-        }
+        }        
 
         // we're done flush changes.
         // order matters..
         auto tmp = std::vector<caf::actor>();
-        for (const auto &i : base_.items_vec())
+        for (const auto &i : PlayheadSelection::items_vec())
             tmp.push_back(source_actors_[i]);
-        mail(utility::event_atom_v, playhead::source_atom_v, tmp).send(base_.event_group());
+
+        update_selection_indeces();
+        mail(utility::event_atom_v, playhead::source_atom_v, tmp).send(PlayheadSelection::event_group());
     }
 }
 
@@ -459,7 +456,8 @@ void PlayheadSelectionActor::select_next_media_item(const int skip_by) {
 
     // get the next item in the playlist using the uuid of the current item
     // in the selection
-    mail(playlist::get_next_media_atom_v, current_media_source_uuid, skip_by, filter_string_)
+    auto filter = get_data_value<std::string>(session::mediaFilterStringRole);
+    mail(playlist::get_next_media_atom_v, current_media_source_uuid, skip_by, filter ? *filter : "")
         .request(playlist_, infinite)
         .then(
             [=](UuidActor media_actor) mutable {
@@ -475,7 +473,7 @@ void PlayheadSelectionActor::insert_actor(
     caf::actor actor, const utility::Uuid media_uuid, const utility::Uuid &before_uuid) {
 
     // we wrap sources in selection_clip..
-    base_.insert_item(media_uuid, before_uuid);
+    PlayheadSelection::insert_item(media_uuid, before_uuid);
     source_actors_[media_uuid] = actor;
 
     auto act_addr = caf::actor_cast<caf::actor_addr>(actor);
@@ -487,11 +485,56 @@ void PlayheadSelectionActor::insert_actor(
 
             for (const auto &i : source_actors_) {
                 if (i.second == addr and not i.first.is_null()) {
-                    base_.remove_item(i.first);
+                    PlayheadSelection::remove_item(i.first);
                     source_actors_.erase(i.first);
                     break;
                 }
             }
         });
     }
+}
+
+void PlayheadSelectionActor::update_selection_indeces() {
+
+    std::cerr << "PlayheadSelection::items_vec() " << PlayheadSelection::items_vec().size() << "\n";
+
+    set_data_value(session::selectedMediaRole, PlayheadSelection::items_vec());
+
+     // fetch all the media in the playlist
+    mail(playlist::get_media_atom_v)
+        .request(playlist_, infinite)
+        .then(
+            [=](std::vector<UuidActor> all_media) mutable {
+
+                int i = 1;
+                std::set<utility::Uuid> seen;
+
+                for (const auto &item : PlayheadSelection::items_vec()) {
+                    seen.insert(item);
+                    anon_mail(utility::property_atom_v, static_cast<int>(session::selectionIndexRole), utility::AnyPtr(std::make_shared<std::any>(i++)))
+                        .send(source_actors_[item]);
+                }
+
+                for (const auto &item : all_media) {
+                    if (seen.find(item.uuid()) == seen.end()) {
+                        anon_mail(utility::property_atom_v, static_cast<int>(session::selectionIndexRole), utility::AnyPtr())
+                            .send(item);
+                    }
+                }
+            },
+            [=](error &err) mutable {
+                log_caf_error(err, spdlog::level::err);
+            });
+
+}
+
+bool PlayheadSelectionActor::request_to_set_data_value(const int key, const utility::AnyPtr &value) {
+
+    if (key == session::selectedMediaRole && value && value->type() == typeid(utility::UuidVector)) {
+        const auto &uuids = std::any_cast<const utility::UuidVector &>(*value);
+        select_media(uuids, false, SM_CLEAR_AND_SELECT);
+        // returning false here because selectedMediaRole value is updated internally by select_media()
+        return false;
+    }
+    return ObjectActor::request_to_set_data_value(key, value);
 }

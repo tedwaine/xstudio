@@ -452,7 +452,6 @@ ApplicationWindow {
     property alias playlistsSelectionModel: sessionData.playlistsSelectionModel 
     property alias currentMediaContainerIndex: sessionData.currentMediaContainerIndex
     property alias viewportCurrentMediaContainerIndex: sessionData.viewportCurrentMediaContainerIndex
-    property alias inspectedMediaSetProperties: sessionData.inspectedMediaSetProperties
     property alias viewedMediaSetProperties: sessionData.viewedMediaSetProperties
     property alias currentPlayhead: sessionData.current_playhead
     property alias callbackTimer: sessionData.callbackTimer
@@ -468,6 +467,9 @@ ApplicationWindow {
     property alias singletonsModel: sessionData.singletonsModel
     property alias playlistsPanelBarExtraWidgets: sessionData.playlistsPanelBarExtraWidgets
     property alias mediaListSearchString: sessionData.mediaListSearchString
+    property alias filteredmediaModelData: sessionData.filteredmediaModelData
+    property alias mediaSelection: sessionData.mediaSelection
+    property alias mediaSelectionThingy: sessionData.mediaSelectionThingy
     property alias mediaModelData: sessionData.mediaModelData
 
     property var sessionPath: sessionProperties.values.pathRole
@@ -477,6 +479,10 @@ ApplicationWindow {
 
     property var layouts_model
     property var layouts_model_root_index
+
+    XsSessionFunctions {
+        id: sessionFunctions
+    }
 
     XsFileFunctions {
         id: file_functions

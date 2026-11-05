@@ -54,15 +54,23 @@ XsGridView {
         if (playheadPlayingOrScrubbing || !visible) return
 
         // what row is the on-screen media?
-        var row = mediaListModelData.getRowWithMatchingRoleData(onScreenMediaUuid, "actorUuidRole")
+        var row = filteredmediaModelData.getRowWithMatchingUuid(onScreenMediaUuid)
 
         return autoScrollToRow(row)
     }
 
     function autoScrollToSelectedMedia() {
         if (visible && mediaSelectionModel.selectedIndexes.length) {
-            var row = mediaSelectionModel.selectedIndexes[0].row
-            return autoScrollToRow(row)
+
+            // looping over media visible in the list
+            for (var i = 0; i < filteredmediaModelData.rowCount(); ++i) {
+
+                let uuid = filteredmediaModelData.getData(i, "uuidRole")
+                if (mediaSelection.indexOf(uuid) != -1)
+                    autoScrollToRow(i);
+
+            }
+
         }
     }
 

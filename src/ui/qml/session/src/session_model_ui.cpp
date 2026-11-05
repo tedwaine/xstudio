@@ -7,6 +7,7 @@
 #include "xstudio/ui/qml/job_control_ui.hpp"
 #include "xstudio/ui/qml/session_model_ui.hpp"
 #include "xstudio/ui/qml/QTreeModelToTableModel.hpp"
+#include "xstudio/ui/qml/new_session_model_ui.hpp"
 
 CAF_PUSH_WARNINGS
 #include <QThreadPool>
@@ -1313,7 +1314,7 @@ void SessionModel::updateSelection(
 
 void SessionModel::updateMediaListFilterString(
     const QModelIndex &index, const QString &filter_string) {
-    try {
+    /*try {
 
         if (index.isValid()) {
             nlohmann::json &j = indexToData(index);
@@ -1327,11 +1328,7 @@ void SessionModel::updateMediaListFilterString(
         }
     } catch (const std::exception &err) {
         spdlog::warn("{} {}", __PRETTY_FUNCTION__, err.what());
-        /*if (index.isValid()) {
-            nlohmann::json &j = indexToData(index);
-            spdlog::warn("{}", j.dump(2));
-        }*/
-    }
+    }*/
 }
 
 nlohmann::json SessionModel::timelineItemToJson(
@@ -1419,6 +1416,8 @@ bool MediaListFilterModel::filterAcceptsRow(
     QVariant t = sourceModel()->data(
         sourceModel()->index(source_row, 0, source_parent), session::typeRole);
 
+    qDebug() << "Filtering row" << source_row << "with type" << t.toString();
+
     if (t.toString() != "Media")
         return false;
 
@@ -1434,7 +1433,7 @@ bool MediaListFilterModel::filterAcceptsRow(
     // panel against each media item
     QVariant v = sourceModel()->data(
         sourceModel()->index(source_row, 0, source_parent),
-        SessionModel::Roles::mediaDisplayInfoRole);
+        session::mediaDisplayInfoRole);
 
 
     QList<QVariant> cols = v.toList();
@@ -1452,6 +1451,21 @@ bool MediaListFilterModel::filterAcceptsRow(
     }
     return true;
 }
+
+QVariant MediaListFilterModel::getData(const int row, const QString &role) const {
+
+    QModelIndex index = rowToSourceIndex(row);
+    if (!index.isValid())
+        return QVariant();
+
+    auto mdl = dynamic_cast<UIDataModel *>(sourceModel());
+    if (mdl) {
+        return mdl->getData(index, role);
+    }
+
+    return QVariant();
+}
+
 
 QModelIndex MediaListFilterModel::rowToSourceIndex(const int row) const {
 
@@ -1492,24 +1506,13 @@ int MediaListFilterModel::sourceIndexToRow(const QModelIndex &idx) const {
     return remapped.row();
 }
 
-int MediaListFilterModel::getRowWithMatchingRoleData(
-    const QVariant &searchValue, const QString &searchRole) const {
+int MediaListFilterModel::getRowWithMatchingUuid(
+    const QVariant &uuidValue) const {
 
-    auto mdl = dynamic_cast<QTreeModelToTableModel *>(sourceModel());
-    if (mdl) {
-        // map from SessionModelUI to OUR sourceModel
-        auto sessionModel = dynamic_cast<SessionModel *>(mdl->model());
-        if (sessionModel) {
-            // note - we use this for the auto-scroll in the media list. We have the uuid of the
-            // on-screen media, we need to find our row in the model. If we are looking at a
-            // playlist, we don't want to match to media in a subset or timeline that also
-            // contains the media. The depth=2 in this call means we only search the playlist
-            // not its children
-            QModelIndex r =
-                sessionModel->searchRecursive(searchValue, searchRole, mdl->rootIndex(), 0, 2);
-            if (r.isValid()) {
-                return sourceIndexToRow(r);
-            }
+    for (int i = 0; i < rowCount(); ++i) {
+        QModelIndex srcIdx = rowToSourceIndex(i);
+        if (srcIdx.isValid() && srcIdx.model()->data(srcIdx, session::uuidRole) == uuidValue) {
+            return i;
         }
     }
     return -1;

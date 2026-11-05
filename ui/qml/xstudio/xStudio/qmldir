@@ -2,9 +2,9 @@ module xStudio
 
 XsAttributeFullData      1.0 ../model/XsAttributeFullData.qml
 XsAttributeValue          1.0 ../model/XsAttributeValue.qml
-XsMediaListModelData      1.0 ../application/model/XsMediaListModelData.qml
 XsSessionData             1.0 ../application/model/XsSessionData.qml
 XsPlayhead                1.0 ../application/model/XsPlayhead.qml
+XsSessionFunctions        1.0 ../application/model/XsSessionFunctions.qml
 
 XsPreference              1.0 ../model/XsPreference.qml
 

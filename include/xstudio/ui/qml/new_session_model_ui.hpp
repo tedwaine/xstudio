@@ -19,6 +19,34 @@ CAF_POP_WARNINGS
 
 namespace xstudio::ui::qml {
 
+class XsQmlPropertyMap : public QQmlPropertyMap {
+    Q_OBJECT
+public:
+    XsQmlPropertyMap(QObject *parent = nullptr) : QQmlPropertyMap(parent) {}
+
+    Q_INVOKABLE void setPropertyFromBackend(const QString &key, const QVariant &value) {
+        from_backend_ = true;
+        setProperty(key.toStdString().c_str(), value);
+        from_backend_ = false;
+    }
+
+protected:
+    bool from_backend_ = false;
+
+    QVariant updateValue(const QString &key, const QVariant &_value) override {        
+        if (!from_backend_ && _value != value(key)) {
+            emit updateValueRequest(key, _value);
+        } else {
+          QQmlPropertyMap::updateValue(key, _value);
+          return _value;
+        }
+        return value(key);
+    }
+
+    Q_SIGNALS:
+        void updateValueRequest(const QString &key, const QVariant &value);
+};
+
 /*
 UIDataModel class.
 
@@ -45,8 +73,7 @@ class UIDataModel : public caf::mixin::actor_object<QAbstractItemModel> {
     Q_OBJECT
 
     Q_PROPERTY(int length READ length NOTIFY lengthChanged)
-    //Q_PROPERTY(QModelIndex rootIndex READ rootIndex NOTIFY rootIndexChanged)
-    Q_PROPERTY(QVariantMap rootData READ rootData NOTIFY rootDataChanged)
+    Q_PROPERTY(QQmlPropertyMap *values READ values NOTIFY valuesChanged)
 
   public:
 
@@ -81,22 +108,24 @@ class UIDataModel : public caf::mixin::actor_object<QAbstractItemModel> {
 
     Q_INVOKABLE QModelIndex searchRecursive(const QVariant &value, const QString &role, const QModelIndex &parent = QModelIndex(), const int depth = 10) const;
 
-    [[nodiscard]] QModelIndex rootIndex() const { return root_index_; }
-
     [[nodiscard]] int length() const { return rowCount(); }
-    [[nodiscard]] const QVariantMap & rootData() const { return root_data_; }
+    [[nodiscard]] QQmlPropertyMap * values() const { return static_cast<QQmlPropertyMap *>(values_); }
+
+  private slots:
+
+    void handleUpdateValueRequest(const QString &key, const QVariant &value);
 
   signals:
 
     void lengthChanged();
     void rootIndexChanged();
-    void rootDataChanged();
+    void valuesChanged();
 
   protected:
 
     virtual caf::message_handler message_handler() { return caf::message_handler(); }
 
-    void set_source_of_data(caf::actor source);
+    virtual void set_source_of_data(caf::actor source);
 
     // Replaces the whole tree. The model takes (shared) ownership of the nodes.
     void set_root(const utility::ObjectDataTreePtr &root);
@@ -119,9 +148,7 @@ class UIDataModel : public caf::mixin::actor_object<QAbstractItemModel> {
     quintptr next_id_ = 1;
     QHash<int, QByteArray> data_roles_;
     QMap<QString, int> data_roles_inverse_;
-    QModelIndex root_index_;
-    QVariantMap root_data_;
-
+    XsQmlPropertyMap *values_ = nullptr;
     caf::actor source_of_data_;
     bool is_versions_list_ = {false};
 };
@@ -149,7 +176,7 @@ class SessionModelRoot : public UIDataModel {
   protected:
 
     caf::message_handler message_handler() override;
-    virtual void reload() {}
+    virtual void reload();
     void connect_to_studio();
 
     caf::actor session_actor_;
@@ -183,6 +210,7 @@ class SessionModelNode : public SessionModelRoot {
   protected:
 
     caf::message_handler message_handler() override;
+
     void reload() override;
 
   signals:
