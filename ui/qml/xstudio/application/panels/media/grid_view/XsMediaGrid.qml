@@ -148,8 +148,8 @@ XsGridView {
         }
 
         onDragEnded: {
-            if (dragTargetIndex != undefined && dragTargetIndex.valid) {
-                mediaList.itemAtIndex(dragTargetIndex.row).isDragTarget = false
+            if (dragTargetIndex != undefined) {
+                mediaList.itemAtIndex(dragTargetIndex).isDragTarget = false
             }
             dragTargetIndex = undefined
 
@@ -158,8 +158,8 @@ XsGridView {
         }
 
         onDragExited: {
-            if (dragTargetIndex != undefined && dragTargetIndex.valid) {
-                mediaList.itemAtIndex(dragTargetIndex.row).isDragTarget = false
+            if (dragTargetIndex != undefined && dragTargetIndex) {
+                mediaList.itemAtIndex(dragTargetIndex).isDragTarget = false
             }
             dragTargetIndex = undefined
 
@@ -180,7 +180,7 @@ XsGridView {
                     idx = idx.parent // mediaListModelDataRoot is the 'MediaList' underneath a Playist, Subset etc.
                 }
             } else {
-                mediaList.itemAtIndex(dragTargetIndex.row).isDragTarget = false
+                mediaList.itemAtIndex(dragTargetIndex).isDragTarget = false
             }
 
             if (source == "External URIS") {
@@ -212,7 +212,7 @@ XsGridView {
                 return
             }
 
-            if (!dragTargetIndex) return
+            if (dragTargetIndex === undefined) return
 
             if (dragSourceName == "MediaList") {
                 // selection being dropped from a media list. 'data' should be
@@ -224,7 +224,7 @@ XsGridView {
                     beforeMoveContentY = contentY
                     theSessionData.moveRows(
                         data,
-                        dragTargetIndex.row,
+                        dragTargetIndex,
                         dragTargetIndex.parent.parent
                         )
                     dragTargetIndex = undefined
@@ -232,11 +232,6 @@ XsGridView {
             }
         }
 
-    }
-
-
-    function isInSelection(idx) {
-        return mediaSelectionModel.selectedIndexes.includes(mediaListModelData.rowToSourceIndex(idx))
     }
 
     function computeTargetDropIndex(dropCoordX, dropCoordY, source, data) {
@@ -261,15 +256,13 @@ XsGridView {
             // the index that we are going to drop items into cannot
             // be one of the selected items. Find the nearest unselected
             // index
-            if (source == "MediaList" &&
-                data.length && data[0].parent == mediaListModelDataRoot &&
-                isInSelection(idx)) {
+            if (source == "MediaList" && mediaList.itemAtIndex(idx).isSelected) {
 
                 dragTargetIndex = undefined
 
             } else if (mediaList.itemAtIndex(idx)) {
                 mediaList.itemAtIndex(idx).isDragTarget = true
-                dragTargetIndex = mediaList.itemAtIndex(idx).modelIndex()
+                dragTargetIndex = idx
             }
 
         } else {
@@ -277,8 +270,8 @@ XsGridView {
         }
 
         if (oldDragTarget && oldDragTarget != dragTargetIndex) {
-            if (mediaList.itemAtIndex(oldDragTarget.row)) {
-                mediaList.itemAtIndex(oldDragTarget.row).isDragTarget = false
+            if (mediaList.itemAtIndex(oldDragTarget)) {
+                mediaList.itemAtIndex(oldDragTarget).isDragTarget = false
             }
         }
 

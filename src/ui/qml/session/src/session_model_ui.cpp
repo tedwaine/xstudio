@@ -1412,19 +1412,17 @@ MediaListFilterModel::MediaListFilterModel(QObject *parent) : super(parent) {
 bool MediaListFilterModel::filterAcceptsRow(
     int source_row, const QModelIndex &source_parent) const {
 
-    // filter in Media items only
-    QVariant t = sourceModel()->data(
-        sourceModel()->index(source_row, 0, source_parent), session::typeRole);
-
-    qDebug() << "Filtering row" << source_row << "with type" << t.toString();
-
-    if (t.toString() != "Media")
-        return false;
-
     // return false;
     // surely we never run this if sourceModel is nullptr but check just in case.
     if (search_string_.isEmpty())
         return true;
+
+    // filter in Media items only
+    QVariant t = sourceModel()->data(
+        sourceModel()->index(source_row, 0, source_parent), session::typeRole);
+
+    if (t.toString() != "Media")
+        return false;
 
     // here we get the mediaDisplayInfoRole data ... this is QList<QList<QVariant>>
     // The outer list is because we have multiple media list panels with independently

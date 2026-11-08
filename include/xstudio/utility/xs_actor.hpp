@@ -53,7 +53,7 @@ protected:
     For example, if you have a slider value that is clamped, you can reject a change that 
     falls outside a range with your own logic here.*/
     virtual bool request_to_set_data_value(const int key, const AnyPtr &value) {
-        return data_.set_data_value_check(key, value);
+        return full_tree_state_.set_data_value_check(key, value);
     }
 
     /** Override this to define additional message handlers - for example message handlers from additional classes
@@ -63,8 +63,8 @@ protected:
     }
 
     void set_data_value(const int key, const AnyPtr &value) {
-        if (data_.set_data_value_check(key, value)) {
-            mail(event_atom_v, property_atom_v, std::vector<int>(), key, data_.get_data_value(key)).send(properties_events_group_);
+        if (full_tree_state_.set_data_value_check(key, value)) {
+            mail(event_atom_v, property_atom_v, std::vector<int>(), key, full_tree_state_.get_data_value(key)).send(properties_events_group_);
         }
     }
 
@@ -74,14 +74,14 @@ protected:
 
     template <typename T>
     void set_data_value(const int key, const T & value) {
-        if (data_.set_data_value_check(key, value)) {
-            mail(event_atom_v, property_atom_v, std::vector<int>(), key, data_.get_data_value(key)).send(properties_events_group_);
+        if (full_tree_state_.set_data_value_check(key, value)) {
+            mail(event_atom_v, property_atom_v, std::vector<int>(), key, full_tree_state_.get_data_value(key)).send(properties_events_group_);
         }
     }
 
     template <typename T>
     std::optional<T> get_data_value(const int key) const {
-        return data_.get_data_value<T>(key);
+        return full_tree_state_.get_data_value<T>(key);
     }
 
     void add_child(const caf::actor child, const utility::Uuid &before = utility::Uuid());
@@ -102,18 +102,18 @@ private:
     caf::message_handler private_message_handler();
 
     AnyPtr __get_property(const int key) {
-        AnyPtr result = data_.get_data_value(key);
+        AnyPtr result = full_tree_state_.get_data_value(key);
         if (!result) {
             result = get_data_value(key); // Try to get it on-demand if not found locally
             if (result) {
-                data_.set_data_value(key, result);
+                full_tree_state_.set_data_value(key, result);
             }
         }
         return result;
     }
 
     caf::actor properties_events_group_;
-    PropertyMap data_;
+    ObjectDataTree full_tree_state_;
 
 };
 

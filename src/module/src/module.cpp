@@ -1239,10 +1239,10 @@ caf::message_handler Module::message_handler() {
              set_submenu_position_in_parent(menu_model_name, submenu, submenu_position);
          },
          [=](reset_module_atom) { reset(); },
-         [=](utility::parent_atom) -> caf::actor { return actor_cast<actor>(parent_actor_addr_); },
+         [=](utility::parent_atom) -> caf::actor { return actor_cast<actor>(parent_actor_addr_); }/*,
             [=](caf::message &m) {
                 std::cerr << "Unhandled message: " << name() << " " << to_string(m) << std::endl;
-            }}).or_else(playhead::PlayheadGlobalEventsActor::default_event_handler());
+            }*/}).or_else(playhead::PlayheadGlobalEventsActor::default_event_handler());
 }
 
 void Module::notify_change(

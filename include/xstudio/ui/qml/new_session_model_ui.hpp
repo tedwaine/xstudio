@@ -143,6 +143,8 @@ class UIDataModel : public caf::mixin::actor_object<QAbstractItemModel> {
     void unregister_subtree(const utility::ObjectDataTree *node);
 
     utility::ObjectDataTreePtr root_;
+    utility::ObjectDataTreePtr test_root_;
+    
     std::unordered_map<quintptr, const utility::ObjectDataTree *> nodes_by_id_;
     std::unordered_map<const utility::ObjectDataTree *, quintptr> ids_by_node_;
     quintptr next_id_ = 1;

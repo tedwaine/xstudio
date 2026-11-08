@@ -161,8 +161,8 @@ XsListView {
         }
 
         onDragEnded: {
-            if (dragTargetIndex != undefined && dragTargetIndex.valid) {
-                mediaList.itemAtIndex(dragTargetIndex.row).isDragTarget = false
+            if (dragTargetIndex != undefined) {
+                mediaList.itemAtIndex(dragTargetIndex).isDragTarget = false
             }
             dragTargetIndex = undefined
 
@@ -172,8 +172,8 @@ XsListView {
         }
 
         onDragExited: {
-            if (dragTargetIndex != undefined && dragTargetIndex.valid) {
-                mediaList.itemAtIndex(dragTargetIndex.row).isDragTarget = false
+            if (dragTargetIndex != undefined) {
+                mediaList.itemAtIndex(dragTargetIndex).isDragTarget = false
             }
             dragTargetIndex = undefined
 
@@ -198,7 +198,7 @@ XsListView {
                     idx = idx.parent
                 }
             } else {
-                mediaList.itemAtIndex(dragTargetIndex.row).isDragTarget = false
+                mediaList.itemAtIndex(dragTargetIndex).isDragTarget = false
             }
 
             if (source == "External URIS") {
@@ -241,18 +241,13 @@ XsListView {
                     beforeMoveContentY = contentY
                     theSessionData.moveRows(
                         data,
-                        dragToEnd ? -1 : dragTargetIndex.row,
+                        dragToEnd ? -1 : dragTargetIndex,
                         dragTargetIndex.parent.parent
                         )
                 }
             }
         }
 
-    }
-
-
-    function isInSelection(idx) {
-        return mediaSelectionModel.selectedIndexes.includes(mediaListModelData.rowToSourceIndex(idx))
     }
 
     function computeTargetDropIndex(dropCoordY, source, data) {
@@ -270,7 +265,7 @@ XsListView {
 
         var idx = mediaList.indexAt(10, dropCoordY + contentY)
         if (idx == -1 && mediaList.count) {
-            dragTargetIndex = mediaList.itemAtIndex(mediaList.count-1).modelIndex()
+            dragTargetIndex = mediaList.count-1
             dragToEnd = true
         } else if (idx != -1) {
             var y = mediaList.mapToItem(mediaList.itemAtIndex(idx), 10, dropCoordY).y
@@ -286,14 +281,13 @@ XsListView {
             // the index that we are going to drop items into cannot
             // be one of the selected items. Find the nearest unselected
             // index
-            if (source == "MediaList" &&
-                data.length && data[0].parent == mediaListModelDataRoot &&
-                isInSelection(idx)) {
+            console.log(data)
+            if (source == "MediaList" && mediaList.itemAtIndex(idx).isSelected) {
                 dragTargetIndex = undefined
                 dragToEnd = false
             } else if (mediaList.itemAtIndex(idx)) {
                 mediaList.itemAtIndex(idx).isDragTarget = true
-                dragTargetIndex = mediaList.itemAtIndex(idx).modelIndex()
+                dragTargetIndex = idx
             }
 
         } else {
@@ -301,8 +295,8 @@ XsListView {
         }
 
         if (oldDragTarget && oldDragTarget != dragTargetIndex) {
-            if (mediaList.itemAtIndex(oldDragTarget.row)) {
-                mediaList.itemAtIndex(oldDragTarget.row).isDragTarget = false
+            if (mediaList.itemAtIndex(oldDragTarget)) {
+                mediaList.itemAtIndex(oldDragTarget).isDragTarget = false
             }
         }
 

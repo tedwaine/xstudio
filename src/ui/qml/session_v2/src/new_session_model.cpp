@@ -227,6 +227,14 @@ void UIDataModel::init(caf::actor_system &_system) {
 
 }
 
+std::string get_name(const utility::ObjectDataTreePtr &node) {
+    if (node) {
+        auto n = node->get_data_value<std::string>(session::nameRole);
+        return n ? *n : "";
+    }
+    return "";
+}
+
 caf::message_handler UIDataModel::core_message_handler() {
     return caf::message_handler {
         [=](broadcast::broadcast_down_atom, const caf::actor_addr & /*downed_actor*/) {
@@ -305,17 +313,11 @@ caf::message_handler UIDataModel::core_message_handler() {
                     if (node->set_data_value_check(key, value)) {                        
                         emit dataChanged(parent_index, parent_index, {key});
                         if (node == root_.get()) {
-
-
                             auto p = data_roles_.find(key);
                             if (p != data_roles_.end()) {
                                 values_->setPropertyFromBackend(p.value(), qvariantFromAnyPtr(value));
-                                std::cerr << "Set property: " << p.value().toStdString() << std::endl;
-
                                 QVariant variant = qvariantFromAnyPtr(value);
                                 QVariant dat = values_->value(p.value());
-                                qDebug() << "Variant: " << variant << " Dat: " << dat;
-
                             }
                         }
                     }
@@ -335,21 +337,27 @@ caf::message_handler UIDataModel::core_message_handler() {
             }
 
         },
-        [=](event_atom, add_children_atom, std::vector<int> index_in_tree, const int insertion_index, const ObjectDataTreePtr &child_data) {
+        [=](event_atom, add_children_atom, std::vector<int> index_in_tree, const int insertion_index, const ObjectDataTreePtr &__child_data, const utility::Uuid &child_id, const std::string & name) {
+
+            if (child_id != *(root_->get_data_value<utility::Uuid>(session::uuidRole))) {
+                return;
+            }
 
             QModelIndex parent_index = QModelIndex();
-            for (int i = 0; i < (static_cast<int>(index_in_tree.size()) - 1); ++i) {
-                parent_index = index(index_in_tree[i], 0, parent_index);
+            for (const auto &ii : index_in_tree) {
+                parent_index = index(ii, 0, parent_index);
+                if (!parent_index.isValid()) break;
             }
 
             // New row lands at index num_rows (the old row count), so begin/endInsertRows
             // must announce that same row, not num_rows+1 (which is out of bounds and
             // leaves views unable to resolve the new index).
-            beginInsertRows(parent_index, insertion_index, insertion_index);
             ObjectDataTree * node = const_cast<ObjectDataTree *>(UIDataModel::node_from_index(parent_index));
+            beginInsertRows(parent_index, insertion_index, insertion_index);
             if (node) {
-                register_subtree(child_data.get());
-                node->insert_node(child_data, insertion_index);
+                auto cd = __child_data->deep_copy();
+                register_subtree(cd.get());
+                node->insert_node(cd, insertion_index);
             }
             endInsertRows();
             emit lengthChanged();
@@ -398,19 +406,22 @@ void UIDataModel::set_source_of_data(caf::actor source) {
     source_of_data_ = std::move(source);
     if (source_of_data_) {
 
+        scoped_actor sys(self()->home_system());
         // JKoin the new source of data's broadcast group.
-        self()->mail(property_atom_v, broadcast::join_broadcast_atom_v, as_actor()).send(source_of_data_);
 
         // Request the full model data of the new source
-        self()->mail(property_atom_v).send(source_of_data_);
+        auto child_data = request_receive<ObjectDataTreePtr>(*sys, source_of_data_, property_atom_v, as_actor());
+
+        set_root(child_data);
+        for (const auto &p : data_roles_inverse_.keys()) {
+            values_->setPropertyFromBackend(p.toStdString().c_str(), qvariantFromAnyPtr(child_data->get_data_value(data_roles_inverse_[p])));
+        }
+
     }
 
 }
 
 void UIDataModel::set_root(const ObjectDataTreePtr &root) {
-
-    auto nm = root->get_data_value<std::string>(session::nameRole);
-    std::cerr << "Setting root with name: " << (nm ? *nm : "<none>") << std::endl;
 
     beginResetModel();
     nodes_by_id_.clear();

@@ -24,6 +24,8 @@ class Playlist : public utility::Container {
 
     [[nodiscard]] bool empty() const { return media_list_.empty() && container_tree_.empty(); }
 
+    [[nodiscard]] size_t num_media_items() const { return media_list_.size(); }
+
     [[nodiscard]] const utility::PlaylistTree &containers() const { return container_tree_; }
     std::optional<utility::Uuid>
     insert_group(const std::string &name, const utility::Uuid &uuid_before = utility::Uuid());

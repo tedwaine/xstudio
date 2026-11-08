@@ -3,9 +3,17 @@
 #include "xstudio/utility/xs_actor.hpp"
 
 using namespace xstudio::utility;
+namespace {
+    std::string get_name(const ObjectDataTree &node) {
+        auto n = node.get_data_value<std::string>(xstudio::session::nameRole);
+        return n ? *n : "";
+}
 
+
+}
 
 ObjectActor::ObjectActor(caf::actor_config &cfg, const std::string &name, const Uuid &uuid) : caf::event_based_actor(cfg) {
+
     properties_events_group_ = spawn<broadcast::BroadcastActor>(this);
     link_to(properties_events_group_);
 
@@ -54,15 +62,11 @@ void ObjectActor::add_child(const UuidActor &child, const Uuid & before) {
         }
     );
 
-    self()->mail(property_atom_v).request(child, infinite).then(
-        [=](const ObjectDataTreePtr &child_data) {
-
-            mail(event_atom_v, add_children_atom_v, std::vector<int>{}, insert_index, child_data).send(properties_events_group_);
-
-        },
-        [=](const caf::error &err) {
-            log_caf_error(err);
-        });
+    scoped_actor sys(system());
+    auto child_data = request_receive<ObjectDataTreePtr>(*sys, child, property_atom_v, caf::actor_cast<caf::actor>(this));
+    full_tree_state_.insert_node(child_data->deep_copy(), insert_index);
+    mail(event_atom_v, add_children_atom_v, std::vector<int>{}, insert_index, child_data, *get_data_value<utility::Uuid>(session::uuidRole),
+        get_name(full_tree_state_)).send(properties_events_group_);
 
 }
 
@@ -164,6 +168,17 @@ caf::message_handler ObjectActor::private_message_handler() {
             // children were moved further up the tree. Rebroadcast.
             int cindex = child_index(current_sender());
             if (cindex < 0) return;
+
+
+            {
+                ObjectDataTree * node = full_tree_state_.get_node_in_tree(index_in_tree);
+                if (!node) {
+                    std::cerr << "DODGY 3\n";
+                } else {
+                    node->move_node(child_id, before_child_id);
+                }
+            }
+
             index_in_tree.insert(index_in_tree.begin(), cindex);
             mail(event_atom_v, move_children_atom_v, index_in_tree, child_id, before_child_id).send(properties_events_group_);
 
@@ -174,18 +189,39 @@ caf::message_handler ObjectActor::private_message_handler() {
             // a child was removed further up the tree. Rebroadcast.
             int cindex = child_index(current_sender());
             if (cindex < 0) return;
+
+            {
+                ObjectDataTree * node = full_tree_state_.get_node_in_tree(index_in_tree);
+                if (!node) {
+                    std::cerr << "DODGY 2\n";
+                } else {
+                    node->remove_node(cindex);
+                }
+            }
+
             index_in_tree.insert(index_in_tree.begin(), cindex);
-            mail(event_atom_v, remove_children_atom_v, index_in_tree).send(properties_events_group_);
+            mail(event_atom_v, remove_children_atom_v, index_in_tree).send(properties_events_group_);            
 
         },
 
-        [=](event_atom, add_children_atom, std::vector<int> index_in_tree, const int insertion_index, const ObjectDataTreePtr &child_data) {
+        [=](event_atom, add_children_atom, std::vector<int> index_in_tree, const int insertion_index, const ObjectDataTreePtr &child_data, const utility::Uuid &child_id, const std::string &name) {
 
             // a child was added further up the tree. Rebroadcast.
             int cindex = child_index(current_sender());
             if (cindex < 0) return;
             index_in_tree.insert(index_in_tree.begin(), cindex);
-            mail(event_atom_v, add_children_atom_v, index_in_tree, insertion_index, child_data).send(properties_events_group_);
+
+            {
+                // update our local copy
+                ObjectDataTree * node = full_tree_state_.get_node_in_tree(index_in_tree);
+                if (!node) {
+                    spdlog::warn("Attempted to insert node into a null parent");
+                } else {
+                    node->insert_node(child_data->deep_copy(), insertion_index);
+                }
+            }
+
+            mail(event_atom_v, add_children_atom_v, index_in_tree, insertion_index, child_data, *get_data_value<utility::Uuid>(session::uuidRole), name + "|" + get_name(full_tree_state_)).send(properties_events_group_);
 
         },
 
@@ -232,6 +268,12 @@ caf::message_handler ObjectActor::private_message_handler() {
         },
         [=](add_children_atom, const UuidActor &child) -> bool {
             add_child(child);
+            return true;
+        },
+        [=](add_children_atom, const UuidActorVector &children, const Uuid &before) -> bool {
+            for (const auto &child : children) {
+                add_child(child, before);
+            }
             return true;
         },
         [=](add_children_atom, const UuidActorVector &children) -> bool {
@@ -314,33 +356,28 @@ caf::message_handler ObjectActor::private_message_handler() {
             }
             // bubble it up
             index_in_tree.insert(index_in_tree.begin(), cindex);
+
+            {
+                // update our local copy
+                ObjectDataTree * node = full_tree_state_.get_node_in_tree(index_in_tree);
+                if (!node) {
+                    spdlog::warn("Attempted to insert node into a null parent");
+                } else {
+                    node->set_data_value(key, value);
+                }
+            }
+
             mail(event_atom_v, property_atom_v, index_in_tree, key, value).send(properties_events_group_);
         },
         [=](property_atom, const int key) -> result<AnyPtr> {
-            return data_.get_data_value(key);
+            return full_tree_state_.get_data_value(key);
         },
-        [=](property_atom) -> result<ObjectDataTreePtr> {
+        [=](property_atom, caf::actor subscriber) -> ObjectDataTreePtr {
 
-            // Request the full state of the tree rooted at this actor.
-            auto auto_responder = AutoResponder<ObjectDataTreePtr>(children_.size(), this);
-            auto result = new ObjectDataTree(data_);
-            auto_responder.result().reset(result); 
-            for (size_t i = 0; i < children_.size(); ++i) {
-                mail(property_atom_v).request(children_[i].actor(), infinite).then(
-                    [=](ObjectDataTreePtr cdata) mutable {
-                        // this const_cast is ok as we 'own' cdata - it was a copy
-                        // made by the child and returned to us by this very
-                        // message handler (in the child)
-                        const_cast<ObjectDataTree *>(cdata.get())->set_parent(result);
-                        result->new_node(cdata, i);
-                        auto_responder.decrement();
-                    },
-                    [=](const caf::error &err) mutable{
-                        auto_responder.decrement(err);
-                    }
-                );
-            }
-            return auto_responder.response_promise();
+            scoped_actor sys(system());
+            request_receive<bool>(*sys, properties_events_group_, broadcast::join_broadcast_atom_v, subscriber);
+            return full_tree_state_.deep_copy();
+
         }
     };
 }

@@ -4,7 +4,7 @@
 import numpy as np
 
 from xstudio.core import AttributeRole, Uuid, PlaylistTree
-from xstudio.core import actor_from_string, uuid_atom
+from xstudio.core import actor_from_string, uuid_atom, URI
 from xstudio.plugin import PluginBase
 from xstudio.api.session import Container
 from xstudio.api.session.playlist import Playlist
@@ -216,8 +216,8 @@ class UtilityPythonPlugin(PluginBase):
                 )
         
         for path in media_urls:
-            print ("path", path)
-            self.connection.api.session.inspected_container.add_media(path)
+            print ("path", self.connection.api.session.inspected_container, path)
+            self.connection.api.session.inspected_container.add_media(URI(path))
 
 
 def create_plugin_instance(connection):
