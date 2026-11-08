@@ -178,43 +178,23 @@ public:
 
     void set_parent(ObjectDataTree *parent) { parent_ = parent; }
 
-    void new_node(const ObjectDataTreePtr &node, const int index) {
-        children_data_.resize(std::max(static_cast<size_t>(index) + 1, children_data_.size()));
-        children_data_[index] = node;
-    }
+    void new_node(const ObjectDataTreePtr &node, const int index);
+    
+    void insert_node(const ObjectDataTreePtr &node, const int index);    
 
-    void insert_node(const ObjectDataTreePtr &node, const int index) {
-        if (index < 0 || index >= num_nodes()) {
-            children_data_.push_back(node);
-        } else {
-            auto p = children_data_.begin() + index;
-            children_data_.insert(p, node);
-        }
-    }
+    void move_node(const int row, const int destination_row);
 
-    void move_node(const int row, const int destination_row) {
-        if (row < 0 || row >= num_nodes() || destination_row < 0 || destination_row > num_nodes())
-            return;
-        auto to_move = children_data_[row];
-        children_data_.erase(children_data_.begin() + row);
-        if (destination_row > row) {
-            children_data_.insert(children_data_.begin() + destination_row - 1, to_move);
-        } else {
-            children_data_.insert(children_data_.begin() + destination_row, to_move);
-        }
-    }
-
-    void remove_node(const int row) {
-        if (row < 0 || row >= num_nodes())
-            return;
-        children_data_.erase(children_data_.begin() + row);
-    }
+    void remove_node(const int row);
 
     ObjectDataTreePtr get_node(const int row) const {
         if (row < 0 || row >= num_nodes())
             return nullptr;
         return children_data_[row];
     }
+
+    ObjectDataTree * get_node_in_tree(const std::vector<int> &index_in_tree);
+
+    ObjectDataTreePtr deep_copy(int depth = 0) const;
 
     std::vector<ObjectDataTreePtr>::const_iterator begin() const { return children_data_.begin(); }
     std::vector<ObjectDataTreePtr>::const_iterator end() const { return children_data_.end(); }

@@ -545,6 +545,8 @@ caf::message_handler PlaylistActor::message_handler() {
             join_event_group(this, media);
             link_to(media);
             Playlist::insert_media(uuid, uuid_before);
+            anon_mail(utility::add_children_atom_v, ua, uuid_before).send(media_list_);
+            set_data_value(session::mediaCountRole, int(Playlist::num_media_items()));
 
             delayed_add_media_.push_back(ua);
             mail(playlist::add_media_atom_v, utility::event_atom_v)
@@ -574,6 +576,9 @@ caf::message_handler PlaylistActor::message_handler() {
                 link_to(media);
                 Playlist::insert_media(uuid, uuid_before);
             }
+
+            anon_mail(utility::add_children_atom_v, result, uuid_before).send(media_list_);
+            set_data_value(session::mediaCountRole, int(Playlist::num_media_items()));
 
             delayed_add_media_.insert(delayed_add_media_.end(), result.begin(), result.end());
 
@@ -733,6 +738,9 @@ caf::message_handler PlaylistActor::message_handler() {
                 Playlist::insert_media(i.uuid(), uuid_before);
                 join_event_group(this, i.actor());
             }
+            anon_mail(utility::add_children_atom_v, media_actors, uuid_before).send(media_list_);
+            set_data_value(session::mediaCountRole, int(Playlist::num_media_items()));
+
 
             // async caf system means we reverse iterate through our list and use 'await' so
             // that we are guaranteed to add them (in the innermost request response) in the
@@ -1704,9 +1712,11 @@ caf::message_handler PlaylistActor::message_handler() {
             auto rp = make_response_promise<bool>();
 
             if (Playlist::remove_media(uuid)) {
+
                 auto removed_media = media_.at(uuid);
                 media_.erase(media_.find(uuid));
                 unlink_from(removed_media);
+                set_data_value(session::mediaCountRole, int(Playlist::num_media_items()));
 
                 std::vector<caf::actor> actors;
                 for (const auto &i : container_)
@@ -1780,6 +1790,7 @@ caf::message_handler PlaylistActor::message_handler() {
             for (const auto &uuid : uuids) {
                 if (Playlist::remove_media(uuid)) {
                     changed = true;
+                    set_data_value(session::mediaCountRole, int(Playlist::num_media_items()));
                     auto a  = media_.at(uuid);
                     media_.erase(media_.find(uuid));
                     unlink_from(a);
@@ -2212,6 +2223,8 @@ void PlaylistActor::add_media(
     join_event_group(this, ua.actor());
     link_to(ua.actor());
     Playlist::insert_media(ua.uuid(), uuid_before);
+    anon_mail(utility::add_children_atom_v, ua, uuid_before).send(media_list_);
+    set_data_value(session::mediaCountRole, int(Playlist::num_media_items()));
 
     if (delayed and delayed_add_media_.empty()) {
         delayed_add_media_.push_back(ua);

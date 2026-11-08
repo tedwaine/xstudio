@@ -137,7 +137,7 @@ class Playlist(Container, NotificationHandler, JsonStoreHandler):
                     self.remote, add_media_atom(), path, ppp[0], ppp[1] if frame_list is None else frame_list, before_uuid
                 )[0]
 
-        return Media(self.connection, result.actor, result.uuid)
+        return [Media(self.connection, r.actor, r.uuid) for r in result]
 
     @property
     def media(self):
