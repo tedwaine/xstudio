@@ -298,6 +298,8 @@ int execute_xstudio_ui(
     QtWebEngineQuick::initialize();
 #endif
 
+#if defined(__xstudio_opengl__)
+
 #ifdef __OPENGL_4_1__
     // MacOS is limited to OpenGL 4.1
     constexpr int required_gl_major = 4;
