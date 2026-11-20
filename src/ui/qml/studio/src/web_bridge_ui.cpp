@@ -398,7 +398,8 @@ int WebBridgeUI::createTimeline(const QString &playlistUuid, const QString &name
         auto tl       = request_receive<UuidUuidActor>(
                       *sys,
                       playlist,
-                      playlist::create_timeline_atom_v,
+                      playlist::create_session_object_atom_v,
+                      "Timeline",
                       StdFromQString(name),
                       Uuid(),
                       false,
@@ -841,7 +842,8 @@ int WebBridgeUI::createContactSheet(const QString &playlistUuid, const QString &
         auto cs       = request_receive<UuidUuidActor>(
                       *sys,
                       playlist,
-                      playlist::create_contact_sheet_atom_v,
+                      playlist::create_session_object_atom_v,
+                      "ContactSheet",
                       StdFromQString(name),
                       Uuid(),
                       false)

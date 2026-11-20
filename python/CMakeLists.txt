@@ -22,6 +22,9 @@ if(APPLE)
     add_custom_command(OUTPUT ${VCPKG_LOCATION}/xstudio/api
                     COMMAND ${Python_EXECUTABLE}
                     ARGS setup.py install --old-and-unmanageable --prefix=${VCPKG_LOCATION}
+                    COMMAND ${CMAKE_COMMAND} -E copy_directory
+                        ${CMAKE_CURRENT_SOURCE_DIR}/src/xstudio
+                        ${CMAKE_BINARY_DIR}/xSTUDIO.app/Contents/Resources/python/lib/${PYTHONVP}/site-packages/xstudio
                     DEPENDS ${DEPS})
 
     add_custom_target(python_module ALL DEPENDS __pybind_xstudio ${VCPKG_LOCATION}/xstudio/api)

@@ -344,7 +344,7 @@ class Playlist(Container, NotificationHandler, JsonStoreHandler):
         return import_timeline_from_file(self, path, name, before)
 
 
-    def create_timeline(self, name="Timeline", before=Uuid(), into=False, with_tracks=True):
+    def create_timeline(self, name="Timeline", before=Uuid(), into=False, with_tracks=True, rate=None):
         """Create new timeline.
 
         Kwargs:
@@ -352,6 +352,7 @@ class Playlist(Container, NotificationHandler, JsonStoreHandler):
             before(Uuid): Insert before this item.
             into(bool): Insert into this container (not used).
             with_tracks(bool): Add default tracks.
+            rate(FrameRate): Timeline frame rate. Uses the playlist rate when omitted.
 
         Returns:
             timeline(Uuid,Timeline): Returns container Uuid and Timeline.
@@ -359,7 +360,27 @@ class Playlist(Container, NotificationHandler, JsonStoreHandler):
         if not isinstance(before, Uuid):
             before = before.uuid
 
-        result = self.connection.request_receive(self.remote, create_session_object_atom(), "Timeline", name, before, into, with_tracks)[0]
+        if rate is None:
+            result = self.connection.request_receive(
+                self.remote,
+                create_session_object_atom(),
+                "Timeline",
+                name,
+                before,
+                into,
+                with_tracks
+            )[0]
+        else:
+            result = self.connection.request_receive(
+                self.remote,
+                create_session_object_atom(),
+                "Timeline",
+                name,
+                rate,
+                before,
+                into,
+                with_tracks
+            )[0]
 
         return (result[0], Timeline(self.connection, result[1].actor, result[1].uuid))
 

@@ -83,6 +83,7 @@ For iteration on C++ / QML source changes, use:
     cmake --build build
 
 and re-launch `build/xSTUDIO.app`. A single-file relink completes in seconds instead of minutes.
+The build also copies changes to the xstudio Python package into the app bundle.
 
 You should re-run `cmake --build build --target install` when:
 

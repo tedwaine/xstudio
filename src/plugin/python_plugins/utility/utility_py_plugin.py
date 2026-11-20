@@ -3,11 +3,14 @@
 
 import numpy as np
 
-from xstudio.core import AttributeRole, Uuid, PlaylistTree
+from xstudio.core import AttributeRole, Uuid, PlaylistTree, FrameRate
 from xstudio.core import actor_from_string, uuid_atom, URI
 from xstudio.plugin import PluginBase
 from xstudio.api.session import Container
 from xstudio.api.session.playlist import Playlist
+from xstudio.api.session.playlist.subset import Subset
+from xstudio.api.session.playlist.contact_sheet import ContactSheet
+from xstudio.api.session.playlist.timeline import Timeline
 
 
 # This plugin is intended to allow for various utility functions to be 
@@ -218,6 +221,68 @@ class UtilityPythonPlugin(PluginBase):
         for path in media_urls:
             print ("path", self.connection.api.session.inspected_container, path)
             self.connection.api.session.inspected_container.add_media(URI(path))
+
+    def add_selected_media_to_new_object(self, name, rate=None, object_type="Timeline", count=-1):
+        """Add the inspected container's selected media to a new object of the specified type."""
+        current_container = self.connection.api.session.inspected_container
+        if not current_container:
+            raise ValueError("No inspected container available.")
+
+        selected_media = current_container.playhead_selection.selected_sources
+
+        if isinstance(current_container, Playlist):
+            parent_playlist = current_container
+        elif isinstance(current_container, (Subset, ContactSheet, Timeline)):
+            parent_playlist = current_container.parent_playlist
+        else:
+            raise ValueError(
+                "Cannot create a " + object_type + " from container type "
+                + str(current_container.type)
+            )
+
+        timeline_rate = rate if isinstance(rate, FrameRate) else FrameRate(float(rate))
+        if object_type == "Timeline":
+            timeline = parent_playlist.create_timeline(
+                name=name,
+                with_tracks=False,
+                rate=timeline_rate
+            )[1]
+            print ("Created timeline:", timeline)
+            video_track = timeline.insert_video_track()
+            print ("Inserted video track:", video_track)
+
+            for media in selected_media:
+                timeline.add_media(media)
+                video_track.insert_clip(media)
+
+            return True
+        elif object_type == "ContactSheet":
+            if count == -1:
+                contact_sheet = parent_playlist.create_contact_sheet(
+                    name=name
+                )[1]
+                for media in selected_media:
+                    contact_sheet.add_media(media)
+            else:
+                for i in range(0, len(selected_media), count):
+                    contact_sheet = parent_playlist.create_contact_sheet(
+                        name=self.connection.api.session.get_next_name(name + " {}")
+                    )[1]
+                    for media in selected_media[i:i+count]:
+                        contact_sheet.add_media(media)
+            return True
+        elif object_type == "Subset":
+            subset = parent_playlist.create_subset(
+                name=name
+            )[1]
+            for media in selected_media:
+                subset.add_media(media)
+
+            return True
+        else:
+            raise ValueError("Unsupported object type: " + object_type)
+
+        # Moved inside the Timeline check above
 
 
 def create_plugin_instance(connection):

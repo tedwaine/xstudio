@@ -1,7 +1,10 @@
 // SPDX-License-Identifier: Apache-2.0
 #include <gtest/gtest.h>
+#include <pybind11/embed.h>
 
+#include "xstudio/atoms.hpp"
 #include "xstudio/embedded_python/embedded_python.hpp"
+#include "xstudio/utility/caf_helpers.hpp"
 #include "xstudio/utility/helpers.hpp"
 #include "xstudio/utility/logging.hpp"
 #include "xstudio/utility/uuid.hpp"
@@ -46,4 +49,27 @@ TEST(EmbeddedPython, Test) {
     // 	auto c = s.eval("'"+to_string(u)+"' in xstudio_sessions");
 
     // }catch(...){}
+}
+
+TEST(EmbeddedPython, SpawnTrackThroughLocalConnection) {
+    auto &system = xstudio::CafActorSystem::system();
+    caf::scoped_actor self{system};
+    EmbeddedPython python{"test"};
+    python.setup();
+
+    pybind11::globals()["test_actor"] = pybind11::cast(caf::actor_cast<caf::actor>(self));
+    try {
+        python.exec(
+            "link = Link()\n"
+            "assert link.connect_local(test_actor)\n"
+            "track = link.remote_spawn('Track', 'Test Track', FrameRate(24), MediaType.MT_IMAGE)\n");
+    } catch (const pybind11::error_already_set &error) {
+        FAIL() << error.what();
+    }
+
+    auto track = pybind11::cast<caf::actor>(pybind11::globals()["track"]);
+    ASSERT_TRUE(track);
+    EXPECT_EQ(request_receive<std::string>(*self, track, name_atom_v), "Test Track");
+    self->send_exit(track, caf::exit_reason::user_shutdown);
+    python.exec("del track, link, test_actor");
 }

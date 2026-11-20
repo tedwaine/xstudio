@@ -242,11 +242,14 @@ caf::actor py_context::py_remote_spawn(const py::args &xs) {
     auto i      = xs.begin();
     auto name   = (*i).cast<std::string>();
     auto msg    = py_build_message(xs);
-    auto remote = system_.middleman().remote_spawn<caf::actor>(
+    if (!remote_)
+        set_py_exception("Cannot spawn remote actor '", name, "': not connected.");
+    // A locally connected actor may belong to a different in-process actor system.
+    auto remote = remote_.home_system().middleman().remote_spawn<caf::actor>(
         remote_.node(), name, *msg, std::chrono::seconds(30));
     if (remote)
         return *remote;
-    set_py_exception("Failed to spawn remote actor.");
+    set_py_exception("Failed to spawn remote actor '", name, "': ", to_string(remote.error()));
     return {};
 }
 

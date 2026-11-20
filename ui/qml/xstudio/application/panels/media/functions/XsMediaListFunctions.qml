@@ -3,7 +3,7 @@ import QtQuick
 import QtQml.Models 2.15
 import xstudio.qml.helpers 1.0
 import xstudio.qml.clipboard 1.0
-
+import QuickFuture 1.0
 import xStudio 1.0
 
 Item {
@@ -489,51 +489,35 @@ Item {
     }
 
     function addToNewSequence(name, rate) {
-        let sub = theSessionData.createPlaylistChild(name, "Timeline", rate, theSessionData.getPlaylistIndex(mediaSelectionModel.selectedIndexes[0]))
 
-        // get reference to timelineitem
-        let tindex = theSessionData.index(2, 0, sub)
+        Future.promise(
+                helpers.pythonAsyncCallback("UtilityPythonPlugin", "add_selected_media_to_new_object", {"name": name, "rate": rate, "object_type": "Timeline"})
+            ).then(function(result) {
+            },
+	        function() {
+                console.log("ERROR", __rr)
+	        })
 
-        theSessionData.fetchMoreWait(tindex)
-        let sindex = theSessionData.index(0, 0, tindex)
-        let vindex = theSessionData.index(0, 0, sindex)
-        let aindex = theSessionData.index(1, 0, sindex)
-
-        // copy media into timeline medialist.
-        theSessionData.copyRows(mediaSelectionModel.selectedIndexes, 0, sub)
-
-        for(let i = 0; i< mediaSelectionModel.selectedIndexes.length; i++) {
-            let mindex = mediaSelectionModel.selectedIndexes[i]
-            if(mindex.valid && vindex.valid && aindex.valid) {
-                theSessionData.insertTimelineClip(i, vindex, mindex, "")
-                theSessionData.insertTimelineClip(i, aindex, mindex, "")
-            }
-        }
     }
 
     function addToNewSubset(name) {
-        let sub = theSessionData.createPlaylistChild(name, "Subset", "", theSessionData.getPlaylistIndex(mediaSelectionModel.selectedIndexes[0]))
-        theSessionData.copyRows(mediaSelectionModel.selectedIndexes, 0, sub)
+        Future.promise(
+                helpers.pythonAsyncCallback("UtilityPythonPlugin", "add_selected_media_to_new_object", {"name": name, "object_type": "Subset"})
+            ).then(function(result) {
+            },
+	        function() {
+                console.log("ERROR", __rr)
+	        })
     }
 
 
     function addToNewContactSheet(name, count = -1) {
-        if(count == -1) {
-            let sub = theSessionData.createPlaylistChild(name, "ContactSheet", "", theSessionData.getPlaylistIndex(mediaSelectionModel.selectedIndexes[0]))
-            theSessionData.copyRows(mediaSelectionModel.selectedIndexes, 0, sub)
-        } else {
-            function splitArray(arr, chunkSize) {
-                return Array.from({ length: Math.ceil(arr.length / chunkSize) }, (_, i) =>
-                    arr.slice(i * chunkSize, i * chunkSize + chunkSize)
-                );
-            }
-
-            let chunks = splitArray(mediaSelectionModel.selectedIndexes, count);
-            let parent = theSessionData.getPlaylistIndex(mediaSelectionModel.selectedIndexes[0])
-            for(let i = 0; i < chunks.length; i++) {
-                let sub = theSessionData.createPlaylistChild(theSessionData.getNextName(name), "ContactSheet", "", parent)
-                theSessionData.copyRows(chunks[i], 0, sub)
-            }
-        }
+        Future.promise(
+                helpers.pythonAsyncCallback("UtilityPythonPlugin", "add_selected_media_to_new_object", {"name": name, "object_type": "ContactSheet", "count": count})
+            ).then(function(result) {
+            },
+	        function() {
+                console.log("ERROR", __rr)
+	        })
     }
 }
