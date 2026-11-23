@@ -55,6 +55,11 @@ void ImageBufferRecyclerCache::store_unwanted_buffer(
 
     // uncomment this to turn the whole thing off
     // return;
+
+    // externally allocated memory is not ours to re-use
+    if (buf && buf->is_external_)
+        return;
+
     mutex_.lock();
     while ((total_size_ + size) > max_size_) {
 
@@ -118,7 +123,7 @@ std::shared_ptr<ImageBufferRecyclerCache> Buffer::s_buf_cache =
 Buffer::~Buffer() { s_buf_cache->store_unwanted_buffer(buffer_, size_); }
 
 xstudio::media_reader::byte *Buffer::allocate(const size_t size) {
-    if (size_ != size) {
+    if (size_ != size || (buffer_ && buffer_->is_external_)) {
 
         buffer_ = s_buf_cache->fetch_recycled_buffer(size);
         if (!buffer_) {
@@ -127,6 +132,11 @@ xstudio::media_reader::byte *Buffer::allocate(const size_t size) {
         size_ = size;
     }
     return buffer();
+}
+
+void Buffer::assign(byte *ptr, const size_t size, ExternalDeleter deleter) {
+    buffer_ = std::make_shared<BufferData>(ptr, std::move(deleter));
+    size_   = size;
 }
 
 void Buffer::resize(const size_t size) {

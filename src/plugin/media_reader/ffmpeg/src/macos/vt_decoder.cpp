@@ -642,61 +642,71 @@ int VtDecoder::receive_frame(ImageBufPtr &image) {
     const OSType got       = CVPixelBufferGetPixelFormatType(pb);
     const OutputFormat *of = output_format(got);
     const bool ok          = of != nullptr;
+    bool pb_owned          = false; // true once the image owns (and will release) pb
     d.output_format        = got;
     if (ok) {
         const int w              = int(CVPixelBufferGetWidth(pb));
         const int h              = int(CVPixelBufferGetHeight(pb));
         const size_t plane_count = CVPixelBufferGetPlaneCount(pb);
+
+        if (CVPixelBufferLockBaseAddress(pb, kCVPixelBufferLock_ReadOnly) != kCVReturnSuccess) {
+            CVPixelBufferRelease(pb);
+            return AVERROR_EXTERNAL;
+        }
+
+        std::array<const uint8_t *, 4> plane_src{};
+        std::array<size_t, 4> plane_strides{};
         std::array<size_t, 4> plane_sizes{};
         size_t total_size = 0;
-        for (size_t i = 0; i < plane_count && i < plane_sizes.size(); ++i) {
-            plane_sizes[i] = CVPixelBufferGetBytesPerRowOfPlane(pb, i) *
-                             CVPixelBufferGetHeightOfPlane(pb, i);
+        bool contiguous   = true;
+        for (size_t i = 0; i < plane_count; ++i) {
+            plane_src[i] =
+                static_cast<const uint8_t *>(CVPixelBufferGetBaseAddressOfPlane(pb, i));
+            plane_strides[i] = CVPixelBufferGetBytesPerRowOfPlane(pb, i);
+            plane_sizes[i]   = plane_strides[i] * CVPixelBufferGetHeightOfPlane(pb, i);
+            if (i && plane_src[i] != plane_src[i - 1] + plane_sizes[i - 1]) {
+                contiguous = false;
+            }
             total_size += plane_sizes[i];
         }
 
         image.reset(new ImageBuffer());
-        auto *base = reinterpret_cast<uint8_t *>(image->allocate(total_size + 4096));
-        utility::JsonStore params;
-        //utility::time_point start_time = utility::clock::now();
-        if (CVPixelBufferLockBaseAddress(pb, kCVPixelBufferLock_ReadOnly) == kCVReturnSuccess) {
-            size_t offset = 0;
-            for (size_t i = 0; i < plane_count && i < 4; ++i) {
-                const auto stride = CVPixelBufferGetBytesPerRowOfPlane(pb, i);
-                const auto rows   = CVPixelBufferGetHeightOfPlane(pb, i);
-                const auto *src =
-                    static_cast<const uint8_t *>(CVPixelBufferGetBaseAddressOfPlane(pb, i));
-                const size_t plane_size = stride * rows;
-
-                // On an M1 mac mini, this memcpy is killing performance of the decoder in some cases. My 
-                // suspicion is that the decoder is running on the CPU (since I see a high CPU load on 
-                // VTDecoderXPCService during playback of prores 4444 XQ). The scheduler might be moving
-                // the memcpy around, causing cache misses and poor performance. Or some throttling happens
-                // on RAM bandwidth. no idea yet.
-
-                // TO DO: take ownership of the plane data directly if possible to avoid memcpy.
-                std::memcpy(base + offset, src, plane_size);
-                if (of->packing == Packing::S4as && i == 2) {
-                    params["a_linesize"]           = int(stride);
-                    params["a_plane_bytes_offset"] = offset;
-                } else if (i == 0) {
-                    params["y_linesize"]           = int(stride);
-                    params["y_plane_bytes_offset"] = offset;
-                } else if (i == 1) {
-                    params["u_linesize"]           = int(stride);
-                    params["u_plane_bytes_offset"] = offset;
-                } else if (i == 2) {
-                    params["v_linesize"]           = int(stride);
-                    params["v_plane_bytes_offset"] = offset;
-                }
-                offset += plane_size;
+        if (contiguous && plane_count) {
+            // The planes form one block of memory, so the image can use it in place. The
+            // pixel buffer stays locked and retained until the image is destroyed.
+            image->assign(
+                reinterpret_cast<media_reader::byte *>(const_cast<uint8_t *>(plane_src[0])),
+                total_size,
+                [pb](media_reader::byte *) {
+                    CVPixelBufferUnlockBaseAddress(pb, kCVPixelBufferLock_ReadOnly);
+                    CVPixelBufferRelease(pb);
+                });
+            pb_owned = true;
+        } else {
+            auto *base = reinterpret_cast<uint8_t *>(image->allocate(total_size));
+            size_t copy_offset = 0;
+            for (size_t i = 0; i < plane_count; ++i) {
+                std::memcpy(base + copy_offset, plane_src[i], plane_sizes[i]);
+                copy_offset += plane_sizes[i];
             }
             CVPixelBufferUnlockBaseAddress(pb, kCVPixelBufferLock_ReadOnly);
-            //utility::time_point end_time = utility::clock::now();
-            //std::cerr << "Plane copy time: " << std::chrono::duration_cast<std::chrono::milliseconds>(end_time - start_time).count() << " ms" << std::endl;
-        } else {
-            CVPixelBufferRelease(pb);
-            return AVERROR_EXTERNAL;
+        }
+
+        utility::JsonStore params;
+        size_t offset = 0;
+        for (size_t i = 0; i < plane_count; ++i) {
+            const auto stride = plane_strides[i];
+            if (i == 0) {
+                params["y_linesize"]           = int(stride);
+                params["y_plane_bytes_offset"] = offset;
+            } else if (i == 1) {
+                params["u_linesize"]           = int(stride);
+                params["u_plane_bytes_offset"] = offset;
+            } else if (i == 2) {
+                params["v_linesize"]           = int(stride);
+                params["v_plane_bytes_offset"] = offset;
+            }
+            offset += plane_sizes[i];
         }
 
         VtColorSpace colorspace                  = d.colorspace;
@@ -730,7 +740,8 @@ int VtDecoder::receive_frame(ImageBufPtr &image) {
             double(pts) * double(d.time_base.num) / double(d.time_base.den));
     }
 
-    CVPixelBufferRelease(pb);
+    if (!pb_owned)
+        CVPixelBufferRelease(pb);
 
     if (!ok) {
         spdlog::warn("VideoToolbox selected unsupported pixel format {}", fourcc_string(got));

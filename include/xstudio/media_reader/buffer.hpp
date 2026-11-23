@@ -8,7 +8,9 @@
 
 #include <cassert>
 #include <cstdint>
+#include <functional>
 #include <iostream>
+#include <memory>
 #include <new>
 
 #define UNSET_DTS -1e6
@@ -34,10 +36,17 @@ class Buffer {
     */
     void resize(const size_t size);
 
-    /*virtual void assign(byte *buffer, const size_t size) {
-        buffer_ = std::unique_ptr<byte>(buffer);
-        size_   = size;
-    }*/
+    typedef std::function<void(byte *)> ExternalDeleter;
+
+    /*
+    Take ownership of memory that was allocated elsewhere. 'deleter' is called
+    with 'ptr' when the last reference to the memory is released and is
+    responsible for freeing it (or releasing whatever object it belongs to). An
+    empty deleter means the memory is not owned and is never freed. Externally
+    allocated memory is never recycled, and the caller must not free it
+    itself. No padding is applied to 'size' (unlike ImageBuffer::allocate).
+    */
+    void assign(byte *ptr, const size_t size, ExternalDeleter deleter);
 
     void set_params(const utility::JsonStore &params) { params_ = params; }
 
@@ -66,16 +75,33 @@ class Buffer {
 
     struct BufferData {
         struct BufferDeleter {
-            void operator()(byte *ptr) const { operator delete[](ptr, std::align_val_t(1024)); }
+            BufferDeleter() = default;
+            explicit BufferDeleter(ExternalDeleter d) : external_(std::move(d)) {}
+            void operator()(byte *ptr) const {
+                if (external_) {
+                    external_(ptr);
+                } else {
+                    operator delete[](ptr, std::align_val_t(1024));
+                }
+            }
+            ExternalDeleter external_;
         };
 
-        // BufferData(byte *d) : data_(d, BufferDeleter()) {}
         BufferData(size_t sz) : data_(nullptr, BufferDeleter()) {
             byte *ptr = static_cast<byte *>(operator new[](sz, std::align_val_t(1024)));
             data_.reset(ptr);
         }
 
+        // Wraps externally allocated memory; 'deleter' (a no-op if empty) frees it.
+        BufferData(byte *ptr, ExternalDeleter deleter)
+            : data_(
+                  ptr,
+                  BufferDeleter(
+                      deleter ? std::move(deleter) : ExternalDeleter([](byte *) {}))),
+              is_external_(true) {}
+
         std::unique_ptr<byte, BufferDeleter> data_;
+        bool is_external_ = {false};
     };
     typedef std::shared_ptr<BufferData> BufferDataPtr;
 
