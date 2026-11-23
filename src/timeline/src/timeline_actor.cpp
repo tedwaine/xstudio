@@ -2659,7 +2659,9 @@ caf::message_handler TimelineActor::message_handler() {
 
             auto rp = make_response_promise<bool>();
 
+            utility::UuidActorVector old_children;
             for (const auto &i : media_actors_) {
+                old_children.push_back(UuidActor(i.first, i.second));
                 if (auto mit = monitor_.find(caf::actor_cast<caf::actor_addr>(i.second));
                     mit != std::end(monitor_)) {
                     mit->second.dispose();
@@ -2667,6 +2669,7 @@ caf::message_handler TimelineActor::message_handler() {
                 }
             }
             media_actors_.clear();
+            anon_mail(utility::remove_children_atom_v, old_children).send(media_list_);
 
             playlist_ = caf::actor_cast<actor_addr>(playlist);
 
@@ -2694,6 +2697,7 @@ caf::message_handler TimelineActor::message_handler() {
                             }
                         }
                         // link
+                        utility::UuidActorVector new_children;
                         for (const auto &i : Timeline::media()) {
                             auto ii = (swap.count(i) ? swap.at(i) : i);
                             if (ii != i) {
@@ -2701,7 +2705,9 @@ caf::message_handler TimelineActor::message_handler() {
                             }
                             media_actors_[ii] = amap[ii];
                             monitor_media(amap[ii]);
+                            new_children.push_back(UuidActor(ii, amap[ii]));
                         }
+                        anon_mail(utility::add_children_atom_v, new_children).send(media_list_);
 
                         // for(const auto &i: actors_)
                         //     spdlog::warn("{} {}", to_string(i.first),to_string(i.second));
@@ -2946,6 +2952,13 @@ void TimelineActor::init() {
     print_on_create(this, Timeline::name());
     print_on_exit(this, Timeline::name());
 
+    // for the class hierarchy that is reflecgted in the UI we add an ObjectActor that groups all the
+    // media items in this playlist. This allows us to separate from other children, namely sub-containers
+    // like Subset, COntactSheet, Timeline etc.
+    const auto media_list_uuid = utility::Uuid::generate();
+    media_list_ = utility::UuidActor(media_list_uuid, spawn<utility::ObjectActor>("Media List", media_list_uuid));
+    add_child(utility::UuidActor(media_list_uuid, media_list_));
+
     change_event_group_ = spawn<broadcast::BroadcastActor>(this);
     link_to(change_event_group_);
 
@@ -3086,6 +3099,7 @@ void TimelineActor::add_media(caf::actor actor, const Uuid &uuid, const Uuid &be
         if (not Timeline::contains_media(uuid)) {
             Timeline::insert_media(uuid, before_uuid);
             media_actors_[uuid] = actor;
+            anon_mail(utility::add_children_atom_v, utility::UuidActor(uuid, actor), before_uuid).send(media_list_);
             monitor_media(actor);
         }
     } else {
@@ -3121,6 +3135,7 @@ void TimelineActor::add_media(
         }
 
         add_media(actor, ua.uuid(), before_uuid);
+        anon_mail(utility::add_children_atom_v, utility::UuidActor(ua.uuid(), actor), before_uuid).send(media_list_);
         mail(event_atom_v, playlist::add_media_atom_v, UuidActorVector({ua}))
             .send(Timeline::event_group());
         Timeline::send_changed();

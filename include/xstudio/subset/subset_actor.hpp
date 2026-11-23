@@ -59,6 +59,7 @@ class SubsetActor : public xstudio::utility::ObjectActor, protected Subset {
     caf::actor_addr playlist_;
     caf::actor change_event_group_;
     caf::actor selection_actor_;
+    caf::actor media_list_;
     utility::UuidActorMap actors_;
     utility::UuidActor playhead_;
 

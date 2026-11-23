@@ -339,6 +339,17 @@ caf::message_handler UIDataModel::core_message_handler() {
         },
         [=](event_atom, add_children_atom, std::vector<int> index_in_tree, const int insertion_index, const ObjectDataTreePtr &__child_data, const utility::Uuid &child_id, const std::string & name) {
 
+            std::string nm;
+            auto nn = __child_data->get_data_value<std::string>(session::nameRole);
+            if (nn) {
+                nm = *nn;
+            }
+            std::cerr << "Adding child " << nm << " with ID: " << to_string(child_id) << " at insertion index: " << name << " " << insertion_index << std::endl;
+            std::cerr << "Index in tree: ";
+            for (const auto &ii : index_in_tree) {
+                std::cerr << ii << " ";
+            }
+            std::cerr << std::endl;
             if (child_id != *(root_->get_data_value<utility::Uuid>(session::uuidRole))) {
                 return;
             }
@@ -355,12 +366,15 @@ caf::message_handler UIDataModel::core_message_handler() {
             ObjectDataTree * node = const_cast<ObjectDataTree *>(UIDataModel::node_from_index(parent_index));
             beginInsertRows(parent_index, insertion_index, insertion_index);
             if (node) {
+                qDebug() << "Waggle " << parent_index << " " << node << "\n";
+
                 auto cd = __child_data->deep_copy();
                 register_subtree(cd.get());
                 node->insert_node(cd, insertion_index);
             }
             endInsertRows();
             emit lengthChanged();
+            
 
         },
         [=](model_data::watch_model_data_atom, caf::actor data_source) {

@@ -889,10 +889,6 @@ caf::message_handler PlaylistActor::message_handler() {
                 uuid,
                 caf::actor_cast<caf::actor>(this)
             );
-
-            anon_mail(utility::add_children_atom_v, utility::UuidActor(uuid, actor), uuid_before)
-                .send(child_containers_);
-
             anon_mail(playhead::playhead_rate_atom_v, Playlist::playhead_rate()).send(actor);
             create_container(actor, rp, uuid_before, into);
             return rp;
@@ -2199,6 +2195,20 @@ void PlaylistActor::create_container(
                 if (detail.type_ == "ContainerDivider") {
                     dividers_.insert(detail.uuid_);
                 }
+
+                mail(uuid_atom_v)
+                    .request(actor, infinite)
+                    .await(
+                        [=](const utility::Uuid &frt) mutable {
+                            std::cerr << "MNASFAS " << to_string(frt) << std::endl;
+                        },
+                        [=](error &err) mutable {
+                            log_caf_error(err, spdlog::level::debug);
+                        });
+
+                std::cerr << "Wangoloon " << to_string(detail.uuid_) << std::endl;
+                anon_mail(utility::add_children_atom_v, UuidActor(detail.uuid_, actor), uuid_before)
+                    .send(child_containers_);
 
                 mail(
                     utility::event_atom_v,

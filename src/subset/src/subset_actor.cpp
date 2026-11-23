@@ -102,7 +102,10 @@ void SubsetActor::add_media(
     if (not Subset::contains_media(uuid)) {
         Subset::insert_media(uuid, before_uuid);
         actors_[uuid] = actor;
+        anon_mail(utility::add_children_atom_v, utility::UuidActor(uuid, actor), before_uuid).send(media_list_);
         monitor_media(actor);
+        std::cerr << "Count " << Subset::media().size() << std::endl;
+        set_data_value(session::mediaCountRole, int(Subset::media().size()));
     }
 }
 
@@ -117,6 +120,8 @@ bool SubsetActor::remove_media(caf::actor actor, const utility::Uuid &uuid) {
         }
 
         actors_.erase(uuid);
+        anon_mail(utility::remove_children_atom_v, utility::UuidActor(uuid, actor)).send(media_list_);
+        set_data_value(session::mediaCountRole, int(Subset::media().size()));
         result = true;
     }
 
@@ -204,13 +209,17 @@ caf::message_handler SubsetActor::message_handler() {
             // swap maps media uuids for our current parent playlist to the corresponding
             // media uuids of the cloned media in the NEW parent playlsit
 
+            utility::UuidActorVector old_children;
             for (const auto &i : actors_) {
                 if (auto it = monitor_.find(caf::actor_cast<caf::actor_addr>(i.second));
                     it != std::end(monitor_)) {
                     it->second.dispose();
                     monitor_.erase(it);
                 }
+                old_children.push_back(UuidActor(i.first, i.second));   
             }
+            anon_mail(utility::remove_children_atom_v, old_children).send(media_list_);
+
             actors_.clear();
             playlist_ = caf::actor_cast<actor_addr>(new_parent_playlist);
 
@@ -238,6 +247,7 @@ caf::message_handler SubsetActor::message_handler() {
                     }
                 }
                 // link
+                utility::UuidActorVector new_children;
                 for (const auto &i : Subset::media()) {
                     auto ii = (swap.count(i) ? swap.at(i) : i);
                     if (ii != i) {
@@ -245,7 +255,11 @@ caf::message_handler SubsetActor::message_handler() {
                     }
                     actors_[ii] = amap[ii];
                     monitor_media(amap[ii]);
+                    new_children.push_back(utility::UuidActor(ii, amap[ii]));
                 }
+                anon_mail(utility::add_children_atom_v, new_children).send(media_list_);
+                set_data_value(session::mediaCountRole, int(Subset::media().size()));
+
             } catch (const std::exception &e) {
                 spdlog::error("Failed to init Subset {}", e.what());
                 Subset::clear();
@@ -858,8 +872,16 @@ caf::message_handler SubsetActor::message_handler() {
 }
 
 void SubsetActor::init() {
+
     print_on_create(this, *this);
     print_on_exit(this, *this);
+
+    // for the class hierarchy that is reflecgted in the UI we add an ObjectActor that groups all the
+    // media items in this playlist. This allows us to separate from other children, namely sub-containers
+    // like Subset, COntactSheet, Timeline etc.
+    const auto media_list_uuid = utility::Uuid::generate();
+    media_list_ = utility::UuidActor(media_list_uuid, spawn<utility::ObjectActor>("Media List", media_list_uuid));
+    add_child(utility::UuidActor(media_list_uuid, media_list_));
 
     change_event_group_ = spawn<broadcast::BroadcastActor>(this);
     link_to(change_event_group_);

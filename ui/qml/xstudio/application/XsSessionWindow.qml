@@ -449,15 +449,18 @@ ApplicationWindow {
         }
     }
 
-    //property alias theSessionDataNew: sessionData.sessionNew
-
+    // New Model entires
+    property alias playlistsModelData: sessionData.playlistsModelData
+    property alias inspectedContainerActor: sessionData.inspectedContainerActor
+    property alias viewedContainer: sessionData.viewedContainer
+    property alias viewedContainerActor: sessionData.viewedContainerActor
+    property alias inspectedContainer: sessionData.inspectedContainer
+    
     // Makes these important global items visible in child contexts
     property alias theSessionData: sessionData.session
     property alias sessionSelectionModel: sessionData.sessionSelectionModel
     property alias globalStoreModel: sessionData.globalStoreModel
     property alias mediaSelectionModel: sessionData.mediaSelectionModel
-    property alias playlistsModelData: sessionData.playlistsModelData
-    property alias inspectedContainerActor: sessionData.inspectedContainerActor
     property alias playlistsSelectionModel: sessionData.playlistsSelectionModel 
     property alias currentMediaContainerIndex: sessionData.currentMediaContainerIndex
     property alias viewportCurrentMediaContainerIndex: sessionData.viewportCurrentMediaContainerIndex

@@ -7,6 +7,7 @@ import xstudio.qml.helpers 1.0
 import xstudio.qml.models 1.0
 import xstudio.qml.viewport 1.0
 import xstudio.qml.clipboard 1.0
+import xstudio.qml.session 1.0
 
 import xStudio 1.0
 
@@ -94,7 +95,6 @@ Item {
 
             viewedTimelineIndex = helpers.makePersistent(viewedMediaSetProperties.index)
             forceActiveFocus()
-            getViewedTimelinePlayheadUuid(0)
 
         }
         setTimelines()
@@ -149,48 +149,37 @@ Item {
     // then timelinePlayhead should connect to the special multiTimeline playhead
     // that is owned by the xSTUDIO Session object.
     property var multiComparePlayheadID: helpers.QUuidFromUuidString("442f6169-a3b0-465d-850d-03280b224d70")
-    property var currentPlayheadUuid: currentPlayhead.uuid
     property alias timelinePlayhead: timelinePlayhead
-    property bool isPlayheadActive: timelinePlayhead.pinnedSourceMode ? currentPlayhead.uuid == timelinePlayhead.uuid : false
+    property bool isPlayheadActive: currentPlayhead.playheadActor == timelinePlayhead.playheadActor
     property var viewedTimelinePlayheadUuid: undefined
+
+    property var timelineActor: undefined
+    property var vca: viewedContainerActor
+    onVcaChanged: {
+        console.log("VCA changed: " + vca, viewedContainer.values.typeRole, viewedContainer.values.activePlayheadActorRole)
+        if (viewedContainer.values.typeRole === "Timeline") {
+            timelineActor = viewedContainerActor
+        } else {
+            timelineActor = undefined
+        }
+    }
+    onTimelineActorChanged: console.log("Timeline actor changed: " + timelineActor)
+
+    XsSessionModelNode {
+        id: __timelineModelData    
+        rootActor: timelineActor
+    }
 
     XsPlayhead {
         id: timelinePlayhead
-        uuid: timelines.length > 1 ? multiComparePlayheadID : viewedTimelinePlayheadUuid
-        Component.onCompleted: {
-            getViewedTimelinePlayheadUuid(0)
-        }
+        playheadActor: __timelineModelData.values.activePlayheadActorRole
+        onPlayheadActorChanged: console.log("Timeline playhead actor changed: " + timelinePlayhead.playheadActor)
     }
 
-    function getViewedTimelinePlayheadUuid(retry) {
+    property var foop: currentPlayhead.playheadActor
+    property var bar: timelinePlayhead.playheadActor
 
-        // connect to the timeline playhead ...
-        let playhead_idx = theSessionData.searchRecursive(
-            "Playhead",
-            "typeRole",
-            viewedTimelineIndex
-            )
-
-        if (playhead_idx.valid) {
-            let playhead_uuid = theSessionData.get(playhead_idx, "actorUuidRole")
-            if (playhead_uuid == undefined) {
-                // uh-oh - remember the session model is populated asynchronously
-                // we might need to wait few milliseconds until "actorUuidRole" for
-                // the playhead has been filled in.
-                if (retry < 3) {
-                    callbackTimer.setTimeout(function() { return function() {
-                        getViewedTimelinePlayheadUuid(retry+1)
-                    }}(), 200);
-                }
-            } else {
-                viewedTimelinePlayheadUuid = playhead_uuid
-            }
-        } else if (retry < 3) {
-            callbackTimer.setTimeout(function() { return function() {
-                getViewedTimelinePlayheadUuid(retry+1)
-            }}(), 200);
-        }
-
-    }
+    onFoopChanged: console.log("Foop changed: " + foop, "Bar: " + bar)
+    onBarChanged: console.log("Bar changed: " + bar, "Foop: " + foop)
 
 }

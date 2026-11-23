@@ -128,6 +128,7 @@ class TimelineActor : public xstudio::utility::ObjectActor, protected Timeline {
     caf::actor history_;
 
     caf::actor selection_actor_;
+    caf::actor media_list_;
 
     utility::UuidActorMap item_actors_;
     utility::UuidActorMap media_actors_;

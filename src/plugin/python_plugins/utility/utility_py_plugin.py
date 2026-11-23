@@ -240,16 +240,14 @@ class UtilityPythonPlugin(PluginBase):
                 + str(current_container.type)
             )
 
-        timeline_rate = rate if isinstance(rate, FrameRate) else FrameRate(float(rate))
         if object_type == "Timeline":
+            timeline_rate = rate if isinstance(rate, FrameRate) else FrameRate(float(rate))
             timeline = parent_playlist.create_timeline(
                 name=name,
                 with_tracks=False,
                 rate=timeline_rate
             )[1]
-            print ("Created timeline:", timeline)
             video_track = timeline.insert_video_track()
-            print ("Inserted video track:", video_track)
 
             for media in selected_media:
                 timeline.add_media(media)

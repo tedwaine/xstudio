@@ -583,14 +583,27 @@ Item {
     }
     property alias filteredmediaModelData: filteredModel
 
+    // Acess to the session root
     XsSessionModelNode {
         id: the_session
     }
 
+    // Access to the playlist/subset/timeline that is currently 
+    // driving the viewport
+    property var viewedContainerActor: the_session.values.viewedContainerRole
     XsSessionModelNode {
         id: viewedContainer
-        rootActor: the_session.values.viewedContainerRole
+        rootActor: viewedContainerActor
     }
+    property alias viewedContainer: viewedContainer
+
+    // Access to the playlist/subset/timeline that is currently 
+    // filling the MediaList panel
+    XsSessionModelNode {
+        id: inspectedContainer
+        rootActor: the_session.values.inspectedContainerRole
+    }
+    property alias inspectedContainer: inspectedContainer
 
     /* This selection model tells us which playlist(s), contact sheets, timelines etc
     are currently selected in the UI */

@@ -126,11 +126,6 @@ Item {
 
     property bool isCurrent: modelIndex == currentMediaContainerIndex
     property bool isSelected: modelIndex ? playlistsSelectionModel.isSelected(modelIndex) : false
-    onIsSelectedChanged: {
-        if (isSelected) {
-            console.log("Item selected:", modelIndex, nameRole, modelIndex.parent)
-        }
-    }
     property bool isMissing: false
     property bool isExpanded: false
     property bool isExpandable: false
@@ -230,6 +225,7 @@ Item {
                 var dist = 1000000
                 for (var i in playlistsSelectionModel.selectedIndexes) {
                     var idx = playlistsSelectionModel.selectedIndexes[i]
+                    console.log(idx, modelIndex, idx.parent == modelIndex.parent, idx.parent, modelIndex.parent)
                     if (idx.parent == modelIndex.parent) {
                         if (Math.abs(idx.row-modelIndex.row) < dist) {
                             dist = Math.abs(idx.row-modelIndex.row)
@@ -245,6 +241,7 @@ Item {
                     for (var row = start_row; row <= end_row; ++row) {
                         indexes.push(playlistsModelData.index(row, 0, modelIndex.parent))
                     }
+                    console.log("Indexes to select:", indexes, helpers.createItemSelection(indexes))
                     playlistsSelectionModel.select(
                         helpers.createItemSelection(indexes),
                         ItemSelectionModel.Select

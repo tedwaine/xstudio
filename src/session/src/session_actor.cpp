@@ -649,7 +649,8 @@ void SessionActor::init() {
     link_to(ioactor_);
 
     // This object actor acts as the root for all playlists within the session.
-    playlists_root_ = utility::UuidActor(utility::Uuid::generate(), spawn<utility::ObjectActor>("PlaylistsRoot"));
+    const utility::Uuid root_uuid = utility::Uuid::generate();
+    playlists_root_ = utility::UuidActor(root_uuid, spawn<utility::ObjectActor>("PlaylistsRoot", root_uuid));
     add_child(playlists_root_);
 
     anon_mail(property_atom_v, broadcast::join_broadcast_atom_v, caf::actor_cast<caf::actor>(this)).send(playlists_root_.actor());
@@ -664,6 +665,7 @@ void SessionActor::init() {
             playhead::GLOBAL_AUDIO,
             caf::actor(),
             playhead::PlayheadActor::TIMELINE_COMPARE_PLAYHEAD_UUID));
+    add_child(timeline_compare_playhead_);
 
     link_to(timeline_compare_playhead_.actor());
     anon_mail(module::change_attribute_request_atom_v, "Compare", int(module::Attribute::Value), utility::JsonStore("Grid"))
