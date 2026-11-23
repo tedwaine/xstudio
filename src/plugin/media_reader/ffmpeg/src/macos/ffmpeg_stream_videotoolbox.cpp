@@ -28,12 +28,10 @@ static const std::string video_toolbox_shader_yuv_source = R"(
 #version 410 core
 uniform ivec2 texture_dims;
 uniform int y_linesize;
-uniform int u_linesize;
-uniform int v_linesize;
+uniform int crcb_linesize;
 uniform int a_linesize;
 uniform int y_plane_bytes_offset;
-uniform int u_plane_bytes_offset;
-uniform int v_plane_bytes_offset;
+uniform int crcb_plane_bytes_offset;
 uniform int a_plane_bytes_offset;
 uniform bool half_scale_uvy;
 uniform bool half_scale_uvx;
@@ -41,7 +39,6 @@ uniform mat3 yuv_conv;
 uniform ivec3 yuv_offsets;
 uniform float norm_coeff;
 uniform int vt_sample_bits;
-uniform bool vt_chroma_interleaved;
 
 int get_image_data_2bytes(int byte_address);
 int get_image_data_1byte(int byte_address);
@@ -71,21 +68,16 @@ vec4 fetch_rgba_pixel(ivec2 image_coord)
     int bytes_per_sample = vt_sample_bits == 8 ? 1 : 2;
     int cb;
     int cr;
-    if (vt_chroma_interleaved) {
-        int chroma_address =
-            u_plane_bytes_offset +
-            uv_coord.x * 2 * bytes_per_sample +
-            uv_coord.y * u_linesize;
-        cb = vt_sample_bits == 8
-            ? get_image_data_1byte(chroma_address)
-            : get_image_data_2bytes(chroma_address);
-        cr = vt_sample_bits == 8
-            ? get_image_data_1byte(chroma_address + 1)
-            : get_image_data_2bytes(chroma_address + 2);
-    } else {
-        cb = vt_read_sample(uv_coord, u_plane_bytes_offset, u_linesize);
-        cr = vt_read_sample(uv_coord, v_plane_bytes_offset, v_linesize);
-    }
+    int chroma_address =
+        crcb_plane_bytes_offset +
+        uv_coord.x * 2 * bytes_per_sample +
+        uv_coord.y * crcb_linesize;
+    cb = vt_sample_bits == 8
+        ? get_image_data_1byte(chroma_address)
+        : get_image_data_2bytes(chroma_address);
+    cr = vt_sample_bits == 8
+        ? get_image_data_1byte(chroma_address + 1)
+        : get_image_data_2bytes(chroma_address + 2);
     if (vt_sample_bits == 10) {
         cb >>= 6;
         cr >>= 6;
@@ -314,10 +306,10 @@ FFMpegStreamVideoToolbox::convert_av_frame_to_thumbnail(const size_t size_hint) 
     std::array<int, 4> strides{};
     const char *offset_names[] = {
         "y_plane_bytes_offset",
-        "u_plane_bytes_offset",
+        "crcb_plane_bytes_offset",
         "v_plane_bytes_offset",
         "a_plane_bytes_offset"};
-    const char *stride_names[] = {"y_linesize", "u_linesize", "v_linesize", "a_linesize"};
+    const char *stride_names[] = {"y_linesize", "crcb_linesize", "v_linesize", "a_linesize"};
     for (int i = 0; i < 4; ++i) {
         const int stride = params.value(stride_names[i], 0);
         if (stride) {

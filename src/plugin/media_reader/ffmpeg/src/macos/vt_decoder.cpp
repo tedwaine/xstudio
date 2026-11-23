@@ -13,6 +13,8 @@
 #include <mutex>
 #include <set>
 
+#include <unistd.h>
+
 #include <CoreFoundation/CoreFoundation.h>
 #include <CoreMedia/CoreMedia.h>
 #include <CoreVideo/CoreVideo.h>
@@ -27,6 +29,9 @@ namespace {
     enum class Packing { Bits8, Bits10InMsbs, Bits16, S4as };
     enum class Chroma { C420, C422, C444 };
     enum class VtColorSpace { Unspecified, Bt601, Bt709, Bt2020, Smpte240 };
+
+    // 16 KB on Apple Silicon, 4 KB on Intel
+    static const size_t page_size = size_t(sysconf(_SC_PAGESIZE));
 
     struct OutputFormat {
         OSType vt;
@@ -203,8 +208,7 @@ namespace {
         utility::JsonStore &params,
         const OutputFormat &format,
         const VtColorSpace colorspace,
-        const int sample_storage_bits,
-        const bool interleaved_chroma) {
+        const int sample_storage_bits) {
         static const Imath::M33f bt601(
             1., 0., 1.402, 1., -0.34413629, -0.71413629, 1., 1.772, -0.);
         static const Imath::M33f bt2020(
@@ -217,7 +221,6 @@ namespace {
         params["half_scale_uvx"]    = format.chroma != Chroma::C444;
         params["half_scale_uvy"]    = format.chroma == Chroma::C420;
         params["norm_coeff"]        = 1.0f / float(max_cv);
-        params["vt_chroma_interleaved"] = interleaved_chroma;
 
         Imath::M33f yuv_to_rgb;
         switch (colorspace) {
@@ -657,17 +660,32 @@ int VtDecoder::receive_frame(ImageBufPtr &image) {
         std::array<const uint8_t *, 4> plane_src{};
         std::array<size_t, 4> plane_strides{};
         std::array<size_t, 4> plane_sizes{};
+        std::array<size_t, 4> plane_offsets{};
         size_t total_size = 0;
         bool contiguous   = true;
+        // Note: for some pixel formats, the planes are contiguous but not arranged with a 
+        // zero byte gap between the last pixel in the Y plane and first pixel of CrCb plane.
+        // We allow a gap of up to one page between planes to account for this.
         for (size_t i = 0; i < plane_count; ++i) {
             plane_src[i] =
                 static_cast<const uint8_t *>(CVPixelBufferGetBaseAddressOfPlane(pb, i));
             plane_strides[i] = CVPixelBufferGetBytesPerRowOfPlane(pb, i);
-            plane_sizes[i]   = plane_strides[i] * CVPixelBufferGetHeightOfPlane(pb, i);
-            if (i && plane_src[i] != plane_src[i - 1] + plane_sizes[i - 1]) {
+            plane_sizes[i]   = plane_strides[i] * CVPixelBufferGetHeightOfPlane(pb, i);            
+            if (i) {
+                plane_offsets[i] = plane_src[i] - plane_src[0];
+            } else {
+                plane_offsets[i] = 0;
+            }
+            if (i && (plane_src[i] - plane_src[i - 1]) > (plane_sizes[i - 1] + page_size)) {
                 contiguous = false;
             }
             total_size += plane_sizes[i];
+        }
+
+        if (contiguous) {
+            // The planes form one block of memory, so the image can use it in place. The
+            // pixel buffer stays locked and retained until the image is destroyed.
+            total_size = plane_src[plane_count - 1] - plane_src[0] + plane_sizes[plane_count - 1];
         }
 
         image.reset(new ImageBuffer());
@@ -698,13 +716,13 @@ int VtDecoder::receive_frame(ImageBufPtr &image) {
             const auto stride = plane_strides[i];
             if (i == 0) {
                 params["y_linesize"]           = int(stride);
-                params["y_plane_bytes_offset"] = offset;
+                params["y_plane_bytes_offset"] = contiguous ? plane_offsets[0] : offset;
             } else if (i == 1) {
-                params["u_linesize"]           = int(stride);
-                params["u_plane_bytes_offset"] = offset;
+                params["crcb_linesize"]           = int(stride);
+                params["crcb_plane_bytes_offset"] = contiguous ? plane_offsets[1] : offset;
             } else if (i == 2) {
-                params["v_linesize"]           = int(stride);
-                params["v_plane_bytes_offset"] = offset;
+                params["a_linesize"]           = int(stride);
+                params["a_plane_bytes_offset"] = contiguous ? plane_offsets[2] : offset;
             }
             offset += plane_sizes[i];
         }
@@ -719,7 +737,7 @@ int VtDecoder::receive_frame(ImageBufPtr &image) {
                 ? 8
                 : (of->packing == Packing::Bits10InMsbs ? 10 : 16);
         params["vt_sample_bits"] = sample_storage_bits;
-        populate_vt_shader_params(params, *of, colorspace, sample_storage_bits, true);
+        populate_vt_shader_params(params, *of, colorspace, sample_storage_bits);
 
         utility::JsonStore metadata;
         metadata["pts"]             = pts;
