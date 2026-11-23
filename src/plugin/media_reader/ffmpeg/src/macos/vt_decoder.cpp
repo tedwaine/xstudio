@@ -658,6 +658,7 @@ int VtDecoder::receive_frame(ImageBufPtr &image) {
         image.reset(new ImageBuffer());
         auto *base = reinterpret_cast<uint8_t *>(image->allocate(total_size + 4096));
         utility::JsonStore params;
+        //utility::time_point start_time = utility::clock::now();
         if (CVPixelBufferLockBaseAddress(pb, kCVPixelBufferLock_ReadOnly) == kCVReturnSuccess) {
             size_t offset = 0;
             for (size_t i = 0; i < plane_count && i < 4; ++i) {
@@ -666,6 +667,14 @@ int VtDecoder::receive_frame(ImageBufPtr &image) {
                 const auto *src =
                     static_cast<const uint8_t *>(CVPixelBufferGetBaseAddressOfPlane(pb, i));
                 const size_t plane_size = stride * rows;
+
+                // On an M1 mac mini, this memcpy is killing performance of the decoder in some cases. My 
+                // suspicion is that the decoder is running on the CPU (since I see a high CPU load on 
+                // VTDecoderXPCService during playback of prores 4444 XQ). The scheduler might be moving
+                // the memcpy around, causing cache misses and poor performance. Or some throttling happens
+                // on RAM bandwidth. no idea yet.
+
+                // TO DO: take ownership of the plane data directly if possible to avoid memcpy.
                 std::memcpy(base + offset, src, plane_size);
                 if (of->packing == Packing::S4as && i == 2) {
                     params["a_linesize"]           = int(stride);
@@ -683,6 +692,8 @@ int VtDecoder::receive_frame(ImageBufPtr &image) {
                 offset += plane_size;
             }
             CVPixelBufferUnlockBaseAddress(pb, kCVPixelBufferLock_ReadOnly);
+            //utility::time_point end_time = utility::clock::now();
+            //std::cerr << "Plane copy time: " << std::chrono::duration_cast<std::chrono::milliseconds>(end_time - start_time).count() << " ms" << std::endl;
         } else {
             CVPixelBufferRelease(pb);
             return AVERROR_EXTERNAL;

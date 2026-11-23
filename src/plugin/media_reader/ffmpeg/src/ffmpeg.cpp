@@ -21,6 +21,7 @@
 
 namespace fs = std::filesystem;
 
+//#define DEBUG_IMAGE_READ_TIMING
 
 using namespace xstudio;
 using namespace xstudio::global_store;
@@ -137,6 +138,39 @@ std::string uri_convert(const caf::uri &uri) {
     return forward_remap_file_path(uri_decode(path));*/
 }
 
+#ifdef DEBUG_IMAGE_READ_TIMING
+static std::mutex mtx;
+static uint64_t total_millisecs = 0;
+static uint64_t total_reads = 0;
+
+class ImageReadTimer {
+    std::chrono::time_point<std::chrono::high_resolution_clock> start_time_;
+    std::string label_;
+
+public:
+    ImageReadTimer(
+        const std::string &label,
+        utility::Uuid media_key) : label_(label) { 
+            std::lock_guard<std::mutex> lock(mtx);
+            start_time_ = std::chrono::high_resolution_clock::now(); 
+            static utility::Uuid last_media_key;
+            if (last_media_key != media_key) {
+                total_millisecs = 0;
+                total_reads = 0;
+            }
+            last_media_key = media_key;
+        }
+    ~ImageReadTimer() {
+        std::lock_guard<std::mutex> lock(::mtx);
+        auto end_time = std::chrono::high_resolution_clock::now();
+        auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(end_time - start_time_).count();
+        total_millisecs += duration;
+        total_reads++;
+        spdlog::info("Image read time: {} ms (Average: {} ms) [{}]", duration, total_millisecs/total_reads, label_);
+    }
+};
+#endif // DEBUG_IMAGE_READ_TIMING
+
 } // namespace
 
 
@@ -221,6 +255,10 @@ ImageBufPtr FFMpegMediaReader::image(const media::AVFrameID &mptr) {
     }
 
     try {
+
+#ifdef DEBUG_IMAGE_READ_TIMING
+        ImageReadTimer timer(to_string(mptr.key()),mptr.media_uuid());
+#endif
         std::string path = uri_convert(mptr.uri());
 
         if (last_decoded_image_ && last_decoded_image_->media_key() == mptr.key()) {
