@@ -260,11 +260,11 @@ ObjectDataTree * ObjectDataTree::get_node_in_tree(const std::vector<int> &index_
     return node;
 }
     
-ObjectDataTreePtr ObjectDataTree::deep_copy(int depth) const {
+ObjectDataTreePtr ObjectDataTree::deep_copy(ObjectDataTree *parent) const {
     auto copy = new ObjectDataTree(data_);
+    copy->set_parent(parent);
     for (const auto &child : children_data_) {
-        auto child_copy = child->deep_copy(depth+1);
-        const_cast<ObjectDataTree *>(child_copy.get())->set_parent(copy);
+        auto child_copy = child->deep_copy(copy);
         copy->children_data_.push_back(child_copy);
     }
     return ObjectDataTreePtr(copy);

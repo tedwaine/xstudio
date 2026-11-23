@@ -364,15 +364,57 @@ caf::message_handler UIDataModel::core_message_handler() {
             // must announce that same row, not num_rows+1 (which is out of bounds and
             // leaves views unable to resolve the new index).
             ObjectDataTree * node = const_cast<ObjectDataTree *>(UIDataModel::node_from_index(parent_index));
+            
+            std::cerr << "BFORE " << rowCount(parent_index) << std::endl;
             beginInsertRows(parent_index, insertion_index, insertion_index);
             if (node) {
                 qDebug() << "Waggle " << parent_index << " " << node << "\n";
 
-                auto cd = __child_data->deep_copy();
+                auto cd = __child_data->deep_copy(node);
                 register_subtree(cd.get());
                 node->insert_node(cd, insertion_index);
             }
             endInsertRows();
+            std::cerr << "AFTER " << rowCount(parent_index) << std::endl;
+
+
+{
+    QModelIndex child = index(insertion_index, 0, parent_index);
+        // The tree root has no parent() and is represented by the invalid QModelIndex. A node's
+    // row is its key in the parent's children_data_.
+    if (!child.isValid()) {
+        std::cerr << "Invalid child index" << std::endl;
+    }
+    else {
+
+    const ObjectDataTree *node = node_from_index(child);
+    if (!node)
+        std::cerr << "Invalid node" << std::endl;
+    else {
+
+    const ObjectDataTree *parent_node = node->parent();
+    if (!parent_node || !parent_node->parent())
+        std::cerr << "Invalid parent node" << std::endl;
+    else {
+
+    const quintptr parent_id = id_of(parent_node);
+    if (!parent_id)
+        std::cerr << "Invalid parent ID" << std::endl;
+    else {
+
+    auto p = std::find_if(parent_node->parent()->begin(), parent_node->parent()->end(), [parent_node](const ObjectDataTreePtr &c) {
+        return c.get() == parent_node;
+    });
+    if (p == parent_node->parent()->end())
+        std::cerr << "Parent not found in grandparent's children" << std::endl;
+}
+}
+}
+}
+
+}
+
+
             emit lengthChanged();
             
 

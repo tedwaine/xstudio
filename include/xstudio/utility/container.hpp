@@ -31,6 +31,7 @@ caf::actor from_name_and_uuid(                                                  
     caf::actor_system &system, const std::string &name,                                                     \
     const utility::Uuid &uuid, const caf::actor &parent) {                                                  \
     auto actor =  system.spawn<SESSION_OBJECT_CLASS>(name, uuid, parent);                                   \
+    std::cerr << "Creating actor from name and uuid " << name << " " << QML_CODE << std::endl; \
     anon_mail(utility::property_atom_v, int(session::qmlCodeRole), utility::AnyPtr(new std::any(std::string(QML_CODE)))).send(actor);      \
     return actor;                                                                                           \
 }                                                                                                           \

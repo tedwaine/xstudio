@@ -2708,6 +2708,7 @@ caf::message_handler TimelineActor::message_handler() {
                             new_children.push_back(UuidActor(ii, amap[ii]));
                         }
                         anon_mail(utility::add_children_atom_v, new_children).send(media_list_);
+                        set_data_value(session::mediaCountRole, int(Timeline::media().size()));
 
                         // for(const auto &i: actors_)
                         //     spdlog::warn("{} {}", to_string(i.first),to_string(i.second));
@@ -3135,7 +3136,6 @@ void TimelineActor::add_media(
         }
 
         add_media(actor, ua.uuid(), before_uuid);
-        anon_mail(utility::add_children_atom_v, utility::UuidActor(ua.uuid(), actor), before_uuid).send(media_list_);
         mail(event_atom_v, playlist::add_media_atom_v, UuidActorVector({ua}))
             .send(Timeline::event_group());
         Timeline::send_changed();

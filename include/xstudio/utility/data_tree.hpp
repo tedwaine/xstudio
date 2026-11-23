@@ -194,7 +194,7 @@ public:
 
     ObjectDataTree * get_node_in_tree(const std::vector<int> &index_in_tree);
 
-    ObjectDataTreePtr deep_copy(int depth = 0) const;
+    ObjectDataTreePtr deep_copy(ObjectDataTree *parent = nullptr) const;
 
     std::vector<ObjectDataTreePtr>::const_iterator begin() const { return children_data_.begin(); }
     std::vector<ObjectDataTreePtr>::const_iterator end() const { return children_data_.end(); }
