@@ -1021,7 +1021,7 @@ Rectangle {
         name: "Timeline Redo"
         description: "Re-does the last undone edit in the timeline"
         onActivated: {
-            redo(viewedMediaSetProperties.index);
+            redo(theSessionData.viewedMediaSetProperties.index);
         }
         componentName: "Timeline"
     }
@@ -1054,7 +1054,7 @@ Rectangle {
         name: "Timeline Undo"
         description: "Jumps to the end frame"
         onActivated: {
-            undo(viewedMediaSetProperties.index);
+            undo(theSessionData.viewedMediaSetProperties.index);
         }
         componentName: "Timeline"
     }

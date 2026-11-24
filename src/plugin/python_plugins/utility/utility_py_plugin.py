@@ -282,6 +282,18 @@ class UtilityPythonPlugin(PluginBase):
 
         # Moved inside the Timeline check above
 
+    def export_otio(self, timeline_uuid, path):
+        """Load media files into the session."""
+        print ("export_otio", timeline_uuid)
+        for pl in self.connection.api.session.playlists:
+            for c in pl.containers:
+                if c.uuid == timeline_uuid:
+                    c.export_otio(path)
+
+    def save_selected_playlists(self, path, playlist_uuids):
+        """Load media files into the session."""
+        from xstudio.core import Uuid
+        self.connection.api.session.save_playlists(path, [Uuid(p) for p in playlist_uuids])
 
 def create_plugin_instance(connection):
     """Create and return a plugin instance."""

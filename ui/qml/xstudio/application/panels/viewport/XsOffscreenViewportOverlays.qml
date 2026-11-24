@@ -53,7 +53,6 @@ Item  {
     // Makes these important global items visible for child contexts, namely
     // overlays and HUDs that might need this info
     property alias theSessionData: sessionData.session
-    property alias viewedMediaSetProperties: sessionData.viewedMediaSetProperties
     property alias currentPlayhead: sessionData.current_playhead
     property alias callbackTimer: sessionData.callbackTimer
     property alias sessionProperties: sessionData.sessionProperties

@@ -4,6 +4,7 @@
 #include <QtQml>
 #include <asyncfuture.h>
 #include "actor.h"
+#include <stdexcept>
 
 using namespace AsyncFuture;
 
@@ -27,6 +28,13 @@ QFuture<QString> Actor::read(const QString &fileName)
         }
 
         return file.readAll();
+    });
+}
+
+QFuture<QString> Actor::fail()
+{
+    return QtConcurrent::run([]() -> QString {
+        throw std::runtime_error("future failure");
     });
 }
 

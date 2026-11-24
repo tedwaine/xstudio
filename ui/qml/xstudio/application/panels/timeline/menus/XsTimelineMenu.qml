@@ -375,7 +375,7 @@ XsPopupMenu {
     //     menuPath: "Adjust"
     //     menuItemPosition: 10
     //     menuModelName: timelineMenu.menu_model_name
-    //     onActivated: theTimeline.undo(viewedMediaSetProperties.index)
+    //     onActivated: theTimeline.undo(theSessionData.viewedMediaSetProperties.index)
     //     panelContext: timelineMenu.panelContext
     // }
 
@@ -384,7 +384,7 @@ XsPopupMenu {
     //     menuPath: "Adjust"
     //     menuItemPosition: 11
     //     menuModelName: timelineMenu.menu_model_name
-    //     onActivated: theTimeline.redo(viewedMediaSetProperties.index)
+    //     onActivated: theTimeline.redo(theSessionData.viewedMediaSetProperties.index)
     //     panelContext: timelineMenu.panelContext
     // }
 
@@ -500,7 +500,7 @@ XsPopupMenu {
     //             new_item_dialog.insertion_row = timelineSelection.selectedIndexes[0].row
     //         }
     //         else {
-    //             new_item_dialog.insertion_parent = viewedMediaSetProperties.index
+    //             new_item_dialog.insertion_parent = theSessionData.viewedMediaSetProperties.index
     //             new_item_dialog.insertion_row = 0
     //         }
     //         new_item_dialog.open()

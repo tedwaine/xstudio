@@ -313,7 +313,7 @@ ApplicationWindow {
             mediaSelectionModel.soloSelection()
 
             // TODO: use the deault mode preference
-            const type = viewedMediaSetProperties.values.typeRole
+            const type = viewedContainer.values.typeRole
             if (type === "Playlist") {
                 currentPlayhead.compareMode = playlist_default_compare[0] || "A/B"
             } else if (type === "Subset") {
@@ -456,16 +456,14 @@ ApplicationWindow {
     property alias viewedContainerActor: sessionData.viewedContainerActor
     property alias inspectedContainer: sessionData.inspectedContainer
     property alias inspectedContainerProperties: sessionData.inspectedContainerProperties
+    property alias playlistsSelectionModel: sessionData.playlistsSelectionModel 
     
     // Makes these important global items visible in child contexts
     property alias theSessionData: sessionData.session
-    property alias sessionSelectionModel: sessionData.sessionSelectionModel
     property alias globalStoreModel: sessionData.globalStoreModel
     property alias mediaSelectionModel: sessionData.mediaSelectionModel
-    property alias playlistsSelectionModel: sessionData.playlistsSelectionModel 
     property alias currentMediaContainerIndex: sessionData.currentMediaContainerIndex
     property alias viewportCurrentMediaContainerIndex: sessionData.viewportCurrentMediaContainerIndex
-    property alias viewedMediaSetProperties: sessionData.viewedMediaSetProperties
     property alias currentPlayhead: sessionData.current_playhead
     property alias callbackTimer: sessionData.callbackTimer
     property alias viewsModel: sessionData.viewsModel

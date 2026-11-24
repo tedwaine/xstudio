@@ -30,13 +30,18 @@ Item {
     function addtoNewPlaylistContext() {
         dialogHelpers.textInputDialog(
             function(name, button) {
-                if(button == "Move Media") {
-                    let pl = theSessionData.createPlaylist(name)
-                    theSessionData.moveRows(mediaSelectionModel.selectedIndexes, 0, pl)
-                } else if(button == "Copy Media") {
-                    let pl = theSessionData.createPlaylist(name)
-                    theSessionData.copyRows(mediaSelectionModel.selectedIndexes, 0, pl)
-                }
+
+                if (button == "Cancel") return
+                Future.promise(
+                    helpers.pythonAsyncCallback("UtilityPythonPlugin", "move_or_copy_media_to_new_playlist", {
+                        "new_playlist_name": name,
+                        "copy": button == "Copy Media"})
+                ).then(function(return_val) {
+
+                },
+                function(__rr) {
+                    dialogHelpers.errorDialogFunc("Save Selected Playlists", __rr)
+                }) 
             },
             "Add To New Playlist",
             "Enter New Playlist Name",

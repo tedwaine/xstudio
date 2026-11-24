@@ -28,15 +28,6 @@ Item {
         // This index points to the list of playlists within the session
         property var playlistsRootIdx: helpers.makePersistent(index(0, 0, index(-1, -1)))
 
-        onSessionActorAddrChanged: {
-            // a new session has been created/loaded. Pick the first playlist
-            // after 200ms to give the session data a chance to build itself
-            callbackTimer.setTimeout(function() { return function() {
-                sessionSelectionModel.select(
-                    helpers.createItemSelection([session.searchRecursive("Playlist", "typeRole")]),
-                    ItemSelectionModel.ClearAndSelect | ItemSelectionModel.setCurrentIndex)
-                }}(), 200);
-        }
 
         // Not sure if we need to update the playlists root idx on ALL of these
         // signals. One thing we can't do is automatically maintain a 'static'
@@ -198,40 +189,6 @@ Item {
             }
         }
 
-        // This function will select the parent playlist and the media specified
-        // so that it is viewed in the viewport - i.e. it becomes the onScreenMedia
-        // item
-        function putMediaOnScreen(media_uuid) {
-
-            // search current viewed playlist first ...
-            var idx = session.index(-1, -1)
-            if (theSessionData.get(sessionData.viewportCurrentMediaContainerIndex, "typeRole") != "Timeline") {
-                idx = session.searchRecursive(media_uuid, "actorUuidRole", sessionData.viewportCurrentMediaContainerIndex)
-            }
-
-            if (!idx.valid) {
-                // search playlists only to find the media we want to put on
-                // the screen, because we want to avoid searching timelines
-                var playlists = session.searchRecursiveList("Playlist", "typeRole", session.index(-1,-1), 0, -1)
-                for (var i = 0; i < playlists.length; ++i) {
-                    // 'depth' of 2 here means we will search media in the playlist but not media in
-                    // a timeline that is inside this playlist
-                    idx = session.searchRecursive(media_uuid, "actorUuidRole", playlists[i], 0, 2)
-                    if (idx.valid) break
-                }
-
-                if (!idx.valid) {
-                    // last shot, search the whole session
-                    idx = session.searchRecursive(media_uuid, "actorUuidRole")
-                }
-            }
-            if (idx.valid) {
-                mediaSelectionModel.select(
-                    helpers.createItemSelection([idx]),
-                    ItemSelectionModel.ClearAndSelect | ItemSelectionModel.setCurrentIndex
-                    )
-            }
-        }
     }
 
     property alias currentMediaContainerIndex: sessionData.currentMediaContainerIndex
@@ -267,23 +224,6 @@ Item {
         id: globalStoreModel
     }
     property alias globalStoreModel: globalStoreModel
-
-    // This ItemSelectionModel manages playlist, subset, timeline etc. selection
-    // from the top-level session. Of the selection, the first selected item
-    // is the 'active' playlist/subset/timeline that is shown in the medialist
-    // and viewport
-    ItemSelectionModel {
-        id: sessionSelectionModel
-        model: sessionData
-        onCurrentIndexChanged: {
-            currentMediaContainerIndex = currentIndex
-        }
-        onSelectionChanged: {
-            sessionData.setSessionSelection(sessionSelectionModel.selectedIndexes)
-        }
-    }
-    property alias sessionSelectionModel: sessionSelectionModel
-
 
     property var currentTimelineSelection: null
 

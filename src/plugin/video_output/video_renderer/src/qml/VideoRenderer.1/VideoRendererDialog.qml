@@ -17,9 +17,9 @@ XsWindow {
 
     flags: Qt.platform.os === "windows" ? Qt.Window : Qt.Dialog
 
-    property var numSelected: sessionSelectionModel.selectedIndexes.length
+    property var numSelected: playlistsSelectionModel.selectedIndexes.length
     property var currentItem: 0
-    property var itemToRender: numSelected ? sessionSelectionModel.selectedIndexes[currentItem] : undefined
+    property var itemToRender: numSelected ? playlistsSelectionModel.selectedIndexes[currentItem] : undefined
 
     property var selectedContainerType: itemToRender ? theSessionData.get(itemToRender, "typeRole") : ""
     property var selectedContainerName: itemToRender ? theSessionData.get(itemToRender, "nameRole") : ""

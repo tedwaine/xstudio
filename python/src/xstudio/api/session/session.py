@@ -489,6 +489,28 @@ class Session(Container, NotificationHandler, JsonStoreHandler):
 
         return self.connection.request_receive(self.remote, save_atom(), path)[0]
 
+    def save_playlists(self, path, playlist_uuids):
+        """Save specific playlists to path
+
+        Args:
+            path(str/uri): Path to save to.
+            playlist_uuids(list[Uuid]): List of playlist UUIDs to save.
+
+        Returns:
+            int(hash]): Hash of saved session
+        """
+        from xstudio.core import UuidActorVec, UuidActor
+        if not isinstance(path,URI):
+            path = URI(path)
+        _playlists = UuidActorVec()
+        for p in self.playlists:
+            for puuid in playlist_uuids:
+                print (p.uuid, puuid, type(p.uuid), type(puuid))
+                if p.uuid == puuid:
+                    _playlists.push_back(UuidActor(p.uuid, self.remote))
+        print (_playlists)
+        return self.connection.request_receive(self.remote, save_atom(), path, playlist_uuids)[0]
+
     def quickview_media(self, media_paths, compare_mode="Grid"):
         """Load media item(s) into a QuickView playlist and show in a QuickView
         window

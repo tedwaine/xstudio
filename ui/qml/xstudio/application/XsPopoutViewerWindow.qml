@@ -14,7 +14,7 @@ ApplicationWindow {
     id: appWindow
     visible: false
     color: "#00000000"
-    title: (viewedMediaSetProperties.values.nameRole ? viewedMediaSetProperties.values.nameRole + " - " : "") + fileName
+    title: (viewedContainer.values.nameRole ? viewedContainer.values.nameRole + " - " : "") + fileName
     objectName: "xstudio_popout_window"
     minimumWidth: 150
     minimumHeight: 100

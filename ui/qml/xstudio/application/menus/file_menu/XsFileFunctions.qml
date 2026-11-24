@@ -75,13 +75,25 @@ Item {
     function exportSequence(path, type, chaserFunc) {
         if (path == false) return; // save was cancelled
 
-        Future.promise(theSessionData.exportOTIO(sessionSelectionModel.selectedIndexes[0], path, type)).then(function(result){
-            if (chaserFunc != undefined) chaserFunc(result)
-            },
-            function (err) {
-                dialogHelpers.errorDialogFunc("Export Sequence Failed", err)
+        Future.promise(
+            helpers.pythonAsyncCallback("UtilityPythonPlugin", "export_otio", {
+                "timeline_uuid": playlistsSelectionModel.model.getData(playlistsSelectionModel.selectedIndexes[0], "uuidRole"),
+                "path": path})
+        ).then(function(return_val) {
+
+            if (return_val) {
+                // do export should return [True, message]
+                dialogHelpers.messageDialogFunc("OTIO Export", "File " + path + " exported successfully", "Ok")
+
+            } else if (typeof return_val === "string") {
+                // report (likely) error of some sort
+                dialogHelpers.errorDialogFunc("OTIO Export", "Failed to export file " + path + ". Check log output for details.", "Ok")
             }
-        )
+
+        },
+        function(__rr) {
+            dialogHelpers.errorDialogFunc("OTIO Export", __rr)
+        }) 
     }
 
     function saveSelectionAs(path, folder, chaserFunc) {
@@ -92,18 +104,31 @@ Item {
         if (!(spath.endsWith(".xst") || spath.endsWith(".xsz"))) {
             path = path + ".xst"
         }
+        var playlist_ids = []
+        for (var i = 0; i < playlistsSelectionModel.selectedIndexes.length; i++) {
+            playlist_ids.push(playlistsSelectionModel.model.getData(playlistsSelectionModel.selectedIndexes[i], "uuidRole"))
+        }
+        print (playlist_ids, typeof playlist_ids[0])
 
-        Future.promise(theSessionData.saveFuture(path, sessionSelectionModel.selectedIndexes)).then(function(result){
-            if (result == false) {
-                // cancelled
-                if (chaserFunc != undefined) chaserFunc()
-            } else if (result != "") {
-                dialogHelpers.errorDialogFunc("Save Session Failed", result)
+        Future.promise(
+            helpers.pythonAsyncCallback("UtilityPythonPlugin", "save_selected_playlists", {
+                "playlist_uuids": playlist_ids,
+                "path": path})
+        ).then(function(return_val) {
+
+            if (return_val) {
+                // do export should return [True, message]
+                dialogHelpers.messageDialogFunc("Save Selected Playlists", "File " + path + " exported successfully", "Ok")
+
             } else {
-                newRecentPath(path)
-                if (chaserFunc != undefined) chaserFunc()
+                // report (likely) error of some sort
+                dialogHelpers.errorDialogFunc("Save Selected Playlists", "Failed to export file " + path + ". Check log output for details.", "Ok")
             }
-        })
+
+        },
+        function(__rr) {
+            dialogHelpers.errorDialogFunc("Save Selected Playlists", __rr)
+        }) 
     }
 
     function saveSessionAs(path, folder, chaserFunc) {
@@ -301,27 +326,6 @@ Item {
 
         if (media_urls === false) return
         sessionFunctions.loadMedia(media_urls)
-
-        /*let uris = ""
-        media_urls.forEach(function (item, index) {
-            uris = uris + String(item) +"\n"
-        })
-
-        var index = currentMediaContainerIndex
-
-        if(!index.valid) {
-            // create new playlist..
-            index = theSessionData.createPlaylist(theSessionData.getNextName("Playlist {}"))
-        }
-
-        callbackTimer.setTimeout(function(capture) { return function(){
-            Future.promise(
-                capture.model.handleDropFuture(Qt.CopyAction, {"text/uri-list": uris}, capture)
-            ).then(function(quuids){
-                mediaSelectionModel.selectFirstNewMedia(index, quuids)
-            }) }}(index), 100
-        );*/
-
         defaultMediaFolder = folder
     }
 
@@ -333,7 +337,8 @@ Item {
 
     function addMediaFromClipboard() {
         if (clipboard.data) {
-            var index = sessionSelectionModel.currentIndex
+            // FIXME
+            /*var index = sessionSelectionModel.currentIndex
             if (!index.valid) {
                 index = theSessionData.createPlaylist("Add Media")
             } else if (mediaSelectionModel.selectedIndexes.length) {
@@ -341,7 +346,7 @@ Item {
             }
             Future.promise(index.model.handleDropFuture(Qt.CopyAction, clipboard.data, index)).then(function(quuids){
                 mediaSelectionModel.selectFirstNewMedia(index, quuids)
-            })
+            })*/
         }
     }
 
@@ -401,6 +406,7 @@ Item {
             function(path) {
                 if (path)
                     Future.promise(
+                        // FIXME
                         theSessionData.getBookmarksFuture(sessionSelectionModel.selectedIndexes)
                     ).then(function(result) {
                         Future.promise(

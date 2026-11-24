@@ -65,10 +65,7 @@ Item{
         name: "Next Version"
         description: "Replace With Next Version"
         onActivated: (menuContext) =>  {
-            if(menuContext.startsWith("timelinexstudio::ui::qml"))
-                replaceSelectionTimeline(name, sessionData.currentTimelineSelection)
-            else
-                replaceSelection(name, mediaSelectionModel.selectedIndexes)
+            // FIXME
         }
         context: "any"
         componentName: "ConformTool"
@@ -79,10 +76,7 @@ Item{
         name: "Previous Version"
         description: "Replace With Previous Version"
         onActivated: (menuContext) =>  {
-            if(menuContext.startsWith("timelinexstudio::ui::qml"))
-                replaceSelectionTimeline(name, sessionData.currentTimelineSelection)
-            else
-                replaceSelection(name, mediaSelectionModel.selectedIndexes)
+            // FIXME
         }
         context: "any"
         componentName: "ConformTool"
@@ -93,10 +87,7 @@ Item{
         name: "Latest Version"
         description: "Replace With Latest Version"
         onActivated: (menuContext) =>  {
-            if(menuContext.startsWith("timelinexstudio::ui::qml"))
-                replaceSelectionTimeline(name, sessionData.currentTimelineSelection)
-            else
-                replaceSelection(name, mediaSelectionModel.selectedIndexes)
+            // FIXME
         }
         context: "any"
         componentName: "ConformTool"
@@ -160,7 +151,7 @@ Item{
                 function(media_uuid_list) {
                     // add to current selection..
                     // As we replaced something that was selected.
-                    mediaSelectionModel.selectNewMedia(pl_index, media_uuid_list, -1, ItemSelectionModel.Select)
+                    // FIXME
                 },
                 function() {
                 }
@@ -234,7 +225,7 @@ Item{
                     for(let j=0;j<media_uuid_list.length;j++)
                         tmp.push(helpers.QVariantFromUuidString(media_uuid_list[j]))
 
-                    mediaSelectionModel.selectNewMedia(pl_index, tmp, -1, ItemSelectionModel.Select)
+                    // FIXME
             	},
             	function() {
             	}

@@ -59,7 +59,7 @@ XsGradientRectangle {
     }
 
     /* This gives us direct access to the properties of the current (active)
-    playlist - for example viewedMediaSetProperties.values.nameRole gives us
+    playlist - for example theSessionData.viewedMediaSetProperties.values.nameRole gives us
     the playlist name */
     XsModelPropertyMap {
         id: timelineProperties
@@ -357,14 +357,14 @@ XsGradientRectangle {
                     Layout.preferredHeight: parent.height
                     imgSrc: "qrc:/icons/undo.svg"
                     text: "Undo"
-                    onClicked: theTimeline.undo(viewedMediaSetProperties.index)
+                    onClicked: theTimeline.undo(theSessionData.viewedMediaSetProperties.index)
                 }
                 XsPrimaryButton{
                     Layout.preferredWidth: btnWidth
                     Layout.preferredHeight: parent.height
                     imgSrc: "qrc:/icons/redo.svg"
                     text: "Redo"
-                    onClicked:  theTimeline.redo(viewedMediaSetProperties.index)
+                    onClicked:  theTimeline.redo(theSessionData.viewedMediaSetProperties.index)
                 }
                 XsSearchButton{ id: searchBtn
                     Layout.preferredWidth: isExpanded? btnWidth*6 : btnWidth

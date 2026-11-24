@@ -123,7 +123,7 @@ Item{
                     if (dropdownNoteScope.currentIndex == 0) {
                         return currentOnScreenMediaData.values.nameRole? currentOnScreenMediaData.values.nameRole: ""
                     } else if (dropdownNoteScope.currentIndex == 1) {
-                        return viewedMediaSetProperties.values.nameRole? viewedMediaSetProperties.values.nameRole: ""
+                        return viewedContainer.values.nameRole? viewedContainer.values.nameRole: ""
                     } else {
                         return "All Session Notes"
                     }
@@ -203,6 +203,7 @@ Item{
 
         }
 
+        // FIXME
         theSessionData.putMediaOnScreen(owner)
 
         // wait 100ms before setting playhead frame, because it might take

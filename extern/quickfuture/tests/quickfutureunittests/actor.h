@@ -23,6 +23,8 @@ public slots:
 
     QFuture<QString> read(const QString& fileName);
 
+    QFuture<QString> fail();
+
     QFuture<int> delayMapped(int count);
 
     QFuture<void> dummy();

@@ -24,4 +24,22 @@ TestCase {
         compare(result, "");
     }
 
+    function test_PromiseRejectsException() {
+        var rejected = false;
+        var reason;
+
+        Future.promise(Actor.fail()).then(
+            function() {
+                fail("The promise should not be fulfilled")
+            },
+            function(error) {
+                rejected = true
+                reason = error
+            }
+        );
+
+        tryCompare(function() { return rejected }, true, 1000);
+        compare(reason, "future failure");
+    }
+
 }

@@ -5,6 +5,7 @@
 
 #include <QVariant>
 #include <QFuture>
+#include <QFutureInterface>
 #include <QJSValue>
 #include <QFutureWatcher>
 #include <QPointer>
@@ -12,6 +13,7 @@
 #include <QCoreApplication>
 #include <QQmlEngine>
 #include <functional>
+#include <exception>
 
 namespace QuickFuture {
 
@@ -30,6 +32,25 @@ namespace QuickFuture {
         Q_UNUSED(engine);
         Q_UNUSED(future);
         return QJSValueList();
+    }
+
+    inline QString exceptionMessage(std::exception_ptr exception) {
+        if (!exception) {
+            return QStringLiteral("QFuture failed without an exception");
+        }
+
+        try {
+            std::rethrow_exception(exception);
+        } catch (const QUnhandledException &e) {
+            if (e.exception()) {
+                return exceptionMessage(e.exception());
+            }
+            return QStringLiteral("Unhandled exception in QFuture");
+        } catch (const std::exception &e) {
+            return QString::fromLocal8Bit(e.what());
+        } catch (...) {
+            return QStringLiteral("Unknown exception in QFuture");
+        }
     }
 
     template <typename F>
@@ -181,7 +202,17 @@ public:
         auto listener = [=]() { \
             if (!engine.isNull()) { \
                 QJSValue callback = func; \
-                QJSValue ret = callback.call(QuickFuture::valueList<T>(engine, future)); \
+                QJSValue ret; \
+                QFutureInterfaceBase futureInterface = QFutureInterfaceBase::get(future); \
+                if (futureInterface.hasException()) { \
+                    QJSValueList args; \
+                    args << QJSValue(QJSValue::UndefinedValue) \
+                         << engine->toScriptValue(QuickFuture::exceptionMessage( \
+                                futureInterface.exceptionStore().exception())); \
+                    ret = callback.call(args); \
+                } else { \
+                    ret = callback.call(QuickFuture::valueList<T>(engine, future)); \
+                } \
                 if (ret.isError()) { \
                     printException(ret); \
                 } \

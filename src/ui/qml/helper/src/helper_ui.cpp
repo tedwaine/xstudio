@@ -22,6 +22,14 @@ using namespace xstudio::ui::qml;
 #include <QQmlProperty>
 #include <QQuickWindow>
 
+namespace {
+std::string unescape_exception_message(const char *message) {
+    std::vector<char> unescaped;
+    caf::detail::print_unescaped(unescaped, std::string(message));
+    return {unescaped.begin(), unescaped.end()};
+}
+} // namespace
+
 CafSystemObject::CafSystemObject(QObject *parent, caf::actor_system &sys)
     : QObject(parent), system_ref_(sys) {
     setObjectName("CafSystemObject");
@@ -589,10 +597,9 @@ QVariant Helpers::python_callback(
         return json_to_qvariant(return_val);
 
     } catch (std::exception &e) {
-
-        std::vector<char> b;
-        caf::detail::print_unescaped(b, std::string(e.what()));
-        return QVariant(QString::fromLatin1(b.data()));
+        const auto message = unescape_exception_message(e.what());
+        return QVariant(QString::fromUtf8(
+            message.data(), static_cast<qsizetype>(message.size())));
     }
 
     return {};
@@ -630,8 +637,9 @@ QFuture<QVariant> Helpers::pythonAsyncCallback(
 
     return QtConcurrent::run([=]() -> QVariant {
         try {
-
             utility::JsonStore packed_args(xstudio::ui::qml::qvariant_to_json(args));
+
+            std::cerr << "Packed args: " << packed_args.dump(2) << std::endl;
 
             auto python_interp_actor =
                 CafSystemObject::get_actor_system().registry().template get<caf::actor>(
@@ -648,10 +656,11 @@ QFuture<QVariant> Helpers::pythonAsyncCallback(
 
             return json_to_qvariant(return_val);
 
-        } catch (std::exception &e) {
-            spdlog::critical("{} {}", __PRETTY_FUNCTION__, e.what());
+        } catch (const std::exception &e) {
+            const auto message = unescape_exception_message(e.what());
+            spdlog::critical("{} {}", __PRETTY_FUNCTION__, message);
+            throw std::runtime_error(message);
         }
-        return {};
     });
 }
 
