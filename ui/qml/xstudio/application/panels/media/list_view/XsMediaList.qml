@@ -361,7 +361,8 @@ XsListView {
         }
     }
 
-    XsMediaScrollKeeper {
+    // FIXME
+    /*XsMediaScrollKeeper {
         prefix: "L"
-    }
+    }*/
 }

@@ -126,6 +126,52 @@ bool PropertyMap::set_data_value_check(const int key, const nlohmann::json &data
     bool rt = false;
     AnyPtr current_value = get_data_value(key);
     const std::type_info &id = current_value ? current_value->type() : typeid(void);
+
+
+    bool bool_array = false;
+    if (data.is_array() && data.size() && data.begin().value().is_boolean()) {
+        bool_array = true;
+        for (auto p = data.begin(); p != data.end(); p++) {
+            if (!p.value().is_boolean()) {
+                bool_array = false;
+                break;
+            }
+        }
+    }
+
+    bool string_array = false;
+    if (data.is_array() && data.size() && data.begin().value().is_string()) {
+        string_array = true;
+        for (auto p = data.begin(); p != data.end(); p++) {
+            if (!p.value().is_string()) {
+                string_array = false;
+                break;
+            }
+        }
+    }
+
+    bool is_int_array = false;
+    if (data.is_array() && data.size() && data.begin().value().is_number_integer()) {
+        is_int_array = true;
+        for (auto p = data.begin(); p != data.end(); p++) {
+            if (!p.value().is_number_integer()) {
+                is_int_array = false;
+                break;
+            }
+        }
+    }
+
+    bool is_float_array = false;
+    if (data.is_array() && data.size() && data.begin().value().is_number()) {
+        is_float_array = true;
+        for (auto p = data.begin(); p != data.end(); p++) {
+            if (!p.value().is_number()) {
+                is_float_array = false;
+                break;
+            }
+        }
+    }
+
     if (data.is_string()) {
 
         if (typeid(utility::Uuid) == id) {
@@ -152,16 +198,15 @@ bool PropertyMap::set_data_value_check(const int key, const nlohmann::json &data
 
         rt = set_data_value_check(key, data.get<utility::ColourTriplet>());
 
-    } else if (
-        (data.is_array() || data.is_object()) &&
-        (id == typeid(nlohmann::json) || id == typeid(void))) {
+    } else if (bool_array) {
 
-        if (id == typeid(void) || get_data_value_t<nlohmann::json>(key) != data) {
-            set_data_value(key, std::make_shared<const std::any>(data));
-            rt    = true;
+        std::vector<bool> v;
+        for (auto p = data.begin(); p != data.end(); p++) {
+            v.push_back(p.value().get<bool>());
         }
+        rt = set_data_value_check(key, v);
 
-    } else if (data.is_array() && data.size() && data.begin().value().is_string()) {
+    } else if (string_array) {
 
         std::vector<std::string> v;
         for (auto p = data.begin(); p != data.end(); p++) {
@@ -171,17 +216,7 @@ bool PropertyMap::set_data_value_check(const int key, const nlohmann::json &data
         }
         rt = set_data_value_check(key, v);
 
-    } else if (data.is_array() && data.size() && data.begin().value().is_boolean()) {
-
-        std::vector<bool> v;
-        for (auto p = data.begin(); p != data.end(); p++) {
-            if (p.value().is_boolean()) {
-                v.push_back(p.value().get<bool>());
-            }
-        }
-        rt = set_data_value_check(key, v);
-
-    } else if (data.is_array() && data.size() && data.begin().value().is_number()) {
+    } else if (is_float_array) {
 
         std::vector<float> v;
         for (auto p = data.begin(); p != data.end(); p++) {
@@ -190,6 +225,25 @@ bool PropertyMap::set_data_value_check(const int key, const nlohmann::json &data
             }
         }
         rt = set_data_value_check(key, v);
+
+    } else if (is_int_array) {
+
+        std::vector<int> v;
+        for (auto p = data.begin(); p != data.end(); p++) {
+            if (p.value().is_number_integer()) {
+                v.push_back(p.value().get<int>());
+            }
+        }
+        rt = set_data_value_check(key, v);
+
+    } else if (
+        (data.is_array() || data.is_object()) &&
+        (id == typeid(nlohmann::json) || id == typeid(void))) {
+
+        if (id == typeid(void) || get_data_value_t<nlohmann::json>(key) != data) {
+            set_data_value(key, std::make_shared<const std::any>(data));
+            rt    = true;
+        }
 
     } else if (data.is_boolean()) {
         rt = set_data_value_check(key, data.get<bool>());

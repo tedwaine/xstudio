@@ -156,14 +156,12 @@ Item {
     property var timelineActor: undefined
     property var vca: viewedContainerActor
     onVcaChanged: {
-        console.log("VCA changed: " + vca, viewedContainer.values.typeRole, viewedContainer.values.activePlayheadActorRole)
         if (viewedContainer.values.typeRole === "Timeline") {
             timelineActor = viewedContainerActor
         } else {
             timelineActor = undefined
         }
     }
-    onTimelineActorChanged: console.log("Timeline actor changed: " + timelineActor)
 
     XsSessionModelNode {
         id: __timelineModelData    
@@ -173,13 +171,6 @@ Item {
     XsPlayhead {
         id: timelinePlayhead
         playheadActor: __timelineModelData.values.activePlayheadActorRole
-        onPlayheadActorChanged: console.log("Timeline playhead actor changed: " + timelinePlayhead.playheadActor)
     }
-
-    property var foop: currentPlayhead.playheadActor
-    property var bar: timelinePlayhead.playheadActor
-
-    onFoopChanged: console.log("Foop changed: " + foop, "Bar: " + bar)
-    onBarChanged: console.log("Bar changed: " + bar, "Foop: " + foop)
 
 }

@@ -197,6 +197,14 @@ namespace {
             }
             return img;
         }
+        if (a.type() == typeid(Imath::V3f)) {
+            const auto &vec = std::any_cast<const Imath::V3f &>(a);
+            QVariantList img(3);
+            img[0] = vec.x;
+            img[1] = vec.y;
+            img[2] = vec.z;
+            return img;
+        }
         std::cerr << "Bailing out, unknown type: " << a.type().name() << std::endl;
 
         return QVariant();
@@ -344,12 +352,7 @@ caf::message_handler UIDataModel::core_message_handler() {
             if (nn) {
                 nm = *nn;
             }
-            std::cerr << "Adding child " << nm << " with ID: " << to_string(child_id) << " at insertion index: " << name << " " << insertion_index << std::endl;
-            std::cerr << "Index in tree: ";
-            for (const auto &ii : index_in_tree) {
-                std::cerr << ii << " ";
-            }
-            std::cerr << std::endl;
+
             if (child_id != *(root_->get_data_value<utility::Uuid>(session::uuidRole))) {
                 return;
             }
@@ -365,56 +368,13 @@ caf::message_handler UIDataModel::core_message_handler() {
             // leaves views unable to resolve the new index).
             ObjectDataTree * node = const_cast<ObjectDataTree *>(UIDataModel::node_from_index(parent_index));
             
-            std::cerr << "BFORE " << rowCount(parent_index) << std::endl;
             beginInsertRows(parent_index, insertion_index, insertion_index);
             if (node) {
-                qDebug() << "Waggle " << parent_index << " " << node << "\n";
-
                 auto cd = __child_data->deep_copy(node);
                 register_subtree(cd.get());
                 node->insert_node(cd, insertion_index);
             }
             endInsertRows();
-            std::cerr << "AFTER " << rowCount(parent_index) << std::endl;
-
-
-{
-    QModelIndex child = index(insertion_index, 0, parent_index);
-        // The tree root has no parent() and is represented by the invalid QModelIndex. A node's
-    // row is its key in the parent's children_data_.
-    if (!child.isValid()) {
-        std::cerr << "Invalid child index" << std::endl;
-    }
-    else {
-
-    const ObjectDataTree *node = node_from_index(child);
-    if (!node)
-        std::cerr << "Invalid node" << std::endl;
-    else {
-
-    const ObjectDataTree *parent_node = node->parent();
-    if (!parent_node || !parent_node->parent())
-        std::cerr << "Invalid parent node" << std::endl;
-    else {
-
-    const quintptr parent_id = id_of(parent_node);
-    if (!parent_id)
-        std::cerr << "Invalid parent ID" << std::endl;
-    else {
-
-    auto p = std::find_if(parent_node->parent()->begin(), parent_node->parent()->end(), [parent_node](const ObjectDataTreePtr &c) {
-        return c.get() == parent_node;
-    });
-    if (p == parent_node->parent()->end())
-        std::cerr << "Parent not found in grandparent's children" << std::endl;
-}
-}
-}
-}
-
-}
-
-
             emit lengthChanged();
             
 
@@ -444,7 +404,6 @@ void UIDataModel::handleUpdateValueRequest(const QString &key, const QVariant &v
     auto p = data_roles_inverse_.find(key);
     if (p == data_roles_inverse_.end())
         return;
-    qDebug() << "Updating value for key: " << key.toStdString() << " with value: " << value;
     self()->mail(property_atom_v, p.value(), anyPtrFromQVariant(value)).send(source_of_data_);
 
 }

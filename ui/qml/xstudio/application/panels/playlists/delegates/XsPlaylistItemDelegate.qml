@@ -44,14 +44,10 @@ XsPlaylistItemBase {
             property var code: qmlCodeRole
             property var modelIndex: playlistsModelData.index(index, 0, subItemsModel.rootIndex)
             onCodeChanged: {
-                console.log("Code changed to: ", code)
                 if (typeof code === "string") {
                     widget = Qt.createQmlObject(code, pitem)
                     widget.indent = true
                 }
-            }
-            Component.onCompleted: {
-                console.log("OIOIO", typeRole, qmlCodeRole)
             }
         }
 

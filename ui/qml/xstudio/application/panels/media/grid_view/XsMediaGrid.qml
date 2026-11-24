@@ -336,7 +336,8 @@ XsGridView {
         }
     }
 
-    XsMediaScrollKeeper {
+    // FIXME
+    /*XsMediaScrollKeeper {
         prefix: "G"
-    }
+    }*/
 }

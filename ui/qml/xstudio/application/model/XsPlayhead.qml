@@ -23,18 +23,12 @@ Item {
             // be part of populating a timeline interface etc.
             forceConnect = !forceConnect
         }
-        onLengthChanged: {
-            console.log("Playhead length changed to: " + length)
-        }
     }
 
     XsAttributeValue {
         id: __playheadLogicalFrame
         attributeTitle: "Logical Frame"
         model: playhead_attrs_model
-        onValueChanged: {
-            console.log("Logical Frame changed to: " + value)
-        }
     }
 
     XsAttributeValue {

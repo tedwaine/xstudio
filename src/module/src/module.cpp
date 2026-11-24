@@ -2506,7 +2506,6 @@ void Module::register_attribute_in_ui_models(Attribute *attr) {
                 sys->send_exit(attr->watcher(), caf::exit_reason::user_shutdown);
                 attr->set_watcher(caf::actor{});        */
             }
-            return;
         } else if (!attr->watcher()) {
             scoped_actor sys{self()->home_system()};
             attr->set_watcher(sys->spawn<AttributeWatcherActor>(
@@ -2529,7 +2528,7 @@ void Module::register_attribute_in_ui_models(Attribute *attr) {
 
         }
 
-        /*for (const auto &group_name : exiting_groups) {
+        for (const auto &group_name : exiting_groups) {
 
             // We have an exiting watcher actor. Send it to the central UI
             // models actor so that it can be removed from a group object.
@@ -2539,6 +2538,6 @@ void Module::register_attribute_in_ui_models(Attribute *attr) {
                 utility::UuidActor{attr->uuid(), attr->watcher()})
                 .send(central_ui_models_actor_);
 
-        }*/
+        }
     }
 }

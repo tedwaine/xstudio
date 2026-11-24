@@ -569,6 +569,12 @@ Item {
     property var inspectedContainerActor: the_session.values.inspectedContainerRole
 
     XsSessionModelNode {
+        id: __inspectedContainer  
+        rootActor: inspectedContainerActor
+    }
+    property alias inspectedContainerProperties: __inspectedContainer.values
+
+    XsSessionModelNode {
         id: __mediaModelData    
         rootActor: inspectedContainerActor
         childSearchPropertyKey: "nameRole"

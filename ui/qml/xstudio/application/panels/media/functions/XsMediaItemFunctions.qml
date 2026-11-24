@@ -52,7 +52,6 @@ Item {
         for (var i = 0; i < filteredmediaModelData.rowCount(); ++i) {
 
             let uuid = filteredmediaModelData.getData(i, "uuidRole")
-            console.log("uuid:", uuid, selection.indexOf(uuid))
             if (selection.indexOf(uuid) === -1)
                 continue;
                  

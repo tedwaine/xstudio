@@ -73,15 +73,6 @@ Rectangle{
     XsPlayhead {
         id: viewportPlayhead
         playheadActor: view.playheadActorAddress
-        onPlayheadActorChanged: {
-            // handle playhead actor change if needed
-            console.log("Playhead actor changed to:", playheadActor)
-        }
-        property var asd: logicalFrame
-        onAsdChanged: {
-            // handle logical frame change if needed
-            console.log("Logical frame changed to: ", asd)
-        }
     }
 
 

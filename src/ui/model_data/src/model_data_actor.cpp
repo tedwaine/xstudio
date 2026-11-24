@@ -203,6 +203,7 @@ caf::message_handler GlobalUIModelData::message_handler() {
             // Take an attribute watcher out of a model data tree
 
             auto attribute_group_actor = get_ui_data_model_root_node(model_name);
+            std::cerr << "Deregistering model data for model: " << model_name << " " << bool(attribute_group_actor) << std::endl;
             if (attribute_group_actor) {
                 anon_mail(utility::remove_children_atom_v, attribute_watcher).send(attribute_group_actor);
             }
@@ -260,31 +261,6 @@ caf::message_handler GlobalUIModelData::message_handler() {
                 return model_data_as_json(model_name);
             } catch (std::exception &e) {
                 return caf::make_error(xstudio_error::error, e.what());
-            }
-        },
-        [=](register_model_data_atom,
-            const std::string &model_name,
-            const utility::JsonStore &attribute_data,
-            const utility::Uuid &attribute_uuid,
-            const std::string &sort_role,
-            caf::actor client) -> result<utility::JsonStore> {
-            try {
-                insert_attribute_data_into_model(
-                    model_name, attribute_uuid, attribute_data, sort_role, client);
-                return model_data_as_json(model_name);
-            } catch (std::exception &e) {
-                return caf::make_error(xstudio_error::error, e.what());
-            }
-        },
-        [=](deregister_model_data_atom,
-            const std::string &model_name,
-            const utility::Uuid &attribute_uuid,
-            caf::actor client) {
-            try {
-                remove_attribute_data_from_model(model_name, attribute_uuid, client);
-            } catch (std::exception &e) {
-                std::cerr << "E " << e.what() << "\n";
-                // return caf::make_error(xstudio_error::error, e.what());
             }
         },
         [=](register_model_data_atom,
@@ -675,132 +651,6 @@ void GlobalUIModelData::set_data(
 
     } catch ([[maybe_unused]] std::exception &e) {
         // spdlog::warn("{} {}", __PRETTY_FUNCTION__, e.what());
-    }
-}
-
-void GlobalUIModelData::insert_attribute_data_into_model(
-    const std::string &model_name,
-    const utility::Uuid &attribute_uuid,
-    const utility::JsonStore &attr_data,
-    const std::string &sort_role,
-    caf::actor client) {
-
-    const utility::JsonStore attribute_data = attr_data;
-    auto p                                  = models_.find(model_name);
-    if (p != models_.end()) {
-
-        // model with this name already exists. Simply add client and send the
-        // full model state to the client
-        bool already_a_client = false;
-        for (auto &c : p->second->clients_) {
-            if (c == client) {
-                already_a_client = true;
-            }
-        }
-        if (!already_a_client) {
-            p->second->clients_.insert(caf::actor_cast<caf::actor_addr>(client));
-            monitor(client);
-        } else {
-            //std::cerr << "Attr " << attr_data["title"] << " already a client of " << model_name <<std::endl;
-        }
-
-    } else {
-        utility::JsonStore blank_model(nlohmann::json::parse(R"({})"));
-        models_[model_name] = std::make_shared<ModelData>(model_name, blank_model, client);
-        monitor(client);
-    }
-
-    register_client_with_model(client, model_name);
-
-    utility::JsonTree *parent_node = &(models_[model_name]->data_);
-    try {
-        auto pnode = find_node_matching_string_field(
-            parent_node, attr_uuid_role_name, to_string(attribute_uuid));
-
-        if (!pnode) {
-            if (!sort_role.empty() && attribute_data.contains(sort_role)) {
-                const auto &sort_v = attribute_data[sort_role];
-                auto insert_pt     = parent_node->begin();
-                while (insert_pt != parent_node->end()) {
-                    if (insert_pt->data().contains(sort_role)) {
-                        if (insert_pt->data()[sort_role] >= sort_v) {
-                            break;
-                        }
-                    }
-                    insert_pt++;
-                }
-                parent_node->insert(insert_pt, attribute_data);
-            } else {
-                parent_node->insert(parent_node->end(), attribute_data);
-            }
-            broadcast_whole_model_data(model_name);
-            return;
-        }
-
-        parent_node = pnode;
-
-        const auto &d = parent_node->data();
-
-        bool full_push = false;
-        std::vector<std::string> changed;
-        for (auto it = attribute_data.begin(); it != attribute_data.end(); it++) {
-            if (d.contains(it.key()) && d[it.key()] != it.value()) {
-                changed.push_back(it.key());
-            } else if (not d.contains(it.key())) {
-                full_push = true;
-            }
-        }
-
-        if (full_push) {
-            broadcast_whole_model_data(model_name);
-        } else {
-            for (const auto &c : changed) {
-                set_data(model_name, attribute_uuid, c, attribute_data[c], client);
-            }
-        }
-
-    } catch ([[maybe_unused]] std::exception &e) {
-        // exception is thrown if we fail to find a match
-        if (!sort_role.empty() && attribute_data.contains(sort_role)) {
-            const auto &sort_v = attribute_data[sort_role];
-            auto insert_pt     = parent_node->begin();
-            while (insert_pt != parent_node->end()) {
-                if (insert_pt->data().contains(sort_role)) {
-                    if (insert_pt->data()[sort_role] >= sort_v) {
-                        break;
-                    }
-                }
-                insert_pt++;
-            }
-            parent_node->insert(insert_pt, attribute_data);
-        } else {
-            parent_node->insert(parent_node->end(), attribute_data);
-        }
-        broadcast_whole_model_data(model_name);
-    }
-}
-
-void GlobalUIModelData::remove_attribute_data_from_model(
-    const std::string &model_name, const utility::Uuid &attribute_uuid, caf::actor client) {
-
-    try {
-
-        check_model_is_registered(model_name);
-
-        utility::JsonTree *model_data = &(models_[model_name]->data_);
-        auto &clients                 = models_[model_name]->clients_;
-        for (auto c = clients.begin(); c != clients.end(); ++c) {
-            if (*c == caf::actor_cast<caf::actor_addr>(client)) {
-                clients.erase(c);
-                break;
-            }
-        }
-        if (find_and_delete(model_data, attr_uuid_role_name, to_string(attribute_uuid))) {
-            broadcast_whole_model_data(model_name);
-        }
-
-    } catch (...) {
-        throw;
     }
 }
 
@@ -1722,8 +1572,6 @@ utility::UuidActor GlobalUIModelData::get_ui_data_model_root_node(const std::str
         utility::Uuid uuid = utility::Uuid::generate();
         put_ui_data_model_root_node(model_name, utility::UuidActor(uuid, spawn<utility::ObjectActor>(model_name, uuid)));
     }
-
-    if (model_name == "viewport0_toolbar") std::cerr << "Getting UI data model root node for: " << model_name << std::endl;
 
     if (new_watcher) {
         new_models_[model_name]->subscribers_.insert(caf::actor_cast<caf::actor_addr>(new_watcher));

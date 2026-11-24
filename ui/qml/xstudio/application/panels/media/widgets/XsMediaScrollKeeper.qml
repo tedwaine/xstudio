@@ -36,7 +36,7 @@ Item {
                 storeContentY = 0
             }
 
-            let key = prefix + inspectedMediaSetProperties.values.idRole
+            let key = prefix + inspectedContainerProperties.idRole
             if (typeof scrollKeeper == "object" && scrollKeeper.hasOwnProperty(key)) {
                 contentY = scrollKeeper[key]
             }
@@ -46,14 +46,14 @@ Item {
     // machanisms to store and restore the scroll position
     // whenever the mode is changed between grid and list
     Component.onDestruction: {
-        let id_ = inspectedMediaSetProperties.values.idRole
+        let id_ = inspectedContainerProperties.idRole
         if (id_ && typeof scrollKeeper == "object" ) {
             let key = prefix + id_
             scrollKeeper[key] = contentY
         }
     }
     Component.onCompleted: {
-        let id_ = inspectedMediaSetProperties.values.idRole
+        let id_ = inspectedContainerProperties.idRole
         if (id_) {
             let key = prefix + id_
             if (typeof scrollKeeper == "object" && scrollKeeper.hasOwnProperty(key))

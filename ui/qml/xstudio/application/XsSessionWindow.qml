@@ -455,6 +455,7 @@ ApplicationWindow {
     property alias viewedContainer: sessionData.viewedContainer
     property alias viewedContainerActor: sessionData.viewedContainerActor
     property alias inspectedContainer: sessionData.inspectedContainer
+    property alias inspectedContainerProperties: sessionData.inspectedContainerProperties
     
     // Makes these important global items visible in child contexts
     property alias theSessionData: sessionData.session

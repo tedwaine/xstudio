@@ -56,7 +56,7 @@ MouseArea {
 
                 // delay plahead start, giving backend time to switch playhead
                 callbackTimer.setTimeout(function() { return function() {
-                    if (inspectedMediaSetProperties.values.typeRole == "Timeline") {
+                    if (inspectedContainerProperties.typeRole == "Timeline") {
                         // we 'un-pin' the timeline playhead so that instead of using
                         // the timline as its source it uses the selected media alone
                         currentPlayhead.pinnedSourceMode = false
@@ -107,7 +107,7 @@ MouseArea {
 
             // delay plahead start, giving backend time to switch playhead
             callbackTimer.setTimeout(function() { return function() {
-                if (inspectedMediaSetProperties.values.typeRole == "Timeline") {
+                if (inspectedContainerProperties.typeRole == "Timeline") {
                     // we 'un-pin' the timeline playhead so that instead of using
                     // the timline as its source it uses the selected media alone
                     currentPlayhead.pinnedSourceMode = false

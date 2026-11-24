@@ -496,8 +496,6 @@ void PlayheadSelectionActor::insert_actor(
 
 void PlayheadSelectionActor::update_selection_indeces() {
 
-    std::cerr << "PlayheadSelection::items_vec() " << PlayheadSelection::items_vec().size() << "\n";
-
     set_data_value(session::selectedMediaRole, PlayheadSelection::items_vec());
 
      // fetch all the media in the playlist

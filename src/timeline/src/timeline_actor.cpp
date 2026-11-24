@@ -2560,6 +2560,32 @@ caf::message_handler TimelineActor::message_handler() {
             return true; 
         },
 
+        [=](insert_item_atom, const bool with_tracks) -> result<bool> {
+            auto rp = make_response_promise<bool>();
+            // special message handler for adding default video and audio tracks
+            utility::Uuid track_uuid = utility::Uuid::generate();
+            auto vid_track = UuidActor(
+                track_uuid,
+                spawn<TrackActor>("Video Track", Timeline::item().rate(), media::MediaType::MT_IMAGE, track_uuid));
+
+            track_uuid = utility::Uuid::generate();
+            auto audio_track = UuidActor(
+                track_uuid,
+                spawn<TrackActor>("Audio Track", Timeline::item().rate(), media::MediaType::MT_AUDIO, track_uuid));
+
+            auto stack_item = *(Timeline::item().begin());
+            mail(insert_item_atom_v, 0, UuidActorVector({vid_track, audio_track}))
+                .request(stack_item.actor(), infinite)
+                .then(
+                    [=](const utility::JsonStore &) mutable {
+                        rp.deliver(true);
+                    },
+                    [=](caf::error &err) mutable { rp.deliver(err); });
+
+            return rp;        
+
+        },
+
         [=](duplicate_atom) -> result<UuidActor> {
             auto rp = make_response_promise<UuidActor>();
 
@@ -2943,6 +2969,11 @@ caf::message_handler TimelineActor::message_handler() {
             // event coming from a clip via track and stack. Send it on  (to UI layer)
             mail(event_atom_v, change_atom_v, clip_edited_status_atom_v, clip_id, edited_status, track_id, stack_id, Timeline::item().uuid()).send(Timeline::event_group());
 
+        },
+
+        [=](playhead::playhead_rate_atom) -> FrameRate { return Timeline::rate(); },
+
+        [=](playhead::playhead_rate_atom, const FrameRate &rate) {
         }
     
     };

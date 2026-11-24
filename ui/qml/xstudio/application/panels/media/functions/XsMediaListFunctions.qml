@@ -110,7 +110,7 @@ Item {
     }
 
     function copyEmailLinkToClipboard() {
-        let name = encodeURIComponent(inspectedMediaSetProperties.values.nameRole)
+        let name = encodeURIComponent(inspectedContainerProperties.nameRole)
         let prefix = "&" + name + "_media="
         let filenames = mediaSelectionModel.getSelectedMediaUrl()
         for(let i =0;i<filenames.length;i++) {

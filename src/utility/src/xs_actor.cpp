@@ -335,14 +335,8 @@ caf::message_handler ObjectActor::private_message_handler() {
             // request to change a data value (usually from the UI layer)
             bool result = false;
             try {
-                if (session::qmlCodeRole == key) {
-                        std::cerr << "YIMP Broadcasting property change for qmlCodeRole" << std::endl;
-                    }
                 if (request_to_set_data_value(key, value)) {
                     // broadcast the property change up the tree
-                    if (session::qmlCodeRole == key) {
-                        std::cerr << "Broadcasting property change for qmlCodeRole" << std::endl;
-                    }
                     mail(event_atom_v, property_atom_v, std::vector<int>(), key, value).send(properties_events_group_);
                     result = true;
                 }

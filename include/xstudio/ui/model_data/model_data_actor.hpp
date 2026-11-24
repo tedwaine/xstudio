@@ -64,16 +64,6 @@ class GlobalUIModelData : public utility::ObjectActor {
         const utility::JsonStore &data,
         caf::actor setter);
 
-    void insert_attribute_data_into_model(
-        const std::string &model_name,
-        const utility::Uuid &attribute_uuid,
-        const utility::JsonStore &attribute_data,
-        const std::string &sort_role,
-        caf::actor client);
-
-    void remove_attribute_data_from_model(
-        const std::string &model_name, const utility::Uuid &attribute_uuid, caf::actor client);
-
     void stop_watching_model(const std::string &model_name, caf::actor client);
 
     void register_model(

@@ -46,14 +46,7 @@ Item {
 
     XsModuleData {
         id: toolbar_model_data
-
         modelDataName: toolbar_model_data_name
-        onModelDataNameChanged: {
-            console.log("Toolbar model data name changed to: ", toolbar_model_data_name)
-        }
-        onLengthChanged: {
-            console.log("TOOLBAR MODEL", toolbar_model_data_name, "length:", toolbar_model_data.length)
-        }
     }
 
     XsPreference {
