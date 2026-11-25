@@ -177,6 +177,7 @@ caf::message_handler MediaActor::message_handler() {
             if (std::find(bookmark_uuids_.begin(), bookmark_uuids_.end(), bookamrk_uuid) ==
                 bookmark_uuids_.end()) {
                 bookmark_uuids_.emplace_back(bookamrk_uuid);
+                set_data_value(session::bookmarkUuidsRole, bookmark_uuids_);
                 mail(
                     utility::event_atom_v,
                     bookmark::bookmark_change_atom_v,
@@ -196,6 +197,7 @@ caf::message_handler MediaActor::message_handler() {
             auto p = std::find(bookmark_uuids_.begin(), bookmark_uuids_.end(), bookmark_uuid);
             if (p != bookmark_uuids_.end()) {
                 bookmark_uuids_.erase(p);
+                set_data_value(session::bookmarkUuidsRole, bookmark_uuids_);
                 mail(
                     utility::event_atom_v,
                     bookmark::bookmark_change_atom_v,

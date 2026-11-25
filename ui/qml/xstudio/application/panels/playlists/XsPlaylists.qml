@@ -349,7 +349,7 @@ Item{
             helpers.pythonAsyncCallback("UtilityPythonPlugin", "remove_session_items", item_uuids)
         ).then(function(result) {
         },
-	    function() {
+	    function(__rr) {
             console.log("ERROR", __rr)
 	    })
 

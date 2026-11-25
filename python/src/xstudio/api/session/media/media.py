@@ -3,7 +3,7 @@ from xstudio.core import get_media_source_atom, current_media_source_atom, get_j
 from xstudio.core import invalidate_cache_atom, get_media_pointer_atom, MediaType, Uuid, media_status_atom
 from xstudio.core import add_media_source_atom, FrameRate, FrameList, parse_posix_path, URI, MediaStatus
 from xstudio.core import set_json_atom, JsonStore, quickview_media_atom, media_display_info_atom
-from xstudio.core import transform_matrix_atom
+from xstudio.core import transform_matrix_atom, duplicate_atom, relink_atom
 
 from xstudio.api.session.container import Container
 from xstudio.api.session.media.media_source import MediaSource
@@ -309,3 +309,20 @@ class Media(Container):
             new_matrix(M44f): Set media item transform matrix.
         """
         self.connection.request_receive(self.remote, transform_matrix_atom(), new_matrix)
+
+    def duplicate(self):
+        """Duplicate the media item."""
+        # duplicate returns a tuple(uuid, UuidActor)
+        r = self.connection.request_receive(self.remote, duplicate_atom())[0][1].actor
+        return Media(self.connection, r)
+
+    def relink(self, path, loose=False):
+        """Relink the media item to a new path.
+
+        Args:
+            path(str): New media path.
+            loose(bool): Whether to perform a loose relink.
+        """
+        if not isinstance(path,URI):
+            path = URI(path)
+        self.connection.api.scanner.relink(self, path, loose)

@@ -175,7 +175,7 @@ XsGridView {
             if (idx == undefined || !idx.valid) {
                 idx = mediaListModelDataRoot
                 if (idx == undefined || !idx.valid) {
-                    idx = theSessionData.createPlaylist(theSessionData.getNextName("Drag Drop {}"))
+                    idx = theSessionData.createPlaylist(the_session.getNextName("Drag Drop {}"))
                 } else {
                     idx = idx.parent // mediaListModelDataRoot is the 'MediaList' underneath a Playist, Subset etc.
                 }

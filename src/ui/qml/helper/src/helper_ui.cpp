@@ -637,9 +637,8 @@ QFuture<QVariant> Helpers::pythonAsyncCallback(
 
     return QtConcurrent::run([=]() -> QVariant {
         try {
+            
             utility::JsonStore packed_args(xstudio::ui::qml::qvariant_to_json(args));
-
-            std::cerr << "Packed args: " << packed_args.dump(2) << std::endl;
 
             auto python_interp_actor =
                 CafSystemObject::get_actor_system().registry().template get<caf::actor>(

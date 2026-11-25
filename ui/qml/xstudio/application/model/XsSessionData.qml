@@ -164,7 +164,7 @@ Item {
 
             }
             // can't find a selected playlist to add to. Need a new playlist
-            var p = createPlaylist(theSessionData.getNextName("Playlist {}"))
+            var p = createPlaylist(the_session.getNextName("Playlist {}"))
             theSessionData.set(p, true, "expandedRole")
             // need a delay to allow the playlist node in the model to be
             // filled out by the backend
@@ -441,25 +441,6 @@ Item {
             return ms
         }
 
-        function getSelectedMediaUrl(role="pathRole", sourceName="") {
-            let result = []
-            let sel = mediaSelectionModel.selectedIndexes
-            for(let i =0;i<sel.length;i++) {
-                let mi = sel[i]
-                let ms = null
-                if(sourceName.length)
-                    ms = mi.model.searchRecursive(sourceName, "nameRole", mi)
-                else
-                    ms = mi.model.searchRecursive(mi.model.get(mi, "imageActorUuidRole"), "actorUuidRole", mi)
-
-                if(ms.valid) {
-                    let v = mi.model.get(ms, role)
-                    if(v != undefined)
-                        result.push(v)
-                }
-            }
-            return result;
-        }
 
         // Set the current selection to be just the single hero media currently being viewed
         function soloSelection() {
@@ -520,7 +501,6 @@ Item {
         childSearchPropertyKey: "nameRole"
         childSearchPropertyValue: "Media List"
     }
-    property alias mediaModelData: filteredModel
 
     XsMediaListFilterModel {
         sourceModel: __mediaModelData
@@ -533,6 +513,7 @@ Item {
     XsSessionModelNode {
         id: the_session
     }
+    property alias the_session: the_session
 
     // Access to the playlist/subset/timeline that is currently 
     // driving the viewport

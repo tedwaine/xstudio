@@ -221,7 +221,7 @@ XsPopupMenu {
         menuPath: "Media Actions"
         menuItemPosition: 50
         menuModelName: btnMenu.menu_model_name
-        onActivated: media_list_functions.duplicate()
+        onActivated: media_list_functions.duplicateSelectedMedia()
         hotkeyUuid: hotkey_area.duplicate_media_hotkey.uuid
         panelContext: btnMenu.panelContext
     }
@@ -232,7 +232,7 @@ XsPopupMenu {
         menuItemPosition: 1
         hotkeyUuid: hotkey_area.reveal_media_on_disk_hotkey.uuid
         menuModelName: btnMenu.menu_model_name
-        onActivated: helpers.showURIS(mediaSelectionModel.getSelectedMediaUrl())
+        onActivated: helpers.showURIS(media_list_functions.getSelectedMediaUrl())
         panelContext: btnMenu.panelContext
     }
 
@@ -411,9 +411,14 @@ XsPopupMenu {
         panelContext: btnMenu.panelContext
     }
 
+    // FIXME - need to look up active source/stream
+    property var firstSelectedMediaIndex: mediaSelectionThingy.selectedSourceIndexes.length ? mediaSelectionThingy.selectedSourceIndexes[0] : undefined
+    property var firstSelectedMediaImageSource: firstSelectedMediaIndex ? firstSelectedMediaIndex.model.index(0,0, firstSelectedMediaIndex) : undefined
+    property var firstSelectedMediaImageStream: firstSelectedMediaImageSource ? firstSelectedMediaImageSource.model.index(0,0, firstSelectedMediaImageSource) : undefined
+
     XsModelPropertyMap {
         id: selectedMediaProperties
-        index: mediaSelectionModel.selectedIndexes.length ? mediaSelectionModel.selectedIndexes[0] : undefined
+        index: firstSelectedMediaImageStream
     }
     property var currentMediaRotation: selectedMediaProperties.values.rotationRole
 

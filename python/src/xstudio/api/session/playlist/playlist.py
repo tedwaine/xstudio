@@ -7,7 +7,7 @@ from xstudio.core import create_divider_atom, media_rate_atom, playhead_rate_ato
 from xstudio.core import remove_media_atom, VectorUuid, move_media_atom, create_playhead_atom, selection_actor_atom
 from xstudio.core import convert_session_object_atom
 from xstudio.core import reflag_container_atom, expanded_atom, session_atom, copy_media_atom
-from xstudio.core import FrameList, FrameRate, MediaType
+from xstudio.core import FrameList, FrameRate, MediaType, UuidActor
 
 from xstudio.api.session.container import Container, PlaylistTree
 from xstudio.api.session.playhead.playhead import Playhead
@@ -115,15 +115,21 @@ class Playlist(Container, NotificationHandler, JsonStoreHandler):
 
         return media
 
-    def add_media(self, path, frame_list=None, before_uuid=Uuid()):
+    def add_media(self, media_item=None, path=None, frame_list=None, before_uuid=Uuid()):
         """Add media from path.
 
         Args:
+            media_item(Media): (optional) media item to add or ....
             path(str/URI): path to collect media from.
+            frame_list(FrameList): frame range for media.
+            before_uuid(Uuid): (optional) insert media before this UUID.
 
         Returns:
             media(Media): Media.
         """
+        if media_item is not None:
+            self.connection.request_receive(self.remote, add_media_atom(), UuidActor(media_item.uuid, media_item.remote), before_uuid)
+            return [media_item]
         if isinstance(path, URI):
             result = self.connection.request_receive(self.remote, add_media_atom(), path, False, before_uuid)[0]
         else:
@@ -461,16 +467,17 @@ class Playlist(Container, NotificationHandler, JsonStoreHandler):
 
         if isinstance(media, Media):
             media_list = [media.uuid]
-
+        elif isinstance(media, Uuid):
+            media_list = [media]
         elif isinstance(media, list):
             for m in media:
                 if isinstance(m, Media):
                     media_list.append(m.uuid)
                 else:
-                    media_list.push_back(m)
+                    media_list.append(m)
 
-        return self.connection.request_receive(self.remote, remove_media_atom(), VectorUuid(media_list))[0]
-    
+        return self.connection.request_receive(self.remote, remove_media_atom(), media_list)[0]
+        
     def clear(self):
         """Clear the playlist of all media
 

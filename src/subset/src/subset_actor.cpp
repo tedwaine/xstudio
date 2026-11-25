@@ -674,6 +674,7 @@ caf::message_handler SubsetActor::message_handler() {
             // this needs to propergate to children somehow..
             utility::UuidVector removed;
 
+            std::cerr << "YOYOY\n";
             for (const auto &uuid : uuids) {
                 if (actors_.count(uuid) and remove_media(actors_[uuid], uuid)) {
                     removed.push_back(uuid);

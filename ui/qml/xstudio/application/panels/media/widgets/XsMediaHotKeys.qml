@@ -134,7 +134,7 @@ XsHotkeyArea {
         description: "Reveal Media On Disk"
         context: hotkey_area.context
         componentName: "Media List"
-        onActivated: helpers.showURIS(mediaSelectionModel.getSelectedMediaUrl())
+        onActivated: helpers.showURIS(media_list_functions.getSelectedMediaUrl())
     }
 
     XsHotkey {
@@ -143,7 +143,7 @@ XsHotkeyArea {
         description: "Duplicate Selected Media"
         context: hotkey_area.context
         componentName: "Media List"
-        onActivated: media_list_functions.duplicate()
+        onActivated: media_list_functions.duplicateSelectedMedia()
     }
 
     XsHotkey {

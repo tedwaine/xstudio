@@ -425,6 +425,7 @@ CAF_BEGIN_TYPE_ID_BLOCK(xstudio_complex_types, FIRST_CUSTOM_ID + 200)
     CAF_ADD_TYPE_ID(xstudio_complex_types, (std::vector<std::vector<xstudio::ui::viewport::Mask>>))
     CAF_ADD_TYPE_ID(xstudio_complex_types, (std::pair<xstudio::utility::UuidActor, xstudio::bookmark::BookmarkDetail>))
     CAF_ADD_TYPE_ID(xstudio_complex_types, (std::vector<std::pair<xstudio::utility::UuidActor, xstudio::bookmark::BookmarkDetail>>))
+    CAF_ADD_TYPE_ID(xstudio_complex_types, (std::vector<float>))
 
 CAF_END_TYPE_ID_BLOCK(xstudio_complex_types)
 

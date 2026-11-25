@@ -191,6 +191,8 @@ class MediaSourceActor  : public utility::ObjectActor, private MediaSource {
         const MediaDetail &md,
         const utility::FrameRate &rate);
 
+    void updateMediaRefRoledata();
+
     inline static const std::string NAME = "MediaSourceActor";
     void init();
 
@@ -238,8 +240,11 @@ class MediaStreamActor : public utility::ObjectActor, MediaStream {
         return MediaStream::container_message_handler(this).or_else(jsn_handler_.message_handler());
     }
 
+    bool request_to_set_data_value(const int key, const utility::AnyPtr &value) override;
+
   private:
     void apply_auto_rotation(const float rotation_degrees);
+    void set_rotation();
 
     inline static const std::string NAME = "MediaStreamActor";
     void init();

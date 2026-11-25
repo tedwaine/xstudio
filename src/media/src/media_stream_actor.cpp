@@ -32,6 +32,7 @@ MediaStreamActor::MediaStreamActor(caf::actor_config &cfg, const JsonStore &jsn)
             ? JsonStore()
             : static_cast<JsonStore>(jsn["store"]));
 
+    set_rotation();
     init();
 }
 
@@ -67,6 +68,7 @@ caf::message_handler MediaStreamActor::message_handler() {
         [=](transform_matrix_atom, const Imath::M44f &tform) -> bool {
             if (tform != MediaStream::transform()) {
                 MediaStream::set_transform(tform);
+                set_rotation();
                 MediaStream::send_changed();
                 mail(utility::event_atom_v, utility::change_atom_v).send(MediaStream::event_group());
             }
@@ -173,7 +175,7 @@ void MediaStreamActor::init() {
 void MediaStreamActor::apply_auto_rotation(const float rotation_degrees) {
 
     Imath::M44f m;
-    if (rotation_degrees != 0.0) {
+    if (rotation_degrees != 0.0 && MediaStream::detail().resolution_.y && MediaStream::detail().resolution_.x) {
 
         // IMath coord sys is weird I think ... not right handed. Hence
         // negation here.
@@ -213,7 +215,47 @@ void MediaStreamActor::apply_auto_rotation(const float rotation_degrees) {
 
     if (m != MediaStream::transform()) {
         MediaStream::set_transform(m);
-        mail(utility::event_atom_v, change_atom_v, media::rotation_atom_v, rotation_degrees)
-            .send(MediaStream::event_group());
+        set_rotation();
+        MediaStream::send_changed();
+        mail(utility::event_atom_v, change_atom_v).send(MediaStream::event_group());
+
     }
+}
+
+void MediaStreamActor::set_rotation() {
+
+    float r = 0.0f;
+    try {
+        const Imath::M44f tform = MediaStream::transform();
+        Imath::V3f rot;
+        Imath::extractEulerXYZ(tform, rot);
+        r = -rot.z * 180.0f / M_PI;
+    } catch (...) {
+    }
+    set_data_value(session::rotationRole, r);
+
+}
+
+bool MediaStreamActor::request_to_set_data_value(const int key, const AnyPtr &value) {
+    if (key == session::rotationRole) {
+        if (value) {
+            try {
+                const auto &r = std::any_cast<float>(*value);
+                apply_auto_rotation(r);                
+                return true;
+            } catch (...) {}
+            try {
+                const auto &r = std::any_cast<int>(*value);
+                apply_auto_rotation(r);                
+                return true;
+            } catch (...) {}
+            try {
+                const auto &r = std::any_cast<double>(*value);
+                apply_auto_rotation(r);                
+                return true;
+            } catch (...) {}
+        }
+        return false;
+    }
+    return ObjectActor::request_to_set_data_value(key, value);
 }

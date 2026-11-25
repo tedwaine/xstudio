@@ -104,6 +104,8 @@ class UIDataModel : public caf::mixin::actor_object<QAbstractItemModel> {
     [[nodiscard]] bool
     setData(const QModelIndex &index, const QVariant &value, int role = Qt::EditRole) override;
 
+    Q_INVOKABLE void setRoleData(const QModelIndex &index, const QVariant &value, const QString &role);
+  
     Q_INVOKABLE QVariant getData(const QModelIndex &index, const QString &role) const;
 
     Q_INVOKABLE QModelIndex searchRecursive(const QVariant &value, const QString &role, const QModelIndex &parent = QModelIndex(), const int depth = 10) const;
@@ -171,6 +173,8 @@ class SessionModelRoot : public UIDataModel {
     [[nodiscard]] QString rootActor() const { return root_actor_as_string_; }
     void setRootActor(const QString &actor);
 
+    Q_INVOKABLE QString getNextName(const QString &nameTemplate) const;
+    
   signals:
 
     void rootActorChanged();

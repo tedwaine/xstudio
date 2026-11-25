@@ -370,7 +370,7 @@ caf::message_handler ObjectActor::private_message_handler() {
             mail(event_atom_v, property_atom_v, index_in_tree, key, value).send(properties_events_group_);
         },
         [=](property_atom, const int key) -> result<AnyPtr> {
-            return full_tree_state_.get_data_value(key);
+            return __get_property(key);
         },
         [=](property_atom, caf::actor subscriber) -> ObjectDataTreePtr {
 

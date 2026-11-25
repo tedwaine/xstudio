@@ -1407,6 +1407,42 @@ nlohmann::json SessionModel::timelineItemToJson(
 
 MediaListFilterModel::MediaListFilterModel(QObject *parent) : super(parent) {
     setDynamicSortFilter(true);
+    connect(
+        this, &QAbstractItemModel::dataChanged, this,
+        [this](const QModelIndex &, const QModelIndex &, const QList<int> &roles) {
+            if (roles.isEmpty() || roles.contains(session::selectionIndexRole))
+                emit selectedSourceIndexesChanged();
+        });
+    connect(
+        this, &QAbstractItemModel::rowsInserted, this,
+        &MediaListFilterModel::selectedSourceIndexesChanged);
+    connect(
+        this, &QAbstractItemModel::rowsRemoved, this,
+        &MediaListFilterModel::selectedSourceIndexesChanged);
+    connect(
+        this, &QAbstractItemModel::rowsMoved, this,
+        &MediaListFilterModel::selectedSourceIndexesChanged);
+    connect(
+        this, &QAbstractItemModel::layoutChanged, this,
+        &MediaListFilterModel::selectedSourceIndexesChanged);
+    connect(
+        this, &QAbstractItemModel::modelReset, this,
+        &MediaListFilterModel::selectedSourceIndexesChanged);
+    connect(
+        this, &QAbstractProxyModel::sourceModelChanged, this,
+        &MediaListFilterModel::selectedSourceIndexesChanged);
+}
+
+QModelIndexList MediaListFilterModel::selectedSourceIndexes() const {
+    qDebug() << "\n\nSelected source indexes requested\n\n";
+    QModelIndexList result;
+    for (int row = 0; row < rowCount(); ++row) {
+        const QModelIndex proxy_index = index(row, 0);
+        QVariant v = proxy_index.data(session::selectionIndexRole);
+        if (v.canConvert<int>() && v.toInt())
+            result.append(mapToSource(proxy_index));
+    }
+    return result;
 }
 
 bool MediaListFilterModel::filterAcceptsRow(
@@ -1462,6 +1498,19 @@ QVariant MediaListFilterModel::getData(const int row, const QString &role) const
     }
 
     return QVariant();
+}
+
+
+void MediaListFilterModel::setData(const int row, const QVariant &value, const QString &role) const {
+
+    QModelIndex index = rowToSourceIndex(row);
+    if (!index.isValid())
+        return;
+
+    auto mdl = dynamic_cast<UIDataModel *>(sourceModel());
+    if (mdl) {
+        mdl->setRoleData(index, value, role);
+    }
 }
 
 

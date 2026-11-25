@@ -478,11 +478,13 @@ void BookmarkActor::set_owner(caf::actor owner, const bool dead) {
         mail(broadcast::join_broadcast_atom_v, owner)
             .request(base_.event_group(), infinite)
             .then(
-                [=](const bool) mutable {},
+                [=](const bool) mutable {
+                    mail(utility::event_atom_v, bookmark_change_atom_v, base_.uuid())
+                        .send(base_.event_group());
+                },
                 [=](const error &err) mutable {
                     log_caf_error(err);
                 });
-        mail(utility::event_atom_v, bookmark_change_atom_v, base_.uuid())
-            .send(base_.event_group());
+        
     }
 }

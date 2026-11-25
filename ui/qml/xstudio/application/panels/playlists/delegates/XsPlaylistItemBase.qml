@@ -289,7 +289,7 @@ Item {
                 helpers.pythonAsyncCallback("UtilityPythonPlugin", "set_viewed_container", py_args)
             ).then(function(result) {
             },
-	        function() {
+	        function(__rr) {
                 console.log("ERROR", __rr)
 	        })
 

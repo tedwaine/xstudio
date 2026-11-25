@@ -384,7 +384,15 @@ class Connection(object):
         return None
 
     def request_receive(self, *args):
-        """Send message and return response."""
+        """Send message and return response.
+
+        Non-empty homogeneous lists of int, float, str, Uuid, UuidActor, or
+        actor are sent as C++ vectors. Integers and floats must fit C++ int
+        and float; empty lists cannot be inferred. Strings that parse as UUIDs
+        are sent as Uuid values; a list of strings is sent as a vector of Uuid
+        only if every string parses as a UUID. Use VectorString to send a
+        list of UUID-looking strings as strings.
+        """
         return self.request_receive_timeout(self.default_timeout_ms, *args)
 
     def request_receive_timeout(self, timeout_milli, *args):

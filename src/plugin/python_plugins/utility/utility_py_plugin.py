@@ -240,7 +240,15 @@ class UtilityPythonPlugin(PluginBase):
                 + str(current_container.type)
             )
 
-        if object_type == "Timeline":
+        if object_type == "Playlist":
+            playlist = self.connection.api.session.create_playlist(
+                name=name
+            )[1]
+            for media in selected_media:
+                playlist.add_media(media.duplicate())
+            return True
+
+        elif object_type == "Timeline":
             timeline_rate = rate if isinstance(rate, FrameRate) else FrameRate(float(rate))
             timeline = parent_playlist.create_timeline(
                 name=name,
@@ -294,6 +302,28 @@ class UtilityPythonPlugin(PluginBase):
         """Load media files into the session."""
         from xstudio.core import Uuid
         self.connection.api.session.save_playlists(path, [Uuid(p) for p in playlist_uuids])
+
+    def duplicate_selected_media(self):
+        """Duplicate the selected media in the session."""
+        selection = self.connection.api.session.inspected_container.playhead_selection.selected_sources
+        for media in selection:
+            duplicate = media.duplicate()
+            self.connection.api.session.inspected_container.add_media(duplicate)
+
+    def relink_selected_media(self, path, loose=False):
+        """Relink the selected media in the session."""
+        print ("Relinking selected media to path:", path)
+        selection = self.connection.api.session.inspected_container.playhead_selection.selected_sources
+        if not isinstance(path,URI):
+            path = URI(path)
+        for media in selection:
+            media.relink(path, loose)
+
+    def delete_selected_media(self, uuids):
+        """Delete the selected media in the session."""
+        container = self.connection.api.session.inspected_container
+        container.remove_media(uuids)
+
 
 def create_plugin_instance(connection):
     """Create and return a plugin instance."""

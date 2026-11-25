@@ -1,5 +1,6 @@
 # SPDX-License-Identifier: Apache-2.0
-# from xstudio.core import get_thumbnail_atom, clear_atom, count_atom, size_atom
+# from xstudio.core import get_thumbnail_atom, clear_atom, count_atom, size_atom, relink_atom
+from xstudio.core import relink_atom
 from xstudio.api.auxiliary import ActorConnection
 
 class Scanner(ActorConnection):
@@ -14,3 +15,13 @@ class Scanner(ActorConnection):
         """
         ActorConnection.__init__(self, connection, remote)
 
+    def relink(self, media, path, loose=False):
+        """Relink the specified media to a new path.
+
+        Args:
+            media(Media): Media object to relink.
+            path(URI): New media path.
+            loose(bool): Whether to perform a loose relink.
+        """
+        for media_source in media.media_sources:
+            self.connection.send(self.remote, relink_atom(), media_source.remote, path, loose)

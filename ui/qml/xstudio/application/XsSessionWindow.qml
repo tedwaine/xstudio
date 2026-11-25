@@ -457,6 +457,8 @@ ApplicationWindow {
     property alias inspectedContainer: sessionData.inspectedContainer
     property alias inspectedContainerProperties: sessionData.inspectedContainerProperties
     property alias playlistsSelectionModel: sessionData.playlistsSelectionModel 
+    property alias filteredmediaModelData: sessionData.filteredmediaModelData
+    property alias the_session: sessionData.the_session
     
     // Makes these important global items visible in child contexts
     property alias theSessionData: sessionData.session
@@ -478,10 +480,8 @@ ApplicationWindow {
     property alias singletonsModel: sessionData.singletonsModel
     property alias playlistsPanelBarExtraWidgets: sessionData.playlistsPanelBarExtraWidgets
     property alias mediaListSearchString: sessionData.mediaListSearchString
-    property alias filteredmediaModelData: sessionData.filteredmediaModelData
     property alias mediaSelection: sessionData.mediaSelection
     property alias mediaSelectionThingy: sessionData.mediaSelectionThingy
-    property alias mediaModelData: sessionData.mediaModelData
 
     property var sessionPath: sessionProperties.values.pathRole
     property var sessionPathNative: sessionPath ? helpers.pathFromURL(sessionPath) : ""

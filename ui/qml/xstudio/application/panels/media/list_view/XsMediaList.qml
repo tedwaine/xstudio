@@ -190,7 +190,7 @@ XsListView {
             if (idx == undefined || !idx.valid) {
                 idx = mediaListModelDataRoot
                 if (idx == undefined || !idx.valid) {
-                    idx = theSessionData.createPlaylist(theSessionData.getNextName("Drag Drop {}"))
+                    idx = theSessionData.createPlaylist(the_session.getNextName("Drag Drop {}"))
                 } else {
                     // mediaListModelDataRoot is the 'MediaList' that lives
                     // underneath a Playist, Subset etc. We want to call

@@ -115,7 +115,7 @@ Item {
             addPlaylist,
             "Add Playlist",
             "Enter a name for the new playlist.",
-            theSessionData.getNextName("Playlist {}"),
+            the_session.getNextName("Playlist {}"),
             ["Cancel", "Add"])
     }
 
@@ -124,7 +124,7 @@ Item {
             addSubset,
             "Add Subset",
             "Enter a name for the new subset.",
-            theSessionData.getNextName("Subset {}"),
+            the_session.getNextName("Subset {}"),
             ["Cancel", "Add"])
     }
 
@@ -133,7 +133,7 @@ Item {
             addTimeline,
             "Add Sequence",
             "New Sequence",
-            theSessionData.getNextName("Sequence {}"),
+            the_session.getNextName("Sequence {}"),
             ["Cancel", "Add"],
             sessionRate.value)
     }
@@ -143,7 +143,7 @@ Item {
             addContactSheet,
             "Add Contact Sheet",
             "Enter a name for the new contact sheet.",
-            theSessionData.getNextName("Contact Sheet {}"),
+            the_session.getNextName("Contact Sheet {}"),
             ["Cancel", "Add"])
     }
 
@@ -152,7 +152,7 @@ Item {
             addDivider,
             "Add Playlist Divider",
             "Enter a name for the new divider.",
-            theSessionData.getNextName("Divider {}"),
+            the_session.getNextName("Divider {}"),
             ["Cancel", "Add"])
     }
 }

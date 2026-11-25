@@ -196,7 +196,7 @@ XsDragDropHandler {
                 helpers.pythonAsyncCallback("UtilityPythonPlugin", "move_session_items", py_args)
             ).then(function(result) {
             },
-	        function() {
+	        function(__rr) {
                 console.log("ERROR", __rr)
 	        })
             /*Future.promise(

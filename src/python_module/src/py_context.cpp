@@ -11,6 +11,9 @@
 #include "py_config.hpp"
 #include "py_context.hpp"
 
+#include <cmath>
+#include <limits>
+
 namespace caf::python {
 
 class ExitMonitor: public caf::event_based_actor {
@@ -145,6 +148,30 @@ template <class... Ts> void set_py_exception(Ts &&...xs) {
     throw std::runtime_error(oss.str().c_str());
 }
 
+template <class T>
+void append_python_list(message_builder &builder, const py::list &list) {
+    std::vector<T> values;
+    values.reserve(list.size());
+    for (auto item : list)
+        values.push_back(item.cast<T>());
+    builder.append(std::move(values));
+}
+
+std::optional<xstudio::utility::Uuid> parse_uuid_string(const std::string &value) {
+    if (value.find('\0') != std::string::npos)
+        return std::nullopt;
+    size_t digits = 0;
+    for (const char c : value)
+        if (c != '-' && c != '{' && c != '}')
+            ++digits;
+    if (digits != 32)
+        return std::nullopt;
+    const auto parsed = uuids::uuid::from_string(value);
+    if (!parsed)
+        return std::nullopt;
+    return xstudio::utility::Uuid(*parsed);
+}
+
 py_context::py_context(int argc, char **argv)
     : py_config(argc, argv),
       py_local_system_(*this),
@@ -186,14 +213,64 @@ std::optional<message> py_context::py_build_message(const py::args &xs, int skip
                     err.what());
                 return {};
             }
-        } /*else if (type_name == "list") {
-            // special case for lists - can we convert to std::vector<ElemType> ?
-            py::list lst = (*i).cast<py::list>();
-            if (lst.size() > 0) {
-                std::string elem_type_name = PyEval_GetFuncName(lst[0].ptr());
-                type_name = fmt::format("list({})", elem_type_name);
+        } else if (type_name == "list") {
+            const auto list = (*i).cast<py::list>();
+            if (list.empty())
+                set_py_exception(
+                    "Cannot convert an empty Python list to a CAF vector: element type is unknown.");
+
+            const auto first = list[0];
+            for (auto item : list) {
+                if (Py_TYPE(item.ptr()) != Py_TYPE(first.ptr()))
+                    set_py_exception(
+                        "Cannot convert a Python list with mixed element types to a CAF vector.");
             }
-        }*/
+
+            if (PyLong_CheckExact(first.ptr()))
+                append_python_list<int>(mb, list);
+            else if (PyFloat_CheckExact(first.ptr())) {
+                for (auto item : list) {
+                    const auto value = item.cast<double>();
+                    if (std::isfinite(value) &&
+                        std::abs(value) > std::numeric_limits<float>::max())
+                        set_py_exception("Cannot convert Python list: float value is out of range.");
+                }
+                append_python_list<float>(mb, list);
+            } else if (PyUnicode_CheckExact(first.ptr())) {
+                std::vector<std::string> strings;
+                std::vector<xstudio::utility::Uuid> uuid_values;
+                strings.reserve(list.size());
+                uuid_values.reserve(list.size());
+                for (auto item : list) {
+                    strings.push_back(item.cast<std::string>());
+                    const auto uuid = parse_uuid_string(strings.back());
+                    if (uuid)
+                        uuid_values.push_back(*uuid);
+                }
+                if (uuid_values.size() == strings.size())
+                    mb.append(std::move(uuid_values));
+                else
+                    mb.append(std::move(strings));
+            } else if (py::isinstance<xstudio::utility::Uuid>(first))
+                append_python_list<xstudio::utility::Uuid>(mb, list);
+            else if (py::isinstance<xstudio::utility::UuidActor>(first))
+                append_python_list<xstudio::utility::UuidActor>(mb, list);
+            else if (py::isinstance<caf::actor>(first))
+                append_python_list<caf::actor>(mb, list);
+            else
+                set_py_exception(
+                    "Cannot convert Python list elements of type ",
+                    PyEval_GetFuncName(first.ptr()),
+                    " to a CAF vector.");
+            continue;
+        }
+        if (type_name == "str") {
+            const auto uuid = parse_uuid_string((*i).cast<std::string>());
+            if (uuid) {
+                mb.append(*uuid);
+                continue;
+            }
+        }
         auto kvp = bindings().find(type_name);
         if (kvp == bindings().end()) {
             set_py_exception(

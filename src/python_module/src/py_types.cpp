@@ -40,6 +40,8 @@ void py_config::add_types() {
     add_cpp<int64_t>("int64_t", "int64_t", nullptr);
     add_cpp<int>("int", "int", nullptr);
     add_cpp<std::string>("str", "std::string", nullptr);
+    add_cpp<std::vector<int>>("VectorInt", "std::vector<int>", nullptr);
+    add_cpp<std::vector<float>>("VectorFloat", "std::vector<float>", nullptr);
     add_cpp<std::vector<std::string>>("VectorString", "std::vector<std::string>", nullptr);
     add_cpp<std::vector<xstudio::utility::Uuid>>(
         "VectorUuid", "std::vector<xstudio::utility::Uuid>", nullptr);

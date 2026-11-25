@@ -92,6 +92,8 @@ MediaSourceActor::MediaSourceActor(caf::actor_config &cfg, const JsonStore &jsn)
 
     if (re_aquire_detail) {
         update_media_detail();
+    } else {
+        updateMediaRefRoledata();
     }
 
     init();
@@ -114,6 +116,7 @@ MediaSourceActor::MediaSourceActor(
     link_to(json_store_);
     join_event_group(this, json_store_);
 
+    set_data_value(session::mediaStatusRole, to_string(MediaSource::media_status()));
 
     // need this on creation or other functions randomly fail, as streams aren't configured..
     anon_mail(acquire_media_detail_atom_v, rate).send(actor_cast<actor>(this));
@@ -137,6 +140,7 @@ MediaSourceActor::MediaSourceActor(
     link_to(json_store_);
     join_event_group(this, json_store_);
 
+    set_data_value(session::mediaStatusRole, to_string(MediaSource::media_status()));
     // need this on creation or other functions randomly fail, as streams aren't configured..
     anon_mail(acquire_media_detail_atom_v, rate).send(actor_cast<actor>(this));
     // acquire_detail(rate);
@@ -161,7 +165,9 @@ MediaSourceActor::MediaSourceActor(
     link_to(json_store_);
     join_event_group(this, json_store_);
 
-    // MediaReference mr = MediaSource::media_reference();
+    set_data_value(session::mediaStatusRole, to_string(MediaSource::media_status()));
+    updateMediaRefRoledata();
+
     // mr.set_timecode_from_frames();
     // MediaSource::set_media_reference(mr);
 
@@ -304,6 +310,7 @@ void MediaSourceActor::acquire_detail(
                         }
                         pending_stream_detail_requests_.clear();
                         MediaSource::set_media_status(MS_UNREADABLE);
+                        set_data_value(session::mediaStatusRole, to_string(MediaSource::media_status()));
                     });
 
         } catch (const std::exception &err) {
@@ -406,6 +413,7 @@ caf::message_handler MediaSourceActor::message_handler() {
         [=](media_status_atom, const MediaStatus status) -> bool {
             if (MediaSource::media_status() != status) {
                 MediaSource::set_media_status(status);
+                set_data_value(session::mediaStatusRole, to_string(MediaSource::media_status()));
                 MediaSource::send_changed();
                 mail(utility::event_atom_v, media_status_atom_v, status)
                     .send(MediaSource::event_group());
@@ -771,6 +779,7 @@ caf::message_handler MediaSourceActor::message_handler() {
                     mr.duration().duration() == timebase::k_flicks_zero_seconds) {
 
                     MediaSource::set_media_status(MS_UNKNOWN);
+                    set_data_value(session::mediaStatusRole, to_string(MediaSource::media_status()));
 
                     // URI is changing! Need a full rebuild
                     if (!mr.rate().count())
@@ -785,6 +794,7 @@ caf::message_handler MediaSourceActor::message_handler() {
                     media_streams_.clear();
 
                     MediaSource::set_media_reference(mr);
+                    updateMediaRefRoledata();
                     uri_status_cache_.clear();
 
                     // rebuild our streams etc.
@@ -802,6 +812,7 @@ caf::message_handler MediaSourceActor::message_handler() {
                 } else {
 
                     MediaSource::set_media_reference(mr);
+                    updateMediaRefRoledata();
                     uri_status_cache_.clear();
                     // update state..
                     update_media_status();
@@ -1920,6 +1931,7 @@ void MediaSourceActor::update_stream_media_reference(
         media_reference.set_timecode_from_frames();
     }
     MediaSource::set_media_reference(media_reference);
+    updateMediaRefRoledata();
     uri_status_cache_.clear();
 }
 
@@ -2110,4 +2122,14 @@ void MediaSourceActor::build_media_streams(
         _rp.deliver(true);
     }
     pending_stream_detail_requests_.clear();
+}
+
+void MediaSourceActor::updateMediaRefRoledata() {
+    MediaReference mr = MediaSource::media_reference();
+    set_data_value(session::timecodeAsFramesRole, json(mr.timecode().total_frames()).dump());
+    set_data_value(session::pathRole, mr.uri());
+    set_data_value(session::pathShakeRole, mr.uri(MediaReference::FramePadFormat::FPF_SHAKE));
+    set_data_value(session::rateFPSRole, mr.rate().to_fps());
+    set_data_value(session::rateFPSStringRole, to_string(mr.rate()));
+
 }

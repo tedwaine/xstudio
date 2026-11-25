@@ -137,6 +137,8 @@ namespace {
             return actorToQString(CafSystemObject::get_actor_system(), std::any_cast<const caf::actor &>(a));
         if (a.type() == typeid(std::string))
             return QString::fromStdString(std::any_cast<const std::string &>(a));
+        if (a.type() == typeid(caf::uri))
+            return QUrlFromUri(std::any_cast<const caf::uri &>(a));
         if (a.type() == typeid(int64_t))
             return std::any_cast<int64_t>(a);
         if (a.type() == typeid(int))
@@ -165,6 +167,16 @@ namespace {
                     3 * buf->width(),
                     QImage::Format_RGB888);
         }
+        if (a.type() == typeid(utility::UuidList)) {
+            const auto &vec = std::any_cast<const utility::UuidList &>(a);
+            QVariantList img(vec.size());
+            int i = 0;
+            for (const auto uuid: vec) {
+                img[i] = QUuidFromUuid(uuid);
+                ++i;
+            }
+            return img;
+        }  
         if (a.type() == typeid(std::vector<float>)) {
             const auto &vec = std::any_cast<const std::vector<float> &>(a);
             QVariantList img(vec.size());
@@ -570,6 +582,14 @@ QVariant UIDataModel::getData(const QModelIndex &index, const QString &role) con
     return qvariantFromAnyPtr(node->get_data_value(p.value()));
 }
 
+void UIDataModel::setRoleData(const QModelIndex &index, const QVariant &value, const QString &role) {
+    const auto p = data_roles_inverse_.find(role);
+    if (p == data_roles_inverse_.end())
+        return;
+    const int role_id = p.value();
+    setData(index, value, role_id);
+}   
+
 bool UIDataModel::setData(const QModelIndex &index, const QVariant &value, int role) {
     bool result = false;
     const ObjectDataTree *node = node_from_index(index);
@@ -701,6 +721,22 @@ void SessionModelRoot::reload() {
     } catch (const std::exception &err) {
         spdlog::error("Failed to convert actor from QString: {}", err.what());
     }
+}
+
+QString SessionModelRoot::getNextName(const QString &nameTemplate) const {
+    QString result = nameTemplate;
+
+    scoped_actor sys{system()};
+    try {
+        result = QStringFromStd(
+            request_receive<std::string>(
+                *sys, session_actor_, name_atom_v, StdFromQString(nameTemplate), true));
+
+    } catch (const std::exception &err) {
+        spdlog::warn("{} {}", __PRETTY_FUNCTION__, err.what());
+    }
+
+    return result;
 }
 
 

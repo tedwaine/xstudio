@@ -702,6 +702,8 @@ class SESSION_QML_EXPORT MediaListFilterModel : public QSortFilterProxyModel {
 
     Q_PROPERTY(
         QString searchString READ searchString WRITE setSearchString NOTIFY searchStringChanged)
+    Q_PROPERTY(QModelIndexList selectedSourceIndexes READ selectedSourceIndexes NOTIFY
+                   selectedSourceIndexesChanged)
 
   public:
     using super = QSortFilterProxyModel;
@@ -709,6 +711,7 @@ class SESSION_QML_EXPORT MediaListFilterModel : public QSortFilterProxyModel {
     MediaListFilterModel(QObject *parent = nullptr);
 
     [[nodiscard]] const QString &searchString() const { return search_string_; }
+    [[nodiscard]] QModelIndexList selectedSourceIndexes() const;
 
     void setSearchString(const QString &ss) {
         if (ss != search_string_) {
@@ -723,6 +726,8 @@ class SESSION_QML_EXPORT MediaListFilterModel : public QSortFilterProxyModel {
             return QHash<int, QByteArray>();
         return sourceModel()->roleNames();
     }
+
+    Q_INVOKABLE void setData(const int row, const QVariant &value, const QString &role) const;
 
     Q_INVOKABLE QVariant getData(const int row, const QString &role) const;
 
@@ -739,6 +744,7 @@ class SESSION_QML_EXPORT MediaListFilterModel : public QSortFilterProxyModel {
 
   signals:
     void searchStringChanged();
+    void selectedSourceIndexesChanged();
 
   private:
     QString search_string_;

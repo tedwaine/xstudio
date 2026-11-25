@@ -264,7 +264,7 @@ Item{
                 add_to_new_playlist,                   // callback for result
                 "Add To New Playlist",                      // title
                 "Enter New Playlist Name.",                 // instructions
-                theSessionData.getNextName("Playlist {}"),  // default text
+                the_session.getNextName("Playlist {}"),  // default text
                 ["Cancel", "Add"])                          // Buttons
             return
         }

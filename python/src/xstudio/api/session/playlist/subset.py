@@ -79,3 +79,26 @@ class Subset(Container, JsonStoreHandler):
         result =  self.connection.request_receive(self.remote, get_playlist_atom())[0]
         return Playlist(self.connection, result)
 
+    def remove_media(self, media):
+        """Remove media from subset.
+
+        Args:
+            media(Media/Uuid or list of): Item to remove.
+
+        Returns:
+            success(bool): Returns result.
+        """
+        media_list = []
+
+        if isinstance(media, Media):
+            media_list = [media.uuid]
+        elif isinstance(media, Uuid):
+            media_list = [media]
+        elif isinstance(media, list):
+            for m in media:
+                if isinstance(m, Media):
+                    media_list.append(m.uuid)
+                else:
+                    media_list.append(m)
+        from xstudio.core import remove_media_atom
+        return self.connection.request_receive(self.remote, remove_media_atom(), media_list)[0]

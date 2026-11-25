@@ -45,79 +45,94 @@ Item {
             },
             "Add To New Playlist",
             "Enter New Playlist Name",
-            theSessionData.getNextName("Playlist {}"),
+            the_session.getNextName("Playlist {}"),
             ["Cancel", "Move Media", "Copy Media"])
     }
 
 
-    function duplicate() {
-        let items = []
+    function duplicateSelectedMedia() {
+        Future.promise(
+            helpers.pythonAsyncCallback("UtilityPythonPlugin", "duplicate_selected_media")
+        ).then(function(return_val) {
 
-        for(let i=0;i<mediaSelectionModel.selectedIndexes.length;++i)
-            items.push(helpers.makePersistent(mediaSelectionModel.selectedIndexes[i]))
-
-        items.forEach(
-            (item) => {
-                item.model.duplicateRows(item.row, 1, item.parent)
-            }
-        )
+        },
+        function(__rr) {
+            dialogHelpers.errorDialogFunc("Duplicate Selection", __rr)
+        }) 
     }
 
     function relinkMedia(loose=false) {
        dialogHelpers.showFolderDialog(
             function(path, chaserFunc) {
-                if(path)
-                    theSessionData.relinkMedia(mediaSelectionModel.selectedIndexes, path, loose)
+
+                Future.promise(
+                    helpers.pythonAsyncCallback("UtilityPythonPlugin", "relink_selected_media", {
+                        "path": path,
+                        "loose": loose
+                    })
+                ).then(function(return_val) {
+
+                },
+                function(__rr) {
+                    dialogHelpers.errorDialogFunc("Relink Media", __rr)
+                }) 
             },
             file_functions.defaultSessionFolder(),
             "Relink media files")
     }
 
 
+    // FIXME - need to look up active source/stream
     function setMediaRotation(rotation, button) {
         if (button == "Cancel") return
         var rot = typeof rotation === "string" ? parseFloat(rotation) : rotation
-        mediaSelectionModel.selectedIndexes.forEach(
+        filteredmediaModelData.selectedSourceIndexes.forEach(
             (element) => {
-                element.model.set(element, rot, "rotationRole")
+                // two steps down to first media stream of first media source
+                element.model.setRoleData(element.model.index(0,0,element.model.index(0,0,element)), rot, "rotationRole")
             }
-        )
+        )        
     }
 
+    // FIXME - need to look up active source/stream
     function copyQuickViewToClipboard() {
-        let filenames = mediaSelectionModel.getSelectedMediaUrl("pathShakeRole")
-
-        for(let i =0;i<filenames.length;i++) {
-            filenames[i] = helpers.pathFromURL(filenames[i])
-        }
-
+        let filenames = []
+        filteredmediaModelData.selectedSourceIndexes.forEach(
+            (element) => {
+                // noe step down to first media source
+                filenames.push(helpers.pathFromURL(element.model.getData(element.model.index(0,0,element), "pathShakeRole")))
+            }
+        )        
         clipboard.text = "xstudio -l '" + filenames.join("' '") +"'"
     }
 
     function copyMediaNamesToClipboard() {
         let result = []
-        mediaSelectionModel.selectedIndexes.forEach(
+        filteredmediaModelData.selectedSourceIndexes.forEach(
             (element) => {
-                result.push(element.model.get(element, "nameRole"))
+                result.push(helpers.pathFromURL(element.model.getData(element.model.index(0,0,element), "nameRole")))
             }
-        )
-
+        )   
         clipboard.text = result.join("\n")
     }
 
+    // FIXME - need to look up active source/stream
     function copyFilePathsToClipboard() {
-        let result = mediaSelectionModel.getSelectedMediaUrl("pathShakeRole")
-        for(let i =0;i<result.length;i++) {
-            result[i] = helpers.pathFromURL(result[i])
-        }
 
-        clipboard.text = result.join("\n")
+        let filenames = []
+        filteredmediaModelData.selectedSourceIndexes.forEach(
+            (element) => {
+                // noe step down to first media source
+                filenames.push(helpers.pathFromURL(element.model.getData(element.model.index(0,0,element), "pathShakeRole")))
+            }
+        )        
+        clipboard.text = filenames.join("\n")
     }
 
     function copyEmailLinkToClipboard() {
         let name = encodeURIComponent(inspectedContainerProperties.nameRole)
         let prefix = "&" + name + "_media="
-        let filenames = mediaSelectionModel.getSelectedMediaUrl()
+        let filenames = getSelectedMediaUrl()
         for(let i =0;i<filenames.length;i++) {
             filenames[i] = helpers.pathFromURL(filenames[i])
         }
@@ -130,24 +145,29 @@ Item {
 
     function copyColumnToClipboard(column) {
         let data = []
-        for( let i=0;i<mediaSelectionModel.selectedIndexes.length; i++) {
-            var fields = theSessionData.get(mediaSelectionModel.selectedIndexes[i], "mediaDisplayInfoRole")
-            data.push(fields[column])
-        }
+        filteredmediaModelData.selectedSourceIndexes.forEach(
+            (element) => {
+                // noe step down to first media source
+                var fields = element.model.getData(element, "mediaDisplayInfoRole")
+                data.push(fields[column])
+            }
+        )        
         clipboard.text = data.join("\n")
     }
 
+    // FIXME - find active image source
     function setMediaAspect() {
-        let mi = mediaSelectionModel.selectedIndexes[0]
-        let ms = theSessionData.searchRecursive(theSessionData.get(mi, "imageActorUuidRole"), "actorUuidRole", mi)
+
+        let mi = filteredmediaModelData.selectedSourceIndexes[0]
+        let ms = mi.model.index(0, 0, mi)
 
         dialogHelpers.numberInputDialog(
             function(new_pixel_aspect, button) {
                 if(button == "Set Pixel Aspect") {
-                    mediaSelectionModel.selectedIndexes.forEach(
+                    new_pixel_aspect = parseFloat(new_pixel_aspect)
+                    filteredmediaModelData.selectedSourceIndexes.forEach(
                         (element) => {
-                            let mi = theSessionData.searchRecursive(theSessionData.get(element, "imageActorUuidRole"), "actorUuidRole", element)
-                            mi.model.set(mi, parseFloat(new_pixel_aspect), "pixelAspectRole")
+                            element.model.set(element.model.index(0, 0, element), new_pixel_aspect, "pixelAspectRole")
                         }
                     )
                 }
@@ -159,16 +179,15 @@ Item {
     }
 
     function setMediaFPS() {
-        let mi = mediaSelectionModel.selectedIndexes[0]
-        let ms = theSessionData.searchRecursive(theSessionData.get(mi, "imageActorUuidRole"), "actorUuidRole", mi)
+        let mi = filteredmediaModelData.selectedSourceIndexes[0]
+        let ms = mi.model.index(0, 0, mi)
 
         dialogHelpers.numberInputDialog(
             function(new_rate, button) {
                 if(button == "Set Rate") {
-                    mediaSelectionModel.selectedIndexes.forEach(
+                    filteredmediaModelData.selectedSourceIndexes.forEach(
                         (element) => {
-                            let mi = theSessionData.searchRecursive(theSessionData.get(element, "imageActorUuidRole"), "actorUuidRole", element)
-                            mi.model.set(mi, new_rate, "rateFPSRole")
+                            element.model.set(element.model.index(0, 0, element), new_rate, "rateFPSRole")
                         }
                     )
                 }
@@ -180,22 +199,23 @@ Item {
     }
 
     function openInQuickView() {
-        if (mediaSelectionModel.selectedIndexes.length > 8) {
+        if (filteredmediaModelData.selectedSourceIndexes.length > 8) {
             dialogHelpers.errorDialogFunc(
                 "Warning",
                 "The quick view feature is limited to a selection of 8 or fewer media items!"
                 )
             return;
         }
-        for (var i in mediaSelectionModel.selectedIndexes) {
-            let idx = mediaSelectionModel.selectedIndexes[i]
-            var actor = theSessionData.get(idx, "actorRole")
-            quick_view_launcher.launchQuickViewer([actor], "Off", -1, -1)
-        }
+        filteredmediaModelData.selectedSourceIndexes.forEach(
+            (element) => {
+                var actor = theSessionData.get(element, "actorRole")
+                quick_view_launcher.launchQuickViewer([actor], "Off", -1, -1)
+            }
+        )
     }
 
     function copyFileNamesToClipboard() {
-        let result = mediaSelectionModel.getSelectedMediaUrl("pathShakeRole")
+        let result = getSelectedMediaUrl("pathShakeRole")
         for(let i =0;i<result.length;i++) {
             result[i] = helpers.pathFromURL(result[i])
             result[i] = result[i].substr(result[i].lastIndexOf("/")+1)
@@ -207,13 +227,12 @@ Item {
         dialogHelpers.textInputDialog(
             function(new_name, button) {
                 if (button == "Add") {
-                   let pl = theSessionData.createPlaylist(new_name)
-                    theSessionData.copyRows(mediaSelectionModel.selectedIndexes, 0, pl)
+                    addToNewPlaylist(new_name)
                 }
             },
             "Add Playlist",
             "Enter a name for the new playlist.",
-            theSessionData.getNextName("Playlist {}"),
+            the_session.getNextName("Playlist {}"),
             ["Cancel", "Add"])
     }
 
@@ -226,7 +245,7 @@ Item {
             },
             "Add Subset",
             "Enter a name for the new subset.",
-            theSessionData.getNextName("Subset {}"),
+            the_session.getNextName("Subset {}"),
             ["Cancel", "Add"])
     }
 
@@ -239,7 +258,7 @@ Item {
             },
             "Add Contact Sheet",
             "Enter New Contact Sheet Name.",
-            theSessionData.getNextName("Contact Sheet {}"),
+            the_session.getNextName("Contact Sheet {}"),
             ["Cancel", "Add"])
     }
 
@@ -262,15 +281,15 @@ Item {
     }
 
     function addToNewSequenceDialog() {
+
         let rate = sessionRate.value
 
-        if(mediaSelectionModel.selectedIndexes.length) {
-            let actoruuid = theSessionData.get(mediaSelectionModel.selectedIndexes[0], "imageActorUuidRole")
-            let image_source = theSessionData.searchRecursive(actoruuid, "actorUuidRole", mediaSelectionModel.selectedIndexes[0])
-            if (image_source.valid) {
-                rate = theSessionData.get(image_source, "rateFPSStringRole")
-            }
+        if(filteredmediaModelData.selectedSourceIndexes.length) {
+            let idx = filteredmediaModelData.selectedSourceIndexes[0]
+            let image_source = idx.model.index(0, 0, idx)
+            rate = idx.model.getData(image_source, "rateFPSStringRole")
         }
+
         dialogHelpers.sequenceInputDialog(
             function(new_name, fps, button) {
                 if (button == "Add") {
@@ -279,83 +298,79 @@ Item {
             },
             "Add Sequence",
             "New Sequence",
-            theSessionData.getNextName("Sequence {}"),
+            the_session.getNextName("Sequence {}"),
             ["Cancel", "Add"],
             rate)
     }
 
     function selectAll() {
-        var selection = []
-        for (var i = 0; i < mediaListModelData.rowCount(); ++i) {
-            selection.push(mediaListModelData.rowToSourceIndex(i))
+        var new_selection = []
+        for (var i = 0; i < filteredmediaModelData.rowCount(); ++i) {            
+            let idx = filteredmediaModelData.rowToSourceIndex(i)
+            new_selection.push(idx.model.getData(idx, "uuidRole"))
         }
-
-        mediaSelectionModel.select(
-            helpers.createItemSelection(selection),
-            ItemSelectionModel.ClearAndSelect
-        )
+        console.log(new_selection)
+        mediaSelectionThingy.setMediaSelection(new_selection)        
     }
 
     function invertSelection() {
-        var selection = []
-        for (var i = 0; i < mediaListModelData.rowCount(); ++i) {
-            if(! mediaSelectionModel.selectedIndexes.includes(mediaListModelData.rowToSourceIndex(i)))
-                selection.push(mediaListModelData.rowToSourceIndex(i))
-        }
+        var new_selection = []
+        for (var i = 0; i < filteredmediaModelData.rowCount(); ++i) {            
+            let idx = filteredmediaModelData.rowToSourceIndex(i)
+            let selectionIndex = idx.model.getData(idx, "selectionIndexRole") 
+            if (!selectionIndex) {
+                new_selection.push(idx.model.getData(idx, "uuidRole"))
+            }
 
-        mediaSelectionModel.select(
-            helpers.createItemSelection(selection),
-            ItemSelectionModel.ClearAndSelect
-        )
+        }
+        mediaSelectionThingy.setMediaSelection(new_selection)        
     }
 
+    // FIXME - lookup image source properly
     function getOffline() {
+
         var selection = []
-
-        for (var i = 0; i < mediaListModelData.rowCount(); ++i) {
-            let si = mediaListModelData.rowToSourceIndex(i)
-            let state = theSessionData.get(si, "mediaStatusRole")
+        for (var i = 0; i < filteredmediaModelData.rowCount(); ++i) {
+            let idx = filteredmediaModelData.rowToSourceIndex(i)
+            let state = idx.model.getData(idx.model.index(0, 0, idx), "mediaStatusRole")
             if(state != undefined && state != "Online")
-                selection.push(mediaListModelData.rowToSourceIndex(i))
-        }
-
+                selection.push(idx)
+        }   
         return selection
     }
 
     function selectAllOffline() {
-        mediaSelectionModel.select(
-            helpers.createItemSelection(getOffline()),
-            ItemSelectionModel.ClearAndSelect
+        let offlineMedia = getOffline()
+        var new_selection = []
+        offlineMedia.forEach(
+            (element) => {
+                new_selection.push(element.model.getData(element, "uuidRole"))
+            }
         )
+        mediaSelectionThingy.setMediaSelection(new_selection)
     }
 
+    // FIXME - looks like this was already broke
     function selectAllAdjusted() {
         var selection = []
-        for (var i = 0; i < mediaListModelData.rowCount(); ++i) {
-            let si = mediaListModelData.rowToSourceIndex(i)
-            let bk = theSessionData.get(si, "bookmarkUuidsRole")
+        for (var i = 0; i < filteredmediaModelData.rowCount(); ++i) {
+            let idx = filteredmediaModelData.rowToSourceIndex(i)
+            let bk = idx.model.getData(idx, "bookmarkUuidsRole")
             if(bk != undefined && bk.length)
-                selection.push(mediaListModelData.rowToSourceIndex(i))
-        }
-
-        mediaSelectionModel.select(
-            helpers.createItemSelection(selection),
-            ItemSelectionModel.ClearAndSelect
-        )
+                selection.push(idx.model.getData(idx, "uuidRole"))
+        }   
+        mediaSelectionThingy.setMediaSelection(selection)
     }
 
     function selectFlagged(flag) {
         var selection = []
-        for (var i = 0; i < mediaListModelData.rowCount(); ++i) {
-            let si = mediaListModelData.rowToSourceIndex(i)
-            if(theSessionData.get(si, "flagColourRole") == flag)
-                selection.push(mediaListModelData.rowToSourceIndex(i))
-        }
-
-        mediaSelectionModel.select(
-            helpers.createItemSelection(selection),
-            ItemSelectionModel.ClearAndSelect
-        )
+        for (var i = 0; i < filteredmediaModelData.rowCount(); ++i) {
+            let idx = filteredmediaModelData.rowToSourceIndex(i)
+            let f = idx.model.getData(idx, "flagColourRole")
+            if(f == flag)
+                selection.push(idx.model.getData(idx, "uuidRole"))
+        }   
+        mediaSelectionThingy.setMediaSelection(selection)
     }
 
     function setColour(indexes, idx) {
@@ -381,7 +396,7 @@ Item {
     }
 
     function deselectAll() {
-        mediaSelectionModel.clear()
+        mediaSelectionThingy.setMediaSelection([])
     }
 
     function mediaIndexAfterRemoved(indexes) {
@@ -407,13 +422,11 @@ Item {
     }
 
     function deleteSelected(force=false) {
-        let items = [].concat(mediaSelectionModel.selectedIndexes)
-
         if(force)
-            deleteSelectedCallback("Delete", items)
+            deleteSelectedCallback("Delete", filteredmediaModelData.selectedSourceIndexes)
         else {
             dialogHelpers.multiChoiceDialog(
-                function(response) {deleteSelectedCallback(response, items)},
+                function(response) {deleteSelectedCallback(response, filteredmediaModelData.selectedSourceIndexes)},
                 "Delete Media",
                 "Remove the selected media?",
                 ["Cancel", "Delete"],
@@ -440,20 +453,20 @@ Item {
     }
 
     function deleteIndexes(indexes) {
-        if(indexes.length) {
-            let items = [].concat(indexes)
-            items = items.sort((a,b) => b.row - a.row )
-
-            if(mediaSelectionModel.selectedIndexes.toString() === indexes.toString()) {
-                var onscreen_idx = mediaIndexAfterRemoved(items)
-                mediaSelectionModel.setCurrentIndex(onscreen_idx, ItemSelectionModel.setCurrentIndex)
-                mediaSelectionModel.select(onscreen_idx, ItemSelectionModel.ClearAndSelect | ItemSelectionModel.setCurrentIndex)
+        let uuids = []
+        indexes.forEach(
+            (element) => {
+                // noe step down to first media source
+                uuids.push(element.model.getData(element, "uuidRole"))
             }
-
-            items.forEach(function (item, index) {
-                item.model.removeRows(item.row, 1, false, item.parent)
-            })
-        }
+        )
+        Future.promise(
+                helpers.pythonAsyncCallback("UtilityPythonPlugin", "delete_selected_media", {"uuids": uuids})
+            ).then(function(result) {
+            },
+	        function(__rr) {
+                dialogHelpers.errorDialogFunc("Delete Media", __rr)
+	        })
     }
 
     function deleteSelectedCallback(response, indexes) {
@@ -463,34 +476,53 @@ Item {
 
     function selectUp() {
 
-        if (!mediaSelectionModel.selectedIndexes.length) return;
+        if (!filteredmediaModelData.selectedSourceIndexes.length) return;
         var first_row = 10000000
-        for (let i = 0; i < mediaSelectionModel.selectedIndexes.length; i++) {
-            first_row = Math.min(mediaSelectionModel.selectedIndexes[i].row, first_row)
-        }
+        filteredmediaModelData.selectedSourceIndexes.forEach(
+            (element) => {
+                let row = filteredmediaModelData.sourceIndexToRow(element)
+                if (row < first_row)
+                    first_row = row
+            }
+        )
         if (first_row > 0) {
-            let parent = mediaSelectionModel.selectedIndexes[0].parent;
-            mediaSelectionModel.select(
-                parent.model.index(first_row-1, 0, parent),
-                ItemSelectionModel.Select
-                )
+            let uuid = filteredmediaModelData.getData(first_row-1, "uuidRole")
+            let new_selection = mediaSelection
+            new_selection.push(uuid)
+            mediaSelectionThingy.setMediaSelection(new_selection)
         }
     }
 
     function selectDown() {
 
-        if (!mediaSelectionModel.selectedIndexes.length) return;
-        var last_row = -1000000
-        for (let i = 0; i < mediaSelectionModel.selectedIndexes.length; i++) {
-            last_row = Math.max(mediaSelectionModel.selectedIndexes[i].row, last_row)
+        if (!filteredmediaModelData.selectedSourceIndexes.length) return;
+        var last_row = -10000000
+        filteredmediaModelData.selectedSourceIndexes.forEach(
+            (element) => {
+                let row = filteredmediaModelData.sourceIndexToRow(element)
+                if (row > last_row)
+                    last_row = row
+            }
+        )
+        if (last_row < (filteredmediaModelData.rowCount() - 1)) {
+            let uuid = filteredmediaModelData.getData(last_row+1, "uuidRole")
+            let new_selection = mediaSelection
+            new_selection.push(uuid)
+            mediaSelectionThingy.setMediaSelection(new_selection)
         }
-        let parent = mediaSelectionModel.selectedIndexes[0].parent;
-        if (last_row >= 0 && parent.model.rowCount(parent) > (last_row+1)) {
-            mediaSelectionModel.select(
-                parent.model.index(last_row+1, 0, parent),
-                ItemSelectionModel.Select
-                )
-        }
+    }
+
+    function getSelectedMediaUrl(role="pathRole", sourceName="") {
+        let result = []
+        filteredmediaModelData.selectedSourceIndexes.forEach(
+            (element) => {
+                // noe step down to first media source
+                let r = element.model.getData(element.model.index(0,0,element), role)
+                if (r != undefined)
+                    result.push(r)
+            }
+        )  
+        return result;
     }
 
     function addToNewSequence(name, rate) {
@@ -499,8 +531,8 @@ Item {
                 helpers.pythonAsyncCallback("UtilityPythonPlugin", "add_selected_media_to_new_object", {"name": name, "rate": rate, "object_type": "Timeline"})
             ).then(function(result) {
             },
-	        function() {
-                console.log("ERROR", __rr)
+	        function(__rr) {
+            dialogHelpers.errorDialogFunc("Add to New Sequence", __rr)
 	        })
 
     }
@@ -510,8 +542,8 @@ Item {
                 helpers.pythonAsyncCallback("UtilityPythonPlugin", "add_selected_media_to_new_object", {"name": name, "object_type": "Subset"})
             ).then(function(result) {
             },
-	        function() {
-                console.log("ERROR", __rr)
+	        function(__rr) {
+                dialogHelpers.errorDialogFunc("Add to New Subset", __rr)
 	        })
     }
 
@@ -521,8 +553,19 @@ Item {
                 helpers.pythonAsyncCallback("UtilityPythonPlugin", "add_selected_media_to_new_object", {"name": name, "object_type": "ContactSheet", "count": count})
             ).then(function(result) {
             },
-	        function() {
-                console.log("ERROR", __rr)
+	        function(__rr) {
+                dialogHelpers.errorDialogFunc("Add to New Contact Sheet", __rr)
 	        })
     }
+
+    function addToNewPlaylist(name) {
+        Future.promise(
+                helpers.pythonAsyncCallback("UtilityPythonPlugin", "add_selected_media_to_new_object", {"name": name, "object_type": "Playlist"})
+            ).then(function(result) {
+            },
+	        function(__rr) {
+                dialogHelpers.errorDialogFunc("Add to New Playlist", __rr)
+	        })
+    }
+
 }
