@@ -180,8 +180,8 @@ metadata with media that isn't from your pipeline.`
     }
 
     Connections {
-        target: mediaSelectionModel // this bubbles up from XsSessionWindow
-        function onSelectedIndexesChanged() {
+        target: filteredmediaModelData // this bubbles up from XsSessionWindow
+        function onSelectedSourceIndexesChanged() {
             if (loader.item && loader.item.visible) {
                 show_metadata_digest()
             }

@@ -225,6 +225,7 @@ void py_config::add_atoms() {
     ADD_ATOM(xstudio::media, add_media_stream_atom);
     ADD_ATOM(xstudio::media, current_media_source_atom);
     ADD_ATOM(xstudio::media, current_media_stream_atom);
+    ADD_ATOM(xstudio::media, decompose_atom);
     ADD_ATOM(xstudio::media, get_edit_list_atom);
     ADD_ATOM(xstudio::media, get_media_details_atom); // DEPRECATED
     ADD_ATOM(xstudio::media, get_media_pointer_atom);

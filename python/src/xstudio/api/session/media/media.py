@@ -128,12 +128,18 @@ class Media(Container):
         """
         return self.connection.request_receive(self.remote, get_metadata_atom())[0]
 
-    def invalidate_cache(self):
+    def invalidate_cache(self, asynchronous=False):
         """Flush media item from cache.
+
+        Args:
+            async(bool): If True, return immediately without waiting for the cache to be invalidated.
 
         Returns:
             result(bool): Flushed ?
         """
+        if asynchronous:
+            self.connection.send(self.remote, invalidate_cache_atom())
+            return True
         return self.connection.request_receive(self.remote, invalidate_cache_atom())[0]
 
     def rescan(self):

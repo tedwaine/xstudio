@@ -375,8 +375,8 @@ Item {
 
     function setColour(indexes, idx) {
         indexes.forEach(
-            function (item, index) {
-                theSessionData.set(item, flagColours[idx].colour, "flagColourRole")
+            (element) => {
+                element.model.setRoleData(element, flagColours[idx].colour, "flagColourRole")
             }
         )
     }
@@ -384,13 +384,13 @@ Item {
     function cycleColour(indexes) {
         var colours = flagColours.map(obj => Object.values(obj)[0])
         indexes.forEach(
-            function (item, index) {
-                let current = theSessionData.get(item, "flagColourRole")
+            (element) => {
+                let current = element.model.getData(element, "flagColourRole")
                 let cind = colours.indexOf(current)
                 if(cind == -1 || cind == colours.length-1)
-                    theSessionData.set(item, colours[0], "flagColourRole")
+                    element.model.setRoleData(element, colours[0], "flagColourRole")
                 else
-                    theSessionData.set(item, colours[cind+1], "flagColourRole")
+                    element.model.setRoleData(element, colours[cind+1], "flagColourRole")
             }
         )
     }

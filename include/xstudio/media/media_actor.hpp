@@ -49,6 +49,8 @@ class MediaActor : public utility::ObjectActor, private Media {
        
       utility::AnyPtr get_data_value(const int key) override;
       
+      bool request_to_set_data_value(const int key, const utility::AnyPtr &value) override;
+
   private:
     void init();
 

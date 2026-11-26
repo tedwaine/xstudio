@@ -76,7 +76,7 @@ MouseArea {
     }
 
     onPositionChanged: (mouse)=> {
-        if (pressed && mouse.buttons == Qt.LeftButton && mediaSelectionModel.selectedIndexes.length) {
+        if (pressed && mouse.buttons == Qt.LeftButton && mediaSelection.length) {
             interactive = false
             drag_drop_handler.doDrag(mouse.x, mouse.y)
         }

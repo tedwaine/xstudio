@@ -226,6 +226,8 @@ caf::message_handler MediaActor::message_handler() {
         },
 
         [=](decompose_atom) -> result<UuidActorVector> {
+
+            std::cerr << "Decomposing media..." << std::endl;
             if (media_sources_.empty())
                 return make_error(xstudio_error::error, "No MediaSources");
 
@@ -2283,3 +2285,33 @@ utility::AnyPtr MediaActor::get_data_value(const int key)
     }
     return utility::AnyPtr();
 }
+
+
+bool MediaActor::request_to_set_data_value(const int key, const utility::AnyPtr &value) {
+    if (key == session::imageActorUuidRole) {
+        if (value) {
+            try {
+                const auto &r = std::any_cast<utility::Uuid>(*value);
+                auto result = Media::set_current(r, MT_IMAGE);
+                if (result) {
+
+                    set_data_value(session::imageActorUuidRole, Media::current(MT_IMAGE));
+                    Media::send_changed();
+                    anon_mail(media_display_info_atom_v).send(this);
+                    mail(
+                        utility::event_atom_v,
+                        current_media_source_atom_v,
+                        UuidActor(
+                            Media::current(MT_IMAGE),
+                            media_sources_.at(Media::current(MT_IMAGE))),
+                        MT_IMAGE)
+                        .send(Media::event_group());
+                }
+                return result;
+            } catch (...) {}
+        }
+        return false;
+    }
+    return ObjectActor::request_to_set_data_value(key, value);
+}
+    

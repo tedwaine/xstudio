@@ -341,6 +341,41 @@ class UtilityPythonPlugin(PluginBase):
         from urllib.parse import urlsplit
         pl.import_timeline(urlsplit(path).path)
 
+    def rescan_media(self, media_uuids):
+        """Rescan the specified media items in the session."""
+        from xstudio.core import Uuid
+        for media_uuid in media_uuids:
+            media = self.connection.api.session.get_media(Uuid(media_uuid))
+            if media:
+                media.rescan()
+
+    def invalidate_cache(self, media_uuids):
+        """Invalidate the cache for the specified media items in the session."""
+        from xstudio.core import Uuid
+        for media_uuid in media_uuids:
+            media = self.connection.api.session.get_media(Uuid(media_uuid))
+            if media:
+                media.invalidate_cache(asynchronous=True)
+
+    def decompose_media(self, container_uuid, media_uuids):
+        """Decompose the specified media items in the session."""
+        from xstudio.core import Uuid
+        parent_playlist = None
+        for playlist in self.connection.api.session.playlists:
+            if playlist.uuid == Uuid(container_uuid):
+                parent_playlist = playlist
+                break
+            for container in playlist.containers:
+                if container.uuid == Uuid(container_uuid):
+                    parent_playlist = playlist
+                    break
+            if parent_playlist:
+                break
+        if parent_playlist:
+            parent_playlist.decompose_media([Uuid(m) for m in media_uuids])
+        else:
+            raise RuntimeError(f"Container with UUID {container_uuid} not found.")
+
 def create_plugin_instance(connection):
     """Create and return a plugin instance."""
     return UtilityPythonPlugin(connection)

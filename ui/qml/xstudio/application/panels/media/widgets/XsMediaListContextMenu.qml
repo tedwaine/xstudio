@@ -164,13 +164,13 @@ XsPopupMenu {
         menuModelName: btnMenu.menu_model_name
         menuPosition: 1
         onFlagSet: (flag, flag_text) => {
-            let sindexs = mediaSelectionModel.selectedIndexes
-            for(let i = 0; i< sindexs.length; i++) {
-                theSessionData.set(sindexs[i], flag, "flagColourRole")
-
-                if (flag_text)
-                    theSessionData.set(sindexs[i], flag_text, "flagTextRole")
-            }
+            filteredmediaModelData.selectedSourceIndexes.forEach(
+                (sindex) => {
+                    sindex.model.setRoleData(sindex, flag, "flagColourRole")
+                    if (flag_text)
+                        sindex.model.setRoleData(sindex, flag_text, "flagTextRole")
+                }
+            )
         }
     }
 
@@ -179,23 +179,10 @@ XsPopupMenu {
         menuPath: "Media Settings"
         menuItemPosition: -0.5
         menuModelName: btnMenu.menu_model_name
-        onActivated: media_list_functions.cycleColour(mediaSelectionModel.selectedIndexes)
+        onActivated: media_list_functions.cycleColour(filteredmediaModelData.selectedSourceIndexes)
         panelContext: btnMenu.panelContext
         hotkeyUuid: hotkey_area.cycle_colour_hotkey.uuid
     }
-    // XsMenuModelItem {
-    //     text: "TEST"
-    //     menuPath: ""
-    //     menuItemPosition: 2.5
-    //     menuModelName: btnMenu.menu_model_name
-    //     onActivated: {
-    //         let mlf = 14
-    //         let c = theSessionData.getTimelineVisibleClipIndexes(currentMediaContainerIndex, mediaSelectionModel.selectedIndexes[0], mlf)
-    //         if(c.length)
-    //             console.log(theSessionData.getTimelineFrameFromClip(c[0], mlf))
-    //     }
-    //     panelContext: btnMenu.panelContext
-    // }
 
     // XsMenuModelItem {
     //     text: "De-Select All"
@@ -321,19 +308,14 @@ XsPopupMenu {
     }
 
 
-    /*XsMenuModelItem {
+    XsMenuModelItem {
         text: "Foo"
         menuPath: "Set Media Source"
         menuItemType: "custom"
-        choices: ["Moview", "EXR", "Review Proxy 1"]
         menuModelName: btnMenu.menu_model_name
-        onActivated: {
-            console.log("Foo")
-        }
         panelContext: btnMenu.panelContext
         customMenuQml: "import xStudio 1.0; XsMediaListSwitchSourceMenu {}"
-
-    }*/
+    }
 
 
     // XsMenuModelItem {
@@ -348,7 +330,10 @@ XsPopupMenu {
         menuPath: "Media Actions|Print"
         menuItemPosition: 1
         menuModelName: btnMenu.menu_model_name
-        onActivated: console.log(theSessionData.getJSON(mediaSelectionModel.selectedIndexes[0],""))
+        onActivated: {
+            let idx = filteredmediaModelData.selectedSourceIndexes[0]
+            console.log(idx.model.getJSON(idx,""))
+        }
         panelContext: btnMenu.panelContext
     }
 
@@ -357,7 +342,12 @@ XsPopupMenu {
         menuPath: "Media Actions|Print"
         menuItemPosition: 1
         menuModelName: btnMenu.menu_model_name
-        onActivated: console.log(theSessionData.getJSON(mediaSelectionModel.getSourceIndex(mediaSelectionModel.selectedIndexes[0]),""))
+        onActivated: {
+            // FIXME - this assumes the first child of the selected source index is the source metadata index
+            let idx = filteredmediaModelData.selectedSourceIndexes[0]
+            idx = idx.model.index(0,0, idx)
+            console.log(idx.model.getJSON(idx,""))
+        }
         panelContext: btnMenu.panelContext
     }
 
@@ -367,7 +357,10 @@ XsPopupMenu {
         menuPath: "Media Actions|Print"
         menuItemPosition: 2
         menuModelName: btnMenu.menu_model_name
-        onActivated: console.log(theSessionData.get(mediaSelectionModel.selectedIndexes[0], "jsonTextRole"))
+        onActivated: {
+            // FIXME
+            //console.log(theSessionData.get(mediaSelectionModel.selectedIndexes[0], "jsonTextRole"))
+        }
         panelContext: btnMenu.panelContext
     }
 
@@ -387,7 +380,9 @@ XsPopupMenu {
         menuPath: "Media Actions"
         menuItemPosition: 20
         menuModelName: btnMenu.menu_model_name
-        onActivated: Future.promise(theSessionData.clearCacheFuture(mediaSelectionModel.selectedIndexes)).then(function(result){})
+        onActivated: {
+            sessionFunctions.invalidateCache(mediaSelection)
+        }
         panelContext: btnMenu.panelContext
     }
 
@@ -456,15 +451,6 @@ XsPopupMenu {
     }
 
     XsMenuModelItem {
-        text: "Load Additional Sources"
-        menuPath: "Media Actions"
-        menuItemPosition: 60
-        menuModelName: btnMenu.menu_model_name
-        onActivated: theSessionData.gatherMediaFor(theSessionData.getPlaylistIndex(mediaSelectionModel.selectedIndexes[0]), mediaSelectionModel.selectedIndexes)
-        panelContext: btnMenu.panelContext
-    }
-
-    XsMenuModelItem {
         text: "Relink Media ..."
         menuPath: "Media Actions"
         menuItemPosition: 70
@@ -488,7 +474,9 @@ XsPopupMenu {
         menuPath: "Media Actions"
         menuItemPosition: 80
         menuModelName: btnMenu.menu_model_name
-        onActivated: theSessionData.decomposeMedia(mediaSelectionModel.selectedIndexes)
+        onActivated: {
+            sessionFunctions.decomposeMedia(inspectedContainerProperties.uuidRole, mediaSelection)
+        }
         panelContext: btnMenu.panelContext
     }
 
@@ -505,7 +493,7 @@ XsPopupMenu {
         menuPath: "Media Actions"
         menuItemPosition: 1010
         menuModelName: btnMenu.menu_model_name
-        onActivated: theSessionData.rescanMedia(mediaSelectionModel.selectedIndexes)
+        onActivated: sessionFunctions.rescanMedia(mediaSelection)
         panelContext: btnMenu.panelContext
         hotkeyUuid: hotkey_area.reload_selected_media_hotkey.uuid
     }

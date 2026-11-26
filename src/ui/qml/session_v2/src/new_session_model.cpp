@@ -673,8 +673,6 @@ QString UIDataModel::getJSON(const QModelIndex &index, const QString &path) cons
         auto actor = node->get_data_value<caf::actor_addr>(session::actorRole);
         if (!actor)
             return {};
-        std::cerr << request_receive<std::string>(
-            *sys, caf::actor_cast<caf::actor>(*actor), utility::name_atom_v) << "\n";
         std::string path_string = StdFromQString(path);
         auto jsn = request_receive<JsonStore>(
             *sys, caf::actor_cast<caf::actor>(*actor), json_store::get_json_atom_v, path_string);

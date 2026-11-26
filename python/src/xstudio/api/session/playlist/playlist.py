@@ -648,5 +648,21 @@ class Playlist(Container, NotificationHandler, JsonStoreHandler):
         """
         self.connection.request_receive(self.remote, expanded_atom(), is_expanded)
 
+    def decompose_media(self, media_uuids):
+        """Decompose the specified media items in the playlist.
+        Args:
+            media_uuids(list): List of media UUIDs to decompose.
+        Returns:
+            None    
+        """
+        from xstudio.core import decompose_atom
+        for m in self.media:
+            if m.uuid in media_uuids:
+               self.connection.send(
+                   self.remote,
+                   decompose_atom(),
+                   m.uuid
+               )
+
 
 from xstudio.api.auxiliary.otio import import_timeline_from_file

@@ -127,14 +127,6 @@ class MediaSource(Container, JsonStoreHandler):
         """
         return self.connection.request_receive(self.remote, rescan_atom())[0]
 
-    def invalidate_cache(self):
-        """Flush media item from cache.
-
-        Returns:
-            result(bool): Flushed ?
-        """
-        return self.connection.request_receive(self.remote, invalidate_cache_atom())[0]
-
     @property
     def image_stream(self):
         """Get current image stream.

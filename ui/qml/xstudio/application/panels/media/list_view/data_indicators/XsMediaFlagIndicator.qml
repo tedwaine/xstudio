@@ -24,7 +24,7 @@ Item {
     TapHandler {
         acceptedModifiers: Qt.NoModifier
         onSingleTapped: (eventPoint, button)=> {
-            showFlagMenu(eventPoint.position.x, eventPoint.position.y, parent, modelIndex())
+            showFlagMenu(eventPoint.position.x, eventPoint.position.y, parent, filteredmediaModelData.rowToSourceIndex(indexInMediaList))
         }
     }
 }

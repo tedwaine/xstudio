@@ -60,10 +60,10 @@ XsListView {
             panelContext: flagMenu.panelContext
             menuModelName: flagMenu.menu_model_name
             onFlagSet: (flag, flag_text) => {
-                theSessionData.set(flagMenu.mediaIndex, flag, "flagColourRole")
+                flagMenu.mediaIndex.model.setRoleData(flagMenu.mediaIndex, flag, "flagColourRole")
 
                 if (flag_text)
-                    theSessionData.set(flagMenu.mediaIndex, flag_text, "flagTextRole")
+                    flagMenu.mediaIndex.model.setRoleData(flagMenu.mediaIndex, flag_text, "flagTextRole")
             }
         }
     }

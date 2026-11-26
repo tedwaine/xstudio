@@ -458,13 +458,19 @@ class Session(Container, NotificationHandler, JsonStoreHandler):
 
         return self.connection.request_receive(self.remote, copy_container_to_atom(), playlist, VectorUuid(uuids), before, into)[0]
 
-    def get_media(self):
+    def get_media(self, uuid = None):
         """Return all media over all playlists
 
         Returns:
             media(list[Media]): List of media objects.
         """
-        result = self.connection.request_receive(self.remote, get_media_atom())[0]
+        if uuid:
+            from xstudio.core import Uuid
+            if not isinstance(uuid, Uuid):
+                uuid = Uuid(uuid)
+            return Media(self.connection, self.connection.request_receive(self.remote, get_media_atom(), uuid)[0], uuid)
+        else:
+            result = self.connection.request_receive(self.remote, get_media_atom())[0]
         return [Media(self.connection, i.actor, i.uuid) for i in result]
 
     def save(self):

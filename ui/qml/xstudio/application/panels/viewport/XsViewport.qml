@@ -76,11 +76,7 @@ Viewport {
         description: "Reload selected media items."
         context: view.name
         onActivated: {
-            let mediaUuid = viewportPlayhead.mediaUuid
-            let mindex = theSessionData.searchRecursive(mediaUuid, "actorUuidRole", theSessionData.index(0, 0))
-            if (mindex.valid) {
-                theSessionData.rescanMedia([mindex])
-            }
+            sessionFunctions.rescanMedia([viewportPlayhead.mediaUuid])
         }
         componentName: "Media List"
     }

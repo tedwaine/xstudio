@@ -22,6 +22,7 @@ Rectangle {
     color: "transparent"
 
     property color hintColor: XsStyleSheet.hintColor
+    property var indexInMediaList: index
 
     property bool isSelected: selectionIndexRole != undefined
     property bool isDragTarget: false

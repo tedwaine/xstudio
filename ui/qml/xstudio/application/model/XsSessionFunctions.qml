@@ -58,4 +58,49 @@ Item {
 
     }
 
+    function rescanMedia(media_uuids) {
+
+        Future.promise(
+            helpers.pythonAsyncCallback("UtilityPythonPlugin", "rescan_media", {'media_uuids': media_uuids})
+        ).then(function(result) {
+        },
+        function(__rr) {
+            dialogHelpers.errorDialogFunc(
+                "Rescan Media Error",
+                "An error occurred while rescanning media: " + __rr
+            )
+        })
+
+    }
+
+    function invalidateCache(media_uuids) {
+
+        Future.promise(
+            helpers.pythonAsyncCallback("UtilityPythonPlugin", "invalidate_cache", {'media_uuids': media_uuids})
+        ).then(function(result) {
+        },
+        function(__rr) {
+            dialogHelpers.errorDialogFunc(
+                "Invalidate Cache Error",
+                "An error occurred while invalidating the cache: " + __rr
+            )
+        })
+
+    }
+
+    function decomposeMedia(container_uuid, media_uuids) {
+
+        Future.promise(
+            helpers.pythonAsyncCallback("UtilityPythonPlugin", "decompose_media", {'container_uuid': container_uuid, 'media_uuids': media_uuids})
+        ).then(function(result) {
+        },
+        function(__rr) {
+            dialogHelpers.errorDialogFunc(
+                "Decompose Media Error",
+                "An error occurred while decomposing media: " + __rr
+            )
+        })
+
+    }
+
 }

@@ -262,7 +262,7 @@ XsHotkeyArea {
         sequence:  "Shift+C"
         name: "Cycle Media Colour"
         description: "Cycle Selected Media Colour"
-        onActivated: media_list_functions.cycleColour(mediaSelectionModel.selectedIndexes)
+        onActivated: media_list_functions.cycleColour(filteredmediaModelData.selectedSourceIndexes)
         componentName: "Media List"
     }
 
@@ -320,7 +320,7 @@ XsHotkeyArea {
         name: "Reload Selected Media"
         description: "Reload selected media items."
         context: hotkey_area.context
-        onActivated: theSessionData.rescanMedia(mediaSelectionModel.selectedIndexes)
+        onActivated: sessionFunctions.rescanMedia(mediaSelection)
         componentName: "Media List"
     }
 
@@ -343,7 +343,7 @@ XsHotkeyArea {
                 name: "Set flag #" + index + ": " + flagColours[index].name
                 description: "Set flag #" + index + ": " + flagColours[index].name
                 context: hotkey_area.context
-                onActivated: media_list_functions.setColour(mediaSelectionModel.selectedIndexes, index)
+                onActivated: media_list_functions.setColour(filteredmediaModelData.selectedSourceIndexes, index)
                 componentName: "Media List"
             }
         }
