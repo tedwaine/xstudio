@@ -16,7 +16,6 @@ Item {
 
     ****************************************************************/
 
-
     function loadMedia(media_urls) {
 
         let py_args = {'media_urls': []}
@@ -27,8 +26,34 @@ Item {
             helpers.pythonAsyncCallback("UtilityPythonPlugin", "load_media", py_args)
         ).then(function(result) {
         },
-        function() {
+        function(__rr) {
             console.log("ERROR", __rr)
+        })
+
+    }
+
+    function createPlaylist(name, select=true) {
+
+        Future.promise(
+            helpers.pythonAsyncCallback("UtilityPythonPlugin", "create_playlist", {'name': name, 'select': select})
+        ).then(function(result) {
+        },
+        function(__rr) {
+            console.log("ERROR", __rr)
+        })
+    }
+
+    function handleDragDrop(action, drop_data, target_session_object) {
+
+        Future.promise(
+            helpers.pythonAsyncCallback("UtilityPythonPlugin", "handle_drag_drop", {'action': action, 'drop_data': drop_data, 'target_session_object': target_session_object})
+        ).then(function(result) {
+        },
+        function(__rr) {
+            dialogHelpers.errorDialogFunc(
+                "Handle Drag Drop Error",
+                "An error occurred while handling the drag and drop operation: " + __rr
+            )
         })
 
     }

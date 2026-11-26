@@ -155,29 +155,13 @@ XsDragDropHandler {
         } else if (source == "External URIS") {
 
             let targetUuid = playlistsModelData.getData(modelIndex, "uuidRole")
-            let oldSessionIndex = theSessionData.searchRecursive(targetUuid, "actorUuidRole")
+            sessionFunctions.handleDragDrop("into playlists", {"text/uri-list": data}, targetUuid)
 
-            Future.promise(
-                theSessionData.handleDropFuture(Qt.CopyAction, {"text/uri-list": data}, oldSessionIndex)
-            ).then(function(quuids){
-                mediaSelectionModel.selectNewMedia(oldSessionIndex, quuids)
-            })
 
         } else if (source == "External JSON") {
 
-            let playlsitUuid = playlistsModelData.getData(modelIndex, "uuidRole")
-            let oldModelIndex = theSessionData.searchRecursive(playlsitUuid, "actorUuidRole")
-
-            console.log("oldModelIndex", oldModelIndex)
-
-            Future.promise(
-                theSessionData.handleDropFuture(
-                    Qt.CopyAction,
-                    data,
-                    oldModelIndex)
-            ).then(function(quuids){
-                mediaSelectionModel.selectNewMedia(modelIndex, quuids)
-            })
+            let targetUuid = playlistsModelData.getData(modelIndex, "uuidRole")
+            sessionFunctions.handleDragDrop("into playlists", {"text/json": data}, targetUuid)
             return
 
         } else if (source == "PlayList" && canReceiveDrag) {
@@ -199,14 +183,6 @@ XsDragDropHandler {
 	        function(__rr) {
                 console.log("ERROR", __rr)
 	        })
-            /*Future.promise(
-                theSessionData.handleDropFuture(
-                    Qt.MoveAction,
-                    {"xstudio/container-ids": ids},
-                    dragToEnd ? theSessionData.index(-1, -1): modelIndex)
-            ).then(function(quuids){
-                //console.log("quuids", quuids)
-            })*/
 
         }
     }

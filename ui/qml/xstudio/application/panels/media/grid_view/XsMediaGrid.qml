@@ -175,7 +175,7 @@ XsGridView {
             if (idx == undefined || !idx.valid) {
                 idx = mediaListModelDataRoot
                 if (idx == undefined || !idx.valid) {
-                    idx = theSessionData.createPlaylist(the_session.getNextName("Drag Drop {}"))
+                    idx = sessionFunctions.createPlaylist(the_session.getNextName("Drag Drop {}"))
                 } else {
                     idx = idx.parent // mediaListModelDataRoot is the 'MediaList' underneath a Playist, Subset etc.
                 }
@@ -185,29 +185,15 @@ XsGridView {
 
             if (source == "External URIS") {
 
-                Future.promise(
-                    theSessionData.handleDropFuture(
-                        Qt.CopyAction,
-                        {"text/uri-list": data},
-                        idx)
-                ).then(function(quuids){
-                    if (idx) mediaSelectionModel.selectNewMedia(idx, quuids)
-                })
-
+                // FIXME
+                sessionFunctions.handleDragDrop("into media", {"text/uri-list": data}, idx.model.getRoleData(idx, "uuidRole"))
                 dragTargetIndex = undefined
                 return
 
             } else if (source == "External JSON") {
 
-                Future.promise(
-                    theSessionData.handleDropFuture(
-                        Qt.CopyAction,
-                        data,
-                        idx)
-                ).then(function(quuids){
-                    if (idx) mediaSelectionModel.selectNewMedia(idx, quuids)
-                })
-
+                // FIXME
+                sessionFunctions.handleDragDrop("into media", {"text/json": data}, idx.model.getRoleData(idx, "uuidRole"))
                 dragTargetIndex = undefined
                 return
             }

@@ -357,14 +357,14 @@ XsGradientRectangle {
                     Layout.preferredHeight: parent.height
                     imgSrc: "qrc:/icons/undo.svg"
                     text: "Undo"
-                    onClicked: theTimeline.undo(theSessionData.viewedMediaSetProperties.index)
+                    onClicked: theTimeline.undo(viewportCurrentMediaContainerIndex)
                 }
                 XsPrimaryButton{
                     Layout.preferredWidth: btnWidth
                     Layout.preferredHeight: parent.height
                     imgSrc: "qrc:/icons/redo.svg"
                     text: "Redo"
-                    onClicked:  theTimeline.redo(theSessionData.viewedMediaSetProperties.index)
+                    onClicked:  theTimeline.redo(viewportCurrentMediaContainerIndex)
                 }
                 XsSearchButton{ id: searchBtn
                     Layout.preferredWidth: isExpanded? btnWidth*6 : btnWidth

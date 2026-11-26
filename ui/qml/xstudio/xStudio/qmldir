@@ -3,6 +3,7 @@ module xStudio
 XsAttributeFullData      1.0 ../model/XsAttributeFullData.qml
 XsAttributeValue          1.0 ../model/XsAttributeValue.qml
 XsSessionData             1.0 ../application/model/XsSessionData.qml
+XsSessionDataDeprecated   1.0 ../application/model/XsSessionDataDeprecated.qml
 XsPlayhead                1.0 ../application/model/XsPlayhead.qml
 XsSessionFunctions        1.0 ../application/model/XsSessionFunctions.qml
 

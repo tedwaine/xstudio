@@ -190,11 +190,11 @@ XsListView {
             if (idx == undefined || !idx.valid) {
                 idx = mediaListModelDataRoot
                 if (idx == undefined || !idx.valid) {
-                    idx = theSessionData.createPlaylist(the_session.getNextName("Drag Drop {}"))
+                    idx = sessionFunctions.createPlaylist(the_session.getNextName("Drag Drop {}"))
                 } else {
                     // mediaListModelDataRoot is the 'MediaList' that lives
                     // underneath a Playist, Subset etc. We want to call
-                    // handleDropFuture with the Playlist/Subset/Timeline index
+                    // handleDragDrop with the Playlist/Subset/Timeline index
                     idx = idx.parent
                 }
             } else {
@@ -203,28 +203,15 @@ XsListView {
 
             if (source == "External URIS") {
 
-
-                Future.promise(
-                    theSessionData.handleDropFuture(
-                        Qt.CopyAction,
-                        {"text/uri-list": data},
-                        dragToEnd ? idx.parent : idx)
-                ).then(function(quuids){
-                    if (idx) mediaSelectionModel.selectNewMedia(idx, quuids)
-                })
+                // FIXME
+                sessionFunctions.handleDragDrop("into media", {"text/uri-list": data}, idx.model.getRoleData(idx, "uuidRole"))
                 dragTargetIndex = undefined
                 return
 
             } else if (source == "External JSON") {
 
-                Future.promise(
-                    theSessionData.handleDropFuture(
-                        Qt.CopyAction,
-                        data,
-                        dragToEnd ? idx.parent : idx)
-                ).then(function(quuids){
-                    if (idx) mediaSelectionModel.selectNewMedia(idx, quuids)
-                })
+                // FIXME
+                sessionFunctions.handleDragDrop("into media", {"text/json": data}, idx.model.getRoleData(idx, "uuidRole"))
                 dragTargetIndex = undefined
                 return
             }

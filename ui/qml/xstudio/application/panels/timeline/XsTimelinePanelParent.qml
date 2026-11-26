@@ -47,11 +47,13 @@ Item {
         // timeline is displayed (the current or last viewed timeline)
         let stw = theSessionData.selectedTimelinesIndeces
         let newtimelines = [viewedTimelineIndex]
-        let viewedTimlineIsSelected = stw.indexOf(theSessionData.viewedMediaSetProperties.index) != -1
+        let viewedTimlineIsSelected = stw.indexOf(viewportCurrentMediaContainerIndex) != -1
+
+        console.log("Selected timelines:", stw, newtimelines, viewedTimlineIsSelected)
 
         if (viewedTimlineIsSelected && stw.length > 1) {
             for (var i = 0; i < stw.length; ++i) {
-                if (stw[i] == theSessionData.viewedMediaSetProperties.index) continue
+                if (stw[i] == viewportCurrentMediaContainerIndex) continue
                 let timelineIndex = helpers.makePersistent(theSessionData.index(2, 0, stw[i]))
                 if (theSessionData.get(stw[i], "typeRole") == "Timeline") {
                     newtimelines.push(stw[i])
@@ -91,9 +93,9 @@ Item {
 
     function viewedMediaSetChanged() {
 
-        if(theSessionData.viewedMediaSetProperties.index.valid && theSessionData.viewedMediaSetProperties.values.typeRole == "Timeline") {
+        if(viewportCurrentMediaContainerIndex.valid && theSessionData.get(viewportCurrentMediaContainerIndex, "typeRole") == "Timeline") {
 
-            viewedTimelineIndex = helpers.makePersistent(theSessionData.viewedMediaSetProperties.index)
+            viewedTimelineIndex = helpers.makePersistent(viewportCurrentMediaContainerIndex)
             forceActiveFocus()
 
         }
@@ -106,8 +108,8 @@ Item {
     }
 
     Connections {
-      target: theSessionData.viewedMediaSetProperties
-      function onIndexChanged() {
+      target: theSessionData
+      function onViewportCurrentMediaContainerIndexChanged() {
         viewedMediaSetChanged()
       }
     }

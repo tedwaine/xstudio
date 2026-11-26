@@ -155,33 +155,12 @@ XsListView { id: playlists
 
             if (source == "External URIS") {
 
-                // by providing invalid index, backend will create named
-                // playlists for us
-                var idx = theSessionData.index(-1,-1)
+                // FIXME
+                sessionFunctions.handleDragDrop("into playlists", {"text/uri-list": data}, null)
 
-                Future.promise(
-                    theSessionData.handleDropFuture(
-                        Qt.CopyAction,
-                        {"text/uri-list": data},
-                        idx)
-                ).then(function(quuids){
-                    if (idx) mediaSelectionModel.selectNewMedia(idx, quuids)
-                })
             } else if (source == "External JSON") {
 
-                // by providing invalid index, backend will create named
-                // playlists for us
-                var idx = theSessionData.index(-1,-1)
-
-                Future.promise(
-                    theSessionData.handleDropFuture(
-                        Qt.CopyAction,
-                        data,
-                        idx)
-                ).then(function(quuids){
-                    if (idx) mediaSelectionModel.selectNewMedia(idx, quuids)
-                })
-            } else if (source == "PlayListView") {
+                sessionFunctions.handleDragDrop("into playlists", {"text/json": data}, null)
 
             }
         }

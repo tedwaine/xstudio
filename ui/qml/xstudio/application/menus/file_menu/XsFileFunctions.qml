@@ -237,12 +237,11 @@ Item {
 
         if(index == null) {
             // create new playlist..
-            index = theSessionData.createPlaylist("Imported OTIO")
+            index = sessionFunctions.createPlaylist("Imported OTIO")
         }
 
-        Future.promise(index.model.handleDropFuture(Qt.CopyAction, {"text/uri-list": path}, index)).then(
-            function(quuids){}
-        )
+        sessionFunctions.handleDragDrop("import otio", {"text/uri-list": path}, null)
+
     }
 
     function loadSession() {
@@ -337,16 +336,11 @@ Item {
 
     function addMediaFromClipboard() {
         if (clipboard.data) {
+
             // FIXME
-            /*var index = sessionSelectionModel.currentIndex
-            if (!index.valid) {
-                index = theSessionData.createPlaylist("Add Media")
-            } else if (mediaSelectionModel.selectedIndexes.length) {
-                index = mediaSelectionModel.selectedIndexes[0]
-            }
-            Future.promise(index.model.handleDropFuture(Qt.CopyAction, clipboard.data, index)).then(function(quuids){
-                mediaSelectionModel.selectFirstNewMedia(index, quuids)
-            })*/
+            let targetUuid = playlistSelectionModel.currentIndex.isValid ? playlistsModelData.getData(playlistSelectionModel.currentIndex, "uuidRole") : null
+            sessionFunctions.handleDragDrop("add media", {"text/clipboard": clipboard.data}, targetUuid)
+
         }
     }
 
@@ -361,8 +355,6 @@ Item {
             saveSessionCheck(doQuit)
         }
     }
-
-
 
     function quitWithCheck() {
 

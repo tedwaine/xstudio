@@ -266,6 +266,7 @@ void SessionModel::updateViewportCurrentMediaContainerIndexFromBackend() {
     scoped_actor sys{system()};
     try {
 
+        std::cerr << "Updating viewport current media container index from backend" << std::endl;
         auto playlist = request_receive<UuidActor>(
             *sys, session_actor_, session::viewport_active_media_container_atom_v);
         auto actor_string = QStringFromStd(actorToString(system(), playlist.actor()));

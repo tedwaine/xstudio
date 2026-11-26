@@ -2,6 +2,7 @@
 from xstudio.core import UuidActor, Uuid, actor, FrameRange, FrameRateDuration, FrameRate, URI
 
 import opentimelineio
+from xstudio.api.auxiliary.otio_debug_python import prepare_otio
 from opentimelineio.schema import Track, Stack, Clip, Gap
 
 def __process_obj(playlist, timeline, parent, obj, media_lookup):
@@ -126,6 +127,7 @@ def import_timeline_from_file(playlist, path, name=None, before=Uuid(), adapter_
     Returns:
         timeline(Uuid,Timeline): Returns container Uuid and Timeline.
     """
+    prepare_otio()
     otio = opentimelineio.adapters.read_from_file(
         path, adapter_name=adapter_name
     )

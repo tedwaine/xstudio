@@ -25,7 +25,7 @@ Item {
 
     function addPlaylist(new_name, button) {
         if (button == "Add") {
-            theSessionData.createPlaylist(new_name)
+            sessionFunctions.createPlaylist(new_name)
         }
     }
 

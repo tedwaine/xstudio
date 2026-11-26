@@ -1,5 +1,6 @@
 <RCC>
-    <qresource prefix="/feather_icons"/>
+    <qresource prefix="/feather_icons">
+    </qresource>
     <qresource prefix="/">
         <file>application/main.qml</file>
         <file>xStudio/qmldir</file>
@@ -7,6 +8,7 @@
         <file>model/XsAttributeValue.qml</file>
         <file>model/XsAttributeFullData.qml</file>
         <file>application/model/XsSessionData.qml</file>
+        <file>application/model/XsSessionDataDeprecated.qml</file>
         <file>application/model/XsPlayhead.qml</file>
         <file>model/XsPreference.qml</file>
         <file>application/XsPopoutViewerWindow.qml</file>

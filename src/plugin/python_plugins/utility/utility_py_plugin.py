@@ -324,6 +324,22 @@ class UtilityPythonPlugin(PluginBase):
         container = self.connection.api.session.inspected_container
         container.remove_media(uuids)
 
+    def create_playlist(self, name, select=True):
+        """Create a new playlist in the session."""
+        pl = self.connection.api.session.create_playlist(name)[1]
+        if select:
+            self.connection.api.session.inspected_container = pl
+
+    def handle_drag_drop(self, action, drop_data, target_session_object):
+        """Handle a drag and drop operation."""
+        if action == "import otio":
+            self.import_otio(drop_data["text/uri-list"])
+
+    def import_otio(self, path):
+        """Import an OTIO file into the session."""
+        pl = self.connection.api.session.create_playlist("Imported OTIO")[1]        
+        from urllib.parse import urlsplit
+        pl.import_timeline(urlsplit(path).path)
 
 def create_plugin_instance(connection):
     """Create and return a plugin instance."""

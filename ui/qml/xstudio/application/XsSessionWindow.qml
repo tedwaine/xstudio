@@ -386,8 +386,13 @@ ApplicationWindow {
      ****************************************************************/
     XsSessionData {
         id: sessionData
+    }
+
+    XsSessionDataDeprecated {
+        id: sessionDataDeprecated
         sessionActorAddr: studio.sessionActorAddr
     }
+
 
     /*****************************************************************
      *
@@ -459,29 +464,29 @@ ApplicationWindow {
     property alias playlistsSelectionModel: sessionData.playlistsSelectionModel 
     property alias filteredmediaModelData: sessionData.filteredmediaModelData
     property alias the_session: sessionData.the_session
-    
-    // Makes these important global items visible in child contexts
-    property alias theSessionData: sessionData.session
-    property alias globalStoreModel: sessionData.globalStoreModel
-    property alias mediaSelectionModel: sessionData.mediaSelectionModel
-    property alias currentMediaContainerIndex: sessionData.currentMediaContainerIndex
-    property alias viewportCurrentMediaContainerIndex: sessionData.viewportCurrentMediaContainerIndex
-    property alias currentPlayhead: sessionData.current_playhead
-    property alias callbackTimer: sessionData.callbackTimer
-    property alias viewsModel: sessionData.viewsModel
-    property alias popoutWindowsModel: sessionData.popoutWindowsModel
-    property alias orderedPopoutWindowsModel: orderedPopoutWindowsModel
-    property alias sessionProperties: sessionData.sessionProperties
-    property alias embeddedPython: sessionData.embeddedPython
-    property alias bookmarkModel: sessionData.bookmarkModel
-    property alias currentOnScreenMediaData: sessionData.currentOnScreenMediaData
-    property alias currentOnScreenMediaSourceData: sessionData.currentOnScreenMediaSourceData
-    property alias uiLayoutsModel: ui_layouts_model
-    property alias singletonsModel: sessionData.singletonsModel
-    property alias playlistsPanelBarExtraWidgets: sessionData.playlistsPanelBarExtraWidgets
-    property alias mediaListSearchString: sessionData.mediaListSearchString
     property alias mediaSelection: sessionData.mediaSelection
     property alias mediaSelectionThingy: sessionData.mediaSelectionThingy
+
+    // Makes these important global items visible in child contexts
+    property alias theSessionData: sessionDataDeprecated.session
+    property alias globalStoreModel: sessionDataDeprecated.globalStoreModel
+    property alias mediaSelectionModel: sessionDataDeprecated.mediaSelectionModel
+    property alias currentMediaContainerIndex: sessionDataDeprecated.currentMediaContainerIndex
+    property alias viewportCurrentMediaContainerIndex: sessionDataDeprecated.viewportCurrentMediaContainerIndex
+    property alias currentPlayhead: sessionDataDeprecated.current_playhead
+    property alias callbackTimer: sessionDataDeprecated.callbackTimer
+    property alias viewsModel: sessionDataDeprecated.viewsModel
+    property alias popoutWindowsModel: sessionDataDeprecated.popoutWindowsModel
+    property alias orderedPopoutWindowsModel: orderedPopoutWindowsModel
+    property alias sessionProperties: sessionDataDeprecated.sessionProperties
+    property alias embeddedPython: sessionDataDeprecated.embeddedPython
+    property alias bookmarkModel: sessionDataDeprecated.bookmarkModel
+    property alias currentOnScreenMediaData: sessionDataDeprecated.currentOnScreenMediaData
+    property alias currentOnScreenMediaSourceData: sessionDataDeprecated.currentOnScreenMediaSourceData
+    property alias uiLayoutsModel: ui_layouts_model
+    property alias singletonsModel: sessionDataDeprecated.singletonsModel
+    property alias playlistsPanelBarExtraWidgets: sessionDataDeprecated.playlistsPanelBarExtraWidgets
+    property alias mediaListSearchString: sessionDataDeprecated.mediaListSearchString
 
     property var sessionPath: sessionProperties.values.pathRole
     property var sessionPathNative: sessionPath ? helpers.pathFromURL(sessionPath) : ""
@@ -494,6 +499,7 @@ ApplicationWindow {
     XsSessionFunctions {
         id: sessionFunctions
     }
+    property alias sessionFunctions: sessionFunctions
 
     XsFileFunctions {
         id: file_functions

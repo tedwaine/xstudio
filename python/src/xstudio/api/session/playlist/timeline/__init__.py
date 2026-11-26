@@ -406,6 +406,8 @@ class Timeline(Item, NotificationHandler, JsonStoreHandler):
         """
         otio_string = self.connection.request_receive(self.remote, export_atom(), bake_atom())[0]
 
+        from xstudio.api.auxiliary.otio_debug_python import prepare_otio
+        prepare_otio()
         from opentimelineio.adapters import read_from_string, write_to_file
         from opentimelineio import versioning
 
@@ -434,6 +436,8 @@ class Timeline(Item, NotificationHandler, JsonStoreHandler):
         """
         otio_string = self.connection.request_receive(self.remote, export_atom())[0]
 
+        from xstudio.api.auxiliary.otio_debug_python import prepare_otio
+        prepare_otio()
         from opentimelineio.adapters import read_from_string, write_to_file
         from opentimelineio import versioning
 

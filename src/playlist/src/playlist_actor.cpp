@@ -8,15 +8,12 @@
 
 #include "xstudio/atoms.hpp"
 #include "xstudio/broadcast/broadcast_actor.hpp"
-#include "xstudio/contact_sheet/contact_sheet_actor.hpp"
 #include "xstudio/global_store/global_store.hpp"
 #include "xstudio/json_store/json_store_actor.hpp"
 #include "xstudio/media/media_actor.hpp"
 #include "xstudio/playhead/playhead_actor.hpp"
 #include "xstudio/playhead/playhead_selection_actor.hpp"
 #include "xstudio/playlist/playlist_actor.hpp"
-#include "xstudio/subset/subset_actor.hpp"
-#include "xstudio/timeline/timeline_actor.hpp"
 #include "xstudio/utility/frame_list.hpp"
 #include "xstudio/utility/helpers.hpp"
 #include "xstudio/utility/logging.hpp"
@@ -950,16 +947,33 @@ caf::message_handler PlaylistActor::message_handler() {
             const utility::Uuid &uuid_before,
             const bool into,
             const bool with_tracks) -> result<utility::UuidUuidActor> {
+
             // try insert as requested, but add to end if it fails.
             auto rp    = make_response_promise<utility::UuidUuidActor>();
-            auto actor = spawn<timeline::TimelineActor>(
-                name,
-                utility::Uuid::generate(),
-                actor_cast<caf::actor>(this),
-                (rate == timebase::k_flicks_zero_seconds ? Playlist::media_rate() : rate),
-                with_tracks);
+            const auto uuid = utility::Uuid::generate();
+
+            auto actor = Container::create_session_object(
+                    system(),
+                    type,
+                    name,
+                    uuid,
+                    caf::actor_cast<caf::actor>(this));
+
+            if (type == "Timeline") {
+                mail(rate_atom_v, (rate == timebase::k_flicks_zero_seconds ? Playlist::media_rate() : rate), true).request(actor, caf::infinite).then(
+                    [=](bool) mutable {
+                        if (with_tracks) {
+                            anon_mail(timeline::insert_item_atom_v, true).send(actor);
+                        }
+                        create_container(actor, rp, uuid_before, into);
+                    },
+                    [=](const caf::error &err) mutable {
+                        rp.deliver(err);
+                    });
+            } else {
+                create_container(actor, rp, uuid_before, into);
+            }
             // anon_mail(playhead::playhead_rate_atom_v, Playlist::playhead_rate()).send(actor);
-            create_container(actor, rp, uuid_before, into);
             return rp;
         },
 
@@ -968,18 +982,15 @@ caf::message_handler PlaylistActor::message_handler() {
             const std::string &name,
             const utility::Uuid &uuid_before,
             const bool into,
-            const bool with_tracks) -> result<utility::UuidUuidActor> {
-            // try insert as requested, but add to end if it fails.
-            auto rp    = make_response_promise<utility::UuidUuidActor>();
-            auto actor = spawn<timeline::TimelineActor>(
+            const bool with_tracks) {
+            return mail(
+                create_session_object_atom_v,
+                type,
                 name,
-                utility::Uuid::generate(),
-                actor_cast<caf::actor>(this),
                 Playlist::media_rate(),
-                with_tracks);
-            // anon_mail(playhead::playhead_rate_atom_v, Playlist::playhead_rate()).send(actor);
-            create_container(actor, rp, uuid_before, into);
-            return rp;
+                uuid_before,
+                into,
+                with_tracks).delegate(caf::actor_cast<caf::actor>(this));
         },
 
         [=](json_store::get_json_atom atom, const std::string &path) {
