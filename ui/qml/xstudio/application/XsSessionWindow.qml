@@ -33,25 +33,27 @@ ApplicationWindow {
     FontLoader {id: fontInter; source: "qrc:/assets/fonts/Inter-Regular.ttf"}
     FontLoader {id: fontVera; source: "qrc:/assets/fonts/VeraMono.ttf"}
 
-    XsPanelsLayoutModel {
+    XsApplicationData {
+        id: applicationData
+    }
 
-        id: ui_layouts_model
-        property var root_index: ui_layouts_model.index(-1, -1)
-        onJsonChanged: {
-            var idx = ui_layouts_model.searchRecursive(window_name, "window_name")
+    property alias ui_layouts_model: applicationData.uiLayoutsModel
+
+    Connections {
+        target: ui_layouts_model
+        function onJsonChanged() {
+            let idx = ui_layouts_model.searchRecursive(window_name, "window_name")
             if (layoutBar.selected_layout == -1) {
                 layoutBar.selected_layout = ui_layouts_model.get(idx, "current_layout")
             }
-            root_index = idx
-            appWindow.x = ui_layouts_model.get(ui_layouts_model.root_index, "position_x")
-            appWindow.y = ui_layouts_model.get(ui_layouts_model.root_index, "position_y")
-            appWindow.width = ui_layouts_model.get(ui_layouts_model.root_index, "width")
-            appWindow.height = ui_layouts_model.get(ui_layouts_model.root_index, "height")
-            numLayouts = ui_layouts_model.rowCount(root_index)
+            ui_layouts_model.root_index = idx
+            appWindow.x = ui_layouts_model.get(idx, "position_x")
+            appWindow.y = ui_layouts_model.get(idx, "position_y")
+            appWindow.width = ui_layouts_model.get(idx, "width")
+            appWindow.height = ui_layouts_model.get(idx, "height")
+            ui_layouts_model.numLayouts = ui_layouts_model.rowCount(idx)
             visible = true
         }
-        property var numLayouts: 0
-
     }
 
     onClosing: (close)=> {
@@ -62,7 +64,7 @@ ApplicationWindow {
 
     XsPreference {
         id: bufferedUIDelay
-        path: globalStoreModel ? "/core/playhead/remote_desktop_optimisation_delay" : ""
+        path: "/core/playhead/remote_desktop_optimisation_delay"
     }
     Timer {
         id: bufferedUITimer
@@ -75,7 +77,7 @@ ApplicationWindow {
 
     XsPreference {
         id: __tabsVisibility
-        index: globalStoreModel.searchRecursive("/ui/qml/tabs_visibility", "pathRole")
+        path: "/ui/qml/tabs_visibility"
     }
 
     property alias tabsVisibility: __tabsVisibility.value
@@ -466,30 +468,33 @@ ApplicationWindow {
     property alias the_session: sessionData.the_session
     property alias mediaSelection: sessionData.mediaSelection
     property alias mediaSelectionThingy: sessionData.mediaSelectionThingy
+    property alias currentOnScreenMediaData: sessionData.currentOnScreenMediaData
+    property alias currentOnScreenMediaSourceData: sessionData.currentOnScreenMediaSourceData
+    property alias currentPlayhead: sessionData.currentPlayhead
 
     // Makes these important global items visible in child contexts
     property alias theSessionData: sessionDataDeprecated.session
-    property alias globalStoreModel: sessionDataDeprecated.globalStoreModel
     property alias mediaSelectionModel: sessionDataDeprecated.mediaSelectionModel
     property alias currentMediaContainerIndex: sessionDataDeprecated.currentMediaContainerIndex
     property alias viewportCurrentMediaContainerIndex: sessionDataDeprecated.viewportCurrentMediaContainerIndex
-    property alias currentPlayhead: sessionDataDeprecated.current_playhead
-    property alias callbackTimer: sessionDataDeprecated.callbackTimer
-    property alias viewsModel: sessionDataDeprecated.viewsModel
-    property alias popoutWindowsModel: sessionDataDeprecated.popoutWindowsModel
-    property alias orderedPopoutWindowsModel: orderedPopoutWindowsModel
-    property alias sessionProperties: sessionDataDeprecated.sessionProperties
-    property alias embeddedPython: sessionDataDeprecated.embeddedPython
     property alias bookmarkModel: sessionDataDeprecated.bookmarkModel
-    property alias currentOnScreenMediaData: sessionDataDeprecated.currentOnScreenMediaData
-    property alias currentOnScreenMediaSourceData: sessionDataDeprecated.currentOnScreenMediaSourceData
-    property alias uiLayoutsModel: ui_layouts_model
-    property alias singletonsModel: sessionDataDeprecated.singletonsModel
-    property alias playlistsPanelBarExtraWidgets: sessionDataDeprecated.playlistsPanelBarExtraWidgets
-    property alias mediaListSearchString: sessionDataDeprecated.mediaListSearchString
 
-    property var sessionPath: sessionProperties.values.pathRole
+    property alias callbackTimer: applicationData.callbackTimer
+    property alias viewsModel: applicationData.viewsModel
+    property alias popoutWindowsModel: applicationData.popoutWindowsModel
+    property alias orderedPopoutWindowsModel: applicationData.orderedPopoutWindowsModel
+    property alias embeddedPython: applicationData.embeddedPython
+    property alias uiLayoutsModel: applicationData.uiLayoutsModel
+    property alias singletonsModel: applicationData.singletonsModel
+    property alias playlistsPanelBarExtraWidgets: applicationData.playlistsPanelBarExtraWidgets
+    property alias globalStoreModel: applicationData.globalStoreModel
+
+    property var sessionPath: the_session.values.pathRole
     property var sessionPathNative: sessionPath ? helpers.pathFromURL(sessionPath) : ""
+
+    onSessionPathChanged: {
+        console.log("Session path changed: " + sessionPath)
+    }
 
     property var child_dividers: []
 
@@ -674,16 +679,6 @@ ApplicationWindow {
         id: __floating_window_positions
     }
     property alias floating_window_positions: __floating_window_positions.value
-
-    XsFilterModel {
-        id: orderedPopoutWindowsModel
-        sourceModel: popoutWindowsModel
-        sortRoleName: "button_position"
-        sortAscending: true
-        onSourceModelChanged: {
-            sortRoleName = "button_position"
-        }
-    }
 
     Repeater {
         model: orderedPopoutWindowsModel

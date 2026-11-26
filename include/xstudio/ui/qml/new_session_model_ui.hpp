@@ -110,6 +110,8 @@ class UIDataModel : public caf::mixin::actor_object<QAbstractItemModel> {
 
     Q_INVOKABLE QModelIndex searchRecursive(const QVariant &value, const QString &role, const QModelIndex &parent = QModelIndex(), const int depth = 10) const;
 
+    Q_INVOKABLE QString getJSON(const QModelIndex &index, const QString &path) const;
+
     [[nodiscard]] int length() const { return rowCount(); }
     [[nodiscard]] QQmlPropertyMap * values() const { return static_cast<QQmlPropertyMap *>(values_); }
 

@@ -224,8 +224,10 @@ class PlayheadBase : public module::Module {
     module::FloatAttribute *duration_seconds_;
     module::StringAttribute *current_frame_timecode_;
     module::IntegerAttribute *current_frame_timecode_as_frame_;
+    module::StringAttribute *current_media_actor_;
     module::StringAttribute *current_media_uuid_;
     module::StringAttribute *current_media_source_uuid_;
+    module::StringAttribute *current_media_source_actor_;
     module::StringAttribute *current_clip_uuid_;
     module::BooleanAttribute *zoom_to_loop_;
     module::BooleanAttribute *loop_range_enabled_;

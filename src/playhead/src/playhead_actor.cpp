@@ -1267,7 +1267,9 @@ caf::message_handler PlayheadActor::message_handler() {
 
                     current_clip_uuid_->set_value(to_string(clip_uuid));
                     current_media_uuid_->set_value(to_string(media.uuid()));
+                    current_media_actor_->set_value(utility::actor_to_string(system(), media.actor()));
                     current_media_source_uuid_->set_value(to_string(media_source.uuid()));
+                    current_media_source_actor_->set_value(utility::actor_to_string(system(), media_source.actor()));
                     current_media_changed(media.actor(), true);
                     update_playback_rate();
                 } else if (check_rate) {

@@ -147,8 +147,20 @@ Item {
     }
 
     XsAttributeValue {
+        id: __playheadCurrentMediaActor
+        attributeTitle: "Current Media Actor"
+        model: playhead_attrs_model
+    }
+
+    XsAttributeValue {
         id: __playheadMediaSourceUuid
         attributeTitle: "Current Media Source Uuid"
+        model: playhead_attrs_model
+    }
+
+    XsAttributeValue {
+        id: __playheadMediaSourceActor
+        attributeTitle: "Current Media Source Actor"
         model: playhead_attrs_model
     }
 
@@ -289,6 +301,8 @@ Item {
     property var mediaUuid: helpers.QVariantFromUuidString(__playheadSourceUuid.value)
     property var mediaSourceUuid: helpers.QVariantFromUuidString(__playheadMediaSourceUuid.value)
     property var clipUuid: helpers.QVariantFromUuidString(__playheadClipUuid.value)
+    property var currentMediaActor: __playheadCurrentMediaActor.value
+    property var currentMediaSourceActor: __playheadMediaSourceActor.value
     property alias imageSourceName: __playheadImageSourceName.value
     property alias playheadImageURI: __playheadImageURI.value
     property alias compareMode: __playheadCompareMode.value

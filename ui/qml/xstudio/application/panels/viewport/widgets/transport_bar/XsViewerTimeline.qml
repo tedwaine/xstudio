@@ -48,10 +48,9 @@ Item {
         return 0;
     }
 
-    XsModelProperty {
+    XsPreference {
         id: __restorePlayAfterScrub
-        role: "valueRole"
-        index: globalStoreModel.searchRecursive("/ui/qml/restore_play_state_after_scrub", "pathRole")
+        path: "/ui/qml/restore_play_state_after_scrub"
     }
     property alias restorePlayAfterScrub: __restorePlayAfterScrub.value
 
@@ -69,10 +68,9 @@ Item {
 
     // ********************** LOOP REGION ****************************
 
-    XsModelProperty {
+    XsPreference {
         id: timeline_units_pref
-        role: "valueRole"
-        index: globalStoreModel.searchRecursive("/ui/qml/timeline_units", "pathRole")
+        path: "/ui/qml/timeline_units"
     }
     property alias timelineUnits: timeline_units_pref.value
 

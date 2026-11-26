@@ -75,6 +75,9 @@ MediaActor::MediaActor(caf::actor_config &cfg, const JsonStore &jsn, const bool 
 
     init();
 
+    set_data_value(session::imageActorUuidRole, Media::current(MT_IMAGE));
+    set_data_value(session::audioActorUuidRole, Media::current(MT_AUDIO));
+
     if (async)
         anon_mail(module::deserialise_atom_v, jsn).send(this);
     else
@@ -592,6 +595,8 @@ caf::message_handler MediaActor::message_handler() {
             // do we need to specify which media type is changing ?
             try {
                 if (result) {
+
+                    set_data_value(media_type == MT_IMAGE ? session::imageActorUuidRole : session::audioActorUuidRole, Media::current(media_type));
                     Media::send_changed();
                     anon_mail(media_display_info_atom_v).send(this);
                     mail(
@@ -689,6 +694,9 @@ caf::message_handler MediaActor::message_handler() {
             auto result = Media::set_current(uuid, MT_IMAGE);
             result |= Media::set_current(uuid, MT_AUDIO);
 
+            set_data_value(session::imageActorUuidRole, Media::current(MT_IMAGE));
+            set_data_value(session::audioActorUuidRole, Media::current(MT_AUDIO));
+
             // might need this when adding initial media source ?
             // do we need to specify which media type is changing ?
             if (result) {
@@ -711,6 +719,9 @@ caf::message_handler MediaActor::message_handler() {
             const Uuid &audio_source_uuid) -> bool {
             auto result = Media::set_current(image_source_uuid, MT_IMAGE);
             result |= Media::set_current(audio_source_uuid, MT_AUDIO);
+
+            set_data_value(session::imageActorUuidRole, Media::current(MT_IMAGE));
+            set_data_value(session::audioActorUuidRole, Media::current(MT_AUDIO));
 
             // might need this when adding initial media source ?
             // do we need to specify which media type is changing ?
@@ -1743,6 +1754,9 @@ void MediaActor::auto_set_current_source(
 
     auto set_current = [=](const media::MediaType mt, const utility::Uuid &uuid) mutable {
         if (Media::set_current(uuid, mt)) {
+
+            set_data_value(media_type == MT_IMAGE ? session::imageActorUuidRole : session::audioActorUuidRole, Media::current(media_type));
+
             anon_mail(media_display_info_atom_v).send(this);
             try {
                 mail(

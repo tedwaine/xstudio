@@ -192,36 +192,8 @@ Item {
     property alias currentMediaContainerIndex: sessionData.currentMediaContainerIndex
     property alias viewportCurrentMediaContainerIndex: sessionData.viewportCurrentMediaContainerIndex
 
-    EmbeddedPython {
-        id: embeddedPython
-        property string text: ""
-        onBackendChanged: {
-            embeddedPython.createSession()
-        }
-
-        onStdoutEvent: str => text += str
-        onStderrEvent: str => text += str
-    }
-
-    property alias embeddedPython: embeddedPython
-
     //property alias sessionNew: sessionDataNode
     property alias session: sessionData
-
-    /* This gives us access to a few properties like the filesystem path of
-    the current session:
-    sessionProperties.values.pathRole
-    */
-    XsModelPropertyMap {
-        id: sessionProperties
-        index: sessionData.playlistsRootIdx
-    }
-    property alias sessionProperties: sessionProperties
-
-    XsGlobalStoreModel {
-        id: globalStoreModel
-    }
-    property alias globalStoreModel: globalStoreModel
 
     property var currentTimelineSelection: null
 
@@ -451,70 +423,8 @@ Item {
         }
     }
 
-    // mediaListModelData will give us the filtered media list that is used
-    // to drive the "media list" widgets
-    property string mediaListSearchString
-    onMediaListSearchStringChanged: {
-        session.updateMediaListFilterString(playheadSelectionIndex, mediaListSearchString)
-    }
-    onPlayheadSelectionIndexChanged: {
-        session.updateMediaListFilterString(playheadSelectionIndex, mediaListSearchString)
-    }
-
     property alias mediaSelectionModel: mediaSelectionModel
 
-    Timer {
-        id: callbackTimer
-        function setTimeout(cb, delayTime) {
-            callbackTimer.interval = delayTime;
-            callbackTimer.repeat = false;
-            callbackTimer.triggered.connect(cb);
-            callbackTimer.triggered.connect(function release () {
-                callbackTimer.triggered.disconnect(cb); // This is important
-                callbackTimer.triggered.disconnect(release); // This is important as well
-            });
-            callbackTimer.start();
-        }
-    }
-    property alias callbackTimer: callbackTimer
-
-
-    /* This model is a simple list of the panels that xSTUDIO can provide.
-    The data of each row is the name of panel and the QML code needed to
-    instantiate the widget that is the panel. xSTUDIO plugins can add data
-    to the views model and this is how plugins can insert their own panels into
-    the xstudio interface */
-    XsViewsModel {
-        id: views_model
-    }
-    property alias viewsModel: views_model
-
-
-    /* This model is a simple list of the pop-out windows that are accessible
-    via buttons in the shelf at the top-left of the viewport panel. e.g. notes
-    or grading tool. */
-    XsPopoutWindowsData {
-        id: popout_windows
-    }
-    property alias popoutWindowsModel: popout_windows
-
-
-    /* This model is a flat list with just one attribute 'source_qmp' which is qml
-    that will make a small widget (like a button) that will appear just to
-    the left of the */
-    XsPlaylistsPanelBarExtraWidgetsModel {
-        id: menu_bar_extra_widgets
-    }
-    property alias playlistsPanelBarExtraWidgets: menu_bar_extra_widgets
-
-    /* This model is a flat list with just one attribute 'source' which is qml
-    that we want to load once only. This allows plugins to declare some qml
-    that is instanced once only at the global level. It is a good way to add
-    menu items at the application level */
-    XsSingletonItemsModel {
-        id: singletons_model
-    }
-    property alias singletonsModel: singletons_model
 
     /* This model gives access to bookmark/notes data */
     XsBookmarkModel {

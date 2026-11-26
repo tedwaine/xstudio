@@ -482,28 +482,25 @@ Item {
     }
 
     // Make a connection to the 'recent_history' preference (i.e. recent files)
-    XsModelProperty {
+    XsPreference {
         id: recent_files
-        role: "valueRole"
-        index: globalStoreModel.searchRecursive("/ui/qml/recent_history", "pathRole")
+        path: "/ui/qml/recent_history"
     }
     property alias recentFiles: recent_files.value
 
-    XsModelProperty {
+    XsPreference {
         id: default_media_folder
-        role: "valueRole"
-        index: globalStoreModel.searchRecursive("/ui/qml/default_media_folder", "pathRole")
+        path: "/ui/qml/default_media_folder"
     }
     property alias defaultMediaFolder: default_media_folder.value
 
-    XsModelProperty {
+    XsPreference {
         id: session_compression
-        role: "valueRole"
-        index: globalStoreModel.searchRecursive("/core/session/compression", "pathRole")
+        path: "/core/session/compression"
     }
     property alias sessionCompression: session_compression.value
 
-    property var sessionMTime: sessionProperties.values.mtimeRole
+    property var sessionMTime: the_session.values.mtimeRole
     property var sessionPathNative: sessionPath ? helpers.pathFromURL(sessionPath) : ""
 
     Clipboard {

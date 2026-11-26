@@ -55,13 +55,12 @@ Item  {
     property alias theSessionData: sessionData.session
     property alias currentPlayhead: sessionData.current_playhead
     property alias callbackTimer: sessionData.callbackTimer
-    property alias sessionProperties: sessionData.sessionProperties
     property alias bookmarkModel: sessionData.bookmarkModel
     property alias currentOnScreenMediaData: sessionData.currentOnScreenMediaData
     property alias currentOnScreenMediaSourceData: sessionData.currentOnScreenMediaSourceData
     property alias viewportCurrentMediaContainerIndex: sessionData.viewportCurrentMediaContainerIndex
 
-    property var sessionPath: sessionProperties.values.pathRole
+    property var sessionPath: theSessionData.values.pathRole
     
     XsPlayhead {
         id: viewportPlayhead

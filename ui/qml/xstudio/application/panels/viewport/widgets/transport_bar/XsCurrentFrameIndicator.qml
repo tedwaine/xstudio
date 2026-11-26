@@ -15,10 +15,9 @@ XsViewerTextDisplay
     menuWidth: 175
     property int selected: 0
 
-    XsModelProperty {
+    XsPreference {
         id: timeline_units_pref
-        role: "valueRole"
-        index: globalStoreModel.searchRecursive("/ui/qml/timeline_units", "pathRole")
+        path: "/ui/qml/timeline_units"
     }
     property alias timelineUnits: timeline_units_pref.value
 

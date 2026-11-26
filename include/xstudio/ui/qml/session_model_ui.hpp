@@ -711,7 +711,7 @@ class SESSION_QML_EXPORT MediaListFilterModel : public QSortFilterProxyModel {
     MediaListFilterModel(QObject *parent = nullptr);
 
     [[nodiscard]] const QString &searchString() const { return search_string_; }
-    [[nodiscard]] QModelIndexList selectedSourceIndexes() const;
+    [[nodiscard]] QModelIndexList selectedSourceIndexes() const { return selected_source_indexes_; }
 
     void setSearchString(const QString &ss) {
         if (ss != search_string_) {
@@ -742,12 +742,17 @@ class SESSION_QML_EXPORT MediaListFilterModel : public QSortFilterProxyModel {
     [[nodiscard]] bool
     filterAcceptsRow(int source_row, const QModelIndex &source_parent) const override;
 
+  protected slots:
+
+    void updateSelectedSourceIndexes();
+
   signals:
     void searchStringChanged();
     void selectedSourceIndexesChanged();
 
   private:
     QString search_string_;
+    QModelIndexList selected_source_indexes_;
 };
 
 } // namespace xstudio::ui::qml

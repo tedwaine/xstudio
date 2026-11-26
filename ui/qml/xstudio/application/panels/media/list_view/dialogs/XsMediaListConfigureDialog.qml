@@ -191,33 +191,30 @@ metadata with media that isn't from your pipeline.`
     function show_metadata_digest() {
 
         var source_object_index
-        if (mediaSelectionModel.selectedIndexes.length) {
-            source_object_index = mediaSelectionModel.selectedIndexes[0]
+        if (filteredmediaModelData.selectedSourceIndexes.length) {
+            source_object_index = filteredmediaModelData.selectedSourceIndexes[0]
         } else {
-            var media_idx = theSessionData.index(0,0,viewportCurrentMediaContainerIndex)
-            if (theSessionData.rowCount(media_idx)) {
-                source_object_index = theSessionData.index(0,0,media_idx)
-            } else {
-                dialogHelpers.errorDialogFunc("Error", "No media available to show metadata.")
-                return
-            }
+            source_object_index = filteredmediaModelData.rowToSourceIndex(0)
         }
 
         // get the uuid of the object that we want to get metadata for (Media,
         // MediaSource (image), MediaSource (audio), MediaStream (image), MediaStream (audio))
-        var actoruuid = source_object_index.model.get(source_object_index, "actorUuidRole")
+        var actoruuid = source_object_index.model.getData(source_object_index, "uuidRole")
         if (metadata_source_object == "MediaSource (Image)") {
-            actoruuid = source_object_index.model.get(source_object_index, "imageActorUuidRole")
+            actoruuid = source_object_index.model.getData(source_object_index, "imageActorUuidRole")
+            source_object_index = source_object_index.model.searchRecursive(actoruuid, "uuidRole", source_object_index, 1)
         } else if (metadata_source_object == "MediaSource (Audio)") {
-            actoruuid = source_object_index.model.get(source_object_index, "audioActorUuidRole")
+            actoruuid = source_object_index.model.getData(source_object_index, "audioActorUuidRole")
+            source_object_index = source_object_index.model.searchRecursive(actoruuid, "uuidRole", source_object_index, 1)
         }
         // now get the index for the object
-        let idx = source_object_index.model.searchRecursive(actoruuid, "actorUuidRole", source_object_index)
+        let idx = source_object_index
 
         // get the metadata!
         var result = []
         if (idx.valid) {
-            flattenJSON(JSON.parse(idx.model.getJSON(idx, "")),"/", result)
+            let json = JSON.parse(source_object_index.model.getJSON(source_object_index, "")) 
+            flattenJSON(json, "/", result)
         } else {
             result = [["No " + metadata_source_object + " Object", "No Metadata!"]]
         }

@@ -60,14 +60,16 @@ XsGridView {
     }
 
     function autoScrollToSelectedMedia() {
-        if (visible && mediaSelectionModel.selectedIndexes.length) {
+        if (visible) {
 
             // looping over media visible in the list
             for (var i = 0; i < filteredmediaModelData.rowCount(); ++i) {
 
                 let uuid = filteredmediaModelData.getData(i, "uuidRole")
-                if (mediaSelection.indexOf(uuid) != -1)
+                if (mediaSelection.indexOf(uuid) != -1) {
                     autoScrollToRow(i);
+                    break;
+                }
 
             }
 
@@ -133,7 +135,7 @@ XsGridView {
 
         id: drag_drop_handler
         dragSourceName: "MediaList"
-        dragData: mediaSelectionModel.selectedIndexes
+        dragData: mediaSelection
 
         onIsDragTargetChanged: {
             if (!isDragTarget) {

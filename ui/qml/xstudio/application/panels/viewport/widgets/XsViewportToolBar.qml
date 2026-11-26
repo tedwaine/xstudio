@@ -51,8 +51,7 @@ Item {
 
     XsPreference {
         id: __toolbarHiddenItems
-
-        index: globalStoreModel.searchRecursive("/ui/viewport/hidden_toolbar_items", "pathRole")
+        path: "/ui/viewport/hidden_toolbar_items"
     }
     property var toolbarHiddenItems: __toolbarHiddenItems.value
 

@@ -12,6 +12,7 @@
         <file>application/model/XsPlayhead.qml</file>
         <file>model/XsPreference.qml</file>
         <file>application/XsPopoutViewerWindow.qml</file>
+        <file>application/XsApplicationData.qml</file>
         <file>application/XsSessionWindow.qml</file>
         <file>application/XsFloatingViewWindow.qml</file>
         <file>application/XsFloatingPanel.qml</file>

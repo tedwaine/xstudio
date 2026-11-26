@@ -1,6 +1,5 @@
 # SPDX-License-Identifier: Apache-2.0
 import opentimelineio
-from xstudio.api.auxiliary.otio_debug_python import prepare_otio
 from opentimelineio.schema import Timeline as oTimeline, Track as oTrack, Stack as oStack, Clip as oClip, Gap as oGap
 from opentimelineio.schema import ExternalReference
 from opentimelineio.opentime import TimeRange, RationalTime
@@ -22,7 +21,6 @@ def write_otio(otio, path, adapter_name=None):
     Kwargs:
         adapter_name(str): Override adaptor.
     """
-    prepare_otio()
     opentimelineio.adapters.write_to_file(
         otio, path, adapter_name=adapter_name
     )
@@ -79,7 +77,6 @@ def timeline_to_otio_string(timeline, adapter_name=None):
     for i in timeline.audio_tracks:
         __process_obj(i, otio.tracks, oTrack.Kind.Audio)
 
-    prepare_otio()
     return opentimelineio.adapters.write_to_string(
         otio, adapter_name=adapter_name
     )

@@ -273,6 +273,8 @@ bool ObjectDataTree::values_equal(const std::any &a, const std::any &b) {
         return false;
     if (a.type() == typeid(std::string))
         return std::any_cast<const std::string &>(a) == std::any_cast<const std::string &>(b);
+    if (a.type() == typeid(utility::Uuid))
+        return std::any_cast<const utility::Uuid &>(a) == std::any_cast<const utility::Uuid &>(b);
     if (a.type() == typeid(int))
         return std::any_cast<int>(a) == std::any_cast<int>(b);
     if (a.type() == typeid(bool))

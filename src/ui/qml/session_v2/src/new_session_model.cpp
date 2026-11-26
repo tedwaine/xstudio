@@ -69,37 +69,51 @@ namespace {
 
     AnyPtr anyPtrFromQVariant(const QVariant &var) {
 
-        /*if (var.isNull() || !var.isValid())
+        if (var.isNull() || !var.isValid())
             return nullptr;
-        else if(var.canConvert<QColor>()) {
-            const QColor c = var.value<QColor>();
+
+        switch (QMetaType::Type(var.typeId())) {
+        case QMetaType::Bool:
+            return std::make_shared<const std::any>(var.toBool());
+            break;
+        case QMetaType::Double:
+            return std::make_shared<const std::any>((double)var.toReal());
+            break;
+        case QMetaType::Float:
+            return std::make_shared<const std::any>(var.toFloat());
+            break;
+        case QMetaType::Long:
+        case QMetaType::LongLong:
+        case QMetaType::Short:
+        case QMetaType::ULong:
+        case QMetaType::ULongLong:
+        case QMetaType::UShort:
+        case QMetaType::UInt:
+        case QMetaType::SChar:
+        case QMetaType::UChar:
+        case QMetaType::Int:
+            return std::make_shared<const std::any>(var.toInt());
+            break;
+        case QMetaType::QString:
+            return std::make_shared<const std::any>(var.toString().toStdString());
+            break;
+        case QMetaType::QUuid:
+            return std::make_shared<const std::any>(UuidFromQUuid(var.toUuid()));
+            break;
+        case QMetaType::QUrl:
+            return std::make_shared<const std::any>(UriFromQUrl(var.toUrl()));
+            break;
+        case QMetaType::QColor: {
+            auto c = var.value<QColor>();
             return std::make_shared<const std::any>(ColourTriplet(
                 c.redF(),
                 c.greenF(),
                 c.blueF(),
                 c.alphaF()
-            )); }
-        else if (var.canConvert<int>()) {
-            const int i = var.value<int>();
-            return std::make_shared<const std::any>(i);
+            ));
+        } break;
         }
-        else if (var.canConvert<bool>()) {
-            const bool b = var.value<bool>();
-            return std::make_shared<const std::any>(b);
-        }
-        else if (var.canConvert<float>()) {
-            const float f = var.value<float>();
-            return std::make_shared<const std::any>(f);
 
-        }
-        else if (var.canConvert<QUuid>()) {
-            const QUuid u = var.value<QUuid>();
-            return std::make_shared<const std::any>(UuidFromQUuid(u));
-        }
-        else if (var.canConvert<QString>()) {
-            const QString s = var.value<QString>();
-            return std::make_shared<const std::any>(s.toStdString());
-        } */
 
         const nlohmann::json json_value = qvariant_to_json(var);
         if (json_value.is_boolean()) {
@@ -623,9 +637,13 @@ QModelIndex UIDataModel::searchRecursive(const QVariant &value, const QString &r
     for (int i = 0; i < node->num_nodes(); ++i) {
         const auto &c = node->get_node(i);
         const auto r = c->get_data_value(role_id);
+
         try {
-            if (r && ObjectDataTree::values_equal(r, value_ptr))
-                return index(i, 0, parent);
+            
+            if (r && ObjectDataTree::values_equal(r, value_ptr)) {
+                auto ii = index(i, 0, parent);
+                return ii;
+            }
         } catch (const std::exception &err) {
             qDebug() << "Exception while comparing values:" << err.what();
         }
@@ -643,7 +661,32 @@ QModelIndex UIDataModel::searchRecursive(const QVariant &value, const QString &r
     return {};
 }
 
+QString UIDataModel::getJSON(const QModelIndex &index, const QString &path) const {
 
+    const ObjectDataTree *node = node_from_index(index);
+    if (!node)
+        return {};
+
+    try {
+
+        scoped_actor sys{system()};
+        auto actor = node->get_data_value<caf::actor_addr>(session::actorRole);
+        if (!actor)
+            return {};
+        std::cerr << request_receive<std::string>(
+            *sys, caf::actor_cast<caf::actor>(*actor), utility::name_atom_v) << "\n";
+        std::string path_string = StdFromQString(path);
+        auto jsn = request_receive<JsonStore>(
+            *sys, caf::actor_cast<caf::actor>(*actor), json_store::get_json_atom_v, path_string);
+        return QString::fromStdString(jsn.dump());
+
+    } catch (const std::exception &err) {
+        qDebug() << "Exception while getting JSON:" << err.what();
+    }
+    return {};
+
+}
+    
 bool UIDataModel::canFetchMore(const QModelIndex &parent) const {
     auto result          = false;
     return true;
@@ -663,6 +706,15 @@ caf::message_handler SessionModelRoot::message_handler() {
             bool session_is_root = session_actor_ == root_actor_;
             session_actor_ = session;
             if (!session_is_root) reload();
+            else {
+                root_actor_ = session_actor_;
+                QString asString = actorToQString(system(), session_actor_);
+                if (asString != root_actor_as_string_) {
+                    root_actor_as_string_ = asString;
+                    emit rootActorChanged();
+                }
+                set_source_of_data(session_actor_);
+            }
         },
         [=](event_atom,
             session::session_request_atom,

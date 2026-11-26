@@ -161,7 +161,7 @@ XsPopupMenu {
     }
     XsPreference {
         id: __toolbarHiddenItems
-        index: globalStoreModel.searchRecursive("/ui/viewport/hidden_toolbar_items", "pathRole")
+        path: "/ui/viewport/hidden_toolbar_items"
     }
     property alias toolbarHiddenItems: __toolbarHiddenItems.value
 

@@ -26,10 +26,9 @@ Rectangle {
     signal framePressed(int frame)
     signal frameDragging(int frame)
 
-    XsModelProperty {
+    XsPreference {
         id: __restorePlayAfterScrub
-        role: "valueRole"
-        index: globalStoreModel.searchRecursive("/ui/qml/restore_play_state_after_scrub", "pathRole")
+        path: "/ui/qml/restore_play_state_after_scrub"
     }
     property alias restorePlayAfterScrub: __restorePlayAfterScrub.value
 

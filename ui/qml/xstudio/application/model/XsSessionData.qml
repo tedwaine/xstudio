@@ -11,6 +11,8 @@ import xstudio.qml.embedded_python 1.0
 
 Item {
 
+    property string mediaListSearchString
+
     /* This model gives us access to the playlists */
     XsSessionModelNode {
         id: mediaSelectionThingy  
@@ -25,6 +27,15 @@ Item {
     property alias mediaSelectionThingy: mediaSelectionThingy
     property var mediaSelection: mediaSelectionThingy.values.selectedMediaRole
 
+    // Set the current selection to be just the single hero media currently being viewed
+    function soloSelection() {
+        for (var i = 0; i < filteredmediaModelData.rowCount(); i++) {
+            if (filteredmediaModelData.get(i, "uuidRole") == currentPlayhead.mediaUuid) {
+                setMediaSelection([filteredmediaModelData.get(i, "uuidRole")])
+                return;
+            }
+        }
+    }
 
     /* This model gives us access to the playlists */
     XsSessionModelNode {
@@ -78,6 +89,27 @@ Item {
     }
     property alias inspectedContainer: inspectedContainer
 
+    XsPlayhead {
+        id: currentPlayhead
+        //uuid: viewedContainer.rootData.activePlayheadActorRole
+        playheadActor: viewedContainer.values.activePlayheadActorRole
+    }
+    property alias currentPlayhead: currentPlayhead
+
+    // Access to the playlist/subset/timeline that is currently 
+    // filling the MediaList panel
+    XsSessionModelNode {
+        id: __currentOnScreenMediaData
+        rootActor: currentPlayhead.currentMediaActor
+    }
+    property alias currentOnScreenMediaData: __currentOnScreenMediaData
+
+    XsSessionModelNode {
+        id: __currentOnScreenMediaSourceData
+        rootActor: currentPlayhead.currentMediaSourceActor
+    }
+    property alias currentOnScreenMediaSourceData: __currentOnScreenMediaSourceData
+
     /* This selection model tells us which playlist(s), contact sheets, timelines etc
     are currently selected in the UI */
     ItemSelectionModel {
@@ -102,5 +134,5 @@ Item {
         }
     }
     property alias playlistsSelectionModel: playlistsSelectionModel
-    
+
 }

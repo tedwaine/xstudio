@@ -289,7 +289,7 @@ PlaylistActor::PlaylistActor(
                 spdlog::error("{}", e.what());
             }
 
-        } else {
+        } else if (value.at("base").at("container").at("type") != "Media") {
 
             try {
 

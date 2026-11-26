@@ -24,10 +24,9 @@ XsViewerTextDisplay
         font.pixelSize: 14
     }
 
-    XsModelProperty {
+    XsPreference {
         id: durationPref
-        role: "valueRole"
-        index: globalStoreModel.searchRecursive("/ui/qml/timeline_indicator", "pathRole")
+        path: "/ui/qml/timeline_indicator"
     }
     property alias timelineIndicator: durationPref.value
 

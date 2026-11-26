@@ -57,14 +57,14 @@ Item {
             isExpanded: false
             hint: "Search media..."
             onTextChanged: {
-                mediaListSearchString = text
-                if (mediaListSearchString != "" && !isExpanded) {
+                sessionData.mediaListSearchString = text
+                if (sessionData.mediaListSearchString != "" && !isExpanded) {
                     isExpanded = true
                 } else if (!visible) {
                     isExpanded = false
                 }
             }
-            property var ss: mediaListSearchString
+            property var ss: sessionData.mediaListSearchString
             onSsChanged: {
                 if (ss != text) text = ss
             }

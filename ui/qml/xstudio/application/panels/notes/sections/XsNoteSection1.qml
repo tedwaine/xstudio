@@ -92,7 +92,7 @@ Rectangle{ id: sec1
 
         XsPreference {
             id: bookmark_categories_value
-            index: globalStoreModel.searchRecursive("/core/bookmark/category", "pathRole")
+            path: "/core/bookmark/category"
         }
         XsBookmarkCategories {
             id: bookmark_categories

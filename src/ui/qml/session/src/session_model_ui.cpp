@@ -1411,30 +1411,29 @@ MediaListFilterModel::MediaListFilterModel(QObject *parent) : super(parent) {
         this, &QAbstractItemModel::dataChanged, this,
         [this](const QModelIndex &, const QModelIndex &, const QList<int> &roles) {
             if (roles.isEmpty() || roles.contains(session::selectionIndexRole))
-                emit selectedSourceIndexesChanged();
+                updateSelectedSourceIndexes();
         });
     connect(
         this, &QAbstractItemModel::rowsInserted, this,
-        &MediaListFilterModel::selectedSourceIndexesChanged);
+        &MediaListFilterModel::updateSelectedSourceIndexes);
     connect(
         this, &QAbstractItemModel::rowsRemoved, this,
-        &MediaListFilterModel::selectedSourceIndexesChanged);
+        &MediaListFilterModel::updateSelectedSourceIndexes);
     connect(
         this, &QAbstractItemModel::rowsMoved, this,
-        &MediaListFilterModel::selectedSourceIndexesChanged);
+        &MediaListFilterModel::updateSelectedSourceIndexes);
     connect(
         this, &QAbstractItemModel::layoutChanged, this,
-        &MediaListFilterModel::selectedSourceIndexesChanged);
+        &MediaListFilterModel::updateSelectedSourceIndexes);
     connect(
         this, &QAbstractItemModel::modelReset, this,
-        &MediaListFilterModel::selectedSourceIndexesChanged);
+        &MediaListFilterModel::updateSelectedSourceIndexes);
     connect(
         this, &QAbstractProxyModel::sourceModelChanged, this,
-        &MediaListFilterModel::selectedSourceIndexesChanged);
+        &MediaListFilterModel::updateSelectedSourceIndexes);
 }
 
-QModelIndexList MediaListFilterModel::selectedSourceIndexes() const {
-    qDebug() << "\n\nSelected source indexes requested\n\n";
+void MediaListFilterModel::updateSelectedSourceIndexes() {
     QModelIndexList result;
     for (int row = 0; row < rowCount(); ++row) {
         const QModelIndex proxy_index = index(row, 0);
@@ -1442,7 +1441,10 @@ QModelIndexList MediaListFilterModel::selectedSourceIndexes() const {
         if (v.canConvert<int>() && v.toInt())
             result.append(mapToSource(proxy_index));
     }
-    return result;
+    if (selected_source_indexes_ != result) {
+        selected_source_indexes_ = result;
+        emit selectedSourceIndexesChanged();
+    }
 }
 
 bool MediaListFilterModel::filterAcceptsRow(

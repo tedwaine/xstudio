@@ -605,6 +605,10 @@ SessionActor::SessionActor(
         anon_mail(viewport_active_media_container_atom_v, Session::viewed_playlist_uuid())
             .send(this);
     }
+
+    set_data_value(session::mtimeRole, nlohmann::json(Session::session_file_mtime()).dump());
+    set_data_value(session::pathRole, Session::filepath());            
+    std::cerr << "Session path: " << to_string(Session::filepath()) << std::endl;
 }
 
 SessionActor::SessionActor(caf::actor_config &cfg, const std::string &name)
@@ -1031,6 +1035,8 @@ caf::message_handler SessionActor::message_handler() {
                                                     Session::filepath(),
                                                     Session::session_file_mtime()))
                                                 .send(Session::event_group());
+                                            set_data_value(session::mtimeRole, nlohmann::json(Session::session_file_mtime()).dump());
+                                            set_data_value(session::pathRole, Session::filepath());
                                         }
                                     },
                                     [=](error &err) mutable { rp.deliver(std::move(err)); });
@@ -1252,6 +1258,8 @@ caf::message_handler SessionActor::message_handler() {
                 path_atom_v,
                 std::make_pair(Session::filepath(), Session::session_file_mtime()))
                 .send(Session::event_group());
+            set_data_value(session::mtimeRole, nlohmann::json(Session::session_file_mtime()).dump());
+            set_data_value(session::pathRole, Session::filepath());            
             return true;
         },
 

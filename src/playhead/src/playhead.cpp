@@ -104,9 +104,12 @@ void PlayheadBase::add_attributes() {
     current_frame_timecode_as_frame_ =
         add_integer_attribute("Timecode As Frame", "Timecode As Frame", 0);
 
+    current_media_actor_ = add_string_attribute("Current Media Actor", "Current Media Actor", "");
     current_media_uuid_ = add_string_attribute("Current Media Uuid", "Current Media Uuid", "");
     current_media_source_uuid_ =
         add_string_attribute("Current Media Source Uuid", "Current Media Source Uuid", "");
+    current_media_source_actor_ =
+        add_string_attribute("Current Media Source Actor", "Current Media Source Actor", "");
 
     current_clip_uuid_ = add_string_attribute("Current Clip Uuid", "Current Clip Uuid", "");
 
