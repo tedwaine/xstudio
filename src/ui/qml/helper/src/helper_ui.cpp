@@ -222,6 +222,9 @@ QVariant xstudio::ui::qml::json_to_qvariant(const nlohmann::json &json) {
     } else if (json.is_number_integer()) {
         return QVariant(json.get<int>());
     } else if (json.is_string()) {
+        auto uuid = utility::parse_uuid_string(json.get<std::string>());
+        if (uuid)
+            return QVariant(QUuidFromUuid(*uuid));
         return QVariant(json.get<std::string>().c_str());
     } else if (json.is_boolean()) {
         return QVariant(json.get<bool>());

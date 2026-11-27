@@ -215,7 +215,7 @@ caf::message_handler ObjectActor::private_message_handler() {
                 // update our local copy
                 ObjectDataTree * node = full_tree_state_.get_node_in_tree(index_in_tree);
                 if (!node) {
-                    spdlog::warn("Attempted to insert node into a null parent");
+                    spdlog::warn("Attempted to insert node into a null parent: {}", name);
                 } else {
                     node->insert_node(child_data->deep_copy(node), insertion_index);
                 }
@@ -335,7 +335,13 @@ caf::message_handler ObjectActor::private_message_handler() {
             // request to change a data value (usually from the UI layer)
             bool result = false;
             try {
+
                 if (request_to_set_data_value(key, value)) {
+
+                    if (key == session::selectionIndexRole) {
+                        std::cerr << get_name(full_tree_state_) << " ";
+                    }
+
                     // broadcast the property change up the tree
                     mail(event_atom_v, property_atom_v, std::vector<int>(), key, value).send(properties_events_group_);
                     result = true;
@@ -347,6 +353,15 @@ caf::message_handler ObjectActor::private_message_handler() {
 
         },
         [=](event_atom, property_atom, std::vector<int> index_in_tree, const int key, const AnyPtr &value) {
+
+
+            if (key == session::selectionIndexRole) {
+                static std::mutex m;
+                std::lock_guard<std::mutex> lock(m);
+                static int ct = 0;
+                std::cerr << ct++ << " ";
+            }
+
             // A child's data has been updated.
             // what's the index of the child that sent this?
             int cindex = child_index(current_sender());

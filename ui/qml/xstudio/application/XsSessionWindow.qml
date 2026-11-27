@@ -23,7 +23,7 @@ ApplicationWindow {
     id: appWindow
     visible: false
     color: "#000000"
-    title: (sessionPathNative ? (theSessionData.modified ? sessionPathNative + " - modified": sessionPathNative) : "xSTUDIO")
+    title: (sessionPathNative ? (the_session.values.modifiedRole ? sessionPathNative + " - modified": sessionPathNative) : "xSTUDIO")
     objectName: "xstudio_main_window"
     minimumWidth: 150
     minimumHeight: 100
@@ -311,8 +311,8 @@ ApplicationWindow {
             else if (fullscreen)
                 fullscreen = false
 
-            currentMediaContainerIndex = viewportCurrentMediaContainerIndex
-            mediaSelectionModel.soloSelection()
+            sessionData.inspectedContainerActor = the_session.values.viewedContainerRole
+            sessionData.soloSelection()
 
             // TODO: use the deault mode preference
             const type = viewedContainer.values.typeRole
@@ -390,10 +390,10 @@ ApplicationWindow {
         id: sessionData
     }
 
-    XsSessionDataDeprecated {
+    /*XsSessionDataDeprecated {
         id: sessionDataDeprecated
         sessionActorAddr: studio.sessionActorAddr
-    }
+    }*/
 
 
     /*****************************************************************
@@ -458,9 +458,10 @@ ApplicationWindow {
 
     // New Model entires
     property alias playlistsModelData: sessionData.playlistsModelData
-    property alias inspectedContainerActor: sessionData.inspectedContainerActor
     property alias viewedContainer: sessionData.viewedContainer
     property alias viewedContainerActor: sessionData.viewedContainerActor
+    property alias viewedContainerProperties: sessionData.viewedContainerProperties
+    property alias inspectedContainerActor: sessionData.inspectedContainerActor
     property alias inspectedContainer: sessionData.inspectedContainer
     property alias inspectedContainerProperties: sessionData.inspectedContainerProperties
     property alias playlistsSelectionModel: sessionData.playlistsSelectionModel 
@@ -473,11 +474,9 @@ ApplicationWindow {
     property alias currentPlayhead: sessionData.currentPlayhead
 
     // Makes these important global items visible in child contexts
-    property alias theSessionData: sessionDataDeprecated.session
-    property alias mediaSelectionModel: sessionDataDeprecated.mediaSelectionModel
-    property alias currentMediaContainerIndex: sessionDataDeprecated.currentMediaContainerIndex
-    property alias viewportCurrentMediaContainerIndex: sessionDataDeprecated.viewportCurrentMediaContainerIndex
-    property alias bookmarkModel: sessionDataDeprecated.bookmarkModel
+    // property alias theSessionData: sessionDataDeprecated.session
+    property var viewportCurrentMediaContainerIndex
+    //: sessionDataDeprecated.viewportCurrentMediaContainerIndex
 
     property alias callbackTimer: applicationData.callbackTimer
     property alias viewsModel: applicationData.viewsModel
@@ -488,6 +487,7 @@ ApplicationWindow {
     property alias singletonsModel: applicationData.singletonsModel
     property alias playlistsPanelBarExtraWidgets: applicationData.playlistsPanelBarExtraWidgets
     property alias globalStoreModel: applicationData.globalStoreModel
+    property alias bookmarkModel: applicationData.bookmarkModel
 
     property var sessionPath: the_session.values.pathRole
     property var sessionPathNative: sessionPath ? helpers.pathFromURL(sessionPath) : ""

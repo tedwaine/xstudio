@@ -176,7 +176,11 @@ class SessionModelRoot : public UIDataModel {
     void setRootActor(const QString &actor);
 
     Q_INVOKABLE QString getNextName(const QString &nameTemplate) const;
-    
+    Q_INVOKABLE QFuture<bool> importFuture(const QUrl &path, const QVariant &json);
+    Q_INVOKABLE bool import(const QUrl &path, const QVariant &json) {
+        return importFuture(path, json).result();
+    }
+
   signals:
 
     void rootActorChanged();
@@ -214,6 +218,8 @@ class SessionModelNode : public SessionModelRoot {
 
     void setChildSearchPropertyKey(const QString &key);
     void setChildSearchPropertyValue(const QVariant &value);
+
+    Q_INVOKABLE QVariant getTimelineFullRangeAndLoopRangeAndFPS(const QModelIndex &index);
 
   protected:
 

@@ -25,6 +25,8 @@ class SessionActor : public xstudio::utility::ObjectActor, protected Session {
     void on_exit() override;
     [[nodiscard]] const char *name() const override { return NAME.c_str(); }
 
+    bool request_to_set_data_value(const int key, const utility::AnyPtr &value) override;
+
   private:
 
     inline static const std::string NAME = "SessionActor";

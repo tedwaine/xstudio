@@ -32,7 +32,7 @@ XsHotkeyArea {
         id: add_playlist_hotkey
         name: "Add Playlist"
         description: "Add New Playlist"
-        onActivated: playlist_functions.addPlaylistChoice()
+        onActivated: sessionFunctions.addPlaylistChoice()
 
         context: hotkey_area.context
         componentName: "Playlist"
@@ -42,7 +42,7 @@ XsHotkeyArea {
         id: add_subset_hotkey
         name: "Add Subset"
         description: "Add New Subset"
-        onActivated: playlist_functions.addSubsetChoice()
+        onActivated: sessionFunctions.addSubsetChoice()
 
         context: hotkey_area.context
         componentName: "Playlist"
@@ -52,7 +52,7 @@ XsHotkeyArea {
         id: add_sequence_hotkey
         name: "Add Sequence"
         description: "Add New Sequence"
-        onActivated: playlist_functions.addSequenceChoice()
+        onActivated: sessionFunctions.addSequenceChoice()
 
         context: hotkey_area.context
         componentName: "Playlist"
@@ -62,7 +62,7 @@ XsHotkeyArea {
         id: add_contact_sheet_hotkey
         name: "Add Contact Sheet"
         description: "Add New Contact Sheet"
-        onActivated: playlist_functions.addContactSheetChoice()
+        onActivated: sessionFunctions.addContactSheetChoice()
 
         context: hotkey_area.context
         componentName: "Playlist"
@@ -72,7 +72,7 @@ XsHotkeyArea {
         id: add_divider_hotkey
         name: "Add Divider"
         description: "Add New Divider"
-        onActivated: playlist_functions.addDividerChoice()
+        onActivated: sessionFunctions.addDividerChoice()
 
         context: hotkey_area.context
         componentName: "Playlist"
@@ -82,7 +82,7 @@ XsHotkeyArea {
         id: add_dated_divider_hotkey
         name: "Add Dated Divider"
         description: "Add New Dated Divider"
-        onActivated: playlist_functions.addDatedDivider()
+        onActivated: sessionFunctions.addDatedDivider()
 
         context: hotkey_area.context
         componentName: "Playlist"
@@ -102,7 +102,7 @@ XsHotkeyArea {
         id: copy_names_to_clipboard_hotkey
         name: "Copy Names"
         description: "Copy Selected Names To Clipboard"
-        onActivated: playlist_functions.copySelectedNames()
+        onActivated: sessionFunctions.copySelectedNames()
 
         context: hotkey_area.context
         componentName: "Playlist"
@@ -112,7 +112,7 @@ XsHotkeyArea {
         id: rename_hotkey
         name: "Rename"
         description: "Rename Playlist"
-        onActivated: playlist_functions.renamePlaylist()
+        onActivated: sessionFunctions.renamePlaylist()
 
         context: hotkey_area.context
         componentName: "Playlist"
@@ -122,7 +122,7 @@ XsHotkeyArea {
         id: duplicate_hotkey
         name: "Duplicate"
         description: "Duplicate Playlist"
-        onActivated: playlist_functions.duplicate()
+        onActivated: sessionFunctions.duplicate()
 
         context: hotkey_area.context
         componentName: "Playlist"
@@ -132,7 +132,7 @@ XsHotkeyArea {
         id: combine_hotkey
         name: "Combine"
         description: "Combine Playlists"
-        onActivated: playlist_functions.duplicate()
+        onActivated: sessionFunctions.duplicate()
 
         context: hotkey_area.context
         componentName: "Playlist"
@@ -142,7 +142,7 @@ XsHotkeyArea {
         id: remove_unused_hotkey
         name: "Remove Unused Media"
         description: "Remove Unused Media From Playlist"
-        onActivated: playlist_functions.removeUnusedMedia()
+        onActivated: sessionFunctions.removeUnusedMedia()
 
         context: hotkey_area.context
         componentName: "Playlist"

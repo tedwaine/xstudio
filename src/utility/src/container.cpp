@@ -143,7 +143,7 @@ caf::message_handler Container::container_message_handler(caf::event_based_actor
         }, // make_get_event_group_handler
         [=](detail_atom) -> ContainerDetail {
             return detail(actor_, event_group_);
-        } // make_get_detail_handler
+        }
     });
 }
 

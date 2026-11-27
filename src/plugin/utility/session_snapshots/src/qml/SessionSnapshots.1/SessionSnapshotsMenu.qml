@@ -139,7 +139,7 @@ XsMenuItemNew {
 				console.log(helpers.showURIS([helpers.QUrlFromQString(path)]))
 			} else if (action_type == "SNAPSHOT_IMPORT") {
 
-				Future.promise(theSessionData.importFuture(path, null)).then(
+				Future.promise(the_session.importFuture(path, null)).then(
 					function(result) {
 						// if (result) {
 						// 	dialogHelpers.errorDialogFunc("Snapshot Loaded", "Snapshot " + name + " was added to your session.")

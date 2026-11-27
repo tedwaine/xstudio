@@ -35,7 +35,7 @@ Item {
 
     function newSessionWithCheck() {
 
-        if (theSessionData.modified) {
+        if (the_session.values.modifiedRole) {
 
             dialogHelpers.multiChoiceDialog(
                 newSessionWithCheckCallback,
@@ -65,7 +65,7 @@ Item {
             defaultSessionFolder(),
             "Export Sequence",
             ".otio",
-            ["All Files (*.*)"].concat(theSessionData.getTimelineExportTypes()),
+            ["All Files (*.*)"].concat(sessionFunctions.getTimelineExportTypes()),
             false,
             false,
             chaserFunc
@@ -140,7 +140,9 @@ Item {
             path = path + ".xst"
         }
 
-        Future.promise(theSessionData.saveFuture(path)).then(function(result) {
+        Future.promise(
+            helpers.pythonAsyncCallback("UtilityPythonPlugin", "save_session", {'path': path})
+        ).then(function(result) {
             if (result == false) {
                 // cancelled
                 if (chaserFunc != undefined) chaserFunc()
@@ -150,7 +152,14 @@ Item {
                 newRecentPath(path)
                 if (chaserFunc != undefined) chaserFunc()
             }
+        },
+        function(__rr) {
+            dialogHelpers.errorDialogFunc(
+                "Save Session Error",
+                "An error occurred while saving the session: " + __rr
+            )
         })
+
     }
 
     function saveOverwriteCallback(response, chaserFunc) {
@@ -223,7 +232,7 @@ Item {
 
         if (path == false) return; // load was cancelled
 
-        Future.promise(theSessionData.importFuture(path, null)).then(
+        Future.promise(the_session.importFuture(path, null)).then(
             function(result) {
                 newRecentPath(path)
             })
@@ -272,7 +281,7 @@ Item {
     }
 
     function loadSessionFile(session_file_path, file_name) {
-        if (theSessionData.modified) {
+        if (the_session.values.modifiedRole) {
             file_to_load = session_file_path
             dialogHelpers.multiChoiceDialog(
                 loadSessionPathWithCheckCallback,
@@ -287,7 +296,7 @@ Item {
 
     function loadSessionWithCheck() {
 
-        if (theSessionData.modified) {
+        if (the_session.values.modifiedRole) {
             dialogHelpers.multiChoiceDialog(
                 loadSessionWithCheckCallback,
                 "Load Session",
@@ -358,7 +367,7 @@ Item {
 
     function quitWithCheck() {
 
-        if (theSessionData.modified && checkUnsaved.value) {
+        if (the_session.values.modifiedRole && checkUnsaved.value) {
             dialogHelpers.multiChoiceDialog(
                 quitWithCheckCallback,
                 "Quit xSTUDIO",
@@ -396,17 +405,28 @@ Item {
     function exportNotedToCSV() {
         dialogHelpers.showFileDialog(
             function(path) {
-                if (path)
-                    Future.promise(
-                        // FIXME
-                        theSessionData.getBookmarksFuture(sessionSelectionModel.selectedIndexes)
-                    ).then(function(result) {
-                        Future.promise(
-                            bookmarkModel.exportCSVFuture(path, true, true, result)
-                        ).then(function(result) {
-                            dialogHelpers.errorDialogFunc("Export Notes to CSV", result)
-                        })
+                if (path) {
+
+                    let container_uuids = []
+                    playlistsSelectionModel.selectedIndexes.forEach(function(index) {
+                        container_uuids.push(index.model.getData(index, "uuidRole"))
                     })
+                    Future.promise( 
+                        helpers.pythonAsyncCallback("UtilityPythonPlugin", "get_bookmarks_on_container_media", {"container_uuids": container_uuids})
+                        ).then(function(result) {
+                            Future.promise(
+                                bookmarkModel.exportCSVFuture(path, true, true, result)
+                            ).then(function(result) {
+                                dialogHelpers.errorDialogFunc("Export Notes to CSV Error", result)
+                            })
+                        },
+                        function(__rr) {
+                            dialogHelpers.errorDialogFunc(
+                                "Export Notes to CSV Error",
+                                "An error occurred while exporting notes: " + __rr
+                            )
+                        })
+                }
             },
             defaultSessionFolder(),
             "Export Notes to CSV",
@@ -473,7 +493,7 @@ Item {
 
     function copySessionLink() {
 
-        if(theSessionData.modified) {
+        if(the_session.values.modifiedRole) {
             saveSessionCheck(doCopySessionLink)
         } else {
             doCopySessionLink()

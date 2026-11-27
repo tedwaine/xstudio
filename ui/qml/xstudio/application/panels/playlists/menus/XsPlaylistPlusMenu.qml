@@ -26,7 +26,7 @@ XsPopupMenu {
         hotkeyUuid: hotkey_area.add_playlist_hotkey.uuid
         menuItemPosition: 1
         menuModelName: plusMenu.menu_model_name
-        onActivated: playlist_functions.addPlaylistChoice()
+        onActivated: sessionFunctions.addPlaylistChoice()
         panelContext: plusMenu.panelContext
     }
 
@@ -37,7 +37,7 @@ XsPopupMenu {
         menuPath: path
         menuItemPosition: 2
         menuModelName: plusMenu.menu_model_name
-        onActivated: playlist_functions.addSubsetChoice()
+        onActivated: sessionFunctions.addSubsetChoice()
         panelContext: plusMenu.panelContext
     }
 
@@ -48,7 +48,7 @@ XsPopupMenu {
         menuPath: path
         menuItemPosition: 3
         menuModelName: plusMenu.menu_model_name
-        onActivated: playlist_functions.addSequenceChoice()
+        onActivated: sessionFunctions.addSequenceChoice()
         panelContext: plusMenu.panelContext
     }
 
@@ -59,7 +59,7 @@ XsPopupMenu {
         menuPath: path
         menuItemPosition: 3
         menuModelName: plusMenu.menu_model_name
-        onActivated: playlist_functions.addContactSheetChoice()
+        onActivated: sessionFunctions.addContactSheetChoice()
         panelContext: plusMenu.panelContext
     }
 
@@ -77,7 +77,7 @@ XsPopupMenu {
         hotkeyUuid: hotkey_area.add_divider_hotkey.uuid
         menuItemPosition: 3.5
         menuModelName: plusMenu.menu_model_name
-        onActivated: playlist_functions.addDividerChoice()
+        onActivated: sessionFunctions.addDividerChoice()
         panelContext: plusMenu.panelContext
     }
 
@@ -88,7 +88,7 @@ XsPopupMenu {
         hotkeyUuid: hotkey_area.add_dated_divider_hotkey.uuid
         menuItemPosition: 3.6
         menuModelName: plusMenu.menu_model_name
-        onActivated: playlist_functions.addDatedDivider()
+        onActivated: sessionFunctions.addDatedDivider()
         panelContext: plusMenu.panelContext
     }
 

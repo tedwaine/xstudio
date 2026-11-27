@@ -1837,6 +1837,10 @@ caf::message_handler SessionActor::message_handler() {
 
         [=](utility::event_atom, utility::name_atom, const std::string & /*name*/) {},
 
+        [=](utility::event_atom, utility::change_atom) {
+            std::cerr << "YOGNOG\n";
+        },
+
         [=](utility::serialise_atom,
             const caf::actor &actor,
             const JsonStore &data) -> result<bool> {
@@ -2951,4 +2955,36 @@ void SessionActor::setOnScreenPlayhead(const bool check_if_current_session) {
 
             });
 
+}
+
+bool SessionActor::request_to_set_data_value(const int key, const utility::AnyPtr &value) {
+
+    if (key == session::viewedContainerRole) {
+
+        // in the front end, the viewed container is represented as a stringified actor.
+        // The front end might try to use an actor string to set the viewed container.
+        // Or it might try to use a Uuid.
+
+        // We can handle either case here.
+        
+        if (value->type() == typeid(Uuid)) {
+            const auto &uuid = std::any_cast<const Uuid &>(*value);
+            anon_mail(
+                    session::viewport_active_media_container_atom_v,
+                    uuid)
+                    .send(caf::actor_cast<caf::actor>(this));
+        } else if (value->type() == typeid(std::string)) {
+            const auto &actor_str = std::any_cast<const std::string &>(*value);
+            caf::actor act = utility::actor_from_string(system(), actor_str);
+            if (act && act != viewedContainer_.actor()) {
+                anon_mail(
+                    session::viewport_active_media_container_atom_v,
+                    act)
+                    .send(caf::actor_cast<caf::actor>(this));
+            }
+        }
+        // returning false here because viewedContainerRole value is updated internally by select_container()
+        return false;
+    }
+    return ObjectActor::request_to_set_data_value(key, value);
 }

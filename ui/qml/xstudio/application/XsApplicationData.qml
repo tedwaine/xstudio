@@ -77,4 +77,12 @@ Item {
     }
     property alias globalStoreModel: globalStoreModel
 
+    /* This model gives access to bookmark/notes data */
+    XsBookmarkModel {
+        id: bookmarkModel
+        bookmarkActorAddr: sessionData.bookmarkActorAddr
+    }
+    property alias bookmarkModel: bookmarkModel
+
+
 }

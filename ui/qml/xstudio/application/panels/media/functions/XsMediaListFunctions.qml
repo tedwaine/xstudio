@@ -208,7 +208,7 @@ Item {
         }
         filteredmediaModelData.selectedSourceIndexes.forEach(
             (element) => {
-                var actor = theSessionData.get(element, "actorRole")
+                var actor = element.model.getData(element, "actorRole")
                 quick_view_launcher.launchQuickViewer([actor], "Off", -1, -1)
             }
         )

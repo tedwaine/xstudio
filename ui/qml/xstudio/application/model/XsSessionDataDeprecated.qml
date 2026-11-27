@@ -426,12 +426,5 @@ Item {
     property alias mediaSelectionModel: mediaSelectionModel
 
 
-    /* This model gives access to bookmark/notes data */
-    XsBookmarkModel {
-        id: bookmarkModel
-        bookmarkActorAddr: sessionData.bookmarkActorAddr
-    }
-    property alias bookmarkModel: bookmarkModel
-
 
 }

@@ -63,7 +63,6 @@
         <file>application/panels/media/widgets/XsMediaScrollKeeper.qml</file>
         <file>application/panels/media/delegates/XsMediaThumbnailHighlight.qml</file>
         <file>application/panels/media/delegates/XsMediaThumbnailImage.qml</file>
-        <file>application/panels/playlists/functions/XsPlaylistFunctions.qml</file>
         <file>application/panels/playlists/delegates/XsPlaylistDividerDelegate.qml</file>
         <file>application/panels/playlists/delegates/XsPlaylistItemBase.qml</file>
         <file>application/panels/playlists/delegates/XsPlaylistItemDelegate.qml</file>

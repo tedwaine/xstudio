@@ -2312,6 +2312,10 @@ bool MediaActor::request_to_set_data_value(const int key, const utility::AnyPtr 
         }
         return false;
     }
-    return ObjectActor::request_to_set_data_value(key, value);
+    bool r = ObjectActor::request_to_set_data_value(key, value);
+    if (key == session::selectionIndexRole && r) {
+        std::cerr << this << " ";
+    }
+    return r;
 }
     

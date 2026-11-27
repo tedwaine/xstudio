@@ -116,6 +116,58 @@ TEST(EmbeddedPythonActorTest, Test) {
     f.self->send_exit(tmp, caf::exit_reason::user_shutdown);
 }
 
+TEST(EmbeddedPythonActorTest, ConvertsUuidStringArraysInNamedPluginArguments) {
+    fixture f;
+    auto actor = f.self->spawn<EmbeddedPythonActor>("Test");
+    f.self->mail(
+        python_exec_atom_v,
+        std::string(R"(
+class TestConnection:
+    def get_named_python_plugin_instance(self, name):
+        return self
+    def inspect(self, **kwargs):
+        return {
+            key: {
+                "list": type(values) is list,
+                "types": [type(value).__name__ for value in values],
+                "values": [str(value) if isinstance(value, Uuid) else value for value in values],
+            }
+            for key, values in kwargs.items()
+        }
+    def disconnect(self):
+        pass
+XSTUDIO = TestConnection()
+)"),
+        Uuid())
+        .send(actor);
+
+    const std::string uuid = "12345678-1234-1234-1234-123456789abc";
+    const std::string nil  = "00000000-0000-0000-0000-000000000000";
+    const std::string embedded_null = uuid + std::string("\0suffix", 7);
+    JsonStore args(nlohmann::json{
+        {"valid", nlohmann::json::array({uuid, nil})},
+        {"invalid", nlohmann::json::array({uuid, "not-a-uuid"})},
+        {"mixed", nlohmann::json::array({uuid, 42})},
+        {"malformed", nlohmann::json::array({uuid + "a", embedded_null})},
+        {"empty", nlohmann::json::array()}});
+
+    const auto result = request_receive<JsonStore>(
+        *f.self, actor, python_exec_atom_v, std::string("test"), std::string("inspect"), args);
+    EXPECT_EQ(result["valid"]["list"], true);
+    EXPECT_EQ(result["valid"]["types"], nlohmann::json::array({"Uuid", "Uuid"}));
+    EXPECT_EQ(result["valid"]["values"], nlohmann::json::array({uuid, nil}));
+    EXPECT_EQ(result["invalid"]["types"], nlohmann::json::array({"str", "str"}));
+    EXPECT_EQ(result["invalid"]["values"], args["invalid"]);
+    EXPECT_EQ(result["mixed"]["types"], nlohmann::json::array({"str", "int"}));
+    EXPECT_EQ(result["mixed"]["values"], args["mixed"]);
+    EXPECT_EQ(result["malformed"]["types"], nlohmann::json::array({"str", "str"}));
+    EXPECT_EQ(result["malformed"]["values"], args["malformed"]);
+    EXPECT_EQ(result["empty"]["list"], true);
+    EXPECT_EQ(result["empty"]["values"], nlohmann::json::array());
+
+    f.self->send_exit(actor, caf::exit_reason::user_shutdown);
+}
+
 // TEST(SessionSerializerTest, Test) {
 // 	fixture f;
 

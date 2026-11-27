@@ -20,22 +20,22 @@ XsWindow {
     property var numSelected: playlistsSelectionModel.selectedIndexes.length
     property var currentItem: 0
     property var itemToRender: numSelected ? playlistsSelectionModel.selectedIndexes[currentItem] : undefined
-
-    property var selectedContainerType: itemToRender ? theSessionData.get(itemToRender, "typeRole") : ""
-    property var selectedContainerName: itemToRender ? theSessionData.get(itemToRender, "nameRole") : ""
-    property var selectedContainerUuid: itemToRender ? theSessionData.get(itemToRender, "actorUuidRole") : ""
+    property var smodel: itemToRender ? itemToRender.model : undefined
+    property var selectedContainerType: smodel ? smodel.getData(itemToRender, "typeRole") : ""
+    property var selectedContainerName: smodel ? smodel.getData(itemToRender, "nameRole") : ""
+    property var selectedContainerUuid: smodel ? smodel.getData(itemToRender, "uuidRole") : ""
 
     property var frame_based_formats: ['jpg', 'jpeg', 'tiff', 'png', 'bmp', 'tif']
 
     onItemToRenderChanged: {
         if (itemToRender && itemToRender.valid) {
-            var renderTargetId = theSessionData.get(itemToRender, "actorUuidRole")
+            var renderTargetId = smodel.getData(itemToRender, "uuidRole")
             if (renderTargetId) {
                 xstudio_callback(["update_ocio_choices", renderTargetId])
             }
 
-            if (theSessionData.get(itemToRender, "typeRole") == "Timeline") {
-                render_range = theSessionData.getTimelineFullRangeAndLoopRangeAndFPS(itemToRender);
+            if (smodel.getData(itemToRender, "typeRole") == "Timeline") {
+                render_range = smodel.getTimelineFullRangeAndLoopRangeAndFPS(itemToRender);
                 if (render_range.length == 4) {
                     inPoint.text = ""+0
                     outPoint.text = ""+render_range[0]
@@ -57,13 +57,13 @@ XsWindow {
     function getSourceFPSAndStartFrame() {
 
         // get the first media item in the container
-        let media_index = theSessionData.searchRecursive("Media", "typeRole", itemToRender);                
+        let media_index = smodel.searchRecursive("Media", "typeRole", itemToRender);                
         if (media_index.valid) {
-            let imageSourceId = theSessionData.get(media_index, "imageActorUuidRole")
-            let image_source_idx = theSessionData.searchRecursive(imageSourceId, "actorUuidRole", media_index);                
+            let imageSourceId = smodel.getData(media_index, "imageActorUuidRole")
+            let image_source_idx = smodel.searchRecursive(imageSourceId, "uuidRole", media_index);                
             if (image_source_idx.valid) {
-                let sf = theSessionData.get(image_source_idx, "timecodeAsFramesRole")
-                let fps = theSessionData.get(image_source_idx, "rateFPSRole")
+                let sf = smodel.getData(image_source_idx, "timecodeAsFramesRole")
+                let fps = smodel.getData(image_source_idx, "rateFPSRole")
                 if (sf != undefined && fps != undefined) {
                     start_frame = sf
                     fps_best_guess = fps
@@ -82,14 +82,14 @@ XsWindow {
         // then we want to show the 'Re-speed' checkbox
 
         let user_fps = parseFloat(frame_rate.currentText)
-        if (theSessionData.get(itemToRender, "typeRole") == "Timeline") {
+        if (smodel.getData(itemToRender, "typeRole") == "Timeline") {
             if (Math.abs(user_fps - fps_best_guess) > 0.01) {
                 return false
             } else {
                 return true
             }
         } else {
-            var fps_per_media = theSessionData.getAllContainerMediaFPS(itemToRender)
+            var fps_per_media = smodel.getAllContainerMediaFPS(itemToRender)
             for (let i = 0; i < fps_per_media.length; ++i) {
                 let fps = fps_per_media[i];
                 if (Math.abs(user_fps - fps) > 0.01) return false
@@ -126,7 +126,7 @@ XsWindow {
         // media in the playlist)
 
         if (itemToRender == undefined || !itemToRender.valid) return;
-        if (theSessionData.get(itemToRender, "typeRole") == "Timeline") {
+        if (smodel.getData(itemToRender, "typeRole") == "Timeline") {
 
             // use call to getTimelineFullRangeAndLoopRangeAndFPS made above to
             // retrieve the timeline frame rate.
@@ -137,15 +137,15 @@ XsWindow {
             // the first bit of media in the selected container.
 
             // get the model index for the Media List under the playlist
-            var media_list_idx = theSessionData.index(0, 0, itemToRender)
-            var n_media = theSessionData.rowCount(media_list_idx)
+            var media_list_idx = smodel.searchRecursive("Media List", "nameRole", itemToRender)
+            var n_media = smodel.rowCount(media_list_idx)
             for (var i = 0; i < n_media; ++i) {
-                var media_item_idx = theSessionData.index(i, 0, media_list_idx)
+                var media_item_idx = smodel.index(i, 0, media_list_idx)
                 // now get the index for the object
-                var actoruuid = theSessionData.get(media_item_idx, "imageActorUuidRole")
-                let image_source = theSessionData.searchRecursive(actoruuid, "actorUuidRole", media_item_idx)
+                var actoruuid = smodel.getData(media_item_idx, "imageActorUuidRole")
+                let image_source = smodel.searchRecursive(actoruuid, "uuidRole", media_item_idx)
                 if (image_source.valid) {
-                    var _fps = theSessionData.get(image_source, "rateFPSRole")
+                    var _fps = smodel.getData(image_source, "rateFPSRole")
                     if (_fps) {
                         // set the best guess, triggering the combo-box selection
                         fps_best_guess = _fps;
@@ -504,8 +504,8 @@ XsWindow {
                     text: "Use Full"
                     enabled: apply_render_range
                     onClicked: {
-                        if (theSessionData.get(itemToRender, "typeRole") == "Timeline") {
-                            render_range = theSessionData.getTimelineFullRangeAndLoopRangeAndFPS(itemToRender);
+                        if (smodel.getData(itemToRender, "typeRole") == "Timeline") {
+                            render_range = smodel.getTimelineFullRangeAndLoopRangeAndFPS(itemToRender);
                         }
                         if (render_range.length == 4) {
                             inPoint.text = ""+0
@@ -521,8 +521,8 @@ XsWindow {
                     text: "Use Loop"
                     enabled: apply_render_range
                     onClicked: {
-                        if (theSessionData.get(itemToRender, "typeRole") == "Timeline") {
-                            render_range = theSessionData.getTimelineFullRangeAndLoopRangeAndFPS(itemToRender);
+                        if (smodel.getData(itemToRender, "typeRole") == "Timeline") {
+                            render_range = smodel.getTimelineFullRangeAndLoopRangeAndFPS(itemToRender);
                         }
                         if (render_range.length == 4) {
                             inPoint.text = ""+render_range[1]
@@ -876,11 +876,11 @@ XsWindow {
             enabled: outputFile.text != ""
             onClicked: {
 
-                var parentPlaylistUuiid = theSessionData.get(itemToRender, "actorUuidRole")
+                var parentPlaylistUuiid = smodel.getData(itemToRender, "uuidRole")
                 var renderName = selectedContainerName
                 if (["Subset", "Timeline", "ContactSheet"].includes(selectedContainerType)) {
-                    parentPlaylistUuiid = theSessionData.get(itemToRender.parent.parent, "actorUuidRole")
-                    var parentPlaylistName = theSessionData.get(itemToRender.parent.parent, "nameRole")
+                    parentPlaylistUuiid = smodel.getData(itemToRender.parent.parent, "uuidRole")
+                    var parentPlaylistName = smodel.getData(itemToRender.parent.parent, "nameRole")
                     renderName = parentPlaylistName + " / " + renderName
                 }
 

@@ -1765,8 +1765,10 @@ Rectangle {
                     // double clicked on
 
                     // make sure we're looking at the right thing.
-                    currentMediaContainerIndex = timelineModel.rootIndex.parent
-                    viewportCurrentMediaContainerIndex = timelineModel.rootIndex.parent
+                    let idx = timelineModel.rootIndex.parent
+                    let uuid = idx.model.get(idx, "uuidRole")
+                    the_session.values.viewedContainerRole = uuid
+                    the_session.values.inspectedContainerRole = uuid
 
                     callbackTimer.setTimeout(function() { return function() {
                         // we 'un-pin' the timeline playhead so that instead of using

@@ -376,6 +376,43 @@ class UtilityPythonPlugin(PluginBase):
         else:
             raise RuntimeError(f"Container with UUID {container_uuid} not found.")
 
+    def sort_media_by_display_info_column(self, sort_column_idx, ascending):
+        """Sort media by the specified display info column."""
+        from xstudio.core import sort_by_media_display_info_atom
+        container = self.connection.api.session.inspected_container
+        if container:
+            self.connection.send(container.remote, sort_by_media_display_info_atom(), sort_column_idx, ascending)
+
+    def get_timeline_export_types(self):
+        """Get the available timeline export types."""
+        from opentimelineio import adapters
+        return list(adapters.suffixes_with_defined_adapters(True, False))
+
+    def save_session(self, path):
+        """Save the current session to the specified path."""
+        sz = self.connection.api.session.save_as(path)
+        if not sz:
+            raise RuntimeError(f"Failed to save session to {path}.")
+        return path
+
+    def get_bookmarks_on_container_media(self, container_uuids):
+        """Get bookmarks for the specified container media."""
+        r = set()
+        for playlist in self.connection.api.session.playlists:
+            for container in playlist.containers:
+                if container.uuid in container_uuids:
+                    for media in container.media:
+                        bms = media.ordered_bookmarks()
+                        for bookmark in bms:
+                            r.add(bookmark.uuid)
+            if playlist.uuid in container_uuids:
+                for media in container.media:
+                    bms = media.ordered_bookmarks()
+                    for bookmark in bms:
+                        r.add(bookmark.uuid)
+        # todo - handle uuid conversion in json serialisation in C++
+        return [str(r) for r in r]
+
 def create_plugin_instance(connection):
     """Create and return a plugin instance."""
     return UtilityPythonPlugin(connection)

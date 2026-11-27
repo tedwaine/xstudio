@@ -12,7 +12,6 @@ import xstudio.qml.models 1.0
 import xstudio.qml.session 1.0
 import "./menus"
 import "./widgets"
-import "./functions"
 
 Item{
     id: panel
@@ -40,9 +39,6 @@ Item{
     /**************************************************************
     HotKeys
     ****************************************************************/
-    XsPlaylistFunctions {
-        id: playlist_functions
-    }
 
     XsPlaylistHotKeys {
         id: hotkey_area
@@ -50,12 +46,6 @@ Item{
 
     XsFocusRemover {
         target: hotkey_area
-    }
-
-    XsModelProperty {
-        id: notificationProperty
-        role: "notificationRole"
-        index: theSessionData.playlistsRootIdx
     }
 
     ColumnLayout {
@@ -132,7 +122,8 @@ Item{
 
             Repeater {
                 // Layout.preferredHeight: btnHeight
-                model: notificationProperty.value == undefined ? [] : notificationProperty.value
+                // FIXME - Notifications!
+                model: the_session.values.notificationRole
 
                 // notify widget
                 XsNotification {
@@ -175,10 +166,9 @@ Item{
             panelContext: flagMenu.panelContext
             menuModelName: flagMenu.menu_model_name
             onFlagSet: (flag, flag_text) => {
-                theSessionData.set(flagMenu.itemIndex, flag, "flagColourRole")
-
+                flagMenu.itemIndex.model.setRoleData(flagMenu.itemIndex, flag, "flagColourRole")
                 if (flag_text)
-                    theSessionData.set(flagMenu.itemIndex, flag_text, "flagTextRole")
+                    flagMenu.itemIndex.model.setRoleData(flagMenu.itemIndex, flag_text, "flagTextRole")
             }
         }
     }

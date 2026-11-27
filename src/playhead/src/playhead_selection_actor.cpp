@@ -275,7 +275,7 @@ void PlayheadSelectionActor::select_media(
 
     // build list of selected / deselected
 
-    // spdlog::warn("select_media {} {}", retry, mode);
+    spdlog::warn("select_media ");
     // for(const auto &i: media_uuids)
     //     spdlog::warn("{}", to_string(i));
 
@@ -496,6 +496,7 @@ void PlayheadSelectionActor::insert_actor(
 
 void PlayheadSelectionActor::update_selection_indeces() {
 
+    spdlog::warn("Updating selection indices");
     set_data_value(session::selectedMediaRole, PlayheadSelection::items_vec());
 
      // fetch all the media in the playlist
@@ -519,6 +520,7 @@ void PlayheadSelectionActor::update_selection_indeces() {
                             .send(item);
                     }
                 }
+                spdlog::warn("Finished select_media ");
             },
             [=](error &err) mutable {
                 log_caf_error(err, spdlog::level::err);

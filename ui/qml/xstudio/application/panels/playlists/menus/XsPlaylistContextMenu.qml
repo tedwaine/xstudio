@@ -74,7 +74,7 @@ XsPopupMenu {
         menuPath: "Copy To Clipboard"
         menuItemPosition: 2.0
         menuModelName: contextMenu.menu_model_name
-        onActivated: playlist_functions.copySelectedNames()
+        onActivated: sessionFunctions.copySelectedNames()
 
         hotkeyUuid: hotkey_area.copy_names_to_clipboard_hotkey.uuid
 
@@ -94,7 +94,7 @@ XsPopupMenu {
         menuPath: ""
         menuItemPosition: 1.0
         menuModelName: contextMenu.menu_model_name
-        onActivated: playlist_functions.renamePlaylist()
+        onActivated: sessionFunctions.renamePlaylist()
         hotkeyUuid: hotkey_area.rename_hotkey.uuid
         panelContext: contextMenu.panelContext
     }
@@ -105,7 +105,7 @@ XsPopupMenu {
         menuPath: ""
         menuItemPosition: 2.0
         menuModelName: contextMenu.menu_model_name
-        onActivated: playlist_functions.duplicate()
+        onActivated: sessionFunctions.duplicate()
         hotkeyUuid: hotkey_area.duplicate_hotkey.uuid
         panelContext: contextMenu.panelContext
     }
@@ -117,7 +117,7 @@ XsPopupMenu {
         menuPath: ""
         hotkeyUuid: hotkey_area.combine_hotkey.uuid
         menuItemPosition: 3.0
-        onActivated: playlist_functions.combine()
+        onActivated: sessionFunctions.combine()
     }
 
     XsMenuModelItem {
@@ -197,7 +197,7 @@ XsPopupMenu {
         menuPath: "Cleanup"
         menuItemPosition: 32
         menuModelName: contextMenu.menu_model_name
-        onActivated: playlist_functions.removeUnusedMedia()
+        onActivated: sessionFunctions.removeUnusedMedia()
         panelContext: contextMenu.panelContext
         hotkeyUuid: hotkey_area.remove_unused_hotkey.uuid
     }

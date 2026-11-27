@@ -21,6 +21,7 @@ Item {
         rootActor: inspectedContainerActor
         property var selectedMediaUuids: values.selectedMediaRole
         function setMediaSelection(selectedMedia) {
+            console.log("Setting media selection to: ", selectedMedia);
             values.selectedMediaRole = selectedMedia
         }
     }
@@ -31,7 +32,7 @@ Item {
     function soloSelection() {
         for (var i = 0; i < filteredmediaModelData.rowCount(); i++) {
             if (filteredmediaModelData.get(i, "uuidRole") == currentPlayhead.mediaUuid) {
-                setMediaSelection([filteredmediaModelData.get(i, "uuidRole")])
+                mediaSelectionThingy.setMediaSelection([filteredmediaModelData.get(i, "uuidRole")])
                 return;
             }
         }
@@ -80,6 +81,7 @@ Item {
         rootActor: viewedContainerActor
     }
     property alias viewedContainer: viewedContainer
+    property alias viewedContainerProperties: viewedContainer.values
 
     // Access to the playlist/subset/timeline that is currently 
     // filling the MediaList panel

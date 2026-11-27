@@ -27,10 +27,11 @@ namespace {
 
 bool PropertyMap::set_data_value_check(const int key, const AnyPtr &value) {
     AnyPtr current_value = get_data_value(key);
-    if (!current_value) {
+    if (!current_value && value) {
         set_data_value(key, value);
         return true;
     }
+    
     if (ObjectDataTree::values_equal(current_value, value)) {
         return false; // No change
     }
@@ -281,8 +282,31 @@ bool ObjectDataTree::values_equal(const std::any &a, const std::any &b) {
         return std::any_cast<bool>(a) == std::any_cast<bool>(b);
     if (a.type() == typeid(float))
         return std::any_cast<float>(a) == std::any_cast<float>(b);
+    if (a.type() == typeid(double))
+        return std::any_cast<double>(a) == std::any_cast<double>(b);
+    if (a.type() == typeid(caf::uri))
+        return std::any_cast<const caf::uri &>(a) == std::any_cast<const caf::uri &>(b);
+    if (a.type() == typeid(std::vector<std::string>))
+        return std::any_cast<const std::vector<std::string> &>(a) == std::any_cast<const std::vector<std::string> &>(b);
+    if (a.type() == typeid(std::vector<utility::Uuid>))
+        return std::any_cast<const std::vector<utility::Uuid> &>(a) == std::any_cast<const std::vector<utility::Uuid> &>(b);
+    if (a.type() == typeid(std::vector<int>))
+        return std::any_cast<const std::vector<int> &>(a) == std::any_cast<const std::vector<int> &>(b);
     if (a.type() == typeid(JsonStore))
         return std::any_cast<const JsonStore &>(a) == std::any_cast<const JsonStore &>(b);
+    if (a.type() == typeid(nlohmann::json))
+        return std::any_cast<const nlohmann::json &>(a) == std::any_cast<const nlohmann::json &>(b);
+
+    {
+        static std::mutex m;
+        std::lock_guard<std::mutex> lock(m);
+        static std::set<std::string> reported_types;
+        if (reported_types.find(a.type().name()) == reported_types.end()) {
+            reported_types.insert(a.type().name());
+            spdlog::warn("Unsupported type encountered: {}", a.type().name());
+        }
+    }
+
     return false;
 }
 

@@ -224,16 +224,8 @@ XsListView {
                 // selection being dropped from a media list. 'data' should be
                 // a list of model indeces
 
-                // are these indeces from the same list as our list here?
-                if (data.length && data[0].parent == mediaListModelDataRoot) {
-                    // do a move rows
-                    beforeMoveContentY = contentY
-                    theSessionData.moveRows(
-                        data,
-                        dragToEnd ? -1 : dragTargetIndex,
-                        dragTargetIndex.parent.parent
-                        )
-                }
+                // FIXME
+
             }
         }
 
@@ -351,7 +343,7 @@ XsListView {
     }
 
     // FIXME
-    /*XsMediaScrollKeeper {
+    XsMediaScrollKeeper {
         prefix: "L"
-    }*/
+    }
 }

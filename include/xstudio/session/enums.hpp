@@ -75,7 +75,8 @@ MAKE_ENUM(
     inspectedContainerRole,
     mediaFilterStringRole,
     selectedMediaRole,
-    selectionIndexRole
+    selectionIndexRole,
+    modifiedRole
 )
 
 }

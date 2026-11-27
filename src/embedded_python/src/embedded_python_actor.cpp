@@ -994,6 +994,29 @@ void EmbeddedPythonActor::main_loop() {
                                         py::str s(p.key());
                                         args_list[s] = py::cast(actor);
                                     }
+                                } else if (p.value().is_array()) {
+                                    std::vector<utility::Uuid> uuids;
+                                    uuids.reserve(p.value().size());
+                                    bool all_uuids = true;
+                                    for (const auto &value : p.value()) {
+                                        if (!value.is_string()) {
+                                            all_uuids = false;
+                                            break;
+                                        }
+                                        const auto uuid = utility::parse_uuid_string(
+                                            value.get_ref<const std::string &>());
+                                        if (!uuid) {
+                                            all_uuids = false;
+                                            break;
+                                        }
+                                        uuids.push_back(*uuid);
+                                    }
+                                    if (all_uuids) {
+                                        py::list uuid_list;
+                                        for (const auto &uuid : uuids)
+                                            uuid_list.append(py::cast(uuid));
+                                        args_list[py::str(p.key())] = std::move(uuid_list);
+                                    }
                                 }
                                 p++;
                             }

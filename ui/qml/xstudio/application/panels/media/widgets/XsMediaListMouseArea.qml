@@ -52,7 +52,7 @@ MouseArea {
                 // view individual clips in a timeline, whereas the regular
                 // playhead (from a timeline) only plays the whole timeline
                 // itself.
-                viewportCurrentMediaContainerIndex = currentMediaContainerIndex
+                the_session.values.viewedContainerRole = inspectedContainerActor
 
                 // delay plahead start, giving backend time to switch playhead
                 callbackTimer.setTimeout(function() { return function() {
@@ -103,7 +103,7 @@ MouseArea {
             // media item belongs to so that this media item is shown in the
             // viewport
 
-            viewportCurrentMediaContainerIndex = currentMediaContainerIndex            
+            the_session.values.viewedContainerRole = inspectedContainerActor
 
             // delay plahead start, giving backend time to switch playhead
             callbackTimer.setTimeout(function() { return function() {

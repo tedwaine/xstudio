@@ -32,7 +32,6 @@ XsGridView {
 
     delegate: XsMediaGridItemDelegate {
         Layout.preferredWidth: 40
-        // property var media_item_model_index: helpers.makePersistent(theSessionData.index(index, 0, mediaListModelData.rootIndex))
     }
 
 
@@ -206,17 +205,7 @@ XsGridView {
                 // selection being dropped from a media list. 'data' should be
                 // a list of model indeces
 
-                // are these indeces from the same list as our list here?
-                if (data.length && data[0].parent == mediaListModelDataRoot) {
-                    // do a move rows
-                    beforeMoveContentY = contentY
-                    theSessionData.moveRows(
-                        data,
-                        dragTargetIndex,
-                        dragTargetIndex.parent.parent
-                        )
-                    dragTargetIndex = undefined
-                }
+                // FIXME
             }
         }
 
@@ -325,7 +314,7 @@ XsGridView {
     }
 
     // FIXME
-    /*XsMediaScrollKeeper {
+    XsMediaScrollKeeper {
         prefix: "G"
-    }*/
+    }
 }

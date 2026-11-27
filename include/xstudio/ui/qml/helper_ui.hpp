@@ -864,8 +864,14 @@ class HELPER_QML_EXPORT Helpers : public QObject {
 
     Q_INVOKABLE void moduleCallback(const QString &module_actor, const QVariant cb_data);
 
+    // Named argument arrays containing only UUID strings become Python lists of Uuid objects.
     Q_INVOKABLE QFuture<QVariant>
     pythonAsyncCallback(const QString pluginName, const QString method, QVariant args = QVariant()) const;
+
+    Q_INVOKABLE [[nodiscard]] QVariant
+    pythonCallback(const QString pluginName, const QString method, QVariant args = QVariant()) {
+        return pythonAsyncCallback(pluginName, method, args).result();
+    }
 
     Q_INVOKABLE QVariant pluginCallback(const QUuid &plugin_uuid, const QVariant cb_data);
 

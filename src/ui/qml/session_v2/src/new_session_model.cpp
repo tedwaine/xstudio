@@ -11,6 +11,8 @@ using namespace xstudio::ui::qml;
 #include "xstudio/ui/qml/helper_ui.hpp"
 #include "xstudio/thumbnail/thumbnail.hpp"
 #include "xstudio/module/attribute.hpp"
+#include "xstudio/utility/notification_handler.hpp"
+#include "xstudio/session/session_actor.hpp"
 
 CAF_PUSH_WARNINGS
 #include <QQmlExtensionPlugin>
@@ -161,6 +163,8 @@ namespace {
             return std::any_cast<bool>(a);
         if (a.type() == typeid(float))
             return std::any_cast<float>(a);
+        if (a.type() == typeid(double))
+            return std::any_cast<double>(a);
         if (a.type() == typeid(Uuid))
             return QUuidFromUuid(std::any_cast<Uuid>(a));
         if (a.type() == typeid(ColourTriplet))
@@ -414,6 +418,8 @@ caf::message_handler UIDataModel::core_message_handler() {
 
         },
         [=](bool value) {
+        },
+        [=](utility::event_atom, utility::change_atom) {
         }/*,
         [=](caf::message &m) {
             spdlog::warn(
@@ -789,6 +795,69 @@ QString SessionModelRoot::getNextName(const QString &nameTemplate) const {
     return result;
 }
 
+QFuture<bool> SessionModelRoot::importFuture(const QUrl &path, const QVariant &json) {
+    auto notify_processing = Notification::ProcessingNotification(
+        "Importing Session " + StdFromQString(path.path()));
+    auto notification_uuid = notify_processing.uuid();
+    anon_mail(utility::notification_atom_v, notify_processing).send(session_actor_);
+
+    return QtConcurrent::run([=]() {
+        bool result = false;
+        JsonStore js;
+
+        if (json.isNull()) {
+            try {
+                js = utility::open_session(UriFromQUrl(path));
+            } catch (const std::exception &err) {
+                auto notify = Notification::WarnNotification(
+                    std::string("Import Session Failed - ") + err.what());
+                notify.uuid(notification_uuid);
+                anon_mail(utility::notification_atom_v, notify).send(session_actor_);
+                spdlog::warn("{} {}", __PRETTY_FUNCTION__, err.what());
+                return false;
+            }
+        } else {
+            try {
+                js = JsonStore(qvariant_to_json(json));
+            } catch (const std::exception &err) {
+                auto notify = Notification::WarnNotification(
+                    std::string("Import Session Failed - ") + err.what());
+                notify.uuid(notification_uuid);
+                anon_mail(utility::notification_atom_v, notify).send(session_actor_);
+                spdlog::warn("{} {}", __PRETTY_FUNCTION__, err.what());
+                return false;
+            }
+        }
+
+        try {
+            spdlog::stopwatch sw;
+            scoped_actor sys{system()};
+
+            auto session = sys->spawn<session::SessionActor>(js, UriFromQUrl(path));
+
+            request_receive<utility::UuidVector>(
+                *sys, session_actor_, session::merge_session_atom_v, session);
+
+            spdlog::info(
+                "Session {} merged in {:.3} seconds.", StdFromQString(path.path()), sw);
+
+            result      = true;
+            auto notify = Notification::InfoNotification(
+                "Import Session Succeeded", std::chrono::seconds(5));
+            notify.uuid(notification_uuid);
+            anon_mail(utility::notification_atom_v, notify).send(session_actor_);
+
+        } catch (const std::exception &err) {
+            auto notify = Notification::WarnNotification(
+                std::string("Import Session Failed - ") + err.what());
+            notify.uuid(notification_uuid);
+            anon_mail(utility::notification_atom_v, notify).send(session_actor_);
+            spdlog::warn("{} {}", __PRETTY_FUNCTION__, err.what());
+        }
+
+        return result;
+    });
+}
 
 SessionModelNode::SessionModelNode(QObject *parent)
     : SessionModelRoot(parent) {
@@ -870,6 +939,52 @@ void SessionModelNode::reload() {
     } catch (const std::exception &err) {
         spdlog::error("Failed to perform action with child search properties: {}", err.what());
     }
+}
+
+QVariant SessionModelNode::getTimelineFullRangeAndLoopRangeAndFPS(const QModelIndex &tindex) {
+
+    QVariant result;
+    try {
+        const ObjectDataTree *node = node_from_index(tindex);
+        if (!node)
+            return {};
+
+        caf::actor tactor;
+        auto act_addr = node->get_data_value<caf::actor_addr>(session::actorRole);
+        if (act_addr)
+            tactor = caf::actor_cast<caf::actor>(*act_addr);
+        else  {
+            auto act = node->get_data_value<caf::actor>(session::actorRole);
+            if (act)
+                tactor = *act;
+        }
+
+        if (!tactor) {
+            throw std::runtime_error("Failed to get timeline actor");
+        }
+
+        caf::scoped_actor sys(system());
+        auto playhead =
+            utility::request_receive<utility::UuidActor>(*sys, tactor, playlist::get_playhead_atom_v);
+        size_t duration_frames = request_receive<size_t>(
+            *sys, playhead.actor(), playhead::duration_frames_atom_v, true);
+        int loop_start =
+            utility::request_receive<int>(*sys, playhead.actor(), playhead::simple_loop_start_atom_v);
+        int loop_end =
+            utility::request_receive<int>(*sys, playhead.actor(), playhead::simple_loop_end_atom_v);
+        utility::FrameRate rate =
+            utility::request_receive<utility::FrameRate>(*sys, tactor, utility::rate_atom_v);
+
+        QVariantList v;
+        v.push_back(int(duration_frames));
+        v.push_back(int(loop_start));
+        v.push_back(int(loop_end));
+        v.push_back(rate.to_fps());
+        result = v;
+    } catch (const std::exception &err) {
+        spdlog::warn("{} {}", __PRETTY_FUNCTION__, err.what());
+    }
+    return result;
 }
 
 AttributesModelData::AttributesModelData(QObject *parent)

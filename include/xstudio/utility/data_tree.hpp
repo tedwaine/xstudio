@@ -167,6 +167,8 @@ public:
     template <typename T>
     void set_data_value(const int key, const T &value) { data_.set_data_value<T>(key, value); }
 
+    bool set_data_value_check(const int key, const AnyPtr &value) { return data_.set_data_value_check(key, value); }
+
     template <typename T>
     bool set_data_value_check(const int key, const T &value) { return data_.set_data_value_check<T>(key, value); }
 

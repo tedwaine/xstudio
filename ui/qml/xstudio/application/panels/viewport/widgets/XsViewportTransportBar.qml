@@ -45,11 +45,13 @@ Item {
         }
 
         // move selection forwards or backwards
-        if (mediaSelectionModel.selectedIndexes.length == 1) {
-            var idx = mediaSelectionModel.selectedIndexes[0]
-            var idx2 = idx.model.index(idx.row + (forwards ? 1 : -1),0,idx.parent)
+        if (filteredmediaModelData.selectedSourceIndexes.length == 1) {
+            var row = filteredmediaModelData.sourceIndexToRow(filteredmediaModelData.selectedSourceIndexes[0])
+            var new_row = Math.min(filteredmediaModelData.rowCount()-1, Math.max(0, forwards ? row + 1 : row - 1))
+            
+            var idx2 = filteredmediaModelData.rowTorowToSourceIndex(new_row)
             if (idx2.valid)
-                mediaSelectionModel.select(idx2, ItemSelectionModel.ClearAndSelect)
+                 mediaSelectionThingy.setMediaSelection([idx2.model.getData(idx2, "uuidRole")])
         }
 
     }

@@ -18,7 +18,7 @@ XsPlaylistItemBase {
 
     /* .... the third row gives us the data of the subsets/timelines etc. i.e.
     the children lists of the playlist */
-    property var subItemsModelIndex: modelIndex// && modelIndex.valid ? theSessionData.index(2, 0, modelIndex) : undefined
+    property var subItemsModelIndex: modelIndex
     property var subItemsCount: subItemsModel.count
 
     /* Here we have a model to iterate over the contents of the playlist (if
@@ -28,7 +28,6 @@ XsPlaylistItemBase {
 
         // we use the main session data model
         // this is required as "model" doesn't issue notifications on change
-        //property var notifyModel: theSessionData
 
         // we use the main session data model
         model: playlistsModelData

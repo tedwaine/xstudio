@@ -157,21 +157,6 @@ void append_python_list(message_builder &builder, const py::list &list) {
     builder.append(std::move(values));
 }
 
-std::optional<xstudio::utility::Uuid> parse_uuid_string(const std::string &value) {
-    if (value.find('\0') != std::string::npos)
-        return std::nullopt;
-    size_t digits = 0;
-    for (const char c : value)
-        if (c != '-' && c != '{' && c != '}')
-            ++digits;
-    if (digits != 32)
-        return std::nullopt;
-    const auto parsed = uuids::uuid::from_string(value);
-    if (!parsed)
-        return std::nullopt;
-    return xstudio::utility::Uuid(*parsed);
-}
-
 py_context::py_context(int argc, char **argv)
     : py_config(argc, argv),
       py_local_system_(*this),
@@ -243,7 +228,7 @@ std::optional<message> py_context::py_build_message(const py::args &xs, int skip
                 uuid_values.reserve(list.size());
                 for (auto item : list) {
                     strings.push_back(item.cast<std::string>());
-                    const auto uuid = parse_uuid_string(strings.back());
+                    const auto uuid = xstudio::utility::parse_uuid_string(strings.back());
                     if (uuid)
                         uuid_values.push_back(*uuid);
                 }
@@ -265,7 +250,7 @@ std::optional<message> py_context::py_build_message(const py::args &xs, int skip
             continue;
         }
         if (type_name == "str") {
-            const auto uuid = parse_uuid_string((*i).cast<std::string>());
+            const auto uuid = xstudio::utility::parse_uuid_string((*i).cast<std::string>());
             if (uuid) {
                 mb.append(*uuid);
                 continue;

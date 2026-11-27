@@ -16,48 +16,27 @@ Item {
     // machanism to stash the contentY before it gets erased
     // when a new container is selected
     property real storeContentY: 0
-    Connections {
-        target: mediaListModelData
-        enabled: visible
-        function onModelAboutToBeReset() {
-            storeContentY = contentY
-        }
-    }
 
-    // machanism to store and restore the scroll position
-    // whenever the current container changes
-    Connections {
-        target: sessionSelectionModel
-        enabled: visible
-        function onCurrentChanged(cur_idx, prev_idx) {
-            if (prev_idx.valid && storeContentY) {
-                let key = prefix + theSessionData.get(prev_idx, "idRole")
-                scrollKeeper[key] = storeContentY
-                storeContentY = 0
-            }
+    property var watcher: prefix+inspectedContainerActor
+    property var previous
+    onWatcherChanged: storeAndRestoreScrollPosition()
 
-            let key = prefix + inspectedContainerProperties.idRole
-            if (typeof scrollKeeper == "object" && scrollKeeper.hasOwnProperty(key)) {
-                contentY = scrollKeeper[key]
-            }
+    function storeAndRestoreScrollPosition() {
+        if (!inspectedContainerActor)
+            return
+        if (!previous)
+            previous = inspectedContainerActor
+        scrollKeeper[previous] = contentY
+        if (typeof scrollKeeper == "object" && scrollKeeper.hasOwnProperty(inspectedContainerActor)) {
+             callbackTimer.setTimeout(function() { return function() {
+                contentY = scrollKeeper[inspectedContainerActor]
+            }}(), 100);
         }
+        previous = inspectedContainerActor        
     }
 
     // machanisms to store and restore the scroll position
     // whenever the mode is changed between grid and list
-    Component.onDestruction: {
-        let id_ = inspectedContainerProperties.idRole
-        if (id_ && typeof scrollKeeper == "object" ) {
-            let key = prefix + id_
-            scrollKeeper[key] = contentY
-        }
-    }
-    Component.onCompleted: {
-        let id_ = inspectedContainerProperties.idRole
-        if (id_) {
-            let key = prefix + id_
-            if (typeof scrollKeeper == "object" && scrollKeeper.hasOwnProperty(key))
-                contentY = scrollKeeper[key]
-        }
-    }
+    Component.onDestruction: storeAndRestoreScrollPosition()
+    Component.onCompleted: storeAndRestoreScrollPosition()
 }

@@ -9,6 +9,7 @@
 #include <cstring>
 #include <list>
 #include <map>
+#include <optional>
 #include <string>
 
 #include <caf/actor.hpp>
@@ -99,6 +100,21 @@ struct Uuid {
             uuid_ = tmp.value();
     }
 };
+
+inline std::optional<Uuid> parse_uuid_string(const std::string &value) {
+    if (value.find('\0') != std::string::npos)
+        return std::nullopt;
+    size_t digits = 0;
+    for (const char c : value)
+        if (c != '-' && c != '{' && c != '}')
+            ++digits;
+    if (digits != 32)
+        return std::nullopt;
+    const auto parsed = uuids::uuid::from_string(value);
+    if (!parsed)
+        return std::nullopt;
+    return Uuid(*parsed);
+}
 
 
 //! Type instection for caf::serialise

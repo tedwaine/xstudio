@@ -48,15 +48,15 @@ Item {
     }
 
     function updateDecorations() {
-        if(typeRole == "Playlist" && !placeHolder) {
-            /*let meta = theSessionData.getJSONObject(modelIndex, "/ui/decorators")
+        if(typeRole == "Playlist" && !placeHolder && modelIndex && modelIndex.valid) {
+            let meta = modelIndex.model.getJSON(modelIndex, "/ui/decorators")
             if(meta != undefined) {
                 let tmp = []
                 for (const [key, value] of Object.entries(meta)) {
                   tmp.push([key, value])
                 }
                 decoratorModel = tmp
-            }*/
+            }
         }
     }
 
@@ -113,23 +113,23 @@ Item {
     property var modelIndex: parent.modelIndex
 
     onModelIndexChanged: {
-        /*if (modelIndex.valid && modelIndex.row) {
-            let prev_item_idx = theSessionData.index(modelIndex.row-1,0,modelIndex.parent)
-            lineVisible = theSessionData.get(prev_item_idx, "typeRole") != "ContainerDivider"
+        if (modelIndex && modelIndex.valid && modelIndex.row) {
+            let prev_item_idx = modelIndex.model.index(modelIndex.row-1,0,modelIndex.parent)
+            lineVisible = prev_item_idx.model.getData(prev_item_idx, "typeRole") != "ContainerDivider"
         } else {
             lineVisible = true
-        }*/
+        }
         updateDecorations()
     }
 
     /* first index in playlist is media ... */
 
-    property bool isCurrent: modelIndex == currentMediaContainerIndex
+    property bool isCurrent: uuidRole == inspectedContainerProperties.uuidRole
     property bool isSelected: modelIndex ? playlistsSelectionModel.isSelected(modelIndex) : false
     property bool isMissing: false
     property bool isExpanded: false
     property bool isExpandable: false
-    property bool isViewed: modelIndex == viewportCurrentMediaContainerIndex
+    property bool isViewed: uuidRole == viewedContainerProperties.uuidRole
     property bool lineVisible: true
 
     property alias hovered: ma.containsMouse
